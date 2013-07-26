@@ -13,17 +13,19 @@ bl_info = {
 
 if "bpy" in locals():
     import imp
+    imp.reload(vi_ui)
     imp.reload(vi_node)
 else:
-    from . import vi_node 
+    from . import vi_ui, vi_node
 
-import sys, os, platform, inspect, glob, bpy
+import sys, os, platform, inspect, glob, bpy, nodeitems_utils
+from nodeitems_utils import NodeItem, NodeCategory
 
 epversion = "8-0-0" 
 addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
 
 if str(sys.platform) == 'darwin':
-    if "/usr/local/radiance/lib:{}/io_visuite/lib".format(addonpath) not in os.environ["RAYPATH"]:
+    if not hasattr(os.environ, 'RAYPATH'):
         if platform.architecture() == "64bit":
             os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/io_visuite/osx/64:/Applications/EnergyPlus-{}/bin".format(addonpath, epversion)
         else:
@@ -31,7 +33,7 @@ if str(sys.platform) == 'darwin':
         os.environ["RAYPATH"] = "/usr/local/radiance/lib:{}/io_visuite/lib".format(addonpath)
 
 if str(sys.platform) == 'linux':
-    if "/usr/local/radiance/lib:{}/io_visuite/lib".format(addonpath) not in os.environ["RAYPATH"]:
+    if not hasattr(os.environ, 'RAYPATH'):
         os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/io_visuite/osx:/usr/local/EnergyPlus-{}/bin".format(addonpath, epversion)
         os.environ["RAYPATH"] = "/usr/local/radiance/lib:{}/io_visuite/lib".format(addonpath)
 
@@ -55,15 +57,15 @@ matpath = sys.path[0]+'/EPFiles/Materials/Materials.data'
 epwpath = sys.path[0]+'/EPFiles/Weather/'
 weatherlist = [((filename, os.path.basename(filename).strip('.epw').split(".")[0], 'Weather Location')) for filename in glob.glob(epwpath+"/*.epw")]
 
-
-bpy.ops.node.new_node_tree(type='ViN', name ="VI-Suite Node Tree")
+               
+#bpy.ops.node.new_node_tree(type='ViN', name ="VI-Suite Node Tree")
 
 def register():
-    vinode_categories = [
-        # identifier, label, items list
-        ViNodeCategory("Analysis", "Analysis Node", items=[
-            NodeItem("ViNode", label="VI-Suite analysis node")
-            ]),]
-    bpy.utils.register_module(__name__)
-
+    bpy.utils.register_class(vi_node.ViNetwork)
+    bpy.utils.register_class(vi_node.ViNode)
+    nodeitems_utils.register_node_categories("Vi Nodes", vi_node.vinode_categories)
     
+def unregister():
+    bpy.utils.unregister_class(vi_node.ViNetwork)
+    bpy.utils.unregister_class(vi_node.ViNode)
+    nodeitems_utils.unregister_node_categories("Vi Nodes", vi_node.vinode_categories)

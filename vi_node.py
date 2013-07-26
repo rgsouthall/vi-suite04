@@ -44,11 +44,41 @@ class ViNode(bpy.types.Node, ViNodes):
     
     buildtype = [('0', "School", "School lighting standard"), ('1', "Residential", "Residential lighting standard")]
     animtype = [('0', "Static", "Simple static analysis"), ('1', "Animated", "Animated analysis")]
+    skytype = [    ("0", "Sunny", "CIE Sunny Sky description"),
+                   ("1", "Partly Coudy", "CIE Sunny Sky description"),
+                   ("2", "Coudy", "CIE Partly Cloudy Sky description"),
+                   ("3", "DF Sky", "Daylight Factor Sky description"),
+                   ("4", "HDR Sky", "HDR file sky"),
+                   ("5", "Radiance Sky", "Radiance file sky"),
+                   ("6", "None", "No Sky")]
     
     analysismenu = bpy.props.EnumProperty(name="", description="Type of VI-Suite analysis", items = analysistype, default = '0')
     lanalysismenu = bpy.props.EnumProperty(name="", description="Type of Lighting analysis", items = lanalysistype, default = '0')
     buildmenu = bpy.props.EnumProperty(name="", description="Type of building", items=buildtype, default = '0')
     animmenu = bpy.props.EnumProperty(name="", description="Type of building", items=animtype, default = '0')
+    skymenu = bpy.props.EnumProperty(items=skytype, name="", description="Specify the type of sky for the simulation", default="0")
+    shour = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=24, default=12)
+    sdoy = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=365, default=1)
+    daysav = bpy.props.BoolProperty(name="", description="Enable daylight saving clock", default=False)
+    lati = bpy.props.FloatProperty(name="", description="Site Latitude", min=-90, max=90, default=52)
+    longi = bpy.props.FloatProperty(name="", description="Site Longitude relative to local meridian", min=-15, max=15, default=0) 
+    cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
+            name="", description="Specify the calculation point geometry", default="1")
+    
+    stamer = bpy.props.EnumProperty(
+            items=[("0", "YST", ""),("1", "PST", ""),("2", "MST", ""),("3", "CST", ""),("4", "EST", ""),("GMT", "GMT", ""),("6", "CET", ""),("7", "EET", ""),
+                   ("8", "AST", ""),("9", "GST", ""),("10", "IST", ""),("11", "JST", ""),("12", "NZST", ""), ],
+            name="Meridian", description="Specify the local meridian", default="GMT")
+    
+    summer = bpy.props.EnumProperty(
+            items=[("0", "YDT", ""),("1", "PDT", ""),("2", "MDT", ""),("3", "CDT", ""),("4", "EDT", ""),("BST", "BST", ""),("6", "CEST", ""),
+                   ("7", "EEST", ""),("8", "ADT", ""),("9", "GDT", ""),("10", "IDT", ""),("11", "JDT", ""),("12", "NZDT", ""),],
+            name="", description="Specify the local Summertime meridian", default="BST")
+
+#    sday28 = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=28, default=1)
+#    sday30 = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=30, default=1)
+#    sday31 = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=31, default=1)
+#    smonth = bpy.props.IntProperty(name="", description="Month of simulation", min=1, max=12, default=1)
     
 #    def init(self, context):
 #        print('hi')
@@ -63,14 +93,42 @@ class ViNode(bpy.types.Node, ViNodes):
             row.prop(self, 'lanalysismenu')
             row = layout.row()
             if self.lanalysismenu in ('0', '1'):
+                row.label("Animation:")
                 row.prop(self, 'animmenu')
                 if self.animmenu == '0':
-                    row = layout.row()    
+                    row = layout.row() 
+                    row.label("Sky type:")
+                    row.prop(self, 'skymenu')
+                    if self.skymenu in ('0', '1', '2'):
+                        row = layout.row() 
+                        row.label("Daylight saving:")
+                        row.prop(self, 'daysav')
+                        row = layout.row() 
+                        row.label("Local meridian:")
+                        row.prop(self, 'stamer') if self.daysav == False else row.prop(self, 'summer')
+                        row = layout.row() 
+                        row.label("Latitude:")
+                        row.prop(self, 'lati')
+                        row = layout.row() 
+                        row.label("Longitude:")
+                        row.prop(self, 'longi')
+                        row = layout.row() 
+                        row.label("Hour:")
+                        row.prop(self, 'shour')
+                        row = layout.row() 
+                        row.label("Day of year:")
+                        row.prop(self, 'sdoy')
+                    
             elif self.lanalysismenu == '7':
                 row = layout.row()
                 row.label("Build type:")
                 row.prop(self, 'buildmenu')
             
+            if self.lanalysismenu in ('0', '1', '2', '3', '4', '5'):
+                row = layout.row()
+                row.label("Calculation points:")
+                row.prop(self, 'cpoint')
+                
 class ViNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):

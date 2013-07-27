@@ -19,7 +19,6 @@ else:
     from . import vi_ui, vi_node
 
 import sys, os, platform, inspect, glob, bpy, nodeitems_utils
-from nodeitems_utils import NodeItem, NodeCategory
 
 epversion = "8-0-0" 
 addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
@@ -62,10 +61,24 @@ weatherlist = [((filename, os.path.basename(filename).strip('.epw').split(".")[0
 
 def register():
     bpy.utils.register_class(vi_node.ViNetwork)
-    bpy.utils.register_class(vi_node.ViNode)
+    bpy.utils.register_class(vi_node.ViLiNode)
+    bpy.utils.register_class(vi_node.ViLiCNode)
+    bpy.utils.register_class(vi_node.ViLiCBNode)
+    bpy.utils.register_class(vi_node.ViSPNode)
+    bpy.utils.register_class(vi_node.ViSSNode)
+    bpy.utils.register_class(vi_node.ViWRNode)
+    bpy.utils.register_class(vi_node.ViGNode)
+    bpy.utils.register_class(vi_node.ViEPNode)
     nodeitems_utils.register_node_categories("Vi Nodes", vi_node.vinode_categories)
     
 def unregister():
     bpy.utils.unregister_class(vi_node.ViNetwork)
-    bpy.utils.unregister_class(vi_node.ViNode)
+    bpy.utils.unregister_class(vi_node.ViLiNode)
+    bpy.utils.unregister_class(vi_node.ViLiCNode)
+    bpy.utils.unregister_class(vi_node.ViLiCBNode)
+    bpy.utils.unregister_class(vi_node.ViSPNode)
+    bpy.utils.unregister_class(vi_node.ViSSNode)
+    bpy.utils.unregister_class(vi_node.ViWRNode)
+    bpy.utils.unregister_class(vi_node.ViGNode)
+    bpy.utils.unregister_class(vi_node.ViEPNode)
     nodeitems_utils.unregister_node_categories("Vi Nodes", vi_node.vinode_categories)

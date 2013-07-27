@@ -17,8 +17,40 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy
+import bpy, bpy_extras
 from nodeitems_utils import NodeCategory, NodeItem
+
+class PHi(bpy.types.Operator):
+    bl_idname = "phi"
+    def execute(self):
+        print('hi')
+
+class EPWSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
+    bl_idname = "epwselect"
+    bl_label = "Select EPW file"
+    bl_description = "Select the EnergyPlus weather file"
+    filename = ""
+    filename_ext = ".HDR;.hdr;.epw;.EPW;"
+    filter_glob = bpy.props.StringProperty(default="*.HDR;*.hdr;*.epw;*.EPW;", options={'HIDDEN'})
+    bl_register = True
+    bl_undo = True
+    
+    def draw(self,context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Import EPW File with FileBrowser", icon='WORLD_DATA')
+        row = layout.row()
+
+    def execute(self, context):
+        if self.filepath.split(".")[-1] in ("epw", "EPW", "HDR", "hdr"):
+            self.epwname = self.filepath
+        if " " in self.filepath:
+            self.report({'ERROR'}, "There is a space either in the EPW filename or its directory location. Remove this space and retry opening the file.")
+        return {'FINISHED'}
+
+    def invoke(self,context,event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
 class ViNetwork(bpy.types.NodeTree):
     '''A node tree for VI-Suite analysis.'''
@@ -89,6 +121,9 @@ class ViLiNode(bpy.types.Node, ViNodes):
 #    sday31 = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=31, default=1)
 #    smonth = bpy.props.IntProperty(name="", description="Month of simulation", min=1, max=12, default=1)
     
+    def hi(self):
+        print('hi')
+        
     def init(self, context):
         print('hi')
                 
@@ -166,6 +201,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
            row = layout.row()
            row.label("Radiance parameters:")
            row.prop(self, 'cusacc') 
+        layout.operator(PHi.bl_idname)
                 
 class ViLiCBNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite climate based lighting node'''
@@ -175,19 +211,31 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
 
     analysistype = [('0', "Annual Light Exposure", "LuxHours Calculation"), ('1', "Annual Radiation Exposure", "kWh/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Availability", "DA (%) Calculation")]
     analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0')
+    animtype = [('0', "Static", "Simple static analysis"), ('1', "Geometry", "Animated time analysis"), ('2', "Material", "Animated time analysis"), ('3', "Lights", "Animated time analysis")]
+    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = '0')
+
     simacc = bpy.props.EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),("3", "Custom", "Edit Radiance parameters"), ],
             name="", description="Simulation accuracy", default="0")
     cusacc = bpy.props.StringProperty(
             name="", description="Custom Radiance simulation parameters", default="")
+    epwname = bpy.props.StringProperty(
+            name="", description="Name of the EnergyPlus weather file", default="", subtype='FILE_PATH')
+#    epwsel = EPWSelect()
     
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.label("Analysis Type:")
         row.prop(self, 'analysismenu')
         row = layout.row()
+        row.label('EPW file:')
+        row.prop(self, "epwname")
+        row = layout.row()
+        row.label('Animation:')
+        row.prop(self, "animmenu")
+        row = layout.row()
         row.label("Accuracy:")
         row.prop(self, 'simacc')
-        if self.simacc == '1':
+        if self.simacc == '3':
            row = layout.row()
            row.label("Radiance parameters:")
            row.prop(self, 'cusacc') 
@@ -200,7 +248,9 @@ class ViLiCNode(bpy.types.Node, ViNodes):
     
     analysistype = [('0', "BREEAM", "BREEAM HEA1 calculation"), ('1', "LEED", "LEED EQ8.1 calculation"), ('2', "Green Star", "Green Star Calculation")]  
     buildtype = [('0', "School", "School lighting standard"), ('1', "Residential", "Residential lighting standard")]
-    
+    animtype = [('0', "Static", "Simple static analysis"), ('1', "Geometry", "Animated time analysis"), ('2', "Material", "Animated time analysis"), ('3', "Lights", "Animated time analysis")]
+    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = '0')
+
     analysismenu = bpy.props.EnumProperty(name="", description="Type of analysis", items = analysistype, default = '0')
     buildmenu = bpy.props.EnumProperty(name="", description="Type of building", items=buildtype, default = '0')  
     simacc = bpy.props.EnumProperty(items=[("0", "Standard", "Standard accuracy for this metric"),("1", "Custom", "Edit Radiance parameters"), ],
@@ -212,6 +262,9 @@ class ViLiCNode(bpy.types.Node, ViNodes):
         row = layout.row()
         row.label("Compliance standard:")
         row.prop(self, 'analysismenu')
+        row = layout.row()
+        row.label('Animation:')
+        row.prop(self, "animmenu")
         row = layout.row()
         row.label("Accuracy:")
         row.prop(self, 'simacc')
@@ -264,3 +317,4 @@ vinode_categories = [ViNodeCategory("Analysis", "Analysis Nodes", items=vinodeca
                
 class ViLiWResOut(bpy.types.NodeSocket):
     pass
+

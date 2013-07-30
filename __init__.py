@@ -50,16 +50,16 @@ elif str(sys.platform) == 'win32':
         print("Cannot find a valid Radiance directory. Please check that you have Radiance installed in either C:\Program Files(x86) (64bit windows) \
 or C:\Program Files (32bit windows)")
 
-matpath = os.path.dirname(inspect.getfile(inspect.currentframe()))+'/EPFiles/Materials/Materials.data'
-epwpath = os.path.dirname(inspect.getfile(inspect.currentframe()))+'/EPFiles/Weather/'
-matpath = sys.path[0]+'/EPFiles/Materials/Materials.data'
-epwpath = sys.path[0]+'/EPFiles/Weather/'
-weatherlist = [((filename, os.path.basename(filename).strip('.epw').split(".")[0], 'Weather Location')) for filename in glob.glob(epwpath+"/*.epw")]
-
+matpath = addonpath+'/EPFiles/Materials/Materials.data'
+epwpath = addonpath+'/EPFiles/Weather/'
                
 #bpy.ops.node.new_node_tree(type='ViN', name ="VI-Suite Node Tree")
 
 def register():
+    bpy.utils.register_class(vi_node.NODE_OT_epwselect)
+    bpy.utils.register_class(vi_node.NODE_OT_preview)
+    bpy.utils.register_class(vi_node.NODE_OT_calculate)
+    bpy.utils.register_class(vi_node.NODE_OT_geoexport)
     bpy.utils.register_class(vi_node.ViNetwork)
     bpy.utils.register_class(vi_node.ViLiNode)
     bpy.utils.register_class(vi_node.ViLiCNode)
@@ -72,6 +72,10 @@ def register():
     nodeitems_utils.register_node_categories("Vi Nodes", vi_node.vinode_categories)
     
 def unregister():
+    bpy.utils.unregister_class(vi_node.NODE_OT_epwselect)
+    bpy.utils.unregister_class(vi_node.NODE_OT_preview)
+    bpy.utils.unregister_class(vi_node.NODE_OT_calculate)
+    bpy.utils.unregister_class(vi_node.NODE_OT_geoexport)
     bpy.utils.unregister_class(vi_node.ViNetwork)
     bpy.utils.unregister_class(vi_node.ViLiNode)
     bpy.utils.unregister_class(vi_node.ViLiCNode)

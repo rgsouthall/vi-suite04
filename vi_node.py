@@ -17,40 +17,10 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, bpy_extras
+import bpy, bpy_extras, glob, os, inspect
 from nodeitems_utils import NodeCategory, NodeItem
 
-class PHi(bpy.types.Operator):
-    bl_idname = "phi"
-    def execute(self):
-        print('hi')
 
-class EPWSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
-    bl_idname = "epwselect"
-    bl_label = "Select EPW file"
-    bl_description = "Select the EnergyPlus weather file"
-    filename = ""
-    filename_ext = ".HDR;.hdr;.epw;.EPW;"
-    filter_glob = bpy.props.StringProperty(default="*.HDR;*.hdr;*.epw;*.EPW;", options={'HIDDEN'})
-    bl_register = True
-    bl_undo = True
-    
-    def draw(self,context):
-        layout = self.layout
-        row = layout.row()
-        row.label(text="Import EPW File with FileBrowser", icon='WORLD_DATA')
-        row = layout.row()
-
-    def execute(self, context):
-        if self.filepath.split(".")[-1] in ("epw", "EPW", "HDR", "hdr"):
-            self.epwname = self.filepath
-        if " " in self.filepath:
-            self.report({'ERROR'}, "There is a space either in the EPW filename or its directory location. Remove this space and retry opening the file.")
-        return {'FINISHED'}
-
-    def invoke(self,context,event):
-        context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}
 
 class ViNetwork(bpy.types.NodeTree):
     '''A node tree for VI-Suite analysis.'''
@@ -121,12 +91,13 @@ class ViLiNode(bpy.types.Node, ViNodes):
 #    sday31 = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=31, default=1)
 #    smonth = bpy.props.IntProperty(name="", description="Month of simulation", min=1, max=12, default=1)
     
-    def hi(self):
-        print('hi')
-        
     def init(self, context):
-        print('hi')
-                
+        self.outputs.new('ViLiWResOut', 'Out')
+    
+    def update(self):
+            if self.outputs['Out'].is_linked:
+                self.analysismenu = '1'
+    
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.label("Analysis type:")
@@ -201,8 +172,12 @@ class ViLiNode(bpy.types.Node, ViNodes):
            row = layout.row()
            row.label("Radiance parameters:")
            row.prop(self, 'cusacc') 
-        layout.operator(PHi.bl_idname)
-                
+        row = layout.row()
+        row.operator("node.preview", text = 'Preview')
+        row.operator("node.calculate", text = 'Calculate')
+        
+        
+
 class ViLiCBNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite climate based lighting node'''
     bl_idname = 'ViLiCBNode'
@@ -219,7 +194,7 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
     cusacc = bpy.props.StringProperty(
             name="", description="Custom Radiance simulation parameters", default="")
     epwname = bpy.props.StringProperty(
-            name="", description="Name of the EnergyPlus weather file", default="", subtype='FILE_PATH')
+            name="", description="Name of the EnergyPlus weather file", default="")
 #    epwsel = EPWSelect()
     
     def draw_buttons(self, context, layout):
@@ -228,7 +203,9 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         row.prop(self, 'analysismenu')
         row = layout.row()
         row.label('EPW file:')
-        row.prop(self, "epwname")
+        row.operator(NODE_OT_epwselect.bl_idname, text = 'Select EPW').nodename = self.name
+        row = layout.row()
+        row.prop(self, "epwname")        
         row = layout.row()
         row.label('Animation:')
         row.prop(self, "animmenu")
@@ -239,6 +216,9 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
            row = layout.row()
            row.label("Radiance parameters:")
            row.prop(self, 'cusacc') 
+        row = layout.row()
+        row.operator("node.preview", text = 'Preview')
+        row.operator("node.calculate", text = 'Calculate').nodename = self.name
 
 class ViLiCNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite lighting compliance node'''
@@ -272,49 +252,166 @@ class ViLiCNode(bpy.types.Node, ViNodes):
            row = layout.row()
            row.label("Radiance parameters:")
            row.prop(self, 'cusacc') 
-
+        row = layout.row()
+        row.operator("node.preview", text = 'Preview')
+        row.operator("node.calculate", text = 'Calculate').nodename = self.name
+        
 class ViSPNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite sun path'''
     bl_idname = 'ViSPNode'
     bl_label = 'VI Sun Path'
     bl_icon = 'LAMP'
     
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.operator("node.calculate", text = 'Calculate').nodename = self.name    
+
+
 class ViSSNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite sun path'''
     bl_idname = 'ViSPNode'
     bl_label = 'VI Sun Path'
     bl_icon = 'LAMP'
     
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.operator("node.calculate", text = 'Calculate').nodename = self.name
+
 class ViWRNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite wind rose generator'''
     bl_idname = 'ViWRNode'
     bl_label = 'VI Wind Rose'
     bl_icon = 'LAMP'
 
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.operator("node.calculate", text = 'Calculate').nodename = self.name
+        
 class ViGNode(bpy.types.Node, ViNodes):
     '''Node describing a glare analysis'''
     bl_idname = 'ViGNode'
     bl_label = 'VI Glare'
     bl_icon = 'LAMP'
 
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.operator("node.calculate", text = 'Calculate').nodename = self.name
+        
 class ViEPNode(bpy.types.Node, ViNodes):
     '''Node describing a glare analysis'''
     bl_idname = 'ViEPNode'
     bl_label = 'VI EnergyPLus analysis'
     bl_icon = 'LAMP'    
     
+    envi_pregeo = bpy.props.BoolProperty(name="Export geometry", description="EnVi geometry export flag", default = True)
+    envi_location = bpy.props.StringProperty(name="Project name/location", description="Identifier for this project", default="")
+    envi_terrain = bpy.props.EnumProperty(
+            items=[("0", "City", "Towns, city outskirts, centre of large cities"),
+                   ("1", "Urban", "Urban, Industrial, Forest"),
+                    ("2", "Suburbs", "Rough, Wooded Country, Suburbs"),
+                    ("3", "Country", "Flat, Open Country"),
+                    ("4", "Ocean", "Ocean, very flat country"),
+                   ],
+            name="",
+            description="Specify the surrounding terrain",
+            default="0")
+
+    addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
+    matpath = addonpath+'/EPFiles/Materials/Materials.data'
+    epwpath = addonpath+'/EPFiles/Weather/'
+    weatherlist = [((filename, os.path.basename(filename).strip('.epw').split(".")[0], 'Weather Location')) for filename in glob.glob(epwpath+"/*.epw")]
+    envi_weather = bpy.props.EnumProperty(items = weatherlist, name="Weather location", description="Weather for this project")
+    
+    def init(self, context):
+        pass
+    
+    
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.operator("node.geoexport", text="Geometry Export")
+        if self.envi_pregeo == True:
+            row = layout.row()
+            row.prop(self, "envi_location")
+            row = layout.row()
+            row.prop(self, "envi_weather")
+            row = layout.row()
+            row.label(text = 'Terrain:')
+            col = row.column()
+            col.prop(self, "envi_terrain")
+        row = layout.row()
+
+        row.operator("node.calculate", text = 'Calculate').nodename = self.name
+        
 class ViNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):
         return context.space_data.tree_type == 'ViN'
 
 vinodecat = [NodeItem("ViLiNode", label="VI-Suite lighting analysis"), NodeItem("ViLiCNode", label="VI-Suite lighting compliance"), NodeItem("ViLiCBNode", label="VI-Suite climate based lighting"),\
-             NodeItem("ViLiSPNode", label="VI-Suite sun path"), NodeItem("ViLiSSNode", label="VI-Suite shadow study"), NodeItem("ViLiWRNode", label="VI-Suite wind rose"), NodeItem("ViLiWRNode", label="VI-Suite glare"), NodeItem("ViLiEPNode", label="VI-Suite energy")] 
+             NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), NodeItem("ViGNode", label="VI-Suite glare"), NodeItem("ViEPNode", label="VI-Suite energy")] 
 
 # identifier, label, items list
 vinode_categories = [ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat)] 
         
                
 class ViLiWResOut(bpy.types.NodeSocket):
-    pass
+    '''LiVi irradiance out socket'''
+    bl_idname = 'LiViWOut'
+    bl_label = 'LiVi W/m2 out'
+    
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+        
+    def draw_color(self, context, node):
+        return (1.0, 0.2, 0.2, 0.75)
 
+class NODE_OT_preview(bpy.types.Operator):
+    bl_idname = "node.preview"
+    bl_label = "Radiance Preview"
+    
+    def execute(self, context):
+        return {'FINISHED'}
+
+class NODE_OT_calculate(bpy.types.Operator):
+    bl_idname = "node.calculate"
+    bl_label = "Radiance Export and Simulation"
+    nodename = bpy.props.StringProperty()
+    
+    def execute(self, context):
+        return {'FINISHED'}
+
+class NODE_OT_geoexport(bpy.types.Operator):
+    bl_idname = "node.geoexport"
+    bl_label = "Radiance Export and Simulation"
+    nodename = bpy.props.StringProperty()
+    
+    def execute(self, context):
+        return {'FINISHED'}
+        
+class NODE_OT_epwselect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
+    bl_idname = "node.epwselect"
+    bl_label = "Select EPW file"
+    bl_description = "Select the EnergyPlus weather file"
+    filename = ""
+    filename_ext = ".HDR;.hdr;.epw;.EPW;"
+    filter_glob = bpy.props.StringProperty(default="*.HDR;*.hdr;*.epw;*.EPW;", options={'HIDDEN'})
+    bl_register = True
+    bl_undo = True
+    nodename = bpy.props.StringProperty()
+
+    def draw(self,context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Import EPW File with FileBrowser", icon='WORLD_DATA')
+        row = layout.row()
+
+    def execute(self, context):
+        if self.filepath.split(".")[-1] in ("epw", "EPW", "HDR", "hdr"):
+            bpy.data.node_groups['NodeTree'].nodes[self.nodename].epwname = self.filepath
+        if " " in self.filepath:
+            self.report({'ERROR'}, "There is a space either in the EPW filename or its directory location. Remove this space and retry opening the file.")
+        return {'FINISHED'}
+
+    def invoke(self,context,event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}

@@ -15,11 +15,14 @@ if "bpy" in locals():
     import imp
     imp.reload(vi_ui)
     imp.reload(vi_node)
+    imp.reload(vi_operators)
 else:
-    from . import vi_ui, vi_node
+    from . import vi_ui, vi_node, vi_operators
 
 import sys, os, platform, inspect, glob, bpy, nodeitems_utils
+from bpy.types import IntProperty, StringProperty, EnumProperty, FloatProperty
 
+ 
 epversion = "8-0-0" 
 addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
 
@@ -56,10 +59,39 @@ epwpath = addonpath+'/EPFiles/Weather/'
 #bpy.ops.node.new_node_tree(type='ViN', name ="VI-Suite Node Tree")
 
 def register():
-    bpy.utils.register_class(vi_node.NODE_OT_epwselect)
-    bpy.utils.register_class(vi_node.NODE_OT_preview)
-    bpy.utils.register_class(vi_node.NODE_OT_calculate)
-    bpy.utils.register_class(vi_node.NODE_OT_geoexport)
+    Object = bpy.types.Object    
+
+# Object properties
+    Object.livi_calc = IntProperty(
+            name="LiVi calc object", description="Boolean for calculation object", default=0)
+    
+    Object.livi_res = IntProperty(
+            name="LiVi res object", description="Boolean for results object", default=0)
+            
+    Object.livi_merr = IntProperty(
+            name="LiVi simple mesh export", description="Boolean for simple mesh export", default=0)
+            
+    Object.ies_name = StringProperty(name="Path", description="IES File", maxlen=1024, default="")
+
+    Object.ies_strength = FloatProperty(name="Lamp strength:", description="Strength of IES lamp", min = 0, max = 1, default = 1)
+
+    Object.ies_unit = EnumProperty(
+            items=[("m", "Meters", ""),
+                   ("c", "Centimeters", ""),
+                    ("f", "Feet", ""),
+                    ("i", "Inches", ""),
+                    ],
+            name="IES dimension",
+            description="Specify the IES file measurement unit",
+            default="m")
+            
+    bpy.utils.register_class(vi_operators.NODE_OT_epwselect)
+    bpy.utils.register_class(vi_operators.NODE_OT_preview)
+    bpy.utils.register_class(vi_operators.NODE_OT_calculate)
+    bpy.utils.register_class(vi_operators.NODE_OT_geoexport)
+    bpy.utils.register_class(vi_operators.NODE_OT_export)
+    bpy.utils.register_class(vi_node.EnViDataIn)
+    bpy.utils.register_class(vi_node.ViLiWResOut)
     bpy.utils.register_class(vi_node.ViNetwork)
     bpy.utils.register_class(vi_node.ViLiNode)
     bpy.utils.register_class(vi_node.ViLiCNode)
@@ -70,12 +102,16 @@ def register():
     bpy.utils.register_class(vi_node.ViGNode)
     bpy.utils.register_class(vi_node.ViEPNode)
     nodeitems_utils.register_node_categories("Vi Nodes", vi_node.vinode_categories)
-    
+
+            
 def unregister():
-    bpy.utils.unregister_class(vi_node.NODE_OT_epwselect)
-    bpy.utils.unregister_class(vi_node.NODE_OT_preview)
-    bpy.utils.unregister_class(vi_node.NODE_OT_calculate)
-    bpy.utils.unregister_class(vi_node.NODE_OT_geoexport)
+    bpy.utils.unregister_class(vi_operators.NODE_OT_epwselect)
+    bpy.utils.unregister_class(vi_operators.NODE_OT_preview)
+    bpy.utils.unregister_class(vi_operators.NODE_OT_calculate)
+    bpy.utils.unregister_class(vi_operators.NODE_OT_geoexport)
+    bpy.utils.unregister_class(vi_operators.NODE_OT_export)
+    bpy.utils.unregister_class(vi_node.EnViDataIn)
+    bpy.utils.unregister_class(vi_node.ViLiWResOut)
     bpy.utils.unregister_class(vi_node.ViNetwork)
     bpy.utils.unregister_class(vi_node.ViLiNode)
     bpy.utils.unregister_class(vi_node.ViLiCNode)

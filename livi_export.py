@@ -30,7 +30,7 @@ except:
     
 class LiVi_bc(object):
     '''Base settings class for LiVi'''
-    def __init__(self, filepath, scene):
+    def __init__(self, filepath):
         if str(sys.platform) != 'win32':
             self.nproc = str(multiprocessing.cpu_count())
             self.rm = "rm "
@@ -53,16 +53,16 @@ class LiVi_bc(object):
             
 class LiVi_e(LiVi_bc):
     '''Export settings class for LiVi'''
-    def __init__(self, filepath, scene, sd, tz, export_op):
-        LiVi_bc.__init__(self, filepath, scene)
+    def __init__(self, filepath, node, export_op):
+        scene = bpy.context.scene
+        LiVi_bc.__init__(self, filepath)
         self.simtimes = []
-        self.TZ = tz
-        self.StartD = sd
+        self.TZ = node.tz
         self.scene.livi_display_legend = -1
         self.clearscenee()
         self.clearscened()
-        self.sky_type = int(scene.livi_export_sky_type)
-        self.time_type = int(scene.livi_export_time_type)
+        self.skytype = int(node.skytype)
+#        self.time_type = int(node.timetype)
         self.merr = 0
         self.rtrace = self.filebase+".rtrace"
         self.metric = ""
@@ -70,33 +70,30 @@ class LiVi_e(LiVi_bc):
         for a in bpy.app.handlers.frame_change_pre:
             bpy.app.handlers.frame_change_pre.remove(a)
   
-        if scene.livi_anim == "0":
+        if node.analysismenu == '2':
             scene.frame_start = 0
-            scene.frame_end = 0 
-            if scene.livi_export_time_type == "0":
-                self.starttime = datetime.datetime(2010, int(scene.livi_export_start_month), int(scene.livi_export_start_day), int(scene.livi_export_start_hour), 0)
-            self.fe = 0
-            self.frameend = 0
-
-        elif scene.livi_anim == "1":
-            self.scene.livi_export_time_type = "0"
-            self.sky_type = int(scene.livi_export_sky_type_period)
-            self.starttime = datetime.datetime(2010, int(scene.livi_export_start_month), int(scene.livi_export_start_day), int(scene.livi_export_start_hour), 0)
-            self.endtime = datetime.datetime(2010, int(scene.livi_export_end_month), int(scene.livi_export_end_day), int(scene.livi_export_end_hour), 0)
-            self.hours = (self.endtime-self.starttime).days*24 + (self.endtime-self.starttime).seconds/3600
-            scene.frame_start = 0
-            scene.frame_end = int(self.hours/scene.livi_export_interval)
-            self.fe = int(self.hours/scene.livi_export_interval)
-            self.frameend = int(self.hours/scene.livi_export_interval)
-            
-        elif scene.livi_anim in ("2", "3", "4"):
-            self.fe = scene.frame_end
-            self.frameend = 0
-            if scene.livi_export_time_type == "0":
-                self.starttime = datetime.datetime(2010, int(scene.livi_export_start_month), int(scene.livi_export_start_day), int(scene.livi_export_start_hour), 0)
+            if node.timetype != '0':
+                self.fe = scene.frame_end
+                self.frameend = 0 
+            else:
+                self.fe = 0
+                self.frameend = 0
         
-        if self.sky_type < 4 and self.scene.livi_export_time_type == "0":    
-            self.skytypeparams = ("+s", "+i", "-c", "-b 22.86 -c")[self.sky_type]
+        elif self.skytype < 3:
+            scene.frame_start = 0
+            self.starttime = datetime.datetime(2013, 1, 1, node.shour) + datetime.timedelta(node.sdoy - 1)
+            if node.timetype == '1':
+                self.endtime = datetime.datetime(2013, 1, 1, node.ehour) + datetime.timedelta(node.edoy - 1)
+                self.hours = (self.endtime-self.starttime).days*24 + (self.endtime-self.starttime).seconds/3600
+                scene.frame_start = 0
+                scene.frame_end = int(self.hours/node.interval)
+                self.fe = int(self.hours/node.interval)
+                self.frameend = int(self.hours/node.interval)
+        
+        
+       
+        if self.skytype < 4 and self.scene.livi_export_time_type == "0":    
+            self.skytypeparams = ("+s", "+i", "-c", "-b 22.86 -c")[self.skytype]
             self.radskyhdrexport()
             if self.sky_type < 2 or self.scene.livi_anim == "1":
                 self.sunexport()

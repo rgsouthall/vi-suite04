@@ -90,7 +90,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
             
     interval = bpy.props.FloatProperty(name="", description="Site Latitude", min=0.25, max=24, default=1)
     exported = bpy.props.BoolProperty(default=False)
-
+    disp_leg = bpy.props.BoolProperty(default=False)
 #    sday28 = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=28, default=1)
 #    sday30 = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=30, default=1)
 #    sday31 = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=31, default=1)
@@ -153,6 +153,10 @@ class ViLiNode(bpy.types.Node, ViNodes):
                 row = layout.row() 
                 row.label("End day of year:")
                 row.prop(self, 'edoy')
+                if self.edoy < self.sdoy:
+                    self.doy = self.sdoy
+                if self.doy == self.sdoy and self.ehour < self.shour: 
+                    self.ehour = self.shour
                 row = layout.row() 
                 row.label("Interval (hours):")
                 row.prop(self, 'interval')
@@ -165,7 +169,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
         row.label("Calculation points:")
         row.prop(self, 'cpoint')
         row = layout.row()
-        row.operator("node.export", text = "Export").nodename = self.name
+        row.operator("node.liexport", text = "Export").nodename = self.name
         if self.exported == True:
             row = layout.row()
             row.label("Accuracy:")

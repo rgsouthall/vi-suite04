@@ -17,7 +17,6 @@ class NODE_OT_calculate(bpy.types.Operator):
     
     def execute(self, context):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-        
         return {'FINISHED'}
 
 class NODE_OT_geoexport(bpy.types.Operator):
@@ -67,53 +66,35 @@ class NODE_OT_epwselect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
         
-class NODE_LiVi_Export(bpy.types.Operator, io_utils.ExportHelper):
-    bl_idname = "node.livi_export"
+class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
+    bl_idname = "node.liexport"
     bl_label = "Export"
     bl_description = "Export the scene to the Radiance file format"
     bl_register = True
     bl_undo = True
     
     nodename = bpy.props.StringProperty()
+    timetype = bpy.props.StringProperty()
+    TZ = bpy.props.StringProperty()
     
     def invoke(self, context, event):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
         node.exported = True
         global lexport
         if bpy.data.filepath:
-            scene = context.scene
-            if node.livi_export_time_type == "0" or node.livi_anim == "1":
-#                scene['skytype'] = int(scene.livi_export_sky_type_period) if scene.livi_anim == "1" else int(scene.livi_export_sky_type)
-#                if scene.livi_export_start_month == 2:
-#                    startD = scene.livi_export_start_day28
-#                elif scene.livi_export_start_month in (4, 6, 9, 11):
-#                    startD = scene.livi_export_start_day30
-#                else:
-#                    startD = scene.livi_export_start_day        
-                TZ = node.summer if node.daysav == True else node.stamer
-
-                    
-            elif scene.livi_export_time_type == "1":
-                startD = 1
-                TZ = 0
-                scene['skytype'] = 6
-                if scene.livi_export_epw_name == "":
-                    self.report({'ERROR'},"Select an EPW weather file.")
-                    return {'FINISHED'}
-
-            scene['cp'] = int(scene.livi_export_calc_points)
+            self.TZ = node.summer if node.daysav == True else node.stamer
+            self.timetype = node.animtype if node.analysismenu != '2' else node.dfanimtype
 
             if bpy.context.object:
                 if bpy.context.object.type == 'MESH' and bpy.context.object.hide == False and bpy.context.object.layers[0] == True:
                     bpy.ops.object.mode_set(mode = 'OBJECT')
+            
             if " " not in bpy.data.filepath:
-                lexport = livi_export.LiVi_e(bpy.data.filepath, scene, startD, TZ, self)   
-
-                lexport.scene.livi_display_legend = -1
+                livi_export.LiVi_e(bpy.data.filepath, node, self)   
+                node.disp_leg = False
             else:    
                 self.report({'ERROR'},"The directory path or Blender filename has a space in it. Please save again without any spaces")
                 return {'FINISHED'}
-            
             return {'FINISHED'}
         else:
             self.report({'ERROR'},"Save the Blender file before exporting")

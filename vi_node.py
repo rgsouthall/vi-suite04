@@ -17,7 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, bpy_extras, glob, os, inspect
+import bpy, bpy_extras, glob, os, inspect, sys
 from nodeitems_utils import NodeCategory, NodeItem
 #from . import vi_operators
 
@@ -42,11 +42,10 @@ class ViLiNode(bpy.types.Node, ViNodes):
     bl_label = 'VI Lighting Analysis'
     bl_icon = 'LAMP'
     
-#    analysistype = [('0', "Lighting", "LiVi Radiance Calculation"), ('1', "Energy", "EnVi EnergyPlus Calculation"), ('2', "Solar", "Sun Path Visualisation"), ('3', "Wind", "Wind Rose Visualisation"), ('4', "Shadow", "Shadow Study")]
     analysistype = [('0', "Illuminance", "Lux Calculation"), ('1', "Irradiance", "W/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Factor", "DF (%) Calculation"),]     
 
-    animtype = [('0', "Static", "Simple static analysis"), ('1', "Time", "Animated time analysis"), ('2', "Geometry", "Animated time analysis"), ('3', "Material", "Animated time analysis"), ('4', "Lights", "Animated time analysis")]
-    dfanimtype = [('0', "Static", "Simple static analysis"), ('1', "Geometry", "Animated time analysis"), ('2', "Material", "Animated time analysis"), ('3', "Lights", "Animated time analysis")]
+    animtype = [('Static', "Static", "Simple static analysis"), ('Time', "Time", "Animated time analysis"), ('Geometry', "Geometry", "Animated time analysis"), ('Material', "Material", "Animated time analysis"), ('Lights', "Lights", "Animated time analysis")]
+    dfanimtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated time analysis"), ('Material', "Material", "Animated time analysis"), ('Lights', "Lights", "Animated time analysis")]
 
     skytype = [    ("0", "Sunny", "CIE Sunny Sky description"),
                    ("1", "Partly Coudy", "CIE Sunny Sky description"),
@@ -56,10 +55,15 @@ class ViLiNode(bpy.types.Node, ViNodes):
                    ("5", "Radiance Sky", "Radiance file sky"),
                    ("6", "None", "No Sky")]
     
-#    analysismenu = bpy.props.EnumProperty(name="", description="Type of VI-Suite analysis", items = analysistype, default = '0')
     analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0')
-    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = '0')
-    dfanimmenu = bpy.props.EnumProperty(name="", description="Animation type", items=dfanimtype, default = '0')
+    if str(sys.platform) != 'win32':
+        simalg = (" |  rcalc  -e '$1=47.4*$1+120*$2+11.6*$3' ", " |  rcalc  -e '$1=$1' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' ")[int(analysismenu)]
+    else:
+        simalg = (' |  rcalc  -e "$1=47.4*$1+120*$2+11.6*$3" ', ' |  rcalc  -e "$1=$1" ', ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ')[int(analysismenu)]
+    resname = ("illumout", "irradout", "dfout")[int(analysismenu)]
+    unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(analysismenu)]
+    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static')
+    dfanimmenu = bpy.props.EnumProperty(name="", description="Animation type", items=dfanimtype, default = 'Static')
     skymenu = bpy.props.EnumProperty(items=skytype, name="", description="Specify the type of sky for the simulation", default="0")
     shour = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=24, default=12)
     sdoy = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=365, default=1)
@@ -91,44 +95,22 @@ class ViLiNode(bpy.types.Node, ViNodes):
     interval = bpy.props.FloatProperty(name="", description="Site Latitude", min=0.25, max=24, default=1)
     exported = bpy.props.BoolProperty(default=False)
     disp_leg = bpy.props.BoolProperty(default=False)
-#    sday28 = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=28, default=1)
-#    sday30 = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=30, default=1)
-#    sday31 = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=31, default=1)
-#    smonth = bpy.props.IntProperty(name="", description="Month of simulation", min=1, max=12, default=1)
+    hdrname = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="")
+    skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="")
+    anim = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="")
     
-   
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.label("Analysis type:")
         row.prop(self, 'analysismenu')
         row = layout.row()
         if self.analysismenu in ('0', '1'):
-            row.label("Animation:")
-            row.prop(self, 'animmenu')
-            if self.animmenu in ('0', '2', '3', '4'):
-                row = layout.row() 
-                row.label("Sky type:")
-                row.prop(self, 'skymenu')
-                if self.skymenu in ('0', '1', '2'):
-                    row = layout.row() 
-                    row.label("Daylight saving:")
-                    row.prop(self, 'daysav')
-                    row = layout.row() 
-                    row.label("Local meridian:")
-                    row.prop(self, 'stamer') if self.daysav == False else row.prop(self, 'summer')
-                    row = layout.row() 
-                    row.label("Latitude:")
-                    row.prop(self, 'lati')
-                    row = layout.row() 
-                    row.label("Longitude:")
-                    row.prop(self, 'longi')
-                    row = layout.row() 
-                    row.label("Hour:")
-                    row.prop(self, 'shour')
-                    row = layout.row() 
-                    row.label("Day of year:")
-                    row.prop(self, 'sdoy')
-            else:
+            row.label("Sky type:")
+            row.prop(self, 'skymenu')
+            if self.skymenu in ('0', '1', '2'):
+                row = layout.row()
+                row.label("Animation:")
+                row.prop(self, 'animmenu')
                 row = layout.row() 
                 row.label("Daylight saving:")
                 row.prop(self, 'daysav')
@@ -147,19 +129,38 @@ class ViLiNode(bpy.types.Node, ViNodes):
                 row = layout.row() 
                 row.label("Start day of year:")
                 row.prop(self, 'sdoy')
+                if self.animmenu == '1':
+                    row = layout.row() 
+                    row.label("End hour:")
+                    row.prop(self, 'ehour')
+                    row = layout.row() 
+                    row.label("End day of year:")
+                    row.prop(self, 'edoy')
+                    if self.edoy < self.sdoy:
+                        self.edoy = self.sdoy
+                    if self.edoy == self.sdoy and self.ehour < self.shour: 
+                        self.ehour = self.shour
+                    row = layout.row() 
+                    row.label("Interval (hours):")
+                    row.prop(self, 'interval')
+            elif self.skymenu == '4':
                 row = layout.row() 
-                row.label("End hour:")
-                row.prop(self, 'ehour')
+                row.label("HDR file:")
+                row.operator('node.hdrselect', text = 'HDR select') 
                 row = layout.row() 
-                row.label("End day of year:")
-                row.prop(self, 'edoy')
-                if self.edoy < self.sdoy:
-                    self.doy = self.sdoy
-                if self.doy == self.sdoy and self.ehour < self.shour: 
-                    self.ehour = self.shour
+                row.prop(self, 'hdrname') 
                 row = layout.row() 
-                row.label("Interval (hours):")
-                row.prop(self, 'interval')
+                row.label("Animation:")
+                row.prop(self, 'dfanimmenu')
+            elif self.skymenu == '5':
+                row = layout.row() 
+                row.label("Radiance file:")
+                row.operator('node.skyselect', text = 'Sky select') 
+                row = layout.row() 
+                row.prop(self, 'skyname') 
+                row = layout.row() 
+                row.label("Animation:")
+                row.prop(self, 'dfanimmenu')
         else:
             row = layout.row() 
             row.label("Animation:")
@@ -179,18 +180,16 @@ class ViLiNode(bpy.types.Node, ViNodes):
                row.label("Radiance parameters:")
                row.prop(self, 'cusacc') 
             row = layout.row()
-            row.operator("node.preview", text = 'Preview').nodename = self.name
+            row.operator("node.radpreview", text = 'Radiance Preview').nodename = self.name
             row.operator("node.calculate", text = 'Calculate').nodename = self.name
         
-        
-
 class ViLiCBNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite climate based lighting node'''
     bl_idname = 'ViLiCBNode'
     bl_label = 'VI Climate Based Daylighting Analysis'
     bl_icon = 'LAMP'
 
-    analysistype = [('0', "Annual Light Exposure", "LuxHours Calculation"), ('1', "Annual Radiation Exposure", "kWh/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Availability", "DA (%) Calculation"), ('2', "Hourly irradiance", "Irradiance for each simulation time step")]
+    analysistype = [('0', "Annual Light Exposure", "LuxHours Calculation"), ('1', "Annual Radiation Exposure", "kWh/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Availability", "DA (%) Calculation"), ('3', "Hourly irradiance", "Irradiance for each simulation time step")]
     analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0')
     animtype = [('0', "Static", "Simple static analysis"), ('1', "Geometry", "Animated time analysis"), ('2', "Material", "Animated time analysis"), ('3', "Lights", "Animated time analysis")]
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = '0')
@@ -230,7 +229,7 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
            row.label("Radiance parameters:")
            row.prop(self, 'cusacc') 
         row = layout.row()
-        row.operator("node.preview", text = 'Preview').nodename = self.name
+        row.operator("node.radpreview", text = 'Preview').nodename = self.name
         row.operator("node.calculate", text = 'Calculate').nodename = self.name
 
 class ViLiCNode(bpy.types.Node, ViNodes):
@@ -270,7 +269,7 @@ class ViLiCNode(bpy.types.Node, ViNodes):
            row.label("Radiance parameters:")
            row.prop(self, 'cusacc') 
         row = layout.row()
-        row.operator("node.preview", text = 'Preview')
+        row.operator("node.radpreview", text = 'Preview')
         row.operator("node.calculate", text = 'Calculate').nodename = self.name
         
 class ViSPNode(bpy.types.Node, ViNodes):

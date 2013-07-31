@@ -13,14 +13,13 @@ bl_info = {
 
 if "bpy" in locals():
     import imp
-    imp.reload(vi_ui)
     imp.reload(vi_node)
     imp.reload(vi_operators)
 else:
-    from . import vi_ui, vi_node, vi_operators
+    from . import vi_node, vi_operators
 
 import sys, os, platform, inspect, glob, bpy, nodeitems_utils
-from bpy.types import IntProperty, StringProperty, EnumProperty, FloatProperty
+from bpy.types import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty
 
  
 epversion = "8-0-0" 
@@ -62,33 +61,32 @@ def register():
     Object = bpy.types.Object    
 
 # Object properties
-    Object.livi_calc = IntProperty(
-            name="LiVi calc object", description="Boolean for calculation object", default=0)
-    
-    Object.livi_res = IntProperty(
-            name="LiVi res object", description="Boolean for results object", default=0)
+    Object.licalc = BoolProperty(name="LiVi calc object", description="Boolean for calculation object", default = False)
+    Object.lires = BoolProperty(name="LiVi res object", description="Boolean for results object", default= False)
+#            
+#    Object.livi_merr = IntProperty(
+#            name="LiVi simple mesh export", description="Boolean for simple mesh export", default=0)
+#            
+#    Object.ies_name = StringProperty(name="Path", description="IES File", maxlen=1024, default="")
+#
+#    Object.ies_strength = FloatProperty(name="Lamp strength:", description="Strength of IES lamp", min = 0, max = 1, default = 1)
+#
+#    Object.ies_unit = EnumProperty(
+#            items=[("m", "Meters", ""),
+#                   ("c", "Centimeters", ""),
+#                    ("f", "Feet", ""),
+#                    ("i", "Inches", ""),
+#                    ],
+#            name="IES dimension",
+#            description="Specify the IES file measurement unit",
+#            default="m")
             
-    Object.livi_merr = IntProperty(
-            name="LiVi simple mesh export", description="Boolean for simple mesh export", default=0)
-            
-    Object.ies_name = StringProperty(name="Path", description="IES File", maxlen=1024, default="")
-
-    Object.ies_strength = FloatProperty(name="Lamp strength:", description="Strength of IES lamp", min = 0, max = 1, default = 1)
-
-    Object.ies_unit = EnumProperty(
-            items=[("m", "Meters", ""),
-                   ("c", "Centimeters", ""),
-                    ("f", "Feet", ""),
-                    ("i", "Inches", ""),
-                    ],
-            name="IES dimension",
-            description="Specify the IES file measurement unit",
-            default="m")
-            
-    bpy.utils.register_class(vi_operators.NODE_OT_epwselect)
-    bpy.utils.register_class(vi_operators.NODE_OT_preview)
-    bpy.utils.register_class(vi_operators.NODE_OT_calculate)
-    bpy.utils.register_class(vi_operators.NODE_OT_geoexport)
+    bpy.utils.register_class(vi_operators.NODE_OT_EpwSelect)
+    bpy.utils.register_class(vi_operators.NODE_OT_HdrSelect)
+    bpy.utils.register_class(vi_operators.NODE_OT_SkySelect)
+    bpy.utils.register_class(vi_operators.NODE_OT_RadPreview)
+    bpy.utils.register_class(vi_operators.NODE_OT_Calculate)
+    bpy.utils.register_class(vi_operators.NODE_OT_GeoExport)
     bpy.utils.register_class(vi_operators.NODE_OT_LiExport)
     bpy.utils.register_class(vi_node.EnViDataIn)
     bpy.utils.register_class(vi_node.ViLiWResOut)
@@ -105,10 +103,12 @@ def register():
 
             
 def unregister():
-    bpy.utils.unregister_class(vi_operators.NODE_OT_epwselect)
-    bpy.utils.unregister_class(vi_operators.NODE_OT_preview)
-    bpy.utils.unregister_class(vi_operators.NODE_OT_calculate)
-    bpy.utils.unregister_class(vi_operators.NODE_OT_geoexport)
+    bpy.utils.unregister_class(vi_operators.NODE_OT_EpwSelect)
+    bpy.utils.unregister_class(vi_operators.NODE_OT_HdrSelect)
+    bpy.utils.unregister_class(vi_operators.NODE_OT_SkySelect)
+    bpy.utils.unregister_class(vi_operators.NODE_OT_RadPreview)
+    bpy.utils.unregister_class(vi_operators.NODE_OT_Calculate)
+    bpy.utils.unregister_class(vi_operators.NODE_OT_GeoExport)
     bpy.utils.unregister_class(vi_operators.NODE_OT_LiExport)
     bpy.utils.unregister_class(vi_node.EnViDataIn)
     bpy.utils.unregister_class(vi_node.ViLiWResOut)

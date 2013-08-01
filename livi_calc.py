@@ -51,7 +51,6 @@ def rad_prev(lexport, node, prev_op):
 
         
 def li_calc(lexport, node, calc_op):
-    
     if node.simacc == "3":
         params = node.cusacc
     else:
@@ -70,22 +69,23 @@ def li_calc(lexport, node, calc_op):
             res[frame].append(float(line.decode()))
         resfile.write("{}".format(res[frame]).strip("]").strip("["))
         resfile.close()
-    resapply(res, lexport)
+    resapply(res, lexport, node)
     calc_op.report({'INFO'}, "Calculation is finished.")
 
-def resapply(self, res, lexport):
-    maxres = []
-    minres = []
-    avres = []
+def resapply(res, lexport, node):
+    scene = bpy.context.scene
+    node.maxres = []
+    node.minres = []
+    node.avres = []
     
     for frame in range(0, lexport.scene.frame_end+1):
-        maxres.append(max(res[frame]))
-        minres.append(min(res[frame]))
-        avres.append(sum(res[frame])/len(res[frame]))
+        node.maxres.append(max(res[frame]))
+        node.minres.append(min(res[frame]))
+        node.avres.append(sum(res[frame])/len(res[frame]))
         
-    self.scene['resav'] = avres
-    self.scene['resmax'] = maxres
-    self.scene['resmin'] = minres
+#    self.scene['resav'] = avres
+#    self.scene['resmax'] = maxres
+#    self.scene['resmin'] = minres
 
     for frame in range(0, lexport.scene.frame_end+1):
         rgb = []
@@ -93,15 +93,15 @@ def resapply(self, res, lexport):
         mcol_i = 0
         f = 0
         for i in range(0, len(res[frame])):
-            h = 0.75*(1-(res[frame][i]-min(lexport.scene['resmin']))/(max(lexport.scene['resmax']) + 0.01 - min(lexport.scene['resmin'])))
+            h = 0.75*(1-(res[frame][i]-min(node.minres))/(max(node.maxres) + 0.01 - min(node.minres)))
             rgb.append(colorsys.hsv_to_rgb(h, 1.0, 1.0))
 
-        for geo in [geo for geo in self.scene.objects if geo.type == 'MESH']:
+        for geo in [geo for geo in scene.objects if geo.type == 'MESH']:
             bpy.ops.object.select_all(action = 'DESELECT')
-            self.scene.objects.active = None
+            scene.objects.active = None
             try:
                 if hasattr(geo, 'calc') and geo['calc'] == 1:
-                    self.scene.objects.active = geo
+                    scene.objects.active = geo
                     geo.select = True
                     if frame == 0:
                         while len(geo.data.vertex_colors) > 0:
@@ -113,14 +113,14 @@ def resapply(self, res, lexport):
              
                     for face in geo.data.polygons:
                         if "calcsurf" in str(geo.data.materials[face.material_index].name):
-                            if self.scene['cp'] == 1:
+                            if node.cpoint == '1':
                                 for loop_index in face.loop_indices:
                                     v = geo.data.loops[loop_index].vertex_index
                                     col_i = [vi for vi, vval in enumerate(geo['cverts']) if v == geo['cverts'][vi]][0]
                                     lcol_i.append(col_i)
                                     vertexColour.data[loop_index].color = rgb[col_i+mcol_i]
                                 
-                            if self.scene['cp'] == 0:
+                            if node.cpoint == '0':
                                 for loop_index in face.loop_indices:
                                     vertexColour.data[loop_index].color = rgb[f]
                                 f += 1
@@ -130,8 +130,8 @@ def resapply(self, res, lexport):
             except Exception as e:
                 print(e)
 
-            if geo.livi_calc == 1:
-                self.scene.objects.active = geo
+            if geo.licalc == 1:
+                scene.objects.active = geo
                 geo.select = True
                 if frame == 0:
                     while len(geo.data.vertex_colors) > 0:
@@ -143,7 +143,7 @@ def resapply(self, res, lexport):
          
                 for face in geo.data.polygons:
                     if "calcsurf" in str(geo.data.materials[face.material_index].name):
-                        if self.scene['cp'] == 1:
+                        if node.cpoint == '1':
                             cvtup = tuple(geo['cverts'])
                             for loop_index in face.loop_indices:
                                 v = geo.data.loops[loop_index].vertex_index
@@ -152,17 +152,18 @@ def resapply(self, res, lexport):
                                 lcol_i.append(col_i)
                                 vertexColour.data[loop_index].color = rgb[col_i+mcol_i]
 
-                        if self.scene['cp'] == 0:
+                        if node.cpoint == '0':
                             for loop_index in face.loop_indices:
                                 vertexColour.data[loop_index].color = rgb[f]
                             f += 1
                 mcol_i = len(list(set(lcol_i)))
-    lexport.scene.livi_display_panel = 1
+    lexport.scene.lidisplay = 1
     
-    for frame in range(0, self.scene.frame_end+1):
-        bpy.ops.anim.change_frame(frame = frame)
-        for geo in self.scene.objects:
-            if geo.livi_calc == 1:
+    for frame in range(0, scene.frame_end+1):
+        bpy.context.scene.frame_set(frame)
+#        bpy.ops.anim.change_frame(frame = frame)
+        for geo in scene.objects:
+            if geo.licalc == 1:
                 for vc in geo.data.vertex_colors:
                     if frame == int(vc.name):
                         vc.active = 1

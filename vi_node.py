@@ -56,12 +56,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
                    ("6", "None", "No Sky")]
     
     analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0')
-    if str(sys.platform) != 'win32':
-        simalg = (" |  rcalc  -e '$1=47.4*$1+120*$2+11.6*$3' ", " |  rcalc  -e '$1=$1' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' ")[int(analysismenu)]
-    else:
-        simalg = (' |  rcalc  -e "$1=47.4*$1+120*$2+11.6*$3" ', ' |  rcalc  -e "$1=$1" ', ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ')[int(analysismenu)]
-    resname = ("illumout", "irradout", "dfout")[int(analysismenu)]
-    unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(analysismenu)]
+    simalg = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="")
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static')
     dfanimmenu = bpy.props.EnumProperty(name="", description="Animation type", items=dfanimtype, default = 'Static')
     skymenu = bpy.props.EnumProperty(items=skytype, name="", description="Specify the type of sky for the simulation", default="0")
@@ -98,6 +93,9 @@ class ViLiNode(bpy.types.Node, ViNodes):
     hdrname = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="")
     skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="")
     anim = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="")
+    timetype = bpy.props.StringProperty()
+    TZ = bpy.props.StringProperty()
+    resname = bpy.props.StringProperty()
     
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -129,7 +127,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
                 row = layout.row() 
                 row.label("Start day of year:")
                 row.prop(self, 'sdoy')
-                if self.animmenu == '1':
+                if self.animmenu == 'Time':
                     row = layout.row() 
                     row.label("End hour:")
                     row.prop(self, 'ehour')

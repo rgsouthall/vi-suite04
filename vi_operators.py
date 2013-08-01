@@ -1,16 +1,8 @@
-import bpy, bpy_extras
+import bpy, bpy_extras, sys
 import bpy_extras.io_utils as io_utils
 from . import livi_export
 from . import livi_calc
-
-class NODE_OT_Calculate(bpy.types.Operator):
-    bl_idname = "node.calculate"
-    bl_label = "Radiance Export and Simulation"
-    nodename = bpy.props.StringProperty()
-    
-    def execute(self, context):
-        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-        return {'FINISHED'}
+from . import vi_display
 
 class NODE_OT_GeoExport(bpy.types.Operator):
     bl_idname = "node.geoexport"
@@ -123,12 +115,18 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
     bl_undo = True
     
     nodename = bpy.props.StringProperty()
-    timetype = bpy.props.StringProperty()
-    TZ = bpy.props.StringProperty()
-    
+        
     def invoke(self, context, event):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
         node.exported = True
+        node.resname = ("illumout", "irradout", "dfout")[int(node.analysismenu)]
+        node.unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(node.analysismenu)]
+        
+        if str(sys.platform) != 'win32':
+            node.simalg = (" |  rcalc  -e '$1=47.4*$1+120*$2+11.6*$3' ", " |  rcalc  -e '$1=$1' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' ")[int(node.analysismenu)]
+        else:
+            node.simalg = (' |  rcalc  -e "$1=47.4*$1+120*$2+11.6*$3" ', ' |  rcalc  -e "$1=$1" ', ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ')[int(node.analysismenu)]
+    
         global lexport
         if bpy.data.filepath:
             node.TZ = node.summer if node.daysav == True else node.stamer
@@ -162,3 +160,71 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
         livi_calc.rad_prev(lexport, node, self)
         return {'FINISHED'}
+        
+class NODE_OT_Calculate(bpy.types.Operator):
+    bl_idname = "node.calculate"
+    bl_label = "Radiance Export and Simulation"
+    nodename = bpy.props.StringProperty()
+    
+    def invoke(self, context, event):
+        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
+        livi_calc.li_calc(lexport, node, self)
+        vi_display.li_display(node)
+        return {'FINISHED'}
+        
+class VIEW3D_OT_LiDisplay(bpy.types.Operator):
+    bl_idname = "view3d.lidisplay"
+    bl_label = "Radiance Results Display"
+    bl_description = "Display the results on the sensor surfaces"
+    bl_register = True
+    bl_undo = True
+       
+    def invoke(self, context, event):
+        global ldisplay
+        try:
+            vi_display.lidisplay()
+            bpy.ops.view3d.linumdisplay()
+        except:
+            self.report({'ERROR'},"No results available for display. Try re-running the calculation.")
+            raise
+        return {'FINISHED'}
+ 
+class VIEW3D_OT_LiNumDisplay(bpy.types.Operator):
+    '''Display results legend and stats in the 3D View'''
+    bl_idname = "view3d.linumdisplay"
+    bl_label = "Display results legend and stats in the 3D View"
+    bl_options = {'REGISTER'}
+    
+    def modal(self, context, event):
+        context.area.tag_redraw()
+        if context.scene.livi_display_legend == -1:
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle_stat, 'WINDOW')
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
+            ldisplay.rp_display = False
+            return {'CANCELLED'}
+        return {'PASS_THROUGH'} 
+        
+class IES_Select(bpy.types.Operator, io_utils.ImportHelper):
+    bl_idname = "livi.ies_select"
+    bl_label = "Select IES file"
+    bl_description = "Select the lamp IES file"
+    filename = ""
+    filename_ext = ".ies; .IES"
+    filter_glob = bpy.props.StringProperty(default="*.ies; *.IES", options={'HIDDEN'})
+    bl_register = True
+    bl_undo = True
+
+    def draw(self,context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Open an IES File with the file browser", icon='WORLD_DATA')
+         
+    def execute(self, context):
+        lamp = bpy.context.active_object
+        lamp['ies_name'] = self.filepath if " " not in self.filepath else self.report({'ERROR'}, "There is a space either in the IES filename or directory location. Rename or move the file.")
+        return {'FINISHED'}
+
+    def invoke(self,context,event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}

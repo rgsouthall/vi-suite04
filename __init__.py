@@ -89,7 +89,8 @@ def register():
     
     Scene.vipath = StringProperty(name="VI Path", description="Path to files included with the VI-Suite ", maxlen=1024, default=addonpath)        
 
-        
+    Scene.livi_disp_3d = BoolProperty(name="VI 3D display", description="Boolean for 3D results display", default= False)
+    
     bpy.utils.register_class(vi_operators.NODE_OT_EpwSelect)
     bpy.utils.register_class(vi_operators.NODE_OT_HdrSelect)
     bpy.utils.register_class(vi_operators.NODE_OT_SkySelect)

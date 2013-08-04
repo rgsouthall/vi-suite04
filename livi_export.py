@@ -71,36 +71,65 @@ class LiVi_e(LiVi_bc):
   
         if node.analysismenu == '2':
             scene.frame_start = 0
-            self.fe = 0
+            self.frameend = 0
             if node.timetype != 'Static':
                 scene.frame_end = 0
                 self.fe = scene.frame_end
                 self.frameend = 0 
         
-        elif self.skytype < 4:
+       
+        if node.timetype == 'Static': 
             scene.frame_start = 0
-            self.fe = 0
+            scene.frame_end = 0
             self.frameend = 0
-            self.starttime = datetime.datetime(2013, 1, 1, node.shour) + datetime.timedelta(node.sdoy - 1)
-            if node.timetype == 'Time':
-                self.endtime = datetime.datetime(2013, 1, 1, node.ehour) + datetime.timedelta(node.edoy - 1)
-                self.hours = (self.endtime-self.starttime).days*24 + (self.endtime-self.starttime).seconds/3600
-                scene.frame_start = 0
-                scene.frame_end = int(self.hours/node.interval)
-                self.fe = int(self.hours/node.interval)
-                self.frameend = int(self.hours/node.interval)
-                self.skytypeparams = ("+s", "+i", "-c", "-b 22.86 -c")[self.skytype]
-                self.radskyhdrexport(node)
-                if self.skytype < 2 and node.analysismenu != '2':
-                    self.sunexport(node)
-            elif node.timetype == 'Static':
-                scene.frame_start = 0
-                scene.frame_end = 0
-                self.fe = scene.frame_end
-                self.frameend = 0 
-            else:
-                self.fe = scene.frame_end
-                self.frameend = scene.frame_end
+        
+        elif node.timetype == 'Time': 
+            self.endtime = datetime.datetime(2013, 1, 1, node.ehour) + datetime.timedelta(node.edoy - 1)
+            self.hours = (self.endtime-self.starttime).days*24 + (self.endtime-self.starttime).seconds/3600
+            scene.frame_start = 0
+            scene.frame_end = int(self.hours/node.interval)
+            self.frameend = int(self.hours/node.interval)
+        
+        else:
+            self.frameend = scene.frame_end
+        
+        
+        if self.skytype < 4:
+            self.skytypeparams = ("+s", "+i", "-c", "-b 22.86 -c")[self.skytype]
+            if self.skytype < 3 and node.analysismenu != '2':
+                self.starttime = datetime.datetime(2013, 1, 1, node.shour) + datetime.timedelta(node.sdoy - 1)
+            
+       
+                
+            self.radskyhdrexport(node)
+            
+            if self.skytype < 2 and node.analysismenu != '2':
+                self.sunexport(node)
+#            
+#            scene.frame_start = 0
+#            if 
+#            self.fe = 0
+#            self.frameend = 0
+#            self.starttime = datetime.datetime(2013, 1, 1, node.shour) + datetime.timedelta(node.sdoy - 1)
+#            
+#            if node.timetype == 'Time':
+#                self.endtime = datetime.datetime(2013, 1, 1, node.ehour) + datetime.timedelta(node.edoy - 1)
+#                self.hours = (self.endtime-self.starttime).days*24 + (self.endtime-self.starttime).seconds/3600
+#                scene.frame_start = 0
+#                scene.frame_end = int(self.hours/node.interval)
+#                self.fe = int(self.hours/node.interval)
+#                self.frameend = int(self.hours/node.interval)
+#                
+#                self.radskyhdrexport(node)
+#                
+#            elif node.timetype == 'Static':
+#                scene.frame_start = 0
+#                scene.frame_end = 0
+#                self.fe = scene.frame_end
+#                self.frameend = 0 
+#            else:
+#                self.fe = scene.frame_end
+#                self.frameend = scene.frame_end
         
         elif self.skytype == 4:
             if node.hdrname not in bpy.data.images:
@@ -111,7 +140,7 @@ class LiVi_e(LiVi_bc):
             subprocess.call("cp {} {}".format(node.radname, self.sky(0)), shell = True)
         
         elif self.skytype == 6:
-            for frame in range(0, self.fe + 1):
+            for frame in range(0, self.frameend + 1):
                 rad_sky = open(self.sky(frame), "w")
                 rad_sky.close()
             
@@ -119,7 +148,7 @@ class LiVi_e(LiVi_bc):
 #            self.clearscenee()            
 #            self.ddsskyexport()
         
-        for frame in range(0, self.fe + 1):
+        for frame in range(0, self.frameend + 1):
             if node.timetype == 'Lights':
                 self.radlights(frame, node)
             elif frame == 0:
@@ -133,7 +162,7 @@ class LiVi_e(LiVi_bc):
         self.rtexport(export_op, node)
         
         if self.export != 0:    
-            for frame in range(0, self.fe + 1):  
+            for frame in range(0, self.frameend + 1):  
                 self.merr = 0
                 if node.animmenu == "Geometry":
                     self.obexport(frame, [geo for geo in self.scene.objects if geo.type == 'MESH' and 'lightarray' not in geo.name and geo.hide == False and geo.layers[0] == True], 0, export_op, node) 
@@ -583,7 +612,7 @@ class LiVi_e(LiVi_bc):
                                     self.reslen = len(calcsurffaces)
                         bpy.data.meshes.remove(mesh)
                     else:
-                        geo.livi_calc = 0
+                        geo.licalc = 0
                         for mat in geo.material_slots:
                             mat.material.use_transparent_shadows = True
 

@@ -48,30 +48,36 @@ def rad_prev(lexport, node, prev_op):
     else:
         prev_op.report({'ERROR'},"Missing export file. Make sure you have exported the scene.")
 
-
-        
 def li_calc(lexport, node, calc_op):
-    if node.simacc == "3":
-        params = node.cusacc
-    else:
-        num = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-ar", 128, 512, 1024), ("-as", 128, 512, 1024), ("-aa", 0.3, 0.15, 0.08), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
-        params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(node.simacc)+1] for n in num]))
-
-    lexport.clearscened()
-    res = [[] for frame in range(0, bpy.context.scene.frame_end+1)]
-    for frame in range(0, bpy.context.scene.frame_end+1):
-        if os.path.isfile("{}-{}.af".format(lexport.filebase, frame)):
-            subprocess.call("{} {}-{}.af".format(lexport.rm, lexport.filebase, frame), shell=True)
-        rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(lexport.nproc, params, lexport.filebase, frame, node.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res" 
-        rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
-        resfile = open(lexport.newdir+lexport.fold+node.resname+"-"+str(frame)+".res", 'w')
-        for line in rtrun.stdout:
-            res[frame].append(float(line.decode()))
-        resfile.write("{}".format(res[frame]).strip("]").strip("["))
-        resfile.close()
-    resapply(res, lexport, node)
-    calc_op.report({'INFO'}, "Calculation is finished.")
-
+    try:
+        if os.lstat(lexport.filebase+".rtrace").st_size == 0:
+            calc_op.report({'ERROR'},"There are no calcsurf materials. Associate a 'calcsurf' material with an object.")
+        else:
+        
+            if node.simacc == "3":
+                params = node.cusacc
+            else:
+                num = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-ar", 128, 512, 1024), ("-as", 128, 512, 1024), ("-aa", 0.3, 0.15, 0.08), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
+                params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(node.simacc)+1] for n in num]))
+        
+            lexport.clearscened()
+            res = [[] for frame in range(0, bpy.context.scene.frame_end+1)]
+            for frame in range(0, bpy.context.scene.frame_end+1):
+                if os.path.isfile("{}-{}.af".format(lexport.filebase, frame)):
+                    subprocess.call("{} {}-{}.af".format(lexport.rm, lexport.filebase, frame), shell=True)
+                rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(lexport.nproc, params, lexport.filebase, frame, node.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res" 
+                rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
+                resfile = open(lexport.newdir+lexport.fold+node.resname+"-"+str(frame)+".res", 'w')
+                for line in rtrun.stdout:
+                    res[frame].append(float(line.decode()))
+                resfile.write("{}".format(res[frame]).strip("]").strip("["))
+                resfile.close()
+            resapply(res, lexport, node)
+            calc_op.report({'INFO'}, "Calculation is finished.")
+        
+    except:
+        pass
+    
 def resapply(res, lexport, node):
     scene = bpy.context.scene
     node.maxres = []

@@ -178,11 +178,13 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
     bl_description = "Display the results on the sensor surfaces"
     bl_register = True
     bl_undo = True
-       
+    nodename = bpy.props.StringProperty()
+    
     def invoke(self, context, event):
+        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
         global ldisplay
         try:
-            vi_display.lidisplay()
+            vi_display.li_display(node)
             bpy.ops.view3d.linumdisplay()
         except:
             self.report({'ERROR'},"No results available for display. Try re-running the calculation.")

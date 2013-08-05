@@ -149,13 +149,15 @@ class LiVi_d(livi_export.LiVi_e):
         rendview(1) 
 
 
-def li_display(node):
+def li_display(lexport):
+    lexport.clearscened()
+    
     scene = bpy.context.scene
     if len(bpy.app.handlers.frame_change_pre) == 0:
         bpy.app.handlers.frame_change_pre.append(livi_export.cyfc1)
     o = 0
-    obcalclist = []
-    obreslist = []
+    lexport.obcalclist = []
+    lexport.obreslist = []
     
     for geo in scene.objects:
         if geo.type == "MESH" and geo.licalc == 1:
@@ -163,12 +165,12 @@ def li_display(node):
             if geo.mode != 'OBJECT':
                 bpy.ops.object.mode_set(mode = 'OBJECT')
             bpy.ops.object.select_all(action = 'DESELECT')
-            obcalclist.append(geo)
+            lexport.obcalclist.append(geo)
             o += 1
 
     for frame in range(0, scene.frame_end + 1):
         scene.frame_set(frame)
-        for obcalc in obcalclist: 
+        for obcalc in lexport.obcalclist: 
             for vc in obcalc.data.vertex_colors:
                 if frame == int(vc.name):
                     vc.active = 1
@@ -183,11 +185,11 @@ def li_display(node):
     bpy.ops.object.select_all(action = 'DESELECT')
     scene.objects.active = None
     
-    if scene.livi_disp_3d == 1:
+    if scene.li_disp_3d == 1:
         resvertco = []
         fextrude = []
         for i, geo in enumerate(scene.objects):
-            if geo.type == 'MESH' and geo.livi_calc == 1:
+            if geo.type == 'MESH' and geo.licalc == 1:
                 scene.objects.active = None
                 bpy.ops.object.select_all(action = 'DESELECT')
                 scene.objects.active = geo
@@ -205,12 +207,12 @@ def li_display(node):
                 bpy.ops.mesh.separate()
                 bpy.ops.object.mode_set(mode = 'OBJECT')
                 scene.objects[0].name = geo.name+"res"
-                obreslist.append(scene.objects[0])
-                scene.objects[0].livi_res = 1
+                lexport.obreslist.append(scene.objects[0])
+                scene.objects[0].lires = 1
                 bpy.ops.object.select_all(action = 'DESELECT')
                 scene.objects.active = None
 
-        for obres in obreslist:   
+        for obres in lexport.obreslist:   
             scene.objects.active = obres
             obres.select = True
             fextrude = []
@@ -220,7 +222,7 @@ def li_display(node):
                 bpy.ops.object.shape_key_add(from_mix = False)
                 obres.active_shape_key.name = str(frame)
                    
-                if node.cpoint == '0':
+                if lexport.node.cpoint == '0':
                     if frame == 0:
                         if len(obres.data.polygons) > 1:
                             bpy.ops.object.mode_set(mode = 'EDIT')
@@ -236,17 +238,17 @@ def li_display(node):
                     for fex in fextrude:
                         for vert in fex.vertices:
                             j = [j for j,x in enumerate(obres.data.loops) if vert == x.vertex_index][0]
-                            obres.active_shape_key.data[vert].co = resvertco[vert][0] + 0.1*resvertco[vert][1]*float(scene.livi_disp_3dlevel)*(0.75-colorsys.rgb_to_hsv(obres.data.vertex_colors[str(frame)].data[j].color[0], obres.data.vertex_colors[str(frame)].data[j].color[1], obres.data.vertex_colors[str(frame)].data[j].color[2])[0])
+                            obres.active_shape_key.data[vert].co = resvertco[vert][0] + 0.1*resvertco[vert][1]*float(scene.li_disp_3dlevel)*(0.75-colorsys.rgb_to_hsv(obres.data.vertex_colors[str(frame)].data[j].color[0], obres.data.vertex_colors[str(frame)].data[j].color[1], obres.data.vertex_colors[str(frame)].data[j].color[2])[0])
 
-                elif node.cpoint == '1':
+                elif lexport.node.cpoint == '1':
                     for vert in obres.data.vertices:
                         j = [j for j,x in enumerate(obres.data.loops) if vert.index == x.vertex_index][0]
-                        obres.active_shape_key.data[vert.index].co = obres.active_shape_key.data[vert.index].co + 0.1*float(scene.livi_disp_3dlevel)*(0.75-colorsys.rgb_to_hsv(obres.data.vertex_colors[str(frame)].data[j].color[0], obres.data.vertex_colors[str(frame)].data[j].color[1], obres.data.vertex_colors[str(frame)].data[j].color[2])[0])*(vert.normal)
+                        obres.active_shape_key.data[vert.index].co = obres.active_shape_key.data[vert.index].co + 0.1*float(scene.li_disp_3dlevel)*(0.75-colorsys.rgb_to_hsv(obres.data.vertex_colors[str(frame)].data[j].color[0], obres.data.vertex_colors[str(frame)].data[j].color[1], obres.data.vertex_colors[str(frame)].data[j].color[2])[0])*(vert.normal)
 
-    for frame in range(0, scene.frame_end + 1):
+    for frame in range(scene.frame_start, scene.frame_end + 1):
         scene.frame_set(frame)
-        for obres in obreslist: 
-            if scene.livi_disp_3d == 1:
+        for obres in lexport.obreslist: 
+            if scene.li_disp_3d == 1:
                 for shape in obres.data.shape_keys.key_blocks:
                         if "Basis" not in shape.name:
                             if int(shape.name) == frame:
@@ -270,9 +272,10 @@ def li_display(node):
     bpy.ops.wm.save_mainfile(check_existing = False)  
     rendview(1) 
                                 
-def respoint_visualiser(self, context, ld):
-    if context.mode != "OBJECT" or context.scene.livi_display_respoints == False or (context.active_object not in (ld.obreslist+ld.obcalclist) and context.scene.livi_display_sel_only == True) \
-    or ld.rp_display != True or context.scene.frame_current not in range(context.scene.frame_start, context.scene.frame_end + 1) and context.scene.livi_display_panel == 0:
+def linumdisplay(self, context, lexport):
+    scene = context.scene
+    if context.mode != "OBJECT" or (context.active_object not in (lexport.obreslist+lexport.obcalclist) and scene.li_display_sel_only == True) \
+    or scene.frame_current not in range(scene.frame_start, scene.frame_end + 1) and scene.li_display_panel == 0:
         return
 
     region = context.region
@@ -282,19 +285,19 @@ def respoint_visualiser(self, context, ld):
     height = region.height
     fn = context.scene.frame_current
     
-    if context.scene.livi_display_sel_only == False:
-        obd = ld.obreslist if context.scene.livi_disp_3d == True else ld.obcalclist
+    if context.scene.li_display_sel_only == False:
+        obd = lexport.obreslist if context.scene.li_disp_3d == True else lexport.obcalclist
     else:
         obd = [context.active_object]
     
     for ob in obd:
-        faces = [f for f in ob.data.polygons if f.select == True] if context.scene.livi_disp_3d == True else [f for f in ob.data.polygons]
+        faces = [f for f in ob.data.polygons if f.select == True] if context.scene.li_disp_3d == True else [f for f in ob.data.polygons]
         vdone = []
         obm = ob.data
         view_mat = context.space_data.region_3d.perspective_matrix
         ob_mat = ob.matrix_world
         total_mat = view_mat * ob_mat
-        blf.size(0, context.scene.livi_display_rp_fs, 72)
+        blf.size(0, context.scene.li_display_rp_fs, 72)
        
         def draw_index(r, g, b, index, center):
             vec = total_mat * center 
@@ -309,26 +312,26 @@ def respoint_visualiser(self, context, ld):
         scene = context.scene
       
         for f in faces:
-            if scene.livi_export_calc_points == "0":
+            if lexport.node.cpoint == "0":
                 vsum = mathutils.Vector((0, 0, 0))
                 for v in f.vertices:
-                    vsum = ob.active_shape_key.data[v].co + vsum if context.scene.livi_disp_3d == True else ob.data.vertices[v].co + vsum
+                    vsum = ob.active_shape_key.data[v].co + vsum if context.scene.li_disp_3d == True else ob.data.vertices[v].co + vsum
                 fc = vsum/len(f.vertices)
                 if not f.hide and f.select:
                     loop_index = f.loop_indices[0]
                     if len(set(obm.vertex_colors[fn].data[loop_index].color[:])) > 1:
                         draw_index(0.0, 0.0, 0.0, int(scene["resmin"][fn] + (1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*(scene["resmax"][fn] - scene["resmin"][fn])), fc.to_4d())
             
-            elif scene.livi_export_calc_points == "1":
+            elif lexport.node.cpoint == "1":
                 for loop_index in f.loop_indices:
                     v = obm.loops[loop_index].vertex_index
-                    vpos = ob.active_shape_key.data[v].co if context.scene.livi_disp_3d == True else obm.vertices[v].co
+                    vpos = ob.active_shape_key.data[v].co if context.scene.li_disp_3d == True else obm.vertices[v].co
                     if v not in vdone:
                         vdone.append(v)
                         if len(set(obm.vertex_colors[fn].data[loop_index].color[:])) > 1:
                             draw_index(0.0, 0.0, 0.0, int((1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*scene["resmax"][fn]), vpos.to_4d())
 
-def rad_3D_legend(self, context):
+def li3D_legend(self, context, lexport):
     if "resmax" in context.scene:
         height = context.region.height
         lenres = len("{:.0f}".format(max(context.scene['resmax'])))
@@ -364,7 +367,7 @@ def rad_3D_legend(self, context):
             blf.position(font_id, 65, (i*20)+height - 455, 0)
             blf.size(font_id, 20, 48)
             bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-            if context.scene['metric'] == 2:
+            if lexport.node.analysismenu == '2':
                 blf.draw(font_id, "  "*(lenres - singlelenres - 2) + str(round(min(context.scene['resmin'])+i*(max(context.scene['resmax'])-min(context.scene['resmin']))/19, 1)+1))
             else:
                 blf.draw(font_id, "  "*(lenres - singlelenres - 1) + str(int(min(context.scene['resmin'])+i*(max(context.scene['resmax'])-min(context.scene['resmin']))/19)+1))        
@@ -372,12 +375,12 @@ def rad_3D_legend(self, context):
         blf.position(font_id, 25, height - 57, 0)
         blf.size(font_id, 20, 56)
         bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-        blf.draw(font_id, context.scene['unit'])
+        blf.draw(font_id, lexport.node.unit)
         bgl.glLineWidth(1)
         bgl.glDisable(bgl.GL_BLEND)
         bgl.glColor4f(0.0, 0.0, 0.0, 1.0)   
         
-def res_stat(self, context):
+def lires_stat(self, context):
     if "resav" in context.scene:
         height = context.region.height
         font_id = 0

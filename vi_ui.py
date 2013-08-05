@@ -24,30 +24,30 @@ class Vi3DPanel(bpy.types.Panel):
         view = context.space_data
         scene = context.scene
           
-        if scene.lidisplay == 1:
+        if scene.li_disp_panel == 1:
             layout = self.layout
             row = layout.row()
             row.operator("view3d.lidisplay", text="Radiance Display")
             row.prop(view, "show_only_render")
-            row.prop(scene, "livi_disp_3d")
-            if int(context.scene.livi_disp_3d) == 1:
+            row.prop(scene, "li_disp_3d")
+            if int(context.scene.li_disp_3d) == 1:
                 row = layout.row()
-                row.prop(scene, "livi_disp_3dlevel")
-            try:
-                if ldisplay.rp_display == False:
-                    pass
-                else:
-                    if context.mode == "OBJECT":
-                        row = layout.row()
-                        row.label(text="{:-<48}".format("Point visualisation "))
-                        row = layout.row()
-                        row.prop(scene, "livi_display_respoints")
-                        row.prop(context.scene, "livi_display_sel_only")
-                        row.prop(context.scene, "livi_display_rp_fs")
-                        row = layout.row()
-                        row.label(text="{:-<60}".format(""))
-            except:
-                pass
+                row.prop(scene, "li_disp_3dlevel")
+#            try:
+#                if lexport.node.rp_display == False:
+#                    pass
+#                else:
+            if context.mode == "OBJECT":
+                row = layout.row()
+                row.label(text="{:-<48}".format("Point visualisation "))
+                row = layout.row()
+                row.prop(scene, "li_display_respoints")
+                row.prop(scene, "li_display_sel_only")
+                row.prop(scene, "li_display_rp_fs")
+                row = layout.row()
+                row.label(text="{:-<60}".format(""))
+#            except:
+#                pass
       
 class IESPanel(bpy.types.Panel):
     bl_label = "LiVi IES file"

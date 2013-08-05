@@ -64,32 +64,33 @@ def register():
     Scene = bpy.types.Scene
 
 # Object properties
-    Object.livi_merr = BoolProperty(
-            name="LiVi simple mesh export", description="Boolean for simple mesh export", default = False)
+    Object.livi_merr = BoolProperty(name="LiVi simple mesh export", description="Boolean for simple mesh export", default = False)
             
     Object.ies_name = StringProperty(name="Path", description="IES File", maxlen=1024, default="")
 
     Object.ies_strength = FloatProperty(name="Lamp strength:", description="Strength of IES lamp", min = 0, max = 1, default = 1)
 
-    Object.ies_unit = EnumProperty(
-            items=[("m", "Meters", ""),
-                   ("c", "Centimeters", ""),
-                    ("f", "Feet", ""),
-                    ("i", "Inches", ""),
-                    ],
-            name="IES dimension",
-            description="Specify the IES file measurement unit",
-            default="m")
+    Object.ies_unit = EnumProperty(items=[("m", "Meters", ""), ("c", "Centimeters", ""), ("f", "Feet", ""), ("i", "Inches", "")], name="IES dimension", description="Specify the IES file measurement unit", default="m")
+
     Object.licalc = BoolProperty(default = False)
     
-    Object.lires = BoolProperty(name="LiVi res object", description="Boolean for results object", default= False)            
+    Object.lires = BoolProperty(default= False)            
 
-    Scene.lidisplay = IntProperty(
-            name="Display Panel", description="Shows the Disply Panel", default=0)
-    
     Scene.vipath = StringProperty(name="VI Path", description="Path to files included with the VI-Suite ", maxlen=1024, default=addonpath)        
 
-    Scene.livi_disp_3d = BoolProperty(name="VI 3D display", description="Boolean for 3D results display", default= False)
+    Scene.li_disp_panel = IntProperty(name="Display Panel", description="Shows the Display Panel", default=0)
+
+    Scene.li_disp_3d = BoolProperty(name="VI 3D display", description="Boolean for 3D results display", default= False)
+    
+    Scene.li_disp_3dlevel = FloatProperty(name="VI 3D display level:", description="Level of 3D result plane extrusion", min = 0, max = 50, default = 0)
+    
+    Scene.li_display = BoolProperty(default = False)
+    
+    Scene.li_display_respoints = BoolProperty(default = False)
+
+    Scene.li_display_sel_only = BoolProperty(default = False)
+
+    Scene.li_display_rp_fs = IntProperty(name="Font size:", description="Point result font size", default=9)
     
     bpy.utils.register_class(vi_operators.NODE_OT_EpwSelect)
     bpy.utils.register_class(vi_operators.NODE_OT_HdrSelect)
@@ -98,6 +99,7 @@ def register():
     bpy.utils.register_class(vi_operators.NODE_OT_Calculate)
     bpy.utils.register_class(vi_operators.NODE_OT_GeoExport)
     bpy.utils.register_class(vi_operators.NODE_OT_LiExport)
+    bpy.utils.register_class(vi_operators.NODE_OT_LiGExport)
     bpy.utils.register_class(vi_operators.VIEW3D_OT_LiDisplay)
     bpy.utils.register_class(vi_operators.VIEW3D_OT_LiNumDisplay)
     bpy.utils.register_class(vi_ui.Vi3DPanel)
@@ -105,6 +107,7 @@ def register():
     bpy.utils.register_class(vi_node.ViLiWResOut)
     bpy.utils.register_class(vi_node.ViNetwork)
     bpy.utils.register_class(vi_node.ViLiNode)
+    bpy.utils.register_class(vi_node.ViGExLiNode)
     bpy.utils.register_class(vi_node.ViLiCNode)
     bpy.utils.register_class(vi_node.ViLiCBNode)
     bpy.utils.register_class(vi_node.ViSPNode)
@@ -123,6 +126,7 @@ def unregister():
     bpy.utils.unregister_class(vi_operators.NODE_OT_LiCalculate)
     bpy.utils.unregister_class(vi_operators.NODE_OT_GeoExport)
     bpy.utils.unregister_class(vi_operators.NODE_OT_LiExport)
+    bpy.utils.unregister_class(vi_operators.NODE_OT_LiGExport)
     bpy.utils.unregister_class(vi_operators.VIEW3D_OT_LiDisplay)
     bpy.utils.unregister_class(vi_operators.VIEW3D_OT_LiNumDisplay)
     bpy.utils.unregister_class(vi_ui.Vi3DPanel)
@@ -130,6 +134,7 @@ def unregister():
     bpy.utils.unregister_class(vi_node.ViLiWResOut)
     bpy.utils.unregister_class(vi_node.ViNetwork)
     bpy.utils.unregister_class(vi_node.ViLiNode)
+    bpy.utils.unregister_class(vi_node.ViGExLiNode)
     bpy.utils.unregister_class(vi_node.ViLiCNode)
     bpy.utils.unregister_class(vi_node.ViLiCBNode)
     bpy.utils.unregister_class(vi_node.ViSPNode)

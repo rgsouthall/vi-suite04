@@ -30,11 +30,28 @@ class ViNetwork(bpy.types.NodeTree):
     
     def __init__(self):
         self.name = 'VI Network'
+        print(self.name)
 
 class ViNodes:
     @classmethod
     def poll(cls, ntree):
         return ntree.bl_idname == 'ViN'
+
+class ViGExLiNode(bpy.types.Node, ViNodes):
+    '''Node describing a VI-Suite export type'''
+    bl_idname = 'ViGExLiNode'
+    bl_label = 'VI geometry export for lighting analysis'
+    bl_icon = 'LAMP' 
+
+    animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis"), ('Material', "Material", "Animated material analysis"), ('Lights', "Lights", "Animated artificial lighting analysis")]
+    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static')
+
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.prop(self, 'animmenu') 
+        row = layout.row()
+        row.operator("node.ligexport", text = "Export").node = self
+        
         
 class ViLiNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite analysis type'''
@@ -96,6 +113,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
     timetype = bpy.props.StringProperty()
     TZ = bpy.props.StringProperty()
     resname = bpy.props.StringProperty()
+    rp_display = bpy.props.BoolProperty(default = False)
     
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -178,8 +196,8 @@ class ViLiNode(bpy.types.Node, ViNodes):
                row.label("Radiance parameters:")
                row.prop(self, 'cusacc') 
             row = layout.row()
-            row.operator("node.radpreview", text = 'Radiance Preview').nodename = self.name
-            row.operator("node.calculate", text = 'Calculate').nodename = self.name
+            row.operator("node.radpreview", text = 'Radiance Preview')
+            row.operator("node.calculate", text = 'Calculate')
         
 class ViLiCBNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite climate based lighting node'''
@@ -219,6 +237,8 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         row = layout.row()
         row.label('Animation:')
         row.prop(self, "animmenu")
+        row = layout.row()
+        row.operator("node.liexport", text = "Export").nodename = self.name
         row = layout.row()
         row.label("Accuracy:")
         row.prop(self, 'simacc')
@@ -268,7 +288,7 @@ class ViLiCNode(bpy.types.Node, ViNodes):
            row.prop(self, 'cusacc') 
         row = layout.row()
         row.operator("node.radpreview", text = 'Preview')
-        row.operator("node.calculate", text = 'Calculate').nodename = self.name
+        row.operator("node.calculate", text = 'Calculate')
         
 class ViSPNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite sun path'''
@@ -278,7 +298,7 @@ class ViSPNode(bpy.types.Node, ViNodes):
     
     def draw_buttons(self, context, layout):
         row = layout.row()
-        row.operator("node.calculate", text = 'Calculate').nodename = self.name    
+        row.operator("node.calculate", text = 'Calculate') 
 
 
 class ViSSNode(bpy.types.Node, ViNodes):
@@ -289,7 +309,7 @@ class ViSSNode(bpy.types.Node, ViNodes):
     
     def draw_buttons(self, context, layout):
         row = layout.row()
-        row.operator("node.calculate", text = 'Calculate').nodename = self.name
+        row.operator("node.calculate", text = 'Calculate')
 
 class ViWRNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite wind rose generator'''
@@ -299,7 +319,7 @@ class ViWRNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         row = layout.row()
-        row.operator("node.calculate", text = 'Calculate').nodename = self.name
+        row.operator("node.calculate", text = 'Calculate')
         
 class ViGNode(bpy.types.Node, ViNodes):
     '''Node describing a glare analysis'''
@@ -309,7 +329,7 @@ class ViGNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         row = layout.row()
-        row.operator("node.calculate", text = 'Calculate').nodename = self.name
+        row.operator("node.calculate", text = 'Calculate')
         
 class ViEPNode(bpy.types.Node, ViNodes):
     '''Node describing a glare analysis'''
@@ -337,9 +357,7 @@ class ViEPNode(bpy.types.Node, ViNodes):
     envi_weather = bpy.props.EnumProperty(items = weatherlist, name="Weather location", description="Weather for this project")
     
     def init(self, context):
-        self.outputs.new('ViLiWResOut', 'Out')    
         self.inputs.new('EnViDIn', 'Data in')
-
     
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -355,18 +373,20 @@ class ViEPNode(bpy.types.Node, ViNodes):
             col.prop(self, "envi_terrain")
         row = layout.row()
 
-        row.operator("node.calculate", text = 'Calculate').nodename = self.name
+        row.operator("node.calculate", text = 'Calculate')
         
 class ViNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):
         return context.space_data.tree_type == 'ViN'
 
+viexnodecat = [NodeItem("ViGExLiNode", label="VI-Suite lighting analysis")]
+
 vinodecat = [NodeItem("ViLiNode", label="VI-Suite lighting analysis"), NodeItem("ViLiCNode", label="VI-Suite lighting compliance"), NodeItem("ViLiCBNode", label="VI-Suite climate based lighting"),\
              NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), NodeItem("ViGNode", label="VI-Suite glare"), NodeItem("ViEPNode", label="VI-Suite energy")] 
 
 # identifier, label, items list
-vinode_categories = [ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat)] 
+vinode_categories = [ViNodeCategory("Export", "Export Nodes", items=viexnodecat), ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat)] 
         
                
 class ViLiWResOut(bpy.types.NodeSocket):

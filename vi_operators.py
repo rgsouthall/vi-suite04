@@ -12,15 +12,15 @@ class NODE_OT_GeoExport(bpy.types.Operator):
     def execute(self, context):
         return {'FINISHED'}
 
-class NODE_OT_export(bpy.types.Operator):
-    bl_idname = "node.export"
+class NODE_OT_LiGExport(bpy.types.Operator):
+    bl_idname = "node.ligexport"
     bl_label = "VI-Suite export"
     nodename = bpy.props.StringProperty()
     
     def execute(self, context):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-        node.exported = True
-#        lexport
+        node.outputs.new('ViLiGOut', 'Geometry out')
+        livi_export.radexport(node)
         return {'FINISHED'}        
 
 class NODE_OT_EpwSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
@@ -118,6 +118,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
         
     def invoke(self, context, event):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
+        node.outputs.new('ViLiWResOut', 'Data out')
         node.exported = True
         node.resname = ("illumout", "irradout", "dfout")[int(node.analysismenu)]
         node.unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(node.analysismenu)]
@@ -154,22 +155,17 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
     bl_register = True
     bl_undo = True
     
-    nodename = bpy.props.StringProperty()
-    
     def invoke(self, context, event):
-        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-        livi_calc.rad_prev(lexport, node, self)
+        livi_calc.rad_prev(lexport, self)
         return {'FINISHED'}
         
 class NODE_OT_Calculate(bpy.types.Operator):
     bl_idname = "node.calculate"
     bl_label = "Radiance Export and Simulation"
-    nodename = bpy.props.StringProperty()
     
     def invoke(self, context, event):
-        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-        livi_calc.li_calc(lexport, node, self)
-        vi_display.li_display(node)
+        livi_calc.li_calc(lexport, self)
+        context.scene.li_disp_panel = 1
         return {'FINISHED'}
         
 class VIEW3D_OT_LiDisplay(bpy.types.Operator):
@@ -181,16 +177,14 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
     nodename = bpy.props.StringProperty()
     
     def invoke(self, context, event):
-        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-        global ldisplay
         try:
-            vi_display.li_display(node)
+            vi_display.li_display(lexport)
             bpy.ops.view3d.linumdisplay()
         except:
             self.report({'ERROR'},"No results available for display. Try re-running the calculation.")
             raise
         return {'FINISHED'}
- 
+    
 class VIEW3D_OT_LiNumDisplay(bpy.types.Operator):
     '''Display results legend and stats in the 3D View'''
     bl_idname = "view3d.linumdisplay"
@@ -199,14 +193,27 @@ class VIEW3D_OT_LiNumDisplay(bpy.types.Operator):
     
     def modal(self, context, event):
         context.area.tag_redraw()
-        if context.scene.livi_display_legend == -1:
+        if context.scene.li_display == 0:
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_stat, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
-            ldisplay.rp_display = False
+            lexport.node.rp_display = False
             return {'CANCELLED'}
         return {'PASS_THROUGH'} 
-        
+    
+    def execute(self, context):
+        from . import vi_display
+        if context.area.type == 'VIEW_3D':
+            self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(vi_display.li3D_legend, (self, context, lexport), 'WINDOW', 'POST_PIXEL')
+            self._handle_stat = bpy.types.SpaceView3D.draw_handler_add(vi_display.lires_stat, (self, context), 'WINDOW', 'POST_PIXEL')
+            self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(vi_display.linumdisplay, (self, context, lexport), 'WINDOW', 'POST_PIXEL')
+            context.window_manager.modal_handler_add(self)
+            context.scene.li_display = 1
+            return {'RUNNING_MODAL'}
+        else:
+            self.report({'WARNING'}, "View3D not found, cannot run operator")
+            return {'CANCELLED'}    
+
 class IES_Select(bpy.types.Operator, io_utils.ImportHelper):
     bl_idname = "livi.ies_select"
     bl_label = "Select IES file"

@@ -48,50 +48,49 @@ def rad_prev(lexport, node, prev_op):
     else:
         prev_op.report({'ERROR'},"Missing export file. Make sure you have exported the scene.")
 
-def li_calc(lexport, node, calc_op):
+def li_calc(lexport, calc_op):
     try:
         if os.lstat(lexport.filebase+".rtrace").st_size == 0:
             calc_op.report({'ERROR'},"There are no calcsurf materials. Associate a 'calcsurf' material with an object.")
         else:
         
-            if node.simacc == "3":
-                params = node.cusacc
+            if lexport.node.simacc == "3":
+                params = lexport.node.cusacc
             else:
                 num = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-ar", 128, 512, 1024), ("-as", 128, 512, 1024), ("-aa", 0.3, 0.15, 0.08), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
-                params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(node.simacc)+1] for n in num]))
+                params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(lexport.node.simacc)+1] for n in num]))
         
             lexport.clearscened()
             res = [[] for frame in range(0, bpy.context.scene.frame_end+1)]
             for frame in range(0, bpy.context.scene.frame_end+1):
                 if os.path.isfile("{}-{}.af".format(lexport.filebase, frame)):
                     subprocess.call("{} {}-{}.af".format(lexport.rm, lexport.filebase, frame), shell=True)
-                rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(lexport.nproc, params, lexport.filebase, frame, node.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res" 
+                rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(lexport.nproc, params, lexport.filebase, frame, lexport.node.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res" 
                 rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
-                resfile = open(lexport.newdir+lexport.fold+node.resname+"-"+str(frame)+".res", 'w')
+                resfile = open(lexport.newdir+lexport.fold+lexport.node.resname+"-"+str(frame)+".res", 'w')
                 for line in rtrun.stdout:
                     res[frame].append(float(line.decode()))
                 resfile.write("{}".format(res[frame]).strip("]").strip("["))
                 resfile.close()
-            resapply(res, lexport, node)
+            resapply(res, lexport)
             calc_op.report({'INFO'}, "Calculation is finished.")
-        
     except:
         pass
     
-def resapply(res, lexport, node):
+def resapply(res, lexport):
     scene = bpy.context.scene
-    node.maxres = []
-    node.minres = []
-    node.avres = []
+    lexport.node.minres = []
+    lexport.node.maxres = []
+    lexport.node.avres = []
     
-    for frame in range(0, lexport.scene.frame_end+1):
-        node.maxres.append(max(res[frame]))
-        node.minres.append(min(res[frame]))
-        node.avres.append(sum(res[frame])/len(res[frame]))
+    for frame in range(scene.frame_start, scene.frame_end+1):
+        lexport.node.maxres.append(max(res[frame]))
+        lexport.node.minres.append(min(res[frame]))
+        lexport.node.avres.append(sum(res[frame])/len(res[frame]))
         
-#    self.scene['resav'] = avres
-#    self.scene['resmax'] = maxres
-#    self.scene['resmin'] = minres
+    scene['resav'] = lexport.node.avres
+    scene['resmax'] = lexport.node.maxres
+    scene['resmin'] = lexport.node.minres
 
     for frame in range(0, lexport.scene.frame_end+1):
         rgb = []
@@ -99,7 +98,7 @@ def resapply(res, lexport, node):
         mcol_i = 0
         f = 0
         for i in range(0, len(res[frame])):
-            h = 0.75*(1-(res[frame][i]-min(node.minres))/(max(node.maxres) + 0.01 - min(node.minres)))
+            h = 0.75*(1-(res[frame][i]-min(lexport.node.minres))/(max(lexport.node.maxres) + 0.01 - min(lexport.node.minres)))
             rgb.append(colorsys.hsv_to_rgb(h, 1.0, 1.0))
 
         for geo in [geo for geo in scene.objects if geo.type == 'MESH']:
@@ -119,14 +118,14 @@ def resapply(res, lexport, node):
              
                     for face in geo.data.polygons:
                         if "calcsurf" in str(geo.data.materials[face.material_index].name):
-                            if node.cpoint == '1':
+                            if lexport.node.cpoint == '1':
                                 for loop_index in face.loop_indices:
                                     v = geo.data.loops[loop_index].vertex_index
                                     col_i = [vi for vi, vval in enumerate(geo['cverts']) if v == geo['cverts'][vi]][0]
                                     lcol_i.append(col_i)
                                     vertexColour.data[loop_index].color = rgb[col_i+mcol_i]
                                 
-                            if node.cpoint == '0':
+                            if lexport.node.cpoint == '0':
                                 for loop_index in face.loop_indices:
                                     vertexColour.data[loop_index].color = rgb[f]
                                 f += 1
@@ -149,7 +148,7 @@ def resapply(res, lexport, node):
          
                 for face in geo.data.polygons:
                     if "calcsurf" in str(geo.data.materials[face.material_index].name):
-                        if node.cpoint == '1':
+                        if lexport.node.cpoint == '1':
                             cvtup = tuple(geo['cverts'])
                             for loop_index in face.loop_indices:
                                 v = geo.data.loops[loop_index].vertex_index
@@ -158,12 +157,13 @@ def resapply(res, lexport, node):
                                 lcol_i.append(col_i)
                                 vertexColour.data[loop_index].color = rgb[col_i+mcol_i]
 
-                        if node.cpoint == '0':
+                        if lexport.node.cpoint == '0':
                             for loop_index in face.loop_indices:
                                 vertexColour.data[loop_index].color = rgb[f]
                             f += 1
                 mcol_i = len(list(set(lcol_i)))
-    lexport.scene.lidisplay = 1
+    scene.li_disp_panel = 1
+    scene.li_display == 0
     
     for frame in range(0, scene.frame_end+1):
         bpy.context.scene.frame_set(frame)

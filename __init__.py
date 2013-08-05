@@ -20,7 +20,7 @@ else:
     from . import vi_node, vi_operators, vi_ui
 
 import sys, os, platform, inspect, glob, bpy, nodeitems_utils
-from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty
+from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
 
  
 epversion = "8-0-0" 
@@ -66,15 +66,19 @@ def register():
 # Object properties
     Object.livi_merr = BoolProperty(name="LiVi simple mesh export", description="Boolean for simple mesh export", default = False)
             
-    Object.ies_name = StringProperty(name="Path", description="IES File", maxlen=1024, default="")
+    Object.ies_name = StringProperty(name="", description="IES File", maxlen=1024, default="")
 
-    Object.ies_strength = FloatProperty(name="Lamp strength:", description="Strength of IES lamp", min = 0, max = 1, default = 1)
+    Object.ies_strength = FloatProperty(name="", description="Strength of IES lamp", min = 0, max = 1, default = 1)
 
-    Object.ies_unit = EnumProperty(items=[("m", "Meters", ""), ("c", "Centimeters", ""), ("f", "Feet", ""), ("i", "Inches", "")], name="IES dimension", description="Specify the IES file measurement unit", default="m")
+    Object.ies_unit = EnumProperty(items=[("m", "Meters", ""), ("c", "Centimeters", ""), ("f", "Feet", ""), ("i", "Inches", "")], name="", description="Specify the IES file measurement unit", default="m")
 
+    Object.ies_colour = FloatVectorProperty(name="IES Colour",attr = 'IES Colour', default = [1.0, 1.0, 1.0], subtype = 'COLOR')
+    
     Object.licalc = BoolProperty(default = False)
     
-    Object.lires = BoolProperty(default= False)            
+    Object.lires = BoolProperty(default= False)   
+
+    Object.limerr = BoolProperty(default= False)         
 
     Scene.vipath = StringProperty(name="VI Path", description="Path to files included with the VI-Suite ", maxlen=1024, default=addonpath)        
 
@@ -95,6 +99,7 @@ def register():
     bpy.utils.register_class(vi_operators.NODE_OT_EpwSelect)
     bpy.utils.register_class(vi_operators.NODE_OT_HdrSelect)
     bpy.utils.register_class(vi_operators.NODE_OT_SkySelect)
+    bpy.utils.register_class(vi_operators.IES_Select)
     bpy.utils.register_class(vi_operators.NODE_OT_RadPreview)
     bpy.utils.register_class(vi_operators.NODE_OT_Calculate)
     bpy.utils.register_class(vi_operators.NODE_OT_GeoExport)
@@ -103,8 +108,10 @@ def register():
     bpy.utils.register_class(vi_operators.VIEW3D_OT_LiDisplay)
     bpy.utils.register_class(vi_operators.VIEW3D_OT_LiNumDisplay)
     bpy.utils.register_class(vi_ui.Vi3DPanel)
+    bpy.utils.register_class(vi_ui.IESPanel)
     bpy.utils.register_class(vi_node.EnViDataIn)
     bpy.utils.register_class(vi_node.ViLiWResOut)
+    bpy.utils.register_class(vi_node.ViLiGIn)
     bpy.utils.register_class(vi_node.ViNetwork)
     bpy.utils.register_class(vi_node.ViLiNode)
     bpy.utils.register_class(vi_node.ViGExLiNode)
@@ -122,6 +129,7 @@ def unregister():
     bpy.utils.unregister_class(vi_operators.NODE_OT_EpwSelect)
     bpy.utils.unregister_class(vi_operators.NODE_OT_HdrSelect)
     bpy.utils.unregister_class(vi_operators.NODE_OT_SkySelect)
+    bpy.utils.unregister_class(vi_operators.IES_Select)
     bpy.utils.unregister_class(vi_operators.NODE_OT_RadPreview)
     bpy.utils.unregister_class(vi_operators.NODE_OT_LiCalculate)
     bpy.utils.unregister_class(vi_operators.NODE_OT_GeoExport)
@@ -130,8 +138,10 @@ def unregister():
     bpy.utils.unregister_class(vi_operators.VIEW3D_OT_LiDisplay)
     bpy.utils.unregister_class(vi_operators.VIEW3D_OT_LiNumDisplay)
     bpy.utils.unregister_class(vi_ui.Vi3DPanel)
+    bpy.utils.unregister_class(vi_ui.IESPanel)
     bpy.utils.unregister_class(vi_node.EnViDataIn)
     bpy.utils.unregister_class(vi_node.ViLiWResOut)
+    bpy.utils.unregister_class(vi_node.ViLiGIn)
     bpy.utils.unregister_class(vi_node.ViNetwork)
     bpy.utils.unregister_class(vi_node.ViLiNode)
     bpy.utils.unregister_class(vi_node.ViGExLiNode)

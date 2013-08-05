@@ -1,5 +1,6 @@
 import bpy
-from . import vi_operators
+
+#from . import vi_operators
 #scene = bpy.context.scene
 
 #class ViNodeGen(bpy.types.Operator):
@@ -63,9 +64,15 @@ class IESPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         lamp = bpy.context.active_object
-        layout.operator("livi.ies_select") 
-        layout.prop(lamp, "ies_name")
         row = layout.row()
+        row.operator("livi.ies_select") 
+        row.prop(lamp, "ies_name")
+        row = layout.row()
+        row.label('IES Dimension:')
         row.prop(lamp, "ies_unit")
         row = layout.row()
+        row.label('IES Strength:')
         row.prop(lamp, "ies_strength")
+        row = layout.row()
+        row.prop(lamp, "ies_colour")
+        

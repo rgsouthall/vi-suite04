@@ -40,19 +40,26 @@ class ViNodes:
 class ViGExLiNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite export type'''
     bl_idname = 'ViGExLiNode'
-    bl_label = 'VI geometry export for lighting analysis'
+    bl_label = 'VI lighting geometry export'
     bl_icon = 'LAMP' 
 
     animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis"), ('Material', "Material", "Animated material analysis"), ('Lights', "Lights", "Animated artificial lighting analysis")]
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static')
-
+    cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
+            name="", description="Specify the calculation point geometry", default="1")
+    radfiles = []
+    
     def draw_buttons(self, context, layout):
         row = layout.row()
-        row.prop(self, 'animmenu') 
+        row.label('Animation:')
+        row.prop(self, 'animmenu')
         row = layout.row()
-        row.operator("node.ligexport", text = "Export").node = self
+        row.label('Calculation point:')
+        row.prop(self, 'cpoint')
+        row = layout.row()
+        row.operator("node.ligexport", text = "Export").nodename = self.name
         
-        
+       
 class ViLiNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite analysis type'''
     bl_idname = 'ViLiNode'
@@ -61,8 +68,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
     
     analysistype = [('0', "Illuminance", "Lux Calculation"), ('1', "Irradiance", "W/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Factor", "DF (%) Calculation"),]     
 
-    animtype = [('Static', "Static", "Simple static analysis"), ('Time', "Time", "Animated time analysis"), ('Geometry', "Geometry", "Animated time analysis"), ('Material', "Material", "Animated time analysis"), ('Lights', "Lights", "Animated time analysis")]
-    dfanimtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated time analysis"), ('Material', "Material", "Animated time analysis"), ('Lights', "Lights", "Animated time analysis")]
+    animtype = [('Static', "Static", "Simple static analysis"), ('Time', "Time", "Animated time analysis")]
 
     skytype = [    ("0", "Sunny", "CIE Sunny Sky description"),
                    ("1", "Partly Coudy", "CIE Sunny Sky description"),
@@ -75,7 +81,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
     analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0')
     simalg = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="")
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static')
-    dfanimmenu = bpy.props.EnumProperty(name="", description="Animation type", items=dfanimtype, default = 'Static')
+#    dfanimmenu = bpy.props.EnumProperty(name="", description="Animation type", items=dfanimtype, default = 'Static')
     skymenu = bpy.props.EnumProperty(items=skytype, name="", description="Specify the type of sky for the simulation", default="0")
     shour = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=24, default=12)
     sdoy = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=365, default=1)
@@ -84,8 +90,8 @@ class ViLiNode(bpy.types.Node, ViNodes):
     daysav = bpy.props.BoolProperty(name="", description="Enable daylight saving clock", default=False)
     lati = bpy.props.FloatProperty(name="", description="Site Latitude", min=-90, max=90, default=52)
     longi = bpy.props.FloatProperty(name="", description="Site Longitude relative to local meridian", min=-15, max=15, default=0) 
-    cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
-            name="", description="Specify the calculation point geometry", default="1")
+#    cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
+#            name="", description="Specify the calculation point geometry", default="1")
     
     stamer = bpy.props.EnumProperty(
             items=[("0", "YST", ""),("1", "PST", ""),("2", "MST", ""),("3", "CST", ""),("4", "EST", ""),("GMT", "GMT", ""),("6", "CET", ""),("7", "EET", ""),
@@ -109,12 +115,14 @@ class ViLiNode(bpy.types.Node, ViNodes):
     disp_leg = bpy.props.BoolProperty(default=False)
     hdrname = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="")
     skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="")
-    anim = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="")
     timetype = bpy.props.StringProperty()
     TZ = bpy.props.StringProperty()
     resname = bpy.props.StringProperty()
     rp_display = bpy.props.BoolProperty(default = False)
     
+    def init(self, context):
+        self.inputs.new('ViLiGIn', 'Geometry in')
+        
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.label("Analysis type:")
@@ -165,26 +173,12 @@ class ViLiNode(bpy.types.Node, ViNodes):
                 row.operator('node.hdrselect', text = 'HDR select') 
                 row = layout.row() 
                 row.prop(self, 'hdrname') 
-                row = layout.row() 
-                row.label("Animation:")
-                row.prop(self, 'dfanimmenu')
             elif self.skymenu == '5':
                 row = layout.row() 
                 row.label("Radiance file:")
                 row.operator('node.skyselect', text = 'Sky select') 
                 row = layout.row() 
                 row.prop(self, 'skyname') 
-                row = layout.row() 
-                row.label("Animation:")
-                row.prop(self, 'dfanimmenu')
-        else:
-            row = layout.row() 
-            row.label("Animation:")
-            row.prop(self, 'dfanimmenu')
-        
-        row = layout.row()
-        row.label("Calculation points:")
-        row.prop(self, 'cpoint')
         row = layout.row()
         row.operator("node.liexport", text = "Export").nodename = self.name
         if self.exported == True:
@@ -400,6 +394,17 @@ class ViLiWResOut(bpy.types.NodeSocket):
     def draw_color(self, context, node):
         return (1.0, 0.2, 0.2, 0.75)
 
+class ViLiGIn(bpy.types.NodeSocket):
+    '''Lighting geometry in socket'''
+    bl_idname = 'ViLiGIn'
+    bl_label = 'Geometry in'
+    
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+        
+    def draw_color(self, context, node):
+        return (1.0, 0.2, 0.2, 0.75)
+        
 class EnViDataIn(bpy.types.NodeSocket):
     '''EnVi data in socket'''
     bl_idname = 'EnViDIn'

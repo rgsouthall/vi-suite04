@@ -18,9 +18,11 @@ class NODE_OT_LiGExport(bpy.types.Operator):
     nodename = bpy.props.StringProperty()
     
     def execute(self, context):
+        global lexport
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-        node.outputs.new('ViLiGOut', 'Geometry out')
-        livi_export.radexport(node)
+        if not node.outputs:
+            node.outputs.new('ViLiGOut', 'Geometry out')
+        lexport = livi_export.LiVi_e(bpy.data.filepath, node, self)
         return {'FINISHED'}        
 
 class NODE_OT_EpwSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
@@ -118,8 +120,6 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
         
     def invoke(self, context, event):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-        node.outputs.new('ViLiWResOut', 'Data out')
-        node.exported = True
         node.resname = ("illumout", "irradout", "dfout")[int(node.analysismenu)]
         node.unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(node.analysismenu)]
         
@@ -128,7 +128,6 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
         else:
             node.simalg = (' |  rcalc  -e "$1=47.4*$1+120*$2+11.6*$3" ', ' |  rcalc  -e "$1=$1" ', ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ')[int(node.analysismenu)]
     
-        global lexport
         if bpy.data.filepath:
             node.TZ = node.summer if node.daysav == True else node.stamer
             node.timetype = node.animmenu if node.analysismenu != '2' else node.dfanimmenu
@@ -138,8 +137,12 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
                     bpy.ops.object.mode_set(mode = 'OBJECT')
             
             if " " not in bpy.data.filepath:
-                lexport = livi_export.LiVi_e(bpy.data.filepath, node, self)   
-                node.disp_leg = False
+                if node.inputs['Geometry in'].is_linked:
+                    lexport.radcexport(node)   
+                    node.disp_leg = False
+                    node.exported = True
+                else:
+                    self.report({'ERROR'},"No geometry node is linked")
             else:    
                 self.report({'ERROR'},"The directory path or Blender filename has a space in it. Please save again without any spaces")
                 return {'FINISHED'}

@@ -275,16 +275,20 @@ def li_display(node, geonode):
                                 
 def linumdisplay(disp_op, context, node, geonode):
     scene = context.scene
-    obreslist = [ob for ob in bpy.data.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.licalc == 1 and ob.lires == 1]
-    obcalclist = [ob for ob in bpy.data.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.licalc == 1 and ob.lires == 0]
     
-    if context.mode != "OBJECT" or scene.li_display_rp != True:
+    try:
+        if obcalclist:
+            pass
+    except:
+        obreslist = [ob for ob in bpy.data.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.licalc == 1 and ob.lires == 1]
+        obcalclist = [ob for ob in bpy.data.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.licalc == 1 and ob.lires == 0]
+
+    
+    if context.mode != "OBJECT" or scene.li_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.li_display_sel_only == True) or scene.li_display_rp != True or scene.frame_current not in range(scene.frame_start, scene.frame_end+1):
     #(context.active_object not in (obcalclist+obreslist) and scene.li_display_sel_only == True) \
     #or scene.li_display_rp != True or scene.frame_current not in range(scene.frame_start, scene.frame_end) and scene.li_disp_panel == 0:
-        print(obreslist)
-        print(obcalclist)
         return
-        
+
     region = context.region
     mid_x = region.width / 2
     mid_y = region.height / 2
@@ -319,7 +323,7 @@ def linumdisplay(disp_op, context, node, geonode):
         scene = context.scene
       
         for f in faces:
-            if geonode.cpoint == "0":
+            if geonode.cpoint == "0" and node.exported == True:
                 vsum = mathutils.Vector((0, 0, 0))
                 for v in f.vertices:
                     vsum = ob.active_shape_key.data[v].co + vsum if len(obreslist) > 0 else ob.data.vertices[v].co + vsum
@@ -329,7 +333,7 @@ def linumdisplay(disp_op, context, node, geonode):
                     if len(set(obm.vertex_colors[fn].data[loop_index].color[:])) > 1:
                         draw_index(0.0, 0.0, 0.0, int(node['minres'][fn] + (1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*(node['maxres'][fn] - node['minres'][fn])), fc.to_4d())
             
-            elif geonode.cpoint == "1":
+            elif geonode.cpoint == "1" and node.exported == True:
                 for loop_index in f.loop_indices:
                     v = obm.loops[loop_index].vertex_index
                     vpos = ob.active_shape_key.data[v].co if len(obreslist) > 0 else obm.vertices[v].co

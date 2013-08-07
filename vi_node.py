@@ -52,7 +52,7 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
         rm = "del "
         cat = "type "
         fold = "\\"
-        
+    
     filepath = bpy.props.StringProperty()
     filename = bpy.props.StringProperty()
     filedir = bpy.props.StringProperty()
@@ -60,14 +60,24 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     filebase = bpy.props.StringProperty()
     reslen = bpy.props.IntProperty()
     exported = bpy.props.BoolProperty()
+    
+    def nodeexported(self, context):
+        self.exported = False
+        self.outputs[0].links[0].to_node.exported = False
+        if self.outputs[0].is_linked:
+            link = self.outputs[0].links[0]
+            bpy.data.node_groups['VI Network'].links.remove(link)
+        self.outputs[0].hide = True
+    
     animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis"), ('Material', "Material", "Animated material analysis"), ('Lights', "Lights", "Animated artificial lighting analysis")]
-    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static')
+    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
     cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
-            name="", description="Specify the calculation point geometry", default="1")
+            name="", description="Specify the calculation point geometry", default="1", update = nodeexported)
     radfiles = []
     
     def init(self, context):
         vi_func.nodeinit(self)
+        self.outputs.new('ViLiGOut', 'Geometry out')
 
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -78,6 +88,12 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
         row.prop(self, 'cpoint')
         row = layout.row()
         row.operator("node.ligexport", text = "Export").nodename = self.name
+     
+    def update(self):
+        if self.outputs[0].is_linked:
+            if self.outputs[0].links[0].to_socket.color() != self.outputs[0].color():
+                link = self.outputs[0].links[0]
+                bpy.data.node_groups['VI Network'].links.remove(link)
         
        
 class ViLiNode(bpy.types.Node, ViNodes):
@@ -213,7 +229,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
                row.label("Radiance parameters:")
                row.prop(self, 'cusacc') 
             row = layout.row()
-            row.operator("node.radpreview", text = 'Radiance Preview').nodename = self.name
+            row.operator("node.radpreview", text = 'Preview').nodename = self.name
             row.operator("node.calculate", text = 'Calculate').nodename = self.name
         
 class ViLiCBNode(bpy.types.Node, ViNodes):
@@ -427,6 +443,24 @@ class ViLiGIn(bpy.types.NodeSocket):
         
     def draw_color(self, context, node):
         return (1.0, 0.2, 0.2, 0.75)
+        
+    def color(self):
+        return (1.0, 0.2, 0.2, 0.75)
+
+class ViLiGOut(bpy.types.NodeSocket):
+    '''Lighting geometry out socket'''
+    bl_idname = 'ViLiGOut'
+    bl_label = 'Geometry out'
+    
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+        
+    def draw_color(self, context, node):
+        return (1.0, 0.2, 0.2, 0.75)
+        
+    def color(self):
+        return (1.0, 0.2, 0.2, 0.75)
+        
         
 class EnViDataIn(bpy.types.NodeSocket):
     '''EnVi data in socket'''

@@ -19,9 +19,9 @@ class NODE_OT_LiGExport(bpy.types.Operator):
     
     def execute(self, context):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-        if not node.outputs:
-            node.outputs.new('ViLiGOut', 'Geometry out')
         livi_export.radgexport(self, node)
+        node.exported = True
+        node.outputs[0].hide = False
         return {'FINISHED'}        
 
 class NODE_OT_EpwSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
@@ -130,7 +130,6 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
     
         if bpy.data.filepath:
             node.TZ = node.summer if node.daysav == True else node.stamer
-            node.timetype = node.animmenu if node.analysismenu != '2' else node.dfanimmenu
 
             if bpy.context.object:
                 if bpy.context.object.type == 'MESH' and bpy.context.object.hide == False and bpy.context.object.layers[0] == True:
@@ -183,7 +182,7 @@ class NODE_OT_Calculate(bpy.types.Operator):
 #        context.scene.resnode = self.nodename
 #        return {'FINISHED'}
     
-    def execute(self, context):
+    def invoke(self, context, event):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
         geonode = node.inputs[0].links[0].from_node
         livi_calc.li_calc(self, node, geonode)

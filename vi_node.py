@@ -17,10 +17,10 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, bpy_extras, glob, os, inspect, sys
+import bpy, bpy_extras, glob, os, inspect, sys, multiprocessing
 from nodeitems_utils import NodeCategory, NodeItem
 #from . import vi_operators
-
+from . import vi_func
 
 class ViNetwork(bpy.types.NodeTree):
     '''A node tree for VI-Suite analysis.'''
@@ -42,13 +42,33 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     bl_idname = 'ViGExLiNode'
     bl_label = 'VI lighting geometry export'
     bl_icon = 'LAMP' 
-
+    if str(sys.platform) != 'win32':
+        nproc = str(multiprocessing.cpu_count())
+        rm = "rm "
+        cat = "cat "
+        fold = "/"
+    else:
+        nproc = "1"
+        rm = "del "
+        cat = "type "
+        fold = "\\"
+        
+    filepath = bpy.props.StringProperty()
+    filename = bpy.props.StringProperty()
+    filedir = bpy.props.StringProperty()
+    newdir = bpy.props.StringProperty()
+    filebase = bpy.props.StringProperty()
+    reslen = bpy.props.IntProperty()
+    exported = bpy.props.BoolProperty()
     animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis"), ('Material', "Material", "Animated material analysis"), ('Lights', "Lights", "Animated artificial lighting analysis")]
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static')
     cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
             name="", description="Specify the calculation point geometry", default="1")
     radfiles = []
     
+    def init(self, context):
+        vi_func.nodeinit(self)
+
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.label('Animation:')
@@ -66,11 +86,13 @@ class ViLiNode(bpy.types.Node, ViNodes):
     bl_label = 'VI Lighting Analysis'
     bl_icon = 'LAMP'
     
-    analysistype = [('0', "Illuminance", "Lux Calculation"), ('1', "Irradiance", "W/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Factor", "DF (%) Calculation"),]     
+    analysistype = [('0', "Illuminance", "Lux Calculation"), ('1', "Irradiance", "W/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Factor", "DF (%) Calculation"),]  
+    
+    unit = bpy.props.StringProperty()
 
     animtype = [('Static', "Static", "Simple static analysis"), ('Time', "Time", "Animated time analysis")]
 
-    skytype = [    ("0", "Sunny", "CIE Sunny Sky description"),
+    skylist = [    ("0", "Sunny", "CIE Sunny Sky description"),
                    ("1", "Partly Coudy", "CIE Sunny Sky description"),
                    ("2", "Coudy", "CIE Partly Cloudy Sky description"),
                    ("3", "DF Sky", "Daylight Factor Sky description"),
@@ -82,7 +104,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
     simalg = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="")
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static')
 #    dfanimmenu = bpy.props.EnumProperty(name="", description="Animation type", items=dfanimtype, default = 'Static')
-    skymenu = bpy.props.EnumProperty(items=skytype, name="", description="Specify the type of sky for the simulation", default="0")
+    skymenu = bpy.props.EnumProperty(items=skylist, name="", description="Specify the type of sky for the simulation", default="0")
     shour = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=24, default=12)
     sdoy = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=365, default=1)
     ehour = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=24, default=12)
@@ -115,6 +137,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
     disp_leg = bpy.props.BoolProperty(default=False)
     hdrname = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="")
     skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="")
+    skynum = bpy.props.IntProperty()
     timetype = bpy.props.StringProperty()
     TZ = bpy.props.StringProperty()
     resname = bpy.props.StringProperty()
@@ -190,8 +213,8 @@ class ViLiNode(bpy.types.Node, ViNodes):
                row.label("Radiance parameters:")
                row.prop(self, 'cusacc') 
             row = layout.row()
-            row.operator("node.radpreview", text = 'Radiance Preview')
-            row.operator("node.calculate", text = 'Calculate')
+            row.operator("node.radpreview", text = 'Radiance Preview').nodename = self.name
+            row.operator("node.calculate", text = 'Calculate').nodename = self.name
         
 class ViLiCBNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite climate based lighting node'''

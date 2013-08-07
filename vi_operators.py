@@ -18,11 +18,10 @@ class NODE_OT_LiGExport(bpy.types.Operator):
     nodename = bpy.props.StringProperty()
     
     def execute(self, context):
-        global lexport
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
         if not node.outputs:
             node.outputs.new('ViLiGOut', 'Geometry out')
-        lexport = livi_export.LiVi_e(bpy.data.filepath, node, self)
+        livi_export.radgexport(self, node)
         return {'FINISHED'}        
 
 class NODE_OT_EpwSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
@@ -122,6 +121,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
         node.resname = ("illumout", "irradout", "dfout")[int(node.analysismenu)]
         node.unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(node.analysismenu)]
+        node.skynum = int(node.skymenu)
         
         if str(sys.platform) != 'win32':
             node.simalg = (" |  rcalc  -e '$1=47.4*$1+120*$2+11.6*$3' ", " |  rcalc  -e '$1=$1' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' ")[int(node.analysismenu)]
@@ -138,7 +138,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
             
             if " " not in bpy.data.filepath:
                 if node.inputs['Geometry in'].is_linked:
-                    lexport.radcexport(node)   
+                    livi_export.radcexport(self, node)   
                     node.disp_leg = False
                     node.exported = True
                 else:
@@ -158,17 +158,37 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
     bl_register = True
     bl_undo = True
     
+    nodename = bpy.props.StringProperty()
+    
     def invoke(self, context, event):
-        livi_calc.rad_prev(lexport, self)
+        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
+        geonode = node.inputs[0].links[0].from_node
+        livi_calc.rad_prev(self, node, geonode)
         return {'FINISHED'}
         
 class NODE_OT_Calculate(bpy.types.Operator):
     bl_idname = "node.calculate"
     bl_label = "Radiance Export and Simulation"
     
-    def invoke(self, context, event):
-        livi_calc.li_calc(lexport, self)
+    nodename = bpy.props.StringProperty()
+    
+#    def invoke(self, context, event):
+#        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
+#        geonode = node.inputs[0].links[0].from_node
+#        node.maxres = []
+#        node.minres = []
+#        node.avres = []
+#        livi_calc.li_calc(self, node, geonode)
+#        context.scene.li_disp_panel = 1
+#        context.scene.resnode = self.nodename
+#        return {'FINISHED'}
+    
+    def execute(self, context):
+        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
+        geonode = node.inputs[0].links[0].from_node
+        livi_calc.li_calc(self, node, geonode)
         context.scene.li_disp_panel = 1
+        context.scene.resnode = self.nodename
         return {'FINISHED'}
         
 class VIEW3D_OT_LiDisplay(bpy.types.Operator):
@@ -180,8 +200,10 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
     nodename = bpy.props.StringProperty()
     
     def invoke(self, context, event):
+        node = bpy.data.node_groups['VI Network'].nodes[bpy.context.scene.resnode]
+        geonode = node.inputs[0].links[0].from_node
         try:
-            vi_display.li_display(lexport)
+            vi_display.li_display(node, geonode)
             bpy.ops.view3d.linumdisplay()
         except:
             self.report({'ERROR'},"No results available for display. Try re-running the calculation.")
@@ -200,16 +222,17 @@ class VIEW3D_OT_LiNumDisplay(bpy.types.Operator):
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_stat, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
-            lexport.node.rp_display = False
+#            context.scene.rp_display = False
             return {'CANCELLED'}
         return {'PASS_THROUGH'} 
     
     def execute(self, context):
-        from . import vi_display
         if context.area.type == 'VIEW_3D':
-            self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(vi_display.li3D_legend, (self, context, lexport), 'WINDOW', 'POST_PIXEL')
-            self._handle_stat = bpy.types.SpaceView3D.draw_handler_add(vi_display.lires_stat, (self, context), 'WINDOW', 'POST_PIXEL')
-            self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(vi_display.linumdisplay, (self, context, lexport), 'WINDOW', 'POST_PIXEL')
+            node = bpy.data.node_groups['VI Network'].nodes[bpy.context.scene.resnode]
+            geonode = node.inputs[0].links[0].from_node
+            self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(vi_display.li3D_legend, (self, context, node), 'WINDOW', 'POST_PIXEL')
+            self._handle_stat = bpy.types.SpaceView3D.draw_handler_add(vi_display.lires_stat, (self, context, node), 'WINDOW', 'POST_PIXEL')
+            self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(vi_display.linumdisplay, (self, context, node, geonode), 'WINDOW', 'POST_PIXEL')
             context.window_manager.modal_handler_add(self)
             context.scene.li_display = 1
             return {'RUNNING_MODAL'}

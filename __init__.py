@@ -90,11 +90,13 @@ def register():
     
     Scene.li_display = BoolProperty(default = False)
     
-    Scene.li_display_respoints = BoolProperty(default = False)
+    Scene.li_display_rp = BoolProperty(name = "", default = False)
 
-    Scene.li_display_sel_only = BoolProperty(default = False)
+    Scene.li_display_sel_only = BoolProperty(name = "", default = False)
 
-    Scene.li_display_rp_fs = IntProperty(name="Font size:", description="Point result font size", default=9)
+    Scene.li_display_rp_fs = IntProperty(name="", description="Point result font size", default=9)
+    
+    Scene.resnode = StringProperty()
     
     bpy.utils.register_class(vi_operators.NODE_OT_EpwSelect)
     bpy.utils.register_class(vi_operators.NODE_OT_HdrSelect)
@@ -153,3 +155,4 @@ def unregister():
     bpy.utils.unregister_class(vi_node.ViGNode)
     bpy.utils.unregister_class(vi_node.ViEPNode)
     nodeitems_utils.unregister_node_categories("Vi Nodes", vi_node.vinode_categories)
+    

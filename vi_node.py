@@ -58,6 +58,7 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     filedir = bpy.props.StringProperty()
     newdir = bpy.props.StringProperty()
     filebase = bpy.props.StringProperty()
+    objfilebase = bpy.props.StringProperty()
     reslen = bpy.props.IntProperty()
     exported = bpy.props.BoolProperty()
     

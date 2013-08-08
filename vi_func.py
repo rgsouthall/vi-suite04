@@ -3,36 +3,39 @@ from math import sin, cos, asin, acos, pi
 
 def obj(name, fr, node):
     if node.animmenu == "Geometry":
-        return(node.filebase+"-{}-{}.obj".format(name.replace(" ", "_"), fr))
+        return(node.objfilebase+"-{}-{}.obj".format(name.replace(" ", "_"), fr))
     else:
-        return(node.filebase+"-{}-0.obj".format(name.replace(" ", "_")))
+        return(node.objfilebase+"-{}-0.obj".format(name.replace(" ", "_")))
 
 def mesh(name, fr, node):
     if node.animmenu in ("Geometry", "Material"):
-        return(node.filebase+"-{}-{}.mesh".format(name.replace(" ", "_"), fr))
+        return(node.objfilebase+"-{}-{}.mesh".format(name.replace(" ", "_"), fr))
     else:
-        return(node.filebase+"-{}-0.mesh".format(name.replace(" ", "_")))
+        return(node.objfilebase+"-{}-0.mesh".format(name.replace(" ", "_")))
 
 def mat(fr, node):
     if node.animmenu == "Material":
-        return(node.filebase+"-"+str(fr)+".mat")
+        return(node.filebase+"-"+str(fr)+".rad")
     else:
-        return(node.filebase+"-0.mat")
+        return(node.filebase+"-0.rad")
 
-def sky(fr, node):
+def sky(fr, node, geonode):
     if node.animmenu == "Time":
-        return(node.filebase+"-"+str(fr)+".sky")
+        return(geonode.filebase+"-"+str(fr)+".sky")
     else:
-        return(node.filebase+"-0.sky")
+        return(geonode.filebase+"-0.sky")
         
 def nodeinit(node):
     node.filepath = bpy.data.filepath
     node.filename = os.path.splitext(os.path.basename(node.filepath))[0]
     node.filedir = os.path.dirname(node.filepath)
     if not os.path.isdir(node.filedir+node.fold+node.filename):
-        os.makedirs(node.filedir+node.fold+node.filename)        
+        os.makedirs(node.filedir+node.fold+node.filename)  
+        if not os.path.isdir(node.filedir+node.fold+node.filename+node.fold+'obj'):
+           os.makedirs(node.filedir+node.fold+node.filename+node.fold+'obj') 
     node.newdir = node.filedir+node.fold+node.filename
     node.filebase = node.newdir+node.fold+node.filename
+    node.objfilebase = node.newdir+node.fold+'obj'+node.fold+node.filename
 
 def nodeexported(self):
     self.exported = 0

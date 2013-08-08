@@ -344,8 +344,9 @@ def linumdisplay(disp_op, context, node, geonode):
 
 def li3D_legend(self, context, node):
     if node['maxres']:
+        resvals = [('{:.0f}', '{:.0f}', '{:.1f}')[int(node.analysismenu)].format(min(node['minres'])+i*(max(node['maxres'])-min(node['minres']))/19) for i in range(20)]
         height = context.region.height
-        lenres = len("{:.0f}".format(max(node['maxres'])))
+        lenres = len(resvals[-1])
         font_id = 0  
         bgl.glEnable(bgl.GL_BLEND)
         bgl.glColor4f(1.0, 1.0, 1.0, 0.7)
@@ -374,15 +375,10 @@ def li3D_legend(self, context, node):
             bgl.glVertex2i(60, (i*20)+height - 440)
             bgl.glVertex2i(20, (i*20)+height - 440)
             bgl.glEnd()
-            singlelenres = int(math.log10(math.floor(min(node['minres'])+i*(max(node['maxres'])-min(node['minres']))/19)+1))
             blf.position(font_id, 65, (i*20)+height - 455, 0)
             blf.size(font_id, 20, 48)
             bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-            if node.analysismenu == '2':
-                blf.draw(font_id, "  "*(lenres - singlelenres - 2) + str(round(min(node['minres'])+i*(max(node['maxres'])-min(node['minres']))/19, 1)+1))
-            else:
-                blf.draw(font_id, "  "*(lenres - singlelenres - 1) + str(int(min(node['minres'])+i*(max(node['maxres'])-min(node['minres']))/19)+1))        
-            
+            blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
         blf.position(font_id, 25, height - 57, 0)
         blf.size(font_id, 20, 56)
         bgl.glColor4f(0.0, 0.0, 0.0, 1.0)

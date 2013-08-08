@@ -234,24 +234,45 @@ def radcexport(export_op, node):
       
         if node.skynum < 4:
             node.skytypeparams = ("+s", "+i", "-c", "-b 22.86 -c")[node.skynum]
-            radskyhdrexport(scene, node, geonode, starttime)
+            if node.hdr == True:
+                radskyhdrexport(scene, node, geonode, starttime)
             
             if node.skynum < 2 and node.analysismenu != '2':
-                sunexport(scene, node)
+                sunexport(scene, node, starttime)
         
         elif node.skynum == 4:
             if node.hdrname not in bpy.data.images:
                 bpy.data.images.load(node.hdrname)
+                
             hdrsky(open(geonode.filebase+"-0.sky", "a"), node.hdrname)
         
-        elif node.skynum == 5:
-            subprocess.call("cp {} {}".format(node.radname, geonode.lexport.sky(0)), shell = True)
-        
-        elif node.skynum == 6:
-            for frame in range(scene.frame_start, scene.frame_end + 1):
-                rad_sky = open(geonode.lexport.sky(frame), "w")
-                rad_sky.close()
-            scene.frame_end = 0
+#        elif node.skynum == 5:
+#            subprocess.call("cp {} {}".format(node.radname, geonode.lexport.sky(0)), shell = True)
+                
+        for frame in range(scene.frame_start, scene.frame_end + 1):
+            if node.skynum < 4:
+                skyexport(node, open(geonode.filebase+"-{}.rad".format(frame), "a"))
+                if geonode.animmenu == 'Static' and frame < scene.frame_end:
+                    subprocess.call("cp {} {}".format(geonode.filebase+"-{}.rad".format(frame), geonode.filebase+"-{}.rad".format(frame+1)), shell = True)
+                  
+
+            elif node.skynum == 4:
+                hdrsky(open(geonode.filebase+"-{}.rad".format(frame), "a"), node.hdrname)
+            elif node.skynum == 5:
+                open(geonode.filebase+"-{}.rad".format(frame),'a').write(open(node.radfile).read( ))
+#                if frame == scene.frame_start:
+#                    skyradfile = open(node.radname, 'r')
+#                radfile
+            
+                
+                
+            
+            
+#        elif node.skynum == 6:
+#            for frame in range(scene.frame_start, scene.frame_end + 1):
+#                rad_sky = open(geonode.lexport.sky(frame), "w")
+#                rad_sky.close()
+#            scene.frame_end = 0
     
     for frame in range(scene.frame_start, scene.frame_end + 1):
         fexport(scene, frame, export_op, node, geonode)
@@ -262,14 +283,14 @@ def radskyhdrexport(scene, node, geonode, starttime):
         simtime = starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
 #        node.simtimes.append(simtime)
         subprocess.call("gensky {} {} {}:{:0>2d}{} -a {} -o {} {} > {}".format(simtime.month, simtime.day, simtime.hour, simtime.minute, node.TZ, node.lati, node.longi, node.skytypeparams, vi_func.sky(frame, geonode)), shell = True)
-        skyexport(node, open(vi_func.sky(frame, geonode), "a"))           
+          
         subprocess.call("oconv {} > {}-{}sky.oct".format(vi_func.sky(frame, geonode), geonode.filebase, frame), shell=True)
         subprocess.call("cnt 250 500 | rcalc -f {}/lib/latlong.cal -e 'XD=500;YD=250;inXD=0.002;inYD=0.004' | rtrace -af pan.af -n {} -x 500 -y 250 -fac {}-{}sky.oct > {}/{}p.hdr".format(scene.vipath, geonode.nproc, geonode.filebase, frame, geonode.newdir, frame), shell=True)
         subprocess.call("rpict -vta -vp 0 0 0 -vd 1 0 0 -vu 0 0 1 -vh 360 -vv 360 -x 1000 -y 1000 {}-{}sky.oct > {}/{}.hdr".format(geonode.filebase, frame, geonode.newdir, frame), shell=True)
                 
-def sunexport(scene, node):
+def sunexport(scene, node, starttime):
     for frame in range(scene.frame_start, scene.frame_end + 1):
-        simtime = node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
+        simtime = starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
         deg2rad = 2*math.pi/360
         DS = 1 if node.daysav else 0
         ([solalt, solazi]) = vi_func.solarPosition(simtime.timetuple()[7], simtime.hour - DS + (simtime.minute)*0.016666, node.lati, node.longi) 

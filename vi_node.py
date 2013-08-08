@@ -150,6 +150,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
             
     interval = bpy.props.FloatProperty(name="", description="Site Latitude", min=0.25, max=24, default=1)
     exported = bpy.props.BoolProperty(default=False)
+    hdr = bpy.props.BoolProperty(name="HDR", description="Export HDR panoramas", default=False)
     disp_leg = bpy.props.BoolProperty(default=False)
     hdrname = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="")
     skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="")
@@ -219,6 +220,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
                 row = layout.row() 
                 row.prop(self, 'skyname') 
         row = layout.row()
+        row.prop(self, 'hdr')
         row.operator("node.liexport", text = "Export").nodename = self.name
         if self.exported == True:
             row = layout.row()

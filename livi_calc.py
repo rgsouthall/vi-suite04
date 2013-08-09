@@ -20,12 +20,17 @@ import bpy, os, subprocess, colorsys, sys, datetime
 from math import pi
 from subprocess import PIPE, Popen, STDOUT
 from . import vi_func
+from . import livi_export
+
 try:
     import numpy
     np = 1
 except:
     np = 0
-    
+
+def radfexport(scene, export_op, node, geonode):    
+    for frame in range(scene.frame_start, scene.frame_end + 1):
+        livi_export.fexport(scene, frame, export_op, node, geonode)
 
 def rad_prev(prev_op, node, geonode):
     scene = bpy.context.scene
@@ -44,8 +49,13 @@ def rad_prev(prev_op, node, geonode):
             else:
                 cang = cam.data.angle*180/pi
                 vv = cang * scene.render.resolution_y/scene.render.resolution_x
-            subprocess.call("rvu -w -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0][2]:.3f} {3[1][2]:.3f} {3[2][2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct &".format(geonode.nproc, vv, cang, -1*cam.matrix_world, cam.location, params, geonode.filebase, scene.frame_current), shell = True)
-            print("rvu -w -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0][2]:.3f} {3[1][2]:.3f} {3[2][2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct &".format(geonode.nproc, vv, cang, -1*cam.matrix_world, cam.location, params, geonode.filebase, scene.frame_current))
+            rvucmd = "rvu -w -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0][2]:.3f} {3[1][2]:.3f} {3[2][2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct &".format(geonode.nproc, vv, cang, -1*cam.matrix_world, cam.location, params, geonode.filebase, scene.frame_current)
+            rvurun = Popen(rvucmd, shell = True, stdout=PIPE, stderr=STDOUT)
+            for l,line in enumerate(rvurun.stdout):
+                if 'octree stale?' in line.decode():
+                    radfexport(scene, prev_op, node, geonode)
+                    rad_prev(prev_op, node, geonode)
+                    return
         else:
             prev_op.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
     else:
@@ -71,6 +81,11 @@ def li_calc(calc_op, node, geonode):
             rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
             resfile = open(geonode.newdir+geonode.fold+node.resname+"-"+str(frame)+".res", 'w')
             for l,line in enumerate(rtrun.stdout):
+                if 'octree stale?' in line.decode():
+                    resfile.close()
+                    radfexport(scene, calc_op, node, geonode)
+                    li_calc(calc_op, node, geonode)
+                    return
                 res[frame][l] =float(line.decode())
             resfile.write("{}".format(res[frame]).strip("]").strip("["))
             resfile.close()

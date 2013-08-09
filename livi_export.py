@@ -35,11 +35,10 @@ def radgexport(export_op, node):
     scene = bpy.context.scene
     vi_func.clearscenee(scene)
     vi_func.clearscened(scene)
-    if node.animmenu == 'Static':
-        scene.frame_start = 0
-        scene.frame_end = 0
+    scene.frame_start = 0
+    fe = 0 if node.animmenu == 'Static' else scene.frame_end
        
-    for frame in range(scene.frame_start, scene.frame_end +1):
+    for frame in range(scene.frame_start, fe + 1):
         scene.frame_current = frame
         radfile = open(node.filebase+"-{}.rad".format(frame), 'w')
         radfile.write("# Materials \n\n")
@@ -163,7 +162,6 @@ def radgexport(export_op, node):
         for o, geo in enumerate(scene.objects):
             csf = []
             cverts = []
-            
             if geo.type == 'MESH' and 'lightarray' not in geo.name and geo.hide == False and geo.layers[0] == True:
                 if len([mat.name for mat in geo.material_slots if 'calcsurf' in mat.name]) != 0:
                     obcalcverts = []
@@ -194,7 +192,6 @@ def radgexport(export_op, node):
                             else:
                                 
                                 for v,vert in enumerate(face.vertices):
-                                    print(v)
                                     if (mesh.vertices[vert]) not in obcalcverts:
                                         vcentx, vcenty, vcentz = mesh.vertices[vert].co[:]
                                         vnormx, vnormy, vnormz = (mesh.vertices[vert].normal*geo.matrix_world.inverted())[:]
@@ -257,7 +254,6 @@ def radcexport(export_op, node):
         elif node.skynum == 4:
             if node.hdrname not in bpy.data.images:
                 bpy.data.images.load(node.hdrname)
-                
             hdrsky(open(geonode.filebase+"-0.sky", "w"), node.hdrname)
             node['skyfiles'] =  open(geonode.filebase+"-0.sky", 'r').read()
         
@@ -340,12 +336,8 @@ def hdrsky(rad_sky, skyfile):
 
 def fexport(scene, frame, export_op, node, geonode):
     radfile = open(geonode.filebase+"-{}.rad".format(frame), 'w')
-    if len(geonode['radfiles']) == 1:
-        radfile.write(geonode['radfiles'][0] + node['skyfiles'][frame])
-    else:
-        radfile.write(geonode['radfiles'][frame] + node['skyfiles'][0])
+    radfile.write(geonode['radfiles'][0] + node['skyfiles'][frame]) if len(geonode['radfiles']) == 1 else radfile.write(geonode['radfiles'][frame] + node['skyfiles'][0])
     radfile.close()
-    
     try:
         subprocess.call("oconv -w {0}-{1}.rad > {0}-{1}.oct".format(geonode.filebase, frame), shell=True)
         node.export = 1

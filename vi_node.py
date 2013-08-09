@@ -64,11 +64,10 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     
     def nodeexported(self, context):
         self.exported = False
-        self.outputs[0].links[0].to_node.exported = False
-        if self.outputs[0].is_linked:
-            link = self.outputs[0].links[0]
-            bpy.data.node_groups['VI Network'].links.remove(link)
-        self.outputs[0].hide = True
+#        if self.outputs[0].is_linked:
+#            link = self.outputs[0].links[0]
+#            bpy.data.node_groups['VI Network'].links.remove(link)
+#        self.outputs[0].hide = True
     
     animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis"), ('Material', "Material", "Animated material analysis"), ('Lights', "Lights", "Animated artificial lighting analysis")]
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
@@ -117,18 +116,21 @@ class ViLiNode(bpy.types.Node, ViNodes):
                    ("5", "Radiance Sky", "Radiance file sky"),
                    ("6", "None", "No Sky")]
     
-    analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0')
+    def nodeexported(self, context):
+        self.exported = False
+        
+    analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0', update = nodeexported)
     simalg = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="")
-    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static')
+    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
 #    dfanimmenu = bpy.props.EnumProperty(name="", description="Animation type", items=dfanimtype, default = 'Static')
-    skymenu = bpy.props.EnumProperty(items=skylist, name="", description="Specify the type of sky for the simulation", default="0")
-    shour = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=24, default=12)
-    sdoy = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=365, default=1)
-    ehour = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=24, default=12)
-    edoy = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=365, default=1)
-    daysav = bpy.props.BoolProperty(name="", description="Enable daylight saving clock", default=False)
-    lati = bpy.props.FloatProperty(name="", description="Site Latitude", min=-90, max=90, default=52)
-    longi = bpy.props.FloatProperty(name="", description="Site Longitude relative to local meridian", min=-15, max=15, default=0) 
+    skymenu = bpy.props.EnumProperty(items=skylist, name="", description="Specify the type of sky for the simulation", default="0", update = nodeexported)
+    shour = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=24, default=12, update = nodeexported)
+    sdoy = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=365, default=1, update = nodeexported)
+    ehour = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=24, default=12, update = nodeexported)
+    edoy = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=365, default=1, update = nodeexported)
+    daysav = bpy.props.BoolProperty(name="", description="Enable daylight saving clock", default=False, update = nodeexported)
+    lati = bpy.props.FloatProperty(name="", description="Site Latitude", min=-90, max=90, default=52, update = nodeexported)
+    longi = bpy.props.FloatProperty(name="", description="Site Longitude relative to local meridian", min=-15, max=15, default=0, update = nodeexported) 
 #    cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
 #            name="", description="Specify the calculation point geometry", default="1")
     
@@ -147,14 +149,14 @@ class ViLiNode(bpy.types.Node, ViNodes):
     
 
     cusacc = bpy.props.StringProperty(
-            name="", description="Custom Radiance simulation parameters", default="")
+            name="", description="Custom Radiance simulation parameters", default="", update = nodeexported)
             
-    interval = bpy.props.FloatProperty(name="", description="Site Latitude", min=0.25, max=24, default=1)
+    interval = bpy.props.FloatProperty(name="", description="Site Latitude", min=0.25, max=24, default=1, update = nodeexported)
     exported = bpy.props.BoolProperty(default=False)
-    hdr = bpy.props.BoolProperty(name="HDR", description="Export HDR panoramas", default=False)
+    hdr = bpy.props.BoolProperty(name="HDR", description="Export HDR panoramas", default=False, update = nodeexported)
     disp_leg = bpy.props.BoolProperty(default=False)
-    hdrname = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="")
-    skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="")
+    hdrname = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="", update = nodeexported)
+    skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="", update = nodeexported)
     skynum = bpy.props.IntProperty()
     timetype = bpy.props.StringProperty()
     TZ = bpy.props.StringProperty()
@@ -223,7 +225,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
         row = layout.row()
         row.prop(self, 'hdr')
         row.operator("node.liexport", text = "Export").nodename = self.name
-        if self.exported == True:
+        if self.inputs['Geometry in'].is_linked and self.exported == True and self.inputs[0].links[0].from_node.exported == True:
             row = layout.row()
             row.label("Accuracy:")
             row.prop(self, 'simacc')
@@ -234,32 +236,38 @@ class ViLiNode(bpy.types.Node, ViNodes):
             row = layout.row()
             row.operator("node.radpreview", text = 'Preview').nodename = self.name
             row.operator("node.calculate", text = 'Calculate').nodename = self.name
-        
+      
+
 class ViLiCBNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite climate based lighting node'''
     bl_idname = 'ViLiCBNode'
     bl_label = 'VI Climate Based Daylighting Analysis'
     bl_icon = 'LAMP'
-
+    
+    def nodeexported(self, context):
+        self.exported = False
+    
     analysistype = [('0', "Annual Light Exposure", "LuxHours Calculation"), ('1', "Annual Radiation Exposure", "kWh/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Availability", "DA (%) Calculation"), ('3', "Hourly irradiance", "Irradiance for each simulation time step")]
-    analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0')
+    analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0', update = nodeexported)
     animtype = [('0', "Static", "Simple static analysis"), ('1', "Geometry", "Animated time analysis"), ('2', "Material", "Animated time analysis"), ('3', "Lights", "Animated time analysis")]
-    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = '0')
-
+    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = '0', update = nodeexported)
+    
     simacc = bpy.props.EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),("3", "Custom", "Edit Radiance parameters"), ],
-            name="", description="Simulation accuracy", default="0")
+            name="", description="Simulation accuracy", default="0", update = nodeexported)
     cusacc = bpy.props.StringProperty(
-            name="", description="Custom Radiance simulation parameters", default="")
+            name="", description="Custom Radiance simulation parameters", default="", update = nodeexported)
     epwname = bpy.props.StringProperty(
-            name="", description="Name of the EnergyPlus weather file", default="")
-#    epwsel = EPWSelect()
+            name="", description="Name of the EnergyPlus weather file", default="", update = nodeexported)
+    
+    exported = bpy.props.BoolProperty(default=False)    
     
     def init(self, context):
         self.outputs.new('ViLiWResOut', 'Data out')
-    
+        self.inputs.new('ViLiGIn', 'Geometry in')
+
     def update(self):
-            if self.outputs['Data out'].is_linked:
-                self.analysismenu = '3'
+        if self.outputs['Data out'].is_linked:
+            self.analysismenu = '3'
     
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -282,9 +290,10 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
            row = layout.row()
            row.label("Radiance parameters:")
            row.prop(self, 'cusacc') 
-        row = layout.row()
-        row.operator("node.radpreview", text = 'Preview').nodename = self.name
-        row.operator("node.calculate", text = 'Calculate').nodename = self.name
+        if self.exported == True:
+            row = layout.row()
+            row.operator("node.radpreview", text = 'Preview').nodename = self.name
+            row.operator("node.calculate", text = 'Calculate').nodename = self.name
 
 class ViLiCNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite lighting compliance node'''
@@ -410,7 +419,57 @@ class ViEPNode(bpy.types.Node, ViNodes):
         row = layout.row()
 
         row.operator("node.calculate", text = 'Calculate')
-        
+
+
+class ViGExENode(bpy.types.Node, ViNodes):
+    '''Node describing a VI-Suite export type'''
+    bl_idname = 'ViGExENode'
+    bl_label = 'VI energy geometry export'
+    bl_icon = 'LAMP' 
+    if str(sys.platform) != 'win32':
+        nproc = str(multiprocessing.cpu_count())
+        rm = "rm "
+        cat = "cat "
+        fold = "/"
+    else:
+        nproc = "1"
+        rm = "del "
+        cat = "type "
+        fold = "\\"
+    
+    filepath = bpy.props.StringProperty()
+    filename = bpy.props.StringProperty()
+    filedir = bpy.props.StringProperty()
+    newdir = bpy.props.StringProperty()
+    filebase = bpy.props.StringProperty()
+    objfilebase = bpy.props.StringProperty()
+    reslen = bpy.props.IntProperty()
+    exported = bpy.props.BoolProperty()
+    
+    def nodeexported(self, context):
+        self.exported = False
+    
+    animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis"), ('Material', "Material", "Animated material analysis"), ('Lights', "Lights", "Animated artificial lighting analysis")]
+    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
+    epfiles = []
+    
+    def init(self, context):
+        vi_func.nodeinit(self)
+        self.outputs.new('ViEGOut', 'Geometry out')
+
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.label('Animation:')
+        row.prop(self, 'animmenu')
+        row = layout.row()
+        row.operator("node.egexport", text = "Export").nodename = self.name
+     
+    def update(self):
+        if self.outputs[0].is_linked:
+            if self.outputs[0].links[0].to_socket.color() != self.outputs[0].color():
+                link = self.outputs[0].links[0]
+                bpy.data.node_groups['VI Network'].links.remove(link)
+                
 class ViNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):
@@ -464,6 +523,19 @@ class ViLiGOut(bpy.types.NodeSocket):
     def color(self):
         return (1.0, 0.2, 0.2, 0.75)
         
+class ViLiGOut(bpy.types.NodeSocket):
+    '''Lighting geometry out socket'''
+    bl_idname = 'ViLiGOut'
+    bl_label = 'Geometry out'
+    
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+        
+    def draw_color(self, context, node):
+        return (0.0, 0.0, 1.0, 0.75)
+        
+    def color(self):
+        return (0.0, 0.0, 1.0, 0.75)
         
 class EnViDataIn(bpy.types.NodeSocket):
     '''EnVi data in socket'''

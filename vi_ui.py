@@ -73,6 +73,11 @@ class RadMatPanel(bpy.types.Panel):
         row.label('Radiance type:')
         if cm.use_shadeless == True:
             row.label('Shadeless')
+        elif cm.emit > 0:
+            row.label('Emission')
+            row = layout.row()
+            row.label('RGB emission:')
+            row.label('({:.2f}, {:.2f}, {:.2f})'.format(cm.emit * cm.diffuse_color[0], cm.emit * cm.diffuse_color[1], cm.emit * cm.diffuse_color[2]))
         elif cm.raytrace_mirror.use == True and cm.raytrace_mirror.reflect_factor > 0.99:
             row.label('Mirror')
             row = layout.row()
@@ -126,19 +131,7 @@ class RadMatPanel(bpy.types.Panel):
             row.label('Roughness:')
             row.label('{:.2f}'.format(1.0-cm.specular_hardness/511.0))
             
-#        row.prop(context.material, 'radiance_type') 
-#        row.prop(lamp, "ies_name")
-#        row = layout.row()
-#        row.label('IES Dimension:')
-#        row.prop(lamp, "ies_unit")
-#        row = layout.row()
-#        row.label('IES Strength:')
-#        row.prop(lamp, "ies_strength")
-#        row = layout.row()
-#        row.prop(lamp, "ies_colour")
-
-
-      
+     
 class IESPanel(bpy.types.Panel):
     bl_label = "LiVi IES file"
     bl_space_type = "PROPERTIES"

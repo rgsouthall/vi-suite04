@@ -31,11 +31,12 @@ def nodeinit(node):
     node.filedir = os.path.dirname(node.filepath)
     if not os.path.isdir(node.filedir+node.fold+node.filename):
         os.makedirs(node.filedir+node.fold+node.filename)  
-        if not os.path.isdir(node.filedir+node.fold+node.filename+node.fold+'obj'):
-           os.makedirs(node.filedir+node.fold+node.filename+node.fold+'obj') 
+    if not os.path.isdir(node.filedir+node.fold+node.filename+node.fold+'obj'):
+       os.makedirs(node.filedir+node.fold+node.filename+node.fold+'obj') 
     node.newdir = node.filedir+node.fold+node.filename
     node.filebase = node.newdir+node.fold+node.filename
     node.objfilebase = node.newdir+node.fold+'obj'+node.fold+node.filename
+    
 
 def nodeexported(self):
     self.exported = 0

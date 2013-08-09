@@ -171,17 +171,6 @@ class NODE_OT_Calculate(bpy.types.Operator):
     
     nodename = bpy.props.StringProperty()
     
-#    def invoke(self, context, event):
-#        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-#        geonode = node.inputs[0].links[0].from_node
-#        node.maxres = []
-#        node.minres = []
-#        node.avres = []
-#        livi_calc.li_calc(self, node, geonode)
-#        context.scene.li_disp_panel = 1
-#        context.scene.resnode = self.nodename
-#        return {'FINISHED'}
-    
     def invoke(self, context, event):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
         geonode = node.inputs[0].links[0].from_node

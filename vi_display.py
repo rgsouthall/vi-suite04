@@ -282,11 +282,8 @@ def linumdisplay(disp_op, context, node, geonode):
     except:
         obreslist = [ob for ob in bpy.data.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.licalc == 1 and ob.lires == 1]
         obcalclist = [ob for ob in bpy.data.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.licalc == 1 and ob.lires == 0]
-    print(bpy.context.active_object, scene.li_display_sel_only)
+
     if context.mode != "OBJECT" or scene.li_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.li_display_sel_only == True) or scene.li_display_rp != True or scene.frame_current not in range(scene.frame_start, scene.frame_end+1):
-    #(context.active_object not in (obcalclist+obreslist) and scene.li_display_sel_only == True) \
-    #or scene.li_display_rp != True or scene.frame_current not in range(scene.frame_start, scene.frame_end) and scene.li_disp_panel == 0:
-        
         return
 
     region = context.region

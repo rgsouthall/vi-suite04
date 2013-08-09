@@ -35,7 +35,7 @@ def rad_prev(prev_op, node, geonode):
         num = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-ar", 128, 512, 1024), ("-as", 128, 512, 1024), ("-aa", 0.3, 0.15, 0.08), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
         params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(node.simacc)+1] for n in num]))
 
-    if os.path.isfile(geonode.filebase+"-0.poly"):
+    if os.path.isfile(geonode.filebase+"-0.rad"):
         cam = scene.camera
         if cam != None:
             if 'VI Glare' in node.name:
@@ -45,6 +45,7 @@ def rad_prev(prev_op, node, geonode):
                 cang = cam.data.angle*180/pi
                 vv = cang * scene.render.resolution_y/scene.render.resolution_x
             subprocess.call("rvu -w -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0][2]:.3f} {3[1][2]:.3f} {3[2][2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct &".format(geonode.nproc, vv, cang, -1*cam.matrix_world, cam.location, params, geonode.filebase, scene.frame_current), shell = True)
+            print("rvu -w -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0][2]:.3f} {3[1][2]:.3f} {3[2][2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct &".format(geonode.nproc, vv, cang, -1*cam.matrix_world, cam.location, params, geonode.filebase, scene.frame_current))
         else:
             prev_op.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
     else:

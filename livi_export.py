@@ -35,7 +35,7 @@ def radgexport(export_op, node):
     scene = bpy.context.scene
     vi_func.clearscenee(scene)
     vi_func.clearscened(scene)
-    if node.animmenu == '0':
+    if node.animmenu == 'Static':
         scene.frame_start = 0
         scene.frame_end = 0
        
@@ -79,10 +79,9 @@ def radgexport(export_op, node):
                 radfile.write("# Plastic material\nvoid plastic " + meshmat.name.replace(" ", "_") +"\n0\n0\n5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.2f} {2:.2f}\n\n".format(diff, meshmat.specular_intensity, 1.0-meshmat.specular_hardness/511.0))
                 
         bpy.ops.object.select_all(action='DESELECT')
+        radfile.close()
 
 # geometry export routine
-        
-        radfile.write("# Geometry \n\n")
         
         obs = [geo for geo in scene.objects if geo.type == 'MESH' and 'lightarray' not in geo.name and geo.hide == False and geo.layers[0] == True]
 
@@ -90,20 +89,20 @@ def radgexport(export_op, node):
             o.select = True
             if node.animmenu == '1':
                 bpy.ops.export_scene.obj(filepath=vi_func.obj(o.name, frame, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=False, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
-                objcmd = "obj2mesh -w -a {} {} {}".format(vi_func.mat(frame, node), vi_func.obj(o.name, frame, node), vi_func.mesh(o.name, frame, node))
-                objrun = Popen(objcmd, shell = True, stderr = PIPE)
+                objcmd = "obj2mesh -a {} {} {}".format(vi_func.mat(frame, node), vi_func.obj(o.name, frame, node), vi_func.mesh(o.name, frame, node))
             else:
                 if frame == 0:
                     bpy.ops.export_scene.obj(filepath=vi_func.obj(o.name, frame, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=False, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
-                    objcmd = "obj2mesh -w -a {} {} {}".format(vi_func.mat(frame, node), vi_func.obj(o.name, frame, node), vi_func.mesh(o.name, frame, node))
-                    print(objcmd)                    
-                    objrun = Popen(objcmd, shell = True, stderr = PIPE)
+                    objcmd = "obj2mesh -a {} {} {}".format(vi_func.mat(frame, node), vi_func.obj(o.name, frame, node), vi_func.mesh(o.name, frame, node))
+            objrun = Popen(objcmd, shell = True, stderr = PIPE)
             o.select = False
             
             for line in objrun.stderr:
                 if 'fatal' in str(line):
                     o.limerr = 1
-
+            
+            radfile = open(node.filebase+"-{}.rad".format(frame), 'a')
+            radfile.write("# Geometry \n\n")
             if o.limerr == 0:
                 radfile.write("void mesh id \n1 "+vi_func.mesh(o.name, frame, node)+"\n0\n0\n\n")
     
@@ -149,10 +148,12 @@ def radgexport(export_op, node):
                         fz = sum([(spotmatrix*v.co)[2] for v in geo.data.vertices if v.index in face.vertices])/len(face.vertices)
                         radfile.write("!xform -rx {:.3f} -ry {:.3f} -rz {:.3f} -t {:.3f} {:.3f} {:.3f} {}\n".format((180/pi)*rotation[0], (180/pi)*rotation[1], (180/pi)*rotation[2], fx, fy, fz, node.newdir+"/"+iesname+"-"+str(frame)+".rad"))
         node.radfiles.append(radfile.name)
+        radfile.write("# Sky \n\n")
         radfile.close()
         radfilelist.append(open(node.filebase+"-{}.rad".format(frame), 'r').read())
         
     node['radfiles'] = radfilelist
+
 # rtrace export routine
         
     rtrace = open(node.filebase+".rtrace", "w")       
@@ -296,7 +297,7 @@ def radskyhdrexport(scene, node, geonode, starttime, frame):
     simtime = starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
     subprocess.call("gensky {} {} {}:{:0>2d}{} -a {} -o {} {} > {}".format(simtime.month, simtime.day, simtime.hour, simtime.minute, node.TZ, node.lati, node.longi, node.skytypeparams, vi_func.sky(frame, node, geonode)), shell = True)
     if node.hdr == True:
-        subprocess.call("oconv {} > {}-{}sky.oct".format(vi_func.sky(frame, geonode), geonode.filebase, frame), shell=True)
+        subprocess.call("oconv {} > {}-{}sky.oct".format(vi_func.sky(frame, node, geonode), geonode.filebase, frame), shell=True)
         subprocess.call("cnt 250 500 | rcalc -f {}/lib/latlong.cal -e 'XD=500;YD=250;inXD=0.002;inYD=0.004' | rtrace -af pan.af -n {} -x 500 -y 250 -fac {}-{}sky.oct > {}/{}p.hdr".format(scene.vipath, geonode.nproc, geonode.filebase, frame, geonode.newdir, frame), shell=True)
         subprocess.call("rpict -vta -vp 0 0 0 -vd 1 0 0 -vu 0 0 1 -vh 360 -vv 360 -x 1000 -y 1000 {}-{}sky.oct > {}/{}.hdr".format(geonode.filebase, frame, geonode.newdir, frame), shell=True)
                 

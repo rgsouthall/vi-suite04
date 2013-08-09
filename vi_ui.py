@@ -28,12 +28,13 @@ class Vi3DPanel(bpy.types.Panel):
         if scene.li_disp_panel == 1:
             layout = self.layout
             row = layout.row()
-            row.operator("view3d.lidisplay", text="Radiance Display")
             row.prop(view, "show_only_render")
+            row = layout.row()
             row.prop(scene, "li_disp_3d")
             if int(context.scene.li_disp_3d) == 1:
-                row = layout.row()
                 row.prop(scene, "li_disp_3dlevel")
+            row = layout.row()
+            row.operator("view3d.lidisplay", text="Radiance Display")
 #            try:
 #                if lexport.node.rp_display == False:
 #                    pass
@@ -54,6 +55,89 @@ class Vi3DPanel(bpy.types.Panel):
                 row.label(text="{:-<60}".format(""))
 #            except:
 #                pass
+
+class RadMatPanel(bpy.types.Panel):
+    bl_label = "LiVi Radiance material"
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
+    bl_context = "material"
+    
+    @classmethod 
+    def poll(cls, context): 
+        return context.material 
+
+    def draw(self, context):
+        cm = context.material
+        layout = self.layout
+        row = layout.row()
+        row.label('Radiance type:')
+        if cm.use_shadeless == True:
+            row.label('Shadeless')
+        elif cm.raytrace_mirror.use == True and cm.raytrace_mirror.reflect_factor > 0.99:
+            row.label('Mirror')
+            row = layout.row()
+            row.label('RGB refelectance:')
+            row.label('({:.2f}, {:.2f}, {:.2f})'.format(*cm.mirror_color))
+        elif cm.use_transparency == True and cm.transparency_method == 'RAYTRACE' and cm.alpha < 1.0 and cm.translucency == 0:
+            row.label('Glass')
+            row = layout.row()
+            row.label('RGB transparency:')
+            row.label('({:.2f}, {:.2f}, {:.2f})'.format((1.0 - cm.alpha)*cm.diffuse_color[0], (1.0 - cm.alpha)*cm.diffuse_color[1], (1.0 - cm.alpha)*cm.diffuse_color[2]))
+            row = layout.row()
+            row.label('IOR:')
+            row.label('{:.2f}'.format(cm.raytrace_transparency.ior))
+        elif cm.use_transparency == True and cm.transparency_method == 'RAYTRACE' and cm.alpha < 1.0 and cm.translucency > 0:
+            row.label('Translucent')
+            row = layout.row()
+            row.label('RGB transmission:')
+            row.label('({:.2f}, {:.2f}, {:.2f})'.format(*cm.diffuse_color))
+            row = layout.row()
+            row.label('Specularity')
+            row.label('{:.2f}'.format(cm.specular_intensity))
+            row = layout.row()
+            row.label('Roughness:') 
+            row.label('{:.2f}'.format(1.0 - cm.specular_hardness/511.0))
+            row = layout.row()
+            row.label('Transmissivity')
+            row.label('{:.2f}'.format(1.0 - cm.alpha))
+            row = layout.row()
+            row.label('Transmitted Specular')
+            row.label('{:.2f}'.format(1.0 - cm.translucency))
+        elif cm.raytrace_mirror.use == True and cm.raytrace_mirror.reflect_factor <= 0.99:
+            row.label('Metal')
+            row = layout.row()
+            row.label('RGB refelectance:')
+            row.label('({:.2f}, {:.2f}, {:.2f})'.format(*cm.diffuse_color))
+            row = layout.row()
+            row.label('Specularity:')
+            row.label('{:.2f}'.format(cm.specular_intensity))
+            row = layout.row()
+            row.label('Roughness:')
+            row.label('{:.2f}'.format(1.0-cm.specular_hardness/511.0))
+        else:
+            row.label('Plastic')
+            row = layout.row()
+            row.label('RGB refelectance:')
+            row.label('({:.2f}, {:.2f}, {:.2f})'.format(*cm.diffuse_color))
+            row = layout.row()
+            row.label('Specularity:')
+            row.label('{:.2f}'.format(cm.specular_intensity))
+            row = layout.row()
+            row.label('Roughness:')
+            row.label('{:.2f}'.format(1.0-cm.specular_hardness/511.0))
+            
+#        row.prop(context.material, 'radiance_type') 
+#        row.prop(lamp, "ies_name")
+#        row = layout.row()
+#        row.label('IES Dimension:')
+#        row.prop(lamp, "ies_unit")
+#        row = layout.row()
+#        row.label('IES Strength:')
+#        row.prop(lamp, "ies_strength")
+#        row = layout.row()
+#        row.prop(lamp, "ies_colour")
+
+
       
 class IESPanel(bpy.types.Panel):
     bl_label = "LiVi IES file"

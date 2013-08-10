@@ -36,7 +36,19 @@ def nodeinit(node):
     node.newdir = node.filedir+node.fold+node.filename
     node.filebase = node.newdir+node.fold+node.filename
     node.objfilebase = node.newdir+node.fold+'obj'+node.fold+node.filename
-    
+    node.idf_file = node.newdir+node.fold+"in.idf"
+    if str(sys.platform) != 'win32':
+        node.nproc = str(multiprocessing.cpu_count())
+        node.rm = "rm "
+        node.cat = "cat "
+        node.fold = "/"
+        node.cp = "cp "
+    else:
+        node.nproc = "1"
+        node.rm = "del "
+        node.cat = "type "
+        node.fold = "\\"
+        node.vp = "copy "
 
 def nodeexported(self):
     self.exported = 0

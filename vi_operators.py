@@ -3,6 +3,7 @@ import bpy_extras.io_utils as io_utils
 from . import livi_export
 from . import livi_calc
 from . import vi_display
+from . import envi_export
 
 class NODE_OT_GeoExport(bpy.types.Operator):
     bl_idname = "node.geoexport"
@@ -251,3 +252,16 @@ class IES_Select(bpy.types.Operator, io_utils.ImportHelper):
     def invoke(self,context,event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
+        
+class SCENE_EnGExport(bpy.types.Operator):
+    bl_idname = "scene.engexport"
+    bl_label = "VI-Suite export"
+    bl_context = "scene"
+    nodename = bpy.props.StringProperty()
+    
+    def invoke(self, context, event):
+        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
+        envi_export.pregeo()
+        node.exported = True
+        node.outputs[0].hide = False
+        return {'FINISHED'} 

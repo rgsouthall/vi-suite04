@@ -42,16 +42,6 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     bl_idname = 'ViGExLiNode'
     bl_label = 'VI lighting geometry export'
     bl_icon = 'LAMP' 
-    if str(sys.platform) != 'win32':
-        nproc = str(multiprocessing.cpu_count())
-        rm = "rm "
-        cat = "cat "
-        fold = "/"
-    else:
-        nproc = "1"
-        rm = "del "
-        cat = "type "
-        fold = "\\"
     
     filepath = bpy.props.StringProperty()
     filename = bpy.props.StringProperty()
@@ -78,6 +68,7 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     def init(self, context):
         vi_func.nodeinit(self)
         self.outputs.new('ViLiGOut', 'Geometry out')
+        self.outputs[0].hide = True
 
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -421,9 +412,9 @@ class ViEPNode(bpy.types.Node, ViNodes):
         row.operator("node.calculate", text = 'Calculate')
 
 
-class ViGExENode(bpy.types.Node, ViNodes):
+class ViGExEnNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite export type'''
-    bl_idname = 'ViGExENode'
+    bl_idname = 'ViGExEnNode'
     bl_label = 'VI energy geometry export'
     bl_icon = 'LAMP' 
     if str(sys.platform) != 'win32':
@@ -455,14 +446,15 @@ class ViGExENode(bpy.types.Node, ViNodes):
     
     def init(self, context):
         vi_func.nodeinit(self)
-        self.outputs.new('ViEGOut', 'Geometry out')
+        self.outputs.new('ViEnGOut', 'Geometry out')
+        self.outputs[0].hide = True
 
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.label('Animation:')
         row.prop(self, 'animmenu')
         row = layout.row()
-        row.operator("node.egexport", text = "Export").nodename = self.name
+        row.operator("scene.engexport", text = "Export").nodename = self.name
      
     def update(self):
         if self.outputs[0].is_linked:
@@ -475,7 +467,7 @@ class ViNodeCategory(NodeCategory):
     def poll(cls, context):
         return context.space_data.tree_type == 'ViN'
 
-viexnodecat = [NodeItem("ViGExLiNode", label="VI-Suite lighting analysis")]
+viexnodecat = [NodeItem("ViGExLiNode", label="VI-Suite lighting export"), NodeItem("ViGExEnNode", label="VI-Suite energy export")]
 
 vinodecat = [NodeItem("ViLiNode", label="VI-Suite lighting analysis"), NodeItem("ViLiCNode", label="VI-Suite lighting compliance"), NodeItem("ViLiCBNode", label="VI-Suite climate based lighting"),\
              NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), NodeItem("ViGNode", label="VI-Suite glare"), NodeItem("ViEPNode", label="VI-Suite energy")] 
@@ -504,10 +496,10 @@ class ViLiGIn(bpy.types.NodeSocket):
         layout.label(text)
         
     def draw_color(self, context, node):
-        return (1.0, 0.2, 0.2, 0.75)
+        return (1.0, 1.0, 0.0, 0.75)
         
     def color(self):
-        return (1.0, 0.2, 0.2, 0.75)
+        return (1.0, 1.0, 0.0, 0.75)
 
 class ViLiGOut(bpy.types.NodeSocket):
     '''Lighting geometry out socket'''
@@ -518,14 +510,14 @@ class ViLiGOut(bpy.types.NodeSocket):
         layout.label(text)
         
     def draw_color(self, context, node):
-        return (1.0, 0.2, 0.2, 0.75)
+        return (1.0, 1.0, 0.0, 0.75)
         
     def color(self):
-        return (1.0, 0.2, 0.2, 0.75)
+        return (1.0, 1.0, 0.0, 0.75)
         
-class ViLiGOut(bpy.types.NodeSocket):
-    '''Lighting geometry out socket'''
-    bl_idname = 'ViLiGOut'
+class ViEnGOut(bpy.types.NodeSocket):
+    '''Energy geometry out socket'''
+    bl_idname = 'ViEnGOut'
     bl_label = 'Geometry out'
     
     def draw(self, context, layout, node, text):

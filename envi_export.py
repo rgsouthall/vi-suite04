@@ -1,5 +1,5 @@
 import bpy, os, itertools, subprocess, datetime, sys, nodeitems_utils 
-#from .envi_node import *
+from .vi_node import *
 from nodeitems_utils import NodeCategory, NodeItem
 from bpy_types import NodeTree, Node
 #from subprocess import PIPE, Popen, STDOUT
@@ -567,7 +567,7 @@ def pregeo():
     
     for obj in [obj for obj in bpy.context.scene.objects if obj.envi_type in ('1', '2') and obj.layers[0] == True]:
         obj["volume"] = objvol(obj)
-        bpy.ops.view3d.layers(nr = 1)
+        bpy.data.scenes[0].layers[0:2] = (True, False)
 
         for mats in obj.data.materials:
             if 'en_'+mats.name not in [mat.name for mat in bpy.data.materials]:
@@ -590,7 +590,7 @@ def pregeo():
         en_obj.data.name = 'en_'+obj.data.name
         en_obj.layers[1] = True        
         en_obj.layers[0] = False
-        bpy.ops.view3d.layers(nr = 2)
+        bpy.data.scenes[0].layers[0:2] = (False, True)
         for s, slots in enumerate(en_obj.material_slots):
             bpy.data.materials['en_'+en_obj.data.materials[s].name].envi_export = True
             slots.material = bpy.data.materials['en_'+en_obj.data.materials[s].name]
@@ -987,8 +987,6 @@ def nodecreation():
                     self.outputs.new('EnViBoundSocket', mat.name)
                     self.inputs.new('EnViBoundSocket', mat.name)
 
-
-        
         def draw_buttons(self, context, layout):
             row=layout.row()
             row.label("Volume:")

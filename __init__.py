@@ -16,12 +16,13 @@ if "bpy" in locals():
     imp.reload(vi_node)
     imp.reload(vi_operators)
     imp.reload(vi_ui)
+    imp.reload(vi_func)
     imp.reload(envi_mat)
 else:
-    from . import vi_node, vi_operators, vi_ui, envi_mat
+    from . import vi_node, vi_operators, vi_ui, envi_mat, vi_func
     
-import sys, os, platform, inspect, glob, bpy, nodeitems_utils
-from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
+import sys, os, platform, inspect, bpy, nodeitems_utils
+(iprop, bprop, eprop, sprop, fprop, fvprop) = (vi_func.iprop, vi_func.bprop, vi_func.eprop, vi_func.sprop, vi_func.fprop, vi_func.fvprop)
  
 epversion = "8-0-0" 
 addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
@@ -99,7 +100,6 @@ def confunc(i):
 (walllist,floorlist,rooflist, glazelist, bricklist, stonelist, metallist, woodlist, gaslist, glasslist, concretelist, insullist, wgaslist) = [matfunc(i) for i in range(13)]    
 (wallconlist, floorconlist, roofconlist, glazeconlist) = [confunc(i) for i in range(4)] 
 
-print(wallconlist)
 #walllist = matfunc(0)
 #floorlist = matfunc(1)
 #rooflist = matfunc(2)
@@ -124,19 +124,6 @@ def register():
     Scene = bpy.types.Scene
     Material = bpy.types.Material
     
-    def iprop(iname, idesc, imin, imax, idef):
-        return(IntProperty(name = iname, description = idesc, min = imin, max = imax, default = idef))
-    def eprop(eitems, ename, edesc, edef):
-        return(EnumProperty(items=eitems, name = ename, description = edesc, default = edef))
-    def bprop(bname, bdesc, bdef):
-        return(BoolProperty(name = bname, description = bdesc, default = bdef))
-    def sprop(sname, sdesc, smaxlen, sdef):
-        return(StringProperty(name = sname, description = sdesc, maxlen = smaxlen, default = sdef))
-    def fprop(fname, fdesc, fmin, fmax, fdef):
-        return(FloatProperty(name = fname, description = fdesc, min = fmin, max = fmax, default = fdef))
-    def fvprop(fvname, fvattr, fvdef, fvsub):
-        return(FloatVectorProperty(name=fvname, attr = fvattr, default = fvdef, subtype =fvsub))
-        
 # LiVi object properties
         
     Object.livi_merr = bprop("LiVi simple mesh export", "Boolean for simple mesh export", False)
@@ -149,11 +136,11 @@ def register():
 
     Object.ies_colour = fvprop("IES Colour",'IES Colour', [1.0, 1.0, 1.0], 'COLOR')
     
-    Object.licalc = BoolProperty(default = False)
+    Object.licalc = bprop("", "", False)
     
-    Object.lires = BoolProperty(default= False)   
+    Object.lires = bprop("", "", False)   
 
-    Object.limerr = BoolProperty(default= False)  
+    Object.limerr = bprop("", "", False)  
 
 # EnVi zone definitions   
 
@@ -507,7 +494,7 @@ def register():
 
     Scene.li_display_rp_fs = iprop("", "Point result font size", 4, 48, 9)
     
-    Scene.resnode = StringProperty()
+    Scene.resnode = sprop("", "", 0, "")
     
     bpy.utils.register_class(vi_operators.NODE_OT_EpwSelect)
     bpy.utils.register_class(vi_operators.NODE_OT_HdrSelect)
@@ -518,7 +505,7 @@ def register():
     bpy.utils.register_class(vi_operators.NODE_OT_GeoExport)
     bpy.utils.register_class(vi_operators.NODE_OT_LiExport)
     bpy.utils.register_class(vi_operators.NODE_OT_LiGExport)
-    bpy.utils.register_class(vi_operators.SCENE_EnGExport)
+    bpy.utils.register_class(vi_operators.NODE_OT_EnGExport)
     bpy.utils.register_class(vi_operators.VIEW3D_OT_LiDisplay)
     bpy.utils.register_class(vi_operators.VIEW3D_OT_LiNumDisplay)
     bpy.utils.register_class(vi_ui.Vi3DPanel)
@@ -531,6 +518,7 @@ def register():
     bpy.utils.register_class(vi_node.ViLiGIn)
     bpy.utils.register_class(vi_node.ViLiGOut)
     bpy.utils.register_class(vi_node.ViEnGOut)
+    bpy.utils.register_class(vi_node.ViEnGIn)
     bpy.utils.register_class(vi_node.ViNetwork)
     bpy.utils.register_class(vi_node.ViLiNode)
     bpy.utils.register_class(vi_node.ViGExLiNode)
@@ -541,7 +529,7 @@ def register():
     bpy.utils.register_class(vi_node.ViSSNode)
     bpy.utils.register_class(vi_node.ViWRNode)
     bpy.utils.register_class(vi_node.ViGNode)
-    bpy.utils.register_class(vi_node.ViEPNode)
+    bpy.utils.register_class(vi_node.ViExEnNode)
     nodeitems_utils.register_node_categories("Vi Nodes", vi_node.vinode_categories)
 
 def unregister():
@@ -555,7 +543,7 @@ def unregister():
     bpy.utils.unregister_class(vi_operators.NODE_OT_GeoExport)
     bpy.utils.unregister_class(vi_operators.NODE_OT_LiExport)
     bpy.utils.unregister_class(vi_operators.NODE_OT_LiGExport)
-    bpy.utils.unregister_class(vi_operators.SCENE_EnGExport)
+    bpy.utils.unregister_class(vi_operators.NODE_OT_EnGExport)
     bpy.utils.unregister_class(vi_operators.VIEW3D_OT_LiDisplay)
     bpy.utils.unregister_class(vi_operators.VIEW3D_OT_LiNumDisplay)
     bpy.utils.unregister_class(vi_ui.Vi3DPanel)
@@ -568,6 +556,7 @@ def unregister():
     bpy.utils.unregister_class(vi_node.ViLiGIn)
     bpy.utils.unregister_class(vi_node.ViLiGOut)
     bpy.utils.unregister_class(vi_node.ViEnGOut)
+    bpy.utils.unregister_class(vi_node.ViEnGIn)
     bpy.utils.unregister_class(vi_node.ViNetwork)
     bpy.utils.unregister_class(vi_node.ViLiNode)
     bpy.utils.unregister_class(vi_node.ViGExLiNode)
@@ -578,6 +567,6 @@ def unregister():
     bpy.utils.unregister_class(vi_node.ViSSNode)
     bpy.utils.unregister_class(vi_node.ViWRNode)
     bpy.utils.unregister_class(vi_node.ViGNode)
-    bpy.utils.unregister_class(vi_node.ViEPNode)
+    bpy.utils.unregister_class(vi_node.ViExEnNode)
     nodeitems_utils.unregister_node_categories("Vi Nodes", vi_node.vinode_categories)
     

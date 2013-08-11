@@ -1,5 +1,6 @@
 import bpy, os, math
 from math import sin, cos, asin, acos, pi
+from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
 
 def obj(name, fr, node):
     if node.animmenu == "Geometry":
@@ -116,3 +117,28 @@ def clearscened(scene):
         if sk.users == 0:
             for keys in sk.keys():
                 keys.animation_data_clear()
+                
+def iprop(iname, idesc, imin, imax, idef):
+        return(IntProperty(name = iname, description = idesc, min = imin, max = imax, default = idef))
+def eprop(eitems, ename, edesc, edef):
+    return(EnumProperty(items=eitems, name = ename, description = edesc, default = edef))
+def bprop(bname, bdesc, bdef):
+    return(BoolProperty(name = bname, description = bdesc, default = bdef))
+def sprop(sname, sdesc, smaxlen, sdef):
+    return(StringProperty(name = sname, description = sdesc, maxlen = smaxlen, default = sdef))
+def fprop(fname, fdesc, fmin, fmax, fdef):
+    return(FloatProperty(name = fname, description = fdesc, min = fmin, max = fmax, default = fdef))
+def fvprop(fvname, fvattr, fvdef, fvsub):
+    return(FloatVectorProperty(name=fvname, attr = fvattr, default = fvdef, subtype =fvsub))
+def niprop(iname, idesc, imin, imax, idef):
+        return(IntProperty(name = iname, description = idesc, min = imin, max = imax, default = idef, update = nodeexported))
+def neprop(eitems, ename, edesc, edef):
+    return(EnumProperty(items=eitems, name = ename, description = edesc, default = edef, update = nodeexported))
+def nbprop(bname, bdesc, bdef):
+    return(BoolProperty(name = bname, description = bdesc, default = bdef, update = nodeexported))
+def nsprop(sname, sdesc, smaxlen, sdef):
+    return(StringProperty(name = sname, description = sdesc, maxlen = smaxlen, default = sdef, update = nodeexported))
+def nfprop(fname, fdesc, fmin, fmax, fdef):
+    return(FloatProperty(name = fname, description = fdesc, min = fmin, max = fmax, default = fdef, update = nodeexported))
+def nfvprop(fvname, fvattr, fvdef, fvsub):
+    return(FloatVectorProperty(name=fvname, attr = fvattr, default = fvdef, subtype = fvsub, update = nodeexported))

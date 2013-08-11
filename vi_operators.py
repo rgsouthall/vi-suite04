@@ -253,8 +253,8 @@ class IES_Select(bpy.types.Operator, io_utils.ImportHelper):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
         
-class SCENE_EnGExport(bpy.types.Operator):
-    bl_idname = "scene.engexport"
+class NODE_OT_EnGExport(bpy.types.Operator):
+    bl_idname = "node.engexport"
     bl_label = "VI-Suite export"
     bl_context = "scene"
     nodename = bpy.props.StringProperty()

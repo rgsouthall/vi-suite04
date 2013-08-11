@@ -20,13 +20,13 @@
 import bpy, bpy_extras, glob, os, inspect, sys, multiprocessing
 from nodeitems_utils import NodeCategory, NodeItem
 #from . import vi_operators
-from . import vi_func
+from .vi_func import nbprop, niprop, nsprop, nfprop, neprop, nodeinit
 
 class ViNetwork(bpy.types.NodeTree):
     '''A node tree for VI-Suite analysis.'''
     bl_idname = 'ViN'
     bl_label = 'Vi Network'
-    bl_icon = 'NODETREE'
+    bl_icon = 'LAMP_SUN'
     
     def __init__(self):
         self.name = 'VI Network'
@@ -66,7 +66,7 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     radfiles = []
     
     def init(self, context):
-        vi_func.nodeinit(self)
+        nodeinit(self)
         self.outputs.new('ViLiGOut', 'Geometry out')
         self.outputs[0].hide = True
 
@@ -109,21 +109,19 @@ class ViLiNode(bpy.types.Node, ViNodes):
     
     def nodeexported(self, context):
         self.exported = False
+        self.bl_label = '*VI Lighting Analysis'
         
     analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0', update = nodeexported)
     simalg = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="")
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
-#    dfanimmenu = bpy.props.EnumProperty(name="", description="Animation type", items=dfanimtype, default = 'Static')
     skymenu = bpy.props.EnumProperty(items=skylist, name="", description="Specify the type of sky for the simulation", default="0", update = nodeexported)
     shour = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=24, default=12, update = nodeexported)
-    sdoy = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=365, default=1, update = nodeexported)
+    sdoy = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=365, default=1, update = nodeexported)
     ehour = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=24, default=12, update = nodeexported)
-    edoy = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=365, default=1, update = nodeexported)
+    edoy = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=365, default=1, update = nodeexported)
     daysav = bpy.props.BoolProperty(name="", description="Enable daylight saving clock", default=False, update = nodeexported)
     lati = bpy.props.FloatProperty(name="", description="Site Latitude", min=-90, max=90, default=52, update = nodeexported)
     longi = bpy.props.FloatProperty(name="", description="Site Longitude relative to local meridian", min=-15, max=15, default=0, update = nodeexported) 
-#    cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
-#            name="", description="Specify the calculation point geometry", default="1")
     
     stamer = bpy.props.EnumProperty(
             items=[("0", "YST", ""),("1", "PST", ""),("2", "MST", ""),("3", "CST", ""),("4", "EST", ""),("GMT", "GMT", ""),("6", "CET", ""),("7", "EET", ""),
@@ -367,56 +365,11 @@ class ViGNode(bpy.types.Node, ViNodes):
         row = layout.row()
         row.operator("node.calculate", text = 'Calculate')
         
-class ViEPNode(bpy.types.Node, ViNodes):
-    '''Node describing a glare analysis'''
-    bl_idname = 'ViEPNode'
-    bl_label = 'VI EnergyPLus analysis'
-    bl_icon = 'LAMP'    
-    
-    envi_pregeo = bpy.props.BoolProperty(name="Export geometry", description="EnVi geometry export flag", default = True)
-    envi_location = bpy.props.StringProperty(name="Project name/location", description="Identifier for this project", default="")
-    envi_terrain = bpy.props.EnumProperty(
-            items=[("0", "City", "Towns, city outskirts, centre of large cities"),
-                   ("1", "Urban", "Urban, Industrial, Forest"),
-                    ("2", "Suburbs", "Rough, Wooded Country, Suburbs"),
-                    ("3", "Country", "Flat, Open Country"),
-                    ("4", "Ocean", "Ocean, very flat country"),
-                   ],
-            name="",
-            description="Specify the surrounding terrain",
-            default="0")
-
-    addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
-    matpath = addonpath+'/EPFiles/Materials/Materials.data'
-    epwpath = addonpath+'/EPFiles/Weather/'
-    weatherlist = [((filename, os.path.basename(filename).strip('.epw').split(".")[0], 'Weather Location')) for filename in glob.glob(epwpath+"/*.epw")]
-    envi_weather = bpy.props.EnumProperty(items = weatherlist, name="Weather location", description="Weather for this project")
-    
-    def init(self, context):
-        self.inputs.new('EnViDIn', 'Data in')
-    
-    def draw_buttons(self, context, layout):
-        row = layout.row()
-        row.operator("node.geoexport", text="Geometry Export")
-        if self.envi_pregeo == True:
-            row = layout.row()
-            row.prop(self, "envi_location")
-            row = layout.row()
-            row.prop(self, "envi_weather")
-            row = layout.row()
-            row.label(text = 'Terrain:')
-            col = row.column()
-            col.prop(self, "envi_terrain")
-        row = layout.row()
-
-        row.operator("node.calculate", text = 'Calculate')
-
-
 class ViGExEnNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite export type'''
     bl_idname = 'ViGExEnNode'
-    bl_label = 'VI energy geometry export'
-    bl_icon = 'LAMP' 
+    bl_label = 'VI EP geometry conversion'
+
     if str(sys.platform) != 'win32':
         nproc = str(multiprocessing.cpu_count())
         rm = "rm "
@@ -445,7 +398,7 @@ class ViGExEnNode(bpy.types.Node, ViNodes):
     epfiles = []
     
     def init(self, context):
-        vi_func.nodeinit(self)
+        nodeinit(self)
         self.outputs.new('ViEnGOut', 'Geometry out')
         self.outputs[0].hide = True
 
@@ -454,13 +407,124 @@ class ViGExEnNode(bpy.types.Node, ViNodes):
         row.label('Animation:')
         row.prop(self, 'animmenu')
         row = layout.row()
-        row.operator("scene.engexport", text = "Export").nodename = self.name
+        row.operator("node.engexport", text = "Export").nodename = self.name
      
     def update(self):
         if self.outputs[0].is_linked:
             if self.outputs[0].links[0].to_socket.color() != self.outputs[0].color():
                 link = self.outputs[0].links[0]
                 bpy.data.node_groups['VI Network'].links.remove(link)
+
+class ViExEnNode(bpy.types.Node, ViNodes):
+    '''Node describing a glare analysis'''
+    bl_idname = 'ViExEnNode'
+    bl_label = 'VI EnergyPLus analysis'
+    bl_icon = 'LAMP'    
+    
+    exported = bpy.props.BoolProperty()
+    
+    def nodeexported(self, context):
+        self.exported = False
+        self.bl_label = '*VI EnergyPLus analysis'
+        
+    loc = bpy.props.StringProperty(name="", description="Identifier for this project", default="", update = nodeexported)
+    terrain = bpy.props.EnumProperty(
+            items=[("0", "City", "Towns, city outskirts, centre of large cities"),
+                   ("1", "Urban", "Urban, Industrial, Forest"),
+                    ("2", "Suburbs", "Rough, Wooded Country, Suburbs"),
+                    ("3", "Country", "Flat, Open Country"),
+                    ("4", "Ocean", "Ocean, very flat country"),
+                   ],
+            name="",
+            description="Specify the surrounding terrain",
+            default="0")
+    
+    addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
+    matpath = addonpath+'/EPFiles/Materials/Materials.data'
+    epwpath = addonpath+'/EPFiles/Weather/'
+    weatherlist = [((filename, os.path.basename(filename).strip('.epw').split(".")[0], 'Weather Location')) for filename in glob.glob(epwpath+"/*.epw")]
+    weather = bpy.props.EnumProperty(items = weatherlist, name="", description="Weather for this project")
+    sdoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeexported) 
+    edoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeexported)
+    timesteps = bpy.props.IntProperty(name = "", description = "Time steps per hour", min = 1, max = 4, default = 1, update = nodeexported)
+    restype= bpy.props.EnumProperty(items = [("0", "Ambient", "Ambient Conditions"), ("1", "Zone Thermal", "Thermal Results"), ("2", "Comfort", "Comfort Results"), ("3", "Ventilation", "Ventilation Results")],
+                                   name="", description="Specify the EnVi results catagory", default="0", update = nodeexported)
+    resat = bpy.props.BoolProperty(name = "Temperature", description = "Ambient Temperature (K)", default = False, update = nodeexported)
+    resaws = bpy.props.BoolProperty(name = "Wind Speed", description = "Ambient Wind Speed (m/s)", default = False, update = nodeexported)
+    resawd = bpy.props.BoolProperty(name = "Wind Direction", description = "Ambient Wind Direction (degrees from North)", default = False, update = nodeexported)
+    resah = bpy.props.BoolProperty(name = "Humidity", description = "Ambient Humidity", default = False, update = nodeexported)
+    resasb = bpy.props.BoolProperty(name = "Direct Solar", description = "Direct Solar Radiation (W/m^2K)", default = False, update = nodeexported)
+    resasd = bpy.props.BoolProperty(name = "Diffuse Solar", description = "Diffuse Solar Radiation (W/m^2K)", default = False, update = nodeexported)
+    restt = bpy.props.BoolProperty(name = "Temperature", description = "Zone Temperatures", default = False, update = nodeexported)
+    restwh = bpy.props.BoolProperty(name = "Heating Watts", description = "Zone Heating Requirement (Watts)", default = False, update = nodeexported)
+    restwc = bpy.props.BoolProperty(name = "Cooling Watts", description = "Zone Cooling Requirement (Watts)", default = False, update = nodeexported)
+    reswsg = bpy.props.BoolProperty(name = "Solar Gain", description = "Window Solar Gain (Watts)", default = False, update = nodeexported)
+#    resthm = BoolProperty(name = "kWh/m2 Heating", description = "Zone Heating kilo Watt hours of heating per m2 floor area", default = False)
+#    restcm = BoolProperty(name = "kWh/m2 Cooling", description = "Zone Cooling kilo Watt hours of cooling per m2 floor area", default = False)
+    rescpp = bpy.props.BoolProperty(name = "PPD", description = "Percentage Proportion Dissatisfied", default = False, update = nodeexported)
+    rescpm = bpy.props.BoolProperty(name = "PMV", description = "Predicted Mean Vote", default = False, update = nodeexported)
+    resvls = bpy.props.BoolProperty(name = "Ventilation (l/s)", description = "Zone Ventilation rate (l/s)", default = False, update = nodeexported)
+    resvmh = bpy.props.BoolProperty(name = "Ventilation (m3/h)", description = "Zone Ventilation rate (m3/h)", default = False, update = nodeexported)
+    resims = bpy.props.BoolProperty(name = "Infiltration (m3/s)", description = "Zone Infiltration rate (m3/s)", default = False, update = nodeexported)
+    resimh = bpy.props.BoolProperty(name = "Infiltration (m3/h)", description = "Zone Infiltration rate (m3/h)", default = False, update = nodeexported)
+
+    def init(self, context):
+        self.inputs.new('ViEnGIn', 'Geometry in')
+    
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.label("Project name/location")
+        row.prop(self, "loc")
+        row = layout.row()
+        row.label("Weather file:")
+        row.prop(self, "weather")
+        row = layout.row()
+        row.label(text = 'Terrain:')
+        col = row.column()
+        col.prop(self, "terrain")
+        row = layout.row()
+        row.label(text = 'Start day:')
+        col = row.column()
+        col.prop(self, "sdoy")
+        row = layout.row()
+        row.label(text = 'End day:')
+        col = row.column()
+        col.prop(self, "edoy")
+        row = layout.row()
+        row.label(text = 'Time-steps/hour)')
+        row.prop(self, "timesteps")
+        row = layout.row()
+        row.label(text = 'Results Catagory:')
+        col = row.column()            
+        col.prop(self, "restype")
+        if self.restype == "0":
+            row = layout.row()
+            row.prop(self, "resat")
+            row.prop(self, "resaws")
+            row = layout.row()
+            row.prop(self, "resawd")
+            row.prop(self, "resah")
+            row = layout.row()
+            row.prop(self, "resasb")
+            row.prop(self, "resasd") 
+        elif self.restype == "1":
+            row = layout.row()
+            row.prop(self, "restt")
+            row.prop(self, "restwh")
+            row = layout.row()
+            row.prop(self, "restwc")
+            row.prop(self, "reswsg")
+        elif self.restype == "2":
+            row = layout.row()
+            row.prop(self, "rescpp")
+            row.prop(self, "rescpm")
+        elif self.restype == "3":
+            row = layout.row()
+            row.prop(self, "resims")
+        
+        if self.inputs[0].is_linked == True and self.exported == True and self.inputs[0].links[0].from_node.exported == True:
+            row.operator("node.calculate", text = 'Calculate')
+
                 
 class ViNodeCategory(NodeCategory):
     @classmethod
@@ -470,9 +534,8 @@ class ViNodeCategory(NodeCategory):
 viexnodecat = [NodeItem("ViGExLiNode", label="VI-Suite lighting export"), NodeItem("ViGExEnNode", label="VI-Suite energy export")]
 
 vinodecat = [NodeItem("ViLiNode", label="VI-Suite lighting analysis"), NodeItem("ViLiCNode", label="VI-Suite lighting compliance"), NodeItem("ViLiCBNode", label="VI-Suite climate based lighting"),\
-             NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), NodeItem("ViGNode", label="VI-Suite glare"), NodeItem("ViEPNode", label="VI-Suite energy")] 
+             NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), NodeItem("ViGNode", label="VI-Suite glare"), NodeItem("ViExEnNode", label="VI-Suite energy")] 
 
-# identifier, label, items list
 vinode_categories = [ViNodeCategory("Export", "Export Nodes", items=viexnodecat), ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat)] 
         
                
@@ -529,6 +592,20 @@ class ViEnGOut(bpy.types.NodeSocket):
     def color(self):
         return (0.0, 0.0, 1.0, 0.75)
         
+class ViEnGIn(bpy.types.NodeSocket):
+    '''Energy geometry out socket'''
+    bl_idname = 'ViEnGIn'
+    bl_label = 'Geometry in'
+    
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+        
+    def draw_color(self, context, node):
+        return (0.0, 0.0, 1.0, 0.75)
+        
+    def color(self):
+        return (0.0, 0.0, 1.0, 0.75)
+        
 class EnViDataIn(bpy.types.NodeSocket):
     '''EnVi data in socket'''
     bl_idname = 'EnViDIn'
@@ -540,3 +617,259 @@ class EnViDataIn(bpy.types.NodeSocket):
     def draw_color(self, context, node):
         return (0.0, 1.0, 0.0, 0.75)
 
+
+####################### EnVi ventilation network ##############################
+
+class EnViNetwork(bpy.types.NodeTree):
+    '''A node tree for the creation of EnVi advanced ventilation networks.'''
+    bl_idname = 'EnViN'
+    bl_label = 'EnVi Network'
+    bl_icon = 'FORCE_WIND'
+    nodetypes = {}
+    
+class EnViNodes:
+    @classmethod
+    def poll(cls, ntree):
+        return ntree.bl_idname == 'EnViN'
+
+class EnViBoundSocket(bpy.types.NodeSocket):
+    '''A plain zone boundary socket'''
+    bl_idname = 'EnViBoundSocket'
+    bl_label = 'Plain zone boundary socket'
+    bl_color = (1.0, 1.0, 0.2, 0.5)
+      
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+        
+    def draw_color(self, context, node):
+        return (0.8, 0.2, 0.8, 0.75)
+        
+class EnViSAirSocket(bpy.types.NodeSocket):
+    '''A plain zone surface airflow socket'''
+    bl_idname = 'EnViSAirSocket'
+    bl_label = 'Plain zone surface airflow socket'
+    
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+        
+    def draw_color(self, context, node):
+        return (0.1, 1.0, 0.2, 0.75)
+
+class EnViCAirSocket(bpy.types.NodeSocket):
+    '''A plain zone airflow component socket'''
+    bl_idname = 'EnViCAirSocket'
+    bl_label = 'Plain zone airflow component socket'
+    
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+        
+    def draw_color(self, context, node):
+        return (1.0, 0.2, 0.2, 0.75)
+        
+class EnViFanNode(bpy.types.Node, EnViNodes):
+    '''Node describing a fan component'''
+    bl_idname = 'EnViFan'
+    bl_label = 'Envi Fan'
+    bl_icon = 'SOUND'
+
+    fantype = [("Volume", "Constant Volume", "Constant volume flow fan component")] 
+    
+    fantypeprop = bpy.props.EnumProperty(name="Type", description="Linkage type", items=fantype, default='Volume')
+    
+    fname = bpy.props.StringProperty(default = "", name = "")
+    feff = bpy.props.FloatProperty(default = 0.7, name = "")
+    fpr = bpy.props.FloatProperty(default = 600.0, name = "")
+    fmfr = bpy.props.FloatProperty(default = 1.9, name = "")
+    fmeff = bpy.props.FloatProperty(default = 0.9, name = "")
+    fmaf = bpy.props.FloatProperty(default = 1.0, name = "")
+    
+    def init(self, context):
+        self.inputs.new('EnViCAirSocket', 'Extract from')
+        self.inputs.new('EnViCAirSocket', 'Supply to')
+        self.outputs.new('NodeSocket', 'Schedule')
+        self.outputs.new('EnViCAirSocket', 'Extract from')
+        self.outputs.new('EnViCAirSocket', 'Supply to')
+            
+    def update(self):
+        try:
+            fsocknames = ('Extract from', 'Supply to')
+            for ins in [insock for insock in self.inputs if insock.name in fsocknames]:
+                self.outputs[ins.name].hide = True if ins.is_linked else False
+            for outs in [outsock for outsock in self.outputs if outsock.name in fsocknames]:
+                self.inputs[outs.name].hide = True if outs.is_linked else False
+        except:
+            pass
+                
+    def draw_buttons(self, context, layout):
+        layout.prop(self, 'fantypeprop')
+        if self.fantypeprop == "Volume":
+            row = layout.row()
+            row.label("Name:")
+            row.prop(self, 'fname')
+            row = layout.row()
+            row.label("Efficiency:")
+            row.prop(self, 'feff')
+            row = layout.row()
+            row.label("Pressure Rise (Pa):")
+            row.prop(self, 'fpr')
+            row = layout.row()
+            row.label("Max flow rate:")
+            row.prop(self, 'fmfr')
+            row = layout.row()
+            row.label("Motor efficiency:")
+            row.prop(self, 'fmeff')
+            row = layout.row()
+            row.label("Airstream fraction:")
+            row.prop(self, 'fmaf')
+        
+class EnViSLinkNode(bpy.types.Node, EnViNodes):
+    '''Node describing an airflow surface linkage'''
+    bl_idname = 'EnViSLink'
+    bl_label = 'Envi Surface Airflow Linkage'
+    bl_icon = 'SOUND'
+
+    linktype = [
+        ("Crack", "Crack", "Crack aperture used for leakage calculation"),
+        ("ELA", "ELA", "Effective leakage area"),
+        ("SO", "Simple Opening", "Simple opening element"),
+        ("DO", "Detailed Opening", "Detailed opening element"),
+        ("HO", "Horizontal Opening", "Horizontal opening element"),
+        ("EF", "Exhaust fan", "Exhaust fan")]
+
+    linktypeprop = bpy.props.EnumProperty(name="Type", description="Linkage type", items=linktype, default='Crack')
+    
+    amfc = bpy.props.FloatProperty(default = 1.0, name = "")
+    amfe = bpy.props.FloatProperty(default = 0.6, name = "")
+    cf = bpy.props.FloatProperty(default = 0.6, name = "")
+    wdof = bpy.props.FloatProperty(default = 1, name = "")
+
+    def init(self, context):
+        self.inputs.new('EnViSAirSocket', 'Node 1')
+        self.inputs.new('EnViSAirSocket', 'Node 2')
+        self.outputs.new('NodeSocket', 'Schedule')
+        self.outputs.new('EnViSAirSocket', 'Node 1')
+        self.outputs.new('EnViSAirSocket', 'Node 2')
+    
+    def update(self):
+        try:
+            lsocknames = ('Node 1', 'Node 2')
+            for ins in [insock for insock in self.inputs if insock.name in lsocknames]:
+                self.outputs[ins.name].hide = True if ins.is_linked else False
+            for outs in [outsock for outsock in self.outputs if outsock.name in lsocknames]:
+                self.inputs[outs.name].hide = True if outs.is_linked else False
+        except:
+            pass
+         
+    def draw_buttons(self, context, layout):
+        layout.prop(self, 'linktypeprop')
+        if self.linktypeprop == "Crack":
+            row = layout.row()
+            row.label("Coefficient:")
+            row.prop(self, 'amfc')
+            row = layout.row()
+            row.label("Exponent:")
+            row.prop(self, 'amfe')
+            row = layout.row()
+            row.label("crack factor:")
+            row.prop(self, 'cf')
+        if self.linktypeprop in ("SO", "DO"):
+            row = layout.row()
+            row.label("Opening factor:")
+            row.prop(self, 'wdof')
+            
+        
+class EnViCLinkNode(bpy.types.Node, EnViNodes):
+    '''Node describing an airflow component'''
+    bl_idname = 'EnViCLink'
+    bl_label = 'Envi Component'
+    bl_icon = 'SOUND'
+
+    linktype = [
+        ("Crack", "Crack", "Crack aperture used for leakage calculation"),
+        ("Duct", "Ducting", "Ducting for mechanical ventilation systems")] 
+    
+    linktypeprop = bpy.props.EnumProperty(name="Type", description="Linkage type", items=linktype, default='Crack')
+    
+    amfc = bpy.props.FloatProperty(default = 1.0, name = "")
+    amfe = bpy.props.FloatProperty(default = 0.6, name = "")
+    dlen = bpy.props.FloatProperty(default = 2, name = "")
+    dhyd = bpy.props.FloatProperty(default = 0.1, name = "")
+    dcs = bpy.props.FloatProperty(default = 0.1, name = "")
+    dsr = bpy.props.FloatProperty(default = 0.0009, name = "")
+    dlc = bpy.props.FloatProperty(default = 1.0, name = "")
+    dhtc = bpy.props.FloatProperty(default = 0.772, name = "")
+    dmtc = bpy.props.FloatProperty(default = 0.0001, name = "")
+    
+    def init(self, context):
+        self.inputs.new('EnViCAirSocket', 'Node 1')
+        self.inputs.new('EnViCAirSocket', 'Node 2')
+        self.outputs.new('NodeSocket', 'Schedule')
+        self.outputs.new('EnViCAirSocket', 'Node 1')
+        self.outputs.new('EnViCAirSocket', 'Node 2')
+    
+    def update(self):
+        try:
+            lsocknames = ('Node 1', 'Node 2')
+            for ins in [insock for insock in self.inputs if insock.name in lsocknames]:
+                self.outputs[ins.name].hide = True if ins.is_linked else False
+            for outs in [outsock for outsock in self.outputs if outsock.name in lsocknames]:
+                self.inputs[outs.name].hide = True if outs.is_linked else False
+        except:
+            pass
+         
+    def draw_buttons(self, context, layout):
+        layout.prop(self, 'linktypeprop')
+        if self.linktypeprop == "Crack":
+            row = layout.row()
+            row.label("Coefficient:")
+            row.prop(self, 'amfc')
+            row = layout.row()
+            row.label("Exponent:")
+            row.prop(self, 'amfe')
+        if self.linktypeprop == "Duct":
+            row = layout.row()
+            row.label("Length:")
+            row.prop(self, 'dlen')
+            row = layout.row()
+            row.label("Hydraulic diameter:")
+            row.prop(self, 'dhyd')
+            row = layout.row()
+            row.label("Cross Section:")
+            row.prop(self, 'dcs')
+            row = layout.row()
+            row.label("Surface Roughness:")
+            row.prop(self, 'dsr')
+            row = layout.row()
+            row.label("Loss coefficient:")
+            row.prop(self, 'dlc')
+            row = layout.row()
+            row.label("U-Factor:")
+            row.prop(self, 'dhtc')
+            row = layout.row()
+            row.label("Moisture coefficient:")
+            row.prop(self, 'dmtc')
+
+            
+class EnViExtNode(bpy.types.Node, EnViNodes):
+    '''Node describing a linkage component'''
+    bl_idname = 'EnViExt'
+    bl_label = 'Envi External Node'
+    bl_icon = 'SOUND'
+
+    height = bpy.props.FloatProperty(default = 1.0)
+    azimuth = bpy.props.FloatProperty(default = 30)
+    
+    def init(self, context):
+        self.inputs.new('EnViSAirSocket', 'External')
+        self.outputs.new('EnViSAirSocket', 'External')    
+        
+    def draw_buttons(self, context, layout):
+        layout.prop(self, 'linktypeprop')
+        if self.linktypeprop == "Crack":
+            layout.prop(self, 'amfc')
+            layout.prop(self, 'amfe')
+
+class EnViNodeCategory(NodeCategory):
+    @classmethod
+    def poll(cls, context):
+        return context.space_data.tree_type == 'EnViN'

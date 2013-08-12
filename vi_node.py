@@ -20,7 +20,7 @@
 import bpy, bpy_extras, glob, os, inspect, sys, multiprocessing
 from nodeitems_utils import NodeCategory, NodeItem
 #from . import vi_operators
-from .vi_func import nbprop, niprop, nsprop, nfprop, neprop, nodeinit
+from .vi_func import nodeinit
 
 class ViNetwork(bpy.types.NodeTree):
     '''A node tree for VI-Suite analysis.'''
@@ -370,24 +370,6 @@ class ViGExEnNode(bpy.types.Node, ViNodes):
     bl_idname = 'ViGExEnNode'
     bl_label = 'VI EP geometry conversion'
 
-    if str(sys.platform) != 'win32':
-        nproc = str(multiprocessing.cpu_count())
-        rm = "rm "
-        cat = "cat "
-        fold = "/"
-    else:
-        nproc = "1"
-        rm = "del "
-        cat = "type "
-        fold = "\\"
-    
-    filepath = bpy.props.StringProperty()
-    filename = bpy.props.StringProperty()
-    filedir = bpy.props.StringProperty()
-    newdir = bpy.props.StringProperty()
-    filebase = bpy.props.StringProperty()
-    objfilebase = bpy.props.StringProperty()
-    reslen = bpy.props.IntProperty()
     exported = bpy.props.BoolProperty()
     
     def nodeexported(self, context):
@@ -398,7 +380,6 @@ class ViGExEnNode(bpy.types.Node, ViNodes):
     epfiles = []
     
     def init(self, context):
-        nodeinit(self)
         self.outputs.new('ViEnGOut', 'Geometry out')
         self.outputs[0].hide = True
 
@@ -416,37 +397,44 @@ class ViGExEnNode(bpy.types.Node, ViNodes):
                 bpy.data.node_groups['VI Network'].links.remove(link)
 
 class ViExEnNode(bpy.types.Node, ViNodes):
-    '''Node describing a glare analysis'''
+    '''Node describing an EnergyPlus export'''
     bl_idname = 'ViExEnNode'
     bl_label = 'VI EnergyPLus analysis'
     bl_icon = 'LAMP'    
-    
+            
+    nproc = bpy.props.StringProperty()
+    rm = bpy.props.StringProperty()
+    cat = bpy.props.StringProperty()
+    fold = bpy.props.StringProperty()
+    cp = bpy.props.StringProperty() 
+    filepath = bpy.props.StringProperty()
+    filename = bpy.props.StringProperty()
+    filedir = bpy.props.StringProperty()
+    newdir = bpy.props.StringProperty()
+    filebase = bpy.props.StringProperty()
+    idf_file = bpy.props.StringProperty()
     exported = bpy.props.BoolProperty()
+    resname = bpy.props.StringProperty(name="Results Name", description="Base name for the results files", default="results")
     
     def nodeexported(self, context):
         self.exported = False
         self.bl_label = '*VI EnergyPLus analysis'
         
     loc = bpy.props.StringProperty(name="", description="Identifier for this project", default="", update = nodeexported)
-    terrain = bpy.props.EnumProperty(
-            items=[("0", "City", "Towns, city outskirts, centre of large cities"),
-                   ("1", "Urban", "Urban, Industrial, Forest"),
-                    ("2", "Suburbs", "Rough, Wooded Country, Suburbs"),
-                    ("3", "Country", "Flat, Open Country"),
-                    ("4", "Ocean", "Ocean, very flat country"),
-                   ],
-            name="",
-            description="Specify the surrounding terrain",
-            default="0")
+    terrain = bpy.props.EnumProperty(items=[("0", "City", "Towns, city outskirts, centre of large cities"),
+                   ("1", "Urban", "Urban, Industrial, Forest"),("2", "Suburbs", "Rough, Wooded Country, Suburbs"),
+                    ("3", "Country", "Flat, Open Country"),("4", "Ocean", "Ocean, very flat country")], 
+                    name="", description="Specify the surrounding terrain", default="0", update = nodeexported)
     
     addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
     matpath = addonpath+'/EPFiles/Materials/Materials.data'
     epwpath = addonpath+'/EPFiles/Weather/'
-    weatherlist = [((filename, os.path.basename(filename).strip('.epw').split(".")[0], 'Weather Location')) for filename in glob.glob(epwpath+"/*.epw")]
+    weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]
     weather = bpy.props.EnumProperty(items = weatherlist, name="", description="Weather for this project")
     sdoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeexported) 
     edoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeexported)
     timesteps = bpy.props.IntProperty(name = "", description = "Time steps per hour", min = 1, max = 4, default = 1, update = nodeexported)
+    resname = bpy.props.StringProperty(name = "", default = 'results')    
     restype= bpy.props.EnumProperty(items = [("0", "Ambient", "Ambient Conditions"), ("1", "Zone Thermal", "Thermal Results"), ("2", "Comfort", "Comfort Results"), ("3", "Ventilation", "Ventilation Results")],
                                    name="", description="Specify the EnVi results catagory", default="0", update = nodeexported)
     resat = bpy.props.BoolProperty(name = "Temperature", description = "Ambient Temperature (K)", default = False, update = nodeexported)
@@ -470,6 +458,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
 
     def init(self, context):
         self.inputs.new('ViEnGIn', 'Geometry in')
+        nodeinit(self)
     
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -522,10 +511,26 @@ class ViExEnNode(bpy.types.Node, ViNodes):
             row = layout.row()
             row.prop(self, "resims")
         
+        if self.inputs[0].is_linked == True:
+            row = layout.row()
+            row.operator("node.enexport", text = 'Export').nodename = self.name
+        
         if self.inputs[0].is_linked == True and self.exported == True and self.inputs[0].links[0].from_node.exported == True:
-            row.operator("node.calculate", text = 'Calculate')
+            row = layout.row()
+            row.label(text = 'Results name:')
+            row.prop(self, 'resname')
+            row = layout.row()
+            row.operator("node.ensim", text = 'Calculate').nodename = self.name
 
-                
+class ViREnNode(bpy.types.Node, ViNodes):       
+    '''Node for EnergyPlus 2D results analysis'''
+    bl_idname = 'ViREnNode'
+    bl_label = 'VI EnergyPLus analysis'
+
+    def draw_buttons(self, context):
+        
+
+         
 class ViNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):
@@ -591,6 +596,37 @@ class ViEnGOut(bpy.types.NodeSocket):
         
     def color(self):
         return (0.0, 0.0, 1.0, 0.75)
+
+class ViEnROut(bpy.types.NodeSocket):
+    '''Energy geometry out socket'''
+    bl_idname = 'ViEnROut'
+    bl_label = 'results out'
+    
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+        
+    def draw_color(self, context, node):
+        return (0.0, 1.0, 0.0, 0.75)
+        
+    def color(self):
+        return (0.0, 1.0, 0.0, 0.75)        
+
+class ViEnRXIn(bpy.types.NodeSocket):
+    '''Energy geometry out socket'''
+    bl_idname = 'ViEnRIn'
+    bl_label = 'Results in'
+    
+ 
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+        
+    def draw_color(self, context, node):
+        return (0.0, 1.0, 0.0, 0.75)
+        
+    def color(self):
+        return (0.0, 1.0, 0.0, 0.75)
+        
+
         
 class ViEnGIn(bpy.types.NodeSocket):
     '''Energy geometry out socket'''
@@ -849,7 +885,6 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
             row.label("Moisture coefficient:")
             row.prop(self, 'dmtc')
 
-            
 class EnViExtNode(bpy.types.Node, EnViNodes):
     '''Node describing a linkage component'''
     bl_idname = 'EnViExt'

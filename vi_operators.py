@@ -4,6 +4,11 @@ from . import livi_export
 from . import livi_calc
 from . import vi_display
 from . import envi_export
+from . import envi_mat
+from . import envi_calc
+
+envi_mats = envi_mat.envi_materials()
+envi_cons = envi_mat.envi_constructions()
 
 class NODE_OT_GeoExport(bpy.types.Operator):
     bl_idname = "node.geoexport"
@@ -264,4 +269,51 @@ class NODE_OT_EnGExport(bpy.types.Operator):
         envi_export.pregeo()
         node.exported = True
         node.outputs[0].hide = False
+        return {'FINISHED'} 
+        
+class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
+    bl_idname = "node.enexport"
+    bl_label = "Export"
+    bl_description = "Export the scene to the EnergyPlus file format"
+    bl_register = True
+    bl_undo = True
+    nodename = bpy.props.StringProperty()
+    
+    def invoke(self, context, event):
+        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
+        if bpy.data.filepath:
+            scene = context.scene
+            if bpy.context.object:
+                if bpy.context.object.type == 'MESH':
+                    bpy.ops.object.mode_set(mode = 'OBJECT')
+            if " " not in str(node.filedir) and " " not in str(node.filename):
+#                if not os.path.isdir(envi_settings.filedir+"/"+envi_settings.filename):
+#                    os.makedirs(envi_settings.filedir+"/"+envi_settings.filename)
+            
+                envi_export.enpolymatexport(self, node, envi_mats, envi_cons)    
+                node.exported = True
+            elif " " in str(node.filedir):    
+                self.report({'ERROR'},"The directory path containing the Blender file has a space in it.")
+                return {'FINISHED'}
+            elif " " in str(node.filename):
+                self.report({'ERROR'},"The Blender filename has a space in it.")
+                return {'FINISHED'}
+            return {'FINISHED'}
+        else:
+            self.report({'ERROR'},"Save the Blender file before exporting")
+            return {'FINISHED'} 
+            
+class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
+    bl_idname = "node.ensim"
+    bl_label = "Simulate"
+    bl_description = "Run EnergyPlus"
+    bl_register = True
+    bl_undo = True
+    nodename = bpy.props.StringProperty()
+    
+    def invoke(self, context, event):
+        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
+        envi_calc.envi_sim(self, node)  
+        node.outputs.new('ViEnROut', 'Results out')
+        context.scene.li_disp_panel = 2
         return {'FINISHED'} 

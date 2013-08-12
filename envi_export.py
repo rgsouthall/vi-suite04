@@ -12,7 +12,7 @@ def enpolymatexport(exp_op, node, em, ec):
     scene = bpy.context.scene
     for scene in bpy.data.scenes:
         scene.update()
-    en_epw = open(scene.envi_export_weather, "r")
+    en_epw = open(node.weather, "r")
     en_idf = open(node.idf_file, 'w')
     
     en_idf.write("!- Blender -> EnergyPlus\n\
@@ -21,14 +21,14 @@ def enpolymatexport(exp_op, node, em, ec):
 !- Date: "+datetime.datetime.now().strftime("%Y-%m-%d %H:%M")+"\n\n\
 {0:{width}}!- EnergyPlus Version Identifier\n\n".format("VERSION,8.0.0;", width = s) + "\
 Building,\n\
-{0:{width}}!- Name\n".format("    "+es.projname+",", width = s) + "\
+{0:{width}}!- Name\n".format("    "+node.loc+",", width = s) + "\
 {0:{width}}!- North Axis (deg)\n".format("    0.000,", width = s) + "\
-{0:{width}}!- Terrain\n".format("    " + es.terrain + ",", width = s) + "\
+{0:{width}}!- Terrain\n".format("    " + ("City", "Urban", "Suburbs", "Country", "Ocean")[int(node.terrain)] + ",", width = s) + "\
 {0:{width}}!- Loads Convergence Tolerance Value\n".format("    0.04,", width = s) + "\
 {0:{width}}!- Temperature Convergence Tolerance Value (deltaC)\n".format("    0.4,", width = s) + "\
 {0:{width}}!- Solar Distribution\n".format("    FullExteriorWithReflections,", width = s) + "\
 {0:{width}}!- Maximum Number of Warmup Days (from MLC TCM)\n\n".format("    15;", width = s) + "\
-{0:{width}}!- Time Step in Hours \n\n".format("Timestep, {0};".format(scene.envi_export_interval), width = s) + "\
+{0:{width}}!- Time Step in Hours \n\n".format("Timestep, {0};".format(node.timesteps), width = s) + "\
 {0:{width}}!- Algorithm \n\n".format("SurfaceConvectionAlgorithm:Inside, TARP;", width = s) + "\
 {0:{width}}!- Algorithm \n\n".format("SurfaceConvectionAlgorithm:Outside, TARP;", width = s) + "\
 HeatBalanceAlgorithm, ConductionTransferFunction; \n\n\
@@ -38,10 +38,10 @@ HeatBalanceAlgorithm, ConductionTransferFunction; \n\n\
 
     en_idf.write("RunPeriod,\n\
 {0:{width}}!- Name\n".format("    ,", width = s) +
-        "{0:{width}}!- Begin Month\n".format("    "+str(scene.envi_export_start_month) + ",", width = s) + 
-        "{0:{width}}!- Begin Day of Month\n".format("    "+str(es.startD)+",", width = s) + 
-        "{0:{width}}!- End Month\n".format("    "+str(scene.envi_export_end_month) + ",", width = s) + 
-        "{0:{width}}!- End Day of Month\n".format("    "+str(es.endD) + ",", width = s) + 
+        "{0:{width}}!- Begin Month\n".format("    "+str(datetime.date.fromordinal(node.sdoy).month) + ",", width = s) + 
+        "{0:{width}}!- Begin Day\n".format("    "+str(datetime.date.fromordinal(node.sdoy).day)+",", width = s) + 
+        "{0:{width}}!- End Month\n".format("    "+str(datetime.date.fromordinal(node.sdoy).month) + ",", width = s) + 
+        "{0:{width}}!- End Day\n".format("    "+str(datetime.date.fromordinal(node.sdoy).day) + ",", width = s) + 
         "{0:{width}}!- Day of Week for Start Day\n".format("    UseWeatherFile,", width = s) + 
         "{0:{width}}!- Use Weather File Holidays and Special Days\n".format("    Yes,", width = s) + 
         "{0:{width}}!- Use Weather File Daylight Saving Period\n".format("    Yes,", width = s) + 
@@ -156,7 +156,7 @@ Construction,\n\
                         matcount.append(typelist)    
 
         conlist = []
-        if mat.envi_con_makeup == '0' and (mat.envi_con_type != 'None' or mat.envi_con_type != 'Shading'):
+        if mat.envi_con_makeup == '0' and mat.envi_con_type not in ('None', 'Shading', 'Aperture'):
             thicklist = (mat.envi_export_lo_thi, mat.envi_export_l1_thi, mat.envi_export_l2_thi, mat.envi_export_l3_thi, mat.envi_export_l4_thi)
             conname = (mat.envi_export_wallconlist, mat.envi_export_roofconlist, mat.envi_export_floorconlist, mat.envi_export_glazeconlist)[("Wall", "Roof", "Floor", "Window").index(mat.envi_con_type)]
             mats = (ec.wall_con, ec.roof_con, ec.floor_con, ec.glaze_con)[("Wall", "Roof", "Floor", "Window").index(mat.envi_con_type)][conname]
@@ -186,7 +186,7 @@ Construction,\n\
             namelist.append(conname)
             ec.con_write(en_idf, mat.envi_con_type, conname, str(namelist.count(conname)-1), mat.name)
             
-        elif mat.envi_con_makeup == '1' and (mat.envi_con_type != 'None' or mat.envi_con_type != 'Shading'):
+        elif mat.envi_con_makeup == '1' and mat.envi_con_type not in ('None', 'Shading', 'Aperture'):
             thicklist = (mat.envi_export_lo_thi, mat.envi_export_l1_thi, mat.envi_export_l2_thi, mat.envi_export_l3_thi, mat.envi_export_l4_thi)
             conname = mat.name
             for l, layer in enumerate([i for i in itertools.takewhile(lambda x: x != "None", (mat.envi_layero, mat.envi_layer1, mat.envi_layer2, mat.envi_layer3, mat.envi_layer4))]):
@@ -517,42 +517,42 @@ Construction,\n\
     
     en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: REPORT VARIABLE ===========\n\n")
 
-    if scene.envi_resat == True:
+    if node.resat == True:
         en_idf.write("Output:Variable,*,Site Outdoor Air Drybulb Temperature,Hourly;\n")
-    if scene.envi_resaws == True:
+    if node.resaws == True:
         en_idf.write("Output:Variable,*,Site Wind Speed,Hourly;\n")
-    if scene.envi_resawd == True:
+    if node.resawd == True:
         en_idf.write("Output:Variable,*,Site Wind Direction,Hourly;\n")
-    if scene.envi_resah == True:
+    if node.resah == True:
         en_idf.write("Output:Variable,*,Site Outdoor Air Relative Humidity,hourly;\n")
-    if scene.envi_resasb == True:
+    if node.resasb == True:
         en_idf.write("Output:Variable,*,Site Direct Solar Radiation Rate per Area,hourly;\n")
-    if scene.envi_resasd == True:
+    if node.resasd == True:
         en_idf.write("Output:Variable,*,Site Diffuse Solar Radiation Rate per Area,hourly;\n")
-    if scene.envi_restt == True:
+    if node.restt == True:
         en_idf.write("Output:Variable,*,Zone Air Temperature,hourly;\n")
-    if scene.envi_restwh == True:
+    if node.restwh == True:
         en_idf.write("Output:Variable,*,Zone Air System Sensible Heating Rate,hourly;\n")
-    if scene.envi_restwc == True:
+    if node.restwc == True:
         en_idf.write("Output:Variable,*,Zone Air System Sensible Cooling Rate,hourly;\n")
-    if scene.envi_rescpm == True:
+    if node.rescpm == True:
         en_idf.write("Output:Variable,*,FangerPMV,hourly;\n")
-    if scene.envi_rescpp == True:
+    if node.rescpp == True:
         en_idf.write("Output:Variable,*,FangerPPD,hourly;\n")
-    if scene.envi_resims == True:
+    if node.resims == True:
         en_idf.write("Output:Variable,*,Zone Infiltration Current Density Volume Flow Rate [m3/s];\n")
-    if scene.envi_reswsg == True:
+    if node.reswsg == True:
         en_idf.write("Output:Variable,*,Zone Windows Total Transmitted Solar Radiation Rate [W],hourly;;\n")
     en_idf.close()
     if 'in.idf' not in [im.name for im in bpy.data.texts]:
         bpy.data.texts.load(node.idf_file)
     
     if sys.platform == "win32":
-        subprocess.call(node.cp+'"'+es.weafile+'" '+es.newdir+es.slash+"in.epw", shell = True)
-        subprocess.call(node.cp+'"'+os.path.dirname( os.path.realpath( __file__ ) )+es.slash+"EPFiles"+es.slash+"Energy+.idd"+'" '+es.newdir+es.slash, shell = True)
+        subprocess.call(node.cp+'"'+node.weather+'" '+node.newdir+node.fold+"in.epw", shell = True)
+        subprocess.call(node.cp+'"'+os.path.dirname( os.path.realpath( __file__ ) )+node.fold+"EPFiles"+node.fold+"Energy+.idd"+'" '+es.newdir+node.fold, shell = True)
     else:
-        subprocess.call(node.cp+es.weafile+" "+es.newdir+es.slash+"in.epw", shell = True)
-        subprocess.call(node.cp+os.path.dirname( os.path.realpath( __file__ ) )+es.slash+"EPFiles"+es.slash+"Energy+.idd "+es.newdir+es.slash, shell = True)
+        subprocess.call(node.cp+node.weather+" "+node.newdir+node.fold+"in.epw", shell = True)
+        subprocess.call(node.cp+os.path.dirname( os.path.realpath( __file__ ) )+node.fold+"EPFiles"+node.fold+"Energy+.idd "+node.newdir+node.fold, shell = True)
 
 def pregeo():
     for obj in [obj for obj in bpy.context.scene.objects if obj.layers[1] == True]:

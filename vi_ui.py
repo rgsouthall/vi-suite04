@@ -56,6 +56,8 @@ class Vi3DPanel(bpy.types.Panel):
                 row.prop(scene, "li_display_rp_fs")
                 row = layout.row()
                 row.label(text="{:-<60}".format(""))
+        if scene.li_disp_panel == 2:
+            pass
 #            except:
 #                pass
 

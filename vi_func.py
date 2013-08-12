@@ -1,4 +1,4 @@
-import bpy, os, math
+import bpy, os, sys, multiprocessing
 from math import sin, cos, asin, acos, pi
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
 
@@ -27,17 +27,6 @@ def sky(fr, node, geonode):
         return(geonode.filebase+"-0.sky")
         
 def nodeinit(node):
-    node.filepath = bpy.data.filepath
-    node.filename = os.path.splitext(os.path.basename(node.filepath))[0]
-    node.filedir = os.path.dirname(node.filepath)
-    if not os.path.isdir(node.filedir+node.fold+node.filename):
-        os.makedirs(node.filedir+node.fold+node.filename)  
-    if not os.path.isdir(node.filedir+node.fold+node.filename+node.fold+'obj'):
-       os.makedirs(node.filedir+node.fold+node.filename+node.fold+'obj') 
-    node.newdir = node.filedir+node.fold+node.filename
-    node.filebase = node.newdir+node.fold+node.filename
-    node.objfilebase = node.newdir+node.fold+'obj'+node.fold+node.filename
-    node.idf_file = node.newdir+node.fold+"in.idf"
     if str(sys.platform) != 'win32':
         node.nproc = str(multiprocessing.cpu_count())
         node.rm = "rm "
@@ -49,8 +38,19 @@ def nodeinit(node):
         node.rm = "del "
         node.cat = "type "
         node.fold = "\\"
-        node.vp = "copy "
-
+        node.cp = "copy "
+    node.filepath = bpy.data.filepath
+    node.filename = os.path.splitext(os.path.basename(node.filepath))[0]
+    node.filedir = os.path.dirname(node.filepath)
+    if not os.path.isdir(node.filedir+node.fold+node.filename):
+        os.makedirs(node.filedir+node.fold+node.filename)  
+    if not os.path.isdir(node.filedir+node.fold+node.filename+node.fold+'obj'):
+       os.makedirs(node.filedir+node.fold+node.filename+node.fold+'obj') 
+    node.newdir = node.filedir+node.fold+node.filename
+    node.filebase = node.newdir+node.fold+node.filename
+    node.objfilebase = node.newdir+node.fold+'obj'+node.fold+node.filename
+    node.idf_file = node.newdir+node.fold+"in.idf"
+    
 def nodeexported(self):
     self.exported = 0
     

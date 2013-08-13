@@ -6,6 +6,7 @@ from . import vi_display
 from . import envi_export
 from . import envi_mat
 from . import envi_calc
+from . import vi_func
 
 envi_mats = envi_mat.envi_materials()
 envi_cons = envi_mat.envi_constructions()
@@ -30,7 +31,7 @@ class NODE_OT_LiGExport(bpy.types.Operator):
         node.outputs[0].hide = False
         return {'FINISHED'}        
 
-class NODE_OT_EpwSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
+class NODE_OT_EpwSelect(bpy.types.Operator, io_utils.ImportHelper):
     bl_idname = "node.epwselect"
     bl_label = "Select EPW file"
     bl_description = "Select the EnergyPlus weather file"
@@ -315,5 +316,7 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
         envi_calc.envi_sim(self, node)  
         node.outputs.new('ViEnROut', 'Results out')
+        node.dsdoy = vi_func.iprop("Result start day", "", node.sdoy, node.edoy, node.sdoy)
+        node.dedoy = vi_func.iprop("Result end day", "", node.sdoy, node.edoy, node.edoy)
         context.scene.li_disp_panel = 2
         return {'FINISHED'} 

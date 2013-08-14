@@ -172,8 +172,8 @@ Construction,\n\
                     params = [str(mat)+(",", ",", ",", ",", ",", ",", ";", ",")[x] for x, mat in enumerate(em.matdat[presetmat])]
                     em.omat_write(en_idf, presetmat+"-"+str(em.namedict[presetmat]), params, str(thicklist[pm]/1000))
                 elif presetmat in em.gas_dat:
-                    params = [em.matdat[presetmat][2]+';']
-                    em.amat_write(en_idf, presetmat+"-"+str(em.namedict[presetmat]), params, str(thicklist[pm]/1000))
+                    params = em.matdat[presetmat][2]+';'
+                    em.amat_write(en_idf, presetmat+"-"+str(em.namedict[presetmat]), params)
                 elif mat.envi_con_type =='Window' and em.matdat[presetmat][0] == 'Glazing':
                     params = [str(mat)+(",", ",", ",", ",", ",", ",", ",", ",", ",", ",", ",", ",", ",",";")[x] for x, mat in enumerate(em.matdat[presetmat])]
                     em.tmat_write(en_idf, presetmat+"-"+str(em.namedict[presetmat]), params, str(thicklist[pm]/1000))

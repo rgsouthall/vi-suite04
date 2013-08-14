@@ -283,7 +283,6 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
     def invoke(self, context, event):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
         if bpy.data.filepath:
-            scene = context.scene
             if bpy.context.object:
                 if bpy.context.object.type == 'MESH':
                     bpy.ops.object.mode_set(mode = 'OBJECT')
@@ -314,8 +313,9 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
     
     def invoke(self, context, event):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-        envi_calc.envi_sim(self, node)  
-        node.outputs.new('ViEnROut', 'Results out')
+        envi_calc.envi_sim(self, node) 
+        if not node.outputs:
+            node.outputs.new('ViEnROut', 'Results out')
         node.dsdoy = vi_func.iprop("Result start day", "", node.sdoy, node.edoy, node.sdoy)
         node.dedoy = vi_func.iprop("Result end day", "", node.sdoy, node.edoy, node.edoy)
         context.scene.li_disp_panel = 2

@@ -525,10 +525,13 @@ class ViExEnNode(bpy.types.Node, ViNodes):
 class ViEnRNode(bpy.types.Node, ViNodes):       
     '''Node for EnergyPlus 2D results analysis'''
     bl_idname = 'ViEnRNode'
-    bl_label = 'VI EnergyPLus analysis'
+    bl_label = 'VI EnergyPLus results'
+    
+    def sdupdate(self, context):
+        print(self.dsdoy)
     
     ctypes = [("0", "Line", "Line Chart"), ("1", "Bar", "Bar Chart")]
-    dsdoy = bpy.props.IntProperty(name = "Day", description = "", min = 1, max = 365, default = 1) 
+    dsdoy = bpy.props.IntProperty(name = "Day", description = "", min = 1, max = 365, default = 1, update = sdupdate) 
     dedoy = bpy.props.IntProperty(name = "Day", description = "", min = 1, max = 365, default = 365) 
     dsh = bpy.props.IntProperty(name = "Hour", description = "", min = 1, max = 24, default = 1)
     deh = bpy.props.IntProperty(name = "Hour", description = "", min = 1, max = 24, default = 24)
@@ -540,22 +543,31 @@ class ViEnRNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         row = layout.row()
-        row.label("Start time:")
-        row.prop(self, "dsdoy")
-        row.prop(self, "dsh")
-        row = layout.row()
-        row.label("End time:")
-        row.prop(self, "dedoy")
-        row.prop(self, "deh")
-        row = layout.row()
-        row.prop(self, "charttype")
+        if self.inputs['X-axis'].is_linked:
+
+
+            row.label("Start time:")
+            row.prop(self, "dsdoy")
+            row.prop(self, "dsh")
+            row = layout.row()
+            row.label("End time:")
+            row.prop(self, "dedoy")
+            row.prop(self, "deh")
+            row = layout.row()
+            row.prop(self, "charttype")
 #        layout.operator("node.plotcreate", text = 'Create plot').nodename = self.name
         
     def update(self):
-        if self.inputs['X-axis'].is_linked:
-            self.dsdoy = self.inputs['X-axis'].links.from_node.dsdoy
-            self.dedoy = self.inputs['X-axis'].links.from_node.dedoy
-            self.inputs['X-axis'].xrestype = self.inputs['X-axis'].links.from_node.xtypes
+        if self.inputs[0].is_linked:
+            print(self.dsdoy)
+            
+#            = self.inputs[0].links[0].from_node.sdoy
+#
+#            innode = self.inputs[0].links[0].from_node
+#            print('hi')
+#            self.dsdoy = bpy.props.IntProperty(name = "Day", description = "", min = innode.sdoy, max = innode.edoy, default = innode.sdoy)
+#            self.dedoy = self.inputs['X-axis'].links[0].from_node.edoy
+#            self.inputs['X-axis'].xrestype = self.inputs['X-axis'].links[0].from_node.xtypes
         
          
 class ViNodeCategory(NodeCategory):
@@ -645,7 +657,7 @@ class ViEnRXIn(bpy.types.NodeSocket):
     
     xrestype = bpy.props.EnumProperty(items=[("0", "Standard", "Standard accuracy for this metric"),("1", "Custom", "Edit Radiance parameters"), ],
             name="", description="Simulation accuracy", default="0")
-    xtimetype = bpy.props.EnumProperty(items=[("0", "Standard", "Standard accuracy for this metric"),("1", "Custom", "Edit Radiance parameters"), ],
+    xtimetype = bpy.props.EnumProperty(items=[("0", "Time", "Standard accuracy for this metric"),("1", "Custom", "Edit Radiance parameters"), ],
             name="", description="Simulation accuracy", default="0")
     
     def draw(self, context, layout, node, text):
@@ -660,11 +672,7 @@ class ViEnRXIn(bpy.types.NodeSocket):
     def color(self):
         return (0.0, 1.0, 0.0, 0.75)
     
-    def update(self):
-        if self.inputs["X Axis"].is_linked:
-            self.xrestype = self.inputs["X Axis"].links[0].from_node.xtypes   
-
-        
+      
 class ViEnGIn(bpy.types.NodeSocket):
     '''Energy geometry out socket'''
     bl_idname = 'ViEnGIn'

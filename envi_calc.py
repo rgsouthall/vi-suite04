@@ -122,8 +122,8 @@ def envi_sim(calc_op, node):
                 obj["kwhc"] = sum(zr[3:])*0.001
                 obj["kwhcm2"] = obj["kwhc"]/obj["floorarea"]
     
-    node.xtypes = bpy.types.EnumProperty(items = xtypes, default = '0')
-    
+    node.xtypes = bpy.props.EnumProperty(items = xtypes, default = '0')
+    print(node.xtypes)
     if len(zonelist) > 0:
         zonelist.append(('All Zones', 'All Zones', 'Zone name'))
         node.reszoney1 = node.reszoney2 = node.reszoney3 = node.reszone = eprop(zonelist, "Zone results", "Zone results identifier", zonelist[-1][0])

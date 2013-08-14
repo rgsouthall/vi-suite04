@@ -48,7 +48,8 @@ class envi_materials(object):
         self.stone_dat = OrderedDict(sorted(self.stone_datd.items()))
         
         self.gas_datd = {'Air 20-50mm': ('Gas', 'Air', '0.17'),
-                        'Horizontal Air 20-50mm': ('Gas', 'Air', '0.21')}
+                        'Horizontal Air 20-50mm Heat Down': ('Gas', 'Air', '0.21'),
+                        'Horizontal Air 20-50mm Heat Up': ('Gas', 'Air', '0.17')}
         self.gas_dat = OrderedDict(sorted(self.gas_datd.items()))
         
         self.wgas_datd = {'Argon': ('Gas', 'Argon'),
@@ -115,7 +116,7 @@ class envi_materials(object):
     {2[5]:{width}}! - Solar Absorptance\n\
     {2[6]:{width}}! - Visible Absorptance\n\n".format(name + ",", thickness + ",", stringmat, width = s-4))
 
-    def amat_write(self, idf_file, name, stringmat, thickness):        
+    def amat_write(self, idf_file, name, stringmat):        
         idf_file.write("Material:AirGap,\n\
     {0:{width}}! - Name\n\
     {1:{width}}! - Resistance\n\n".format(name + ",", stringmat, width = s-4))
@@ -148,7 +149,7 @@ class envi_constructions(object):
     def __init__(self):
         self.wall_cond = {'External Wall 1': ('Standard Brick', 'Thermawall TW50', 'Inner concrete block')}
         self.wall_con = OrderedDict(sorted(self.wall_cond.items()))
-        self.floor_cond = {'Ground Floor 1': ('Common earth', 'Gravel', 'Heavy mix concrete', 'Air 20-50mm', 'Chipboard')}
+        self.floor_cond = {'Ground Floor 1': ('Common earth', 'Gravel', 'Heavy mix concrete', 'Horizontal Air 20-50mm Heat Down', 'Chipboard')}
         self.floor_con = OrderedDict(sorted(self.floor_cond.items()))
         self.roof_cond = {'Roof 1': ('Clay tile', 'Roofing felt', 'Plywood')}
         self.roof_con = OrderedDict(sorted(self.roof_cond.items()))

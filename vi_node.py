@@ -531,27 +531,26 @@ class ViEnRNode(bpy.types.Node, ViNodes):
         print(self.dsdoy)
     
     ctypes = [("0", "Line", "Line Chart"), ("1", "Bar", "Bar Chart")]
-    dsdoy = bpy.props.IntProperty(name = "Day", description = "", min = 1, max = 365, default = 1, update = sdupdate) 
-    dedoy = bpy.props.IntProperty(name = "Day", description = "", min = 1, max = 365, default = 365) 
-    dsh = bpy.props.IntProperty(name = "Hour", description = "", min = 1, max = 24, default = 1)
-    deh = bpy.props.IntProperty(name = "Hour", description = "", min = 1, max = 24, default = 24)
+    dsh = bpy.props.IntProperty(name = "Start", description = "", min = 1, max = 24, default = 1)
+    deh = bpy.props.IntProperty(name = "End", description = "", min = 1, max = 24, default = 24)
     charttype = bpy.props.EnumProperty(items = ctypes, name = "Chart Type", default = "0")
     
     def init(self, context):
         self.inputs.new("ViEnRXIn", "X-axis")
+        self['Start Day'] = 1 
+        self['End Day'] = 365
+        
 #        self.inputs.new("ViEnRY1In", "Y-axis 1")
 
     def draw_buttons(self, context, layout):
         row = layout.row()
         if self.inputs['X-axis'].is_linked:
-
-
-            row.label("Start time:")
-            row.prop(self, "dsdoy")
-            row.prop(self, "dsh")
+            row.label("Day:")
+            row.prop(self, '["Start"]')
+            row.prop(self, '["End"]')
             row = layout.row()
-            row.label("End time:")
-            row.prop(self, "dedoy")
+            row.label("Hour:")
+            row.prop(self, "dsh")
             row.prop(self, "deh")
             row = layout.row()
             row.prop(self, "charttype")
@@ -559,14 +558,8 @@ class ViEnRNode(bpy.types.Node, ViNodes):
         
     def update(self):
         if self.inputs[0].is_linked:
-            print(self.dsdoy)
-            
-#            = self.inputs[0].links[0].from_node.sdoy
-#
-#            innode = self.inputs[0].links[0].from_node
-#            print('hi')
-#            self.dsdoy = bpy.props.IntProperty(name = "Day", description = "", min = innode.sdoy, max = innode.edoy, default = innode.sdoy)
-#            self.dedoy = self.inputs['X-axis'].links[0].from_node.edoy
+            innode = self.inputs[0].links[0].from_node
+            self["_RNA_UI"] = {"Start Day": {"min":innode.sdoy, "max":innode.edoy, "default":innode.sdoy}, "End Day": {"min":innode.sdoy, "max":innode.edoy, "default":innode.edoy}}         
 #            self.inputs['X-axis'].xrestype = self.inputs['X-axis'].links[0].from_node.xtypes
         
          
@@ -661,6 +654,9 @@ class ViEnRXIn(bpy.types.NodeSocket):
             name="", description="Simulation accuracy", default="0")
     
     def draw(self, context, layout, node, text):
+        if self.is_linked:
+            innode = self.links[0].from_node
+            print(innode.xtypes)
         row = layout.row()
         row.prop(self, "xrestype", text = text)
         if self.xrestype == "Time":

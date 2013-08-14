@@ -316,7 +316,13 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
         envi_calc.envi_sim(self, node) 
         if not node.outputs:
             node.outputs.new('ViEnROut', 'Results out')
+        if node.outputs[0].is_linked:
+            socket1 = node.outputs[0]
+            socket2 = node.outputs[0].links[0].to_socket
+            bpy.data.node_groups['VI Network'].links.remove(node.outputs[0].links[0])
+            bpy.data.node_groups['VI Network'].links.new(socket1, socket2)
         node.dsdoy = vi_func.iprop("Result start day", "", node.sdoy, node.edoy, node.sdoy)
         node.dedoy = vi_func.iprop("Result end day", "", node.sdoy, node.edoy, node.edoy)
+        
         context.scene.li_disp_panel = 2
         return {'FINISHED'} 

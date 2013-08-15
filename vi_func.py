@@ -118,6 +118,94 @@ def clearscened(scene):
             for keys in sk.keys():
                 keys.animation_data_clear()
                 
+def processf(node, file):
+    dos = [[], [], [], [], []]
+    at = [[], []]
+    ah = [[], []]
+    aws = [[], []]
+    awd = [[], []]
+    asd = [[], []]
+    asb = [[], []]
+    resfile = open(file, 'r')
+    xtypes = []
+    climlist = []
+#    objno = len([obj for obj in bpy.data.objects if obj.layers[1] == True])
+
+    for line in resfile:
+        if len(line.split(",")) > 2 and line.split(",")[2] == "Day of Simulation[]":
+            dos[0] = line.split(",")[0]
+            xtypes.append("Time")
+        elif len(line.split(",")) > 2 and line.split(",")[2] == "Environment":
+            if line.split(",")[3].strip('\n') == "Site Outdoor Air Drybulb Temperature [C] !Hourly":
+                climlist.append('Ambient Temperature (C)')
+                at[0] = line.split(",")[0]
+            if line.split(",")[3].strip('\n') == "Site Outdoor Air Relative Humidity [%] !Hourly":
+                climlist.append('Ambient Humidity (%)')
+                ah[0] = line.split(",")[0]
+            if line.split(",")[3].strip('\n') == "Site Wind Speed [m/s] !Hourly":
+                climlist.append('Ambient Wind Speed (m/s)')
+                aws[0] = line.split(",")[0]
+            if line.split(",")[3].strip('\n') == "Site Wind Direction [deg] !Hourly":
+                climlist.append('Ambient Wind Direction (deg from N)')
+                awd[0] = line.split(",")[0]
+            if line.split(",")[3].strip('\n') == "Site Diffuse Solar Radiation Rate per Area [W/m2] !Hourly":
+                climlist.append('Diffuse Solar Radiation (W/m^2)')
+                asd[0] = line.split(",")[0]
+            if line.split(",")[3].strip('\n') == "Site Direct Solar Radiation Rate per Area [W/m2] !Hourly":
+                climlist.append('Direct Solar Radiation (W/m^2)')
+                asb[0] = line.split(",")[0]
+            xtypes.append("Climate")
+            node['climlist'] = climlist
+        elif len(line.split(",")) > 2 and line.split(",")[2] in [obj.name.upper() for obj in bpy.data.objects if obj.layers[1] == True]:
+            for obj in bpy.data.objects:
+                if obj.layers[1] == True and obj.name.upper() == line.split(",")[2]:
+                    if (obj.name, obj.name, 'Zone name') not in zonelist:
+                        zonelist.append(obj.name)
+                    if line.split(",")[3].split("!")[0] == "Zone Infiltration Current Density Volume Flow Rate [m3/s] ":
+                        zoneres.append([line.split(",")[0], obj.name, "Zone Infiltration [m3/s] "])
+                    elif line.split(",")[3].split("!")[0] == "Zone Windows Total Transmitted Solar Radiation Rate [W] ":
+                        zoneres.append([line.split(",")[0], obj.name, "Total Solar Gain [W] "])
+                    else:
+                        zoneres.append([line.split(",")[0], obj.name, line.split(",")[3].split("!")[0]])
+                    zoneresno.append(line.split(",")[0])
+                    if line.split(",")[3].split("!")[0] not in [zr[1] for zr in zonereslist]:
+                        if line.split(",")[3].split("!")[0] == "Zone Infiltration Current Density Volume Flow Rate [m3/s] ":
+                            zonereslist.append(("Zone Infiltration [m3/s] ", line.split(",")[3].split("!")[0], 'Results Parameter'))
+                        elif line.split(",")[3].split("!")[0] == "Zone Windows Total Transmitted Solar Radiation Rate [W] ":
+                            zonereslist.append(("Total Solar Gain [W] ", line.split(",")[3].split("!")[0], 'Results Parameter'))
+                        else:
+                            zonereslist.append((line.split(",")[3].split("!")[0], line.split(",")[3].split("!")[0], 'Results Parameter'))
+            if ("Zone", "Zone", "Plot a zone result on the x-axis") not in node['xtypes']:
+                xtypes.append("Zone")     
+#            er.zonereslist = zonereslist
+            
+        elif line.split(",")[0] in zoneresno:
+            zoneres[[i for i,x in enumerate(zoneresno) if x == line.split(",")[0]][0]].append(float(line.split(",")[1].strip("\n")))
+            
+        elif line.split(",")[0] == dos[0]:
+            dos[1].append(int(line.split(",")[1]))
+            dos[2].append(int(line.split(",")[2]))
+            dos[3].append(int(line.split(",")[3]))
+            dos[4].append(int(line.split(",")[5]))
+        
+        elif line.split(",")[0] == at[0]: 
+            at[1].append(float(line.split(",")[1].strip('\n')))
+        
+        elif line.split(",")[0] == ah[0]: 
+            ah[1].append(float(line.split(",")[1].strip('\n')))
+        
+        elif line.split(",")[0] == aws[0]: 
+            aws[1].append(float(line.split(",")[1].strip('\n')))    
+        
+        elif line.split(",")[0] == awd[0]: 
+            awd[1].append(float(line.split(",")[1].strip('\n')))   
+        
+        elif line.split(",")[0] == asb[0]: 
+            asb[1].append(float(line.split(",")[1].strip('\n'))) 
+        
+        elif line.split(",")[0] == asd[0]: 
+            asd[1].append(float(line.split(",")[1].strip('\n'))) 
+                
 def iprop(iname, idesc, imin, imax, idef):
         return(IntProperty(name = iname, description = idesc, min = imin, max = imax, default = idef))
 def eprop(eitems, ename, edesc, edef):

@@ -416,6 +416,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
     exported = bpy.props.BoolProperty()
     resname = bpy.props.StringProperty(name="Results Name", description="Base name for the results files", default="results")
     
+    
     def nodeexported(self, context):
         self.exported = False
         self.bl_label = '*VI EnergyPLus analysis'
@@ -459,6 +460,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
     def init(self, context):
         self.inputs.new('ViEnGIn', 'Geometry in')
         nodeinit(self)
+        self['xtypes']
     
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -522,20 +524,31 @@ class ViExEnNode(bpy.types.Node, ViNodes):
             row = layout.row()
             row.operator("node.ensim", text = 'Calculate').nodename = self.name
 
+class ViEnRFNode(bpy.types.Node, ViNodes):       
+    '''Node for EnergyPlus results file selection'''
+    bl_idname = 'ViEnRFNode'
+    bl_label = 'VI EnergyPLus results file selection'
+    
+    resfilename = bpy.props.StringProperty(name="", description="Name of the EnVi results file", default="")
+    
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.label('ESO file:')
+        row.operator('node.esoselect', text = 'Select ESO file').nodename = self.name
+        row = layout.row()
+        row.prop(self, 'resfilename')
+#        row.operator("node.fileprocess", text = 'Process file')
+    
 class ViEnRNode(bpy.types.Node, ViNodes):       
     '''Node for EnergyPlus 2D results analysis'''
     bl_idname = 'ViEnRNode'
     bl_label = 'VI EnergyPLus results'
     
-    def sdupdate(self, context):
-        print(self.dsdoy)
-    
     ctypes = [("0", "Line", "Line Chart"), ("1", "Bar", "Bar Chart")]
     dsh = bpy.props.IntProperty(name = "Start", description = "", min = 1, max = 24, default = 1)
     deh = bpy.props.IntProperty(name = "End", description = "", min = 1, max = 24, default = 24)
     charttype = bpy.props.EnumProperty(items = ctypes, name = "Chart Type", default = "0")
-    resfilename = bpy.props.StringProperty(name="", description="Name of the EnVi results file", default="")
-    
+        
     def init(self, context):
         self.inputs.new("ViEnRXIn", "X-axis")
         self['Start'] = 1 
@@ -544,11 +557,6 @@ class ViEnRNode(bpy.types.Node, ViNodes):
 #        self.inputs.new("ViEnRY1In", "Y-axis 1")
 
     def draw_buttons(self, context, layout):
-        row = layout.row()
-        row.label('ESO file:')
-        row.operator('node.esoselect', text = 'Select ESO file').nodename = self.name
-        row = layout.row()
-        row.prop(self, 'resfilename')
         if self.inputs['X-axis'].is_linked or self.resfilename:
             row = layout.row()
             row.label("Day:")
@@ -564,9 +572,36 @@ class ViEnRNode(bpy.types.Node, ViNodes):
         
     def update(self):
         if self.inputs[0].is_linked:
+            xrestype = []
             innode = self.inputs[0].links[0].from_node
-            self["_RNA_UI"] = {"Start Day": {"min":innode.sdoy, "max":innode.edoy, "default":innode.sdoy}, "End Day": {"min":innode.sdoy, "max":innode.edoy, "default":innode.edoy}}         
-#            self.inputs['X-axis'].xrestype = self.inputs['X-axis'].links[0].from_node.xtypes
+            self["_RNA_UI"] = {"Start": {"min":innode.sdoy, "max":innode.edoy, "default":innode.sdoy}, "End": {"min":innode.sdoy, "max":innode.edoy, "default":innode.edoy}}         
+            for xres in innode['xtypes']:
+                xrestype.append((xres, xres, "Plot "+xres))
+        
+        class ViEnRXIn(bpy.types.NodeSocket):
+            '''Energy geometry out socket'''
+            bl_idname = 'ViEnRXIn'
+            bl_label = 'X-axis'
+            
+            xrestypemenu = bpy.props.EnumProperty(items=xrestype, name="", description="Simulation accuracy", default="Time")
+            xtimetype = bpy.props.EnumProperty(items=[("0", "Hourly", "Hourly results"),("1", "Daily", "Daily results"), ("2", "Monthly", "Monthly results")],
+                                                      name="", description="Results frequency", default="0")
+            
+            def draw(self, context, layout, node, text):
+                row = layout.row()
+                row.prop(self, "xrestypemenu", text = text)
+                if self.xrestypemenu == "Time":
+                    row.prop(self, "xtimetype")
+                
+            def draw_color(self, context, node):
+                return (0.0, 1.0, 0.0, 0.75)
+                
+            def color(self):
+                return (0.0, 1.0, 0.0, 0.75)
+        
+        bpy.utils.register_class(ViEnRXIn)
+        
+        #            self.inputs['X-axis'].xrestype = self.inputs['X-axis'].links[0].from_node.xtypes
         
          
 class ViNodeCategory(NodeCategory):
@@ -574,14 +609,6 @@ class ViNodeCategory(NodeCategory):
     def poll(cls, context):
         return context.space_data.tree_type == 'ViN'
 
-viexnodecat = [NodeItem("ViGExLiNode", label="VI-Suite lighting export"), NodeItem("ViGExEnNode", label="VI-Suite energy export")]
-
-vinodecat = [NodeItem("ViLiNode", label="VI-Suite lighting analysis"), NodeItem("ViLiCNode", label="VI-Suite lighting compliance"), NodeItem("ViLiCBNode", label="VI-Suite climate based lighting"),\
-             NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), NodeItem("ViGNode", label="VI-Suite glare"), NodeItem("ViExEnNode", label="VI-Suite energy")] 
-
-vinode_categories = [ViNodeCategory("Export", "Export Nodes", items=viexnodecat), ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat)] 
-        
-               
 class ViLiWResOut(bpy.types.NodeSocket):
     '''LiVi irradiance out socket'''
     bl_idname = 'LiViWOut'
@@ -649,27 +676,25 @@ class ViEnROut(bpy.types.NodeSocket):
     def color(self):
         return (0.0, 1.0, 0.0, 0.75)        
 
-class ViEnRXIn(bpy.types.NodeSocket):
-    '''Energy geometry out socket'''
-    bl_idname = 'ViEnRXIn'
-    bl_label = 'X-axis'
-    
-    xrestype = [('0', "", '0')]
-    xrestypemenu = bpy.props.EnumProperty(items=xrestype, name="", description="Simulation accuracy", default="0")
-    xtimetype = bpy.props.EnumProperty(items=[("0", "Time", "Standard accuracy for this metric"),("1", "Custom", "Edit Radiance parameters"), ],
-            name="", description="Simulation accuracy", default="0")
-    
-    def draw(self, context, layout, node, text):
-        row = layout.row()
-        row.prop(self, "xrestypemenu", text = text)
-        if self.xrestype == "Time":
-            row.prop(self, "xtimetype")
-        
-    def draw_color(self, context, node):
-        return (0.0, 1.0, 0.0, 0.75)
-        
-    def color(self):
-        return (0.0, 1.0, 0.0, 0.75)
+#class ViEnRXIn(bpy.types.NodeSocket):
+#    '''Energy geometry out socket'''
+#    bl_idname = 'ViEnRXIn'
+#    bl_label = 'X-axis'
+#    
+#    xrestype = [('0', "", '0')]
+#    xrestypemenu = bpy.props.EnumProperty(items=xrestype, name="", description="Simulation accuracy", default="0")
+#    xtimetype = bpy.props.EnumProperty(items=[("0", "", "0")], name="", description="", default="0")
+#    
+##    def draw(self, context, layout, node, text):
+##        row = layout.row()
+##        row.prop(self, "xrestypemenu", text = text)
+#
+#        
+#    def draw_color(self, context, node):
+#        return (0.0, 1.0, 0.0, 0.75)
+#        
+#    def color(self):
+#        return (0.0, 1.0, 0.0, 0.75)
     
       
 class ViEnGIn(bpy.types.NodeSocket):
@@ -702,7 +727,7 @@ viexnodecat = [NodeItem("ViGExLiNode", label="VI-Suite lighting export"), NodeIt
 vinodecat = [NodeItem("ViLiNode", label="VI-Suite lighting analysis"), NodeItem("ViLiCNode", label="VI-Suite lighting compliance"), NodeItem("ViLiCBNode", label="VI-Suite climate based lighting"),\
              NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), NodeItem("ViGNode", label="VI-Suite glare"), NodeItem("ViExEnNode", label="VI-Suite energy")] 
 
-vidisnodecat = [NodeItem("ViEnRNode", label="VI-Suite chart display")]
+vidisnodecat = [NodeItem("ViEnRNode", label="VI-Suite chart display"), NodeItem("ViEnRFNode", label="EnergyPlus result file")]
 
 vinode_categories = [ViNodeCategory("Export", "Export Nodes", items=viexnodecat), ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat), ViNodeCategory("Display", "Display Nodes", items=vidisnodecat)] 
 

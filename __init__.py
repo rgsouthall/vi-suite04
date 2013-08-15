@@ -535,6 +535,7 @@ def register():
     bpy.utils.register_class(vi_node.ViGNode)
     bpy.utils.register_class(vi_node.ViExEnNode)
     bpy.utils.register_class(vi_node.ViEnRNode)
+    bpy.utils.register_class(vi_node.ViEnRFNode)
     nodeitems_utils.register_node_categories("Vi Nodes", vi_node.vinode_categories)
 
 def unregister():
@@ -565,7 +566,7 @@ def unregister():
     bpy.utils.unregister_class(vi_node.ViLiGOut)
     bpy.utils.unregister_class(vi_node.ViEnGOut)
     bpy.utils.unregister_class(vi_node.ViEnROut)
-#    bpy.utils.unregister_class(vi_node.ViEnRXIn)
+    bpy.utils.unregister_class(vi_node.ViEnRXIn)
     bpy.utils.unregister_class(vi_node.ViEnGIn)
     bpy.utils.unregister_class(vi_node.ViNetwork)
     bpy.utils.unregister_class(vi_node.ViLiNode)
@@ -579,5 +580,6 @@ def unregister():
     bpy.utils.unregister_class(vi_node.ViGNode)
     bpy.utils.unregister_class(vi_node.ViExEnNode)
     bpy.utils.unregister_class(vi_node.ViEnRNode)
+    bpy.utils.unregister_class(vi_node.ViEnRFNode)
     nodeitems_utils.unregister_node_categories("Vi Nodes", vi_node.vinode_categories)
     

@@ -16,6 +16,7 @@ def envi_sim(calc_op, node):
     awd = [[], []]
     asd = [[], []]
     asb = [[], []]
+    xtypes = []
     zoneres = []
     zoneresno = []
     os.chdir(node.newdir)
@@ -42,7 +43,7 @@ def envi_sim(calc_op, node):
     for line in resfile:
         if len(line.split(",")) > 2 and line.split(",")[2] == "Day of Simulation[]":
             dos[0] = line.split(",")[0]
-            xtypes = [("Time", "Time", "Plot time on the x-axis")]
+            xtypes.append("Time")
         elif len(line.split(",")) > 2 and line.split(",")[2] == "Environment":
             if line.split(",")[3].strip('\n') == "Site Outdoor Air Drybulb Temperature [C] !Hourly":
                 climlist.append(('Ambient Temperature (C)', 'Ambient Temperature (C)', 'Climate results'))
@@ -62,7 +63,7 @@ def envi_sim(calc_op, node):
             if line.split(",")[3].strip('\n') == "Site Direct Solar Radiation Rate per Area [W/m2] !Hourly":
                 climlist.append(('Direct Solar Radiation (W/m^2)', 'Direct Solar Radiation (W/m^2)', 'Climate results'))
                 asb[0] = line.split(",")[0]
-            xtypes.append(("Climate", "Climate", "Plot a climate parameter on the x-axis"))
+            xtypes.append("Climate")
         
         elif len(line.split(",")) > 2 and line.split(",")[2] in [obj.name.upper() for obj in bpy.data.objects if obj.layers[1] == True]:
             for obj in bpy.data.objects:
@@ -83,10 +84,10 @@ def envi_sim(calc_op, node):
                             zonereslist.append(("Total Solar Gain [W] ", line.split(",")[3].split("!")[0], 'Results Parameter'))
                         else:
                             zonereslist.append((line.split(",")[3].split("!")[0], line.split(",")[3].split("!")[0], 'Results Parameter'))
-            if ("Zone", "Zone", "Plot a zone result on the x-axis") not in xtypes:
-                xtypes.append(("Zone", "Zone", "Plot a zone result on the x-axis"))     
+            if ("Zone", "Zone", "Plot a zone result on the x-axis") not in node['xtypes']:
+                xtypes.append("Zone")     
 #            er.zonereslist = zonereslist
- 
+            
         elif line.split(",")[0] in zoneresno:
             zoneres[[i for i,x in enumerate(zoneresno) if x == line.split(",")[0]][0]].append(float(line.split(",")[1].strip("\n")))
             
@@ -158,34 +159,10 @@ def envi_sim(calc_op, node):
         
     startdate = datetime.datetime(2010, dos[2][1], dos[3][1], dos[4][1]-1)
     enddate = datetime.datetime(2010, dos[2][-1], dos[3][-1], dos[4][-1]-1)
-    
+    node['xtypes'] = xtypes
 #    bpy.utils.unregister_class(ViEnRXIn)
     
-    class ViEnRXIn(bpy.types.NodeSocket):
-        '''Energy geometry out socket'''
-        bl_idname = 'ViEnRXIn'
-        bl_label = 'X-axis'
-        
-        xrestype = xtypes
-        xrestypemenu = bpy.props.EnumProperty(items=xrestype, name="", description="Simulation accuracy", default="Time")
-        xtimetype = bpy.props.EnumProperty(items=[("0", "Time", "Standard accuracy for this metric"),("1", "Custom", "Edit Radiance parameters"), ],
-                name="", description="Simulation accuracy", default="0")
-        
-        def draw(self, context, layout, node, text):
-            row = layout.row()
-            row.prop(self, "xrestypemenu", text = text)
-            if self.xrestypemenu == "Time":
-                print('hi')
-                row.prop(self, "xtimetype")
-            
-        def draw_color(self, context, node):
-            return (0.0, 1.0, 0.0, 0.75)
-            
-        def color(self):
-            return (0.0, 1.0, 0.0, 0.75)
-        
-            
-    bpy.utils.register_class(ViEnRXIn)
+
     
     node.dsm = iprop("Month", "Month of the year", 1, 12, dos[2][0])
     node.dsd = iprop("Day", "Day of the month", 1, 31, dos[3][0])

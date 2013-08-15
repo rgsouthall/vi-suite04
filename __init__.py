@@ -123,7 +123,7 @@ def register():
     Object = bpy.types.Object   
     Scene = bpy.types.Scene
     Material = bpy.types.Material
-    
+
 # LiVi object properties
         
     Object.livi_merr = bprop("LiVi simple mesh export", "Boolean for simple mesh export", False)
@@ -499,6 +499,7 @@ def register():
     bpy.utils.register_class(vi_operators.NODE_OT_EpwSelect)
     bpy.utils.register_class(vi_operators.NODE_OT_HdrSelect)
     bpy.utils.register_class(vi_operators.NODE_OT_SkySelect)
+    bpy.utils.register_class(vi_operators.NODE_OT_ESOSelect)
     bpy.utils.register_class(vi_operators.IES_Select)
     bpy.utils.register_class(vi_operators.NODE_OT_RadPreview)
     bpy.utils.register_class(vi_operators.NODE_OT_Calculate)
@@ -521,7 +522,6 @@ def register():
     bpy.utils.register_class(vi_node.ViLiGOut)
     bpy.utils.register_class(vi_node.ViEnGOut)
     bpy.utils.register_class(vi_node.ViEnROut)
-    bpy.utils.register_class(vi_node.ViEnRXIn)
     bpy.utils.register_class(vi_node.ViEnGIn)
     bpy.utils.register_class(vi_node.ViNetwork)
     bpy.utils.register_class(vi_node.ViLiNode)
@@ -542,6 +542,7 @@ def unregister():
     bpy.utils.unregister_class(vi_operators.NODE_OT_EpwSelect)
     bpy.utils.unregister_class(vi_operators.NODE_OT_HdrSelect)
     bpy.utils.unregister_class(vi_operators.NODE_OT_SkySelect)
+    bpy.utils.unregister_class(vi_operators.NODE_OT_ESOSelect)
     bpy.utils.unregister_class(vi_operators.IES_Select)
     bpy.utils.unregister_class(vi_operators.NODE_OT_RadPreview)
     bpy.utils.unregister_class(vi_operators.NODE_OT_LiCalculate)
@@ -564,7 +565,7 @@ def unregister():
     bpy.utils.unregister_class(vi_node.ViLiGOut)
     bpy.utils.unregister_class(vi_node.ViEnGOut)
     bpy.utils.unregister_class(vi_node.ViEnROut)
-    bpy.utils.unregister_class(vi_node.ViEnRXIn)
+#    bpy.utils.unregister_class(vi_node.ViEnRXIn)
     bpy.utils.unregister_class(vi_node.ViEnGIn)
     bpy.utils.unregister_class(vi_node.ViNetwork)
     bpy.utils.unregister_class(vi_node.ViLiNode)

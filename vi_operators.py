@@ -259,6 +259,31 @@ class IES_Select(bpy.types.Operator, io_utils.ImportHelper):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
         
+class NODE_OT_ESOSelect(bpy.types.Operator, io_utils.ImportHelper):
+    bl_idname = "node.esoselect"
+    bl_label = "Select EnVi results file"
+    bl_description = "Select the EnVi results file to process"
+    filename = ""
+    filename_ext = ".eso"
+    filter_glob = bpy.props.StringProperty(default="*.eso", options={'HIDDEN'})
+    bl_register = True
+    bl_undo = True
+    
+    nodename = bpy.props.StringProperty()
+    
+    def draw(self,context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Open an eso results file with the file browser", icon='WORLD_DATA')
+         
+    def execute(self, context):
+        bpy.data.node_groups['VI Network'].nodes[self.nodename].resfilename = self.filepath
+        return {'FINISHED'}
+
+    def invoke(self,context,event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+        
 class NODE_OT_EnGExport(bpy.types.Operator):
     bl_idname = "node.engexport"
     bl_label = "VI-Suite export"

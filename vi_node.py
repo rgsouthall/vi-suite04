@@ -534,17 +534,23 @@ class ViEnRNode(bpy.types.Node, ViNodes):
     dsh = bpy.props.IntProperty(name = "Start", description = "", min = 1, max = 24, default = 1)
     deh = bpy.props.IntProperty(name = "End", description = "", min = 1, max = 24, default = 24)
     charttype = bpy.props.EnumProperty(items = ctypes, name = "Chart Type", default = "0")
+    resfilename = bpy.props.StringProperty(name="", description="Name of the EnVi results file", default="")
     
     def init(self, context):
         self.inputs.new("ViEnRXIn", "X-axis")
-        self['Start Day'] = 1 
-        self['End Day'] = 365
+        self['Start'] = 1 
+        self['End'] = 365
         
 #        self.inputs.new("ViEnRY1In", "Y-axis 1")
 
     def draw_buttons(self, context, layout):
         row = layout.row()
-        if self.inputs['X-axis'].is_linked:
+        row.label('ESO file:')
+        row.operator('node.esoselect', text = 'Select ESO file').nodename = self.name
+        row = layout.row()
+        row.prop(self, 'resfilename')
+        if self.inputs['X-axis'].is_linked or self.resfilename:
+            row = layout.row()
             row.label("Day:")
             row.prop(self, '["Start"]')
             row.prop(self, '["End"]')
@@ -648,17 +654,14 @@ class ViEnRXIn(bpy.types.NodeSocket):
     bl_idname = 'ViEnRXIn'
     bl_label = 'X-axis'
     
-    xrestype = bpy.props.EnumProperty(items=[("0", "Standard", "Standard accuracy for this metric"),("1", "Custom", "Edit Radiance parameters"), ],
-            name="", description="Simulation accuracy", default="0")
+    xrestype = [('0', "", '0')]
+    xrestypemenu = bpy.props.EnumProperty(items=xrestype, name="", description="Simulation accuracy", default="0")
     xtimetype = bpy.props.EnumProperty(items=[("0", "Time", "Standard accuracy for this metric"),("1", "Custom", "Edit Radiance parameters"), ],
             name="", description="Simulation accuracy", default="0")
     
     def draw(self, context, layout, node, text):
-        if self.is_linked:
-            innode = self.links[0].from_node
-            print(innode.xtypes)
         row = layout.row()
-        row.prop(self, "xrestype", text = text)
+        row.prop(self, "xrestypemenu", text = text)
         if self.xrestype == "Time":
             row.prop(self, "xtimetype")
         

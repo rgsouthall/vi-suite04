@@ -1,5 +1,8 @@
-import bpy, bpy_extras, sys
+import bpy, bpy_extras, sys, datetime
 import bpy_extras.io_utils as io_utils
+from collections import OrderedDict
+from datetime import date
+from datetime import datetime as dt
 from . import livi_export
 from . import livi_calc
 from . import vi_display
@@ -7,6 +10,7 @@ from . import envi_export
 from . import envi_mat
 from . import envi_calc
 from . import vi_func
+from . import vi_chart
 
 envi_mats = envi_mat.envi_materials()
 envi_cons = envi_mat.envi_constructions()
@@ -344,10 +348,41 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
         if node.outputs[0].is_linked:
             socket1 = node.outputs[0]
             socket2 = node.outputs[0].links[0].to_socket
+            print(socket1, socket2)
             bpy.data.node_groups['VI Network'].links.remove(node.outputs[0].links[0])
             bpy.data.node_groups['VI Network'].links.new(socket1, socket2)
-        node.dsdoy = vi_func.iprop("Result start day", "", node.sdoy, node.edoy, node.sdoy)
-        node.dedoy = vi_func.iprop("Result end day", "", node.sdoy, node.edoy, node.edoy)
         
         context.scene.li_disp_panel = 2
         return {'FINISHED'} 
+        
+class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
+    bl_idname = "node.chart"
+    bl_label = "Chart"
+    bl_description = "Create a 2D graph from the results file"
+    bl_register = True
+    bl_undo = True
+    nodename = bpy.props.StringProperty()
+    
+    def invoke(self, context, event):
+        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
+        Sdate = dt.fromordinal(dt(dt.now().year, 1, 1).toordinal() + node['Start'] -1) + datetime.timedelta(hours = node.dsh - 1)
+        Edate = dt.fromordinal(dt(dt.now().year, 1, 1).toordinal() + node['End'] -1 ) + datetime.timedelta(hours = node.deh - 1)
+        
+        innodes = list(OrderedDict.fromkeys([inputs.links[0].from_node for inputs in node.inputs if inputs.is_linked]))
+        vi_chart.chart_disp(self, node, innodes, Sdate, Edate) 
+        return {'FINISHED'}
+        
+class NODE_OT_FileProcess(bpy.types.Operator, io_utils.ExportHelper):
+    bl_idname = "node.fileprocess"
+    bl_label = "Process"
+    bl_description = "Process EnergyPlus results file"
+    bl_register = True
+    bl_undo = True
+    nodename = bpy.props.StringProperty()
+    
+    def invoke(self, context, event):
+        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
+        vi_func.processf(self, node) 
+        if not node.outputs:
+            node.outputs.new('ViEnROut', 'Results out')
+        return {'FINISHED'}

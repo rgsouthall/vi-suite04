@@ -415,12 +415,14 @@ class ViExEnNode(bpy.types.Node, ViNodes):
     idf_file = bpy.props.StringProperty()
     exported = bpy.props.BoolProperty()
     resname = bpy.props.StringProperty(name="Results Name", description="Base name for the results files", default="results")
-    
+    dsdoy = bpy.props.IntProperty()
+    dedoy = bpy.props.IntProperty()
     
     def nodeexported(self, context):
         self.exported = False
         self.bl_label = '*VI EnergyPLus analysis'
         
+ 
     loc = bpy.props.StringProperty(name="", description="Identifier for this project", default="", update = nodeexported)
     terrain = bpy.props.EnumProperty(items=[("0", "City", "Towns, city outskirts, centre of large cities"),
                    ("1", "Urban", "Urban, Industrial, Forest"),("2", "Suburbs", "Rough, Wooded Country, Suburbs"),
@@ -435,9 +437,10 @@ class ViExEnNode(bpy.types.Node, ViNodes):
     sdoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeexported) 
     edoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeexported)
     timesteps = bpy.props.IntProperty(name = "", description = "Time steps per hour", min = 1, max = 4, default = 1, update = nodeexported)
-    resname = bpy.props.StringProperty(name = "", default = 'results')    
+    resfilename = bpy.props.StringProperty(name = "", default = 'results')    
     restype= bpy.props.EnumProperty(items = [("0", "Ambient", "Ambient Conditions"), ("1", "Zone Thermal", "Thermal Results"), ("2", "Comfort", "Comfort Results"), ("3", "Ventilation", "Ventilation Results")],
                                    name="", description="Specify the EnVi results catagory", default="0", update = nodeexported)
+        
     resat = bpy.props.BoolProperty(name = "Temperature", description = "Ambient Temperature (K)", default = False, update = nodeexported)
     resaws = bpy.props.BoolProperty(name = "Wind Speed", description = "Ambient Wind Speed (m/s)", default = False, update = nodeexported)
     resawd = bpy.props.BoolProperty(name = "Wind Direction", description = "Ambient Wind Direction (degrees from North)", default = False, update = nodeexported)
@@ -530,6 +533,8 @@ class ViEnRFNode(bpy.types.Node, ViNodes):
     bl_label = 'VI EnergyPLus results file selection'
     
     resfilename = bpy.props.StringProperty(name="", description="Name of the EnVi results file", default="")
+    dsdoy = bpy.props.IntProperty()
+    dedoy = bpy.props.IntProperty()
     
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -537,7 +542,7 @@ class ViEnRFNode(bpy.types.Node, ViNodes):
         row.operator('node.esoselect', text = 'Select ESO file').nodename = self.name
         row = layout.row()
         row.prop(self, 'resfilename')
-#        row.operator("node.fileprocess", text = 'Process file')
+        row.operator("node.fileprocess", text = 'Process file').nodename = self.name
     
 class ViEnRNode(bpy.types.Node, ViNodes):       
     '''Node for EnergyPlus 2D results analysis'''
@@ -548,16 +553,21 @@ class ViEnRNode(bpy.types.Node, ViNodes):
     dsh = bpy.props.IntProperty(name = "Start", description = "", min = 1, max = 24, default = 1)
     deh = bpy.props.IntProperty(name = "End", description = "", min = 1, max = 24, default = 24)
     charttype = bpy.props.EnumProperty(items = ctypes, name = "Chart Type", default = "0")
-        
+    timemenu = bpy.props.EnumProperty(items=[("0", "Hourly", "Hourly results"),("1", "Daily", "Daily results"), ("2", "Monthly", "Monthly results")],
+                                                      name="", description="Results frequency", default="0")     
     def init(self, context):
         self.inputs.new("ViEnRXIn", "X-axis")
         self['Start'] = 1 
         self['End'] = 365
+        self.inputs.new("ViEnRY1In", "Y-axis 1")
+        self.inputs[1].hide = True
+        self.inputs.new("ViEnRY2In", "Y-axis 2")
+        self.inputs[2].hide = True
+        self.inputs.new("ViEnRY3In", "Y-axis 3")
+        self.inputs[3].hide = True
         
-#        self.inputs.new("ViEnRY1In", "Y-axis 1")
-
     def draw_buttons(self, context, layout):
-        if self.inputs['X-axis'].is_linked or self.resfilename:
+        if self.inputs['X-axis'].is_linked == True:
             row = layout.row()
             row.label("Day:")
             row.prop(self, '["Start"]')
@@ -568,30 +578,210 @@ class ViEnRNode(bpy.types.Node, ViNodes):
             row.prop(self, "deh")
             row = layout.row()
             row.prop(self, "charttype")
-#        layout.operator("node.plotcreate", text = 'Create plot').nodename = self.name
+            row.prop(self, "timemenu")
+            if self.inputs['X-axis'].is_linked == True:
+                layout.operator("node.chart", text = 'Create plot').nodename = self.name
         
     def update(self):
-        if self.inputs[0].is_linked:
-            xrestype = []
+        if self.inputs[0].is_linked == True:
+            xrtype, xctype, xztype, xzrtype = [], [], [], []
             innode = self.inputs[0].links[0].from_node
-            self["_RNA_UI"] = {"Start": {"min":innode.sdoy, "max":innode.edoy, "default":innode.sdoy}, "End": {"min":innode.sdoy, "max":innode.edoy, "default":innode.edoy}}         
-            for xres in innode['xtypes']:
-                xrestype.append((xres, xres, "Plot "+xres))
+            self["_RNA_UI"] = {"Start": {"min":innode.dsdoy, "max":innode.dedoy}, "End": {"min":innode.dsdoy, "max":innode.dedoy}}    
+            self['Start'], self['End'] = innode.dsdoy, innode.dedoy
+            for restype in innode['rtypes']:
+                xrtype.append((restype, restype, "Plot "+restype))
+            for clim in innode['ctypes']:
+                xctype.append((clim, clim, "Plot "+clim))
+            for zone in innode['ztypes']:
+                xztype.append((zone, zone, "Plot "+zone))
+            for zoner in innode['zrtypes']:
+                xzrtype.append((zoner, zoner, "Plot "+zoner))
+            self.inputs[1].hide = False
+            
+            if self.inputs[1].is_linked == True:
+                y1rtype, y1ctype, y1ztype, y1zrtype = [], [], [], []
+                innode = self.inputs[1].links[0].from_node
+                for restype in innode['rtypes']:
+                    y1rtype.append((restype, restype, "Plot "+restype))
+                for clim in innode['ctypes']:
+                    y1ctype.append((clim, clim, "Plot "+clim))
+                for zone in innode['ztypes']:
+                    y1ztype.append((zone, zone, "Plot "+zone))
+                for zoner in innode['zrtypes']:
+                    y1zrtype.append((zoner, zoner, "Plot "+zoner))
+                if len(self.inputs) > 2:
+                    self.inputs[2].hide = False 
+                
+                if self.inputs[2].is_linked == True:
+                    y2rtype, y2ctype, y2ztype, y2zrtype = [], [], [], []
+                    innode = self.inputs[2].links[0].from_node
+                    for restype in innode['rtypes']:
+                        y2rtype.append((restype, restype, "Plot "+restype))
+                    for clim in innode['ctypes']:
+                        y2ctype.append((clim, clim, "Plot "+clim))
+                    for zone in innode['ztypes']:
+                        y2ztype.append((zone, zone, "Plot "+zone))
+                    for zoner in innode['zrtypes']:
+                        y2zrtype.append((zoner, zoner, "Plot "+zoner))
+                    if len(self.inputs) > 3:
+                        self.inputs[3].hide = False
+                    
+                    if self.inputs[3].is_linked == True:
+                        y3rtype, y3ctype, y3ztype, y3zrtype = [], [], [], []
+                        innode = self.inputs[3].links[0].from_node
+                        for restype in innode['rtypes']:
+                            y3rtype.append((restype, restype, "Plot "+restype))
+                        for clim in innode['ctypes']:
+                            y3ctype.append((clim, clim, "Plot "+clim))
+                        for zone in innode['ztypes']:
+                            y3ztype.append((zone, zone, "Plot "+zone))
+                        for zoner in innode['zrtypes']:
+                            y3zrtype.append((zoner, zoner, "Plot "+zoner))
+            
+                    else:
+                        y3rtype = y3ctype = y3ztype = y3zrtype = [('0', '', '0')]
+                else:
+#                    self.inputs[3].hide = True
+                    y2rtype = y2ctype = y2ztype = y2zrtype = [('0', '', '0')]
+                    y3rtype = y3ctype = y3ztype = y3zrtype = [('0', '', '0')]
+            else:
+#                self.inputs[2].hide = True
+                y1rtype = y1ctype = y1ztype = y1zrtype = [('0', '', '0')]
+                y2rtype = y2ctype = y2ztype = y2zrtype = [('0', '', '0')]
+                y3rtype = y3ctype = y3ztype = y3zrtype = [('0', '', '0')]
+        else:
+#            self.inputs[1].hide = True
+            xrtype = xctype = xztype = xzrtype = [('0', '', '0')]
+            y1rtype = y1ctype = y1ztype = y1zrtype = [('0', '', '0')]
+            y2rtype = y2ctype = y2ztype = y2zrtype = [('0', '', '0')]
+            y3rtype = y3ctype = y3ztype = y3zrtype = [('0', '', '0')]
         
         class ViEnRXIn(bpy.types.NodeSocket):
             '''Energy geometry out socket'''
             bl_idname = 'ViEnRXIn'
             bl_label = 'X-axis'
             
-            xrestypemenu = bpy.props.EnumProperty(items=xrestype, name="", description="Simulation accuracy", default="Time")
-            xtimetype = bpy.props.EnumProperty(items=[("0", "Hourly", "Hourly results"),("1", "Daily", "Daily results"), ("2", "Monthly", "Monthly results")],
-                                                      name="", description="Results frequency", default="0")
+            rtypemenu = bpy.props.EnumProperty(items=xrtype, name="", description="Data type", default = xrtype[0][0])
+            climmenu = bpy.props.EnumProperty(items=xctype, name="", description="Climate type", default = xctype[0][0])
+            zonemenu = bpy.props.EnumProperty(items=xztype, name="", description="Zone", default = xztype[0][0])
+            zonermenu = bpy.props.EnumProperty(items=xzrtype, name="", description="Zone result", default = xzrtype[0][0])
+            statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Result statistic", default = 'Average')
             
             def draw(self, context, layout, node, text):
                 row = layout.row()
-                row.prop(self, "xrestypemenu", text = text)
-                if self.xrestypemenu == "Time":
-                    row.prop(self, "xtimetype")
+                row.prop(self, "rtypemenu", text = text)
+                if self.is_linked == True:
+                    row = layout.row()
+                    if self.rtypemenu == "Climate":
+                        row.prop(self, "climmenu")
+                        if self.node.timemenu in ('1', '2'):
+                            row.prop(self, "statmenu")
+                    elif self.rtypemenu == "Zone":
+                        row.prop(self, "zonemenu")
+                        row = layout.row()
+                        row.prop(self, "zonermenu")
+                        if self.node.timemenu in ('1', '2'):
+                            row.prop(self, "statmenu")
+                
+            def draw_color(self, context, node):
+                return (0.0, 1.0, 0.0, 0.75)
+                
+            def color(self):
+                return (0.0, 1.0, 0.0, 0.75)
+        
+        class ViEnRY1In(bpy.types.NodeSocket):
+            '''Energy geometry out socket'''
+            bl_idname = 'ViEnRY1In'
+            bl_label = 'Y-axis1'
+            
+            rtypemenu = bpy.props.EnumProperty(items=y1rtype, name="", description="Simulation accuracy", default = y1rtype[0][0])
+            
+            climmenu = bpy.props.EnumProperty(items=y1ctype, name="", description="Climate type", default = y1ctype[0][0])
+            zonemenu = bpy.props.EnumProperty(items=y1ztype, name="", description="Zone", default = y1ztype[0][0])
+            zonermenu = bpy.props.EnumProperty(items=y1zrtype, name="", description="Zone result", default = y1zrtype[0][0])
+            statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
+            
+            def draw(self, context, layout, node, text):
+                row = layout.row()
+                row.prop(self, "rtypemenu", text = text)
+                if self.is_linked:
+                    row = layout.row()
+                    if self.rtypemenu == "Climate":
+                        row.prop(self, "climmenu")
+                        if self.node.timemenu in ('1', '2'):
+                            row.prop(self, "statmenu")
+                    elif self.rtypemenu == "Zone":
+                        row.prop(self, "zonemenu")
+                        row = layout.row()
+                        row.prop(self, "zonermenu")
+                        if self.node.timemenu in ('1', '2'):
+                            row.prop(self, "statmenu")
+                
+            def draw_color(self, context, node):
+                return (0.0, 1.0, 0.0, 0.75)
+                
+            def color(self):
+                return (0.0, 1.0, 0.0, 0.75)
+        
+        class ViEnRY2In(bpy.types.NodeSocket):
+            '''Energy geometry out socket'''
+            bl_idname = 'ViEnRY2In'
+            bl_label = 'Y-axis2'
+            
+            rtypemenu = bpy.props.EnumProperty(items=y2rtype, name="", description="Simulation accuracy", default = y2rtype[0][0])
+            climmenu = bpy.props.EnumProperty(items=y2ctype, name="", description="Climate type", default = y2ctype[0][0])
+            zonemenu = bpy.props.EnumProperty(items=y2ztype, name="", description="Zone", default = y2ztype[0][0])
+            zonermenu = bpy.props.EnumProperty(items=y2zrtype, name="", description="Zone result", default = y2zrtype[0][0])
+            statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
+            
+            def draw(self, context, layout, node, text):
+                row = layout.row()
+                row.prop(self, "rtypemenu", text = text)
+                if self.is_linked:
+                    row = layout.row()
+                    if self.rtypemenu == "Climate":
+                        row.prop(self, "climmenu")
+                        if self.node.timemenu in ('1', '2'):
+                            row.prop(self, "statmenu")
+                    elif self.rtypemenu == "Zone":
+                        row.prop(self, "zonemenu")
+                        row = layout.row()
+                        row.prop(self, "zonermenu")
+                        if self.node.timemenu in ('1', '2'):
+                            row.prop(self, "statmenu")
+                
+            def draw_color(self, context, node):
+                return (0.0, 1.0, 0.0, 0.75)
+                
+            def color(self):
+                return (0.0, 1.0, 0.0, 0.75)
+                
+        class ViEnRY3In(bpy.types.NodeSocket):
+            '''Energy geometry out socket'''
+            bl_idname = 'ViEnRY3In'
+            bl_label = 'Y-axis3'
+            
+            rtypemenu = bpy.props.EnumProperty(items=y3rtype, name="", description="Simulation accuracy", default = y3rtype[0][0])
+            climmenu = bpy.props.EnumProperty(items=y3ctype, name="", description="Climate type", default = y3ctype[0][0])
+            zonemenu = bpy.props.EnumProperty(items=y3ztype, name="", description="Zone", default = y3ztype[0][0])
+            zonermenu = bpy.props.EnumProperty(items=y3zrtype, name="", description="Zone result", default = y3zrtype[0][0])
+            statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
+            
+            def draw(self, context, layout, node, text):
+                row = layout.row()
+                row.prop(self, "rtypemenu", text = text)
+                if self.is_linked:
+                    row = layout.row()
+                    if self.rtypemenu == "Climate":
+                        row.prop(self, "climmenu")
+                        if self.node.timemenu in ('1', '2'):
+                            row.prop(self, "statmenu")
+                    elif self.rtypemenu == "Zone":
+                        row.prop(self, "zonemenu")
+                        row = layout.row()
+                        row.prop(self, "zonermenu")
+                        if self.node.timemenu in ('1', '2'):
+                            row.prop(self, "statmenu")
                 
             def draw_color(self, context, node):
                 return (0.0, 1.0, 0.0, 0.75)
@@ -600,6 +790,9 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 return (0.0, 1.0, 0.0, 0.75)
         
         bpy.utils.register_class(ViEnRXIn)
+        bpy.utils.register_class(ViEnRY1In)
+        bpy.utils.register_class(ViEnRY2In)
+        bpy.utils.register_class(ViEnRY3In)
         
         #            self.inputs['X-axis'].xrestype = self.inputs['X-axis'].links[0].from_node.xtypes
         

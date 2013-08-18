@@ -40,8 +40,8 @@ HeatBalanceAlgorithm, ConductionTransferFunction; \n\n\
 {0:{width}}!- Name\n".format("    ,", width = s) +
         "{0:{width}}!- Begin Month\n".format("    "+str(datetime.date.fromordinal(node.sdoy).month) + ",", width = s) + 
         "{0:{width}}!- Begin Day\n".format("    "+str(datetime.date.fromordinal(node.sdoy).day)+",", width = s) + 
-        "{0:{width}}!- End Month\n".format("    "+str(datetime.date.fromordinal(node.sdoy).month) + ",", width = s) + 
-        "{0:{width}}!- End Day\n".format("    "+str(datetime.date.fromordinal(node.sdoy).day) + ",", width = s) + 
+        "{0:{width}}!- End Month\n".format("    "+str(datetime.date.fromordinal(node.edoy).month) + ",", width = s) + 
+        "{0:{width}}!- End Day\n".format("    "+str(datetime.date.fromordinal(node.edoy).day) + ",", width = s) + 
         "{0:{width}}!- Day of Week for Start Day\n".format("    UseWeatherFile,", width = s) + 
         "{0:{width}}!- Use Weather File Holidays and Special Days\n".format("    Yes,", width = s) + 
         "{0:{width}}!- Use Weather File Daylight Saving Period\n".format("    Yes,", width = s) + 

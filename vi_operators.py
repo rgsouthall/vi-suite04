@@ -348,7 +348,6 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
         if node.outputs[0].is_linked:
             socket1 = node.outputs[0]
             socket2 = node.outputs[0].links[0].to_socket
-            print(socket1, socket2)
             bpy.data.node_groups['VI Network'].links.remove(node.outputs[0].links[0])
             bpy.data.node_groups['VI Network'].links.new(socket1, socket2)
         

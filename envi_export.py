@@ -289,13 +289,18 @@ Construction,\n\
                 "    {0:{width}}!- Sun Exposure\n" .format(se+",", width = s) +
                 "    {0:{width}}!- Wind Exposure\n" .format(we+",", width = s) +
                 "    {0:{width}}!- View Factor to Ground\n".format("autocalculate,", width = s) +
-                "    {0:{width}}!- Number of Vertices\n".format("    3,", width = s) +
-                "    {0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[0]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
-                "    {0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[1]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
-                "    {0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}; {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[2]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n\n"))
-            
-            if mat.envi_con_type == "Floor":
-                obj["floorarea"] = obj["floorarea"] + poly.area
+                "    {0:{width}}!- Number of Vertices\n".format(str(len(poly.vertices))+",", width = s))
+                for vert in poly.vertices:
+                    if vert != poly.vertices[-1]:
+                        en_idf.write("    {0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obj.matrix_world * obj.data.vertices[vert].co, "            !- X,Y,Z ==> Vertex "+str(vert)+" {m}\n"))
+                    else:
+                        en_idf.write("    {0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}; {2}".format("       ", obj.matrix_world * obj.data.vertices[vert].co,"         !- X,Y,Z ==> Vertex "+str(vert)+" {m}\n\n"))
+#                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
+#                "    {0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[1]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
+#                "    {0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}; {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[2]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n\n"))
+#            
+                if mat.envi_con_type == "Floor":
+                    obj["floorarea"] = obj["floorarea"] + poly.area
 
             elif mat.envi_con_type == 'Window':
                 xav = ((obj.matrix_world * obj.data.vertices[poly.vertices[0]].co)[0] + (obj.matrix_world * obj.data.vertices[poly.vertices[1]].co)[0]+ (obj.matrix_world * obj.data.vertices[poly.vertices[2]].co)[0])*0.3333
@@ -622,7 +627,7 @@ def pregeo():
         bpy.ops.mesh.delete(type = 'FACE')
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.mesh.remove_doubles()
-        bpy.ops.mesh.quads_convert_to_tris()
+#        bpy.ops.mesh.quads_convert_to_tris()
         bpy.ops.object.mode_set(mode = 'OBJECT')   
         en_obj.select = False
         nodecreation()
@@ -958,15 +963,11 @@ def writeafn():
                      
 
 def nodecreation():
-    if not hasattr(bpy.types, 'EnViN'):
-        bpy.utils.register_class(EnViSAirSocket)
-        bpy.utils.register_class(EnViCAirSocket)
-        bpy.utils.register_class(EnViBoundSocket)
-        bpy.utils.register_class(EnViSLinkNode)
-        bpy.utils.register_class(EnViCLinkNode)
-        bpy.utils.register_class(EnViNetwork)
-        bpy.utils.register_class(EnViFanNode)
-        bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network") 
+#    if not hasattr(bpy.types, 'EnViN'):
+#
+##        bpy.utils.register_class(EnViNetwork)
+#        
+#        bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network") 
  
     zoneitems = []
 

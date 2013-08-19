@@ -14,7 +14,7 @@ def statdata(res, stat, timetype, ds):
         
 def timedata(datastring, timetype, stattype, months, days, dos, dnode, si, ei, Sdate, Edate): 
     if timetype == '0':
-        return([int(x) for x in datastring], "")
+        return([float(x) for x in datastring], "")
     else:
         if timetype == '1':
             res = [[] for d in range(dnode['Start'], dnode['End']+1)]

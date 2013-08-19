@@ -567,25 +567,27 @@ class ViEnRNode(bpy.types.Node, ViNodes):
         self.inputs[3].hide = True
         
     def draw_buttons(self, context, layout):
-        if self.inputs['X-axis'].is_linked == True:
-            row = layout.row()
-            row.label("Day:")
-            row.prop(self, '["Start"]')
-            row.prop(self, '["End"]')
-            row = layout.row()
-            row.label("Hour:")
-            row.prop(self, "dsh")
-            row.prop(self, "deh")
-            row = layout.row()
-            row.prop(self, "charttype")
-            row.prop(self, "timemenu")
-            if self.inputs['X-axis'].is_linked == True:
-                layout.operator("node.chart", text = 'Create plot').nodename = self.name
+        row = layout.row()
+        row.label("Day:")
+        row.prop(self, '["Start"]')
+        row.prop(self, '["End"]')
+        row = layout.row()
+        row.label("Hour:")
+        row.prop(self, "dsh")
+        row.prop(self, "deh")
+        row = layout.row()
+        row.prop(self, "charttype")
+        row.prop(self, "timemenu")
+        if self.inputs['X-axis'].is_linked and self.inputs['Y-axis 1'].is_linked:
+            layout.operator("node.chart", text = 'Create plot').nodename = self.name
         
     def update(self):
-        if self.inputs[0].is_linked == True:
+        if self.inputs['X-axis'].is_linked == True:
             xrtype, xctype, xztype, xzrtype = [], [], [], []
-            innode = self.inputs[0].links[0].from_node
+            try:
+                innode = self.inputs['X-axis'].links[0].from_node
+            except:
+                return
             self["_RNA_UI"] = {"Start": {"min":innode.dsdoy, "max":innode.dedoy}, "End": {"min":innode.dsdoy, "max":innode.dedoy}}    
             self['Start'], self['End'] = innode.dsdoy, innode.dedoy
             for restype in innode['rtypes']:
@@ -596,9 +598,9 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 xztype.append((zone, zone, "Plot "+zone))
             for zoner in innode['zrtypes']:
                 xzrtype.append((zoner, zoner, "Plot "+zoner))
-            self.inputs[1].hide = False
+            self.inputs['Y-axis 1'].hide = False
             
-            if self.inputs[1].is_linked == True:
+            if self.inputs['Y-axis 1'].is_linked == True:
                 y1rtype, y1ctype, y1ztype, y1zrtype = [], [], [], []
                 innode = self.inputs[1].links[0].from_node
                 for restype in innode['rtypes']:
@@ -609,10 +611,9 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     y1ztype.append((zone, zone, "Plot "+zone))
                 for zoner in innode['zrtypes']:
                     y1zrtype.append((zoner, zoner, "Plot "+zoner))
-                if len(self.inputs) > 2:
-                    self.inputs[2].hide = False 
+                self.inputs['Y-axis 2'].hide = False 
                 
-                if self.inputs[2].is_linked == True:
+                if self.inputs['Y-axis 2'].is_linked == True:
                     y2rtype, y2ctype, y2ztype, y2zrtype = [], [], [], []
                     innode = self.inputs[2].links[0].from_node
                     for restype in innode['rtypes']:
@@ -623,10 +624,9 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                         y2ztype.append((zone, zone, "Plot "+zone))
                     for zoner in innode['zrtypes']:
                         y2zrtype.append((zoner, zoner, "Plot "+zoner))
-                    if len(self.inputs) > 3:
-                        self.inputs[3].hide = False
+                    self.inputs['Y-axis 3'].hide = False
                     
-                    if self.inputs[3].is_linked == True:
+                    if self.inputs['Y-axis 3'].is_linked == True:
                         y3rtype, y3ctype, y3ztype, y3zrtype = [], [], [], []
                         innode = self.inputs[3].links[0].from_node
                         for restype in innode['rtypes']:

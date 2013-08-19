@@ -204,20 +204,18 @@ def nfvprop(fvname, fvattr, fvdef, fvsub):
     return(FloatVectorProperty(name=fvname, attr = fvattr, default = fvdef, subtype = fvsub, update = nodeexported))
     
 def boundpoly(obj, mat, poly):
-    print(obj.name)
     if mat.envi_boundary:
         node = bpy.data.node_groups['EnVi Network'].nodes[obj.name]
         if node.inputs[mat.name].is_linked == True:
-            for bpoly in bpy.context.scene.objects[node.inputs[mat.name].links[0].from_node.name].data.polygons:
-                if bpy.context.scene.objects[node.inputs[mat.name].links[0].from_node.name].data.materials[poly.material_index] == mat and bpoly.center == poly.center and bpoly.area == poly.area:
+            for bpoly in bpy.data.objects[node.inputs[mat.name].links[0].from_node.name].data.polygons:
+                if bpy.data.objects[node.inputs[mat.name].links[0].from_node.name].data.materials[bpoly.material_index] == mat and bpoly.center[:] == poly.center[:] and bpoly.area == poly.area:
                     return(("Surface", node.inputs[mat.name].links[0].from_node.name+str(bpoly.index), "NoSun", "NoWind"))
-                    print(("Surface", node.inputs[mat.name].links[0].from_node.name+str(bpoly.index), "NoSun", "NoWind"))
 
         elif node.outputs[mat.name].is_linked == True:
-            for bpoly in bpy.context.scene.objects[node.outputs[mat.name].links[0].to_node.name].data.polygons:
-                if bpy.context.scene.objects[node.outputs[mat.name].links[0].to_node.name].data.materials[poly.material_index] == mat and bpoly.center == poly.center and bpoly.area == poly.area:
+            for bpoly in bpy.data.objects[node.outputs[mat.name].links[0].to_node.name].data.polygons:
+                if bpy.data.objects[node.outputs[mat.name].links[0].to_node.name].data.materials[bpoly.material_index] == mat and bpoly.center[:] == poly.center[:] and bpoly.area == poly.area:
                     return(("Surface", node.outputs[mat.name].links[0].to_node.name+str(bpoly.index), "NoSun", "NoWind"))
-                    print(("Surface", node.outputs[mat.name].links[0].to_node.name+str(bpoly.index), "NoSun", "NoWind"))
+        else:
+            return(("Outdoors", "", "SunExposed", "WindExposed"))
     else:
         return(("Outdoors", "", "SunExposed", "WindExposed"))
-

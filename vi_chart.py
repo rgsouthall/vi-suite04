@@ -71,7 +71,6 @@ def chart_disp(chart_op, dnode, rnodes, Sdate, Edate):
             si = i
         if datetime.datetime(datetime.datetime.now().year, int(rds[0]['Month'][i]), int(rds[0]['Day'][i]), int(rds[0]['Hour'][i])-1) == Edate:
             ei = i
-    print(si, ei)
     plotstyle=('k', 'k:', 'k--', 'o', 'o', 'o', 'r', 'b', 'g')
     
     if dnode.inputs['X-axis'].rtypemenu == 'Time':
@@ -85,19 +84,26 @@ def chart_disp(chart_op, dnode, rnodes, Sdate, Edate):
             xdata = range(Sdate.month, Edate.month)
             plt.xlabel('Time (months)')
     
-    for rn in rnodes:
-        for rd in rn['resdict']:
-    #            print(rn['resdict'][rd], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']])
-            if rn['resdict'][rd][0] == dnode.inputs['X-axis'].rtypemenu and rn['resdict'][rd][1] == dnode.inputs['X-axis'].climmenu:
-                (xdata, plt.ylabel) = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['X-axis'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei)
-            if rn['resdict'][rd][0] == dnode.inputs['Y-axis 1'].rtypemenu and rn['resdict'][rd][1] == dnode.inputs['X-axis'].climmenu:
-                (y1data, plt.ylabel) = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei)
-                print(xdata, y1data)
-                line, = plt.plot(xdata, y1data, '--', linewidth=2)
-            if rn['resdict'][rd][0] == dnode.inputs['Y-axis 2'].rtypemenu and rn['resdict'][rd][1] == dnode.inputs['X-axis'].climmenu:
+#    for rn in rnodes:
+#        for rd in rn['resdict']:
+    rn = dnode.inputs['X-axis'].links[0].from_node
+    for rd in rn['resdict']:
+        print(dnode.inputs['X-axis'].links[0].from_node['resdict'][rd][0:2])
+        if dnode.inputs['X-axis'].links[0].from_node['resdict'][rd][0:2] == [dnode.inputs['X-axis'].rtypemenu, dnode.inputs['X-axis'].climmenu]:
+            (xdata, plt.xlabel) = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['X-axis'].statmenu, dnode.inputs['X-axis'].links[0].from_node['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei)
+    for rd in dnode.inputs['Y-axis 1'].links[0].from_node['resdict']:
+        if dnode.inputs['Y-axis 1'].links[0].from_node['resdict'][rd][0:2] == (dnode.inputs['Y-axis 1'].rtypemenu, dnode.inputs['Y-axis 1'].climmenu):
+            (y1data, plt.ylabel) = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei)
+            print(xdata, y1data)
+            line, = plt.plot(xdata, y1data, '--', linewidth=2)
+    if dnode.inputs['Y-axis 2'].is_linked:
+        for rd in dnode.inputs['Y-axis 2'].links[0].from_node['resdict']:
+            if dnode.inputs['Y-axis 2'].links[0].from_node['resdict'][rd][0:2] == (dnode.inputs['Y-axis 2'].rtypemenu, dnode.inputs['Y-axis 2'].climmenu):
                 (y2data, plt.ylabel) = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 2'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei)
                 line, = plt.plot(xdata, y2data, '--', linewidth=2)
-            if rn['resdict'][rd][0] == dnode.inputs['Y-axis 3'] and rn['resdict'][rd][1] == dnode.inputs['X-axis'].climmenu:
+    if dnode.inputs['Y-axis 3'].is_linked:
+        for rd in dnode.inputs['Y-axis 3'].links[0].from_node['resdict']:
+            if dnode.inputs['Y-axis 3'].links[0].from_node['resdict'][rd][0:2] == (dnode.inputs['Y-axis 3'].rtypemenu, dnode.inputs['Y-axis 3'].climmenu):
                 (y3data, plt.ylabel) = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 3'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei)
                 line, = plt.plot(xdata, y3data, '--', linewidth=2)
    

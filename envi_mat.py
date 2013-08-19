@@ -26,7 +26,11 @@ class envi_materials(object):
                         'Vermiculite insulating brick': ('Rough', '0.27', '700', '840.00', '0.90', '0.650000', '0.650000', '100'),
                         'Honeycomb brick': ('Rough', '0.27', '1700', '1000.00', '0.90', '0.7', '0.7', '102')}
         self.brick_dat = OrderedDict(sorted(self.brick_datd.items()))
-                
+        
+        self.cladding_datd = {'Stucco': ('Smooth', '0.692', '1858', '836.00', '0.900000', '0.9200000', '0.920000', '25'),
+                              'Plaster board': ('Smooth', '0.7264', '1602', '836.00', '0.900000', '0.9200000', '0.920000', '20')}
+        self.cladding_dat = OrderedDict(sorted(self.cladding_datd.items()))
+        
         self.concrete_datd = {'Light mix concrete': ('MediumRough', '0.38', '1200.0', '653', '0.9', '0.65', '0.65', '100'),
                         'Aerated concrete block': ('Rough', '0.24', '750.0', '1000', '0.9', '0.65', '0.65', '100'),
                         'Inner concrete block': ('Rough', '0.51', '1400.0', '1000', '0.9', '0.65', '0.65', '100'),
@@ -95,6 +99,7 @@ class envi_materials(object):
         self.i = 0
         self.matdat = OrderedDict()
         self.matdat.update(self.brick_dat)
+        self.matdat.update(self.cladding_dat)
         self.matdat.update(self.concrete_dat)
         self.matdat.update(self.gas_dat)
         self.matdat.update(self.insulation_dat)
@@ -147,13 +152,13 @@ class envi_materials(object):
 
 class envi_constructions(object):
     def __init__(self):
-        self.wall_cond = {'External Wall 1': ('Standard Brick', 'Thermawall TW50', 'Inner concrete block')}
+        self.wall_cond = {'External Wall 1': ('Standard Brick', 'Thermawall TW50', 'Inner concrete block'), 'Party Wall 1': ('Plaster board', 'Standard Brick', 'Plaster board')}
         self.wall_con = OrderedDict(sorted(self.wall_cond.items()))
         self.floor_cond = {'Ground Floor 1': ('Common earth', 'Gravel', 'Heavy mix concrete', 'Horizontal Air 20-50mm Heat Down', 'Chipboard')}
         self.floor_con = OrderedDict(sorted(self.floor_cond.items()))
         self.roof_cond = {'Roof 1': ('Clay tile', 'Roofing felt', 'Plywood')}
         self.roof_con = OrderedDict(sorted(self.roof_cond.items()))
-        self.glaze_cond = {'Standard Double Glazing': ('Clear 3mm', 'Air', 'Clear 3mm')}
+        self.glaze_cond = {'Standard Double Glazing': ('Clear 3mm', 'Air', 'Clear 3mm'), 'Low-E Double Glazing': ('Clear 3mm', 'Air', 'Clear 3mm LoE')}
         self.glaze_con = OrderedDict(sorted(self.glaze_cond.items()))
         self.p = 0
     

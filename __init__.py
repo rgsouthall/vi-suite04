@@ -67,8 +67,8 @@ def matfunc(i):
         return [((floor, floor, 'Contruction type')) for floor in list(envi_mats.floor_dat.keys())]
     elif i == 2:
         return [((roof, roof, 'Contruction type')) for roof in list(envi_mats.roof_dat.keys())]
-#    elif i == 3:
-#        return [((window, window, 'Contruction type')) for window in list(envi_mats.glaze_dat.keys())]  
+    elif i == 13:
+        return [((cladding, cladding, 'Contruction type')) for cladding in list(envi_mats.cladding_dat.keys())]  
     elif i == 4:
         return [((brick, brick, 'Contruction type')) for brick in list(envi_mats.brick_dat.keys())]
     elif i == 5:
@@ -97,7 +97,7 @@ def confunc(i):
     elif i == 3:
         return [((windowcon, windowcon, 'Contruction type')) for windowcon in list(envi_cons.glaze_con.keys())]  
 
-(walllist,floorlist,rooflist, glazelist, bricklist, stonelist, metallist, woodlist, gaslist, glasslist, concretelist, insullist, wgaslist) = [matfunc(i) for i in range(13)]    
+(walllist,floorlist,rooflist, glazelist, bricklist, stonelist, metallist, woodlist, gaslist, glasslist, concretelist, insullist, wgaslist, claddinglist) = [matfunc(i) for i in range(14)]    
 (wallconlist, floorconlist, roofconlist, glazeconlist) = [confunc(i) for i in range(4)] 
 
 #walllist = matfunc(0)
@@ -278,9 +278,9 @@ def register():
                     [("0", "Glass", "Choose a material from the glass database"),("1", "Gas", "Choose a material from the gas database")], "", "Composition of the outer layer", "0")
             
     Material.envi_layeroto = Material.envi_layer1to = Material.envi_layer2to = Material.envi_layer3to = Material.envi_layer4to = eprop(
-            [("0", "Brick", "Choose a material from the brick database"),("1", "Concrete", "Choose a material from the concrete database"),("2", "Metal", "Choose a material from the metal database"),
-                   ("3", "Stone", "Choose a material from the stone database"),("4", "Wood", "Choose a material from the wood database"),
-                   ("5", "Gas", "Choose a material from the gas database"),("6", "Insulation", "Choose a material from the insulation database")],"","Composition of the outer layer","0")
+            [("0", "Brick", "Choose a material from the brick database"),("1", "Cladding", "Choose a material from the cladding database"), ("2", "Concrete", "Choose a material from the concrete database"),("3", "Metal", "Choose a material from the metal database"),
+                   ("4", "Stone", "Choose a material from the stone database"),("5", "Wood", "Choose a material from the wood database"),
+                   ("6", "Gas", "Choose a material from the gas database"),("7", "Insulation", "Choose a material from the insulation database")],"","Composition of the outer layer","0")
             
     Material.envi_layer1 = eprop([("0", "None", "Not present"),("1", "Database", "Select from databse"),("2", "Custom", "Define custom material properties")], "", "Composition of the next layer", "0")
     Material.envi_layer2 = eprop([("0", "None", "Not present"),("1", "Database", "Select from databse"),("2", "Custom", "Define custom material properties")],"","Composition of the next layer","0")
@@ -295,7 +295,8 @@ def register():
     Material.envi_export_floorlist_lo = eprop(floorlist, "", "", floorlist[0][0])  
     Material.envi_export_rooflist_lo = eprop(rooflist, "", "", rooflist[0][0])   
 #    Material.envi_export_glazelist_lo = eprop(glazelist, "", description = "")
-    Material.envi_export_bricklist_lo = eprop(bricklist, "", "", bricklist[0][0])    
+    Material.envi_export_bricklist_lo = eprop(bricklist, "", "", bricklist[0][0]) 
+    Material.envi_export_claddinglist_lo = eprop(claddinglist, "", "", claddinglist[0][0])
     Material.envi_export_stonelist_lo = eprop(stonelist, "",  "", stonelist[0][0])  
     Material.envi_export_woodlist_lo = eprop(woodlist, "",  "", woodlist[0][0]) 
     Material.envi_export_metallist_lo = eprop(metallist, "",  "", metallist[0][0]) 
@@ -308,7 +309,8 @@ def register():
     Material.envi_export_floorlist_l1 = eprop(floorlist, "",  "", floorlist[0][0])  
     Material.envi_export_rooflist_l1 = eprop(rooflist, "",  "", rooflist[0][0]) 
 #    Material.envi_export_glazelist_l1 = eprop(glazelist, "",  "")
-    Material.envi_export_bricklist_l1 = eprop(bricklist, "",  "", bricklist[0][0])    
+    Material.envi_export_bricklist_l1 = eprop(bricklist, "",  "", bricklist[0][0]) 
+    Material.envi_export_claddinglist_l1 = eprop(claddinglist, "", "", claddinglist[0][0])
     Material.envi_export_stonelist_l1 = eprop(stonelist, "",  "", stonelist[0][0])  
     Material.envi_export_woodlist_l1 = eprop(woodlist, "",  "", woodlist[0][0]) 
     Material.envi_export_metallist_l1 = eprop(metallist, "",  "", metallist[0][0]) 
@@ -322,6 +324,7 @@ def register():
     Material.envi_export_rooflist_l2 = eprop(rooflist, "",  "", rooflist[0][0]) 
 #    Material.envi_export_glazelist_l2 = eprop(glazelist, "",  "")
     Material.envi_export_bricklist_l2 = eprop(bricklist, "",  "", bricklist[0][0])    
+    Material.envi_export_claddinglist_l2 = eprop(claddinglist, "", "", claddinglist[0][0])
     Material.envi_export_stonelist_l2 = eprop(stonelist, "",  "", stonelist[0][0])  
     Material.envi_export_woodlist_l2 = eprop(woodlist, "",  "", woodlist[0][0]) 
     Material.envi_export_metallist_l2 = eprop(metallist, "",  "", metallist[0][0]) 
@@ -334,7 +337,8 @@ def register():
     Material.envi_export_floorlist_l3 = eprop(floorlist, "",  "", floorlist[0][0])  
     Material.envi_export_rooflist_l3 = eprop(rooflist, "",  "", rooflist[0][0]) 
 #    Material.envi_export_glazelist_l3 = eprop(glazelist, "",  "")
-    Material.envi_export_bricklist_l3 = eprop(bricklist, "",  "", bricklist[0][0])    
+    Material.envi_export_bricklist_l3 = eprop(bricklist, "",  "", bricklist[0][0])   
+    Material.envi_export_claddinglist_l3 = eprop(claddinglist, "", "", claddinglist[0][0])
     Material.envi_export_stonelist_l3 = eprop(stonelist, "",  "", stonelist[0][0])  
     Material.envi_export_woodlist_l3 = eprop(woodlist, "",  "", woodlist[0][0]) 
     Material.envi_export_metallist_l3 = eprop(metallist, "",  "", metallist[0][0]) 
@@ -347,7 +351,8 @@ def register():
     Material.envi_export_floorlist_l4 = eprop(floorlist, "",  "", floorlist[0][0])  
     Material.envi_export_rooflist_l4 = eprop(rooflist, "",  "", rooflist[0][0]) 
 #    Material.envi_export_glazelist_l4 = eprop(glazelist, "",  "")
-    Material.envi_export_bricklist_l4 = eprop(bricklist, "",  "", bricklist[0][0])    
+    Material.envi_export_bricklist_l4 = eprop(bricklist, "",  "", bricklist[0][0]) 
+    Material.envi_export_claddinglist_l4 = eprop(claddinglist, "", "", claddinglist[0][0])
     Material.envi_export_stonelist_l4 = eprop(stonelist, "",  "", stonelist[0][0])  
     Material.envi_export_woodlist_l4 = eprop(woodlist, "",  "", woodlist[0][0]) 
     Material.envi_export_metallist_l4 = eprop(metallist, "",  "", metallist[0][0]) 

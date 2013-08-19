@@ -2,6 +2,7 @@ import bpy, os, itertools, subprocess, datetime, sys, nodeitems_utils
 from .vi_node import *
 from nodeitems_utils import NodeCategory, NodeItem
 from bpy_types import NodeTree, Node
+from . import vi_func
 #from subprocess import PIPE, Popen, STDOUT
 #from math import pi, sin, cos, acos, asin
 s = 70
@@ -96,16 +97,16 @@ Construction,\n\
         
     
     for mat in [mat for mat in bpy.data.materials if mat.envi_export == True and mat.envi_con_type != "None"]:
-        typelists = ((mat.envi_export_bricklist_lo, mat.envi_export_concretelist_lo, mat.envi_export_metallist_lo, mat.envi_export_stonelist_lo, mat.envi_export_woodlist_lo, mat.envi_export_gaslist_lo, mat.envi_export_insulationlist_lo), \
-                    (mat.envi_export_bricklist_l1, mat.envi_export_concretelist_l1, mat.envi_export_metallist_l1, mat.envi_export_stonelist_lo, mat.envi_export_woodlist_lo, mat.envi_export_gaslist_lo, mat.envi_export_insulationlist_lo), \
-                    (mat.envi_export_bricklist_l2, mat.envi_export_concretelist_l2, mat.envi_export_metallist_l2, mat.envi_export_stonelist_lo, mat.envi_export_woodlist_lo, mat.envi_export_gaslist_lo, mat.envi_export_insulationlist_lo), \
-                    (mat.envi_export_bricklist_l3, mat.envi_export_concretelist_l3, mat.envi_export_metallist_l3, mat.envi_export_stonelist_lo, mat.envi_export_woodlist_lo, mat.envi_export_gaslist_lo, mat.envi_export_insulationlist_lo), \
-                    (mat.envi_export_bricklist_l4, mat.envi_export_concretelist_l4, mat.envi_export_metallist_l4, mat.envi_export_stonelist_lo, mat.envi_export_woodlist_lo, mat.envi_export_gaslist_lo, mat.envi_export_insulationlist_lo))
+#        typelists = ((mat.envi_export_bricklist_lo, mat.envi_export_concretelist_lo, mat.envi_export_metallist_lo, mat.envi_export_stonelist_lo, mat.envi_export_woodlist_lo, mat.envi_export_gaslist_lo, mat.envi_export_insulationlist_lo), \
+#                    (mat.envi_export_bricklist_l1, mat.envi_export_concretelist_l1, mat.envi_export_metallist_l1, mat.envi_export_stonelist_lo, mat.envi_export_woodlist_lo, mat.envi_export_gaslist_lo, mat.envi_export_insulationlist_lo), \
+#                    (mat.envi_export_bricklist_l2, mat.envi_export_concretelist_l2, mat.envi_export_metallist_l2, mat.envi_export_stonelist_lo, mat.envi_export_woodlist_lo, mat.envi_export_gaslist_lo, mat.envi_export_insulationlist_lo), \
+#                    (mat.envi_export_bricklist_l3, mat.envi_export_concretelist_l3, mat.envi_export_metallist_l3, mat.envi_export_stonelist_lo, mat.envi_export_woodlist_lo, mat.envi_export_gaslist_lo, mat.envi_export_insulationlist_lo), \
+#                    (mat.envi_export_bricklist_l4, mat.envi_export_concretelist_l4, mat.envi_export_metallist_l4, mat.envi_export_stonelist_lo, mat.envi_export_woodlist_lo, mat.envi_export_gaslist_lo, mat.envi_export_insulationlist_lo))
         if mat.envi_con_makeup == '1':
-            for layer in (mat.envi_layero, mat.envi_layer1, mat.envi_layer2, mat.envi_layer3, mat.envi_layer4):
-                while layer != '0':
-                    if layer == '1':
-                        contype = ('Wall', "Floor", "Roof")
+#            for layer in (mat.envi_layero, mat.envi_layer1, mat.envi_layer2, mat.envi_layer3, mat.envi_layer4):
+#                while layer != '0':
+#                    if layer == '1':
+#                        contype = ('Wall', "Floor", "Roof")
             matname = []
             if mat.envi_layero != '0':
                 if mat.envi_layero == '1':
@@ -270,73 +271,75 @@ Construction,\n\
     
     en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: SURFACE DEFINITIONS ===========\n\n")
     
-    for obj in [obj for obj in bpy.context.scene.objects if obj.layers[1] == True]:
-        if obj.type == 'MESH': 
-            obj["floorarea"] = 0
-            for poly in obj.data.polygons:
-                mat = obj.data.materials[poly.material_index]
-                if mat.envi_con_type in ('Wall', "Floor", "Roof") and mat.envi_con_makeup != "2":
-                    en_idf.write('BuildingSurface:Detailed,\n' +
-                    "{0:{width}}!- Name\n".format("    "+obj.name+str(poly.index)+",", width = s) +
-                    "{0:{width}}!- Surface Type\n".format("    "+mat.envi_con_type + ",", width = s) +
-                    "{0:{width}}!- Construction Name\n".format("    "+mat.name+",", width = s) +
-                    "{0:{width}}!- Zone Name\n".format("    "+obj.name+",", width = s) +
-                    "{0:{width}}!- Outside Boundary Condition\n".format("    Outdoors,", width = s) +
-                    "{0:{width}}!- Outside Boundary Condition Object\n".format("    ,", width = s) +
-                    "{0:{width}}!- Sun Exposure\n" .format("    SunExposed,", width = s) +
-                    "{0:{width}}!- Wind Exposure\n" .format("    WindExposed,", width = s) +
-                    "{0:{width}}!- View Factor to Ground\n".format("    autocalculate,", width = s) +
-                    "{0:{width}}!- Number of Vertices\n".format("    3,", width = s) +
-                    "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[0]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
-                    "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[1]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
-                    "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}; {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[2]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n\n"))
-                
-                if mat.envi_con_type == "Floor":
-                    obj["floorarea"] = obj["floorarea"] + poly.area
+    for obj in [obj for obj in bpy.context.scene.objects if obj.layers[1] and obj.type == 'MESH']:
 
-                elif mat.envi_con_type == 'Window':
-                    xav = ((obj.matrix_world * obj.data.vertices[poly.vertices[0]].co)[0] + (obj.matrix_world * obj.data.vertices[poly.vertices[1]].co)[0]+ (obj.matrix_world * obj.data.vertices[poly.vertices[2]].co)[0])*0.3333
-                    yav = ((obj.matrix_world * obj.data.vertices[poly.vertices[0]].co)[1] + (obj.matrix_world * obj.data.vertices[poly.vertices[1]].co)[1]+ (obj.matrix_world * obj.data.vertices[poly.vertices[2]].co)[1])*0.3333
-                    zav = ((obj.matrix_world * obj.data.vertices[poly.vertices[0]].co)[2] + (obj.matrix_world * obj.data.vertices[poly.vertices[1]].co)[2]+ (obj.matrix_world * obj.data.vertices[poly.vertices[2]].co)[2])*0.3333
-#                    name = mat.envi_export_wallconlist
-                    en_idf.write('BuildingSurface:Detailed,\n'\
-                    "    {:{width}}!- Name\n".format(obj.name+str(poly.index)+",", width = s - 4) +
-                    "    Wall,                                                             !- Surface Type\n"+
-                    "    Window Frame,                                                     !- Construction Name\n"+
-                    "    {:{width}}!- Zone Name\n".format(obj.name+",", width = s - 4) +
-                    "    Outdoors,                                                         !- Outside Boundary Condition\n" +
-                    "    ,                                                                 !- Outside Boundary Condition Object\n" +
-                    "    SunExposed,                                                       !- Sun Exposure\n" +
-                    "    WindExposed,                                                      !- Wind Exposure\n" +
-                    "    autocalculate,                                                    !- View Factor to Ground\n" +
-                    "    3,                                                                !- Number of Vertices\n" +
-                    "{0:{width}}".format("       {:.3f}, {:.3f}, {:.3f},".format((obj.matrix_world * obj.data.vertices[poly.vertices[0]].co)[0], (obj.matrix_world * obj.data.vertices[poly.vertices[0]].co)[1], (obj.matrix_world * obj.data.vertices[poly.vertices[0]].co)[2]), width = s) + '!- X,Y,Z ==> Vertex 1 {m}\n' +
-                    "{0:{width}}".format("       {:.3f}, {:.3f}, {:.3f},".format((obj.matrix_world * obj.data.vertices[poly.vertices[1]].co)[0], (obj.matrix_world * obj.data.vertices[poly.vertices[1]].co)[1], (obj.matrix_world * obj.data.vertices[poly.vertices[1]].co)[2]), width = s) + '!- X,Y,Z ==> Vertex 2 {m}\n'+
-                    "{0:{width}}".format("       {:.3f}, {:.3f}, {:.3f};".format((obj.matrix_world * obj.data.vertices[poly.vertices[2]].co)[0], (obj.matrix_world * obj.data.vertices[poly.vertices[2]].co)[1], (obj.matrix_world * obj.data.vertices[poly.vertices[2]].co)[2]), width = s) + '!- X,Y,Z ==> Vertex 3 {m}\n\n')
-                    
-                    en_idf.write('FenestrationSurface:Detailed,\n'\
-                    'win-'+obj.name+str(poly.index)+',            !- Name\n'+
-                    mat.envi_con_type+',                    !- Surface Type\n'+
-                    mat.name+',                                 !- Construction Name\n'+
-                    obj.name+str(poly.index)+',             !- Building Surface Name\n\
-                    ,                                       !- Outside Boundary Condition Object\n\
-                    autocalculate,                                    !- View Factor to Ground\n\
-                    ,                                       !- Shading Control Name\n\
-                    ,                                       !- Frame and Divider Name\n\
-                    1,                                      !- Multiplier\n\
-                    3,                                      !- Number of Vertices\n'+          
-                    str(xav+((obj.matrix_world * obj.data.vertices[poly.vertices[0]].co)[0]-xav)*0.95)+','+str(yav+((obj.matrix_world * obj.data.vertices[poly.vertices[0]].co)[1]-yav)*0.95)+','+str(zav+((obj.matrix_world * obj.data.vertices[poly.vertices[0]].co)[2]-zav)*0.95)+',  !- X,Y,Z ==> Vertex 1 {m}\n'+
-                    str(xav+((obj.matrix_world * obj.data.vertices[poly.vertices[1]].co)[0]-xav)*0.95)+','+str(yav+((obj.matrix_world * obj.data.vertices[poly.vertices[1]].co)[1]-yav)*0.95)+','+str(zav+((obj.matrix_world * obj.data.vertices[poly.vertices[1]].co)[2]-zav)*0.95)+',  !- X,Y,Z ==> Vertex 1 {m}\n'+
-                    str(xav+((obj.matrix_world * obj.data.vertices[poly.vertices[2]].co)[0]-xav)*0.95)+','+str(yav+((obj.matrix_world * obj.data.vertices[poly.vertices[2]].co)[1]-yav)*0.95)+','+str(zav+((obj.matrix_world * obj.data.vertices[poly.vertices[2]].co)[2]-zav)*0.95)+';  !- X,Y,Z ==> Vertex 1 {m}\n\n')
+        obj["floorarea"] = 0
+        for poly in obj.data.polygons:
+            mat = obj.data.materials[poly.material_index]
+            (obc, obco, se, we) = vi_func.boundpoly(obj, mat, poly)
+            if mat.envi_con_type in ('Wall', "Floor", "Roof") and mat.envi_con_makeup != "2":
                 
-                elif mat.envi_con_type == 'Shading':
-                    en_idf.write('Shading:Building:Detailed,\n' +
-                    "{0:{width}}! - Name\n".format("    "+obj.name+str(poly.index)+",",  width = s) +
-                    "{0:{width}}! - Transmittance Schedule Name\n".format("    ,",  width = s) +
-                    "{0:{width}}! - Number of Vertices\n".format("    3,",  width = s) +
-                    "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[0]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
-                    "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[1]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
-                    "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}; {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[2]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n\n"))
+                en_idf.write('BuildingSurface:Detailed,\n' +
+                "    {0:{width}}!- Name\n".format(obj.name+str(poly.index)+",", width = s) +
+                "    {0:{width}}!- Surface Type\n".format(mat.envi_con_type + ",", width = s) +
+                "    {0:{width}}!- Construction Name\n".format(mat.name+",", width = s) +
+                "    {0:{width}}!- Zone Name\n".format(obj.name+",", width = s) +
+                "    {0:{width}}!- Outside Boundary Condition\n".format(obc+"", width = s) +
+                "    {0:{width}}!- Outside Boundary Condition Object\n".format(obco+",", width = s) +
+                "    {0:{width}}!- Sun Exposure\n" .format(se+",", width = s) +
+                "    {0:{width}}!- Wind Exposure\n" .format(we+",", width = s) +
+                "    {0:{width}}!- View Factor to Ground\n".format("autocalculate,", width = s) +
+                "    {0:{width}}!- Number of Vertices\n".format("    3,", width = s) +
+                "    {0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[0]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
+                "    {0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[1]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
+                "    {0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}; {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[2]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n\n"))
+            
+            if mat.envi_con_type == "Floor":
+                obj["floorarea"] = obj["floorarea"] + poly.area
+
+            elif mat.envi_con_type == 'Window':
+                xav = ((obj.matrix_world * obj.data.vertices[poly.vertices[0]].co)[0] + (obj.matrix_world * obj.data.vertices[poly.vertices[1]].co)[0]+ (obj.matrix_world * obj.data.vertices[poly.vertices[2]].co)[0])*0.3333
+                yav = ((obj.matrix_world * obj.data.vertices[poly.vertices[0]].co)[1] + (obj.matrix_world * obj.data.vertices[poly.vertices[1]].co)[1]+ (obj.matrix_world * obj.data.vertices[poly.vertices[2]].co)[1])*0.3333
+                zav = ((obj.matrix_world * obj.data.vertices[poly.vertices[0]].co)[2] + (obj.matrix_world * obj.data.vertices[poly.vertices[1]].co)[2]+ (obj.matrix_world * obj.data.vertices[poly.vertices[2]].co)[2])*0.3333
+#                    name = mat.envi_export_wallconlist
+                en_idf.write('BuildingSurface:Detailed,\n'\
+                "    {:{width}}!- Name\n".format(obj.name+str(poly.index)+",", width = s - 4) +
+                "    Wall,                                                             !- Surface Type\n"+
+                "    Window Frame,                                                     !- Construction Name\n"+
+                "    {:{width}}!- Zone Name\n".format(obj.name+",", width = s - 4) +
+                "    {0:{width}}!- Outside Boundary Condition\n".format(obc+"", width = s) +
+                "    {0:{width}}!- Outside Boundary Condition Object\n".format(obco+",", width = s) +
+                "    {0:{width}}!- Sun Exposure\n" .format(se+",", width = s) +
+                "    {0:{width}}!- Wind Exposure\n" .format(we+",", width = s) +
+                "    autocalculate,                                                    !- View Factor to Ground\n" +
+                "    3,                                                                !- Number of Vertices\n" +
+                "{0:{width}}".format("       {:.3f}, {:.3f}, {:.3f},".format((obj.matrix_world * obj.data.vertices[poly.vertices[0]].co)[0], (obj.matrix_world * obj.data.vertices[poly.vertices[0]].co)[1], (obj.matrix_world * obj.data.vertices[poly.vertices[0]].co)[2]), width = s) + '!- X,Y,Z ==> Vertex 1 {m}\n' +
+                "{0:{width}}".format("       {:.3f}, {:.3f}, {:.3f},".format((obj.matrix_world * obj.data.vertices[poly.vertices[1]].co)[0], (obj.matrix_world * obj.data.vertices[poly.vertices[1]].co)[1], (obj.matrix_world * obj.data.vertices[poly.vertices[1]].co)[2]), width = s) + '!- X,Y,Z ==> Vertex 2 {m}\n'+
+                "{0:{width}}".format("       {:.3f}, {:.3f}, {:.3f};".format((obj.matrix_world * obj.data.vertices[poly.vertices[2]].co)[0], (obj.matrix_world * obj.data.vertices[poly.vertices[2]].co)[1], (obj.matrix_world * obj.data.vertices[poly.vertices[2]].co)[2]), width = s) + '!- X,Y,Z ==> Vertex 3 {m}\n\n')
+                
+                en_idf.write('FenestrationSurface:Detailed,\n'\
+                'win-'+obj.name+str(poly.index)+',            !- Name\n'+
+                mat.envi_con_type+',                    !- Surface Type\n'+
+                mat.name+',                                 !- Construction Name\n'+
+                obj.name+str(poly.index)+',             !- Building Surface Name\n\
+                ,                                       !- Outside Boundary Condition Object\n\
+                autocalculate,                                    !- View Factor to Ground\n\
+                ,                                       !- Shading Control Name\n\
+                ,                                       !- Frame and Divider Name\n\
+                1,                                      !- Multiplier\n\
+                3,                                      !- Number of Vertices\n'+          
+                str(xav+((obj.matrix_world * obj.data.vertices[poly.vertices[0]].co)[0]-xav)*0.95)+','+str(yav+((obj.matrix_world * obj.data.vertices[poly.vertices[0]].co)[1]-yav)*0.95)+','+str(zav+((obj.matrix_world * obj.data.vertices[poly.vertices[0]].co)[2]-zav)*0.95)+',  !- X,Y,Z ==> Vertex 1 {m}\n'+
+                str(xav+((obj.matrix_world * obj.data.vertices[poly.vertices[1]].co)[0]-xav)*0.95)+','+str(yav+((obj.matrix_world * obj.data.vertices[poly.vertices[1]].co)[1]-yav)*0.95)+','+str(zav+((obj.matrix_world * obj.data.vertices[poly.vertices[1]].co)[2]-zav)*0.95)+',  !- X,Y,Z ==> Vertex 1 {m}\n'+
+                str(xav+((obj.matrix_world * obj.data.vertices[poly.vertices[2]].co)[0]-xav)*0.95)+','+str(yav+((obj.matrix_world * obj.data.vertices[poly.vertices[2]].co)[1]-yav)*0.95)+','+str(zav+((obj.matrix_world * obj.data.vertices[poly.vertices[2]].co)[2]-zav)*0.95)+';  !- X,Y,Z ==> Vertex 1 {m}\n\n')
+            
+            elif mat.envi_con_type == 'Shading':
+                en_idf.write('Shading:Building:Detailed,\n' +
+                "{0:{width}}! - Name\n".format("    "+obj.name+str(poly.index)+",",  width = s) +
+                "{0:{width}}! - Transmittance Schedule Name\n".format("    ,",  width = s) +
+                "{0:{width}}! - Number of Vertices\n".format("    3,",  width = s) +
+                "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[0]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
+                "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[1]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
+                "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}; {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[2]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n\n"))
     
     for o, obj in enumerate([obj for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type == '1']):
         if o == 0:
@@ -967,7 +970,7 @@ def nodecreation():
  
     zoneitems = []
 
-    for obj in [obj for obj in bpy.data.objects if obj.type == 'MESH' and obj.layers[0] == True and len([mat for mat in obj.data.materials if mat.envi_con_type == "Aperture" or mat.envi_boundary == 1]) > 0]:
+    for obj in [obj for obj in bpy.data.objects if obj.type == 'MESH' and obj.layers[1] == True and len([mat for mat in obj.data.materials if mat.envi_con_type == "Aperture" or mat.envi_boundary == 1]) > 0]:
         envizone = type(obj.name, (bpy.types.Node, EnViNodes), {})
         envizone.bl_label = obj.name
         envizone.bl_idname = 'EnViZone_'+obj.name
@@ -1011,7 +1014,7 @@ def nodecreation():
         envizone.init = init
         envizone.draw_buttons = draw_buttons
         envizone.update = update
-        zoneitems.append(NodeItem('EnViZone_'+obj.name, label=obj.name))
+        zoneitems.append(NodeItem('EnViZone_'+obj.name, label = obj.name))
         bpy.utils.register_class(envizone)
 
         try:

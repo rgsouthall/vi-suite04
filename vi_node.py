@@ -669,6 +669,8 @@ class ViEnRNode(bpy.types.Node, ViNodes):
             
             def draw(self, context, layout, node, text):
                 row = layout.row()
+                row.label('--')
+                row = layout.row()
                 row.prop(self, "rtypemenu", text = text)
                 if self.is_linked == True:
                     row = layout.row()
@@ -682,6 +684,9 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                         row.prop(self, "zonermenu")
                         if self.node.timemenu in ('1', '2'):
                             row.prop(self, "statmenu")
+                row = layout.row()
+                row.label('--')
+                row = layout.row()
                 
             def draw_color(self, context, node):
                 return (0.0, 1.0, 0.0, 0.75)
@@ -716,6 +721,9 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                         row.prop(self, "zonermenu")
                         if self.node.timemenu in ('1', '2'):
                             row.prop(self, "statmenu")
+                row = layout.row()
+                row.label('--')
+                row = layout.row()
                 
             def draw_color(self, context, node):
                 return (0.0, 1.0, 0.0, 0.75)
@@ -749,6 +757,9 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                         row.prop(self, "zonermenu")
                         if self.node.timemenu in ('1', '2'):
                             row.prop(self, "statmenu")
+                row = layout.row()
+                row.label('--')
+                row = layout.row()
                 
             def draw_color(self, context, node):
                 return (0.0, 1.0, 0.0, 0.75)

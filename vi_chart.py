@@ -2,135 +2,92 @@ import bpy, math, datetime, os
 from . import windrose 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-import datetime
 from numpy import arange
-
-def processtime(stat, ttype, time, metric, st, et):
-    
-    resmonth = [[] for x in range(12)]
-    resday = [[]for x in range(366)]
-    reshour = []
-
-    if ttype == 'Monthly':
-        for m, month in enumerate(time[2][1:]):
-            if datetime.datetime(2010, time[2][m], time[3][m], time[4][m]-1) >= st and datetime.datetime(2010, time[2][m], time[3][m], time[4][m]-1) <= et:
-                resmonth[int(month)-1].append(metric[m])
-        res = resmonth
-      
-    if ttype == 'Daily':
-        for d, day in enumerate(time[1][1:]):
-            if datetime.datetime(2010, time[2][d], time[3][d], time[4][d]-1) >= st and datetime.datetime(2010, time[2][d], time[3][d], time[4][d]-1) <= et:
-                resday[datetime.datetime(2000, time[2][d], time[3][d], time[4][d]-1).timetuple().tm_yday - 1].append(metric[d])
-        res = resday
-        
-    if ttype == 'Hourly':
-        for d, day in enumerate(time[1]):
-            if datetime.datetime(2010, time[2][d], time[3][d], time[4][d]-1) >= st and datetime.datetime(2010, time[2][d], time[3][d], time[4][d]-1) <= et:
-                reshour.append(metric[d])
-        res = reshour
-        
-    if ttype != 'Hourly':
-        if stat == "Average":
-
-            res = [sum(r)/len(r) for r in res if r != []]
-            
-
-        if stat == "Maximum":
-            res = [max(r) for r in res if r != []]
-                
-        if stat == "Minimum":
-            res = [min(r) for r in res if r != []]
-    return(res)
 
 def statdata(res, stat, timetype, ds):
     if stat == 'Average':
-        return([sum(r)/len(r) for r in res], "Average "+("Daily ", "Monthly ")[int(timetype)]+ds)
+        return([sum(r)/len(r) for r in res], "Average "+("Daily ", "Monthly ")[int(timetype) - 1]+ds)
     elif stat == 'Maximum':
-        return([max(r) for r in res], "Maximum "+("Daily ", "Monthly ")[int(timetype)]+ds)
+        return([max(r) for r in res], "Maximum "+("Daily ", "Monthly ")[int(timetype) - 1]+ds)
     elif stat == 'Minimum':
-        return([min(r) for r in res], "Minimum "+("Daily ", "Monthly ")[int(timetype)]+ds)
+        return([min(r) for r in res], "Minimum "+("Daily ", "Monthly ")[int(timetype)- 1]+ds)
         
-def timedata(datastring, timetype, stattype, months, days, dos, dnode, si, ei): 
+def timedata(datastring, timetype, stattype, months, days, dos, dnode, si, ei, Sdate, Edate): 
     if timetype == '0':
-        return([float(x) for x in datastring], "")
+        return([int(x) for x in datastring], "")
     else:
         if timetype == '1':
             res = [[] for d in range(dnode['Start'], dnode['End']+1)]
-            for h, val in enumerate([float(val) for v, val in enumerate(datastring[2:]) if datetime.datetime(2013, int(months[v]), int(days[v])).timetuple().tm_yday >= dnode['Start'] and datetime.datetime(2013, int(months[v]), int(days[v])).timetuple().tm_yday <= dnode['End']]):
-                res[int(dos[1:][h]) - 1].append(val)
+            for h, val in enumerate([float(val) for val in datastring]):
+                res[int(dos[1:][si+h]) - dnode['Start']].append(val)
+        
         elif timetype == '2':  
-            res = [[] for m in range(len(months) + 1) if datetime.date.fromordinal(datetime.date(2013, int(months[m]), int(days[m])).toordinal() + days - 1) >= dnode['Start'] and datetime.date.fromordinal(datetime.date(2013, int(months[m]), int(days[m])).toordinal() + days - 1) <= dnode['End']]        
-            for h in range(len(datastring - 1)):
-                res[int(months[h]) - 1].append(float(datastring[2:][h]))
+            res = [[] for m in range(Sdate.month, Edate.month + 1)]  
+            for h, val in enumerate([float(val) for val in datastring]):
+                res[int(months[si+h]) - Sdate.month].append(val)
+   
         return(statdata(res, stattype, timetype, ""))
         
 def chart_disp(chart_op, dnode, rnodes, Sdate, Edate):
-    rds = [rn['resdict'] for rn in rnodes]
-    for i in range(len(rds[0]['Hour'])):
-        if datetime.datetime(datetime.datetime.now().year, int(rds[0]['Month'][i]), int(rds[0]['Day'][i]), int(rds[0]['Hour'][i])-1) == Sdate:
+    rn = dnode.inputs['X-axis'].links[0].from_node
+    rd = rn['resdict']
+    sm, sd, sh, em, ed, eh = Sdate.month, Sdate.day, Sdate.hour, Edate.month, Edate.day, Edate.hour
+    (dm, dd, dh) = ([int(x) for x in rd['Month']], [int(x) for x in rd['Day']], [int(x) for x in rd['Hour']])
+    for i in range(len(rd['Hour'])):
+        if sm == dm[i] and sd == dd[i] and sh == dh[i]-1:
             si = i
-        if datetime.datetime(datetime.datetime.now().year, int(rds[0]['Month'][i]), int(rds[0]['Day'][i]), int(rds[0]['Hour'][i])-1) == Edate:
+        elif em == dm[i] and ed == dd[i] and eh == dh[i]-1:
             ei = i
+
     plotstyle=('k', 'k:', 'k--', 'o', 'o', 'o', 'r', 'b', 'g')
-    
     if dnode.inputs['X-axis'].rtypemenu == 'Time':
         if dnode.timemenu == '0':
             xdata = range(1, ei-si + 2)
             plt.xlabel('Time (hours)')
         if dnode.timemenu == '1':
-            xdata = range(dnode['Start'], dnode['End']+1)
+            xdata = range(dnode['Start'], dnode['End'] + 1)
             plt.xlabel('Time (day of year)')
         if dnode.timemenu == '2':
-            xdata = range(Sdate.month, Edate.month)
+            xdata = range(Sdate.month, Edate.month + 1)
             plt.xlabel('Time (months)')
-    
-#    for rn in rnodes:
-#        for rd in rn['resdict']:
-    rn = dnode.inputs['X-axis'].links[0].from_node
+
+
     for rd in rn['resdict']:
-        print(dnode.inputs['X-axis'].links[0].from_node['resdict'][rd][0:2])
         if dnode.inputs['X-axis'].links[0].from_node['resdict'][rd][0:2] == [dnode.inputs['X-axis'].rtypemenu, dnode.inputs['X-axis'].climmenu]:
-            (xdata, plt.xlabel) = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['X-axis'].statmenu, dnode.inputs['X-axis'].links[0].from_node['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei)
-    for rd in dnode.inputs['Y-axis 1'].links[0].from_node['resdict']:
-        if dnode.inputs['Y-axis 1'].links[0].from_node['resdict'][rd][0:2] == (dnode.inputs['Y-axis 1'].rtypemenu, dnode.inputs['Y-axis 1'].climmenu):
-            (y1data, plt.ylabel) = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei)
-            print(xdata, y1data)
-            line, = plt.plot(xdata, y1data, '--', linewidth=2)
+            (xdata, plt.xlabel) = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['X-axis'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
+        elif dnode.inputs['X-axis'].links[0].from_node['resdict'][rd][0:3] == [dnode.inputs['X-axis'].rtypemenu, dnode.inputs['X-axis'].zonemenu, dnode.inputs['X-axis'].zonermenu]:
+            (xdata, plt.xlabel) = timedata(rn['resdict'][rd][si+3:ei+4], dnode.timemenu, dnode.inputs['X-axis'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
+    
+    rn = dnode.inputs['Y-axis 1'].links[0].from_node
+    for rd in rn['resdict']:
+        if rn['resdict'][rd][0:2] == [dnode.inputs['Y-axis 1'].rtypemenu, dnode.inputs['Y-axis 1'].climmenu]:
+            (y1data, plt.ylabel) = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
+            line, = plt.plot(xdata, y1data, color = 'k', label = rn['resdict'][rd][1]+ " ("+dnode.inputs['Y-axis 1'].statmenu+")")
+        elif (dnode.inputs['Y-axis 1'].rtypemenu, rn['resdict'][rd][0:2]) == ('Zone', [dnode.inputs['Y-axis 1'].zonemenu, dnode.inputs['Y-axis 1'].zonermenu]):
+            (y1data, plt.ylabel) = timedata(rn['resdict'][rd][si+3:ei+4], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
+            line, = plt.plot(xdata, y1data, color = 'k', label = rn['resdict'][rd][0] + " ("+dnode.inputs['Y-axis 1'].statmenu+")")
+
     if dnode.inputs['Y-axis 2'].is_linked:
+        rn = dnode.inputs['Y-axis 2'].links[0].from_node
         for rd in dnode.inputs['Y-axis 2'].links[0].from_node['resdict']:
-            if dnode.inputs['Y-axis 2'].links[0].from_node['resdict'][rd][0:2] == (dnode.inputs['Y-axis 2'].rtypemenu, dnode.inputs['Y-axis 2'].climmenu):
-                (y2data, plt.ylabel) = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 2'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei)
-                line, = plt.plot(xdata, y2data, '--', linewidth=2)
+            if dnode.inputs['Y-axis 2'].links[0].from_node['resdict'][rd][0:2] == [dnode.inputs['Y-axis 2'].rtypemenu, dnode.inputs['Y-axis 2'].climmenu]:
+                (y2data, plt.ylabel) = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 2'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
+                line, = plt.plot(xdata, y2data, linestyle = '--', color = '0.75', label = rn['resdict'][rd][0] + " ("+dnode.inputs['Y-axis 2'].statmenu+")")
+            elif (dnode.inputs['Y-axis 2'].rtypemenu, rn['resdict'][rd][0:2]) == ('Zone', [dnode.inputs['Y-axis 2'].zonemenu, dnode.inputs['Y-axis 2'].zonermenu]):
+                (y2data, plt.ylabel) = timedata(rn['resdict'][rd][si+3:ei+4], dnode.timemenu, dnode.inputs['Y-axis 2'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
+                line, = plt.plot(xdata, y2data, color = '0.75', linestyle = '--', label = rn['resdict'][rd][0] + " ("+dnode.inputs['Y-axis 2'].statmenu+")")
+    
     if dnode.inputs['Y-axis 3'].is_linked:
-        for rd in dnode.inputs['Y-axis 3'].links[0].from_node['resdict']:
-            if dnode.inputs['Y-axis 3'].links[0].from_node['resdict'][rd][0:2] == (dnode.inputs['Y-axis 3'].rtypemenu, dnode.inputs['Y-axis 3'].climmenu):
-                (y3data, plt.ylabel) = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 3'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei)
-                line, = plt.plot(xdata, y3data, '--', linewidth=2)
-   
-    
-    
-
-#    if dnode.inputs['X-axis'].rtypemenu == 'Climate':
-#        for rd in rnodes[0]['resdict']:
-#            if rnodes[0]['resdict'][rd][0] == dnode.inputs['X-axis'].rtypemenu and rnodes[0]['resdict'][rd][1] == dnode.inputs['X-axis'].climmenu:
-#                if dnode.timemenu == '0':
-#                    xdata = [float(x) for x in rnodes[0]['resdict'][rd][2:]]
-#                
-#    if dnode.inputs['X-axis'].rtypemenu == 'Zone':
-#        if dnode.timemenu == '0':
-#            for rd in rnodes[0]['resdict']:
-#                if rnodes[0]['resdict'][rd][0] == dnode.inputs[0].zonemenu and rnodes[0]['resdict'][rd][1] == dnode.inputs['X-axis'].zonermenu:
-#                    xdata = [float(x) for i,x in enumerate(rnodes[0]['resdict'][rd][2:])]  
-                    
-#    if dnode.inputs['Y-axis 1'].rtypemenu == 'Climate':
-#        for rd in rnodes[1]['resdict']:
-#            if rnodes[1]['resdict'][rd][0] == 'Environment' and rnodes[1]['resdict'][rd][1] == dnode.inputs['Y-axis 1'].climmenu:
-#                if dnode.timemenu == '0':
-#                    y1data = [float(y) for y in rnodes[1]['resdict'][rd][2:]]
-#                    plt.ylabel(rnodes[1]['resdict'][rd][1])
-
-#    line, = plt.plot(xdata, y1data, '--', linewidth=2)    
-#    line, = plt.plot(xdata, y1data, linewidth=2)
+        rn = dnode.inputs['Y-axis 3'].links[0].from_node
+        for rd in rn['resdict']:
+            if rn['resdict'][rd][0:2] == [dnode.inputs['Y-axis 3'].rtypemenu, dnode.inputs['Y-axis 3'].climmenu]:
+                (y3data, plt.ylabel) = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 3'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
+                line, = plt.plot(xdata, y3data, linestyle = ':', color = '0.5',label = rn['resdict'][rd][0] + " ("+dnode.inputs['Y-axis 3'].statmenu+")")
+            elif (dnode.inputs['Y-axis 3'].rtypemenu, rn['resdict'][rd][0:2]) == ('Zone', [dnode.inputs['Y-axis 3'].zonemenu, dnode.inputs['Y-axis 3'].zonermenu]):
+                (y3data, plt.ylabel) = timedata(rn['resdict'][rd][si+3:ei+4], dnode.timemenu, dnode.inputs['Y-axis 3'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
+                line, = plt.plot(xdata, y3data, linestyle = ':', color = '0.5',label = rn['resdict'][rd][0] + " ("+dnode.inputs['Y-axis 3'].statmenu+")")
+    plt.legend()
+    plt.grid(True)
     plt.show()   
     
     

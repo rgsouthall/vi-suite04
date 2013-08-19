@@ -375,7 +375,7 @@ class EnMatPanel(bpy.types.Panel):
                         row.prop(material, "envi_layeroto")
                         row = layout.row()
                         row.label("Outer layer material:")
-                        row.prop(material, ("envi_export_bricklist_lo", "envi_export_concretelist_lo", "envi_export_metallist_lo", "envi_export_stonelist_lo", "envi_export_woodlist_lo", "envi_export_gaslist_lo", "envi_export_insulationlist_lo")[int(material.envi_layeroto)])
+                        row.prop(material, ("envi_export_bricklist_lo", "envi_export_claddinglist_lo", "envi_export_concretelist_lo", "envi_export_metallist_lo", "envi_export_stonelist_lo", "envi_export_woodlist_lo", "envi_export_gaslist_lo", "envi_export_insulationlist_lo")[int(material.envi_layeroto)])
                         row = layout.row()
                         row.prop(material, "envi_export_lo_thi")
     
@@ -430,7 +430,7 @@ class EnMatPanel(bpy.types.Panel):
                             row.prop(material, "envi_layer1to")
                             row = layout.row()
                             row.label("2nd layer material:")
-                            row.prop(material, ("envi_export_bricklist_l1", "envi_export_concretelist_l1", "envi_export_metallist_l1", "envi_export_stonelist_l1", "envi_export_woodlist_l1", "envi_export_gaslist_l1", "envi_export_insulationlist_l1")[int(material.envi_layer1to)])
+                            row.prop(material, ("envi_export_bricklist_l1", "envi_export_claddinglist_l1", "envi_export_concretelist_l1", "envi_export_metallist_l1", "envi_export_stonelist_l1", "envi_export_woodlist_l1", "envi_export_gaslist_l1", "envi_export_insulationlist_l1")[int(material.envi_layer1to)])
                             row = layout.row()
                             row.prop(material, "envi_export_l1_thi")
                     elif material.envi_layer1 == '2' and material.envi_con_type != 'Window':
@@ -468,7 +468,7 @@ class EnMatPanel(bpy.types.Panel):
                                 row.prop(material, "envi_layer2to")
                                 row = layout.row()
                                 row.label("3rd layer material:")
-                                row.prop(material, ("envi_export_bricklist_l2", "envi_export_concretelist_l2", "envi_export_metallist_l2", "envi_export_stonelist_l2", "envi_export_woodlist_l2", "envi_export_gaslist_l2", "envi_export_insulationlist_l2")[int(material.envi_layer2to)])
+                                row.prop(material, ("envi_export_bricklist_l2", "envi_export_claddinglist_l2", "envi_export_concretelist_l2", "envi_export_metallist_l2", "envi_export_stonelist_l2", "envi_export_woodlist_l2", "envi_export_gaslist_l2", "envi_export_insulationlist_l2")[int(material.envi_layer2to)])
                                 row = layout.row()
                                 row.prop(material, "envi_export_l2_thi")
                         
@@ -523,7 +523,7 @@ class EnMatPanel(bpy.types.Panel):
                                     row.prop(material, "envi_layer3to")
                                     row = layout.row()
                                     row.label("4th layer material:")
-                                    row.prop(material, ("envi_export_bricklist_l3", "envi_export_concretelist_l3", "envi_export_metallist_l3", "envi_export_stonelist_l3", "envi_export_woodlist_l3", "envi_export_gaslist_l3", "envi_export_insulationlist_l3")[int(material.envi_layer3to)])
+                                    row.prop(material, ("envi_export_bricklist_l3", "envi_export_claddinglist_l3", "envi_export_concretelist_l3", "envi_export_metallist_l3", "envi_export_stonelist_l3", "envi_export_woodlist_l3", "envi_export_gaslist_l3", "envi_export_insulationlist_l3")[int(material.envi_layer3to)])
                                     row = layout.row()
                                     row.prop(material, "envi_export_l3_thi")
                                 
@@ -563,7 +563,7 @@ class EnMatPanel(bpy.types.Panel):
                                         row.prop(material, "envi_layer4to")
                                         row = layout.row()
                                         row.label("5th layer material:")
-                                        row.prop(material, ("envi_export_bricklist_l4", "envi_export_concretelist_l4", "envi_export_metallist_l4", "envi_export_stonelist_l4", "envi_export_woodlist_l4", "envi_export_gaslist_l4", "envi_export_insulationlist_l4")[int(material.envi_layer4to)])
+                                        row.prop(material, ("envi_export_bricklist_l4", "envi_export_claddinglist_l4", "envi_export_concretelist_l4", "envi_export_metallist_l4", "envi_export_stonelist_l4", "envi_export_woodlist_l4", "envi_export_gaslist_l4", "envi_export_insulationlist_l4")[int(material.envi_layer4to)])
                                         row = layout.row()
                                         row.prop(material, "envi_export_l4_thi")
                                 

@@ -538,6 +538,7 @@ def register():
     bpy.utils.register_class(vi_node.EnViSLinkNode)
     bpy.utils.register_class(vi_node.EnViCLinkNode)
     bpy.utils.register_class(vi_node.EnViFanNode)
+    bpy.utils.register_class(vi_node.EnViZone)
     bpy.utils.register_class(vi_node.ViLiNode)
     bpy.utils.register_class(vi_node.ViGExLiNode)
     bpy.utils.register_class(vi_node.ViGExEnNode)
@@ -551,6 +552,7 @@ def register():
     bpy.utils.register_class(vi_node.ViEnRNode)
     bpy.utils.register_class(vi_node.ViEnRFNode)
     nodeitems_utils.register_node_categories("Vi Nodes", vi_node.vinode_categories)
+    nodeitems_utils.register_node_categories("EnVi Nodes", vi_node.envinode_categories)
 
 def unregister():
 #    bpy.utils.unregister_module(__name__)
@@ -592,6 +594,7 @@ def unregister():
     bpy.utils.unregister_class(vi_node.EnViSLinkNode)
     bpy.utils.unregister_class(vi_node.EnViCLinkNode)
     bpy.utils.unregister_class(vi_node.EnViFanNode)
+    bpy.utils.unregister_class(vi_node.EnViZone)
     bpy.utils.unregister_class(vi_node.ViLiNode)
     bpy.utils.unregister_class(vi_node.ViGExLiNode)
     bpy.utils.unregister_class(vi_node.ViGExEnNode)
@@ -605,4 +608,4 @@ def unregister():
     bpy.utils.unregister_class(vi_node.ViEnRNode)
     bpy.utils.unregister_class(vi_node.ViEnRFNode)
     nodeitems_utils.unregister_node_categories("Vi Nodes", vi_node.vinode_categories)
-    
+    nodeitems_utils.unregister_node_categories("EnVi Nodes", vi_node.envinode_categories)

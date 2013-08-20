@@ -983,6 +983,67 @@ class EnViCAirSocket(bpy.types.NodeSocket):
         
     def draw_color(self, context, node):
         return (1.0, 0.2, 0.2, 0.75)
+
+class EnViZone(bpy.types.Node, EnViNodes):
+    '''Node describing a simulation zone'''
+    bl_idname = 'EnViZone'
+    bl_label = 'Zone'
+    bl_icon = 'SOUND'
+    
+    
+    
+    def zupdate(self, context):
+        obj = bpy.data.objects[self.zone]
+        for face in obj.data.polygons:
+            if bpy.data.objects[self.zone].data.materials[face.material_index].envi_con_type == 'Aperture':
+                self.outputs.new('EnViSAirSocket', bpy.data.objects[self.zone].data.materials[face.material_index].name)
+                self.inputs.new('EnViSAirSocket', bpy.data.objects[self.zone].data.materials[face.material_index].name, identifier = obj.name+str(face.index))
+        for mat in bpy.data.objects[self.zone].data.materials:
+            if mat.envi_boundary == 1:
+                self.outputs.new('EnViBoundSocket', mat.name)
+                self.inputs.new('EnViBoundSocket', mat.name)
+    
+    zone = bpy.props.StringProperty(update = zupdate)
+    controltype = [("NoVent", "None", "No ventilation control"), ("Temperature", "Temperature", "Temperature control")]
+    control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='NoVent')
+    vsched = bpy.props.StringProperty(name = "")
+    zonevolume = bpy.props.FloatProperty(default=45, name = "")
+    
+    def init(self, context):
+        print('hi', self.zone)
+#        obj = bpy.data.objects['en_Cube']
+#        for face in obj.data.polygons:
+#            if bpy.data.objects['en_Cube'].data.materials[face.material_index].envi_con_type == 'Aperture':
+#                self.outputs.new('EnViSAirSocket', bpy.data.objects['en_Cube'].data.materials[face.material_index].name)
+#                self.inputs.new('EnViSAirSocket', bpy.data.objects['en_Cube'].data.materials[face.material_index].name, identifier = obj.name+str(face.index))
+#        for mat in bpy.data.objects['en_Cube'].data.materials:
+#            if mat.envi_boundary == 1:
+#                self.outputs.new('EnViBoundSocket', mat.name)
+#                self.inputs.new('EnViBoundSocket', mat.name)
+        
+    def update(self):
+        try:
+            for inp in self.inputs:
+                self.outputs[inp.name].hide = True if inp.is_linked else False
+            for outp in self.outputs:
+                self.inputs[outp.name].hide = True if outp.is_linked else False
+        except:
+            pass
+    
+    def draw_buttons(self, context, layout):
+        row=layout.row()
+        row.prop(self, "zone")
+        row=layout.row()
+        row.label("Volume:")
+        row.prop(self, "zonevolume")
+        row=layout.row()
+        row.label("Control type:")
+        row.prop(self, "control")
+        if self.control == 'Temperature':
+            row=layout.row()
+            row.label("Vent schedule:")
+            row.prop(self, "vsched")
+
         
 class EnViFanNode(bpy.types.Node, EnViNodes):
     '''Node describing a fan component'''
@@ -1190,3 +1251,13 @@ class EnViNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):
         return context.space_data.tree_type == 'EnViN'
+        
+envinode_categories = [
+        # identifier, label, items list
+        EnViNodeCategory("ZoneNodes", "Zone Nodes", items=[NodeItem("EnViZone", label="Zone Node")]),
+        EnViNodeCategory("SLinkNodes", "Surface Link Nodes", items=[
+            NodeItem("EnViSLink", label="Surface Link Node")]),
+        EnViNodeCategory("CLinkNodes", "Component Link Nodes", items=[
+            NodeItem("EnViCLink", label="Component Link Node")]),
+        EnViNodeCategory("PlantNodes", "Plant Nodes", items=[
+            NodeItem("EnViFan", label="EnVi fan node")])]

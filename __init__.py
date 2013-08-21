@@ -20,11 +20,11 @@ if "bpy" in locals():
     imp.reload(envi_mat)
 else:
     from . import vi_node, vi_operators, vi_ui, envi_mat, vi_func
-    
+
 import sys, os, platform, inspect, bpy, nodeitems_utils
 (iprop, bprop, eprop, sprop, fprop, fvprop) = (vi_func.iprop, vi_func.bprop, vi_func.eprop, vi_func.sprop, vi_func.fprop, vi_func.fvprop)
- 
-epversion = "8-0-0" 
+
+epversion = "8-0-0"
 addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
 
 if str(sys.platform) == 'darwin':
@@ -45,10 +45,10 @@ elif str(sys.platform) == 'win32':
         if r"C:\Program Files (x86)\Radiance\lib;"+sys.path[0]+"\io_visuite\lib" not in os.environ["RAYPATH"]:
             os.environ["PATH"] = os.environ["PATH"] + r";C:\Program Files (x86)\Radiance\bin;"+sys.path[0]+"\io_visuite\windows;C:\EnergyPlusV{}".format(epversion)
             os.environ["RAYPATH"] = r"C:\Program Files (x86)\Radiance\lib;"+sys.path[0]+"\io_visuite\lib"
-    
+
     elif os.path.isdir(r"C:\Program Files\Radiance"):
         if r"C:\Program Files\Radiance\lib;"+sys.path[0]+"\io_visuite\lib" not in os.environ["RAYPATH"]:
-            os.environ["PATH"] = os.environ["PATH"] + r";C:\Program Files\Radiance\bin;"+sys.path[0]+"\io_visuite\windows;C:\EnergyPlusV{}".format(epversion) 
+            os.environ["PATH"] = os.environ["PATH"] + r";C:\Program Files\Radiance\bin;"+sys.path[0]+"\io_visuite\windows;C:\EnergyPlusV{}".format(epversion)
             os.environ["RAYPATH"] = "C:\Program Files\Radiance\lib;"+sys.path[0]+"\io_visuite\lib"
     else:
         print("Cannot find a valid Radiance directory. Please check that you have Radiance installed in either C:\Program Files(x86) (64bit windows) \
@@ -57,8 +57,8 @@ or C:\Program Files (32bit windows)")
 matpath = addonpath+'/EPFiles/Materials/Materials.data'
 epwpath = addonpath+'/EPFiles/Weather/'
 envi_mats = envi_mat.envi_materials()
-envi_cons = envi_mat.envi_constructions()     
-          
+envi_cons = envi_mat.envi_constructions()
+
 #bpy.ops.node.new_node_tree(type='ViN', name ="VI-Suite Node Tree")
 def matfunc(i):
     if i == 0:
@@ -68,7 +68,7 @@ def matfunc(i):
     elif i == 2:
         return [((roof, roof, 'Contruction type')) for roof in list(envi_mats.roof_dat.keys())]
     elif i == 13:
-        return [((cladding, cladding, 'Contruction type')) for cladding in list(envi_mats.cladding_dat.keys())]  
+        return [((cladding, cladding, 'Contruction type')) for cladding in list(envi_mats.cladding_dat.keys())]
     elif i == 4:
         return [((brick, brick, 'Contruction type')) for brick in list(envi_mats.brick_dat.keys())]
     elif i == 5:
@@ -76,9 +76,9 @@ def matfunc(i):
     elif i == 6:
         return [((metal, metal, 'Contruction type')) for metal in list(envi_mats.metal_dat.keys())]
     elif i == 7:
-        return [((wood, wood, 'Contruction type')) for wood in list(envi_mats.wood_dat.keys())]    
+        return [((wood, wood, 'Contruction type')) for wood in list(envi_mats.wood_dat.keys())]
     elif i == 8:
-        return [((gas, gas, 'Contruction type')) for gas in list(envi_mats.gas_dat.keys())]   
+        return [((gas, gas, 'Contruction type')) for gas in list(envi_mats.gas_dat.keys())]
     elif i == 9:
         return [((glass, glass, 'Contruction type')) for glass in list(envi_mats.glass_dat.keys())]
     elif i == 10:
@@ -95,39 +95,21 @@ def confunc(i):
     elif i == 2:
         return [((roofcon, roofcon, 'Contruction type')) for roofcon in list(envi_cons.roof_con.keys())]
     elif i == 3:
-        return [((windowcon, windowcon, 'Contruction type')) for windowcon in list(envi_cons.glaze_con.keys())]  
+        return [((windowcon, windowcon, 'Contruction type')) for windowcon in list(envi_cons.glaze_con.keys())]
 
-(walllist,floorlist,rooflist, glazelist, bricklist, stonelist, metallist, woodlist, gaslist, glasslist, concretelist, insullist, wgaslist, claddinglist) = [matfunc(i) for i in range(14)]    
-(wallconlist, floorconlist, roofconlist, glazeconlist) = [confunc(i) for i in range(4)] 
-
-#walllist = matfunc(0)
-#floorlist = matfunc(1)
-#rooflist = matfunc(2)
-#glazelist  = matfunc(3)
-#bricklist = matfunc(4)
-#stonelist = matfunc(5)
-#metallist = matfunc(6)
-#woodlist = matfunc(7)
-#gaslist = matfunc(8)
-#glasslist = matfunc(9)
-#concretelist = matfunc(10)
-#insullist = matfunc(11)
-#wgaslist = matfunc(12)
-#wallconlist = confunc(0)
-#floorconlist = confunc(1)
-#roofconlist = confunc(2)
-#glazeconlist  = confunc(3)
+(walllist,floorlist,rooflist, glazelist, bricklist, stonelist, metallist, woodlist, gaslist, glasslist, concretelist, insullist, wgaslist, claddinglist) = [matfunc(i) for i in range(14)]
+(wallconlist, floorconlist, roofconlist, glazeconlist) = [confunc(i) for i in range(4)]
 
 def register():
 #    bpy.utils.register_module(__name__)
-    Object = bpy.types.Object   
+    Object = bpy.types.Object
     Scene = bpy.types.Scene
     Material = bpy.types.Material
 
 # LiVi object properties
-        
+
     Object.livi_merr = bprop("LiVi simple mesh export", "Boolean for simple mesh export", False)
-            
+
     Object.ies_name = sprop("", "IES File", 1024, "")
 
     Object.ies_strength = fprop("", "Strength of IES lamp", 0, 1, 1)
@@ -135,78 +117,78 @@ def register():
     Object.ies_unit = eprop([("m", "Meters", ""), ("c", "Centimeters", ""), ("f", "Feet", ""), ("i", "Inches", "")], "", "Specify the IES file measurement unit", "m")
 
     Object.ies_colour = fvprop("IES Colour",'IES Colour', [1.0, 1.0, 1.0], 'COLOR')
-    
+
     Object.licalc = bprop("", "", False)
-    
-    Object.lires = bprop("", "", False)   
 
-    Object.limerr = bprop("", "", False)  
+    Object.lires = bprop("", "", False)
 
-# EnVi zone definitions   
+    Object.limerr = bprop("", "", False)
+
+# EnVi zone definitions
 
     Object.envi_type = eprop([("0", "None", "None"), ("1", "Thermal", "Thermal Zone"), ("2", "Shading", "Shading Object")], "EnVi object type", "Specify the EnVi object type", "0")
     Object.envi_heats1 = bprop("Schedule 1", "Enable period 1 zone heating", False)
-    Object.envi_heats2 = bprop("Schedule 2", "Enable period 2 zone heating", False)     
-    Object.envi_heats1d = eprop([("0", "Every Day", "Daily Heating"), ("1", "Weekdays", "Weekday Heating"), ("2", "Weekend", "Weekend Heating")], "", "Heating", "0")   
-    Object.envi_heats2dwd = eprop([("1", "Weekdays", "Weekday cooling")], "", "Occupancy", "1")         
-    Object.envi_heats2dwe = eprop([("2", "Weekend", "Weekend cooling")], "", "Occupancy", "2")    
+    Object.envi_heats2 = bprop("Schedule 2", "Enable period 2 zone heating", False)
+    Object.envi_heats1d = eprop([("0", "Every Day", "Daily Heating"), ("1", "Weekdays", "Weekday Heating"), ("2", "Weekend", "Weekend Heating")], "", "Heating", "0")
+    Object.envi_heats2dwd = eprop([("1", "Weekdays", "Weekday cooling")], "", "Occupancy", "1")
+    Object.envi_heats2dwe = eprop([("2", "Weekend", "Weekend cooling")], "", "Occupancy", "2")
     Object.envi_heats1c = iprop("Capacity (W)", "Maximum Heating Capacity (W)", 1, 50000, 500)
-    Object.envi_heats1sp1 = iprop("Set-point (u'\u00b0'C)", "Heating set-point (u'\u00b0'C)", 1, 30, 20)
-    Object.envi_heats2sp1 = iprop("Set-point (u'\u00b0'C)", "Heating set-point (u'\u00b0'C)", 1, 30, 20)
-    Object.envi_heats1sp2 = iprop("Set-point (u'\u00b0'C)", "Heating set-point (u'\u00b0'C)", 1, 30, 20)
-    Object.envi_heats2sp2 = iprop("Set-point (C)", "Heating set-point (C)", 1, 30, 20)
-    Object.envi_heats1sp3 = iprop("Set-point (C)", "Heating set-point (C)", 1, 30, 20)
-    Object.envi_heats2sp3 = iprop("Set-point (C)", "Heating set-point (C)", 1, 30, 20)
+    Object.envi_heats1sp1 = iprop("Set-point ("+ u'\u00b0'+"C)", "Heating set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
+    Object.envi_heats2sp1 = iprop("Set-point ("+ u'\u00b0'+"'C)", "Heating set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
+    Object.envi_heats1sp2 = iprop("Set-point ("+ u'\u00b0'+"C)", "Heating set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
+    Object.envi_heats2sp2 = iprop("Set-point ("+ u'\u00b0'+"C)", "Heating set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
+    Object.envi_heats1sp3 = iprop("Set-point ("+ u'\u00b0'+"C)", "Heating set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
+    Object.envi_heats2sp3 = iprop("Set-point ("+ u'\u00b0'+"C)", "Heating set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
     Object.envi_heats1p1st = iprop("Start hour", "Heating Start Time", 1, 24, 0)
     Object.envi_heats1p1et = iprop("End hour", "Heating End Time", 1, 24, 0)
     Object.envi_heats1p2st = iprop("Start hour", "Heating Start Time", 1, 24, 0)
     Object.envi_heats1p2et = iprop("End hour", "Heating End Time", 1, 24, 0)
     Object.envi_heats1p3st = iprop("Start hour", "Heating Start Time", 1, 24, 0)
-    Object.envi_heats1p3et = iprop("End hour", "Heating End Time", 1, 24, 0)        
+    Object.envi_heats1p3et = iprop("End hour", "Heating End Time", 1, 24, 0)
     Object.envi_heats2p1st = iprop("Start hour", "Heating Start Time", 1, 24, 0)
     Object.envi_heats2p1et = iprop("End hour", "Heating End Time", 1, 24, 0)
     Object.envi_heats2p2st = iprop("Start hour", "Heating Start Time", 1,24, 0)
     Object.envi_heats2p2et = iprop("End hour", "Heating End Time", 1, 24, 0)
     Object.envi_heats2p3st = iprop("Start hour", "Heating Start Time", 1, 24, 0)
-    Object.envi_heats2p3et = iprop("End hour", "Heating End Time", 1, 24, 0)        
+    Object.envi_heats2p3et = iprop("End hour", "Heating End Time", 1, 24, 0)
     Object.envi_cools1 = bprop("Schedule 1", "Enable period 1 zone heating", False)
-    Object.envi_cools2 = bprop("Schedule 2", "Enable period 2 zone heating", False)          
+    Object.envi_cools2 = bprop("Schedule 2", "Enable period 2 zone heating", False)
     Object.envi_cools1p1 = bprop("Period 1", "Enable period 1 zone cooling", False)
-    Object.envi_cools1p2 = bprop("Period 2", "Enable period 2 zone cooling", False)     
+    Object.envi_cools1p2 = bprop("Period 2", "Enable period 2 zone cooling", False)
     Object.envi_cools1p3 = bprop("Period 3", "Enable period 3 zone cooling", False)
     Object.envi_cools2p1 = bprop("Period 1", "Enable period 1 zone cooling", False)
-    Object.envi_cools2p2 = bprop("Period 2", "Enable period 2 zone cooling", False)     
+    Object.envi_cools2p2 = bprop("Period 2", "Enable period 2 zone cooling", False)
     Object.envi_cools2p3 = bprop("Period 3", "Enable period 3 zone cooling", False)
-    Object.envi_cools1d = eprop([("0", "Every Day", "Daily cooling"), ("1", "Weekdays", "Weekday cooling"), ("2", "Weekend", "Weekend cooling")], "", "Occupancy", "0")   
-    Object.envi_cools2dwd = eprop([("1", "Weekdays", "Weekday cooling")], "", "Occupancy", "1")  
-    Object.envi_cools2dwe = eprop([("2", "Weekend", "Weekend cooling")], "", "Occupancy", "2")                                                    
+    Object.envi_cools1d = eprop([("0", "Every Day", "Daily cooling"), ("1", "Weekdays", "Weekday cooling"), ("2", "Weekend", "Weekend cooling")], "", "Occupancy", "0")
+    Object.envi_cools2dwd = eprop([("1", "Weekdays", "Weekday cooling")], "", "Occupancy", "1")
+    Object.envi_cools2dwe = eprop([("2", "Weekend", "Weekend cooling")], "", "Occupancy", "2")
     Object.envi_cools1c = iprop("Capacity (W)", "Maximum cooling Capacity (W)", 1, 50000, 0)
-    Object.envi_cools1sp1 = iprop("Set-point(C)", "cooling set-point (C)", 1, 30, 20)
-    Object.envi_cools1sp2 = iprop("Set-point(C)", "cooling set-point (C)", 1, 30, 20)
-    Object.envi_cools1sp3 = iprop("Set-point(C)", "cooling set-point (C)", 1, 30, 20)
-    Object.envi_cools2sp1 = iprop("Set-point(C)", "cooling set-point (C)", 1, 30, 20)
-    Object.envi_cools2sp2 = iprop("Set-point(C)", "cooling set-point (C)", 1, 30, 20)
-    Object.envi_cools2sp3 = iprop("Set-point(C)", "cooling set-point (C)", 1, 30, 20)
+    Object.envi_cools1sp1 = iprop("Set-point("+ u'\u00b0'+"C)", "cooling set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
+    Object.envi_cools1sp2 = iprop("Set-point("+ u'\u00b0'+"C)", "cooling set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
+    Object.envi_cools1sp3 = iprop("Set-point("+ u'\u00b0'+"C)", "cooling set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
+    Object.envi_cools2sp1 = iprop("Set-point("+ u'\u00b0'+"C)", "cooling set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
+    Object.envi_cools2sp2 = iprop("Set-point("+ u'\u00b0'+"C)", "cooling set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
+    Object.envi_cools2sp3 = iprop("Set-point("+ u'\u00b0'+"C)", "cooling set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
     Object.envi_cools1p1st = iprop("Start hour", "Cooling Start Time",1, 24, 1)
     Object.envi_cools1p1et = iprop("End hour", "Cooling End Time",1, 24, 1)
     Object.envi_cools1p2st = iprop("Start hour", "Cooling Start Time",1, 24, 1)
     Object.envi_cools1p2et = iprop("End hour", "Cooling End Time",1, 24, 1)
     Object.envi_cools1p3st = iprop("Start hour", "Cooling Start Time",1, 24, 1)
-    Object.envi_cools1p3et = iprop("End hour", "Cooling End Time",1, 24, 1)    
+    Object.envi_cools1p3et = iprop("End hour", "Cooling End Time",1, 24, 1)
     Object.envi_cools2p1st = iprop("Start hour", "Cooling Start Time", 1, 24, 1)
     Object.envi_cools2p1et = iprop("End hour", "Cooling End Time",1, 24, 1)
     Object.envi_cools2p2st = iprop("Start hour", "Cooling Start Time", 1, 24, 1)
     Object.envi_cools2p2et = iprop("End hour", "Cooling End Time", 1, 24, 1)
     Object.envi_cools2p3st = iprop("Start hour", "Cooling Start Time", 1, 24, 1)
-    Object.envi_cools2p3et = iprop("End hour", "Cooling End Time", 1, 24, 1) 
+    Object.envi_cools2p3et = iprop("End hour", "Cooling End Time", 1, 24, 1)
     Object.envi_occs1 = bprop("Period 1", "Enable zone occupation for period 1", False)
     Object.envi_occs2 = bprop("Period 2", "Enable zone occupation for period 1", False)
-    Object.envi_occtype = eprop([("0", "None", "No occupancy"),("1", "Occupants", "Actual number of people"), ("2", "Person/m2", "Number of people per squared metre floor area"), 
-                                              ("3", "m2/Person", "Floor area per person")], "", "The type of zone occupancy specification", "0")
+    Object.envi_occtype = eprop([("0", "None", "No occupancy"),("1", "Occupants", "Actual number of people"), ("2", "Person/m"+ u'\u00b2', "Number of people per squared metre floor area"),
+                                              ("3", "m"+ u'\u00b02'+"/Person", "Floor area per person")], "", "The type of zone occupancy specification", "0")
     Object.envi_occsmax = fprop("Max", "Maximum level of occupancy that will occur in this schedule", 1, 500, 1)
     Object.envi_occs1d = eprop([("0", "Every Day", "Daily Occupancy"), ("1", "Weekdays", "Weekday Occupancy"), ("2", "Weekend", "Weekend Occupancy")], "", "Occupancy", "0")
-    Object.envi_occs2dwd = eprop([("1", "Weekdays", "Weekday occupancy")], "", "Occupancy", "1")  
-    Object.envi_occs2dwe = eprop([("2", "Weekend", "Weekend occupancy")], "", "Occupancy", "2")  
+    Object.envi_occs2dwd = eprop([("1", "Weekdays", "Weekday occupancy")], "", "Occupancy", "1")
+    Object.envi_occs2dwe = eprop([("2", "Weekend", "Weekend occupancy")], "", "Occupancy", "2")
     Object.envi_occs1p1st = iprop("Start hour", "Occupancy Start Time", 1, 24, 1)
     Object.envi_occs1p1et = iprop("End hour", "Occupancy End Time", 1, 24, 1)
     Object.envi_occs1p1level = fprop("Fraction", "Fraction of maximum evel of occupancy", 0, 500, 0)
@@ -214,24 +196,24 @@ def register():
     Object.envi_occs1p2et = iprop("End hour", "Occupancy End Time", 1, 24, 1)
     Object.envi_occs1p2level = fprop("Fraction", "Fraction of maximum level of occupancy", 0, 1, 0)
     Object.envi_occs1p3st = iprop("Start hour", "Occupancy Start Time", 1, 24, 1)
-    Object.envi_occs1p3et = iprop("End hour", "Occupancy End Time", 1, 24, 1)  
+    Object.envi_occs1p3et = iprop("End hour", "Occupancy End Time", 1, 24, 1)
     Object.envi_occs1p3level = fprop("Fraction", "Fraction of maximum evel of occupancy", 0, 1, 0)
     Object.envi_occs1watts = iprop("W/p", "Watts per person", 70, 800, 90)
     Object.envi_occs2p1st = iprop("Start hour", "Occupancy Start Time", 1, 24, 1)
-    Object.envi_occs2p1et = iprop("End hour", "Occupancy End Time", 1, 24, 1)  
+    Object.envi_occs2p1et = iprop("End hour", "Occupancy End Time", 1, 24, 1)
     Object.envi_occs2p1level = fprop("Fraction", "Fraction of maximum evel of occupancy", 0, 1, 0)
     Object.envi_occs2p2st = iprop("Start hour", "Occupancy Start Time", 1, 24, 1)
-    Object.envi_occs2p2et = iprop("End hour", "Occupancy End Time", 1, 24, 1) 
+    Object.envi_occs2p2et = iprop("End hour", "Occupancy End Time", 1, 24, 1)
     Object.envi_occs2p2level = fprop("Fraction", "Fraction of maximum evel of occupancy", 0, 1, 0)
     Object.envi_occs2p3st = iprop("Start hour", "Occupancy Start Time", 1, 24, 1)
-    Object.envi_occs2p3et = iprop("End hour", "Occupancy End Time", 1, 24, 1)   
+    Object.envi_occs2p3et = iprop("End hour", "Occupancy End Time", 1, 24, 1)
     Object.envi_occs2p3level = fprop("Fraction", "Fraction of maximum evel of occupancy", 0, 1, 0)
     Object.envi_occs2watts = iprop("W/p", "Watts per person", 70, 800, 90)
-    Object.envi_inftype = eprop([("0", "None", "No infiltration"), ("2", "m3/s", "metre cubed per second"), ("3", "ACH", "Air changes per hour")], "", "The type of zone infiltration specification", "0")
-    Object.envi_occinftype = eprop([("0", "None", "No infiltration"),("1", "l/s/p", "litres per second per person"), ("2", "m3/s", "metre cubed per second"), 
+    Object.envi_inftype = eprop([("0", "None", "No infiltration"), ("2", "m"+ u'\u00b3'+"/s", "metre cubed per second"), ("3", "ACH", "Air changes per hour")], "", "The type of zone infiltration specification", "0")
+    Object.envi_occinftype = eprop([("0", "None", "No infiltration"),("1", "l/s/p", "litres per second per person"), ("2", "m"+ u'\u00b3'+"/s", "metre cubed per second"),
                                     ("3", "ACH", "Air changes per hour")], "", "The type of zone infiltration specification", "0")
-    Object.envi_infbasetype = eprop([("0", "m3/s", "metre cubed per second"), ("1", "ACH", "Air changes per hour")], "", "The type of zone base infiltration specification", "1")
-    Object.envi_infbaselevel = fprop("Level", "Level of Infiltration", 0, 500, 0.1)   
+    Object.envi_infbasetype = eprop([("0", "m"+ u'\u00b3'+"/s", "metre cubed per second"), ("1", "ACH", "Air changes per hour")], "", "The type of zone base infiltration specification", "1")
+    Object.envi_infbaselevel = fprop("Level", "Level of Infiltration", 0, 500, 0.1)
     Object.envi_inflevel = fprop("Level", "Level of Infiltration", 0, 500, 0.1)
     Object.envi_infs1d = eprop([("0", "Every Day", "Daily Infiltration"), ("1", "Weekdays", "Weekday Infiltration"), ("2", "Weekend", "Weekend Infiltration")], "", "Infiltration", "0")
     Object.envi_infs1p1st = iprop("Start hour", "Infiltration Start Time",1, 24, 1)
@@ -241,121 +223,121 @@ def register():
     Object.envi_infs1p2et = iprop("End hour", "Infiltration End Time", 1, 24, 1)
     Object.envi_infs1p2level = iprop("Level", "Level of Infiltration", 1, 500, 0)
     Object.envi_infs1p3st = iprop("Start hour", "Infiltration Start Time", 1, 24, 1)
-    Object.envi_infs1p3et = iprop("End hour", "Infiltration End Time",1, 24, 1)  
+    Object.envi_infs1p3et = iprop("End hour", "Infiltration End Time",1, 24, 1)
     Object.envi_infs1p3level = iprop("Level", "Level of Infiltration", 1, 500, 0)
     Object.envi_infs2d = eprop([("0", "Every Day", "Daily Infiltration"), ("1", "Weekdays", "Weekday Infiltration"), ("2", "Weekend", "Weekend Infiltration")],"", "Infiltration", "0")
     Object.envi_infs2p1st = iprop("Start hour", "Infiltration Start Time", 1, 24, 1)
-    Object.envi_infs2p1et = iprop("End hour", "Infiltration End Time", 1, 24, 1)  
+    Object.envi_infs2p1et = iprop("End hour", "Infiltration End Time", 1, 24, 1)
     Object.envi_infs2p1level = iprop("Level", "Level of Infiltration", 1, 500, 0)
     Object.envi_infs2p2st = iprop("Start hour", "Infiltration Start Time", 1, 24, 1)
-    Object.envi_infs2p2et = iprop("End hour", "Infiltration End Time", 1, 24, 1) 
+    Object.envi_infs2p2et = iprop("End hour", "Infiltration End Time", 1, 24, 1)
     Object.envi_infs2p2level = iprop("Level", "Level of Infiltration", 1, 500, 0)
     Object.envi_infs2p3st = iprop("Start hour", "Infiltration Start Time", 1, 24, 1)
-    Object.envi_infs2p3et = iprop("End hour", "Infiltration End Time", 1, 24, 1)   
+    Object.envi_infs2p3et = iprop("End hour", "Infiltration End Time", 1, 24, 1)
     Object.envi_infs2p3level = iprop("Level", "Level of Infiltration", 1, 500, 0)
     Object.envi_infs2watts = iprop("W/p", "Watts per person",70, 800, 90)
     Object.envi_inf3d = eprop([("0", "Every Day", "Daily Infiltration"), ("1", "Weekdays", "Weekday Infiltration"), ("2", "Weekend", "Weekend Infiltration")], "", "Infiltration", "0")
     Object.envi_infs3p1st = iprop("Start hour", "Infiltration Start Time", 1, 24, 1)
     Object.envi_infs3p1et = iprop("End hour", "Infiltration End Time", 1, 24, 1)
-    Object.envi_infs3p1level = iprop("Level", "Level of Infiltration", 1, 500, 0) 
+    Object.envi_infs3p1level = iprop("Level", "Level of Infiltration", 1, 500, 0)
     Object.envi_infs3p2st = iprop("Start hour", "Infiltration Start Time", 1, 24, 1)
     Object.envi_infs3p2et = iprop("End hour", "Infiltration End Time", 1, 24, 1)
     Object.envi_infs3p2level = iprop("Level", "Level of Infiltration", 1, 500, 0)
     Object.envi_infs3p3st = iprop("Start hour", "Infiltration Start Time", 1, 24, 1)
     Object.envi_infs3p3et = iprop("End hour", "Infiltration End Time", 1, 24, 1)
     Object.envi_infs3p3level = iprop("Level", "Level of Infiltration", 1, 500, 0)
-    Object.envi_inf3watts = iprop("W/p", "Watts per person",70, 800, 90) 
-    
+    Object.envi_inf3watts = iprop("W/p", "Watts per person",70, 800, 90)
+
 # EnVi material definitions
 
     Material.envi_con_type = eprop([("Wall", "Wall", "Wall construction"),("Floor", "Floor", "Floor construction"),("Roof", "Roof", "Roof construction"),("Window", "Window", "Window construction"),
                     ("Shading", "Shading", "Shading material"),("Aperture", "Aperture", "Airflow Aperture"),("None", "None", "Surface to be ignored")], "", "Specify the construction type", "None")
-    Material.envi_boundary = bprop("On zone boundary", "Flag to siginify whether the material represents a zone boundary", False)  
+    Material.envi_boundary = bprop("On zone boundary", "Flag to siginify whether the material represents a zone boundary", False)
     Material.envi_aperture = eprop([("0", "External", "External facade airflow component", 0), ("1", "Internal", "Zone boundary airflow component", 1),], "", "Position of the airflow component", "0")
     Material.envi_con_makeup = eprop([("0", "Pre-set", "Construction pre-set"),("1", "Layers", "Custom layers"),("2", "Dummy", "Adiabatic")], "", "Pre-set construction of custom layers", "0")
     Material.envi_layero = eprop([("0", "None", "Not present"), ("1", "Database", "Select from databse"), ("2", "Custom", "Define custom material properties")], "", "Composition of the outer layer", "0")
     Material.envi_layerott = Material.envi_layer1tt = Material.envi_layer2tt = Material.envi_layer3tt = Material.envi_layer4tt = eprop(
                     [("0", "Glass", "Choose a material from the glass database"),("1", "Gas", "Choose a material from the gas database")], "", "Composition of the outer layer", "0")
-            
+
     Material.envi_layeroto = Material.envi_layer1to = Material.envi_layer2to = Material.envi_layer3to = Material.envi_layer4to = eprop(
             [("0", "Brick", "Choose a material from the brick database"),("1", "Cladding", "Choose a material from the cladding database"), ("2", "Concrete", "Choose a material from the concrete database"),("3", "Metal", "Choose a material from the metal database"),
                    ("4", "Stone", "Choose a material from the stone database"),("5", "Wood", "Choose a material from the wood database"),
                    ("6", "Gas", "Choose a material from the gas database"),("7", "Insulation", "Choose a material from the insulation database")],"","Composition of the outer layer","0")
-            
+
     Material.envi_layer1 = eprop([("0", "None", "Not present"),("1", "Database", "Select from databse"),("2", "Custom", "Define custom material properties")], "", "Composition of the next layer", "0")
     Material.envi_layer2 = eprop([("0", "None", "Not present"),("1", "Database", "Select from databse"),("2", "Custom", "Define custom material properties")],"","Composition of the next layer","0")
     Material.envi_layer3 = eprop([("0", "None", "Not present"),("1", "Database", "Select from databse"), ("2", "Custom", "Define custom material properties")],"","Composition of the next layer","0")
     Material.envi_layer4 = eprop([("0", "None", "Not present"),("1", "Database", "Select from databse"), ("2", "Custom", "Define custom material properties")], "", "Composition of the next layer", "0")
-    Material.envi_export = bprop("Material Export", "Flag to tell EnVi to export this material", False)      
+    Material.envi_export = bprop("Material Export", "Flag to tell EnVi to export this material", False)
     Material.envi_export_wallconlist = eprop(wallconlist, "Wall Constructions", "", wallconlist[0][0])
     Material.envi_export_floorconlist = eprop(floorconlist, "Floor Constructions",  "", floorconlist[0][0])
     Material.envi_export_roofconlist = eprop(roofconlist, "Roof Constructions",  "", roofconlist[0][0])
     Material.envi_export_glazeconlist = eprop(glazeconlist, "Window Constructions",  "", glazeconlist[0][0])
-    Material.envi_export_walllist_lo = eprop(walllist, "Wall Materials", "", walllist[0][0])    
-    Material.envi_export_floorlist_lo = eprop(floorlist, "", "", floorlist[0][0])  
-    Material.envi_export_rooflist_lo = eprop(rooflist, "", "", rooflist[0][0])   
+    Material.envi_export_walllist_lo = eprop(walllist, "Wall Materials", "", walllist[0][0])
+    Material.envi_export_floorlist_lo = eprop(floorlist, "", "", floorlist[0][0])
+    Material.envi_export_rooflist_lo = eprop(rooflist, "", "", rooflist[0][0])
 #    Material.envi_export_glazelist_lo = eprop(glazelist, "", description = "")
-    Material.envi_export_bricklist_lo = eprop(bricklist, "", "", bricklist[0][0]) 
+    Material.envi_export_bricklist_lo = eprop(bricklist, "", "", bricklist[0][0])
     Material.envi_export_claddinglist_lo = eprop(claddinglist, "", "", claddinglist[0][0])
-    Material.envi_export_stonelist_lo = eprop(stonelist, "",  "", stonelist[0][0])  
-    Material.envi_export_woodlist_lo = eprop(woodlist, "",  "", woodlist[0][0]) 
-    Material.envi_export_metallist_lo = eprop(metallist, "",  "", metallist[0][0]) 
+    Material.envi_export_stonelist_lo = eprop(stonelist, "",  "", stonelist[0][0])
+    Material.envi_export_woodlist_lo = eprop(woodlist, "",  "", woodlist[0][0])
+    Material.envi_export_metallist_lo = eprop(metallist, "",  "", metallist[0][0])
     Material.envi_export_gaslist_lo = eprop(gaslist, "",  "", gaslist[0][0])
     Material.envi_export_glasslist_lo = eprop(glasslist, "",  "", glasslist[0][0])
     Material.envi_export_concretelist_lo = eprop(concretelist, "",  "", concretelist[0][0])
     Material.envi_export_insulationlist_lo = eprop(insullist, "",  "", insullist[0][0])
     Material.envi_export_wgaslist_lo = eprop(wgaslist, "",  "", wgaslist[0][0])
-    Material.envi_export_walllist_l1 = eprop(walllist, "",  "", walllist[0][0])    
-    Material.envi_export_floorlist_l1 = eprop(floorlist, "",  "", floorlist[0][0])  
-    Material.envi_export_rooflist_l1 = eprop(rooflist, "",  "", rooflist[0][0]) 
+    Material.envi_export_walllist_l1 = eprop(walllist, "",  "", walllist[0][0])
+    Material.envi_export_floorlist_l1 = eprop(floorlist, "",  "", floorlist[0][0])
+    Material.envi_export_rooflist_l1 = eprop(rooflist, "",  "", rooflist[0][0])
 #    Material.envi_export_glazelist_l1 = eprop(glazelist, "",  "")
-    Material.envi_export_bricklist_l1 = eprop(bricklist, "",  "", bricklist[0][0]) 
+    Material.envi_export_bricklist_l1 = eprop(bricklist, "",  "", bricklist[0][0])
     Material.envi_export_claddinglist_l1 = eprop(claddinglist, "", "", claddinglist[0][0])
-    Material.envi_export_stonelist_l1 = eprop(stonelist, "",  "", stonelist[0][0])  
-    Material.envi_export_woodlist_l1 = eprop(woodlist, "",  "", woodlist[0][0]) 
-    Material.envi_export_metallist_l1 = eprop(metallist, "",  "", metallist[0][0]) 
+    Material.envi_export_stonelist_l1 = eprop(stonelist, "",  "", stonelist[0][0])
+    Material.envi_export_woodlist_l1 = eprop(woodlist, "",  "", woodlist[0][0])
+    Material.envi_export_metallist_l1 = eprop(metallist, "",  "", metallist[0][0])
     Material.envi_export_gaslist_l1 = eprop(gaslist, "",  "", gaslist[0][0])
     Material.envi_export_glasslist_l1 = eprop(glasslist, "",  "", glasslist[0][0])
     Material.envi_export_concretelist_l1 = eprop(concretelist, "",  "", concretelist[0][0])
     Material.envi_export_insulationlist_l1 = eprop(insullist, "",  "", insullist[0][0])
     Material.envi_export_wgaslist_l1 = eprop(wgaslist, "",  "", wgaslist[0][0])
-    Material.envi_export_walllist_l2 = eprop(walllist, "",  "", walllist[0][0])    
-    Material.envi_export_floorlist_l2 = eprop(floorlist, "",  "", floorlist[0][0])  
-    Material.envi_export_rooflist_l2 = eprop(rooflist, "",  "", rooflist[0][0]) 
+    Material.envi_export_walllist_l2 = eprop(walllist, "",  "", walllist[0][0])
+    Material.envi_export_floorlist_l2 = eprop(floorlist, "",  "", floorlist[0][0])
+    Material.envi_export_rooflist_l2 = eprop(rooflist, "",  "", rooflist[0][0])
 #    Material.envi_export_glazelist_l2 = eprop(glazelist, "",  "")
-    Material.envi_export_bricklist_l2 = eprop(bricklist, "",  "", bricklist[0][0])    
+    Material.envi_export_bricklist_l2 = eprop(bricklist, "",  "", bricklist[0][0])
     Material.envi_export_claddinglist_l2 = eprop(claddinglist, "", "", claddinglist[0][0])
-    Material.envi_export_stonelist_l2 = eprop(stonelist, "",  "", stonelist[0][0])  
-    Material.envi_export_woodlist_l2 = eprop(woodlist, "",  "", woodlist[0][0]) 
-    Material.envi_export_metallist_l2 = eprop(metallist, "",  "", metallist[0][0]) 
+    Material.envi_export_stonelist_l2 = eprop(stonelist, "",  "", stonelist[0][0])
+    Material.envi_export_woodlist_l2 = eprop(woodlist, "",  "", woodlist[0][0])
+    Material.envi_export_metallist_l2 = eprop(metallist, "",  "", metallist[0][0])
     Material.envi_export_gaslist_l2 = eprop(gaslist, "",  "", gaslist[0][0])
     Material.envi_export_glasslist_l2 = eprop(glasslist, "",  "", glasslist[0][0])
     Material.envi_export_concretelist_l2 = eprop(concretelist, "",  "", concretelist[0][0])
     Material.envi_export_insulationlist_l2 = eprop(insullist, "",  "", insullist[0][0])
     Material.envi_export_wgaslist_l2 = eprop(wgaslist, "",  "", wgaslist[0][0])
-    Material.envi_export_walllist_l3 = eprop(walllist, "",  "", walllist[0][0])    
-    Material.envi_export_floorlist_l3 = eprop(floorlist, "",  "", floorlist[0][0])  
-    Material.envi_export_rooflist_l3 = eprop(rooflist, "",  "", rooflist[0][0]) 
+    Material.envi_export_walllist_l3 = eprop(walllist, "",  "", walllist[0][0])
+    Material.envi_export_floorlist_l3 = eprop(floorlist, "",  "", floorlist[0][0])
+    Material.envi_export_rooflist_l3 = eprop(rooflist, "",  "", rooflist[0][0])
 #    Material.envi_export_glazelist_l3 = eprop(glazelist, "",  "")
-    Material.envi_export_bricklist_l3 = eprop(bricklist, "",  "", bricklist[0][0])   
+    Material.envi_export_bricklist_l3 = eprop(bricklist, "",  "", bricklist[0][0])
     Material.envi_export_claddinglist_l3 = eprop(claddinglist, "", "", claddinglist[0][0])
-    Material.envi_export_stonelist_l3 = eprop(stonelist, "",  "", stonelist[0][0])  
-    Material.envi_export_woodlist_l3 = eprop(woodlist, "",  "", woodlist[0][0]) 
-    Material.envi_export_metallist_l3 = eprop(metallist, "",  "", metallist[0][0]) 
+    Material.envi_export_stonelist_l3 = eprop(stonelist, "",  "", stonelist[0][0])
+    Material.envi_export_woodlist_l3 = eprop(woodlist, "",  "", woodlist[0][0])
+    Material.envi_export_metallist_l3 = eprop(metallist, "",  "", metallist[0][0])
     Material.envi_export_gaslist_l3 = eprop(gaslist, "",  "", gaslist[0][0])
     Material.envi_export_glasslist_l3 = eprop(glasslist, "",  "", glasslist[0][0])
     Material.envi_export_concretelist_l3 = eprop(concretelist, "",  "", concretelist[0][0])
     Material.envi_export_insulationlist_l3 = eprop(insullist, "",  "", insullist[0][0])
     Material.envi_export_wgaslist_l3 = eprop(wgaslist, "",  "", wgaslist[0][0])
-    Material.envi_export_walllist_l4 = eprop(walllist, "",  "", walllist[0][0])    
-    Material.envi_export_floorlist_l4 = eprop(floorlist, "",  "", floorlist[0][0])  
-    Material.envi_export_rooflist_l4 = eprop(rooflist, "",  "", rooflist[0][0]) 
+    Material.envi_export_walllist_l4 = eprop(walllist, "",  "", walllist[0][0])
+    Material.envi_export_floorlist_l4 = eprop(floorlist, "",  "", floorlist[0][0])
+    Material.envi_export_rooflist_l4 = eprop(rooflist, "",  "", rooflist[0][0])
 #    Material.envi_export_glazelist_l4 = eprop(glazelist, "",  "")
-    Material.envi_export_bricklist_l4 = eprop(bricklist, "",  "", bricklist[0][0]) 
+    Material.envi_export_bricklist_l4 = eprop(bricklist, "",  "", bricklist[0][0])
     Material.envi_export_claddinglist_l4 = eprop(claddinglist, "", "", claddinglist[0][0])
-    Material.envi_export_stonelist_l4 = eprop(stonelist, "",  "", stonelist[0][0])  
-    Material.envi_export_woodlist_l4 = eprop(woodlist, "",  "", woodlist[0][0]) 
-    Material.envi_export_metallist_l4 = eprop(metallist, "",  "", metallist[0][0]) 
+    Material.envi_export_stonelist_l4 = eprop(stonelist, "",  "", stonelist[0][0])
+    Material.envi_export_woodlist_l4 = eprop(woodlist, "",  "", woodlist[0][0])
+    Material.envi_export_metallist_l4 = eprop(metallist, "",  "", metallist[0][0])
     Material.envi_export_gaslist_l4 = eprop(gaslist, "",  "", gaslist[0][0])
     Material.envi_export_glasslist_l4 = eprop(glasslist, "",  "", glasslist[0][0])
     Material.envi_export_concretelist_l4 = eprop(concretelist, "",  "", concretelist[0][0])
@@ -366,41 +348,41 @@ def register():
     Material.envi_export_l2_name = sprop("Layer name", "Layer name", 0, "")
     Material.envi_export_l3_name = sprop("Layer name", "Layer name", 0, "")
     Material.envi_export_l4_name = sprop("Layer name", "Layer name", 0, "")
-    Material.envi_export_lo_tc = fprop("Conductivity", "Thermal Conductivity", 0, 10, 0.5) 
-    Material.envi_export_l1_tc = fprop("Conductivity", "Thermal Conductivity", 0, 10, 0.5) 
-    Material.envi_export_l2_tc = fprop("Conductivity", "Thermal Conductivity", 0, 10, 0.5) 
-    Material.envi_export_l3_tc = fprop("Conductivity", "Thermal Conductivity", 0, 10, 0.5) 
-    Material.envi_export_l4_tc = fprop("Conductivity", "Thermal Conductivity", 0, 10, 0.5) 
-    Material.envi_export_lo_rough = eprop([("VeryRough", "VeryRough", "Roughness"), ("Rough", "Rough", "Roughness"), ("MediumRough", "MediumRough", "Roughness"), 
+    Material.envi_export_lo_tc = fprop("Conductivity", "Thermal Conductivity", 0, 10, 0.5)
+    Material.envi_export_l1_tc = fprop("Conductivity", "Thermal Conductivity", 0, 10, 0.5)
+    Material.envi_export_l2_tc = fprop("Conductivity", "Thermal Conductivity", 0, 10, 0.5)
+    Material.envi_export_l3_tc = fprop("Conductivity", "Thermal Conductivity", 0, 10, 0.5)
+    Material.envi_export_l4_tc = fprop("Conductivity", "Thermal Conductivity", 0, 10, 0.5)
+    Material.envi_export_lo_rough = eprop([("VeryRough", "VeryRough", "Roughness"), ("Rough", "Rough", "Roughness"), ("MediumRough", "MediumRough", "Roughness"),
                                                         ("MediumSmooth", "MediumSmooth", "Roughness"), ("Smooth", "Smooth", "Roughness"), ("VerySmooth", "VerySmooth", "Roughness")],
                                                         "Material surface roughness",
                                                         "specify the material rughness for convection calculations",
                                                         "Rough")
-    Material.envi_export_l1_rough = eprop([("VeryRough", "VeryRough", "Roughness"), ("Rough", "Rough", "Roughness"), ("MediumRough", "MediumRough", "Roughness"), 
+    Material.envi_export_l1_rough = eprop([("VeryRough", "VeryRough", "Roughness"), ("Rough", "Rough", "Roughness"), ("MediumRough", "MediumRough", "Roughness"),
                                                         ("MediumSmooth", "MediumSmooth", "Roughness"), ("Smooth", "Smooth", "Roughness"), ("VerySmooth", "VerySmooth", "Roughness")],
                                                         "Material surface roughness",
                                                         "specify the material rughness for convection calculations",
                                                         "Rough")
-    Material.envi_export_l2_rough = eprop([("VeryRough", "VeryRough", "Roughness"), ("Rough", "Rough", "Roughness"), ("MediumRough", "MediumRough", "Roughness"), 
+    Material.envi_export_l2_rough = eprop([("VeryRough", "VeryRough", "Roughness"), ("Rough", "Rough", "Roughness"), ("MediumRough", "MediumRough", "Roughness"),
                                                         ("MediumSmooth", "MediumSmooth", "Roughness"), ("Smooth", "Smooth", "Roughness"), ("VerySmooth", "VerySmooth", "Roughness")],
                                                         "Material surface roughness",
                                                         "specify the material rughness for convection calculations",
                                                         "Rough")
-    Material.envi_export_l3_rough = eprop([("VeryRough", "VeryRough", "Roughness"), ("Rough", "Rough", "Roughness"), ("MediumRough", "MediumRough", "Roughness"), 
+    Material.envi_export_l3_rough = eprop([("VeryRough", "VeryRough", "Roughness"), ("Rough", "Rough", "Roughness"), ("MediumRough", "MediumRough", "Roughness"),
                                                         ("MediumSmooth", "MediumSmooth", "Roughness"), ("Smooth", "Smooth", "Roughness"), ("VerySmooth", "VerySmooth", "Roughness")],
                                                         "Material surface roughness",
                                                         "specify the material rughness for convection calculations",
                                                         "Rough")
-    Material.envi_export_l4_rough = eprop([("VeryRough", "VeryRough", "Roughness"), ("Rough", "Rough", "Roughness"), ("MediumRough", "MediumRough", "Roughness"), 
+    Material.envi_export_l4_rough = eprop([("VeryRough", "VeryRough", "Roughness"), ("Rough", "Rough", "Roughness"), ("MediumRough", "MediumRough", "Roughness"),
                                                         ("MediumSmooth", "MediumSmooth", "Roughness"), ("Smooth", "Smooth", "Roughness"), ("VerySmooth", "VerySmooth", "Roughness")],
                                                         "Material surface roughness",
                                                         "specify the material rughness for convection calculations",
                                                         "Rough")
-    Material.envi_export_lo_rho = fprop("Density", "Density (kg/m3)", 0, 10000, 1000) 
-    Material.envi_export_l1_rho = fprop("Density", "Density (kg/m3)", 0, 10000, 1000) 
-    Material.envi_export_l2_rho = fprop("Density", "Density (kg/m3)", 0, 10000, 1000) 
-    Material.envi_export_l3_rho = fprop("Density", "Density (kg/m3)", 0, 10000, 1000) 
-    Material.envi_export_l4_rho = fprop("Density", "Density (kg/m3)", 0, 10000, 1000) 
+    Material.envi_export_lo_rho = fprop("Density", "Density (kg/m3)", 0, 10000, 1000)
+    Material.envi_export_l1_rho = fprop("Density", "Density (kg/m3)", 0, 10000, 1000)
+    Material.envi_export_l2_rho = fprop("Density", "Density (kg/m3)", 0, 10000, 1000)
+    Material.envi_export_l3_rho = fprop("Density", "Density (kg/m3)", 0, 10000, 1000)
+    Material.envi_export_l4_rho = fprop("Density", "Density (kg/m3)", 0, 10000, 1000)
     Material.envi_export_lo_shc = fprop("SHC", "Specific Heat Capacity (J/kgK)", 0, 10000, 1000)
     Material.envi_export_l1_shc = fprop("SHC", "Specific Heat Capacity (J/kgK)", 0, 10000, 1000)
     Material.envi_export_l2_shc = fprop("SHC", "Specific Heat Capacity (J/kgK)", 0, 10000, 1000)
@@ -482,25 +464,25 @@ def register():
     Material.envi_export_l3_bie = fprop("BIE", "Back Side Infrared Hemispherical Emissivity", 0, 1, 0.84)
     Material.envi_export_l4_bie = fprop("BIE", "Back Side Infrared Hemispherical Emissivity", 0, 1, 0.84)
     Material.envi_shad_att = bprop("Attached", "Flag to specify shading attached to the building",False)
-            
-    Scene.vipath = sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)        
+
+    Scene.vipath = sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
 
     Scene.li_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
 
     Scene.li_disp_3d = bprop("VI 3D display", "Boolean for 3D results display",  False)
-    
+
     Scene.li_disp_3dlevel = fprop("VI 3D display level:", "Level of 3D result plane extrusion", 0, 50, 0)
-    
+
     Scene.li_display = bprop("", "",False)
-    
+
     Scene.li_display_rp = bprop("", "", False)
 
     Scene.li_display_sel_only = bprop("", "", False)
 
     Scene.li_display_rp_fs = iprop("", "Point result font size", 4, 48, 9)
-    
+
     Scene.resnode = sprop("", "", 0, "")
-    
+
     bpy.utils.register_class(vi_operators.NODE_OT_EpwSelect)
     bpy.utils.register_class(vi_operators.NODE_OT_HdrSelect)
     bpy.utils.register_class(vi_operators.NODE_OT_SkySelect)
@@ -609,3 +591,4 @@ def unregister():
     bpy.utils.unregister_class(vi_node.ViEnRFNode)
     nodeitems_utils.unregister_node_categories("Vi Nodes", vi_node.vinode_categories)
     nodeitems_utils.unregister_node_categories("EnVi Nodes", vi_node.envinode_categories)
+

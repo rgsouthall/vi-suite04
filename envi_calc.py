@@ -10,6 +10,7 @@ from . import vi_node
 
 def envi_sim(calc_op, node):
     node.resfilename = node.newdir+node.fold+node.resname+'.eso'
+    os.chdir(node.newdir)
     esimcmd = "EnergyPlus in.idf in.epw" 
     esimrun = Popen(esimcmd, shell = True, stdout = PIPE)
     for line in esimrun.stdout:

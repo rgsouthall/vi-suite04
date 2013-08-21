@@ -205,16 +205,16 @@ def nfvprop(fvname, fvattr, fvdef, fvsub):
     
 def boundpoly(obj, mat, poly):
     if mat.envi_boundary:
-        node = bpy.data.node_groups['EnVi Network'].nodes[obj.name]
+        node = [node for node in bpy.data.node_groups['EnVi Network'].nodes if node.zone == obj.name][0]
         if node.inputs[mat.name].is_linked == True:
-            for bpoly in bpy.data.objects[node.inputs[mat.name].links[0].from_node.name].data.polygons:
-                if bpy.data.objects[node.inputs[mat.name].links[0].from_node.name].data.materials[bpoly.material_index] == mat and bpoly.center[:] == poly.center[:] and bpoly.area == poly.area:
-                    return(("Surface", node.inputs[mat.name].links[0].from_node.name+str(bpoly.index), "NoSun", "NoWind"))
+            for bpoly in bpy.data.objects[node.inputs[mat.name].links[0].from_node.zone].data.polygons:
+                if bpy.data.objects[node.inputs[mat.name].links[0].from_node.zone].data.materials[bpoly.material_index] == mat and bpoly.center[:] == poly.center[:] and bpoly.area == poly.area:
+                    return(("Surface", node.inputs[mat.name].links[0].from_node.zone+str(bpoly.index), "NoSun", "NoWind"))
 
         elif node.outputs[mat.name].is_linked == True:
-            for bpoly in bpy.data.objects[node.outputs[mat.name].links[0].to_node.name].data.polygons:
-                if bpy.data.objects[node.outputs[mat.name].links[0].to_node.name].data.materials[bpoly.material_index] == mat and bpoly.center[:] == poly.center[:] and bpoly.area == poly.area:
-                    return(("Surface", node.outputs[mat.name].links[0].to_node.name+str(bpoly.index), "NoSun", "NoWind"))
+            for bpoly in bpy.data.objects[node.outputs[mat.name].links[0].to_node.zone].data.polygons:
+                if bpy.data.objects[node.outputs[mat.name].links[0].to_node.zone].data.materials[bpoly.material_index] == mat and bpoly.center[:] == poly.center[:] and bpoly.area == poly.area:
+                    return(("Surface", node.outputs[mat.name].links[0].to_node.zone+str(bpoly.index), "NoSun", "NoWind"))
         else:
             return(("Outdoors", "", "SunExposed", "WindExposed"))
     else:

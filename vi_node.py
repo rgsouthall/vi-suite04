@@ -990,8 +990,6 @@ class EnViZone(bpy.types.Node, EnViNodes):
     bl_label = 'Zone'
     bl_icon = 'SOUND'
     
-    
-    
     def zupdate(self, context):
         obj = bpy.data.objects[self.zone]
         for face in obj.data.polygons:
@@ -1009,8 +1007,9 @@ class EnViZone(bpy.types.Node, EnViNodes):
     vsched = bpy.props.StringProperty(name = "")
     zonevolume = bpy.props.FloatProperty(default=45, name = "")
     
-    def init(self, context):
-        print('hi', self.zone)
+#    @classmethod
+#    def init(self, context):
+#        print('hi', self.zone)
 #        obj = bpy.data.objects['en_Cube']
 #        for face in obj.data.polygons:
 #            if bpy.data.objects['en_Cube'].data.materials[face.material_index].envi_con_type == 'Aperture':

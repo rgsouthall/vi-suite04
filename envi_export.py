@@ -267,7 +267,9 @@ Construction,\n\
         obj["floorarea"] = 0
         for poly in obj.data.polygons:
             mat = obj.data.materials[poly.material_index]
+            print('hi again', vi_func.boundpoly(obj, mat, poly))
             (obc, obco, se, we) = vi_func.boundpoly(obj, mat, poly)
+            
             if mat.envi_con_type in ('Wall', "Floor", "Roof") and mat.envi_con_makeup != "2":
 
                 en_idf.write('\nBuildingSurface:Detailed,\n' +

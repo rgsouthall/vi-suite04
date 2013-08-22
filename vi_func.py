@@ -1,4 +1,4 @@
-import bpy, os, sys, multiprocessing
+import bpy, os, sys, multiprocessing, mathutils
 from math import sin, cos, asin, acos, pi
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
 
@@ -205,16 +205,24 @@ def nfvprop(fvname, fvattr, fvdef, fvsub):
 
 def boundpoly(obj, mat, poly):
     if mat.envi_boundary:
-        node = [node for node in bpy.data.node_groups['EnVi Network'].nodes if node.zone == obj.name][0]
-        if node.inputs[mat.name].is_linked == True:
-            for bpoly in bpy.data.objects[node.inputs[mat.name].links[0].from_node.zone].data.polygons:
-                if bpy.data.objects[node.inputs[mat.name].links[0].from_node.zone].data.materials[bpoly.material_index] == mat and bpoly.center[:] == poly.center[:] and bpoly.area == poly.area:
-                    return(("Surface", node.inputs[mat.name].links[0].from_node.zone+str(bpoly.index), "NoSun", "NoWind"))
-
-        elif node.outputs[mat.name].is_linked == True:
-            for bpoly in bpy.data.objects[node.outputs[mat.name].links[0].to_node.zone].data.polygons:
-                if bpy.data.objects[node.outputs[mat.name].links[0].to_node.zone].data.materials[bpoly.material_index] == mat and bpoly.center[:] == poly.center[:] and bpoly.area == poly.area:
-                    return(("Surface", node.outputs[mat.name].links[0].to_node.zone+str(bpoly.index), "NoSun", "NoWind"))
+        polyloc = obj.matrix_world*mathutils.Vector(poly.center)
+        if len([node for node in bpy.data.node_groups['EnVi Network'].nodes if node.zone == obj.name]) != 0:
+            node = [node for node in bpy.data.node_groups['EnVi Network'].nodes if node.zone == obj.name][0]
+            if node.inputs[mat.name].is_linked == True:
+                bobj = bpy.data.objects[node.inputs[mat.name].links[0].from_node.zone]
+                for bpoly in bobj.data.polygons:
+                    bpolyloc = bobj.matrix_world*mathutils.Vector(bpoly.center)
+                    if bobj.data.materials[bpoly.material_index] == mat and max(bpolyloc - polyloc) < 0.001 and abs(bpoly.area - poly.area) < 0.01:
+                        return(("Surface", node.inputs[mat.name].links[0].from_node.zone+str(bpoly.index), "NoSun", "NoWind"))
+    
+            elif node.outputs[mat.name].is_linked == True:
+                bobj = bpy.data.objects[node.outputs[mat.name].links[0].to_node.zone]
+                for bpoly in bobj.data.polygons:
+                    bpolyloc = bobj.matrix_world*mathutils.Vector(bpoly.center)
+                    if bobj.data.materials[bpoly.material_index] == mat and max(bpolyloc - polyloc) < 0.001 and abs(bpoly.area - poly.area) < 0.01:
+                        return(("Surface", node.outputs[mat.name].links[0].to_node.zone+str(bpoly.index), "NoSun", "NoWind"))
+            else:
+                return(("Outdoors", "", "SunExposed", "WindExposed"))
         else:
             return(("Outdoors", "", "SunExposed", "WindExposed"))
     else:

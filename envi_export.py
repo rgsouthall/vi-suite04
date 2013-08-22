@@ -504,7 +504,8 @@ Construction,\n\
     FOR: AllDays,\n\
     UNTIL: 24:00,1;\n\n")
 
-
+    writeafn(en_idf)
+    
     en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: REPORT VARIABLE ===========\n\n")
 
     if node.resat == True:
@@ -896,56 +897,61 @@ class infiltration(object):
 #    if nt.nodes:
 #        pass
 
-def writeafn():
-    nt = bpy.data.node_groups['EnVi Network']
-    if nt.nodes:
-        en_idf.write('''AirflowNetwork:SimulationControl,
-    AirflowNetwork_All,      !- Name
-    MultizoneWithDistributionOnlyDuringFanOperation,  !- AirflowNetwork Control
-    SurfaceAverageCalculation,  !- Wind Pressure Coefficient Type
-    ,                        !- AirflowNetwork Wind Pressure Coefficient Array Name
-    ,                        !- Height Selection for Local Wind Pressure Calculation
-    LowRise,                 !- Building Type
-    500,                     !- Maximum Number of Iterations {dimensionless}
-    ZeroNodePressures,       !- Initialization Type
-    1.0E-4,                  !- Relative Airflow Convergence Tolerance {dimensionless}
-    1.0E-6,                  !- Absolute Airflow Convergence Tolerance {kg/s}
-    -0.5,                    !- Convergence Acceleration Limit {dimensionless}
-    0.0,                     !- Azimuth Angle of Long Axis of Building {deg}
-    1.0;                     !- Ratio of Building Width Along Short Axis to Width Along Long Axis\n\n''')
+def writeafn(en_idf):
+    for node in bpy.data.node_groups['EnVi Network'].nodes:
+        if node.bl_idname == 'AFNCon':
+            cnode = bpy.data.node_groups['EnVi Network'].nodes[('Control')]
+            inp = 1 if cnode.wpctype == 'Input' else 0
+            en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: AIRFLOW NETWORK ===========\n\n\
+AirflowNetwork:SimulationControl,\n\
+    {:{width}}!- Name\n\
+    {:{width}}!- AirflowNetwork Control\n\
+    {:{width}}!- Wind Pressure Coefficient Type\n\
+    {:{width}}!- AirflowNetwork Wind Pressure Coefficient Array Name\n\
+    {:{width}}!- Height Selection for Local Wind Pressure Calculation\n\
+    {:{width}}!- Building Type\n\
+    {:{width}}!- Maximum Number of Iterations (dimensionless)\n\
+    {:{width}}!- Initialization Type\n\
+    {:{width}}!- Relative Airflow Convergence Tolerance (dimensionless)\n\
+    {:{width}}!- Absolute Airflow Convergence Tolerance (kg/s)\n\
+    {:{width}}!- Convergence Acceleration Limit (dimensionless)\n\
+    {:{width}}!- Azimuth Angle of Long Axis of Building (deg)\n\
+    {:{width}}!- Ratio of Building Width Along Short Axis to Width Along Long Axis\n\n".format(cnode.afnname+',', cnode.afntype+',',
+    cnode.wpctype+',', (",", cnode.wpcaname+',')[inp], (",", cnode.wpchs+',')[inp], (cnode.buildtype+',', ",")[inp], str(cnode.maxiter)+',', str(cnode.initmet)+',',
+    str(cnode.rcontol)+',', str(cnode.acontol)+',', str(cnode.conal)+',', (str(cnode.aalax)+',', ",")[inp], (str(cnode.rsala)+';', ";")[inp], width = s))
 
-    for node in nt.nodes:
-        if node.typename == 'EnViZone':
-            en_idf.write('AirflowNetwork:MultiZone:Zone,\n'+
-    node.name+',               !- Zone Name\n'+
-    node.controltype+''',                  !- Ventilation Control Mode
-    ,                        !- Ventilation Control Zone Temperature Setpoint Schedule Name
-    1.0,                     !- Minimum Venting Open Factor {dimensionless}
-    0.0,                     !- Indoor and Outdoor Temperature Difference Lower Limit For Maximum Venting Open Factor {deltaC}
-    100.0,                   !- Indoor and Outdoor Temperature Difference Upper Limit for Minimun Venting Open Factor {deltaC}
-    0.0,                     !- Indoor and Outdoor Enthalpy Difference Lower Limit For Maximum Venting Open Factor {deltaJ/kg}
-    300000.0;                !- Indoor and Outdoor Enthalpy Difference Upper Limit for Minimun Venting Open Factor {deltaJ/kg}''')
+    
+        if node.bl_idname == 'EnViZone':
+            en_idf.write('AirflowNetwork:MultiZone:Zone,\n\
+    {:{width}}!- Zone Name\n\
+    {:{width}}!- Ventilation Control Mode\n\
+    ,                        !- Ventilation Control Zone Temperature Setpoint Schedule Name\n\
+    1.0,                     !- Minimum Venting Open Factor (dimensionless)\n\
+    0.0,                     !- Indoor and Outdoor Temperature Difference Lower Limit For Maximum Venting Open Factor (deltaC)\n\
+    100.0,                   !- Indoor and Outdoor Temperature Difference Upper Limit for Minimun Venting Open Factor (deltaC)\n\
+    0.0,                     !- Indoor and Outdoor Enthalpy Difference Lower Limit For Maximum Venting Open Factor (deltaJ/kg)\n\
+    300000.0;                !- Indoor and Outdoor Enthalpy Difference Upper Limit for Minimun Venting Open Factor (deltaJ/kg)\n\n'.format(node.zone+',', node.control+',', width = s))
 
-        for ins in node.inputs:
-            if ins.is_linked:
-                if ins.bl_idname == 'EnViSAirSocket':
-                    en_idf.write('''AirflowNetwork:MultiZone:Surface,
-                            ins.name, !- Name of Associated Heat Transfer Surface
-                            CR-1, !- Leakage Component Name
-                            SFacade, !- External Node Name
-                            1.0; !- Window/Door Opening Factor, or Crack Factor {dimensionless}''')
-
-                    slnode = ins.links[0].from_node
-                    if slnode.linktypeprop in ("Crack", "ELA"):
-
-                        en_idf.write("  AirflowNetwork:MultiZone:Surface,\n")
-
-                    if lnode.name == 'EnVi Surface Link':
-                        en_idf.write('''  AirflowNetwork:MultiZone:Surface,
-    Zn001:Wall003,           !- Surface Name
-    InterZoneLeak,           !- Leakage Component Name
-    ,                        !- External Node Name
-    1.0;                     !- Window/Door Opening Factor, or Crack Factor {dimensionless}''')
+#        for ins in node.inputs:
+#            if ins.is_linked:
+#                if ins.bl_idname == 'EnViSAirSocket':
+#                    en_idf.write('''AirflowNetwork:MultiZone:Surface,
+#                            ins.name, !- Name of Associated Heat Transfer Surface
+#                            CR-1, !- Leakage Component Name
+#                            SFacade, !- External Node Name
+#                            1.0; !- Window/Door Opening Factor, or Crack Factor {dimensionless}''')
+#
+#                    slnode = ins.links[0].from_node
+#                    if slnode.linktypeprop in ("Crack", "ELA"):
+#
+#                        en_idf.write("  AirflowNetwork:MultiZone:Surface,\n")
+#
+#                    if lnode.name == 'EnVi Surface Link':
+#                        en_idf.write('''  AirflowNetwork:MultiZone:Surface,
+#    Zn001:Wall003,           !- Surface Name
+#    InterZoneLeak,           !- Leakage Component Name
+#    ,                        !- External Node Name
+#    1.0;                     !- Window/Door Opening Factor, or Crack Factor {dimensionless}''')
 
 
 

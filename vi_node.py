@@ -984,6 +984,69 @@ class EnViCAirSocket(bpy.types.NodeSocket):
     def draw_color(self, context, node):
         return (1.0, 0.2, 0.2, 0.75)
 
+class AFNCon(bpy.types.Node, EnViNodes):
+    '''Node defining the overall airflow network simulation'''
+    bl_idname = 'AFNCon'
+    bl_label = 'Control'
+    bl_icon = 'SOUND'
+
+    afnname = bpy.props.StringProperty()
+    afntype = bpy.props.EnumProperty(items = [('MultizoneWithDistribution', 'MultizoneWithDistribution', 'Include a forced airflow system in the model'), 
+                                              ('MultizoneWithoutDistribution', 'MultizoneWithoutDistribution', 'Exclude a forced airflow system in the model'),
+                                              ('MultizoneWithDistributionOnlyDuringFanOperation', 'MultizoneWithDistributionOnlyDuringFanOperation', 'Apply forced air system only when in operation'),
+                                              ('NoMultizoneOrDistribution', 'NoMultizoneOrDistribution', 'Only zone infiltration controls are modelled')], name = "", default = 'MultizoneWithoutDistribution')
+                                              
+    wpctype = bpy.props.EnumProperty(items = [('SurfaceAverageCalculation', 'SurfaceAverageCalculation', 'Calculate wind pressure coefficients based on oblong building assumption'), 
+                                              ('Input', 'Input', 'Input wind pressure coefficients from an external source')], name = "", default = 'SurfaceAverageCalculation')
+    wpcaname = bpy.props.StringProperty()
+    wpchs = bpy.props.EnumProperty(items = [('OpeningHeight', 'OpeningHeight', 'Calculate wind pressure coefficients based on opening height'), 
+                                              ('ExternalNode', 'ExternalNode', 'Calculate wind pressure coefficients based on external node height')], name = "", default = 'OpeningHeight')
+    buildtype = bpy.props.EnumProperty(items = [('LowRise', 'Low Rise', 'Height is less than 3x the longest wall'), 
+                                              ('HighRise', 'High Rise', 'Height is more than 3x the longest wall')], name = "", default = 'LowRise')
+                                              
+    maxiter = bpy.props.IntProperty(default = 500, description = 'Maximum Number of Iterations')
+
+    initmet = bpy.props.EnumProperty(items = [('ZeroNodePressures', 'ZeroNodePressures', 'Initilisation type'), 
+                                              ('LinearInitializationMethod', 'LinearInitializationMethod', 'Initilisation type')], name = "", default = 'ZeroNodePressures')
+
+    rcontol = bpy.props.FloatProperty(default = 0.0001, description = 'Relative Airflow Convergence Tolerance')       
+
+    acontol = bpy.props.FloatProperty(default = 0.000001, description = 'Absolute Airflow Convergence Tolerance')      
+
+    conal = bpy.props.FloatProperty(default = -0.1, max = 1, min = -1, description = 'Convergence Acceleration Limit') 
+    aalax = bpy.props.IntProperty(default = 0, max = 180, min = 0, description = 'Azimuth Angle of Long Axis of Building')   
+    rsala = bpy.props.FloatProperty(default = 1, max = 1, min = 0, description = 'Ratio of Building Width Along Short Axis to Width Along Long Axis')                   
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, 'afnname')
+        row = layout.row()
+        row.prop(self, 'afntype')
+        row = layout.row()
+        row.prop(self, 'wpctype')
+        if self.wpctype == '1':
+            row = layout.row()
+            row.prop(self, 'wpcaname')
+            row = layout.row()
+            row.prop(self, 'wpchs')
+        elif self.wpctype == 'Input':
+            row = layout.row()
+            row.prop(self, 'buildtype')
+        row = layout.row()
+        row.prop(self, 'maxiter')
+        row = layout.row()
+        row.prop(self, 'initmet')
+        row = layout.row()
+        row.prop(self, 'rcontol')
+        row = layout.row()
+        row.prop(self, 'acontol')
+        row = layout.row()
+        row.prop(self, 'conal')
+        if self.wpctype == 'SurfaceAverageCalculation':
+            row = layout.row()
+            row.prop(self, 'aalax')
+            row = layout.row()
+            row.prop(self, 'rsala')
+        
 class EnViZone(bpy.types.Node, EnViNodes):
     '''Node describing a simulation zone'''
     bl_idname = 'EnViZone'
@@ -1255,6 +1318,7 @@ class EnViNodeCategory(NodeCategory):
 
 envinode_categories = [
         # identifier, label, items list
+        EnViNodeCategory("Control", "Control Node", items=[NodeItem("AFNCon", label="Control Node")]),
         EnViNodeCategory("ZoneNodes", "Zone Nodes", items=[NodeItem("EnViZone", label="Zone Node")]),
         EnViNodeCategory("SLinkNodes", "Surface Link Nodes", items=[
             NodeItem("EnViSLink", label="Surface Link Node")]),

@@ -158,6 +158,8 @@ class envi_constructions(object):
         self.floor_con = OrderedDict(sorted(self.floor_cond.items()))
         self.roof_cond = {'Roof 1': ('Clay tile', 'Roofing felt', 'Plywood')}
         self.roof_con = OrderedDict(sorted(self.roof_cond.items()))
+        self.door_cond = {'Internal Door 1': ('Chipboard')}
+        self.door_con = OrderedDict(sorted(self.door_cond.items()))
         self.glaze_cond = {'Standard Double Glazing': ('Clear 3mm', 'Air', 'Clear 3mm'), 'Low-E Double Glazing': ('Clear 3mm', 'Air', 'Clear 3mm LoE')}
         self.glaze_con = OrderedDict(sorted(self.glaze_cond.items()))
         self.p = 0

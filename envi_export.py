@@ -19,23 +19,24 @@ def enpolymatexport(exp_op, node, em, ec):
     en_idf.write("!- Blender -> EnergyPlus\n\
 !- Using the EnVi export scripts\n\
 !- Author: Ryan Southall\n\
-!- Date: "+datetime.datetime.now().strftime("%Y-%m-%d %H:%M")+"\n\n\
-    {0:{width}}!- EnergyPlus Version Identifier\n\n".format("VERSION,8.0.0;", width = s) + "\
+!- Date: {1}\n\n\
+{2:{width}}!- EnergyPlus Version Identifier\n\n\
 Building,\n\
-    {0:{width}}!- Name\n".format("    "+node.loc+",", width = s) + "\
-    {0:{width}}!- North Axis (deg)\n".format("    0.000,", width = s) + "\
-    {0:{width}}!- Terrain\n".format("    " + ("City", "Urban", "Suburbs", "Country", "Ocean")[int(node.terrain)] + ",", width = s) + "\
-    {0:{width}}!- Loads Convergence Tolerance Value\n".format("    0.04,", width = s) + "\
-    {0:{width}}!- Temperature Convergence Tolerance Value (deltaC)\n".format("    0.4,", width = s) + "\
-    {0:{width}}!- Solar Distribution\n".format("    FullExteriorWithReflections,", width = s) + "\
-    {0:{width}}!- Maximum Number of Warmup Days (from MLC TCM)\n\n".format("    15;", width = s) + "\
-    {0:{width}}!- Time Step in Hours \n\n".format("Timestep, {0};".format(node.timesteps), width = s) + "\
-    {0:{width}}!- Algorithm \n\n".format("SurfaceConvectionAlgorithm:Inside, TARP;", width = s) + "\
-    {0:{width}}!- Algorithm \n\n".format("SurfaceConvectionAlgorithm:Outside, TARP;", width = s) + "\
-HeatBalanceAlgorithm, ConductionTransferFunction; \n\n\
-    {0:{width}}!- (default frequency of calculation)\n\n".format("ShadowCalculation, AverageOverDaysInFrequency, 10;", width = s) + "\
-    {0:{width}}!- no zone sizing or system sizing or plant sizing\n".format("SimulationControl, No,No,No,", width = s) + "\
-    {0:{width}}!- no design day - use weather file\n\n".format(" No,Yes;", width = s))
+{3:{width}}!- Name\n\
+{4:{width}}!- North Axis (deg)\n\
+{5:{width}}!- Terrain\n\
+{6:{width}}!- Loads Convergence Tolerance Value\n\
+{7:{width}}!- Temperature Convergence Tolerance Value (deltaC)\n\
+{8:{width}}!- Solar Distribution\n\
+{9:{width}}!- Maximum Number of Warmup Days (from MLC TCM)\n\n\
+{10:{width}}!- Time Step in Hours \n\
+SurfaceConvectionAlgorithm:Inside, TARP;                              !- Algorithm \n\
+SurfaceConvectionAlgorithm:Outside, TARP;                             !- Algorithm \n\
+HeatBalanceAlgorithm, ConductionTransferFunction; \n\
+ShadowCalculation, AverageOverDaysInFrequency, 10;                    !- (default frequency of calculation)\n\
+SimulationControl, No,No,No,No,Yes;                                   !- no zone sizing, system sizing, plant sizing, no design day, use weather file\n\n".format(',', 
+datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), "VERSION,8.0.0;", "    "+node.loc+",", "    0.000,", ("    City,", "    Urban,", "    Suburbs,", "    Country,", "    Ocean,")[int(node.terrain)], 
+'    0.004,', '    0.4,', '    FullExteriorWithReflections,', '    15;', 'Timestep,  '+str(node.timesteps)+';', width = s))
 
     en_idf.write("RunPeriod,\n\
     {0:{width}}!- Name\n\
@@ -617,7 +618,7 @@ def pregeo():
         bpy.ops.object.mode_set(mode = 'OBJECT')
         en_obj.select = False
 
-        if en_obj.name not in [node.zone for node in bpy.data.node_groups['EnVi Network'].nodes]:
+        if en_obj.name not in [node.zone for node in bpy.data.node_groups['EnVi Network'].nodes if hasattr(node, 'zone')]:
             bpy.data.node_groups['EnVi Network'].nodes.new(type = 'EnViZone').zone = en_obj.name
 
 
@@ -898,6 +899,7 @@ class infiltration(object):
 #        pass
 
 def writeafn(en_idf):
+    sf = 0
     for node in bpy.data.node_groups['EnVi Network'].nodes:
         if node.bl_idname == 'AFNCon':
             cnode = bpy.data.node_groups['EnVi Network'].nodes[('Control')]
@@ -925,13 +927,60 @@ AirflowNetwork:SimulationControl,\n\
             en_idf.write('AirflowNetwork:MultiZone:Zone,\n\
     {:{width}}!- Zone Name\n\
     {:{width}}!- Ventilation Control Mode\n\
-    ,                        !- Ventilation Control Zone Temperature Setpoint Schedule Name\n\
-    1.0,                     !- Minimum Venting Open Factor (dimensionless)\n\
-    0.0,                     !- Indoor and Outdoor Temperature Difference Lower Limit For Maximum Venting Open Factor (deltaC)\n\
-    100.0,                   !- Indoor and Outdoor Temperature Difference Upper Limit for Minimun Venting Open Factor (deltaC)\n\
-    0.0,                     !- Indoor and Outdoor Enthalpy Difference Lower Limit For Maximum Venting Open Factor (deltaJ/kg)\n\
-    300000.0;                !- Indoor and Outdoor Enthalpy Difference Upper Limit for Minimun Venting Open Factor (deltaJ/kg)\n\n'.format(node.zone+',', node.control+',', width = s))
-
+    {:{width}}!- Ventilation Control Zone Temperature Setpoint Schedule Name\n\
+    {:{width}}!- Minimum Venting Open Factor (dimensionless)\n\
+    {:{width}}!- Lower value for modulating venting open factor (deltaC)\n\
+    {:{width}}!- Upper value for modulating venting open factor (deltaC)\n\
+    {:{width}}!- Indoor and Outdoor Enthalpy Difference Lower Limit For Maximum Venting Open Factor (deltaJ/kg)\n\
+    {:{width}}!- Indoor and Outdoor Enthalpy Difference Upper Limit for Minimun Venting Open Factor (deltaJ/kg)\n\
+    {:{width}}!- Venting Availability Schedule Name\n\n'.format(node.zone + ',', node.control + ',', ',', str(node.limitval) + ',', 
+    str(node.lowerlim) + ',', str(node.upperlim) + ',', str(0.0) + ',', str(300000.0) + ',', node.vsched+';', width = s))
+    
+        if node.bl_idname == 'EnViSLink':
+            en_idf.write('AirflowNetwork:MultiZone:Surface,\n\
+            {:{width}}! - Surface Name\n\
+            {:{width}}!- Leakage Component Name\n\
+            {:{width}}! - External Node Name\n\
+            {:{width}}!- Window/Door Opening Factor\n\n'.format(node.inputs['Node 1'].links[0].from_socket.identifier+',', 
+            'SurfaceFlow_'+str(sf)+',', ',', str(node.wdof)+';', width = s))
+            
+            if node.linkmenu == 'DO':
+                en_idf.write('AirflowNetwork:Multizone:Component:DetailedOpening,\n\
+    {:{width}}! - Name\n\
+    {:{width}}!- Air Mass Flow Coefficient When Opening is Closed (kg/s-m)\n\
+    {:{width}}!- Air Mass Flow Exponent When Opening is Closed (dimensionless)\n\
+    {:{width}}!- Type of Rectanguler Large Vertical Opening (LVO)\n\
+    {:{width}}!- Extra Crack Length or Height of Pivoting Axis (m)\n\
+    {:{width}}!- Number of Sets of Opening Factor Data\n\
+    0.0,                                                               !- Opening Factor 1 (dimensionless)\n\
+    {:{width}}!- Discharge Coefficient for Opening Factor 1 (dimensionless)\n\
+    {:{width}}!- Width Factor for Opening Factor 1 (dimensionless)\n\
+    {:{width}}!- Height Factor for Opening Factor 1 (dimensionless)\n\
+    {:{width}}!- Start Height Factor for Opening Factor 1 (dimensionless)\n\
+    {:{width}}!- Opening Factor 2 (dimensionless)\n\
+    {:{width}}!- Discharge Coefficient for Opening Factor 2 (dimensionless)\n\
+    {:{width}}!- Width Factor for Opening Factor 2 (dimensionless)\n\
+    {:{width}}!- Height Factor for Opening Factor 2 (dimensionless)\n\
+    {:{width}}!- Start Height Factor for Opening Factor 2 (dimensionless)\n'.format('SurfaceFlow_'+str(sf)+',', str(node.amfcc)+',', 
+    str(node.amfec)+',', node.lvo+',', ('Extra,', str(node.ecl)+',')[node.lvo == 'NonPivoted'], str(node.noof)+',', str(node.dcof1) + ',',
+    str(node.wfof1)+',', str(node.hfof1)+ ',', str(node.sfof1) + ',', str(node.of2) + ',', str(node.dcof2)+',',str(node.wfof2)+',', 
+    str(node.hfof2)+ ',', str(node.sfof2) + (',', ';')[node.noof == 2], width = s))
+    
+            if node.noof > 2:
+                en_idf.write('    {:{width}}!- Opening Factor 3 (dimensionless)\n\
+            {:{width}}!- Discharge Coefficient for Opening Factor 3 (dimensionless)\n\
+            {:{width}}!- Width Factor for Opening Factor 3 (dimensionless)\n\
+            {:{width}}!- Height Factor for Opening Factor 3 (dimensionless)\n\
+            {:{width}}!- Start Height Factor for Opening Factor 3 (dimensionless)'.format(str(node.of3) + ',', str(node.dcof3)+',',str(node.wfof3)+',', str(node.hfof3)+ ',', str(node.sfof3) + (',', ';')[node.noof == 3],  width = s))
+                if node.noof > 3:
+                    en_idf.write('    {:{width}}!- Opening Factor 4 (dimensionless)\n\
+    {:{width}}!- Discharge Coefficient for Opening Factor 4 (dimensionless)\n\
+    {:{width}}!- Width Factor for Opening Factor 4 (dimensionless)\n\
+    {:{width}}!- Height Factor for Opening Factor 4 (dimensionless)\n\
+    {:{width}}!- Start Height Factor for Opening Factor 4 (dimensionless)\n\n'.format(str(node.of4) + ',', str(node.dcof4)+',',str(node.wfof4)+',', str(node.hfof4)+ ',', str(node.sfof4) + ';',  width = s))
+    sf += 1
+    
+    
 #        for ins in node.inputs:
 #            if ins.is_linked:
 #                if ins.bl_idname == 'EnViSAirSocket':

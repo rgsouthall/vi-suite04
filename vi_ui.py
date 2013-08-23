@@ -357,6 +357,8 @@ class EnMatPanel(bpy.types.Panel):
             row = layout.row()
             row.prop(material, "envi_boundary")
             row = layout.row()
+            row.prop(material, "afsurface")
+            row = layout.row()
             row.label("Construction Make-up:")
             row.prop(material, "envi_con_makeup")
 

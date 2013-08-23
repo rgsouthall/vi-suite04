@@ -95,10 +95,12 @@ def confunc(i):
     elif i == 2:
         return [((roofcon, roofcon, 'Contruction type')) for roofcon in list(envi_cons.roof_con.keys())]
     elif i == 3:
+        return [((doorcon, doorcon, 'Contruction type')) for doorcon in list(envi_cons.door_con.keys())]
+    elif i == 4:
         return [((windowcon, windowcon, 'Contruction type')) for windowcon in list(envi_cons.glaze_con.keys())]
 
 (walllist,floorlist,rooflist, glazelist, bricklist, stonelist, metallist, woodlist, gaslist, glasslist, concretelist, insullist, wgaslist, claddinglist) = [matfunc(i) for i in range(14)]
-(wallconlist, floorconlist, roofconlist, glazeconlist) = [confunc(i) for i in range(4)]
+(wallconlist, floorconlist, roofconlist, doorconlist, glazeconlist) = [confunc(i) for i in range(5)]
 
 def register():
 #    bpy.utils.register_module(__name__)
@@ -250,9 +252,10 @@ def register():
 
 # EnVi material definitions
 
-    Material.envi_con_type = eprop([("Wall", "Wall", "Wall construction"),("Floor", "Floor", "Floor construction"),("Roof", "Roof", "Roof construction"),("Window", "Window", "Window construction"),
+    Material.envi_con_type = eprop([("Wall", "Wall", "Wall construction"),("Floor", "Floor", "Floor construction"),("Roof", "Roof", "Roof construction"),("Window", "Window", "Window construction"), ("Door", "Door", "Door construction"),
                     ("Shading", "Shading", "Shading material"),("Aperture", "Aperture", "Airflow Aperture"),("None", "None", "Surface to be ignored")], "", "Specify the construction type", "None")
     Material.envi_boundary = bprop("On zone boundary", "Flag to siginify whether the material represents a zone boundary", False)
+    Material.afsurface = bprop("Airflow surface", "Flag to siginify whether the material represents an airflow surface", False)
     Material.envi_aperture = eprop([("0", "External", "External facade airflow component", 0), ("1", "Internal", "Zone boundary airflow component", 1),], "", "Position of the airflow component", "0")
     Material.envi_con_makeup = eprop([("0", "Pre-set", "Construction pre-set"),("1", "Layers", "Custom layers"),("2", "Dummy", "Adiabatic")], "", "Pre-set construction of custom layers", "0")
     Material.envi_layero = eprop([("0", "None", "Not present"), ("1", "Database", "Select from databse"), ("2", "Custom", "Define custom material properties")], "", "Composition of the outer layer", "0")
@@ -272,6 +275,7 @@ def register():
     Material.envi_export_wallconlist = eprop(wallconlist, "Wall Constructions", "", wallconlist[0][0])
     Material.envi_export_floorconlist = eprop(floorconlist, "Floor Constructions",  "", floorconlist[0][0])
     Material.envi_export_roofconlist = eprop(roofconlist, "Roof Constructions",  "", roofconlist[0][0])
+    Material.envi_export_doorconlist = eprop(doorconlist, "Door Constructions",  "", doorconlist[0][0])
     Material.envi_export_glazeconlist = eprop(glazeconlist, "Window Constructions",  "", glazeconlist[0][0])
     Material.envi_export_walllist_lo = eprop(walllist, "Wall Materials", "", walllist[0][0])
     Material.envi_export_floorlist_lo = eprop(floorlist, "", "", floorlist[0][0])
@@ -464,7 +468,8 @@ def register():
     Material.envi_export_l3_bie = fprop("BIE", "Back Side Infrared Hemispherical Emissivity", 0, 1, 0.84)
     Material.envi_export_l4_bie = fprop("BIE", "Back Side Infrared Hemispherical Emissivity", 0, 1, 0.84)
     Material.envi_shad_att = bprop("Attached", "Flag to specify shading attached to the building",False)
-
+    
+    
     Scene.vipath = sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
 
     Scene.li_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)

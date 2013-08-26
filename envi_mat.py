@@ -42,7 +42,8 @@ class envi_materials(object):
                         'Parquet flooring': ('MediumSmooth', '0.17', '740.0', '2000.0', '0.90', '0.65', '0.65', '12'),
                         'Medium hardboard': ('MediumSmooth', '0.17', '740.0', '2000.0', '0.90', '0.65', '0.65', '12'),
                         'Plywood': ('MediumSmooth', '0.15', '700.0', '1420.0', '0.90', '0.65', '0.65', '25'),
-                        'Chipboard': ('MediumSmooth', '0.15', '800.0', '2093.0', '0.91', '0.65', '0.65', '25')}
+                        'Chipboard': ('MediumSmooth', '0.15', '800.0', '2093.0', '0.91', '0.65', '0.65', '25'),
+                        'Hardwood': ('MediumSmooth', '0.16', '720.8', '1255.2', '0.90', '0.78', '0.78', '50')}
         self.wood_dat = OrderedDict(sorted(self.wood_datd.items()))
         
         self.stone_datd = {'Sandstone': ('MediumSmooth', '1.83', '2200.0', '712.0', '0.90', '0.6', '0.6', '200'),
@@ -158,14 +159,14 @@ class envi_constructions(object):
         self.floor_con = OrderedDict(sorted(self.floor_cond.items()))
         self.roof_cond = {'Roof 1': ('Clay tile', 'Roofing felt', 'Plywood')}
         self.roof_con = OrderedDict(sorted(self.roof_cond.items()))
-        self.door_cond = {'Internal Door 1': ('Chipboard')}
+        self.door_cond = {'Internal Door 1': ('Chipboard', 'Hardwood', 'Chipboard')}
         self.door_con = OrderedDict(sorted(self.door_cond.items()))
         self.glaze_cond = {'Standard Double Glazing': ('Clear 3mm', 'Air', 'Clear 3mm'), 'Low-E Double Glazing': ('Clear 3mm', 'Air', 'Clear 3mm LoE')}
         self.glaze_con = OrderedDict(sorted(self.glaze_cond.items()))
         self.p = 0
     
     def con_write(self, idf_file, contype, name, nl, mn):
-        con = (self.wall_con, self.roof_con, self.floor_con, self.glaze_con)[("Wall", "Roof", "Floor", "Window").index(contype)]
+        con = (self.wall_con, self.roof_con, self.floor_con, self.door_con, self.glaze_con)[("Wall", "Roof", "Floor", "Door", "Window").index(contype)]
         idf_file.write("Construction,\n\
     {0:{width}}! - Name\n\
     {1:{width}}! - Outside Layer\n".format(mn+",", con[name][0]+'-'+nl+(";", ",", ",", ",", ",")[len(con[name]) - 1], width = s-4))

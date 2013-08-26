@@ -82,7 +82,7 @@ datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), "VERSION,8.0.0;", "    "+nod
     namelist = []
 
 
-    if 'Window' in [mat.envi_con_type for mat in bpy.data.materials]:
+    if 'Window' in [mat.envi_con_type for mat in bpy.data.materials] or 'Door' in [mat.envi_con_type for mat in bpy.data.materials]:
         en_idf.write('Material,\n\
     {0:{width}}!- Name\n\
     {1:{width}}!- Roughness\n\
@@ -95,7 +95,7 @@ datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), "VERSION,8.0.0;", "    "+nod
     {8:{width}}!- Visible Absorptance\n\n\
 Construction,\n\
     {9:{width}}!- Name\n\
-    {10:{width}}!- Outside Layer\n\n'.format('Wood frame,', 'Rough,', '0.12,', '0.1,', '1400.000,', '1000,', '0.9,', '0.6,', '0.6;' , 'Window Frame,', 'Wood frame;', width = s))
+    {10:{width}}!- Outside Layer\n\n'.format('Wood frame,', 'Rough,', '0.12,', '0.1,', '1400.000,', '1000,', '0.9,', '0.6,', '0.6;' , 'Frame,', 'Wood frame;', width = s))
 
 
     for mat in [mat for mat in bpy.data.materials if mat.envi_export == True and mat.envi_con_type != "None"]:
@@ -103,7 +103,7 @@ Construction,\n\
             matname = []
             if mat.envi_layero != '0':
                 if mat.envi_layero == '1':
-                    if mat.envi_con_type in ('Wall', "Floor", "Roof"):
+                    if mat.envi_con_type in ('Wall', "Floor", "Roof", "Door"):
                         cono = [co for co, con in enumerate(('0', '1', '2', '3', '4', '5', '6')) if mat.envi_layeroto == con][0]
                         typelist = (mat.envi_export_bricklist_lo, mat.envi_export_concretelist_lo, mat.envi_export_metallist_lo, mat.envi_export_stonelist_lo, mat.envi_export_woodlist_lo, mat.envi_export_gaslist_lo, mat.envi_export_insulationlist_lo)[cono]
                         conlist = (em.brick_dat, em.concrete_dat, em.metal_dat, em.stone_dat, em.wood_dat, em.gas_dat, em.insulation_dat)[cono]
@@ -151,9 +151,8 @@ Construction,\n\
         conlist = []
         if mat.envi_con_makeup == '0' and mat.envi_con_type not in ('None', 'Shading', 'Aperture'):
             thicklist = (mat.envi_export_lo_thi, mat.envi_export_l1_thi, mat.envi_export_l2_thi, mat.envi_export_l3_thi, mat.envi_export_l4_thi)
-            conname = (mat.envi_export_wallconlist, mat.envi_export_roofconlist, mat.envi_export_floorconlist, mat.envi_export_glazeconlist)[("Wall", "Roof", "Floor", "Window").index(mat.envi_con_type)]
-            mats = (ec.wall_con, ec.roof_con, ec.floor_con, ec.glaze_con)[("Wall", "Roof", "Floor", "Window").index(mat.envi_con_type)][conname]
-
+            conname = (mat.envi_export_wallconlist, mat.envi_export_roofconlist, mat.envi_export_floorconlist, mat.envi_export_doorconlist, mat.envi_export_glazeconlist)[("Wall", "Roof", "Floor", "Door", "Window").index(mat.envi_con_type)]
+            mats = (ec.wall_con, ec.roof_con, ec.floor_con, ec.door_con, ec.glaze_con)[("Wall", "Roof", "Floor", "Door", "Window").index(mat.envi_con_type)][conname]
             for pm, presetmat in enumerate(mats):
                 if em.namedict.get(presetmat) == None:
                     em.namedict[presetmat] = 0
@@ -161,7 +160,7 @@ Construction,\n\
                 else:
                     em.namedict[presetmat] = em.namedict[presetmat] + 1
                     em.thickdict[presetmat].append(thicklist[pm]/1000)
-                if mat.envi_con_type in ('Wall', 'Floor', 'Roof') and presetmat not in em.gas_dat:
+                if mat.envi_con_type in ('Wall', 'Floor', 'Roof', 'Door') and presetmat not in em.gas_dat:
                     params = [str(mat)+(",", ",", ",", ",", ",", ",", ";", ",")[x] for x, mat in enumerate(em.matdat[presetmat])]
                     em.omat_write(en_idf, presetmat+"-"+str(em.namedict[presetmat]), params, str(thicklist[pm]/1000))
                 elif presetmat in em.gas_dat:
@@ -264,15 +263,13 @@ Construction,\n\
     en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: SURFACE DEFINITIONS ===========\n\n")
 
     for obj in [obj for obj in bpy.data.objects if obj.layers[1] and obj.type == 'MESH' and obj.envi_type != '0']:
-
+        obm, odv = obj.matrix_world, obj.data.vertices
         obj["floorarea"] = 0
         for poly in obj.data.polygons:
             mat = obj.data.materials[poly.material_index]
-            print('hi again', vi_func.boundpoly(obj, mat, poly))
             (obc, obco, se, we) = vi_func.boundpoly(obj, mat, poly)
             
             if mat.envi_con_type in ('Wall', "Floor", "Roof") and mat.envi_con_makeup != "2":
-
                 en_idf.write('\nBuildingSurface:Detailed,\n' +
                 "    {0:{width}}!- Name\n".format(obj.name+str(poly.index)+",", width = s) +
                 "    {0:{width}}!- Surface Type\n".format(mat.envi_con_type + ",", width = s) +
@@ -285,17 +282,17 @@ Construction,\n\
                 "    {0:{width}}!- View Factor to Ground\n".format("autocalculate,", width = s) +
                 "    {0:{width}}!- Number of Vertices\n".format(str(len(poly.vertices))+",", width = s))
                 for vert in poly.vertices:
-                    en_idf.write("    {0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}{1:{width}} {2}".format(obj.matrix_world * obj.data.vertices[vert].co, (',', ';')[vert == poly.vertices[-1]], "!- X,Y,Z ==> Vertex "+str(vert)+" {m}\n", width = s - 16))
+                    en_idf.write("    {0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}{1:{width}} {2}".format(obm * odv[vert].co, (',', ';')[vert == poly.vertices[-1]], "!- X,Y,Z ==> Vertex "+str(vert)+" {m}\n", width = s - 16))
 
                 if mat.envi_con_type == "Floor":
                     obj["floorarea"] = obj["floorarea"] + poly.area
 
-            elif mat.envi_con_type == 'Window':
-                xav, yav, zav = obj.matrix_world*mathutils.Vector(poly.center)
+            elif  mat.envi_con_type in ('Door', 'Window'):
+                xav, yav, zav = obm*mathutils.Vector(poly.center)
                 en_idf.write('BuildingSurface:Detailed,\n'\
                 "    {:{width}}!- Name\n".format(obj.name+str(poly.index)+",", width = s - 4) +
                 "    Wall,                                                             !- Surface Type\n"+
-                "    Window Frame,                                                     !- Construction Name\n"+
+                "    Frame,                                                     !- Construction Name\n"+
                 "    {:{width}}!- Zone Name\n".format(obj.name+",", width = s - 4) +
                 "    {0:{width}}!- Outside Boundary Condition\n".format(obc+",", width = s) +
                 "    {0:{width}}!- Outside Boundary Condition Object\n".format(obco+",", width = s) +
@@ -304,8 +301,9 @@ Construction,\n\
                 "    autocalculate,                                                    !- View Factor to Ground\n" +
                 "    {0:{width}}!- Number of Vertices\n".format(str(len(poly.vertices))+",", width = s))
                 for vert in poly.vertices:
-                        en_idf.write("  {0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}{1:{width}}{2}".format(obj.matrix_world * obj.data.vertices[vert].co, (',', ';')[vert == poly.vertices[-1]], "!- X,Y,Z ==> Vertex "+str(vert)+" {m}\n", width = s - 16))
-
+                        en_idf.write("  {0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}{1:{width}}{2}".format(obm * odv[vert].co, (',', ';')[vert == poly.vertices[-1]], "!- X,Y,Z ==> Vertex "+str(vert)+" {m}\n", width = s - 16))
+            
+            
                 en_idf.write('\nFenestrationSurface:Detailed,\n\
                 {0}!- Name\n\
                 {1:{width}}!- Surface Type\n\
@@ -316,18 +314,18 @@ Construction,\n\
                 {6:{width}}!- Shading Control Name\n\
                 {6:{width}}!- Frame and Divider Name\n\
                 {7:{width}}!- Multiplier\n\
-                {8:{width}}!- Number of Vertices\n'.format('win-'+obj.name+str(poly.index)+',', mat.envi_con_type+',', mat.name+',', obj.name+str(poly.index)+',', obco+',', 'autocalculate,', ',', '1,', str(len(poly.vertices))+",", width = s))
+                {8:{width}}!- Number of Vertices\n'.format(('win-', 'door-')[mat.envi_con_type == 'Door']+obj.name+str(poly.index)+',', mat.envi_con_type+',', mat.name+',', obj.name+str(poly.index)+',', obco+',', 'autocalculate,', ',', '1,', str(len(poly.vertices))+",", width = s))
                 for vert in poly.vertices:
-                    en_idf.write("  {0:.3f}, {1:.3f}, {2:.3f}{3:{width}}{4}".format(xav+((obj.matrix_world * obj.data.vertices[vert].co)[0]-xav)*0.95, yav+((obj.matrix_world * obj.data.vertices[vert].co)[1]-yav)*0.95, zav+((obj.matrix_world * obj.data.vertices[vert].co)[2]-zav)*0.95, (',', ';')[vert == poly.vertices[-1]], "!- X,Y,Z ==> Vertex "+str(vert)+" {m}\n", width = s - 8))
+                     en_idf.write("  {0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}{1:{width}}{2}".format((xav+((obm * odv[vert].co)[0]-xav)*0.95, yav+((obm * odv[vert].co)[1]-yav)*0.95, zav+((obm * odv[vert].co)[2]-zav)*0.95), (',', ';')[vert == poly.vertices[-1]], "!- X,Y,Z ==> Vertex "+str(vert)+" {m}\n", width = s - 8))
 
             elif mat.envi_con_type == 'Shading':
                 en_idf.write('\nShading:Building:Detailed,\n' +
                 "{0:{width}}! - Name\n".format("    "+obj.name+str(poly.index)+",",  width = s) +
                 "{0:{width}}! - Transmittance Schedule Name\n".format("    ,",  width = s) +
                 "{0:{width}}! - Number of Vertices\n".format("    3,",  width = s) +
-                "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[0]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
-                "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[1]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
-                "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}; {2}".format("       ", obj.matrix_world * obj.data.vertices[poly.vertices[2]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n\n"))
+                "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obm * odv[poly.vertices[0]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
+                "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obm * odv[poly.vertices[1]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
+                "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}; {2}".format("       ", obm * odv[poly.vertices[2]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n\n"))
 
     for o, obj in enumerate([obj for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type == '1']):
         if o == 0:
@@ -941,7 +939,14 @@ AirflowNetwork:SimulationControl,\n\
             {:{width}}! - Surface Name\n\
             {:{width}}!- Leakage Component Name\n\
             {:{width}}! - External Node Name\n\
-            {:{width}}!- Window/Door Opening Factor\n\n'.format(node.inputs['Node 1'].links[0].from_socket.identifier+',', 
+            {:{width}}!- Window/Door Opening Factor\n\n'.format(('win-', 'door-')[bpy.data.materials[node.inputs['Node 1'].links[0].from_socket.name.envi_con_type == 'Door']]+node.inputs['Node 1'].links[0].from_socket.identifier+',', 
+            'SurfaceFlow_'+str(sf)+',', ',', str(node.wdof)+';', width = s))
+            
+            en_idf.write('AirflowNetwork:MultiZone:Surface,\n\
+            {:{width}}! - Surface Name\n\
+            {:{width}}!- Leakage Component Name\n\
+            {:{width}}! - External Node Name\n\
+            {:{width}}!- Window/Door Opening Factor\n\n'.format(('win-', 'door-')[bpy.data.materials[node.outputs['Node 2'].links[0].to_socket.name.envi_con_type == 'Door']]+node.outputs['Node 2'].links[0].to_socket.identifier+',', 
             'SurfaceFlow_'+str(sf)+',', ',', str(node.wdof)+';', width = s))
             
             if node.linkmenu == 'DO':

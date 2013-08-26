@@ -643,9 +643,9 @@ class EnMatPanel(bpy.types.Panel):
                     row = layout.row()
                     for l, layername in enumerate(envi_cons.door_con[material.envi_export_doorconlist]):
                         row.label(text = layername)
-                        if layername not in envi_mats.gas_dat:
-                            row.prop(material, thicklist[l])
-                            row.label(text = "default: "+str(envi_mats.matdat[layername][7])+"mm")
+#                        if layername not in envi_mats.door_dat:
+                        row.prop(material, thicklist[l])
+                        row.label(text = "default: "+str(envi_mats.matdat[layername][7])+"mm")
                         row = layout.row()
                 
                 elif material.envi_con_type == 'Window':

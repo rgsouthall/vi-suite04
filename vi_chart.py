@@ -58,6 +58,8 @@ def chart_disp(chart_op, dnode, rnodes, Sdate, Edate):
             (xdata, plt.xlabel) = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['X-axis'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'], rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
         elif (dnode.inputs['X-axis'].rtypemenu, dnode.inputs['X-axis'].links[0].from_node['resdict'][rd][0:2]) == ('Zone',[dnode.inputs['X-axis'].zonemenu, dnode.inputs['X-axis'].zonermenu]):
             (xdata, plt.xlabel) = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['X-axis'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'], rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
+        elif (dnode.inputs['X-axis'].rtypemenu, dnode.inputs['X-axis'].links[0].from_node['resdict'][rd][0:2]) == ('Linkage',[dnode.inputs['X-axis'].linkmenu, dnode.inputs['X-axis'].linkrmenu]):
+            (xdata, plt.xlabel) = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['X-axis'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'], rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
 
     rn = dnode.inputs['Y-axis 1'].links[0].from_node
     for rd in rn['resdict']:
@@ -67,9 +69,12 @@ def chart_disp(chart_op, dnode, rnodes, Sdate, Edate):
 
         elif (dnode.inputs['Y-axis 1'].rtypemenu, rn['resdict'][rd][0:2]) == ('Zone', [dnode.inputs['Y-axis 1'].zonemenu, dnode.inputs['Y-axis 1'].zonermenu]):
             (y1data, plt.ylabel) = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'], rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
-            print(len(xdata), len(y1data))
             line, =plt.plot(xdata, y1data, color='k', label=rn['resdict'][rd][0] + (" ("+dnode.inputs['Y-axis 1'].statmenu + ")", "")[dnode.timemenu == '0'])
-
+        
+        elif (dnode.inputs['Y-axis 1'].rtypemenu, rn['resdict'][rd][0:2]) == ('Linkage', [dnode.inputs['Y-axis 1'].linkmenu, dnode.inputs['Y-axis 1'].linkrmenu]):
+            (y1data, plt.ylabel) = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'], rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
+            line, =plt.plot(xdata, y1data, color='k', label=rn['resdict'][rd][0] + (" ("+dnode.inputs['Y-axis 1'].statmenu + ")", "")[dnode.timemenu == '0'])
+    
     if dnode.inputs['Y-axis 2'].is_linked:
         rn = dnode.inputs['Y-axis 2'].links[0].from_node
         for rd in dnode.inputs['Y-axis 2'].links[0].from_node['resdict']:

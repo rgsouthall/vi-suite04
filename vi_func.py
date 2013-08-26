@@ -119,7 +119,7 @@ def clearscened(scene):
                 keys.animation_data_clear()
 
 def processf(pro_op, node):
-    ctypes, ztypes, zrtypes = [], [], []
+    ctypes, ztypes, zrtypes, ltypes, lrtypes = [], [], [], [], []
     resfile = open(node.resfilename, 'r')
 
     envdict = {'Site Outdoor Air Drybulb Temperature [C] !Hourly': "Outdoor Temperature ("+ u'\u00b0'+"C)",
@@ -131,8 +131,11 @@ def processf(pro_op, node):
     zresdict = {'Zone Air Temperature [C] !Hourly': "Zone Temperature ("+ u'\u00b0'+"C)",
                 'Zone Air System Sensible Heating Rate [W] !Hourly': 'Zone heating (W)',
                 'Zone Air System Sensible Cooling Rate [W] !Hourly': 'Zone cooling (W)',
-                'Zone Windows Total Transmitted Solar Radiation Rate [W] !Hourly': 'Solar gain (W)'}
+                'Zone Windows Total Transmitted Solar Radiation Rate [W] !Hourly': 'Solar gain (W)',
+                'AFN Zone Infiltration Volume [m3] !Hourly': 'AFN Volume (m'+u'\u00b3'+')'}
+    lresdict = {'AFN Linkage Node 1 to Node 2 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow 1 to 2'}
     resdict = {}
+    
     objlist = [obj.name.upper() for obj in bpy.data.objects if obj.envi_type == '1' and obj.layers[1] == True]
 
     for line in resfile.readlines():
@@ -167,6 +170,15 @@ def processf(pro_op, node):
                 ztypes.append(linesplit[2])
             if zresdict[linesplit[3]] not in zrtypes:
                 zrtypes.append(zresdict[linesplit[3]])
+        
+        elif len(linesplit) > 3 and linesplit[3] in lresdict:
+            if 'Linkage' not in node['rtypes']:
+               node['rtypes'] += ['Linkage']
+            resdict[linesplit[0]] = [linesplit[2], lresdict[linesplit[3]]]
+            if linesplit[2] not in ltypes:
+                ltypes.append(linesplit[2])
+            if lresdict[linesplit[3]] not in lrtypes:
+                lrtypes.append(lresdict[linesplit[3]])
 
     resfile.close()
     node['dos'] = dos
@@ -174,6 +186,8 @@ def processf(pro_op, node):
     node['ctypes'] = ctypes
     node['ztypes'] = ztypes
     node['zrtypes'] = zrtypes
+    node['ltypes'] = ltypes
+    node['lrtypes'] = lrtypes
     node.dsdoy = int(resdict[dos][1])
     node.dedoy = int(resdict[dos][-1])
 

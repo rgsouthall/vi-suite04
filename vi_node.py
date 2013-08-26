@@ -583,7 +583,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
 
     def update(self):
         if self.inputs['X-axis'].is_linked == True:
-            xrtype, xctype, xztype, xzrtype = [], [], [], []
+            xrtype, xctype, xztype, xzrtype, xltype, xlrtype = [], [], [], [], [], []
             try:
                 innode = self.inputs['X-axis'].links[0].from_node
             except:
@@ -598,10 +598,15 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 xztype.append((zone, zone, "Plot "+zone))
             for zoner in innode['zrtypes']:
                 xzrtype.append((zoner, zoner, "Plot "+zoner))
+            for link in innode['ltypes']:
+                xltype.append((link, link, "Plot "+link))
+            for linkr in innode['lrtypes']:
+                xlrtype.append((linkr, linkr, "Plot "+linkr))
+                print(xlrtype)
             self.inputs['Y-axis 1'].hide = False
 
             if self.inputs['Y-axis 1'].is_linked == True:
-                y1rtype, y1ctype, y1ztype, y1zrtype = [], [], [], []
+                y1rtype, y1ctype, y1ztype, y1zrtype, y1ltype, y1lrtype = [], [], [], [], [], []
                 innode = self.inputs[1].links[0].from_node
                 for restype in innode['rtypes']:
                     y1rtype.append((restype, restype, "Plot "+restype))
@@ -611,10 +616,14 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     y1ztype.append((zone, zone, "Plot "+zone))
                 for zoner in innode['zrtypes']:
                     y1zrtype.append((zoner, zoner, "Plot "+zoner))
+                for link in innode['ltypes']:
+                    y1ltype.append((link, link, "Plot "+link))
+                for linkr in innode['lrtypes']:
+                    y1lrtype.append((linkr, linkr, "Plot "+linkr))
                 self.inputs['Y-axis 2'].hide = False
 
                 if self.inputs['Y-axis 2'].is_linked == True:
-                    y2rtype, y2ctype, y2ztype, y2zrtype = [], [], [], []
+                    y2rtype, y2ctype, y2ztype, y2zrtype, y2ltype, y2lrtype= [], [], [], [], [], []
                     innode = self.inputs[2].links[0].from_node
                     for restype in innode['rtypes']:
                         y2rtype.append((restype, restype, "Plot "+restype))
@@ -624,10 +633,14 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                         y2ztype.append((zone, zone, "Plot "+zone))
                     for zoner in innode['zrtypes']:
                         y2zrtype.append((zoner, zoner, "Plot "+zoner))
+                    for link in innode['ltypes']:
+                        y2ltype.append((link, link, "Plot "+link))
+                    for linkr in innode['lrtypes']:
+                        y2lrtype.append((linkr, linkr, "Plot "+linkr))
                     self.inputs['Y-axis 3'].hide = False
 
                     if self.inputs['Y-axis 3'].is_linked == True:
-                        y3rtype, y3ctype, y3ztype, y3zrtype = [], [], [], []
+                        y3rtype, y3ctype, y3ztype, y3zrtype, y3ltype, y3lrtype = [], [], [], [], [], []
                         innode = self.inputs[3].links[0].from_node
                         for restype in innode['rtypes']:
                             y3rtype.append((restype, restype, "Plot "+restype))
@@ -637,24 +650,27 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                             y3ztype.append((zone, zone, "Plot "+zone))
                         for zoner in innode['zrtypes']:
                             y3zrtype.append((zoner, zoner, "Plot "+zoner))
-
+                        for link in innode['ltypes']:
+                            y3ltype.append((link, link, "Plot "+link))
+                        for linkr in innode['lrtypes']:
+                            y3lrtype.append((linkr, linkr, "Plot "+linkr))
                     else:
-                        y3rtype = y3ctype = y3ztype = y3zrtype = [('0', '', '0')]
+                        y3rtype = y3ctype = y3ztype = y3zrtype = y3ltype = y3lrtype = [('0', '', '0')]
                 else:
 #                    self.inputs[3].hide = True
-                    y2rtype = y2ctype = y2ztype = y2zrtype = [('0', '', '0')]
-                    y3rtype = y3ctype = y3ztype = y3zrtype = [('0', '', '0')]
+                    y2rtype = y2ctype = y2ztype = y2zrtype = y2ltype = y2lrtype = [('0', '', '0')]
+                    y3rtype = y3ctype = y3ztype = y3zrtype = y3ltype = y3lrtype = [('0', '', '0')]
             else:
 #                self.inputs[2].hide = True
-                y1rtype = y1ctype = y1ztype = y1zrtype = [('0', '', '0')]
-                y2rtype = y2ctype = y2ztype = y2zrtype = [('0', '', '0')]
-                y3rtype = y3ctype = y3ztype = y3zrtype = [('0', '', '0')]
+                y1rtype = y1ctype = y1ztype = y1zrtype = y1ltype = y1lrtype = [('0', '', '0')]
+                y2rtype = y2ctype = y2ztype = y2zrtype = y2ltype = y2lrtype = [('0', '', '0')]
+                y3rtype = y3ctype = y3ztype = y3zrtype = y3ltype = y3lrtype = [('0', '', '0')]
         else:
 #            self.inputs[1].hide = True
             xrtype = xctype = xztype = xzrtype = [('0', '', '0')]
-            y1rtype = y1ctype = y1ztype = y1zrtype = [('0', '', '0')]
-            y2rtype = y2ctype = y2ztype = y2zrtype = [('0', '', '0')]
-            y3rtype = y3ctype = y3ztype = y3zrtype = [('0', '', '0')]
+            y1rtype = y1ctype = y1ztype = y1zrtype = y1ltype = y1lrtype = [('0', '', '0')]
+            y2rtype = y2ctype = y2ztype = y2zrtype = y2ltype = y2lrtype = [('0', '', '0')]
+            y3rtype = y3ctype = y3ztype = y3zrtype = y3ltype = y3lrtype = [('0', '', '0')]
 
         class ViEnRXIn(bpy.types.NodeSocket):
             '''Energy geometry out socket'''
@@ -665,6 +681,8 @@ class ViEnRNode(bpy.types.Node, ViNodes):
             climmenu = bpy.props.EnumProperty(items=xctype, name="", description="Climate type", default = xctype[0][0])
             zonemenu = bpy.props.EnumProperty(items=xztype, name="", description="Zone", default = xztype[0][0])
             zonermenu = bpy.props.EnumProperty(items=xzrtype, name="", description="Zone result", default = xzrtype[0][0])
+            linkmenu = bpy.props.EnumProperty(items=xltype, name="", description="Flow linkage result", default = xltype[0][0])
+            linkrmenu = bpy.props.EnumProperty(items=xlrtype, name="", description="Flow linkage result", default = xlrtype[0][0])
             statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Result statistic", default = 'Average')
 
             def draw(self, context, layout, node, text):
@@ -676,14 +694,16 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     row = layout.row()
                     if self.rtypemenu == "Climate":
                         row.prop(self, "climmenu")
-                        if self.node.timemenu in ('1', '2'):
-                            row.prop(self, "statmenu")
                     elif self.rtypemenu == "Zone":
                         row.prop(self, "zonemenu")
                         row = layout.row()
                         row.prop(self, "zonermenu")
-                        if self.node.timemenu in ('1', '2'):
-                            row.prop(self, "statmenu")
+                    elif self.rtypemenu == "Linkage":
+                        row.prop(self, "linkmenu")
+                        row = layout.row()
+                        row.prop(self, "linkrmenu")
+                    if self.node.timemenu in ('1', '2'):
+                        row.prop(self, "statmenu")
                 row = layout.row()
                 row.label('--')
                 row = layout.row()
@@ -704,6 +724,8 @@ class ViEnRNode(bpy.types.Node, ViNodes):
             climmenu = bpy.props.EnumProperty(items=y1ctype, name="", description="Climate type", default = y1ctype[0][0])
             zonemenu = bpy.props.EnumProperty(items=y1ztype, name="", description="Zone", default = y1ztype[0][0])
             zonermenu = bpy.props.EnumProperty(items=y1zrtype, name="", description="Zone result", default = y1zrtype[0][0])
+            linkmenu = bpy.props.EnumProperty(items=y1ltype, name="", description="Flow linkage result", default = y1ltype[0][0])
+            linkrmenu = bpy.props.EnumProperty(items=y1lrtype, name="", description="Flow linkage result", default = y1lrtype[0][0])
             statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
 
             def draw(self, context, layout, node, text):
@@ -719,8 +741,12 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                         row.prop(self, "zonemenu")
                         row = layout.row()
                         row.prop(self, "zonermenu")
-                        if self.node.timemenu in ('1', '2'):
-                            row.prop(self, "statmenu")
+                    elif self.rtypemenu == "Linkage":
+                        row.prop(self, "linkmenu")
+                        row = layout.row()
+                        row.prop(self, "linkrmenu")
+                    if self.node.timemenu in ('1', '2'):
+                        row.prop(self, "statmenu")
                 row = layout.row()
                 row.label('--')
                 row = layout.row()
@@ -955,7 +981,7 @@ class EnViBoundSocket(bpy.types.NodeSocket):
     bl_idname = 'EnViBoundSocket'
     bl_label = 'Plain zone boundary socket'
     bl_color = (1.0, 1.0, 0.2, 0.5)
-
+    sn = bpy.props.StringProperty()
     def draw(self, context, layout, node, text):
         layout.label(text)
 
@@ -966,7 +992,8 @@ class EnViSAirSocket(bpy.types.NodeSocket):
     '''A plain zone surface airflow socket'''
     bl_idname = 'EnViSAirSocket'
     bl_label = 'Plain zone surface airflow socket'
-
+    sn = bpy.props.StringProperty()
+    
     def draw(self, context, layout, node, text):
         layout.label(text)
 
@@ -977,7 +1004,7 @@ class EnViCAirSocket(bpy.types.NodeSocket):
     '''A plain zone airflow component socket'''
     bl_idname = 'EnViCAirSocket'
     bl_label = 'Plain zone airflow component socket'
-
+    sn = bpy.props.StringProperty()
     def draw(self, context, layout, node, text):
         layout.label(text)
 
@@ -1055,34 +1082,29 @@ class EnViZone(bpy.types.Node, EnViNodes):
 
     def zupdate(self, context):
         obj = bpy.data.objects[self.zone]
-        for oname in [outputs.name for outputs in self.outputs if outputs.name not in [mat.name for mat in obj.data.materials] and outputs.bl_idname == 'EnViBoundSocket']:
+        odm = obj.data.materials
+        for oname in [outputs.name for outputs in self.outputs if outputs.name not in [mat.name for mat in odm if mat.envi_boundary == True] and outputs.bl_idname == 'EnViBoundSocket']:
             self.outputs.remove(oname)
-        for iname in [inputs.name for inputs in self.inputs if inputs.name not in [mat.name for mat in obj.data.materials] and inputs.bl_idname == 'EnViBoundSocket']:
+        for oname in [outputs.name for outputs in self.outputs if outputs.name not in [mat.name for mat in odm if mat.afsurface == True] and outputs.bl_idname == 'EnViSAirSocket']:
+            self.outputs.remove(oname)
+        for iname in [inputs.name for inputs in self.inputs if inputs.name not in [mat.name for mat in odm if mat.envi_boundary == True] and inputs.bl_idname == 'EnViBoundSocket']:
             self.inputs.remove(iname)
-
+        for iname in [inputs.name for inputs in self.inputs if inputs.name not in [mat.name for mat in odm if mat.afsurface == True] and inputs.bl_idname == 'EnViSAirSocket']:
+            self.inputs.remove(oname)
         for face in obj.data.polygons:
-            if obj.data.materials[face.material_index].envi_con_type == 'Aperture':
-                if obj.data.materials[face.material_index].name not in self.outputs: 
-                    self.outputs.new('EnViCAirSocket', obj.data.materials[face.material_index].name, identifier = obj.name+str(face.index))
-                if obj.data.materials[face.material_index].name not in self.inputs:
-                    self.inputs.new('EnViCAirSocket', obj.data.materials[face.material_index].name, identifier = obj.name+str(face.index))
-        
-        for oname in [outputs.name for outputs in self.outputs if outputs.name not in [mat.name for mat in obj.data.materials] and outputs.bl_idname == 'EnViBoundSocket']:
-            self.outputs.remove(oname)
-        for iname in [inputs.name for inputs in self.inputs if inputs.name not in [mat.name for mat in obj.data.materials] and inputs.bl_idname == 'EnViBoundSocket']:
-            self.inputs.remove(iname)
+            if odm[face.material_index].envi_boundary == 1:
+                if odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViBoundSocket']:
+                    self.outputs.new('EnViBoundSocket', odm[face.material_index].name).sn = obj.name+'_'+str(face.index)
+                if odm[face.material_index].name not in [inp.name for inp in self.inputs if inp.bl_idname == 'EnViBoundSocket']:
+                    self.inputs.new('EnViBoundSocket', odm[face.material_index].name).sn = obj.name+'_'+str(face.index)
+            if odm[face.material_index].afsurface == 1:
+                if odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViSAirSocket']: 
+                    self.outputs.new('EnViSAirSocket', odm[face.material_index].name).sn = obj.name+'_'+str(face.index)
+                    obj.name+'_'+str(face.index)
+                print([o.sn for o in self.outputs])
+                if odm[face.material_index].name not in [inp.name for inp in self.inputs if inp.bl_idname == 'EnViSAirSocket']:
+                    self.inputs.new('EnViSAirSocket', odm[face.material_index].name).sn = obj.name+'_'+str(face.index)
 
-        for mat in obj.data.materials:
-            if mat.envi_boundary == 1:
-                if mat.name not in [outp.name for outp in self.outputs]:
-                    self.outputs.new('EnViBoundSocket', mat.name)
-                if mat.name not in [inp.name for inp in self.inputs]:
-                    self.inputs.new('EnViBoundSocket', mat.name)
-            if mat.afsurface == 1:
-                if obj.data.materials[face.material_index].name not in self.outputs: 
-                    self.outputs.new('EnViSAirSocket', obj.data.materials[face.material_index].name, identifier = obj.name+str(face.index))
-                if obj.data.materials[face.material_index].name not in self.inputs:
-                    self.inputs.new('EnViSAirSocket', obj.data.materials[face.material_index].name, identifier = obj.name+str(face.index))
     
     def supdate(self, context):
         if 'Schedule' not in self.outputs:

@@ -1374,8 +1374,13 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
 
         for sock in self.inputs:
             if self.linkmenu == 'ELA' and sock.is_linked:
-                self.ela = bpy.data.objects[sock.links[0].from_node.zone].data.polygons[int(sock.links[0].from_socket.sn)].area
-
+                try:
+                    obj = bpy.data.objects[sock.links[0].from_node.zone]
+                    face = obj.data.polygons[int(sock.links[0].from_socket.sn)]
+                    self.ela = face.area*((1-abs(face.normal[0]))*obj.scale[0] +face.area*(1-abs(face.normal[1]))*obj.scale[1] + face.area*(1-abs(face.normal[2]))*obj.scale[2])
+                    print(face.area, (1-abs(face.normal[0])), obj.scale[0], (1-abs(face.normal[1])), obj.scale[1], (1-abs(face.normal[2])), obj.scale[2])
+                except:
+                    pass
     def draw_buttons(self, context, layout):
         layout.prop(self, 'linkmenu')
 

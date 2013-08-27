@@ -20,7 +20,7 @@
 import bpy, bpy_extras, glob, os, inspect, sys, multiprocessing
 from nodeitems_utils import NodeCategory, NodeItem
 #from . import vi_operators
-from .vi_func import nodeinit
+from .vi_func import nodeinit, objvol
 
 class ViNetwork(bpy.types.NodeTree):
     '''A node tree for VI-Suite analysis.'''
@@ -993,7 +993,7 @@ class EnViSAirSocket(bpy.types.NodeSocket):
     bl_idname = 'EnViSAirSocket'
     bl_label = 'Plain zone surface airflow socket'
     sn = bpy.props.StringProperty()
-    
+
     def draw(self, context, layout, node, text):
         layout.label(text)
 
@@ -1018,31 +1018,31 @@ class AFNCon(bpy.types.Node, EnViNodes):
     bl_icon = 'SOUND'
 
     afnname = bpy.props.StringProperty()
-    afntype = bpy.props.EnumProperty(items = [('MultizoneWithDistribution', 'MultizoneWithDistribution', 'Include a forced airflow system in the model'), 
+    afntype = bpy.props.EnumProperty(items = [('MultizoneWithDistribution', 'MultizoneWithDistribution', 'Include a forced airflow system in the model'),
                                               ('MultizoneWithoutDistribution', 'MultizoneWithoutDistribution', 'Exclude a forced airflow system in the model'),
                                               ('MultizoneWithDistributionOnlyDuringFanOperation', 'MultizoneWithDistributionOnlyDuringFanOperation', 'Apply forced air system only when in operation'),
                                               ('NoMultizoneOrDistribution', 'NoMultizoneOrDistribution', 'Only zone infiltration controls are modelled')], name = "", default = 'MultizoneWithoutDistribution')
-                                              
-    wpctype = bpy.props.EnumProperty(items = [('SurfaceAverageCalculation', 'SurfaceAverageCalculation', 'Calculate wind pressure coefficients based on oblong building assumption'), 
+
+    wpctype = bpy.props.EnumProperty(items = [('SurfaceAverageCalculation', 'SurfaceAverageCalculation', 'Calculate wind pressure coefficients based on oblong building assumption'),
                                               ('Input', 'Input', 'Input wind pressure coefficients from an external source')], name = "", default = 'SurfaceAverageCalculation')
     wpcaname = bpy.props.StringProperty()
-    wpchs = bpy.props.EnumProperty(items = [('OpeningHeight', 'OpeningHeight', 'Calculate wind pressure coefficients based on opening height'), 
+    wpchs = bpy.props.EnumProperty(items = [('OpeningHeight', 'OpeningHeight', 'Calculate wind pressure coefficients based on opening height'),
                                               ('ExternalNode', 'ExternalNode', 'Calculate wind pressure coefficients based on external node height')], name = "", default = 'OpeningHeight')
-    buildtype = bpy.props.EnumProperty(items = [('LowRise', 'Low Rise', 'Height is less than 3x the longest wall'), 
+    buildtype = bpy.props.EnumProperty(items = [('LowRise', 'Low Rise', 'Height is less than 3x the longest wall'),
                                               ('HighRise', 'High Rise', 'Height is more than 3x the longest wall')], name = "", default = 'LowRise')
-                                              
+
     maxiter = bpy.props.IntProperty(default = 500, description = 'Maximum Number of Iterations')
 
-    initmet = bpy.props.EnumProperty(items = [('ZeroNodePressures', 'ZeroNodePressures', 'Initilisation type'), 
+    initmet = bpy.props.EnumProperty(items = [('ZeroNodePressures', 'ZeroNodePressures', 'Initilisation type'),
                                               ('LinearInitializationMethod', 'LinearInitializationMethod', 'Initilisation type')], name = "", default = 'ZeroNodePressures')
 
-    rcontol = bpy.props.FloatProperty(default = 0.0001, description = 'Relative Airflow Convergence Tolerance')       
+    rcontol = bpy.props.FloatProperty(default = 0.0001, description = 'Relative Airflow Convergence Tolerance')
 
-    acontol = bpy.props.FloatProperty(default = 0.000001, description = 'Absolute Airflow Convergence Tolerance')      
+    acontol = bpy.props.FloatProperty(default = 0.000001, description = 'Absolute Airflow Convergence Tolerance')
 
-    conal = bpy.props.FloatProperty(default = -0.1, max = 1, min = -1, description = 'Convergence Acceleration Limit') 
-    aalax = bpy.props.IntProperty(default = 0, max = 180, min = 0, description = 'Azimuth Angle of Long Axis of Building')   
-    rsala = bpy.props.FloatProperty(default = 1, max = 1, min = 0, description = 'Ratio of Building Width Along Short Axis to Width Along Long Axis')                   
+    conal = bpy.props.FloatProperty(default = -0.1, max = 1, min = -1, description = 'Convergence Acceleration Limit')
+    aalax = bpy.props.IntProperty(default = 0, max = 180, min = 0, description = 'Azimuth Angle of Long Axis of Building')
+    rsala = bpy.props.FloatProperty(default = 1, max = 1, min = 0, description = 'Ratio of Building Width Along Short Axis to Width Along Long Axis')
 
     def draw_buttons(self, context, layout):
         layout.prop(self, 'afnname')
@@ -1073,7 +1073,7 @@ class AFNCon(bpy.types.Node, EnViNodes):
             row.prop(self, 'aalax')
             row = layout.row()
             row.prop(self, 'rsala')
-        
+
 class EnViZone(bpy.types.Node, EnViNodes):
     '''Node describing a simulation zone'''
     bl_idname = 'EnViZone'
@@ -1083,43 +1083,40 @@ class EnViZone(bpy.types.Node, EnViNodes):
     def zupdate(self, context):
         obj = bpy.data.objects[self.zone]
         odm = obj.data.materials
-        for oname in [outputs.name for outputs in self.outputs if outputs.name not in [mat.name for mat in odm if mat.envi_boundary == True] and outputs.bl_idname == 'EnViBoundSocket']:
+        omw = obj.matrix_world
+        self.location = (50 * (omw*obj.location)[0], ((omw*obj.location)[2] + (omw*obj.location)[1])*25)
+        self.zonevolume = objvol(obj)
+        for oname in [outputs for outputs in self.outputs if outputs.name not in [mat.name for mat in odm if mat.envi_boundary == True] and outputs.bl_idname == 'EnViBoundSocket']:
             self.outputs.remove(oname)
-        for oname in [outputs.name for outputs in self.outputs if outputs.name not in [mat.name for mat in odm if mat.afsurface == True] and outputs.bl_idname == 'EnViSAirSocket']:
+        for oname in [outputs for outputs in self.outputs if outputs.name not in [mat.name for mat in odm if mat.afsurface == True] and outputs.bl_idname == 'EnViSAirSocket']:
             self.outputs.remove(oname)
-        for iname in [inputs.name for inputs in self.inputs if inputs.name not in [mat.name for mat in odm if mat.envi_boundary == True] and inputs.bl_idname == 'EnViBoundSocket']:
+        for iname in [inputs for inputs in self.inputs if inputs.name not in [mat.name for mat in odm if mat.envi_boundary == True] and inputs.bl_idname == 'EnViBoundSocket']:
             self.inputs.remove(iname)
-        for iname in [inputs.name for inputs in self.inputs if inputs.name not in [mat.name for mat in odm if mat.afsurface == True] and inputs.bl_idname == 'EnViSAirSocket']:
-            self.inputs.remove(oname)
-        for face in obj.data.polygons:
-            if odm[face.material_index].envi_boundary == 1:
-                if odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViBoundSocket']:
-                    self.outputs.new('EnViBoundSocket', odm[face.material_index].name).sn = obj.name+'_'+str(face.index)
-                if odm[face.material_index].name not in [inp.name for inp in self.inputs if inp.bl_idname == 'EnViBoundSocket']:
-                    self.inputs.new('EnViBoundSocket', odm[face.material_index].name).sn = obj.name+'_'+str(face.index)
-            if odm[face.material_index].afsurface == 1:
-                if odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViSAirSocket']: 
-                    self.outputs.new('EnViSAirSocket', odm[face.material_index].name).sn = obj.name+'_'+str(face.index)
-                    obj.name+'_'+str(face.index)
-                print([o.sn for o in self.outputs])
-                if odm[face.material_index].name not in [inp.name for inp in self.inputs if inp.bl_idname == 'EnViSAirSocket']:
-                    self.inputs.new('EnViSAirSocket', odm[face.material_index].name).sn = obj.name+'_'+str(face.index)
+        for iname in [inputs for inputs in self.inputs if inputs.name not in [mat.name for mat in odm if mat.afsurface == True] and inputs.bl_idname == 'EnViSAirSocket']:
+            self.inputs.remove(iname)
 
-    
+        socklist = [odm[face.material_index].name for face in obj.data.polygons if odm[face.material_index].envi_boundary == 1 and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViBoundSocket']]
+        for sock in sorted(set(socklist)):
+            self.outputs.new('EnViBoundSocket', sock)
+            self.inputs.new('EnViBoundSocket', sock)
+        socklist = [(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].afsurface == 1 and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViSAirSocket']]
+        for sock in sorted(set(socklist)):
+            self.outputs.new('EnViSAirSocket', sock[0]).sn = str(sock[1])
+            self.inputs.new('EnViSAirSocket', sock[0]).sn = str(sock[1])
+
     def supdate(self, context):
-        if 'Schedule' not in self.outputs:
-            if self.vsched != "":
+        if self.control == 'Temperature':
+            if 'Schedule' not in self.outputs:
                 self.outputs.new('NodeSocket', 'Schedule')
-        if 'Schedule' in self.outputs:
-            if self.vsched == "":
+        else:
+            if 'Schedule' in self.outputs:
                 self.outputs.remove('Schedule')
-    
+
     zone = bpy.props.StringProperty(update = zupdate)
     controltype = [("NoVent", "None", "No ventilation control"), ("Temperature", "Temperature", "Temperature control")]
-    control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='NoVent')
-    vsched = bpy.props.StringProperty(name = "", update = supdate)
-    zonevolume = bpy.props.FloatProperty(default=45, name = "")
-    limitval = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 1)
+    control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='NoVent', update = supdate)
+    zonevolume = bpy.props.FloatProperty(name = '')
+    mvof = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 1)
     lowerlim = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 100)
     upperlim = bpy.props.FloatProperty(default = 50, name = "", min = 0, max = 100)
 
@@ -1143,10 +1140,7 @@ class EnViZone(bpy.types.Node, EnViNodes):
         row.prop(self, "control")
         if self.control == 'Temperature':
             row = layout.row()
-            row.label("Vent schedule:")
-            row.prop(self, "vsched")
-            row = layout.row()
-            row.prop(self, 'limitval')
+            row.prop(self, 'mvof')
             row = layout.row()
             row.prop(self, 'lowerlim')
             row = layout.row()
@@ -1217,14 +1211,14 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
 
     def oupdate(self, context):
         self.outputs['VASchedule'].hide = False if self.linktypeprop != 'HO' else True
-            
+
     linktype = [("SO", "Simple Opening", "Simple opening element"),
         ("DO", "Detailed Opening", "Detailed opening element"),
         ("HO", "Horizontal Opening", "Horizontal opening element")]
 
     linkmenu = bpy.props.EnumProperty(name="Type", description="Linkage type", items=linktype, default='SO', update = oupdate)
     wdof = bpy.props.FloatProperty(default = 1, min = 0, max = 1, name = "")
-    controltype = [("ZoneLevel", "ZoneLevel", "Zone level ventilation control"), ("NoVent", "None", "No ventilation control"), 
+    controltype = [("ZoneLevel", "ZoneLevel", "Zone level ventilation control"), ("NoVent", "None", "No ventilation control"),
                    ("Temperature", "Temperature", "Temperature control")]
     control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='ZoneLevel')
     mvof = bpy.props.FloatProperty(default = 0, min = 0, max = 1, name = "", description = 'Minimium venting open factor')
@@ -1235,7 +1229,7 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
     lvo = bpy.props.EnumProperty(items = [('NonPivoted', 'NonPivoted', 'Non pivoting opening'), ('HorizontallyPivoted', 'HPivoted', 'Horizontally pivoting opening')], default = 'NonPivoted', description = 'Type of Rectanguler Large Vertical Opening (LVO)')
     ecl = bpy.props.FloatProperty(default = 0.0, min = 0, name = '', description = 'Extra Crack Length or Height of Pivoting Axis (m)')
     noof = bpy.props.IntProperty(default = 2, min = 2, max = 4, name = '', description = 'Number of Sets of Opening Factor Data')
-    
+
 #    0.0,                     !- Opening Factor 1 {dimensionless}
     dcof1 = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 1 (dimensionless)')
     wfof1 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 1 (dimensionless)')
@@ -1334,7 +1328,7 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
             row.prop(self, 'mvof')
             row = layout.row()
             row.prop(self, 'uvof')
-            
+
 class EnViCLinkNode(bpy.types.Node, EnViNodes):
     '''Node describing an airflow component'''
     bl_idname = 'EnViCLink'
@@ -1347,7 +1341,7 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
         ("ELA", "ELA", "Effective leakage area"),
         ("EF", "Exhaust fan", "Exhaust fan")]
 
-    linktypeprop = bpy.props.EnumProperty(name="Type", description="Linkage type", items=linktype, default='Crack')
+    linkmenu = bpy.props.EnumProperty(name="Type", description="Linkage type", items=linktype, default='Crack')
 
     amfc = bpy.props.FloatProperty(default = 1.0, name = "")
     amfe = bpy.props.FloatProperty(default = 0.6, name = "")
@@ -1359,6 +1353,7 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
     dhtc = bpy.props.FloatProperty(default = 0.772, name = "")
     dmtc = bpy.props.FloatProperty(default = 0.0001, name = "")
     cf = bpy.props.FloatProperty(default = 1, min = 0, max = 1, name = "")
+    ela = bpy.props.FloatProperty(default = 0.1, min = 0, max = 1, name = "")
 
     def init(self, context):
         self.inputs.new('EnViCAirSocket', 'Node 1')
@@ -1377,9 +1372,14 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
         except:
             pass
 
+        for sock in self.inputs:
+            if self.linkmenu == 'ELA' and sock.is_linked:
+                self.ela = bpy.data.objects[sock.links[0].from_node.zone].data.polygons[int(sock.links[0].from_socket.sn)].area
+
     def draw_buttons(self, context, layout):
-        layout.prop(self, 'linktypeprop')
-        if self.linktypeprop == "Crack":
+        layout.prop(self, 'linkmenu')
+
+        if self.linkmenu == "Crack":
             row = layout.row()
             row.label("Coefficient:")
             row.prop(self, 'amfc')
@@ -1389,8 +1389,8 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
             row = layout.row()
             row.label("Crack factor:")
             row.prop(self, 'cf')
-        
-        if self.linktypeprop == "Duct":
+
+        if self.linkmenu == "Duct":
             row = layout.row()
             row.label("Length:")
             row.prop(self, 'dlen')
@@ -1412,6 +1412,11 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
             row = layout.row()
             row.label("Moisture coefficient:")
             row.prop(self, 'dmtc')
+
+        if self.linkmenu == "ELA":
+            row = layout.row()
+            row.label("ELA:")
+            row.prop(self, 'ela')
 
 class EnViExtNode(bpy.types.Node, EnViNodes):
     '''Node describing a linkage component'''
@@ -1461,7 +1466,7 @@ class EnViTempSPSched(bpy.types.Node, EnViNodes):
 #        if self.linktypeprop == "Crack":
 #            layout.prop(self, 'amfc')
 #            layout.prop(self, 'amfe')
-            
+
 class EnViNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):

@@ -1,4 +1,4 @@
-import bpy, os, sys, multiprocessing, mathutils
+import bpy, os, sys, multiprocessing, mathutils, bmesh
 from math import sin, cos, asin, acos, pi
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
 
@@ -135,7 +135,7 @@ def processf(pro_op, node):
                 'AFN Zone Infiltration Volume [m3] !Hourly': 'AFN Volume (m'+u'\u00b3'+')'}
     lresdict = {'AFN Linkage Node 1 to Node 2 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow 1 to 2'}
     resdict = {}
-    
+
     objlist = [obj.name.upper() for obj in bpy.data.objects if obj.envi_type == '1' and obj.layers[1] == True]
 
     for line in resfile.readlines():
@@ -170,7 +170,7 @@ def processf(pro_op, node):
                 ztypes.append(linesplit[2])
             if zresdict[linesplit[3]] not in zrtypes:
                 zrtypes.append(zresdict[linesplit[3]])
-        
+
         elif len(linesplit) > 3 and linesplit[3] in lresdict:
             if 'Linkage' not in node['rtypes']:
                node['rtypes'] += ['Linkage']
@@ -228,7 +228,7 @@ def boundpoly(obj, mat, poly):
                         bpolyloc = bobj.matrix_world*mathutils.Vector(bpoly.center)
                         if bobj.data.materials[bpoly.material_index] == mat and max(bpolyloc - polyloc) < 0.001 and abs(bpoly.area - poly.area) < 0.01:
                             return(("Surface", node.inputs[mat.name].links[0].from_node.zone+str(bpoly.index), "NoSun", "NoWind"))
-        
+
                 elif node.outputs[mat.name].is_linked == True:
                     bobj = bpy.data.objects[node.outputs[mat.name].links[0].to_node.zone]
                     for bpoly in bobj.data.polygons:
@@ -241,3 +241,36 @@ def boundpoly(obj, mat, poly):
             return(("Outdoors", "", "SunExposed", "WindExposed"))
     else:
         return(("Outdoors", "", "SunExposed", "WindExposed"))
+
+
+def objvol(obj):
+    bm = bmesh.new()
+    bm.from_object(obj, bpy.context.scene)
+
+    floor, roof = [], []
+    mesh = obj.data
+    for f in mesh.polygons:
+        if obj.data.materials[f.material_index].envi_con_type == 'Floor':
+            floor.append((f.area, f.center[2]))
+        elif obj.data.materials[f.material_index].envi_con_type == 'Roof':
+            roof.append((f.area, f.center[2]))
+    zfloor = list(zip(*floor))
+    taf = sum(zfloor[0])
+    avhf = sum([(zfloor[0][i]*zfloor[1][i])/taf for i in range(len(zfloor[0]))])
+    zroof = list(zip(*roof))
+    tar = sum(zroof[0])
+    avhr = sum([(zroof[0][i]*zroof[1][i])/tar for i in range(len(zroof[0]))])
+
+    return(bm.calc_volume()*obj.scale[0]*obj.scale[1]*obj.scale[2])
+#    return((avhr - avhf)*(taf+tar)*obj.scale[0]*obj.scale[1]*obj.scale[2]/2)
+
+
+def ceilheight(obj, vertz):
+    mesh = obj.data
+    for vert in mesh.vertices:
+        vertz.append((obj.matrix_world * vert.co)[2])
+    zmax = max(vertz)
+    zmin = min(vertz)
+    ceiling = [max((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) for poly in mesh.polygons if max((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) > 0.9 * zmax]
+    floor = [min((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) for poly in mesh.polygons if min((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) < zmin + 0.1 * (zmax - zmin)]
+    return(sum(ceiling)/len(ceiling)-sum(floor)/len(floor))

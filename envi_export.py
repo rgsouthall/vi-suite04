@@ -34,8 +34,8 @@ SurfaceConvectionAlgorithm:Inside, TARP;                              !- Algorit
 SurfaceConvectionAlgorithm:Outside, TARP;                             !- Algorithm \n\
 HeatBalanceAlgorithm, ConductionTransferFunction; \n\
 ShadowCalculation, AverageOverDaysInFrequency, 10;                    !- (default frequency of calculation)\n\
-SimulationControl, No,No,No,No,Yes;                                   !- no zone sizing, system sizing, plant sizing, no design day, use weather file\n\n".format(',', 
-datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), "VERSION,8.0.0;", "    "+node.loc+",", "    0.000,", ("    City,", "    Urban,", "    Suburbs,", "    Country,", "    Ocean,")[int(node.terrain)], 
+SimulationControl, No,No,No,No,Yes;                                   !- no zone sizing, system sizing, plant sizing, no design day, use weather file\n\n".format(',',
+datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), "VERSION,8.0.0;", "    "+node.loc+",", "    0.000,", ("    City,", "    Urban,", "    Suburbs,", "    Country,", "    Ocean,")[int(node.terrain)],
 '    0.004,', '    0.4,', '    FullExteriorWithReflections,', '    15;', 'Timestep,  '+str(node.timesteps)+';', width = s))
 
     en_idf.write("RunPeriod,\n\
@@ -247,8 +247,8 @@ Construction,\n\
             "    0,                                                                !- Z Origin (m)\n" +
             "    1,                                                                !- Type\n" +
             "    1,                                                                !- Multiplier\n" +
-            "    {0:{width}}!- Ceiling Height (m)\n".format("{:.3f}".format(ceilheight(obj, [])) + ",", width = s - 4) +
-            "    {0:{width}}!- Volume (m3)\n".format("{:.2f}".format(objvol(obj)) + ",", width = s - 4) +
+            "    {0:{width}}!- Ceiling Height (m)\n".format("{:.3f}".format(vi_func.ceilheight(obj, [])) + ",", width = s - 4) +
+            "    {0:{width}}!- Volume (m3)\n".format("{:.2f}".format(vi_func.objvol(obj)) + ",", width = s - 4) +
             "    autocalculate,                                                    !- Floor Area (m2)\n" +
             "    TARP,                                                             !- Zone Inside Convection Algorithm\n"+
             "    TARP,                                                             !- Zone Outside Convection Algorithm\n"+
@@ -268,7 +268,7 @@ Construction,\n\
         for poly in obj.data.polygons:
             mat = obj.data.materials[poly.material_index]
             (obc, obco, se, we) = vi_func.boundpoly(obj, mat, poly)
-            
+
             if mat.envi_con_type in ('Wall', "Floor", "Roof") and mat.envi_con_makeup != "2":
                 en_idf.write('\nBuildingSurface:Detailed,\n' +
                 "    {0:{width}}!- Name\n".format(obj.name+'_'+str(poly.index)+",", width = s) +
@@ -302,8 +302,8 @@ Construction,\n\
                 "    {0:{width}}!- Number of Vertices\n".format(str(len(poly.vertices))+",", width = s))
                 for vert in poly.vertices:
                         en_idf.write("  {0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}{1:{width}}{2}".format(obm * odv[vert].co, (',', ';')[vert == poly.vertices[-1]], "!- X,Y,Z ==> Vertex "+str(vert)+" {m}\n", width = s - 16))
-            
-            
+
+
                 en_idf.write('\nFenestrationSurface:Detailed,\n\
                 {0}!- Name\n\
                 {1:{width}}!- Surface Type\n\
@@ -504,7 +504,7 @@ Construction,\n\
     UNTIL: 24:00,1;\n\n")
 
     writeafn(en_idf)
-    
+
     en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: REPORT VARIABLE ===========\n\n")
 
     if node.resat == True:
@@ -560,7 +560,7 @@ def pregeo():
             bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network")
             bpy.data.node_groups['EnVi Network'].use_fake_user = 1
 
-        obj["volume"] = objvol(obj)
+        obj["volume"] = vi_func.objvol(obj)
         bpy.data.scenes[0].layers[0:2] = (True, False)
 
         for mats in obj.data.materials:
@@ -577,7 +577,7 @@ def pregeo():
         bpy.ops.object.duplicate()
 
         en_obj = bpy.context.scene.objects.active
-        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+#        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
         obj.select = False
         en_obj.select = True
         en_obj.name = 'en_'+obj.name
@@ -618,37 +618,12 @@ def pregeo():
 
         if en_obj.name not in [node.zone for node in bpy.data.node_groups['EnVi Network'].nodes if hasattr(node, 'zone')]:
             bpy.data.node_groups['EnVi Network'].nodes.new(type = 'EnViZone').zone = en_obj.name
-
-
-def objvol(obj):
-    mesh = obj.data
-    vtot = 0
-    for f in mesh.polygons:
-        fzn = f.normal[2]
-        (x1, y1, z1) = obj.matrix_world * mesh.vertices[f.vertices[0]].co
-        (x2, y2, z2) = obj.matrix_world * mesh.vertices[f.vertices[1]].co
-        (x3, y3, z3) = obj.matrix_world * mesh.vertices[f.vertices[2]].co
-        pa = 0.5*abs((x1*(y3-y2))+(x2*(y1-y3))+(x3*(y2-y1)))
-        volume = ((z1+z2+z3)/3.0)*pa
-        if fzn < 0:
-            fzn = -1
-        elif fzn > 0:
-            fzn = 1
         else:
-            fzn = 0
-        vtot = vtot + (2* fzn * volume)
+            for node in bpy.data.node_groups['EnVi Network'].nodes:
+                if hasattr(node, 'zone') and node.zone == en_obj.name:
+                    node.zupdate(bpy.context)
 
-    return(vtot)
 
-def ceilheight(obj, vertz):
-    mesh = obj.data
-    for vert in mesh.vertices:
-        vertz.append((obj.matrix_world * vert.co)[2])
-    zmax = max(vertz)
-    zmin = min(vertz)
-    ceiling = [max((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) for poly in mesh.polygons if max((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) > 0.9 * zmax]
-    floor = [min((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) for poly in mesh.polygons if min((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) < zmin + 0.1 * (zmax - zmin)]
-    return(sum(ceiling)/len(ceiling)-sum(floor)/len(floor))
 
 
 class heating(object):
@@ -853,7 +828,7 @@ class infiltration(object):
             if obj.envi_infbasetype == "0":
                 self.baseinfil = obj.envi_infbaselevel * obj["floorarea"] * obj.envi_occsmax * 0.001
             else:
-                self.baseinfil = obj.envi_infbaselevel * objvol(obj) * obj["floorarea"] * obj.envi_occsmax * 0.001
+                self.baseinfil = obj.envi_infbaselevel * vi_func.objvol(obj) * obj["floorarea"] * obj.envi_occsmax * 0.001
         elif obj.envi_occinftype == "2" and obj.envi_occtype == "2":
             self.infilmax = ("", obj.envi_inflevel, "", "")
             self.infilcalc = "Flow/Area"
@@ -867,7 +842,7 @@ class infiltration(object):
             if obj.envi_infbasetype == "0":
                 self.baseinfil = (1/(obj.envi_infbaselevel/obj["floorarea"])) * 1/obj.envi_occsmax * 0.001
             else:
-                self.baseinfil = (1/(obj.envi_infbaselevel * objvol(obj)/obj["floorarea"])) * (1/obj.envi_occsmax) * 0.001
+                self.baseinfil = (1/(obj.envi_infbaselevel * vi_func.objvol(obj)/obj["floorarea"])) * (1/obj.envi_occsmax) * 0.001
         elif obj.envi_occinftype == "2" and obj.envi_occtype == "3":
             self.infilmax = ("", obj.envi_inflevel, "", "")
             self.infilcalc = "Flow/Area"
@@ -926,20 +901,21 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}!- Upper value for modulating venting open factor (deltaC)\n\
     {:{width}}!- Indoor and Outdoor Enthalpy Difference Lower Limit For Maximum Venting Open Factor (deltaJ/kg)\n\
     {:{width}}!- Indoor and Outdoor Enthalpy Difference Upper Limit for Minimun Venting Open Factor (deltaJ/kg)\n\
-    {:{width}}!- Venting Availability Schedule Name\n\n'.format(enode.zone + ',', enode.control + ',', ',', str(enode.limitval) + ',', 
+    {:{width}}!- Venting Availability Schedule Name\n\n'.format(enode.zone + ',', enode.control + ',', ',', str(enode.limitval) + ',',
     str(enode.lowerlim) + ',', str(enode.upperlim) + ',', str(0.0) + ',', str(300000.0) + ',', enode.vsched+';', width = s))
-    
+
         if enode.bl_idname == 'EnViSLink':
-            for sock in ([inp for inp in enode.inputs]+[outp for outp in enode.outputs]): 
+            for sock in ([inp for inp in enode.inputs]+[outp for outp in enode.outputs]):
                 if sock.is_linked and sock.bl_idname == 'EnViSAirSocket':
                     sn = (sock.links[0].from_socket.sn, sock.links[0].to_socket.sn)[sock.in_out == 'OUT']
+                    zone = (sock.links[0].from_node.zone, sock.links[0].to_node.zone)[sock.in_out == 'OUT']
                     en_idf.write('AirflowNetwork:MultiZone:Surface,\n\
     {:{width}}! - Surface Name\n\
     {:{width}}!- Leakage Component Name\n\
     {:{width}}! - External Node Name\n\
-    {:{width}}!- Window/Door Opening Factor\n\n'.format(('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name, sock.links[0].to_socket.name)[sock.in_out == 'OUT']].envi_con_type == 'Door']+sn+',', 
+    {:{width}}!- Window/Door Opening Factor\n\n'.format(('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name, sock.links[0].to_socket.name)[sock.in_out == 'OUT']].envi_con_type == 'Door']+zone+'_'+sn+',',
     'SurfaceFlow_'+str(sf)+',', ',', str(enode.wdof)+';', width = s))
-            
+
             if enode.linkmenu == 'DO':
                 en_idf.write('AirflowNetwork:Multizone:Component:DetailedOpening,\n\
     {:{width}}! - Name\n\
@@ -957,11 +933,11 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}!- Discharge Coefficient for Opening Factor 2 (dimensionless)\n\
     {:{width}}!- Width Factor for Opening Factor 2 (dimensionless)\n\
     {:{width}}!- Height Factor for Opening Factor 2 (dimensionless)\n\
-    {:{width}}!- Start Height Factor for Opening Factor 2 (dimensionless)\n'.format('SurfaceFlow_'+str(sf)+',', str(enode.amfcc)+',', 
+    {:{width}}!- Start Height Factor for Opening Factor 2 (dimensionless)\n'.format('SurfaceFlow_'+str(sf)+',', str(enode.amfcc)+',',
     str(enode.amfec)+',', enode.lvo+',', ('Extra,', str(enode.ecl)+',')[enode.lvo == 'NonPivoted'], str(enode.noof)+',', str(enode.dcof1) + ',',
-    str(enode.wfof1)+',', str(enode.hfof1)+ ',', str(enode.sfof1) + ',', str(enode.of2) + ',', str(enode.dcof2)+',',str(enode.wfof2)+',', 
+    str(enode.wfof1)+',', str(enode.hfof1)+ ',', str(enode.sfof1) + ',', str(enode.of2) + ',', str(enode.dcof2)+',',str(enode.wfof2)+',',
     str(enode.hfof2)+ ',', str(enode.sfof2) + (',', ';')[enode.noof == 2], width = s))
-    
+
             if enode.noof > 2:
                 en_idf.write('    {:{width}}!- Opening Factor 3 (dimensionless)\n\
     {:{width}}!- Discharge Coefficient for Opening Factor 3 (dimensionless)\n\
@@ -975,104 +951,106 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}!- Height Factor for Opening Factor 4 (dimensionless)\n\
     {:{width}}!- Start Height Factor for Opening Factor 4 (dimensionless)\n\n'.format(str(enode.of4) + ',', str(enode.dcof4)+',',str(enode.wfof4)+',', str(enode.hfof4)+ ',', str(enode.sfof4) + ';',  width = s))
         sf += 1
-    
+
         if enode.bl_idname == 'EnViCLink':
-            for sock in ([inp for inp in enode.inputs]+[outp for outp in enode.outputs]): 
+            for sock in ([inp for inp in enode.inputs]+[outp for outp in enode.outputs]):
                 if sock.is_linked and sock.bl_idname == 'EnViCAirSocket':
                     sn = (sock.links[0].from_socket.sn, sock.links[0].to_socket.sn)[sock.in_out == 'OUT']
-                    print(sn)
-                    if enode.linktypeprop == 'Crack':    
+                    zone = (sock.links[0].from_node.zone, sock.links[0].to_node.zone)[sock.in_out == 'OUT']
+                    if enode.linktypeprop == 'Crack':
                         en_idf.write('AirflowNetwork:Multizone:Surface,\n\
     {:{width}}! - Surface Name\n\
     {:{width}}!- Leakage Component Name\n\
     {:{width}}! - External Node Name\n\
-    {:{width}}!- Window/Door Opening Factor\n\n'.format(sn+',', 
+    {:{width}}!- Window/Door Opening Factor\n\n'.format(zone+'_'+sn+',',
     'ComponentFlow_'+str(cf)+',', ',', str(enode.cf)+';', width = s))
-                        
+
                         en_idf.write('AirflowNetwork:Multizone:Surface:Crack,\n\
     {:{width}}! - Name\n\
     {:{width}}! - Air Mass Flow Coefficient at Reference Conditions (kg/s)\n\
     {:{width}}! - Air Mass Flow Exponent (dimensionless)\n\n'.format('ComponentFlow_'+str(cf)+',', str(enode.amfc)+',', str(enode.amfe)+';', width = s))
-    
+
                     cf += 1
 
-def nodecreation():
-    if not hasattr(bpy.types, 'EnViN'):
-              bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network")
-    zoneitems = []
-
-    for obj in [obj for obj in bpy.data.objects if obj.type == 'MESH' and obj.layers[1] == True and len([mat for mat in obj.data.materials if mat.envi_con_type == "Aperture" or mat.envi_boundary == 1]) > 0]:
-        envizone = type(obj.name, (bpy.types.Node, vi_node.EnViNodes), {})
-        envizone.bl_label = obj.name
-        envizone.bl_idname = 'EnViZone'
-        envizone.typename = 'EnViZone'
-        envizone.zonevolume = bpy.props.FloatProperty(default=45, name = "")
-        controltype = [("NoVent", "None", "No ventilation control"), ("Temperature", "Temperature", "Temperature control")]
-        envizone.control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='NoVent')
-        envizone.vsched = bpy.props.StringProperty(name = "")
-
-        def init(self, context):
-            for face in obj.data.polygons:
-                if bpy.data.objects[self.bl_label].data.materials[face.material_index].envi_con_type == 'Aperture':
-                    self.outputs.new('EnViSAirSocket', bpy.data.objects[self.bl_label].data.materials[face.material_index].name)
-                    self.inputs.new('EnViSAirSocket', bpy.data.objects[self.bl_label].data.materials[face.material_index].name, identifier = obj.name+str(face.index))
-            for mat in bpy.data.objects[self.bl_label].data.materials:
-                if mat.envi_boundary == 1:
-                    self.outputs.new('EnViBoundSocket', mat.name)
-                    self.inputs.new('EnViBoundSocket', mat.name)
-
-        def draw_buttons(self, context, layout):
-            row=layout.row()
-            row.label("Volume:")
-            row.prop(self, "zonevolume")
-            row=layout.row()
-            row.label("Control type:")
-            row.prop(self, "control")
-            if self.control == 'Temperature':
-                row=layout.row()
-                row.label("Vent schedule:")
-                row.prop(self, "vsched")
-
-        def update(self):
-            try:
-                for inp in self.inputs:
-                    self.outputs[inp.name].hide = True if inp.is_linked else False
-                for outp in self.outputs:
-                    self.inputs[outp.name].hide = True if outp.is_linked else False
-            except:
-                pass
-
-        envizone.init = init
-        envizone.draw_buttons = draw_buttons
-        envizone.update = update
-        zoneitems.append(NodeItem('EnViZone', label = obj.name))
-        bpy.utils.register_class(envizone)
-
-        try:
-            bpy.data.node_groups['EnVi Network'].nodes[obj.name]
-        except:
-            bpy.data.node_groups['EnVi Network'].nodes.new(type = 'EnViZone', label = obj.name)
-
-    envinode_categories = [
-        # identifier, label, items list
-        vi_node.EnViNodeCategory("ZoneNodes", "Zone Nodes", items=
-            zoneitems
-            ),
-        vi_node.EnViNodeCategory("SLinkNodes", "Surface Link Nodes", items=[
-            NodeItem("EnViSLink", label="Surface Link Node"),
-            ]),
-        vi_node.EnViNodeCategory("CLinkNodes", "Component Link Nodes", items=[
-            NodeItem("EnViCLink", label="Component Link Node"),
-            ]),
-        vi_node.EnViNodeCategory("PlantNodes", "Plant Nodes", items=[
-            NodeItem("EnViFan", label="EnVi fan node"),
-            ])]
-
-    try:
-        nodeitems_utils.unregister_node_categories("EnVi Nodes")
-        nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)
-    except:
-        nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)
+#def nodecreation():
+#    if not hasattr(bpy.types, 'EnViN'):
+#              bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network")
+#    zoneitems = []
+#
+#    for obj in [obj for obj in bpy.data.objects if obj.type == 'MESH' and obj.layers[1] == True and len([mat for mat in obj.data.materials if mat.afsurface == 1 or mat.envi_boundary == 1]) > 0]:
+#        envizone = type(obj.name, (bpy.types.Node, vi_node.EnViNodes), {})
+#        envizone.bl_label = obj.name
+#        envizone.bl_idname = 'EnViZone'
+#        envizone.typename = 'EnViZone'
+#        envizone.location = (50 * obj.location.x, (obj.location.z + obj.location.y)*25)
+#        envizone.zonevolume = bpy.props.FloatProperty(default=45, name = "")
+#        controltype = [("NoVent", "None", "No ventilation control"), ("Temperature", "Temperature", "Temperature control")]
+#        envizone.control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='NoVent')
+#        envizone.vsched = bpy.props.StringProperty(name = "")
+#
+#        def init(self, context):
+#            for mat in bpy.data.objects[self.bl_label].data.materials:
+#                if mat.envi_boundary == 1:
+#                    self.outputs.new('EnViBoundSocket', mat.name)
+#                    self.inputs.new('EnViBoundSocket', mat.name)
+#            for face in obj.data.polygons:
+#                if bpy.data.objects[self.bl_label].data.materials[face.material_index].afsurface:
+#                    self.outputs.new('EnViSAirSocket', bpy.data.objects[self.bl_label].data.materials[face.material_index].name)
+#                    self.inputs.new('EnViSAirSocket', bpy.data.objects[self.bl_label].data.materials[face.material_index].name, identifier = obj.name+str(face.index))
+#
+#
+#        def draw_buttons(self, context, layout):
+#            row=layout.row()
+#            row.label("Volume:")
+#            row.prop(self, "zonevolume")
+#            row=layout.row()
+#            row.label("Control type:")
+#            row.prop(self, "control")
+#            if self.control == 'Temperature':
+#                row=layout.row()
+#                row.label("Vent schedule:")
+#                row.prop(self, "vsched")
+#
+#        def update(self):
+#            try:
+#                for inp in self.inputs:
+#                    self.outputs[inp.name].hide = True if inp.is_linked else False
+#                for outp in self.outputs:
+#                    self.inputs[outp.name].hide = True if outp.is_linked else False
+#            except:
+#                pass
+#
+#        envizone.init = init
+#        envizone.draw_buttons = draw_buttons
+#        envizone.update = update
+#        zoneitems.append(NodeItem('EnViZone', label = obj.name))
+#        bpy.utils.register_class(envizone)
+#
+#        try:
+#            bpy.data.node_groups['EnVi Network'].nodes[obj.name]
+#        except:
+#            bpy.data.node_groups['EnVi Network'].nodes.new(type = 'EnViZone', label = obj.name)
+#
+#    envinode_categories = [
+#        # identifier, label, items list
+#        vi_node.EnViNodeCategory("ZoneNodes", "Zone Nodes", items=
+#            zoneitems
+#            ),
+#        vi_node.EnViNodeCategory("SLinkNodes", "Surface Link Nodes", items=[
+#            NodeItem("EnViSLink", label="Surface Link Node"),
+#            ]),
+#        vi_node.EnViNodeCategory("CLinkNodes", "Component Link Nodes", items=[
+#            NodeItem("EnViCLink", label="Component Link Node"),
+#            ]),
+#        vi_node.EnViNodeCategory("PlantNodes", "Plant Nodes", items=[
+#            NodeItem("EnViFan", label="EnVi fan node"),
+#            ])]
+#
+#    try:
+#        nodeitems_utils.unregister_node_categories("EnVi Nodes")
+#        nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)
+#    except:
+#        nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)
 
 def spformat(s):
     space = "                                                                       "

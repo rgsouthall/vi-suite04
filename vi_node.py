@@ -19,8 +19,9 @@
 
 import bpy, bpy_extras, glob, os, inspect, sys, multiprocessing
 from nodeitems_utils import NodeCategory, NodeItem
+from mathutils import Vector
 #from . import vi_operators
-from .vi_func import nodeinit, objvol
+from .vi_func import nodeinit, objvol, triarea
 
 class ViNetwork(bpy.types.NodeTree):
     '''A node tree for VI-Suite analysis.'''
@@ -438,15 +439,15 @@ class ViExEnNode(bpy.types.Node, ViNodes):
     edoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeexported)
     timesteps = bpy.props.IntProperty(name = "", description = "Time steps per hour", min = 1, max = 4, default = 1, update = nodeexported)
     resfilename = bpy.props.StringProperty(name = "", default = 'results')
-    restype= bpy.props.EnumProperty(items = [("0", "Ambient", "Ambient Conditions"), ("1", "Zone Thermal", "Thermal Results"), ("2", "Comfort", "Comfort Results"), ("3", "Ventilation", "Ventilation Results")],
+    restype= bpy.props.EnumProperty(items = [("0", "Ambient", "Ambient Conditions"), ("1", "Zone Thermal", "Thermal Results"), ("2", "Comfort", "Comfort Results"), ("3", "Zone Ventilation", "Zone Ventilation Results"), ("4", "Ventilation Link", "ZoneVentilation Results")],
                                    name="", description="Specify the EnVi results catagory", default="0", update = nodeexported)
 
     resat = bpy.props.BoolProperty(name = "Temperature", description = "Ambient Temperature (K)", default = False, update = nodeexported)
     resaws = bpy.props.BoolProperty(name = "Wind Speed", description = "Ambient Wind Speed (m/s)", default = False, update = nodeexported)
     resawd = bpy.props.BoolProperty(name = "Wind Direction", description = "Ambient Wind Direction (degrees from North)", default = False, update = nodeexported)
     resah = bpy.props.BoolProperty(name = "Humidity", description = "Ambient Humidity", default = False, update = nodeexported)
-    resasb = bpy.props.BoolProperty(name = "Direct Solar", description = "Direct Solar Radiation (W/m^2K)", default = False, update = nodeexported)
-    resasd = bpy.props.BoolProperty(name = "Diffuse Solar", description = "Diffuse Solar Radiation (W/m^2K)", default = False, update = nodeexported)
+    resasb = bpy.props.BoolProperty(name = "Direct Solar", description = u'Direct Solar Radiation (W/m\u00b2K)', default = False, update = nodeexported)
+    resasd = bpy.props.BoolProperty(name = "Diffuse Solar", description = u'Diffuse Solar Radiation (W/m\u00b2K)', default = False, update = nodeexported)
     restt = bpy.props.BoolProperty(name = "Temperature", description = "Zone Temperatures", default = False, update = nodeexported)
     restwh = bpy.props.BoolProperty(name = "Heating Watts", description = "Zone Heating Requirement (Watts)", default = False, update = nodeexported)
     restwc = bpy.props.BoolProperty(name = "Cooling Watts", description = "Zone Cooling Requirement (Watts)", default = False, update = nodeexported)
@@ -456,10 +457,15 @@ class ViExEnNode(bpy.types.Node, ViNodes):
     rescpp = bpy.props.BoolProperty(name = "PPD", description = "Percentage Proportion Dissatisfied", default = False, update = nodeexported)
     rescpm = bpy.props.BoolProperty(name = "PMV", description = "Predicted Mean Vote", default = False, update = nodeexported)
     resvls = bpy.props.BoolProperty(name = "Ventilation (l/s)", description = "Zone Ventilation rate (l/s)", default = False, update = nodeexported)
-    resvmh = bpy.props.BoolProperty(name = "Ventilation (m3/h)", description = "Zone Ventilation rate (m3/h)", default = False, update = nodeexported)
-    resims = bpy.props.BoolProperty(name = "Infiltration (m3/s)", description = "Zone Infiltration rate (m3/s)", default = False, update = nodeexported)
-    resimh = bpy.props.BoolProperty(name = "Infiltration (m3/h)", description = "Zone Infiltration rate (m3/h)", default = False, update = nodeexported)
-
+    resvmh = bpy.props.BoolProperty(name = u'Ventilation (m3/h)', description = u'Zone Ventilation rate (m\u00b3/h)', default = False, update = nodeexported)
+    resims = bpy.props.BoolProperty(name = u'Infiltration (m3/s)', description = u'Zone Infiltration rate (m\u00b3/s)', default = False, update = nodeexported)
+    resimh = bpy.props.BoolProperty(name = u'Infiltration (m3/h)', description = u'Zone Infiltration rate (m\u00b3/h)', default = False, update = nodeexported)
+    resiach = bpy.props.BoolProperty(name = 'Infiltration (ACH)', description = 'Zone Infiltration rate (ACH)', default = False, update = nodeexported)
+    resco2 = bpy.props.BoolProperty(name = u'CO\u2082 concentration (ppm)', description = u'Zone CO\u2082 concentration (ppm)', default = False, update = nodeexported)
+    resihl = bpy.props.BoolProperty(name = "Heat loss (W)", description = "Ventilation Heat Loss (W)", default = False, update = nodeexported)
+    resl12ms = bpy.props.BoolProperty(name = u'Linkage flow (m\u00b3/s)', description = u'Linkage flow (m\u00b3/s)', default = False, update = nodeexported)
+    rescl12p = bpy.props.BoolProperty(name = 'Linkage Pressure (Pa)', description = 'Linkage Pressure (Pa)', default = False, update = nodeexported)
+#u'\u00b0C)'
     def init(self, context):
         self.inputs.new('ViEnGIn', 'Geometry in')
         nodeinit(self)
@@ -514,7 +520,15 @@ class ViExEnNode(bpy.types.Node, ViNodes):
             row.prop(self, "rescpm")
         elif self.restype == "3":
             row = layout.row()
-            row.prop(self, "resims")
+            row.prop(self, "resimh")
+            row.prop(self, "resiach")
+            row = layout.row()
+            row.prop(self, "resco2")
+            row.prop(self, "resihl")
+        elif self.restype == "4":
+            row = layout.row()
+            row.prop(self, "resl12ms")
+            row.prop(self, "rescl12p")
 
         if self.inputs[0].is_linked == True:
             row = layout.row()
@@ -1229,7 +1243,9 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
     lvo = bpy.props.EnumProperty(items = [('NonPivoted', 'NonPivoted', 'Non pivoting opening'), ('HorizontallyPivoted', 'HPivoted', 'Horizontally pivoting opening')], default = 'NonPivoted', description = 'Type of Rectanguler Large Vertical Opening (LVO)')
     ecl = bpy.props.FloatProperty(default = 0.0, min = 0, name = '', description = 'Extra Crack Length or Height of Pivoting Axis (m)')
     noof = bpy.props.IntProperty(default = 2, min = 2, max = 4, name = '', description = 'Number of Sets of Opening Factor Data')
-
+    spa = bpy.props.IntProperty(default = 90, min = 0, max = 90, name = '', description = 'Sloping Plane Angle')
+    dcof = bpy.props.FloatProperty(default = 0.2, min = 0, max = 1, name = '', description = 'Discharge Coefficient')
+    ddtw = bpy.props.FloatProperty(default = 0.1, min = 0, max = 10, name = '', description = 'Mimum Density Difference for Two-way Flow')
 #    0.0,                     !- Opening Factor 1 {dimensionless}
     dcof1 = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 1 (dimensionless)')
     wfof1 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 1 (dimensionless)')
@@ -1281,39 +1297,41 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
             row = layout.row()
             row.label("OF Number:")
             row.prop(self, 'noof')
-        if self.linkmenu == "DO":
-            row = layout.row()
-            row.prop(self, 'dcof1')
-            row = layout.row()
-            row.prop(self, 'wfof1')
-            row = layout.row()
-            row.prop(self, 'hfof1')
-            row = layout.row()
-            row.prop(self, 'sfof1')
-            row = layout.row()
-            row.prop(self, 'of2')
-            row = layout.row()
-            row.prop(self, 'dcof2')
-            row = layout.row()
-            row.prop(self, 'wfof2')
-            row = layout.row()
-            row.prop(self, 'hfof2')
-            row = layout.row()
-            row.prop(self, 'sfof2')
-            if self.noof > 2:
+            if self.linkmenu == "SO":
+                row = layout.row
+                row.labal('Closed FC:')
+                row.prop(self, 'amfcc')
+                row = layout.row
+                row.labal('Closed FE:')
+                row.prop(self, 'amfec')
+                row = layout.row
+                row.labal('Density diff:')
+                row.prop(self, 'ddtw')
+                row = layout.row
+                row.labal('Discharge Coeff')
+                row.prop(self, 'dcof')
+            if self.linkmenu == "DO":
                 row = layout.row()
-                row.prop(self, 'of3')
+                row.prop(self, 'dcof1')
                 row = layout.row()
-                row.prop(self, 'dcof3')
+                row.prop(self, 'wfof1')
                 row = layout.row()
-                row.prop(self, 'wfof3')
+                row.prop(self, 'hfof1')
                 row = layout.row()
-                row.prop(self, 'hfof3')
+                row.prop(self, 'sfof1')
                 row = layout.row()
-                row.prop(self, 'sfof3')
-                if self.noof > 3:
+                row.prop(self, 'of2')
+                row = layout.row()
+                row.prop(self, 'dcof2')
+                row = layout.row()
+                row.prop(self, 'wfof2')
+                row = layout.row()
+                row.prop(self, 'hfof2')
+                row = layout.row()
+                row.prop(self, 'sfof2')
+                if self.noof > 2:
                     row = layout.row()
-                    row.prop(self, 'of4')
+                    row.prop(self, 'of3')
                     row = layout.row()
                     row.prop(self, 'dcof3')
                     row = layout.row()
@@ -1322,11 +1340,38 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
                     row.prop(self, 'hfof3')
                     row = layout.row()
                     row.prop(self, 'sfof3')
-
+                    if self.noof > 3:
+                        row = layout.row()
+                        row.prop(self, 'of4')
+                        row = layout.row()
+                        row.prop(self, 'dcof3')
+                        row = layout.row()
+                        row.prop(self, 'wfof3')
+                        row = layout.row()
+                        row.prop(self, 'hfof3')
+                        row = layout.row()
+                        row.prop(self, 'sfof3')
+            
+        if self.linkmenu == 'HO':
+            row = layout.row()
+            row.label('Closed FC')
+            row.prop(self, 'amfcc')
+            row = layout.row()
+            row.label('Closed FE')
+            row.prop(self, 'amfec')
+            row = layout.row()
+            row.label('Slope')
+            row.prop(self, 'spa')
+            row = layout.row()
+            row.label('Discharge Coeff')
+            row.prop(self, 'dcof')
+            
         if self.control == 'Temperature':
             row = layout.row()
+            row.label('Minimum OF')
             row.prop(self, 'mvof')
             row = layout.row()
+            row.label('Upper OF')
             row.prop(self, 'uvof')
 
 class EnViCLinkNode(bpy.types.Node, EnViNodes):
@@ -1334,15 +1379,36 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
     bl_idname = 'EnViCLink'
     bl_label = 'Envi Component'
     bl_icon = 'SOUND'
+    
+    def supdate(self, context):
+        self.outputs['Reference'].hide = False if self.linkmenu in ('Crack', 'EF') else True
+        self.outputs['VASchedule'].hide = False if self.linkmenu != 'HO' else True
+            
 
-    linktype = [
+    linktype = [("SO", "Simple Opening", "Simple opening element"),
+        ("DO", "Detailed Opening", "Detailed opening element"),
+        ("HO", "Horizontal Opening", "Horizontal opening element"),
         ("Crack", "Crack", "Crack aperture used for leakage calculation"),
-        ("Duct", "Ducting", "Ducting for mechanical ventilation systems"),
         ("ELA", "ELA", "Effective leakage area"),
         ("EF", "Exhaust fan", "Exhaust fan")]
 
-    linkmenu = bpy.props.EnumProperty(name="Type", description="Linkage type", items=linktype, default='Crack')
-
+    linkmenu = bpy.props.EnumProperty(name="Type", description="Linkage type", items=linktype, default='SO', update = supdate)
+    
+    wdof = bpy.props.FloatProperty(default = 1, min = 0, max = 1, name = "")
+    controltype = [("ZoneLevel", "ZoneLevel", "Zone level ventilation control"), ("NoVent", "None", "No ventilation control"),
+                   ("Temperature", "Temperature", "Temperature control")]
+    control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='ZoneLevel')
+    mvof = bpy.props.FloatProperty(default = 0, min = 0, max = 1, name = "", description = 'Minimium venting open factor')
+    lvof = bpy.props.FloatProperty(default = 0, min = 0, max = 100, name = "", description = 'Indoor and Outdoor Temperature Difference Lower Limit For Maximum Venting Open Factor (deltaC)')
+    uvof = bpy.props.FloatProperty(default = 0, min = 0, max = 100, name = "", description = 'Indoor and Outdoor Temperature Difference Upper Limit For Minimum Venting Open Factor (deltaC)')
+    amfcc = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = "", description = 'Air Mass Flow Coefficient When Opening is Closed (kg/s-m)')
+    amfec = bpy.props.FloatProperty(default = 0.65,min = 0.5, max = 1, name = '', description =  'Air Mass Flow Exponent When Opening is Closed (dimensionless)')
+    lvo = bpy.props.EnumProperty(items = [('NonPivoted', 'NonPivoted', 'Non pivoting opening'), ('HorizontallyPivoted', 'HPivoted', 'Horizontally pivoting opening')], default = 'NonPivoted', description = 'Type of Rectanguler Large Vertical Opening (LVO)')
+    ecl = bpy.props.FloatProperty(default = 0.0, min = 0, name = '', description = 'Extra Crack Length or Height of Pivoting Axis (m)')
+    noof = bpy.props.IntProperty(default = 2, min = 2, max = 4, name = '', description = 'Number of Sets of Opening Factor Data')
+    spa = bpy.props.IntProperty(default = 90, min = 0, max = 90, name = '', description = 'Sloping Plane Angle')
+    dcof = bpy.props.FloatProperty(default = 0.2, min = 0, max = 1, name = '', description = 'Discharge Coefficient')
+    ddtw = bpy.props.FloatProperty(default = 0.1, min = 0, max = 10, name = '', description = 'Mimum Density Difference for Two-way Flow')
     amfc = bpy.props.FloatProperty(default = 1.0, name = "")
     amfe = bpy.props.FloatProperty(default = 0.6, name = "")
     dlen = bpy.props.FloatProperty(default = 2, name = "")
@@ -1354,13 +1420,40 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
     dmtc = bpy.props.FloatProperty(default = 0.0001, name = "")
     cf = bpy.props.FloatProperty(default = 1, min = 0, max = 1, name = "")
     ela = bpy.props.FloatProperty(default = 0.1, min = 0, max = 1, name = "")
-
+    dcof1 = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 1 (dimensionless)')
+    wfof1 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 1 (dimensionless)')
+    hfof1 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 1 (dimensionless)')
+    sfof1 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 1 (dimensionless)')
+    of2 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Opening Factor 2 (dimensionless)')
+    dcof2 = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 2 (dimensionless)')
+    wfof2 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 2 (dimensionless)')
+    hfof2 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 2 (dimensionless)')
+    sfof2 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 2 (dimensionless)')
+    of3 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Opening Factor 3 (dimensionless)')
+    dcof3 = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 3 (dimensionless)')
+    wfof3 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 3 (dimensionless)')
+    hfof3 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 3 (dimensionless)')
+    sfof3 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 3 (dimensionless)')
+    of4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Opening Factor 4 (dimensionless)')
+    dcof4 = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 4 (dimensionless)')
+    wfof4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 4 (dimensionless)')
+    hfof4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 4 (dimensionless)')
+    sfof4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 4 (dimensionless)')
+    
     def init(self, context):
         self.inputs.new('EnViCAirSocket', 'Node 1')
         self.inputs.new('EnViCAirSocket', 'Node 2')
         self.outputs.new('NodeSocket', 'Schedule')
+        self.outputs.new('NodeSocket', 'Reference')
+        self.outputs['Reference'].hide = True
         self.outputs.new('EnViCAirSocket', 'Node 1')
         self.outputs.new('EnViCAirSocket', 'Node 2')
+#        self.inputs.new('EnViSAirSocket', 'Node 1')
+#        self.inputs.new('EnViSAirSocket', 'Node 2')
+        self.outputs.new('NodeSocket', 'VASchedule')
+#        self.outputs.new('EnViSAirSocket', 'Node 1')
+#        self.outputs.new('EnViSAirSocket', 'Node 2')
+        self.outputs.new('NodeSocket', 'TSPSchedule')
 
     def update(self):
         try:
@@ -1376,15 +1469,94 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
             if self.linkmenu == 'ELA' and sock.is_linked:
                 try:
                     obj = bpy.data.objects[sock.links[0].from_node.zone]
+                    omw = obj.matrix_world
                     face = obj.data.polygons[int(sock.links[0].from_socket.sn)]
-                    self.ela = face.area*((1-abs(face.normal[0]))*obj.scale[0] +face.area*(1-abs(face.normal[1]))*obj.scale[1] + face.area*(1-abs(face.normal[2]))*obj.scale[2])
-                    print(face.area, (1-abs(face.normal[0])), obj.scale[0], (1-abs(face.normal[1])), obj.scale[1], (1-abs(face.normal[2])), obj.scale[2])
+                    self.ela = triarea([omw*Vector(face.center)] + [omw*obj.data.vertices[v].co for v in face.vertices] + [omw*obj.data.vertices[face.vertices[0]].co])
                 except:
                     pass
+                
     def draw_buttons(self, context, layout):
         layout.prop(self, 'linkmenu')
-
-        if self.linkmenu == "Crack":
+        if self.linkmenu in ("SO", "DO"):
+            row = layout.row()
+            row.label("Opening factor:")
+            row.prop(self, 'wdof')
+            row = layout.row()
+            row.label("Control type:")
+            row.prop(self, 'control')
+            row = layout.row()
+            row.label("OF Number:")
+            row.prop(self, 'noof')
+            if self.linkmenu == "SO":
+                row = layout.row
+                row.labal('Closed FC:')
+                row.prop(self, 'amfcc')
+                row = layout.row
+                row.labal('Closed FE:')
+                row.prop(self, 'amfec')
+                row = layout.row
+                row.labal('Density diff:')
+                row.prop(self, 'ddtw')
+                row = layout.row
+                row.labal('Discharge Coeff')
+                row.prop(self, 'dcof')
+            elif self.linkmenu == "DO":
+                row = layout.row()
+                row.prop(self, 'dcof1')
+                row = layout.row()
+                row.prop(self, 'wfof1')
+                row = layout.row()
+                row.prop(self, 'hfof1')
+                row = layout.row()
+                row.prop(self, 'sfof1')
+                row = layout.row()
+                row.prop(self, 'of2')
+                row = layout.row()
+                row.prop(self, 'dcof2')
+                row = layout.row()
+                row.prop(self, 'wfof2')
+                row = layout.row()
+                row.prop(self, 'hfof2')
+                row = layout.row()
+                row.prop(self, 'sfof2')
+                if self.noof > 2:
+                    row = layout.row()
+                    row.prop(self, 'of3')
+                    row = layout.row()
+                    row.prop(self, 'dcof3')
+                    row = layout.row()
+                    row.prop(self, 'wfof3')
+                    row = layout.row()
+                    row.prop(self, 'hfof3')
+                    row = layout.row()
+                    row.prop(self, 'sfof3')
+                    if self.noof > 3:
+                        row = layout.row()
+                        row.prop(self, 'of4')
+                        row = layout.row()
+                        row.prop(self, 'dcof3')
+                        row = layout.row()
+                        row.prop(self, 'wfof3')
+                        row = layout.row()
+                        row.prop(self, 'hfof3')
+                        row = layout.row()
+                        row.prop(self, 'sfof3')
+            
+        elif self.linkmenu == 'HO':
+            row = layout.row()
+            row.label('Closed FC')
+            row.prop(self, 'amfcc')
+            row = layout.row()
+            row.label('Closed FE')
+            row.prop(self, 'amfec')
+            row = layout.row()
+            row.label('Slope')
+            row.prop(self, 'spa')
+            row = layout.row()
+            row.label('Discharge Coeff')
+            row.prop(self, 'dcof')
+            
+        elif self.linkmenu == "Crack":
             row = layout.row()
             row.label("Coefficient:")
             row.prop(self, 'amfc')
@@ -1395,34 +1567,74 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
             row.label("Crack factor:")
             row.prop(self, 'cf')
 
-        if self.linkmenu == "Duct":
-            row = layout.row()
-            row.label("Length:")
-            row.prop(self, 'dlen')
-            row = layout.row()
-            row.label("Hydraulic diameter:")
-            row.prop(self, 'dhyd')
-            row = layout.row()
-            row.label("Cross Section:")
-            row.prop(self, 'dcs')
-            row = layout.row()
-            row.label("Surface Roughness:")
-            row.prop(self, 'dsr')
-            row = layout.row()
-            row.label("Loss coefficient:")
-            row.prop(self, 'dlc')
-            row = layout.row()
-            row.label("U-Factor:")
-            row.prop(self, 'dhtc')
-            row = layout.row()
-            row.label("Moisture coefficient:")
-            row.prop(self, 'dmtc')
+#        if self.linkmenu == "Duct":
+#            row = layout.row()
+#            row.label("Length:")
+#            row.prop(self, 'dlen')
+#            row = layout.row()
+#            row.label("Hydraulic diameter:")
+#            row.prop(self, 'dhyd')
+#            row = layout.row()
+#            row.label("Cross Section:")
+#            row.prop(self, 'dcs')
+#            row = layout.row()
+#            row.label("Surface Roughness:")
+#            row.prop(self, 'dsr')
+#            row = layout.row()
+#            row.label("Loss coefficient:")
+#            row.prop(self, 'dlc')
+#            row = layout.row()
+#            row.label("U-Factor:")
+#            row.prop(self, 'dhtc')
+#            row = layout.row()
+#            row.label("Moisture coefficient:")
+#            row.prop(self, 'dmtc')
 
         if self.linkmenu == "ELA":
             row = layout.row()
             row.label("ELA:")
             row.prop(self, 'ela')
+        
+        if self.linkmenu == "EF":
+            row = layout.row()
+            row.label("Off FC:")
+            row.prop(self, 'amfc')
+            row = layout.row()
+            row.label("Off FE:")
+            row.prop(self, 'amfe')
+        
+        if self.control == 'Temperature':
+            row = layout.row()
+            row.label('Minimum OF')
+            row.prop(self, 'mvof')
+            row = layout.row()
+            row.label('Upper OF')
+            row.prop(self, 'uvof')
 
+class EnViCrRef(bpy.types.Node, EnViNodes):
+    '''Node describing reference crack conditions'''
+    bl_idname = 'EnViCrRef'
+    bl_label = 'Envi Reference Crack Node'
+    bl_icon = 'SOUND'   
+    
+    reft = bpy.props.FloatProperty(name = '', min = 0, max = 30, default = 20, description = 'Reference Temperature ('+u'\u00b0C)')
+    refp = bpy.props.IntProperty(name = '', min = 100000, max = 105000, default = 101325, description = 'Reference Pressure (Pa)')
+    refh = bpy.props.FloatProperty(name = '', min = 0, max = 10, default = 0, description = 'Reference Humidity Ratio (kgWater/kgDryAir)')
+    
+    def init(self, context):
+        self.inputs.new('NodeSocket', 'Reference', type = 'CUSTOM')
+    
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.label('Temperature:')
+        row.prop(self, 'reft')
+        row = layout.row()
+        row.label('Pressure:')
+        row.prop(self, 'refp')
+        row = layout.row()
+        row.label('Humidity:')
+        row.prop(self, 'refh')
+        
 class EnViExtNode(bpy.types.Node, EnViNodes):
     '''Node describing a linkage component'''
     bl_idname = 'EnViExt'
@@ -1484,7 +1696,7 @@ envinode_categories = [
         EnViNodeCategory("SLinkNodes", "Surface Link Nodes", items=[
             NodeItem("EnViSLink", label="Surface Link Node")]),
         EnViNodeCategory("CLinkNodes", "Component Link Nodes", items=[
-            NodeItem("EnViCLink", label="Component Link Node")]),
+            NodeItem("EnViCLink", label="Component Link Node"), NodeItem("EnViCrRef", label="Crack Reference")]),
         EnViNodeCategory("SchedkNodes", "Schedule Nodes", items=[
             NodeItem("EnViVentASched", label="Venting Availability"), NodeItem("EnViTempSPSched", label="Vent Temperature Set-point")]),
         EnViNodeCategory("PlantNodes", "Plant Nodes", items=[

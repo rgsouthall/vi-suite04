@@ -532,7 +532,14 @@ Construction,\n\
     if node.resims == True:
         en_idf.write("Output:Variable,*,Zone Infiltration Current Density Volume Flow Rate [m3/s];\n")
     if node.reswsg == True:
-        en_idf.write("Output:Variable,*,Zone Windows Total Transmitted Solar Radiation Rate [W],hourly;;\n")
+        en_idf.write("Output:Variable,*,Zone Windows Total Transmitted Solar Radiation Rate [W],hourly;\n")
+    if node.resco2 == True:
+        en_idf.write("Output:Variable,*,System Node CO2 Concentration,timestep;\n")
+    if node.resl12ms == True:
+        for i in range(1, 1 + len([cnode for cnode in bpy.data.node_groups['EnVi Network'].nodes if cnode.bl_idname == 'EnViCLinkNode' and cnode.inputs['Node 1'].is_linked])):
+            en_idf.write("Output:Variable,Componentflow_{},AFN Linkage Node 1 to Node 2 Volume Flow Rate,timestep;\n".format(i))
+        for i in range(1, 1 + len([snode for snode in bpy.data.node_groups['EnVi Network'] if snode.bl_idname == 'EnViSLinkNode' and snode.inputs['Node 1'].is_linked])):
+            en_idf.write("Output:Variable,Componentflow_{},AFN Linkage Node 1 to Node 2 Volume Flow Rate,timestep;\n".format(i))
     en_idf.close()
     if 'in.idf' not in [im.name for im in bpy.data.texts]:
         bpy.data.texts.load(node.idf_file)
@@ -890,7 +897,14 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}!- Ratio of Building Width Along Short Axis to Width Along Long Axis\n\n".format(cnode.afnname+',', cnode.afntype+',',
     cnode.wpctype+',', (",", cnode.wpcaname+',')[inp], (",", cnode.wpchs+',')[inp], (cnode.buildtype+',', ",")[inp], str(cnode.maxiter)+',', str(cnode.initmet)+',',
     str(cnode.rcontol)+',', str(cnode.acontol)+',', str(cnode.conal)+',', (str(cnode.aalax)+',', ",")[inp], (str(cnode.rsala)+';', ";")[inp], width = s))
-
+        
+        if enode.bl_idname == 'EnViCrRef':
+            en_idf.write('AirflowNetwork:MultiZone:ReferenceCrackConditions,\n\
+    {:{width}}!- Name\n\
+    {:{width}}!- Reference Temperature\n\
+    {:{width}}!- Reference Pressure\n\
+    {:{width}}!- Reference Humidity Ratio\n\n'.format('ReferenceCrackConditions,', str(enode.reft)+',', str(enode.refp)+',', str(enode.refh)+';', width = s)) 
+    
         if enode.bl_idname == 'EnViZone':
             en_idf.write('AirflowNetwork:MultiZone:Zone,\n\
     {:{width}}!- Zone Name\n\
@@ -915,8 +929,17 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}! - External Node Name\n\
     {:{width}}!- Window/Door Opening Factor\n\n'.format(('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name, sock.links[0].to_socket.name)[sock.in_out == 'OUT']].envi_con_type == 'Door']+zone+'_'+sn+',',
     'SurfaceFlow_'+str(sf)+',', ',', str(enode.wdof)+';', width = s))
-
-            if enode.linkmenu == 'DO':
+            
+            
+            if enode.linkmenu == 'SO':
+                en_idf.write('AirflowNetwork:Multizone:Component:SimpleOpening,\n\
+    {:{width}}! - Name\n\
+    {:{width}}!- Air Mass Flow Coefficient When Opening is Closed (kg/s-m)\n\
+    {:{width}}!- Air Mass Flow Exponent When Opening is Closed (dimensionless)\n\
+    {:{width}}!- Minimum Density Difference for Two-way Flow\n\
+    {:{width}}!- Discharge Coefficient\n\n'.format('SurfaceFlow_'+str(sf)+',', str(enode.amfcc)+',', str(enode.amfec)+',', str(enode.ddtw)+',', str(enode.dcof)+';', width = s))
+    
+            elif enode.linkmenu == 'DO':
                 en_idf.write('AirflowNetwork:Multizone:Component:DetailedOpening,\n\
     {:{width}}! - Name\n\
     {:{width}}!- Air Mass Flow Coefficient When Opening is Closed (kg/s-m)\n\
@@ -937,20 +960,31 @@ AirflowNetwork:SimulationControl,\n\
     str(enode.amfec)+',', enode.lvo+',', ('Extra,', str(enode.ecl)+',')[enode.lvo == 'NonPivoted'], str(enode.noof)+',', str(enode.dcof1) + ',',
     str(enode.wfof1)+',', str(enode.hfof1)+ ',', str(enode.sfof1) + ',', str(enode.of2) + ',', str(enode.dcof2)+',',str(enode.wfof2)+',',
     str(enode.hfof2)+ ',', str(enode.sfof2) + (',', ';')[enode.noof == 2], width = s))
-
-            if enode.noof > 2:
-                en_idf.write('    {:{width}}!- Opening Factor 3 (dimensionless)\n\
+            
+                if enode.noof > 2:
+                    en_idf.write('    {:{width}}!- Opening Factor 3 (dimensionless)\n\
     {:{width}}!- Discharge Coefficient for Opening Factor 3 (dimensionless)\n\
     {:{width}}!- Width Factor for Opening Factor 3 (dimensionless)\n\
     {:{width}}!- Height Factor for Opening Factor 3 (dimensionless)\n\
     {:{width}}!- Start Height Factor for Opening Factor 3 (dimensionless)'.format(str(enode.of3) + ',', str(enode.dcof3)+',',str(enode.wfof3)+',', str(enode.hfof3)+ ',', str(enode.sfof3) + (',', ';')[enode.noof == 3],  width = s))
-                if enode.noof > 3:
-                    en_idf.write('    {:{width}}!- Opening Factor 4 (dimensionless)\n\
+                    
+                    if enode.noof > 3:
+                        en_idf.write('    {:{width}}!- Opening Factor 4 (dimensionless)\n\
     {:{width}}!- Discharge Coefficient for Opening Factor 4 (dimensionless)\n\
     {:{width}}!- Width Factor for Opening Factor 4 (dimensionless)\n\
     {:{width}}!- Height Factor for Opening Factor 4 (dimensionless)\n\
     {:{width}}!- Start Height Factor for Opening Factor 4 (dimensionless)\n\n'.format(str(enode.of4) + ',', str(enode.dcof4)+',',str(enode.wfof4)+',', str(enode.hfof4)+ ',', str(enode.sfof4) + ';',  width = s))
-        sf += 1
+            
+            elif enode.linkmenu == 'HO':
+                en_idf.write('AirflowNetwork:Multizone:Component:SimpleOpening,\n\
+    {:{width}}! - Name\n\
+    {:{width}}!- Air Mass Flow Coefficient When Opening is Closed (kg/s-m)\n\
+    {:{width}}!- Air Mass Flow Exponent When Opening is Closed (dimensionless)\n\
+    {:{width}}!- Sloping Plane Angle\n\
+    {:{width}}!- Discharge Coefficient\n\n'.format('SurfaceFlow_'+str(sf)+',', str(enode.amfcc)+',', str(enode.amfec)+',', str(enode.spa)+',', str(enode.dcof)+';', width = s))
+                    
+        
+            sf += 1
 
         if enode.bl_idname == 'EnViCLink':
             for sock in ([inp for inp in enode.inputs]+[outp for outp in enode.outputs]):
@@ -972,85 +1006,6 @@ AirflowNetwork:SimulationControl,\n\
 
                     cf += 1
 
-#def nodecreation():
-#    if not hasattr(bpy.types, 'EnViN'):
-#              bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network")
-#    zoneitems = []
-#
-#    for obj in [obj for obj in bpy.data.objects if obj.type == 'MESH' and obj.layers[1] == True and len([mat for mat in obj.data.materials if mat.afsurface == 1 or mat.envi_boundary == 1]) > 0]:
-#        envizone = type(obj.name, (bpy.types.Node, vi_node.EnViNodes), {})
-#        envizone.bl_label = obj.name
-#        envizone.bl_idname = 'EnViZone'
-#        envizone.typename = 'EnViZone'
-#        envizone.location = (50 * obj.location.x, (obj.location.z + obj.location.y)*25)
-#        envizone.zonevolume = bpy.props.FloatProperty(default=45, name = "")
-#        controltype = [("NoVent", "None", "No ventilation control"), ("Temperature", "Temperature", "Temperature control")]
-#        envizone.control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='NoVent')
-#        envizone.vsched = bpy.props.StringProperty(name = "")
-#
-#        def init(self, context):
-#            for mat in bpy.data.objects[self.bl_label].data.materials:
-#                if mat.envi_boundary == 1:
-#                    self.outputs.new('EnViBoundSocket', mat.name)
-#                    self.inputs.new('EnViBoundSocket', mat.name)
-#            for face in obj.data.polygons:
-#                if bpy.data.objects[self.bl_label].data.materials[face.material_index].afsurface:
-#                    self.outputs.new('EnViSAirSocket', bpy.data.objects[self.bl_label].data.materials[face.material_index].name)
-#                    self.inputs.new('EnViSAirSocket', bpy.data.objects[self.bl_label].data.materials[face.material_index].name, identifier = obj.name+str(face.index))
-#
-#
-#        def draw_buttons(self, context, layout):
-#            row=layout.row()
-#            row.label("Volume:")
-#            row.prop(self, "zonevolume")
-#            row=layout.row()
-#            row.label("Control type:")
-#            row.prop(self, "control")
-#            if self.control == 'Temperature':
-#                row=layout.row()
-#                row.label("Vent schedule:")
-#                row.prop(self, "vsched")
-#
-#        def update(self):
-#            try:
-#                for inp in self.inputs:
-#                    self.outputs[inp.name].hide = True if inp.is_linked else False
-#                for outp in self.outputs:
-#                    self.inputs[outp.name].hide = True if outp.is_linked else False
-#            except:
-#                pass
-#
-#        envizone.init = init
-#        envizone.draw_buttons = draw_buttons
-#        envizone.update = update
-#        zoneitems.append(NodeItem('EnViZone', label = obj.name))
-#        bpy.utils.register_class(envizone)
-#
-#        try:
-#            bpy.data.node_groups['EnVi Network'].nodes[obj.name]
-#        except:
-#            bpy.data.node_groups['EnVi Network'].nodes.new(type = 'EnViZone', label = obj.name)
-#
-#    envinode_categories = [
-#        # identifier, label, items list
-#        vi_node.EnViNodeCategory("ZoneNodes", "Zone Nodes", items=
-#            zoneitems
-#            ),
-#        vi_node.EnViNodeCategory("SLinkNodes", "Surface Link Nodes", items=[
-#            NodeItem("EnViSLink", label="Surface Link Node"),
-#            ]),
-#        vi_node.EnViNodeCategory("CLinkNodes", "Component Link Nodes", items=[
-#            NodeItem("EnViCLink", label="Component Link Node"),
-#            ]),
-#        vi_node.EnViNodeCategory("PlantNodes", "Plant Nodes", items=[
-#            NodeItem("EnViFan", label="EnVi fan node"),
-#            ])]
-#
-#    try:
-#        nodeitems_utils.unregister_node_categories("EnVi Nodes")
-#        nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)
-#    except:
-#        nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)
 
 def spformat(s):
     space = "                                                                       "

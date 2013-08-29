@@ -468,8 +468,8 @@ def register():
     Material.envi_export_l3_bie = fprop("BIE", "Back Side Infrared Hemispherical Emissivity", 0, 1, 0.84)
     Material.envi_export_l4_bie = fprop("BIE", "Back Side Infrared Hemispherical Emissivity", 0, 1, 0.84)
     Material.envi_shad_att = bprop("Attached", "Flag to specify shading attached to the building",False)
-    
-    
+
+
     Scene.vipath = sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
 
     Scene.li_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
@@ -523,7 +523,7 @@ def register():
     bpy.utils.register_class(vi_node.EnViSAirSocket)
     bpy.utils.register_class(vi_node.EnViCAirSocket)
     bpy.utils.register_class(vi_node.EnViBoundSocket)
-    bpy.utils.register_class(vi_node.EnViSLinkNode)
+#    bpy.utils.register_class(vi_node.EnViSLinkNode)
     bpy.utils.register_class(vi_node.EnViCLinkNode)
     bpy.utils.register_class(vi_node.EnViCrRef)
     bpy.utils.register_class(vi_node.EnViFanNode)
@@ -581,7 +581,7 @@ def unregister():
     bpy.utils.unregister_class(vi_node.EnViSAirSocket)
     bpy.utils.unregister_class(vi_node.EnViCAirSocket)
     bpy.utils.unregister_class(vi_node.EnViBoundSocket)
-    bpy.utils.unregister_class(vi_node.EnViSLinkNode)
+#    bpy.utils.unregister_class(vi_node.EnViSLinkNode)
     bpy.utils.unregister_class(vi_node.EnViCLinkNode)
     bpy.utils.unregister_class(vi_node.EnViCrRef)
     bpy.utils.unregister_class(vi_node.EnViFanNode)

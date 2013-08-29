@@ -119,7 +119,7 @@ def clearscened(scene):
                 keys.animation_data_clear()
 
 def processf(pro_op, node):
-    ctypes, ztypes, zrtypes, ltypes, lrtypes = [], [], [], [], []
+    rtypes, ctypes, ztypes, zrtypes, ltypes, lrtypes = [], [], [], [], [], []
     resfile = open(node.resfilename, 'r')
 
     envdict = {'Site Outdoor Air Drybulb Temperature [C] !Hourly': "Outdoor Temperature ("+ u'\u00b0'+"C)",
@@ -154,17 +154,17 @@ def processf(pro_op, node):
             resdict['Day'] = []
             resdict['Hour'] = []
             dos = linesplit[0]
-            node['rtypes'] = ['Time']
+            rtypes = ['Time']
 
         elif len(linesplit) > 3 and linesplit[2] == 'Environment':
             if 'Climate' not in node['rtypes']:
-                node['rtypes'] += ['Climate']
+                rtypes.append('Climate')
             resdict[linesplit[0]] = ['Climate', envdict[linesplit[3]]]
             ctypes.append(envdict[linesplit[3]])
 
         elif len(linesplit) > 3 and linesplit[2] in objlist:
             if 'Zone' not in node['rtypes']:
-               node['rtypes'] += ['Zone']
+               rtypes.append('Zone')
             resdict[linesplit[0]] = [linesplit[2], zresdict[linesplit[3]]]
             if linesplit[2] not in ztypes:
                 ztypes.append(linesplit[2])
@@ -173,7 +173,7 @@ def processf(pro_op, node):
 
         elif len(linesplit) > 3 and linesplit[3] in lresdict:
             if 'Linkage' not in node['rtypes']:
-               node['rtypes'] += ['Linkage']
+               rtypes.append('Linkage')
             resdict[linesplit[0]] = [linesplit[2], lresdict[linesplit[3]]]
             if linesplit[2] not in ltypes:
                 ltypes.append(linesplit[2])
@@ -181,6 +181,7 @@ def processf(pro_op, node):
                 lrtypes.append(lresdict[linesplit[3]])
 
     resfile.close()
+    node['rtypes'] = rtypes
     node['dos'] = dos
     node['resdict'] = resdict
     node['ctypes'] = ctypes
@@ -274,7 +275,7 @@ def ceilheight(obj, vertz):
     ceiling = [max((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) for poly in mesh.polygons if max((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) > 0.9 * zmax]
     floor = [min((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) for poly in mesh.polygons if min((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) < zmin + 0.1 * (zmax - zmin)]
     return(sum(ceiling)/len(ceiling)-sum(floor)/len(floor))
-    
+
 def triarea(vs):
     if len(vs) == 5:
         cross = mathutils.Vector.cross(vs[3]-vs[1], vs[3]-vs[2])
@@ -287,4 +288,3 @@ def triarea(vs):
             area += 0.5*(cross[0]**2 + cross[1]**2 +cross[2]**2)**0.5
             i += 1
         return(area)
-    

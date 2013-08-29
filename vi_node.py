@@ -558,6 +558,7 @@ class ViEnRFNode(bpy.types.Node, ViNodes):
         row.prop(self, 'resfilename')
         row.operator("node.fileprocess", text = 'Process file').nodename = self.name
 
+
 class ViEnRNode(bpy.types.Node, ViNodes):
     '''Node for EnergyPlus 2D results analysis'''
     bl_idname = 'ViEnRNode'
@@ -569,7 +570,41 @@ class ViEnRNode(bpy.types.Node, ViNodes):
     charttype = bpy.props.EnumProperty(items = ctypes, name = "Chart Type", default = "0")
     timemenu = bpy.props.EnumProperty(items=[("0", "Hourly", "Hourly results"),("1", "Daily", "Daily results"), ("2", "Monthly", "Monthly results")],
                                                       name="", description="Results frequency", default="0")
+
+
+    class ViEnRXIn(bpy.types.NodeSocket):
+        '''Energy geometry out socket'''
+        bl_idname = 'ViEnRXIn'
+        bl_label = 'X-axis'
+
+        def draw_color(self, context, node):
+            return (0.0, 1.0, 0.0, 0.75)
+        def draw(self, context, layout, node, text):
+            row = layout.row()
+
     def init(self, context):
+
+        self.inputs.new("ViEnRXIn", "X-axis")
+        self['Start'] = 1
+        self['End'] = 365
+
+
+class ViEnRNode(bpy.types.Node, ViNodes):
+    '''Node for EnergyPlus 2D results analysis'''
+    bl_idname = 'ViEnRNode'
+    bl_label = 'VI EnergyPLus results'
+
+    ctypes = [("0", "Line", "Line Chart"), ("1", "Bar", "Bar Chart")]
+    dsh = bpy.props.IntProperty(name = "Start", description = "", min = 1, max = 24, default = 1)
+    deh = bpy.props.IntProperty(name = "End", description = "", min = 1, max = 24, default = 24)
+    charttype = bpy.props.EnumProperty(items = ctypes, name = "Chart Type", default = "0")
+    timemenu = bpy.props.EnumProperty(items=[("0", "Hourly", "Hourly results"),("1", "Daily", "Daily results"), ("2", "Monthly", "Monthly results")],
+                                                      name="", description="Results frequency", default="0")
+
+
+
+    def init(self, context):
+
         self.inputs.new("ViEnRXIn", "X-axis")
         self['Start'] = 1
         self['End'] = 365
@@ -592,11 +627,23 @@ class ViEnRNode(bpy.types.Node, ViNodes):
         row = layout.row()
         row.prop(self, "charttype")
         row.prop(self, "timemenu")
+
         if self.inputs['X-axis'].is_linked and self.inputs['Y-axis 1'].is_linked:
             layout.operator("node.chart", text = 'Create plot').nodename = self.name
 
     def update(self):
-        if self.inputs['X-axis'].is_linked == True:
+        if self.inputs['X-axis'].is_linked == False:
+            class ViEnRXIn(bpy.types.NodeSocket):
+                '''Energy geometry out socket'''
+                bl_idname = 'ViEnRXIn'
+                bl_label = 'X-axis'
+
+                def draw_color(self, context, node):
+                    return (0.0, 1.0, 0.0, 0.75)
+                def draw(self, context, layout, node, text):
+                    layout.label('X-axis')
+
+        else:
             xrtype, xctype, xztype, xzrtype, xltype, xlrtype = [], [], [], [], [], []
             try:
                 innode = self.inputs['X-axis'].links[0].from_node
@@ -616,237 +663,264 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 xltype.append((link, link, "Plot "+link))
             for linkr in innode['lrtypes']:
                 xlrtype.append((linkr, linkr, "Plot "+linkr))
-                print(xlrtype)
             self.inputs['Y-axis 1'].hide = False
 
-            if self.inputs['Y-axis 1'].is_linked == True:
-                y1rtype, y1ctype, y1ztype, y1zrtype, y1ltype, y1lrtype = [], [], [], [], [], []
-                innode = self.inputs[1].links[0].from_node
-                for restype in innode['rtypes']:
-                    y1rtype.append((restype, restype, "Plot "+restype))
-                for clim in innode['ctypes']:
-                    y1ctype.append((clim, clim, "Plot "+clim))
-                for zone in innode['ztypes']:
-                    y1ztype.append((zone, zone, "Plot "+zone))
-                for zoner in innode['zrtypes']:
-                    y1zrtype.append((zoner, zoner, "Plot "+zoner))
-                for link in innode['ltypes']:
-                    y1ltype.append((link, link, "Plot "+link))
-                for linkr in innode['lrtypes']:
-                    y1lrtype.append((linkr, linkr, "Plot "+linkr))
-                self.inputs['Y-axis 2'].hide = False
+            class ViEnRXIn(bpy.types.NodeSocket):
+                '''Energy geometry out socket'''
+                bl_idname = 'ViEnRXIn'
+                bl_label = 'X-axis'
 
-                if self.inputs['Y-axis 2'].is_linked == True:
-                    y2rtype, y2ctype, y2ztype, y2zrtype, y2ltype, y2lrtype= [], [], [], [], [], []
-                    innode = self.inputs[2].links[0].from_node
-                    for restype in innode['rtypes']:
-                        y2rtype.append((restype, restype, "Plot "+restype))
-                    for clim in innode['ctypes']:
-                        y2ctype.append((clim, clim, "Plot "+clim))
-                    for zone in innode['ztypes']:
-                        y2ztype.append((zone, zone, "Plot "+zone))
-                    for zoner in innode['zrtypes']:
-                        y2zrtype.append((zoner, zoner, "Plot "+zoner))
-                    for link in innode['ltypes']:
-                        y2ltype.append((link, link, "Plot "+link))
-                    for linkr in innode['lrtypes']:
-                        y2lrtype.append((linkr, linkr, "Plot "+linkr))
-                    self.inputs['Y-axis 3'].hide = False
+                if len(innode['rtypes']) > 0:
+                    rtypemenu = bpy.props.EnumProperty(items=xrtype, name="", description="Data type", default = xrtype[0][0])
+                    if 'Climate' in innode['rtypes']:
+                        climmenu = bpy.props.EnumProperty(items=xctype, name="", description="Climate type", default = xctype[0][0])
+                    if 'Zone' in innode['rtypes']:
+                        zonemenu = bpy.props.EnumProperty(items=xztype, name="", description="Zone", default = xztype[0][0])
+                        zonermenu = bpy.props.EnumProperty(items=xzrtype, name="", description="Zone result", default = xzrtype[0][0])
+                    if 'Linkage' in innode['rtypes']:
+                        linkmenu = bpy.props.EnumProperty(items=xltype, name="", description="Flow linkage result", default = xltype[0][0])
+                        linkrmenu = bpy.props.EnumProperty(items=xlrtype, name="", description="Flow linkage result", default = xlrtype[0][0])
+                    statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Result statistic", default = 'Average')
 
-                    if self.inputs['Y-axis 3'].is_linked == True:
-                        y3rtype, y3ctype, y3ztype, y3zrtype, y3ltype, y3lrtype = [], [], [], [], [], []
-                        innode = self.inputs[3].links[0].from_node
-                        for restype in innode['rtypes']:
-                            y3rtype.append((restype, restype, "Plot "+restype))
-                        for clim in innode['ctypes']:
-                            y3ctype.append((clim, clim, "Plot "+clim))
-                        for zone in innode['ztypes']:
-                            y3ztype.append((zone, zone, "Plot "+zone))
-                        for zoner in innode['zrtypes']:
-                            y3zrtype.append((zoner, zoner, "Plot "+zoner))
-                        for link in innode['ltypes']:
-                            y3ltype.append((link, link, "Plot "+link))
-                        for linkr in innode['lrtypes']:
-                            y3lrtype.append((linkr, linkr, "Plot "+linkr))
-                    else:
-                        y3rtype = y3ctype = y3ztype = y3zrtype = y3ltype = y3lrtype = [('0', '', '0')]
-                else:
-#                    self.inputs[3].hide = True
-                    y2rtype = y2ctype = y2ztype = y2zrtype = y2ltype = y2lrtype = [('0', '', '0')]
-                    y3rtype = y3ctype = y3ztype = y3zrtype = y3ltype = y3lrtype = [('0', '', '0')]
-            else:
-#                self.inputs[2].hide = True
-                y1rtype = y1ctype = y1ztype = y1zrtype = y1ltype = y1lrtype = [('0', '', '0')]
-                y2rtype = y2ctype = y2ztype = y2zrtype = y2ltype = y2lrtype = [('0', '', '0')]
-                y3rtype = y3ctype = y3ztype = y3zrtype = y3ltype = y3lrtype = [('0', '', '0')]
+
+                def draw(self, context, layout, node, text):
+                    row = layout.row()
+                    row.label('--')
+                    row = layout.row()
+                    row.prop(self, "rtypemenu", text = text)
+                    if self.is_linked == True:
+                        row = layout.row()
+                        if self.rtypemenu == "Climate":
+                            row.prop(self, "climmenu")
+                        elif self.rtypemenu == "Zone":
+                            row.prop(self, "zonemenu")
+                            row = layout.row()
+                            row.prop(self, "zonermenu")
+                        elif self.rtypemenu == "Linkage":
+                            row.prop(self, "linkmenu")
+                            row = layout.row()
+                            row.prop(self, "linkrmenu")
+                        if self.node.timemenu in ('1', '2') and node.rtypemenu !='Time':
+                            row.prop(self, "statmenu")
+                    row = layout.row()
+                    row.label('--')
+                    row = layout.row()
+
+                def draw_color(self, context, node):
+                    return (0.0, 1.0, 0.0, 0.75)
+
+                def color(self):
+                    return (0.0, 1.0, 0.0, 0.75)
+
+
+        if self.inputs['Y-axis 1'].is_linked == False:
+            class ViEnRY1In(bpy.types.NodeSocket):
+                '''Energy geometry out socket'''
+                bl_idname = 'ViEnRY1In'
+                bl_label = 'Y-axis 1'
+
+                def draw_color(self, context, node):
+                    return (0.0, 1.0, 0.0, 0.75)
+                def draw(self, context, layout, node, text):
+                    layout.label('Y-axis 1')
+
         else:
-#            self.inputs[1].hide = True
-            xrtype = xctype = xztype = xzrtype = [('0', '', '0')]
-            y1rtype = y1ctype = y1ztype = y1zrtype = y1ltype = y1lrtype = [('0', '', '0')]
-            y2rtype = y2ctype = y2ztype = y2zrtype = y2ltype = y2lrtype = [('0', '', '0')]
-            y3rtype = y3ctype = y3ztype = y3zrtype = y3ltype = y3lrtype = [('0', '', '0')]
+            y1rtype, y1ctype, y1ztype, y1zrtype, y1ltype, y1lrtype = [], [], [], [], [], []
+            innode = self.inputs[1].links[0].from_node
+            for restype in innode['rtypes']:
+                y1rtype.append((restype, restype, "Plot "+restype))
+            for clim in innode['ctypes']:
+                y1ctype.append((clim, clim, "Plot "+clim))
+            for zone in innode['ztypes']:
+                y1ztype.append((zone, zone, "Plot "+zone))
+            for zoner in innode['zrtypes']:
+                y1zrtype.append((zoner, zoner, "Plot "+zoner))
+            for link in innode['ltypes']:
+                y1ltype.append((link, link, "Plot "+link))
+            for linkr in innode['lrtypes']:
+                y1lrtype.append((linkr, linkr, "Plot "+linkr))
 
-        class ViEnRXIn(bpy.types.NodeSocket):
-            '''Energy geometry out socket'''
-            bl_idname = 'ViEnRXIn'
-            bl_label = 'X-axis'
 
-            rtypemenu = bpy.props.EnumProperty(items=xrtype, name="", description="Data type", default = xrtype[0][0])
-            climmenu = bpy.props.EnumProperty(items=xctype, name="", description="Climate type", default = xctype[0][0])
-            zonemenu = bpy.props.EnumProperty(items=xztype, name="", description="Zone", default = xztype[0][0])
-            zonermenu = bpy.props.EnumProperty(items=xzrtype, name="", description="Zone result", default = xzrtype[0][0])
-            linkmenu = bpy.props.EnumProperty(items=xltype, name="", description="Flow linkage result", default = xltype[0][0])
-            linkrmenu = bpy.props.EnumProperty(items=xlrtype, name="", description="Flow linkage result", default = xlrtype[0][0])
-            statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Result statistic", default = 'Average')
+            class ViEnRY1In(bpy.types.NodeSocket):
+                '''Energy geometry out socket'''
+                bl_idname = 'ViEnRY1In'
+                bl_label = 'Y-axis1'
+                if len(innode['rtypes']) > 0:
+                    rtypemenu = bpy.props.EnumProperty(items=y1rtype, name="", description="Data type", default = xrtype[0][0])
+                    if 'Climate' in innode['rtypes']:
+                        climmenu = bpy.props.EnumProperty(items=y1ctype, name="", description="Climate type", default = xctype[0][0])
+                    if 'Zone' in innode['rtypes']:
+                        zonemenu = bpy.props.EnumProperty(items=y1ztype, name="", description="Zone", default = xztype[0][0])
+                        zonermenu = bpy.props.EnumProperty(items=y1zrtype, name="", description="Zone result", default = xzrtype[0][0])
+                    if 'Linkage' in innode['rtypes']:
+                        linkmenu = bpy.props.EnumProperty(items=y1ltype, name="", description="Flow linkage result", default = xltype[0][0])
+                        linkrmenu = bpy.props.EnumProperty(items=y1lrtype, name="", description="Flow linkage result", default = xlrtype[0][0])
+                    statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Result statistic", default = 'Average')
 
-            def draw(self, context, layout, node, text):
-                row = layout.row()
-                row.label('--')
-                row = layout.row()
-                row.prop(self, "rtypemenu", text = text)
-                if self.is_linked == True:
+
+                def draw(self, context, layout, node, text):
                     row = layout.row()
-                    if self.rtypemenu == "Climate":
-                        row.prop(self, "climmenu")
-                    elif self.rtypemenu == "Zone":
-                        row.prop(self, "zonemenu")
+                    row.prop(self, "rtypemenu", text = text)
+                    if self.is_linked:
                         row = layout.row()
-                        row.prop(self, "zonermenu")
-                    elif self.rtypemenu == "Linkage":
-                        row.prop(self, "linkmenu")
-                        row = layout.row()
-                        row.prop(self, "linkrmenu")
-                    if self.node.timemenu in ('1', '2'):
-                        row.prop(self, "statmenu")
-                row = layout.row()
-                row.label('--')
-                row = layout.row()
-
-            def draw_color(self, context, node):
-                return (0.0, 1.0, 0.0, 0.75)
-
-            def color(self):
-                return (0.0, 1.0, 0.0, 0.75)
-
-        class ViEnRY1In(bpy.types.NodeSocket):
-            '''Energy geometry out socket'''
-            bl_idname = 'ViEnRY1In'
-            bl_label = 'Y-axis1'
-
-            rtypemenu = bpy.props.EnumProperty(items=y1rtype, name="", description="Simulation accuracy", default = y1rtype[0][0])
-
-            climmenu = bpy.props.EnumProperty(items=y1ctype, name="", description="Climate type", default = y1ctype[0][0])
-            zonemenu = bpy.props.EnumProperty(items=y1ztype, name="", description="Zone", default = y1ztype[0][0])
-            zonermenu = bpy.props.EnumProperty(items=y1zrtype, name="", description="Zone result", default = y1zrtype[0][0])
-            linkmenu = bpy.props.EnumProperty(items=y1ltype, name="", description="Flow linkage result", default = y1ltype[0][0])
-            linkrmenu = bpy.props.EnumProperty(items=y1lrtype, name="", description="Flow linkage result", default = y1lrtype[0][0])
-            statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
-
-            def draw(self, context, layout, node, text):
-                row = layout.row()
-                row.prop(self, "rtypemenu", text = text)
-                if self.is_linked:
+                        if self.rtypemenu == "Climate":
+                            row.prop(self, "climmenu")
+                        elif self.rtypemenu == "Zone":
+                            row.prop(self, "zonemenu")
+                            row = layout.row()
+                            row.prop(self, "zonermenu")
+                        elif self.rtypemenu == "Linkage":
+                            row.prop(self, "linkmenu")
+                            row = layout.row()
+                            row.prop(self, "linkrmenu")
+                        if self.node.timemenu in ('1', '2') and node.rtypemenu != 'Time':
+                            row.prop(self, "statmenu")
                     row = layout.row()
-                    if self.rtypemenu == "Climate":
-                        row.prop(self, "climmenu")
-                        if self.node.timemenu in ('1', '2'):
-                            row.prop(self, "statmenu")
-                    elif self.rtypemenu == "Zone":
-                        row.prop(self, "zonemenu")
-                        row = layout.row()
-                        row.prop(self, "zonermenu")
-                    elif self.rtypemenu == "Linkage":
-                        row.prop(self, "linkmenu")
-                        row = layout.row()
-                        row.prop(self, "linkrmenu")
-                    if self.node.timemenu in ('1', '2'):
-                        row.prop(self, "statmenu")
-                row = layout.row()
-                row.label('--')
-                row = layout.row()
-
-            def draw_color(self, context, node):
-                return (0.0, 1.0, 0.0, 0.75)
-
-            def color(self):
-                return (0.0, 1.0, 0.0, 0.75)
-
-        class ViEnRY2In(bpy.types.NodeSocket):
-            '''Energy geometry out socket'''
-            bl_idname = 'ViEnRY2In'
-            bl_label = 'Y-axis2'
-
-            rtypemenu = bpy.props.EnumProperty(items=y2rtype, name="", description="Simulation accuracy", default = y2rtype[0][0])
-            climmenu = bpy.props.EnumProperty(items=y2ctype, name="", description="Climate type", default = y2ctype[0][0])
-            zonemenu = bpy.props.EnumProperty(items=y2ztype, name="", description="Zone", default = y2ztype[0][0])
-            zonermenu = bpy.props.EnumProperty(items=y2zrtype, name="", description="Zone result", default = y2zrtype[0][0])
-            statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
-
-            def draw(self, context, layout, node, text):
-                row = layout.row()
-                row.prop(self, "rtypemenu", text = text)
-                if self.is_linked:
+                    row.label('--')
                     row = layout.row()
-                    if self.rtypemenu == "Climate":
-                        row.prop(self, "climmenu")
-                        if self.node.timemenu in ('1', '2'):
-                            row.prop(self, "statmenu")
-                    elif self.rtypemenu == "Zone":
-                        row.prop(self, "zonemenu")
+
+                def draw_color(self, context, node):
+                    return (0.0, 1.0, 0.0, 0.75)
+
+                def color(self):
+                    return (0.0, 1.0, 0.0, 0.75)
+
+            self.inputs['Y-axis 2'].hide = False
+
+            if self.inputs['Y-axis 2'].is_linked == False:
+                class ViEnRY2In(bpy.types.NodeSocket):
+                    '''Energy geometry out socket'''
+                    bl_idname = 'ViEnRY2In'
+                    bl_label = 'Y-axis 2'
+
+                    def draw_color(self, context, node):
+                        return (0.0, 1.0, 0.0, 0.75)
+                    def draw(self, context, layout, node, text):
+                        layout.label('Y-axis 2')
+            else:
+                y2rtype, y2ctype, y2ztype, y2zrtype, y2ltype, y2lrtype = [], [], [], [], [], []
+                innode = self.inputs[2].links[0].from_node
+                for restype in innode['rtypes']:
+                    y2rtype.append((restype, restype, "Plot "+restype))
+                for clim in innode['ctypes']:
+                    y2ctype.append((clim, clim, "Plot "+clim))
+                for zone in innode['ztypes']:
+                    y2ztype.append((zone, zone, "Plot "+zone))
+                for zoner in innode['zrtypes']:
+                    y2zrtype.append((zoner, zoner, "Plot "+zoner))
+                for link in innode['ltypes']:
+                    y2ltype.append((link, link, "Plot "+link))
+                for linkr in innode['lrtypes']:
+                    y2lrtype.append((linkr, linkr, "Plot "+linkr))
+
+                class ViEnRY2In(bpy.types.NodeSocket):
+                    '''Energy geometry out socket'''
+                    bl_idname = 'ViEnRY2In'
+                    bl_label = 'Y-axis 2'
+
+                    rtypemenu = bpy.props.EnumProperty(items=y2rtype, name="", description="Simulation accuracy", default = y2rtype[0][0])
+                    if 'Climate' in innode['rtypes']:
+                        climmenu = bpy.props.EnumProperty(items=y2ctype, name="", description="Climate type", default = xctype[0][0])
+                    if 'Zone' in innode['rtypes']:
+                        zonemenu = bpy.props.EnumProperty(items=y2ztype, name="", description="Zone", default = xztype[0][0])
+                        zonermenu = bpy.props.EnumProperty(items=y2zrtype, name="", description="Zone result", default = xzrtype[0][0])
+                    if 'Linkage' in innode['rtypes']:
+                        linkmenu = bpy.props.EnumProperty(items=y2ltype, name="", description="Flow linkage result", default = xltype[0][0])
+                        linkrmenu = bpy.props.EnumProperty(items=y2lrtype, name="", description="Flow linkage result", default = xlrtype[0][0])
+                    statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
+
+                    def draw(self, context, layout, node, text):
                         row = layout.row()
-                        row.prop(self, "zonermenu")
-                        if self.node.timemenu in ('1', '2'):
-                            row.prop(self, "statmenu")
-                row = layout.row()
-                row.label('--')
-                row = layout.row()
-
-            def draw_color(self, context, node):
-                return (0.0, 1.0, 0.0, 0.75)
-
-            def color(self):
-                return (0.0, 1.0, 0.0, 0.75)
-
-        class ViEnRY3In(bpy.types.NodeSocket):
-            '''Energy geometry out socket'''
-            bl_idname = 'ViEnRY3In'
-            bl_label = 'Y-axis3'
-
-            rtypemenu = bpy.props.EnumProperty(items=y3rtype, name="", description="Simulation accuracy", default = y3rtype[0][0])
-            climmenu = bpy.props.EnumProperty(items=y3ctype, name="", description="Climate type", default = y3ctype[0][0])
-            zonemenu = bpy.props.EnumProperty(items=y3ztype, name="", description="Zone", default = y3ztype[0][0])
-            zonermenu = bpy.props.EnumProperty(items=y3zrtype, name="", description="Zone result", default = y3zrtype[0][0])
-            statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
-
-            def draw(self, context, layout, node, text):
-                row = layout.row()
-                row.prop(self, "rtypemenu", text = text)
-                if self.is_linked:
-                    row = layout.row()
-                    if self.rtypemenu == "Climate":
-                        row.prop(self, "climmenu")
-                        if self.node.timemenu in ('1', '2'):
-                            row.prop(self, "statmenu")
-                    elif self.rtypemenu == "Zone":
-                        row.prop(self, "zonemenu")
+                        row.prop(self, "rtypemenu", text = text)
+                        if self.is_linked:
+                            row = layout.row()
+                            if self.rtypemenu == "Climate":
+                                row.prop(self, "climmenu")
+                            elif self.rtypemenu == "Zone":
+                                row.prop(self, "zonemenu")
+                                row = layout.row()
+                                row.prop(self, "zonermenu")
+                                if self.node.timemenu in ('1', '2') and node.rtypemenu != 'Time':
+                                    row.prop(self, "statmenu")
                         row = layout.row()
-                        row.prop(self, "zonermenu")
-                        if self.node.timemenu in ('1', '2'):
-                            row.prop(self, "statmenu")
+                        row.label('--')
+                        row = layout.row()
 
-            def draw_color(self, context, node):
-                return (0.0, 1.0, 0.0, 0.75)
+                    def draw_color(self, context, node):
+                        return (0.0, 1.0, 0.0, 0.75)
 
-            def color(self):
-                return (0.0, 1.0, 0.0, 0.75)
+                    def color(self):
+                        return (0.0, 1.0, 0.0, 0.75)
+
+                self.inputs['Y-axis 3'].hide = False
+
+                if self.inputs['Y-axis 3'].is_linked == False:
+                    class ViEnRY3In(bpy.types.NodeSocket):
+                        '''Energy geometry out socket'''
+                        bl_idname = 'ViEnRY3In'
+                        bl_label = 'Y-axis 3'
+
+                        def draw_color(self, context, node):
+                            return (0.0, 1.0, 0.0, 0.75)
+                        def draw(self, context, layout, node, text):
+                            layout.label('Y-axis 2')
+                else:
+                    y3rtype, y3ctype, y3ztype, y3zrtype, y3ltype, y3lrtype = [], [], [], [], [], []
+                    innode = self.inputs[3].links[0].from_node
+                    for restype in innode['rtypes']:
+                        y3rtype.append((restype, restype, "Plot "+restype))
+                    for clim in innode['ctypes']:
+                        y3ctype.append((clim, clim, "Plot "+clim))
+                    for zone in innode['ztypes']:
+                        y3ztype.append((zone, zone, "Plot "+zone))
+                    for zoner in innode['zrtypes']:
+                        y3zrtype.append((zoner, zoner, "Plot "+zoner))
+                    for link in innode['ltypes']:
+                        y3ltype.append((link, link, "Plot "+link))
+                    for linkr in innode['lrtypes']:
+                        y3lrtype.append((linkr, linkr, "Plot "+linkr))
+
+                    class ViEnRY3In(bpy.types.NodeSocket):
+                        '''Energy geometry out socket'''
+                        bl_idname = 'ViEnRY3In'
+                        bl_label = 'Y-axis 3'
+
+                        rtypemenu = bpy.props.EnumProperty(items=y3rtype, name="", description="Simulation accuracy", default = y3rtype[0][0])
+                        if 'Climate' in innode['rtypes']:
+                            climmenu = bpy.props.EnumProperty(items=y3ctype, name="", description="Climate type", default = xctype[0][0])
+                        if 'Zone' in innode['rtypes']:
+                            zonemenu = bpy.props.EnumProperty(items=y3ztype, name="", description="Zone", default = xztype[0][0])
+                            zonermenu = bpy.props.EnumProperty(items=y3zrtype, name="", description="Zone result", default = xzrtype[0][0])
+                        if 'Linkage' in innode['rtypes']:
+                            linkmenu = bpy.props.EnumProperty(items=y3ltype, name="", description="Flow linkage result", default = xltype[0][0])
+                            linkrmenu = bpy.props.EnumProperty(items=y3lrtype, name="", description="Flow linkage result", default = xlrtype[0][0])
+                        statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
+
+                        def draw(self, context, layout, node, text):
+                            row = layout.row()
+                            row.prop(self, "rtypemenu", text = text)
+                            if self.is_linked:
+                                row = layout.row()
+                                if self.rtypemenu == "Climate":
+                                    row.prop(self, "climmenu")
+                                elif self.rtypemenu == "Zone":
+                                    row.prop(self, "zonemenu")
+                                    row = layout.row()
+                                    row.prop(self, "zonermenu")
+                                    if self.node.timemenu in ('1', '2') and node.rtypemenu != 'Time':
+                                        row.prop(self, "statmenu")
+
+                        def draw_color(self, context, node):
+                            return (0.0, 1.0, 0.0, 0.75)
+
+                        def color(self):
+                            return (0.0, 1.0, 0.0, 0.75)
+
 
         bpy.utils.register_class(ViEnRXIn)
         bpy.utils.register_class(ViEnRY1In)
         bpy.utils.register_class(ViEnRY2In)
         bpy.utils.register_class(ViEnRY3In)
-
-        #            self.inputs['X-axis'].xrestype = self.inputs['X-axis'].links[0].from_node.xtypes
-
 
 class ViNodeCategory(NodeCategory):
     @classmethod
@@ -1217,173 +1291,173 @@ class EnViFanNode(bpy.types.Node, EnViNodes):
             row.label("Airstream fraction:")
             row.prop(self, 'fmaf')
 
-class EnViSLinkNode(bpy.types.Node, EnViNodes):
-    '''Node describing an airflow surface linkage'''
-    bl_idname = 'EnViSLink'
-    bl_label = 'Envi Surface Airflow Linkage'
-    bl_icon = 'SOUND'
+#class EnViSLinkNode(bpy.types.Node, EnViNodes):
+#    '''Node describing an airflow surface linkage'''
+#    bl_idname = 'EnViSLink'
+#    bl_label = 'Envi Surface Airflow Linkage'
+#    bl_icon = 'SOUND'
+#
+#    def oupdate(self, context):
+#        self.outputs['VASchedule'].hide = False if self.linktypeprop != 'HO' else True
+#
+#    linktype = [("SO", "Simple Opening", "Simple opening element"),
+#        ("DO", "Detailed Opening", "Detailed opening element"),
+#        ("HO", "Horizontal Opening", "Horizontal opening element")]
+#
+#    linkmenu = bpy.props.EnumProperty(name="Type", description="Linkage type", items=linktype, default='SO', update = oupdate)
+#    wdof = bpy.props.FloatProperty(default = 1, min = 0, max = 1, name = "")
+#    controltype = [("ZoneLevel", "ZoneLevel", "Zone level ventilation control"), ("NoVent", "None", "No ventilation control"),
+#                   ("Temperature", "Temperature", "Temperature control")]
+#    control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='ZoneLevel')
+#    mvof = bpy.props.FloatProperty(default = 0, min = 0, max = 1, name = "", description = 'Minimium venting open factor')
+#    lvof = bpy.props.FloatProperty(default = 0, min = 0, max = 100, name = "", description = 'Indoor and Outdoor Temperature Difference Lower Limit For Maximum Venting Open Factor (deltaC)')
+#    uvof = bpy.props.FloatProperty(default = 0, min = 0, max = 100, name = "", description = 'Indoor and Outdoor Temperature Difference Upper Limit For Minimum Venting Open Factor (deltaC)')
+#    amfcc = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = "", description = 'Air Mass Flow Coefficient When Opening is Closed (kg/s-m)')
+#    amfec = bpy.props.FloatProperty(default = 0.65,min = 0.5, max = 1, name = '', description =  'Air Mass Flow Exponent When Opening is Closed (dimensionless)')
+#    lvo = bpy.props.EnumProperty(items = [('NonPivoted', 'NonPivoted', 'Non pivoting opening'), ('HorizontallyPivoted', 'HPivoted', 'Horizontally pivoting opening')], default = 'NonPivoted', description = 'Type of Rectanguler Large Vertical Opening (LVO)')
+#    ecl = bpy.props.FloatProperty(default = 0.0, min = 0, name = '', description = 'Extra Crack Length or Height of Pivoting Axis (m)')
+#    noof = bpy.props.IntProperty(default = 2, min = 2, max = 4, name = '', description = 'Number of Sets of Opening Factor Data')
+#    spa = bpy.props.IntProperty(default = 90, min = 0, max = 90, name = '', description = 'Sloping Plane Angle')
+#    dcof = bpy.props.FloatProperty(default = 0.2, min = 0, max = 1, name = '', description = 'Discharge Coefficient')
+#    ddtw = bpy.props.FloatProperty(default = 0.1, min = 0, max = 10, name = '', description = 'Mimum Density Difference for Two-way Flow')
+##    0.0,                     !- Opening Factor 1 {dimensionless}
+#    dcof1 = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 1 (dimensionless)')
+#    wfof1 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 1 (dimensionless)')
+#    hfof1 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 1 (dimensionless)')
+#    sfof1 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 1 (dimensionless)')
+#    of2 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Opening Factor 2 (dimensionless)')
+#    dcof2 = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 2 (dimensionless)')
+#    wfof2 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 2 (dimensionless)')
+#    hfof2 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 2 (dimensionless)')
+#    sfof2 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 2 (dimensionless)')
+#    of3 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Opening Factor 3 (dimensionless)')
+#    dcof3 = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 3 (dimensionless)')
+#    wfof3 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 3 (dimensionless)')
+#    hfof3 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 3 (dimensionless)')
+#    sfof3 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 3 (dimensionless)')
+#    of4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Opening Factor 4 (dimensionless)')
+#    dcof4 = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 4 (dimensionless)')
+#    wfof4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 4 (dimensionless)')
+#    hfof4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 4 (dimensionless)')
+#    sfof4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 4 (dimensionless)')
+#
+#    def init(self, context):
+#        self.inputs.new('EnViSAirSocket', 'Node 1')
+#        self.inputs.new('EnViSAirSocket', 'Node 2')
+#        self.outputs.new('NodeSocket', 'VASchedule')
+#        self.outputs.new('EnViSAirSocket', 'Node 1')
+#        self.outputs.new('EnViSAirSocket', 'Node 2')
+#        self.outputs.new('NodeSocket', 'TSPSchedule')
+#
+#    def update(self):
+#        try:
+#            lsocknames = ('Node 1', 'Node 2')
+#            for ins in [insock for insock in self.inputs if insock.name in lsocknames]:
+#                self.outputs[ins.name].hide = True if ins.is_linked else False
+#            for outs in [outsock for outsock in self.outputs if outsock.name in lsocknames]:
+#                self.inputs[outs.name].hide = True if outs.is_linked else False
+#        except:
+#            pass
+#
+#    def draw_buttons(self, context, layout):
+#        layout.prop(self, 'linkmenu')
+#        if self.linkmenu in ("SO", "DO"):
+#            row = layout.row()
+#            row.label("Opening factor:")
+#            row.prop(self, 'wdof')
+#            row = layout.row()
+#            row.label("Control type:")
+#            row.prop(self, 'control')
+#            row = layout.row()
+#            row.label("OF Number:")
+#            row.prop(self, 'noof')
+#            if self.linkmenu == "SO":
+#                row = layout.row
+#                row.labal('Closed FC:')
+#                row.prop(self, 'amfcc')
+#                row = layout.row
+#                row.labal('Closed FE:')
+#                row.prop(self, 'amfec')
+#                row = layout.row
+#                row.labal('Density diff:')
+#                row.prop(self, 'ddtw')
+#                row = layout.row
+#                row.labal('Discharge Coeff')
+#                row.prop(self, 'dcof')
+#            if self.linkmenu == "DO":
+#                row = layout.row()
+#                row.prop(self, 'dcof1')
+#                row = layout.row()
+#                row.prop(self, 'wfof1')
+#                row = layout.row()
+#                row.prop(self, 'hfof1')
+#                row = layout.row()
+#                row.prop(self, 'sfof1')
+#                row = layout.row()
+#                row.prop(self, 'of2')
+#                row = layout.row()
+#                row.prop(self, 'dcof2')
+#                row = layout.row()
+#                row.prop(self, 'wfof2')
+#                row = layout.row()
+#                row.prop(self, 'hfof2')
+#                row = layout.row()
+#                row.prop(self, 'sfof2')
+#                if self.noof > 2:
+#                    row = layout.row()
+#                    row.prop(self, 'of3')
+#                    row = layout.row()
+#                    row.prop(self, 'dcof3')
+#                    row = layout.row()
+#                    row.prop(self, 'wfof3')
+#                    row = layout.row()
+#                    row.prop(self, 'hfof3')
+#                    row = layout.row()
+#                    row.prop(self, 'sfof3')
+#                    if self.noof > 3:
+#                        row = layout.row()
+#                        row.prop(self, 'of4')
+#                        row = layout.row()
+#                        row.prop(self, 'dcof3')
+#                        row = layout.row()
+#                        row.prop(self, 'wfof3')
+#                        row = layout.row()
+#                        row.prop(self, 'hfof3')
+#                        row = layout.row()
+#                        row.prop(self, 'sfof3')
 
-    def oupdate(self, context):
-        self.outputs['VASchedule'].hide = False if self.linktypeprop != 'HO' else True
-
-    linktype = [("SO", "Simple Opening", "Simple opening element"),
-        ("DO", "Detailed Opening", "Detailed opening element"),
-        ("HO", "Horizontal Opening", "Horizontal opening element")]
-
-    linkmenu = bpy.props.EnumProperty(name="Type", description="Linkage type", items=linktype, default='SO', update = oupdate)
-    wdof = bpy.props.FloatProperty(default = 1, min = 0, max = 1, name = "")
-    controltype = [("ZoneLevel", "ZoneLevel", "Zone level ventilation control"), ("NoVent", "None", "No ventilation control"),
-                   ("Temperature", "Temperature", "Temperature control")]
-    control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='ZoneLevel')
-    mvof = bpy.props.FloatProperty(default = 0, min = 0, max = 1, name = "", description = 'Minimium venting open factor')
-    lvof = bpy.props.FloatProperty(default = 0, min = 0, max = 100, name = "", description = 'Indoor and Outdoor Temperature Difference Lower Limit For Maximum Venting Open Factor (deltaC)')
-    uvof = bpy.props.FloatProperty(default = 0, min = 0, max = 100, name = "", description = 'Indoor and Outdoor Temperature Difference Upper Limit For Minimum Venting Open Factor (deltaC)')
-    amfcc = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = "", description = 'Air Mass Flow Coefficient When Opening is Closed (kg/s-m)')
-    amfec = bpy.props.FloatProperty(default = 0.65,min = 0.5, max = 1, name = '', description =  'Air Mass Flow Exponent When Opening is Closed (dimensionless)')
-    lvo = bpy.props.EnumProperty(items = [('NonPivoted', 'NonPivoted', 'Non pivoting opening'), ('HorizontallyPivoted', 'HPivoted', 'Horizontally pivoting opening')], default = 'NonPivoted', description = 'Type of Rectanguler Large Vertical Opening (LVO)')
-    ecl = bpy.props.FloatProperty(default = 0.0, min = 0, name = '', description = 'Extra Crack Length or Height of Pivoting Axis (m)')
-    noof = bpy.props.IntProperty(default = 2, min = 2, max = 4, name = '', description = 'Number of Sets of Opening Factor Data')
-    spa = bpy.props.IntProperty(default = 90, min = 0, max = 90, name = '', description = 'Sloping Plane Angle')
-    dcof = bpy.props.FloatProperty(default = 0.2, min = 0, max = 1, name = '', description = 'Discharge Coefficient')
-    ddtw = bpy.props.FloatProperty(default = 0.1, min = 0, max = 10, name = '', description = 'Mimum Density Difference for Two-way Flow')
-#    0.0,                     !- Opening Factor 1 {dimensionless}
-    dcof1 = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 1 (dimensionless)')
-    wfof1 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 1 (dimensionless)')
-    hfof1 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 1 (dimensionless)')
-    sfof1 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 1 (dimensionless)')
-    of2 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Opening Factor 2 (dimensionless)')
-    dcof2 = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 2 (dimensionless)')
-    wfof2 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 2 (dimensionless)')
-    hfof2 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 2 (dimensionless)')
-    sfof2 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 2 (dimensionless)')
-    of3 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Opening Factor 3 (dimensionless)')
-    dcof3 = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 3 (dimensionless)')
-    wfof3 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 3 (dimensionless)')
-    hfof3 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 3 (dimensionless)')
-    sfof3 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 3 (dimensionless)')
-    of4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Opening Factor 4 (dimensionless)')
-    dcof4 = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 4 (dimensionless)')
-    wfof4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 4 (dimensionless)')
-    hfof4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 4 (dimensionless)')
-    sfof4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 4 (dimensionless)')
-
-    def init(self, context):
-        self.inputs.new('EnViSAirSocket', 'Node 1')
-        self.inputs.new('EnViSAirSocket', 'Node 2')
-        self.outputs.new('NodeSocket', 'VASchedule')
-        self.outputs.new('EnViSAirSocket', 'Node 1')
-        self.outputs.new('EnViSAirSocket', 'Node 2')
-        self.outputs.new('NodeSocket', 'TSPSchedule')
-
-    def update(self):
-        try:
-            lsocknames = ('Node 1', 'Node 2')
-            for ins in [insock for insock in self.inputs if insock.name in lsocknames]:
-                self.outputs[ins.name].hide = True if ins.is_linked else False
-            for outs in [outsock for outsock in self.outputs if outsock.name in lsocknames]:
-                self.inputs[outs.name].hide = True if outs.is_linked else False
-        except:
-            pass
-
-    def draw_buttons(self, context, layout):
-        layout.prop(self, 'linkmenu')
-        if self.linkmenu in ("SO", "DO"):
-            row = layout.row()
-            row.label("Opening factor:")
-            row.prop(self, 'wdof')
-            row = layout.row()
-            row.label("Control type:")
-            row.prop(self, 'control')
-            row = layout.row()
-            row.label("OF Number:")
-            row.prop(self, 'noof')
-            if self.linkmenu == "SO":
-                row = layout.row
-                row.labal('Closed FC:')
-                row.prop(self, 'amfcc')
-                row = layout.row
-                row.labal('Closed FE:')
-                row.prop(self, 'amfec')
-                row = layout.row
-                row.labal('Density diff:')
-                row.prop(self, 'ddtw')
-                row = layout.row
-                row.labal('Discharge Coeff')
-                row.prop(self, 'dcof')
-            if self.linkmenu == "DO":
-                row = layout.row()
-                row.prop(self, 'dcof1')
-                row = layout.row()
-                row.prop(self, 'wfof1')
-                row = layout.row()
-                row.prop(self, 'hfof1')
-                row = layout.row()
-                row.prop(self, 'sfof1')
-                row = layout.row()
-                row.prop(self, 'of2')
-                row = layout.row()
-                row.prop(self, 'dcof2')
-                row = layout.row()
-                row.prop(self, 'wfof2')
-                row = layout.row()
-                row.prop(self, 'hfof2')
-                row = layout.row()
-                row.prop(self, 'sfof2')
-                if self.noof > 2:
-                    row = layout.row()
-                    row.prop(self, 'of3')
-                    row = layout.row()
-                    row.prop(self, 'dcof3')
-                    row = layout.row()
-                    row.prop(self, 'wfof3')
-                    row = layout.row()
-                    row.prop(self, 'hfof3')
-                    row = layout.row()
-                    row.prop(self, 'sfof3')
-                    if self.noof > 3:
-                        row = layout.row()
-                        row.prop(self, 'of4')
-                        row = layout.row()
-                        row.prop(self, 'dcof3')
-                        row = layout.row()
-                        row.prop(self, 'wfof3')
-                        row = layout.row()
-                        row.prop(self, 'hfof3')
-                        row = layout.row()
-                        row.prop(self, 'sfof3')
-            
-        if self.linkmenu == 'HO':
-            row = layout.row()
-            row.label('Closed FC')
-            row.prop(self, 'amfcc')
-            row = layout.row()
-            row.label('Closed FE')
-            row.prop(self, 'amfec')
-            row = layout.row()
-            row.label('Slope')
-            row.prop(self, 'spa')
-            row = layout.row()
-            row.label('Discharge Coeff')
-            row.prop(self, 'dcof')
-            
-        if self.control == 'Temperature':
-            row = layout.row()
-            row.label('Minimum OF')
-            row.prop(self, 'mvof')
-            row = layout.row()
-            row.label('Upper OF')
-            row.prop(self, 'uvof')
+#        if self.linkmenu == 'HO':
+#            row = layout.row()
+#            row.label('Closed FC')
+#            row.prop(self, 'amfcc')
+#            row = layout.row()
+#            row.label('Closed FE')
+#            row.prop(self, 'amfec')
+#            row = layout.row()
+#            row.label('Slope')
+#            row.prop(self, 'spa')
+#            row = layout.row()
+#            row.label('Discharge Coeff')
+#            row.prop(self, 'dcof')
+#
+#        if self.control == 'Temperature':
+#            row = layout.row()
+#            row.label('Minimum OF')
+#            row.prop(self, 'mvof')
+#            row = layout.row()
+#            row.label('Upper OF')
+#            row.prop(self, 'uvof')
 
 class EnViCLinkNode(bpy.types.Node, EnViNodes):
     '''Node describing an airflow component'''
     bl_idname = 'EnViCLink'
     bl_label = 'Envi Component'
     bl_icon = 'SOUND'
-    
+
     def supdate(self, context):
         self.outputs['Reference'].hide = False if self.linkmenu in ('Crack', 'EF') else True
         self.outputs['VASchedule'].hide = False if self.linkmenu != 'HO' else True
-            
+
 
     linktype = [("SO", "Simple Opening", "Simple opening element"),
         ("DO", "Detailed Opening", "Detailed opening element"),
@@ -1393,7 +1467,7 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
         ("EF", "Exhaust fan", "Exhaust fan")]
 
     linkmenu = bpy.props.EnumProperty(name="Type", description="Linkage type", items=linktype, default='SO', update = supdate)
-    
+
     wdof = bpy.props.FloatProperty(default = 1, min = 0, max = 1, name = "")
     controltype = [("ZoneLevel", "ZoneLevel", "Zone level ventilation control"), ("NoVent", "None", "No ventilation control"),
                    ("Temperature", "Temperature", "Temperature control")]
@@ -1420,6 +1494,7 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
     dmtc = bpy.props.FloatProperty(default = 0.0001, name = "")
     cf = bpy.props.FloatProperty(default = 1, min = 0, max = 1, name = "")
     ela = bpy.props.FloatProperty(default = 0.1, min = 0, max = 1, name = "")
+    rpd = bpy.props.FloatProperty(default = 4, min = 0.1, max = 50, name = "")
     dcof1 = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 1 (dimensionless)')
     wfof1 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 1 (dimensionless)')
     hfof1 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 1 (dimensionless)')
@@ -1439,7 +1514,7 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
     wfof4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 4 (dimensionless)')
     hfof4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 4 (dimensionless)')
     sfof4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 4 (dimensionless)')
-    
+
     def init(self, context):
         self.inputs.new('EnViCAirSocket', 'Node 1')
         self.inputs.new('EnViCAirSocket', 'Node 2')
@@ -1474,7 +1549,7 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
                     self.ela = triarea([omw*Vector(face.center)] + [omw*obj.data.vertices[v].co for v in face.vertices] + [omw*obj.data.vertices[face.vertices[0]].co])
                 except:
                     pass
-                
+
     def draw_buttons(self, context, layout):
         layout.prop(self, 'linkmenu')
         if self.linkmenu in ("SO", "DO"):
@@ -1488,20 +1563,21 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
             row.label("OF Number:")
             row.prop(self, 'noof')
             if self.linkmenu == "SO":
-                row = layout.row
-                row.labal('Closed FC:')
+                row = layout.row()
+                row.label('Closed FC:')
                 row.prop(self, 'amfcc')
-                row = layout.row
-                row.labal('Closed FE:')
+                row = layout.row()
+                row.label('Closed FE:')
                 row.prop(self, 'amfec')
-                row = layout.row
-                row.labal('Density diff:')
+                row = layout.row()
+                row.label('Density diff:')
                 row.prop(self, 'ddtw')
-                row = layout.row
-                row.labal('Discharge Coeff')
+                row = layout.row()
+                row.label('DC')
                 row.prop(self, 'dcof')
             elif self.linkmenu == "DO":
                 row = layout.row()
+                row.label('DC1')
                 row.prop(self, 'dcof1')
                 row = layout.row()
                 row.prop(self, 'wfof1')
@@ -1512,6 +1588,7 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
                 row = layout.row()
                 row.prop(self, 'of2')
                 row = layout.row()
+                row.label('DC2')
                 row.prop(self, 'dcof2')
                 row = layout.row()
                 row.prop(self, 'wfof2')
@@ -1523,6 +1600,7 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
                     row = layout.row()
                     row.prop(self, 'of3')
                     row = layout.row()
+                    row.label('DC3')
                     row.prop(self, 'dcof3')
                     row = layout.row()
                     row.prop(self, 'wfof3')
@@ -1534,6 +1612,7 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
                         row = layout.row()
                         row.prop(self, 'of4')
                         row = layout.row()
+                        row.label('DC4')
                         row.prop(self, 'dcof3')
                         row = layout.row()
                         row.prop(self, 'wfof3')
@@ -1541,7 +1620,7 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
                         row.prop(self, 'hfof3')
                         row = layout.row()
                         row.prop(self, 'sfof3')
-            
+
         elif self.linkmenu == 'HO':
             row = layout.row()
             row.label('Closed FC')
@@ -1555,7 +1634,7 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
             row = layout.row()
             row.label('Discharge Coeff')
             row.prop(self, 'dcof')
-            
+
         elif self.linkmenu == "Crack":
             row = layout.row()
             row.label("Coefficient:")
@@ -1594,7 +1673,16 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
             row = layout.row()
             row.label("ELA:")
             row.prop(self, 'ela')
-        
+            row = layout.row()
+            row.label("Discharge Coeff:")
+            row.prop(self, 'dcof')
+            row = layout.row()
+            row.label("PA diff:")
+            row.prop(self, 'rpd')
+            row = layout.row()
+            row.label("FE:")
+            row.prop(self, 'amfe')
+
         if self.linkmenu == "EF":
             row = layout.row()
             row.label("Off FC:")
@@ -1602,7 +1690,7 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
             row = layout.row()
             row.label("Off FE:")
             row.prop(self, 'amfe')
-        
+
         if self.control == 'Temperature':
             row = layout.row()
             row.label('Minimum OF')
@@ -1615,15 +1703,15 @@ class EnViCrRef(bpy.types.Node, EnViNodes):
     '''Node describing reference crack conditions'''
     bl_idname = 'EnViCrRef'
     bl_label = 'Envi Reference Crack Node'
-    bl_icon = 'SOUND'   
-    
+    bl_icon = 'SOUND'
+
     reft = bpy.props.FloatProperty(name = '', min = 0, max = 30, default = 20, description = 'Reference Temperature ('+u'\u00b0C)')
     refp = bpy.props.IntProperty(name = '', min = 100000, max = 105000, default = 101325, description = 'Reference Pressure (Pa)')
     refh = bpy.props.FloatProperty(name = '', min = 0, max = 10, default = 0, description = 'Reference Humidity Ratio (kgWater/kgDryAir)')
-    
+
     def init(self, context):
         self.inputs.new('NodeSocket', 'Reference', type = 'CUSTOM')
-    
+
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.label('Temperature:')
@@ -1634,7 +1722,7 @@ class EnViCrRef(bpy.types.Node, EnViNodes):
         row = layout.row()
         row.label('Humidity:')
         row.prop(self, 'refh')
-        
+
 class EnViExtNode(bpy.types.Node, EnViNodes):
     '''Node describing a linkage component'''
     bl_idname = 'EnViExt'

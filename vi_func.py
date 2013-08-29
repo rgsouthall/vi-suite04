@@ -122,8 +122,8 @@ def processf(pro_op, node):
     rtypes, ctypes, ztypes, zrtypes, ltypes, lrtypes = [], [], [], [], [], []
     resfile = open(node.resfilename, 'r')
 
-    envdict = {'Site Outdoor Air Drybulb Temperature [C] !Hourly': "Outdoor Temperature ("+ u'\u00b0'+"C)",
-               'Site Outdoor Air Relative Humidity [%] !Hourly': 'Outdoor Humidity (%)',
+    envdict = {'Site Outdoor Air Drybulb Temperature [C] !Hourly': "Temperature ("+ u'\u00b0'+"C)",
+               'Site Outdoor Air Relative Humidity [%] !Hourly': 'Humidity (%)',
                 'Site Wind Direction [deg] !Hourly': 'Wind Direction (deg)',
                 'Site Wind Speed [m/s] !Hourly': 'Wind Speed (m/s)',
                 'Site Diffuse Solar Radiation Rate per Area [W/m2] !Hourly': "Diffuse Solar (W/m"+u'\u00b2'+")",
@@ -154,17 +154,17 @@ def processf(pro_op, node):
             resdict['Day'] = []
             resdict['Hour'] = []
             dos = linesplit[0]
-            rtypes = ['Time']
+            node['rtypes'] = ['Time']
 
         elif len(linesplit) > 3 and linesplit[2] == 'Environment':
             if 'Climate' not in node['rtypes']:
-                rtypes.append('Climate')
+                node['rtypes']+= ['Climate']
             resdict[linesplit[0]] = ['Climate', envdict[linesplit[3]]]
             ctypes.append(envdict[linesplit[3]])
 
         elif len(linesplit) > 3 and linesplit[2] in objlist:
             if 'Zone' not in node['rtypes']:
-               rtypes.append('Zone')
+               node['rtypes'] += ['Zone']
             resdict[linesplit[0]] = [linesplit[2], zresdict[linesplit[3]]]
             if linesplit[2] not in ztypes:
                 ztypes.append(linesplit[2])
@@ -173,7 +173,7 @@ def processf(pro_op, node):
 
         elif len(linesplit) > 3 and linesplit[3] in lresdict:
             if 'Linkage' not in node['rtypes']:
-               rtypes.append('Linkage')
+               node['rtypes'] += ['Linkage']
             resdict[linesplit[0]] = [linesplit[2], lresdict[linesplit[3]]]
             if linesplit[2] not in ltypes:
                 ltypes.append(linesplit[2])
@@ -181,7 +181,7 @@ def processf(pro_op, node):
                 lrtypes.append(lresdict[linesplit[3]])
 
     resfile.close()
-    node['rtypes'] = rtypes
+#    node['rtypes'] = rtypes
     node['dos'] = dos
     node['resdict'] = resdict
     node['ctypes'] = ctypes

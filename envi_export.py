@@ -989,28 +989,38 @@ AirflowNetwork:SimulationControl,\n\
         if enode.bl_idname == 'EnViCLink':
             for sock in ([inp for inp in enode.inputs]+[outp for outp in enode.outputs]):
                 if sock.is_linked and sock.bl_idname == 'EnViCAirSocket':
-                    print((sock.links[0].from_node, sock.links[0].to_node)[sock.in_out == 'OUT'])
                     sn = (sock.links[0].from_socket.sn, sock.links[0].to_socket.sn)[sock.in_out == 'OUT']
                     znode = (sock.links[0].from_node, sock.links[0].to_node)[sock.in_out == 'OUT']
                     zn = znode.zone
 
 # Surface definitions
 
-                    if enode.linkmenu in ('SO', 'DO', 'HO'):
+                    if enode.linkmenu in ('SO', 'DO'):
                         en_idf.write('AirflowNetwork:MultiZone:Surface,\n\
     {:{width}}! - Surface Name\n\
     {:{width}}!- Leakage Component Name\n\
     {:{width}}! - External Node Name\n\
     {:{width}}!- Window/Door Opening Factor\n\n'.format(('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name, sock.links[0].to_socket.name)[sock.in_out == 'OUT']].envi_con_type == 'Door']+zn+'_'+sn+',',
-    'SurfaceFlow_'+str(cf)+',', ',', str(enode.wdof)+';', width = s))
+    'ComponentFlow_'+str(cf)+',', ',', str(enode.wdof)+';', width = s))
 
-                    if enode.linkmenu == 'Crack':
+                        
+                    elif enode.linkmenu == 'Crack':
                         en_idf.write('AirflowNetwork:Multizone:Surface,\n\
     {:{width}}! - Surface Name\n\
     {:{width}}!- Leakage Component Name\n\
     {:{width}}! - External Node Name\n\
     {:{width}}!- Crack Opening Factor\n\n'.format(zn+'_'+sn+',',
     'ComponentFlow_'+str(cf)+',', ',', str(enode.cf)+';', width = s))
+
+                    
+                    else:
+                        en_idf.write('AirflowNetwork:Multizone:Surface,\n\
+    {:{width}}! - Surface Name\n\
+    {:{width}}!- Leakage Component Name\n\
+    {:{width}}! - External Node Name\n\
+    {:{width}}!- Crack Opening Factor\n\n'.format(zn+'_'+sn+',',
+    'ComponentFlow_'+str(cf)+',', ',', '0.6;', width = s))
+
 
 # Component defintions
 
@@ -1021,29 +1031,33 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}! - Air Mass Flow Exponent (dimensionless)\n\n'.format('ComponentFlow_'+str(cf)+',', str(enode.amfc)+',', str(enode.amfe)+',', width = s))
                 if enode.outputs['Reference'].is_linked:
                     en_idf.write('{:{width}}! - Reference Crack Conditions\n\n'.format('ReferenceCrackConditions;' if enode.outputs['Reference'].is_linked else ';', width = s))
-
+                cf += 1
+            
             if enode.linkmenu == 'ELA':
-                    en_idf.write('AirflowNetwork:Multizone:Surface:EffectiveLeakageArea,\n\
+                en_idf.write('AirflowNetwork:Multizone:Surface:EffectiveLeakageArea,\n\
     {:{width}}! - Name\n\
     {:{width}}! - Effective Leakage Area (dimensionless)\n\
     {:{width}}! - Discharge Coefficient (dimensionless)\n\
     {:{width}}! - Reference Pressure Difference\n\
     {:{width}}! - Air Mass Flow Exponent (dimensionless)\n\n'.format('ComponentFlow_'+str(cf)+',', str(enode.ela)+',', str(enode.dcof)+',', str(enode.rpd)+',', str(enode.amfe)+';', width = s))
-
-            if enode.linkmenu == 'EF':
+                cf += 1
+            
+            elif enode.linkmenu == 'EF':
                 en_idf.write('AirflowNetwork:Multizone:Component:ZoneExhaustFan,\n\
     {:{width}}! - Name\n\
     {:{width}}! - Air Mass Flow Coefficient When the Zone Exhaust Fan is Off at Reference Conditions (kg/s)\n\
     {:{width}}! - Air Mass Flow Exponent When the Zone Exhaust Fan is Off (dimensionless)\n\n'.format('ComponentFlow_'+str(cf)+',', str(enode.amfc)+',', str(enode.amfe)+';', width = s))
-
-            if enode.linkmenu == 'SO':
+                cf += 1
+            
+            elif enode.linkmenu == 'SO':
                 en_idf.write('AirflowNetwork:Multizone:Component:SimpleOpening,\n\
     {:{width}}! - Name\n\
     {:{width}}!- Air Mass Flow Coefficient When Opening is Closed (kg/s-m)\n\
     {:{width}}!- Air Mass Flow Exponent When Opening is Closed (dimensionless)\n\
     {:{width}}!- Minimum Density Difference for Two-way Flow\n\
-    {:{width}}!- Discharge Coefficient\n\n'.format('SurfaceFlow_'+str(cf)+',', str(enode.amfcc)+',', str(enode.amfec)+',', str(enode.ddtw)+',', str(enode.dcof)+';', width = s))
-
+    {:{width}}!- Discharge Coefficient\n\n'.format('ComponentFlow_'+str(cf)+',', str(enode.amfcc)+',', str(enode.amfec)+',', str(enode.ddtw)+',', str(enode.dcof)+';', width = s))
+                cf += 1
+                
             elif enode.linkmenu == 'DO':
                 en_idf.write('AirflowNetwork:Multizone:Component:DetailedOpening,\n\
     {:{width}}! - Name\n\
@@ -1061,11 +1075,12 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}!- Discharge Coefficient for Opening Factor 2 (dimensionless)\n\
     {:{width}}!- Width Factor for Opening Factor 2 (dimensionless)\n\
     {:{width}}!- Height Factor for Opening Factor 2 (dimensionless)\n\
-    {:{width}}!- Start Height Factor for Opening Factor 2 (dimensionless)\n'.format('SurfaceFlow_'+str(cf)+',', str(enode.amfcc)+',',
+    {:{width}}!- Start Height Factor for Opening Factor 2 (dimensionless)\n'.format('Component_'+str(cf)+',', str(enode.amfcc)+',',
     str(enode.amfec)+',', enode.lvo+',', ('Extra,', str(enode.ecl)+',')[enode.lvo == 'NonPivoted'], str(enode.noof)+',', str(enode.dcof1) + ',',
     str(enode.wfof1)+',', str(enode.hfof1)+ ',', str(enode.sfof1) + ',', str(enode.of2) + ',', str(enode.dcof2)+',',str(enode.wfof2)+',',
     str(enode.hfof2)+ ',', str(enode.sfof2) + (',', ';')[enode.noof == 2], width = s))
-
+                cf += 1
+                
                 if enode.noof > 2:
                     en_idf.write('    {:{width}}!- Opening Factor 3 (dimensionless)\n\
     {:{width}}!- Discharge Coefficient for Opening Factor 3 (dimensionless)\n\
@@ -1086,9 +1101,9 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}!- Air Mass Flow Coefficient When Opening is Closed (kg/s-m)\n\
     {:{width}}!- Air Mass Flow Exponent When Opening is Closed (dimensionless)\n\
     {:{width}}!- Sloping Plane Angle\n\
-    {:{width}}!- Discharge Coefficient\n\n'.format('SurfaceFlow_'+str(cf)+',', str(enode.amfcc)+',', str(enode.amfec)+',', str(enode.spa)+',', str(enode.dcof)+';', width = s))
+    {:{width}}!- Discharge Coefficient\n\n'.format('ComponentFlow_'+str(cf)+',', str(enode.amfcc)+',', str(enode.amfec)+',', str(enode.spa)+',', str(enode.dcof)+';', width = s))
 
-            cf += 1
+                cf += 1
 
 
 def spformat(s):

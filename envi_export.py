@@ -264,7 +264,7 @@ Construction,\n\
 
     for obj in [obj for obj in bpy.data.objects if obj.layers[1] and obj.type == 'MESH' and obj.envi_type != '0']:
         obm, odv = obj.matrix_world, obj.data.vertices
-        obj["floorarea"] = 0
+        obj["floorarea"] = sum([vi_func.triarea(obj, face) for face in obj.data.polygons if obj.data.materials[face.material_index].envi_con_type =='floor'])
         for poly in obj.data.polygons:
             mat = obj.data.materials[poly.material_index]
             (obc, obco, se, we) = vi_func.boundpoly(obj, mat, poly)
@@ -530,14 +530,16 @@ Construction,\n\
     if node.rescpp == True:
         en_idf.write("Output:Variable,*,FangerPPD,hourly;\n")
     if node.resims == True:
-        en_idf.write("Output:Variable,*,Zone Infiltration Current Density Volume Flow Rate [m3/s];\n")
+        en_idf.write("Output:Variable,*,Zone Infiltration Current Density Volume Flow Rate [m3/s], hourly;\n")
     if node.reswsg == True:
         en_idf.write("Output:Variable,*,Zone Windows Total Transmitted Solar Radiation Rate [W],hourly;\n")
     if node.resco2 == True:
-        en_idf.write("Output:Variable,*,System Node CO2 Concentration,timestep;\n")
+        en_idf.write("Output:Variable,*,AFN Node CO2 Concentration,hourly;\n")
     if node.resl12ms == True:
-        for i in range(1, 1 + len([cnode for cnode in bpy.data.node_groups['EnVi Network'].nodes if cnode.bl_idname == 'EnViCLinkNode' and cnode.inputs['Node 1'].is_linked])):
-            en_idf.write("Output:Variable,Componentflow_{},AFN Linkage Node 1 to Node 2 Volume Flow Rate,timestep;\n".format(i))
+        print([cnode for cnode in bpy.data.node_groups['EnVi Network'].nodes if cnode.bl_idname == 'EnViCLink'])
+        for cnode in [cnode for cnode in bpy.data.node_groups['EnVi Network'].nodes if cnode.bl_idname == 'EnViCLink']:
+            for su in cnode['surf']:
+                en_idf.write("Output:Variable,{},AFN Linkage Node 1 to Node 2 Volume Flow Rate,hourly;\n".format(su))
 #        for i in range(1, 1 + len([snode for snode in bpy.data.node_groups['EnVi Network'] if snode.bl_idname == 'EnViSLinkNode' and snode.inputs['Node 1'].is_linked])):
 #            en_idf.write("Output:Variable,Componentflow_{},AFN Linkage Node 1 to Node 2 Volume Flow Rate,timestep;\n".format(i))
     en_idf.close()
@@ -874,7 +876,7 @@ class infiltration(object):
         return(String+"\n")
 
 def writeafn(en_idf):
-#    sf = 0
+    surf = []
     cf = 0
     for enode in bpy.data.node_groups['EnVi Network'].nodes:
         if enode.bl_idname == 'AFNCon':
@@ -906,6 +908,24 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}!- Reference Humidity Ratio\n\n'.format('ReferenceCrackConditions,', str(enode.reft)+',', str(enode.refp)+',', str(enode.refh)+';', width = s))
 
         if enode.bl_idname == 'EnViZone':
+            if enode.outputs['TSPSchedule'].is_linked:
+                snode = enode.outputs['TSPSchedule'].links[0].to_node
+                mvof, lowerlim, upperlim, sched = str(snode.mvof)+',', str(snode.lowerlim)+',', str(snode.upperlim)+',', enode.zone+'_tsps,'
+                en_idf.write('Schedule:Compact,\n\
+    {}!- Name\n\
+    {}!- Schedule Type Limits Name
+    Through: 12/31,          !- Field 1
+    For: Wednesday Thursday Friday Saturday, !- Field 2
+    Until: 24:00,21.11,      !- Field 3
+    For: Holiday SummerDesignDay, !- Field 5
+    Until: 24:00,21.11,      !- Field 6
+    For: Sunday Monday Tuesday, !- Field 8
+    Until: 24:00,25.55,      !- Field 9
+    For: WinterDesignDay CustomDay1 CustomDay2, !- Field 11
+    Until: 24:00,25.55;      !- Field 12.format(sched, 'Any Number,',)
+    
+            else:
+                mvof, lowerlim, upperlim, sched = ',', ',', ',', ','
             en_idf.write('AirflowNetwork:MultiZone:Zone,\n\
     {:{width}}!- Zone Name\n\
     {:{width}}!- Ventilation Control Mode\n\
@@ -915,80 +935,12 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}!- Upper value for modulating venting open factor (deltaC)\n\
     {:{width}}!- Indoor and Outdoor Enthalpy Difference Lower Limit For Maximum Venting Open Factor (deltaJ/kg)\n\
     {:{width}}!- Indoor and Outdoor Enthalpy Difference Upper Limit for Minimun Venting Open Factor (deltaJ/kg)\n\
-    {:{width}}!- Venting Availability Schedule Name\n\n'.format(enode.zone + ',', enode.control + ',', ',', str(enode.mvof) + ',',
-    str(enode.lowerlim) + ',', str(enode.upperlim) + ',', str(0.0) + ',', str(300000.0) + ',', ';', width = s))
-
-#        if enode.bl_idname == 'EnViSLink':
-#            for sock in ([inp for inp in enode.inputs]+[outp for outp in enode.outputs]):
-#                if sock.is_linked and sock.bl_idname == 'EnViSAirSocket':
-#                    sn = (sock.links[0].from_socket.sn, sock.links[0].to_socket.sn)[sock.in_out == 'OUT']
-#                    zone = (sock.links[0].from_node.zone, sock.links[0].to_node.zone)[sock.in_out == 'OUT']
-#                    en_idf.write('AirflowNetwork:MultiZone:Surface,\n\
-#    {:{width}}! - Surface Name\n\
-#    {:{width}}!- Leakage Component Name\n\
-#    {:{width}}! - External Node Name\n\
-#    {:{width}}!- Window/Door Opening Factor\n\n'.format(('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name, sock.links[0].to_socket.name)[sock.in_out == 'OUT']].envi_con_type == 'Door']+zone+'_'+sn+',',
-#    'SurfaceFlow_'+str(sf)+',', ',', str(enode.wdof)+';', width = s))
-#
-#
-#            if enode.linkmenu == 'SO':
-#                en_idf.write('AirflowNetwork:Multizone:Component:SimpleOpening,\n\
-#    {:{width}}! - Name\n\
-#    {:{width}}!- Air Mass Flow Coefficient When Opening is Closed (kg/s-m)\n\
-#    {:{width}}!- Air Mass Flow Exponent When Opening is Closed (dimensionless)\n\
-#    {:{width}}!- Minimum Density Difference for Two-way Flow\n\
-#    {:{width}}!- Discharge Coefficient\n\n'.format('SurfaceFlow_'+str(sf)+',', str(enode.amfcc)+',', str(enode.amfec)+',', str(enode.ddtw)+',', str(enode.dcof)+';', width = s))
-#
-#            elif enode.linkmenu == 'DO':
-#                en_idf.write('AirflowNetwork:Multizone:Component:DetailedOpening,\n\
-#    {:{width}}! - Name\n\
-#    {:{width}}!- Air Mass Flow Coefficient When Opening is Closed (kg/s-m)\n\
-#    {:{width}}!- Air Mass Flow Exponent When Opening is Closed (dimensionless)\n\
-#    {:{width}}!- Type of Rectanguler Large Vertical Opening (LVO)\n\
-#    {:{width}}!- Extra Crack Length or Height of Pivoting Axis (m)\n\
-#    {:{width}}!- Number of Sets of Opening Factor Data\n\
-#    0.0,                                                               !- Opening Factor 1 (dimensionless)\n\
-#    {:{width}}!- Discharge Coefficient for Opening Factor 1 (dimensionless)\n\
-#    {:{width}}!- Width Factor for Opening Factor 1 (dimensionless)\n\
-#    {:{width}}!- Height Factor for Opening Factor 1 (dimensionless)\n\
-#    {:{width}}!- Start Height Factor for Opening Factor 1 (dimensionless)\n\
-#    {:{width}}!- Opening Factor 2 (dimensionless)\n\
-#    {:{width}}!- Discharge Coefficient for Opening Factor 2 (dimensionless)\n\
-#    {:{width}}!- Width Factor for Opening Factor 2 (dimensionless)\n\
-#    {:{width}}!- Height Factor for Opening Factor 2 (dimensionless)\n\
-#    {:{width}}!- Start Height Factor for Opening Factor 2 (dimensionless)\n'.format('SurfaceFlow_'+str(sf)+',', str(enode.amfcc)+',',
-#    str(enode.amfec)+',', enode.lvo+',', ('Extra,', str(enode.ecl)+',')[enode.lvo == 'NonPivoted'], str(enode.noof)+',', str(enode.dcof1) + ',',
-#    str(enode.wfof1)+',', str(enode.hfof1)+ ',', str(enode.sfof1) + ',', str(enode.of2) + ',', str(enode.dcof2)+',',str(enode.wfof2)+',',
-#    str(enode.hfof2)+ ',', str(enode.sfof2) + (',', ';')[enode.noof == 2], width = s))
-#
-#                if enode.noof > 2:
-#                    en_idf.write('    {:{width}}!- Opening Factor 3 (dimensionless)\n\
-#    {:{width}}!- Discharge Coefficient for Opening Factor 3 (dimensionless)\n\
-#    {:{width}}!- Width Factor for Opening Factor 3 (dimensionless)\n\
-#    {:{width}}!- Height Factor for Opening Factor 3 (dimensionless)\n\
-#    {:{width}}!- Start Height Factor for Opening Factor 3 (dimensionless)'.format(str(enode.of3) + ',', str(enode.dcof3)+',',str(enode.wfof3)+',', str(enode.hfof3)+ ',', str(enode.sfof3) + (',', ';')[enode.noof == 3],  width = s))
-#
-#                    if enode.noof > 3:
-#                        en_idf.write('    {:{width}}!- Opening Factor 4 (dimensionless)\n\
-#    {:{width}}!- Discharge Coefficient for Opening Factor 4 (dimensionless)\n\
-#    {:{width}}!- Width Factor for Opening Factor 4 (dimensionless)\n\
-#    {:{width}}!- Height Factor for Opening Factor 4 (dimensionless)\n\
-#    {:{width}}!- Start Height Factor for Opening Factor 4 (dimensionless)\n\n'.format(str(enode.of4) + ',', str(enode.dcof4)+',',str(enode.wfof4)+',', str(enode.hfof4)+ ',', str(enode.sfof4) + ';',  width = s))
-#
-#            elif enode.linkmenu == 'HO':
-#                en_idf.write('AirflowNetwork:Multizone:Component:SimpleOpening,\n\
-#    {:{width}}! - Name\n\
-#    {:{width}}!- Air Mass Flow Coefficient When Opening is Closed (kg/s-m)\n\
-#    {:{width}}!- Air Mass Flow Exponent When Opening is Closed (dimensionless)\n\
-#    {:{width}}!- Sloping Plane Angle\n\
-#    {:{width}}!- Discharge Coefficient\n\n'.format('SurfaceFlow_'+str(sf)+',', str(enode.amfcc)+',', str(enode.amfec)+',', str(enode.spa)+',', str(enode.dcof)+';', width = s))
-#
-#
-#            sf += 1
+    {:{width}}!- Venting Availability Schedule Name\n\n'.format(enode.zone + ',', enode.control + ',', sched, mvof,
+    lowerlim, upperlim, str(0.0) + ',', str(300000.0) + ',', ';', width = s))
 
         if enode.bl_idname == 'EnViCLink':
             for sock in ([inp for inp in enode.inputs]+[outp for outp in enode.outputs]):
-                if sock.is_linked and sock.bl_idname == 'EnViCAirSocket':
+                if sock.is_linked and 'EnViCAirSocket' in sock.bl_idname:
                     sn = (sock.links[0].from_socket.sn, sock.links[0].to_socket.sn)[sock.in_out == 'OUT']
                     znode = (sock.links[0].from_node, sock.links[0].to_node)[sock.in_out == 'OUT']
                     zn = znode.zone
@@ -1000,8 +952,9 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}! - Surface Name\n\
     {:{width}}!- Leakage Component Name\n\
     {:{width}}! - External Node Name\n\
-    {:{width}}!- Window/Door Opening Factor\n\n'.format(('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name, sock.links[0].to_socket.name)[sock.in_out == 'OUT']].envi_con_type == 'Door']+zn+'_'+sn+',',
+    {:{width}}!- Window/Door Opening Factor\n\n'.format(('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-1], sock.links[0].to_socket.name[:-1])[sock.in_out == 'OUT']].envi_con_type == 'Door']+zn+'_'+sn+',',
     'ComponentFlow_'+str(cf)+',', ',', str(enode.wdof)+';', width = s))
+                        surf.append(('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-1], sock.links[0].to_socket.name[:-1])[sock.in_out == 'OUT']].envi_con_type == 'Door']+zn+'_'+sn)
 
                         
                     elif enode.linkmenu == 'Crack':
@@ -1011,6 +964,7 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}! - External Node Name\n\
     {:{width}}!- Crack Opening Factor\n\n'.format(zn+'_'+sn+',',
     'ComponentFlow_'+str(cf)+',', ',', str(enode.cf)+';', width = s))
+                        surf.append(zn+'_'+sn)
 
                     
                     else:
@@ -1020,7 +974,8 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}! - External Node Name\n\
     {:{width}}!- Crack Opening Factor\n\n'.format(zn+'_'+sn+',',
     'ComponentFlow_'+str(cf)+',', ',', '0.6;', width = s))
-
+                        surf.append(zn+'_'+sn)
+            enode['surf'] = surf
 
 # Component defintions
 
@@ -1104,7 +1059,6 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}!- Discharge Coefficient\n\n'.format('ComponentFlow_'+str(cf)+',', str(enode.amfcc)+',', str(enode.amfec)+',', str(enode.spa)+',', str(enode.dcof)+';', width = s))
 
                 cf += 1
-
 
 def spformat(s):
     space = "                                                                       "

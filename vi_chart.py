@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 #import matplotlib.cm as cm
 #from numpy import arange
 
-
 def statdata(res, stat):
     if stat == 'Average':
         return([sum(r)/len(r) for r in res])
@@ -12,10 +11,9 @@ def statdata(res, stat):
     elif stat == 'Minimum':
         return([min(r) for r in res])
 
-
 def timedata(datastring, timetype, stattype, months, days, dos, dnode, si, ei, Sdate, Edate):
     if timetype == '0':
-        return([float(x) for x in datastring], "")
+        return([float(x) for x in datastring])
     else:
         if timetype == '1':
             res = [[] for d in range(dnode['Start'], dnode['End']+1)]

@@ -1079,17 +1079,17 @@ class EnViBoundSocket(bpy.types.NodeSocket):
     def draw_color(self, context, node):
         return (0.8, 0.2, 0.8, 0.75)
 
-class EnViSAirSocket(bpy.types.NodeSocket):
-    '''A plain zone surface airflow socket'''
-    bl_idname = 'EnViSAirSocket'
-    bl_label = 'Plain zone surface airflow socket'
-    sn = bpy.props.StringProperty()
-
-    def draw(self, context, layout, node, text):
-        layout.label(text)
-
-    def draw_color(self, context, node):
-        return (0.1, 1.0, 0.2, 0.75)
+#class EnViSAirSocket(bpy.types.NodeSocket):
+#    '''A plain zone surface airflow socket'''
+#    bl_idname = 'EnViSAirSocket'
+#    bl_label = 'Plain zone surface airflow socket'
+#    sn = bpy.props.StringProperty()
+#
+#    def draw(self, context, layout, node, text):
+#        layout.label(text)
+#
+#    def draw_color(self, context, node):
+#        return (0.1, 1.0, 0.2, 0.75)
 
 class EnViCAirSocket(bpy.types.NodeSocket):
     '''A plain zone airflow component socket'''
@@ -1179,46 +1179,51 @@ class EnViZone(bpy.types.Node, EnViNodes):
         self.zonevolume = objvol(obj)
         for oname in [outputs for outputs in self.outputs if outputs.name not in [mat.name for mat in odm if mat.envi_boundary == True] and outputs.bl_idname == 'EnViBoundSocket']:
             self.outputs.remove(oname)
-        for oname in [outputs for outputs in self.outputs if outputs.name not in [mat.name for mat in odm if mat.afsurface == True] and outputs.bl_idname == 'EnViSAirSocket']:
+        for oname in [outputs for outputs in self.outputs if outputs.name not in [mat.name for mat in odm if mat.afsurface == True] and outputs.bl_idname == 'EnViCAirSocket']:
             self.outputs.remove(oname)
         for iname in [inputs for inputs in self.inputs if inputs.name not in [mat.name for mat in odm if mat.envi_boundary == True] and inputs.bl_idname == 'EnViBoundSocket']:
             self.inputs.remove(iname)
-        for iname in [inputs for inputs in self.inputs if inputs.name not in [mat.name for mat in odm if mat.afsurface == True] and inputs.bl_idname == 'EnViSAirSocket']:
+        for iname in [inputs for inputs in self.inputs if inputs.name not in [mat.name for mat in odm if mat.afsurface == True] and inputs.bl_idname == 'EnViCAirSocket']:
             self.inputs.remove(iname)
 
         socklist = [odm[face.material_index].name for face in obj.data.polygons if odm[face.material_index].envi_boundary == 1 and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViBoundSocket']]
         for sock in sorted(set(socklist)):
-            self.outputs.new('EnViBoundSocket', sock)
-            self.inputs.new('EnViBoundSocket', sock)
-        socklist = [(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].afsurface == 1 and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViSAirSocket']]
+            self.outputs.new('EnViBoundSocket', sock+'b')
+            self.inputs.new('EnViBoundSocket', sock+'b')
+        socklist = [(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].afsurface == 1 and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViCAirSocket']]
         for sock in sorted(set(socklist)):
-            self.outputs.new('EnViSAirSocket', sock[0]).sn = str(sock[1])
-            self.inputs.new('EnViSAirSocket', sock[0]).sn = str(sock[1])
+            self.outputs.new('EnViCAirSocket', sock[0]+'c').sn = str(sock[1])
+            self.inputs.new('EnViCAirSocket', sock[0]+'c').sn = str(sock[1])
 
     def supdate(self, context):
         if self.control == 'Temperature':
-            if 'Schedule' not in self.outputs:
-                self.outputs.new('NodeSocket', 'Schedule')
+            self.outputs['TSPSchedule'].hide = False
+            self.outputs['VASchedule'].hide = False
+
         else:
-            if 'Schedule' in self.outputs:
-                self.outputs.remove('Schedule')
+            self.outputs['TSPSchedule'].hide = True
+            self.outputs['VASchedule'].hide = True
 
     zone = bpy.props.StringProperty(update = zupdate)
     controltype = [("NoVent", "None", "No ventilation control"), ("Temperature", "Temperature", "Temperature control")]
     control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='NoVent', update = supdate)
     zonevolume = bpy.props.FloatProperty(name = '')
-    mvof = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 1)
-    lowerlim = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 100)
-    upperlim = bpy.props.FloatProperty(default = 50, name = "", min = 0, max = 100)
 
+    
+    def init(self, context):
+        self.outputs.new('EnViTempSPSched', 'TSPSchedule')
+        self.outputs['TSPSchedule'].hide == True
+        self.outputs.new('EnViVentASched', 'VASchedule')
+        self.outputs['VASchedule'].hide == True
+    
     def update(self):
         try:
-            for inp in self.inputs:
-                self.outputs[inp.name].hide = True if inp.is_linked else False
-            for outp in self.outputs:
-                self.inputs[outp.name].hide = True if outp.is_linked else False
-        except:
-            pass
+            for inp in [inp for inp in self.inputs if inp.bl_idname in ('EnViBoundSocket', 'EnViCAirSocket')]:
+                self.outputs[inp.name].hide = True if inp.is_linked and self.outputs[inp.name].bl_idname == inp.bl_idname else False
+            for outp in [outp for outp in self.outputs if outp.bl_idname in ('EnViBoundSocket', 'EnViCAirSocket')]:
+                self.inputs[outp.name].hide = True if outp.is_linked and self.inputs[outp.name].bl_idname == outp.bl_idname else False
+        except Exception as e:
+            print(e)
 
     def draw_buttons(self, context, layout):
         row=layout.row()
@@ -1229,225 +1234,7 @@ class EnViZone(bpy.types.Node, EnViNodes):
         row=layout.row()
         row.label("Control type:")
         row.prop(self, "control")
-        if self.control == 'Temperature':
-            row = layout.row()
-            row.prop(self, 'mvof')
-            row = layout.row()
-            row.prop(self, 'lowerlim')
-            row = layout.row()
-            row.prop(self, 'upperlim')
 
-
-class EnViFanNode(bpy.types.Node, EnViNodes):
-    '''Node describing a fan component'''
-    bl_idname = 'EnViFan'
-    bl_label = 'Envi Fan'
-    bl_icon = 'SOUND'
-
-    fantype = [("Volume", "Constant Volume", "Constant volume flow fan component")]
-    fantypeprop = bpy.props.EnumProperty(name="Type", description="Linkage type", items=fantype, default='Volume')
-    fname = bpy.props.StringProperty(default = "", name = "")
-    feff = bpy.props.FloatProperty(default = 0.7, name = "")
-    fpr = bpy.props.FloatProperty(default = 600.0, name = "")
-    fmfr = bpy.props.FloatProperty(default = 1.9, name = "")
-    fmeff = bpy.props.FloatProperty(default = 0.9, name = "")
-    fmaf = bpy.props.FloatProperty(default = 1.0, name = "")
-
-    def init(self, context):
-        self.inputs.new('EnViCAirSocket', 'Extract from')
-        self.inputs.new('EnViCAirSocket', 'Supply to')
-        self.outputs.new('NodeSocket', 'Schedule')
-        self.outputs.new('EnViCAirSocket', 'Extract from')
-        self.outputs.new('EnViCAirSocket', 'Supply to')
-
-    def update(self):
-        try:
-            fsocknames = ('Extract from', 'Supply to')
-            for ins in [insock for insock in self.inputs if insock.name in fsocknames]:
-                self.outputs[ins.name].hide = True if ins.is_linked else False
-            for outs in [outsock for outsock in self.outputs if outsock.name in fsocknames]:
-                self.inputs[outs.name].hide = True if outs.is_linked else False
-        except:
-            pass
-
-    def draw_buttons(self, context, layout):
-        layout.prop(self, 'fantypeprop')
-        if self.fantypeprop == "Volume":
-            row = layout.row()
-            row.label("Name:")
-            row.prop(self, 'fname')
-            row = layout.row()
-            row.label("Efficiency:")
-            row.prop(self, 'feff')
-            row = layout.row()
-            row.label("Pressure Rise (Pa):")
-            row.prop(self, 'fpr')
-            row = layout.row()
-            row.label("Max flow rate:")
-            row.prop(self, 'fmfr')
-            row = layout.row()
-            row.label("Motor efficiency:")
-            row.prop(self, 'fmeff')
-            row = layout.row()
-            row.label("Airstream fraction:")
-            row.prop(self, 'fmaf')
-
-#class EnViSLinkNode(bpy.types.Node, EnViNodes):
-#    '''Node describing an airflow surface linkage'''
-#    bl_idname = 'EnViSLink'
-#    bl_label = 'Envi Surface Airflow Linkage'
-#    bl_icon = 'SOUND'
-#
-#    def oupdate(self, context):
-#        self.outputs['VASchedule'].hide = False if self.linktypeprop != 'HO' else True
-#
-#    linktype = [("SO", "Simple Opening", "Simple opening element"),
-#        ("DO", "Detailed Opening", "Detailed opening element"),
-#        ("HO", "Horizontal Opening", "Horizontal opening element")]
-#
-#    linkmenu = bpy.props.EnumProperty(name="Type", description="Linkage type", items=linktype, default='SO', update = oupdate)
-#    wdof = bpy.props.FloatProperty(default = 1, min = 0, max = 1, name = "")
-#    controltype = [("ZoneLevel", "ZoneLevel", "Zone level ventilation control"), ("NoVent", "None", "No ventilation control"),
-#                   ("Temperature", "Temperature", "Temperature control")]
-#    control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='ZoneLevel')
-#    mvof = bpy.props.FloatProperty(default = 0, min = 0, max = 1, name = "", description = 'Minimium venting open factor')
-#    lvof = bpy.props.FloatProperty(default = 0, min = 0, max = 100, name = "", description = 'Indoor and Outdoor Temperature Difference Lower Limit For Maximum Venting Open Factor (deltaC)')
-#    uvof = bpy.props.FloatProperty(default = 0, min = 0, max = 100, name = "", description = 'Indoor and Outdoor Temperature Difference Upper Limit For Minimum Venting Open Factor (deltaC)')
-#    amfcc = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = "", description = 'Air Mass Flow Coefficient When Opening is Closed (kg/s-m)')
-#    amfec = bpy.props.FloatProperty(default = 0.65,min = 0.5, max = 1, name = '', description =  'Air Mass Flow Exponent When Opening is Closed (dimensionless)')
-#    lvo = bpy.props.EnumProperty(items = [('NonPivoted', 'NonPivoted', 'Non pivoting opening'), ('HorizontallyPivoted', 'HPivoted', 'Horizontally pivoting opening')], default = 'NonPivoted', description = 'Type of Rectanguler Large Vertical Opening (LVO)')
-#    ecl = bpy.props.FloatProperty(default = 0.0, min = 0, name = '', description = 'Extra Crack Length or Height of Pivoting Axis (m)')
-#    noof = bpy.props.IntProperty(default = 2, min = 2, max = 4, name = '', description = 'Number of Sets of Opening Factor Data')
-#    spa = bpy.props.IntProperty(default = 90, min = 0, max = 90, name = '', description = 'Sloping Plane Angle')
-#    dcof = bpy.props.FloatProperty(default = 0.2, min = 0, max = 1, name = '', description = 'Discharge Coefficient')
-#    ddtw = bpy.props.FloatProperty(default = 0.1, min = 0, max = 10, name = '', description = 'Mimum Density Difference for Two-way Flow')
-##    0.0,                     !- Opening Factor 1 {dimensionless}
-#    dcof1 = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 1 (dimensionless)')
-#    wfof1 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 1 (dimensionless)')
-#    hfof1 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 1 (dimensionless)')
-#    sfof1 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 1 (dimensionless)')
-#    of2 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Opening Factor 2 (dimensionless)')
-#    dcof2 = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 2 (dimensionless)')
-#    wfof2 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 2 (dimensionless)')
-#    hfof2 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 2 (dimensionless)')
-#    sfof2 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 2 (dimensionless)')
-#    of3 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Opening Factor 3 (dimensionless)')
-#    dcof3 = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 3 (dimensionless)')
-#    wfof3 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 3 (dimensionless)')
-#    hfof3 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 3 (dimensionless)')
-#    sfof3 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 3 (dimensionless)')
-#    of4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Opening Factor 4 (dimensionless)')
-#    dcof4 = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor 4 (dimensionless)')
-#    wfof4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor 4 (dimensionless)')
-#    hfof4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 4 (dimensionless)')
-#    sfof4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 4 (dimensionless)')
-#
-#    def init(self, context):
-#        self.inputs.new('EnViSAirSocket', 'Node 1')
-#        self.inputs.new('EnViSAirSocket', 'Node 2')
-#        self.outputs.new('NodeSocket', 'VASchedule')
-#        self.outputs.new('EnViSAirSocket', 'Node 1')
-#        self.outputs.new('EnViSAirSocket', 'Node 2')
-#        self.outputs.new('NodeSocket', 'TSPSchedule')
-#
-#    def update(self):
-#        try:
-#            lsocknames = ('Node 1', 'Node 2')
-#            for ins in [insock for insock in self.inputs if insock.name in lsocknames]:
-#                self.outputs[ins.name].hide = True if ins.is_linked else False
-#            for outs in [outsock for outsock in self.outputs if outsock.name in lsocknames]:
-#                self.inputs[outs.name].hide = True if outs.is_linked else False
-#        except:
-#            pass
-#
-#    def draw_buttons(self, context, layout):
-#        layout.prop(self, 'linkmenu')
-#        if self.linkmenu in ("SO", "DO"):
-#            row = layout.row()
-#            row.label("Opening factor:")
-#            row.prop(self, 'wdof')
-#            row = layout.row()
-#            row.label("Control type:")
-#            row.prop(self, 'control')
-#            row = layout.row()
-#            row.label("OF Number:")
-#            row.prop(self, 'noof')
-#            if self.linkmenu == "SO":
-#                row = layout.row
-#                row.labal('Closed FC:')
-#                row.prop(self, 'amfcc')
-#                row = layout.row
-#                row.labal('Closed FE:')
-#                row.prop(self, 'amfec')
-#                row = layout.row
-#                row.labal('Density diff:')
-#                row.prop(self, 'ddtw')
-#                row = layout.row
-#                row.labal('Discharge Coeff')
-#                row.prop(self, 'dcof')
-#            if self.linkmenu == "DO":
-#                row = layout.row()
-#                row.prop(self, 'dcof1')
-#                row = layout.row()
-#                row.prop(self, 'wfof1')
-#                row = layout.row()
-#                row.prop(self, 'hfof1')
-#                row = layout.row()
-#                row.prop(self, 'sfof1')
-#                row = layout.row()
-#                row.prop(self, 'of2')
-#                row = layout.row()
-#                row.prop(self, 'dcof2')
-#                row = layout.row()
-#                row.prop(self, 'wfof2')
-#                row = layout.row()
-#                row.prop(self, 'hfof2')
-#                row = layout.row()
-#                row.prop(self, 'sfof2')
-#                if self.noof > 2:
-#                    row = layout.row()
-#                    row.prop(self, 'of3')
-#                    row = layout.row()
-#                    row.prop(self, 'dcof3')
-#                    row = layout.row()
-#                    row.prop(self, 'wfof3')
-#                    row = layout.row()
-#                    row.prop(self, 'hfof3')
-#                    row = layout.row()
-#                    row.prop(self, 'sfof3')
-#                    if self.noof > 3:
-#                        row = layout.row()
-#                        row.prop(self, 'of4')
-#                        row = layout.row()
-#                        row.prop(self, 'dcof3')
-#                        row = layout.row()
-#                        row.prop(self, 'wfof3')
-#                        row = layout.row()
-#                        row.prop(self, 'hfof3')
-#                        row = layout.row()
-#                        row.prop(self, 'sfof3')
-
-#        if self.linkmenu == 'HO':
-#            row = layout.row()
-#            row.label('Closed FC')
-#            row.prop(self, 'amfcc')
-#            row = layout.row()
-#            row.label('Closed FE')
-#            row.prop(self, 'amfec')
-#            row = layout.row()
-#            row.label('Slope')
-#            row.prop(self, 'spa')
-#            row = layout.row()
-#            row.label('Discharge Coeff')
-#            row.prop(self, 'dcof')
-#
-#        if self.control == 'Temperature':
-#            row = layout.row()
-#            row.label('Minimum OF')
-#            row.prop(self, 'mvof')
-#            row = layout.row()
-#            row.label('Upper OF')
-#            row.prop(self, 'uvof')
 
 class EnViCLinkNode(bpy.types.Node, EnViNodes):
     '''Node describing an airflow component'''
@@ -1519,17 +1306,12 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
     def init(self, context):
         self.inputs.new('EnViCAirSocket', 'Node 1')
         self.inputs.new('EnViCAirSocket', 'Node 2')
-        self.outputs.new('NodeSocket', 'Schedule')
-        self.outputs.new('NodeSocket', 'Reference')
         self.outputs['Reference'].hide = True
         self.outputs.new('EnViCAirSocket', 'Node 1')
         self.outputs.new('EnViCAirSocket', 'Node 2')
-#        self.inputs.new('EnViSAirSocket', 'Node 1')
-#        self.inputs.new('EnViSAirSocket', 'Node 2')
         self.outputs.new('NodeSocket', 'VASchedule')
-#        self.outputs.new('EnViSAirSocket', 'Node 1')
-#        self.outputs.new('EnViSAirSocket', 'Node 2')
         self.outputs.new('NodeSocket', 'TSPSchedule')
+        self.outputs.new('NodeSocket', 'Reference')
 
     def update(self):
         try:
@@ -1544,10 +1326,7 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
         for sock in self.inputs:
             if self.linkmenu == 'ELA' and sock.is_linked:
                 try:
-                    obj = bpy.data.objects[sock.links[0].from_node.zone]
-                    omw = obj.matrix_world
-                    face = obj.data.polygons[int(sock.links[0].from_socket.sn)]
-                    self.ela = triarea([omw*Vector(face.center)] + [omw*obj.data.vertices[v].co for v in face.vertices] + [omw*obj.data.vertices[face.vertices[0]].co])
+                    self.ela = triarea(bpy.data.objects[sock.links[0].from_node.zone], bpy.data.objects[sock.links[0].from_node.zone].data.polygons[int(sock.links[0].from_socket.sn)])
                 except:
                     pass
 
@@ -1560,9 +1339,6 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
             row = layout.row()
             row.label("Control type:")
             row.prop(self, 'control')
-            row = layout.row()
-            row.label("OF Number:")
-            row.prop(self, 'noof')
             if self.linkmenu == "SO":
                 row = layout.row()
                 row.label('Closed FC:')
@@ -1577,6 +1353,9 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
                 row.label('DC')
                 row.prop(self, 'dcof')
             elif self.linkmenu == "DO":
+                row = layout.row()
+                row.label("OF Number:")
+                row.prop(self, 'noof')
                 row = layout.row()
                 row.label('DC1')
                 row.prop(self, 'dcof1')
@@ -1724,6 +1503,60 @@ class EnViCrRef(bpy.types.Node, EnViNodes):
         row.label('Humidity:')
         row.prop(self, 'refh')
 
+class EnViFanNode(bpy.types.Node, EnViNodes):
+    '''Node describing a fan component'''
+    bl_idname = 'EnViFan'
+    bl_label = 'Envi Fan'
+    bl_icon = 'SOUND'
+
+    fantype = [("Volume", "Constant Volume", "Constant volume flow fan component")]
+    fantypeprop = bpy.props.EnumProperty(name="Type", description="Linkage type", items=fantype, default='Volume')
+    fname = bpy.props.StringProperty(default = "", name = "")
+    feff = bpy.props.FloatProperty(default = 0.7, name = "")
+    fpr = bpy.props.FloatProperty(default = 600.0, name = "")
+    fmfr = bpy.props.FloatProperty(default = 1.9, name = "")
+    fmeff = bpy.props.FloatProperty(default = 0.9, name = "")
+    fmaf = bpy.props.FloatProperty(default = 1.0, name = "")
+
+    def init(self, context):
+        self.inputs.new('EnViCAirSocket', 'Extract from')
+        self.inputs.new('EnViCAirSocket', 'Supply to')
+        self.outputs.new('NodeSocket', 'Schedule')
+        self.outputs.new('EnViCAirSocket', 'Extract from')
+        self.outputs.new('EnViCAirSocket', 'Supply to')
+
+    def update(self):
+        try:
+            fsocknames = ('Extract from', 'Supply to')
+            for ins in [insock for insock in self.inputs if insock.name in fsocknames]:
+                self.outputs[ins.name].hide = True if ins.is_linked else False
+            for outs in [outsock for outsock in self.outputs if outsock.name in fsocknames]:
+                self.inputs[outs.name].hide = True if outs.is_linked else False
+        except:
+            pass
+
+    def draw_buttons(self, context, layout):
+        layout.prop(self, 'fantypeprop')
+        if self.fantypeprop == "Volume":
+            row = layout.row()
+            row.label("Name:")
+            row.prop(self, 'fname')
+            row = layout.row()
+            row.label("Efficiency:")
+            row.prop(self, 'feff')
+            row = layout.row()
+            row.label("Pressure Rise (Pa):")
+            row.prop(self, 'fpr')
+            row = layout.row()
+            row.label("Max flow rate:")
+            row.prop(self, 'fmfr')
+            row = layout.row()
+            row.label("Motor efficiency:")
+            row.prop(self, 'fmeff')
+            row = layout.row()
+            row.label("Airstream fraction:")
+            row.prop(self, 'fmaf')
+            
 class EnViExtNode(bpy.types.Node, EnViNodes):
     '''Node describing a linkage component'''
     bl_idname = 'EnViExt'
@@ -1743,29 +1576,185 @@ class EnViExtNode(bpy.types.Node, EnViNodes):
             layout.prop(self, 'amfc')
             layout.prop(self, 'amfe')
 
-class EnViVentASched(bpy.types.Node, EnViNodes):
-    '''Node describing a venting availability schedule'''
-    bl_idname = 'EnViVentASched'
-    bl_label = 'Venting availability schedule'
+class EnViFSched(bpy.types.Node, EnViNodes):
+    '''Node describing a  fraction schedule'''
+    bl_idname = 'EnViFSched'
+    bl_label = 'Fraction Schedule'
     bl_icon = 'SOUND'
-
+    
+    ed1 = ed2 = ed3 = ed4 = ed5 =  bpy.props.IntProperty(name = "", min = 1, max = 365, default = 365)
+    ep11 = ep12 = ep13 = ep14 = ep15 = bpy.props.IntProperty(name = "", min = 1, max = 24, default = 24)
+    fp11 = fp12 = fp13 = fp14 = fp15 = bpy.props.FloatProperty(name = "", min = 0, max = 1, default = 0)
+    ep21 = ep22 = ep23 = ep24 = ep25 = bpy.props.IntProperty(name = "", min = 1, max = 24, default = 24)
+    fp21 = fp22 = fp23 = fp24 = fp25 = bpy.props.FloatProperty(name = "", min = 0, max = 1, default = 0)
+    ep31 = ep32 = ep33 = ep34 = ep35 = bpy.props.IntProperty(name = "", min = 1, max = 24, default = 24)
+    fp31 = fp32 = fp33 = fp34 = fp35 = bpy.props.FloatProperty(name = "", min = 0, max = 1, default = 0)
+    ep41 = ep42 = ep43 = ep44 = ep45 = bpy.props.IntProperty(name = "", min = 1, max = 24, default = 24)
+    fp41 = fp42 = fp43 = fp44 = fp45 = bpy.props.FloatProperty(name = "", min = 0, max = 1, default = 0)
+    
     def init(self, context):
         self.inputs.new('NodeSocket', 'Schedule')
 
-#    def draw_buttons(self, context, layout):
-#        layout.prop(self, 'linktypeprop')
-#        if self.linktypeprop == "Crack":
-#            layout.prop(self, 'amfc')
-#            layout.prop(self, 'amfe')
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.label('Season 1 End Day')
+        row.prop(self, 'ed1')
+        row = layout.row()
+        row.label(' Period 1 End Hour')
+        row.prop(self, 'ep11')
+        row = layout.row()
+        row.label(' Period 1 Fraction')
+        row.prop(self, 'fp11')
+        if self.ep11 < 24:
+            row = layout.row()
+            row.label(' Period 2 End Hour')
+            row.prop(self, 'ep21')
+            row = layout.row()
+            row.label(' Period 2 Fraction')
+            row.prop(self, 'fp21')
+            if self.ep21 < 24:
+                row = layout.row()
+                row.label(' Period 3 End Hour')
+                row.prop(self, 'ep31')
+                row = layout.row()
+                row.label(' Period 3 Fraction')
+                row.prop(self, 'fp31')  
+                if self.ep31 < 24:
+                    row = layout.row()
+                    row.label(' Period 4 End Hour')
+                    row.prop(self, 'ep41')
+                    row = layout.row()
+                    row.label(' Period 3 Fraction')
+                    row.prop(self, 'fp41')
+                    if self.ep41 < 24:
+                        row = layout.row()
+                        row.label(' Period 4 End Hour')
+                        row.prop(self, 'ep51')
+                        row = layout.row()
+                        row.label(' Period 3 Fraction')
+                        row.prop(self, 'fp51')
+        if self.ed1 < 365:
+            row.prop(self, 'ed2')
+            row.prop(self, 'ep12')
+            row.prop(self, 'fp12')
+            if self.ep12 < 24:
+                row.prop(self, 'ep22')
+                row.prop(self, 'fp22')  
+                if self.ep22 < 24:
+                    row.prop(self, 'ep32')
+                    row.prop(self, 'fp32')
+                    if self.ep32 < 24:
+                        row.prop(self, 'ep42')
+                        row.prop(self, 'fp42')
+                        if self.ep42 < 24:
+                            row.prop(self, 'ep52')
+                            row.prop(self, 'fp52')
+            if self.ed2 < 365:
+                row.prop(self, 'ed3')
+                row.prop(self, 'ep13')
+                row.prop(self, 'fp13')
+                if self.ep13 < 24:
+                    row.prop(self, 'ep23')
+                    row.prop(self, 'fp23')  
+                    if self.ep23 < 24:
+                        row.prop(self, 'ep33')
+                        row.prop(self, 'fp33')
+                        if self.ep33 < 24:
+                            row.prop(self, 'ep43')
+                            row.prop(self, 'fp43')
+                            if self.ep43 < 24:
+                                row.prop(self, 'ep53')
+                                row.prop(self, 'fp53')
+                if self.ed3 < 365:
+                    row.prop(self, 'ed4')
+                    row.prop(self, 'ep14')
+                    row.prop(self, 'fp14')
+                    if self.ep14 < 24:
+                        row.prop(self, 'ep24')
+                        row.prop(self, 'fp24')  
+                        if self.ep24 < 24:
+                            row.prop(self, 'ep34')
+                            row.prop(self, 'fp34')
+                            if self.ep34 < 24:
+                                row.prop(self, 'ep44')
+                                row.prop(self, 'fp44')
+                                if self.ep44 < 24:
+                                    row.prop(self, 'ep54')
+                                    row.prop(self, 'fp54')
+                    if self.ed4 < 365:
+                        row.prop(self, 'ed5')
+                        row.prop(self, 'ep15')
+                        row.prop(self, 'fp15')
+                        if self.ep15 < 24:
+                            row.prop(self, 'ep25')
+                            row.prop(self, 'fp25')  
+                            if self.ep24 < 24:
+                                row.prop(self, 'ep35')
+                                row.prop(self, 'fp35')
+                                if self.ep34 < 24:
+                                    row.prop(self, 'ep45')
+                                    row.prop(self, 'fp45')
+                                    if self.ep44 < 24:
+                                        row.prop(self, 'ep55')
+                                        row.prop(self, 'fp55')
 
 class EnViTempSPSched(bpy.types.Node, EnViNodes):
     '''Node describing a venting availability schedule'''
     bl_idname = 'EnViTempSPSched'
     bl_label = 'Ventilation Temperature Set-point Schedule'
     bl_icon = 'SOUND'
-
+    
+    mvof = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 1)
+    lowerlim = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 100)
+    upperlim = bpy.props.FloatProperty(default = 50, name = "", min = 0, max = 100)
+    t1 = bpy.props.StringProperty(name = "")
+    f1 = bpy.props.StringProperty(name = "")
+    u11 = bpy.props.StringProperty(name = "")
+    u12 = bpy.props.StringProperty(name = "")
+    u13 = bpy.props.StringProperty(name = "")
+    t2 = bpy.props.StringProperty(name = "")
+    f2 = bpy.props.StringProperty(name = "")
+    u21 = bpy.props.StringProperty(name = "")
+    u22 = bpy.props.StringProperty(name = "")
+    u23 = bpy.props.StringProperty(name = "")
+    t3 = bpy.props.StringProperty(name = "")
+    f3 = bpy.props.StringProperty(name = "")
+    u31 = bpy.props.StringProperty(name = "")
+    u32 = bpy.props.StringProperty(name = "")
+    u33 = bpy.props.StringProperty(name = "")
+    
     def init(self, context):
         self.inputs.new('NodeSocket', 'Schedule')
+    
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.label('Minimum OF')
+        row.prop(self, 'mvof')
+        row = layout.row()
+        row.label('Lower')
+        row.prop(self, 'lowerlim')
+        row = layout.row()
+        row.label('Upper')
+        row.prop(self, 'upperlim')
+        row = layout.row()
+        row.label('Through')
+        row.prop(self, 't1')
+        row = layout.row()
+        row.label('For')
+        row.prop(self, 'f1')
+        row = layout.row()
+        row.label('Until')
+        row.prop(self, 'u1')
+        row = layout.row()
+        row.label('Through')
+        row.prop(self, 't2')
+        row = layout.row()
+        row.label('For')
+        row.prop(self, 'f2')
+        row = layout.row()
+        row.label('Until')
+        row.prop(self, 'u2')
+
 
 #    def draw_buttons(self, context, layout):
 #        layout.prop(self, 'linktypeprop')
@@ -1787,6 +1776,6 @@ envinode_categories = [
         EnViNodeCategory("CLinkNodes", "Component Link Nodes", items=[
             NodeItem("EnViCLink", label="Component Link Node"), NodeItem("EnViCrRef", label="Crack Reference")]),
         EnViNodeCategory("SchedkNodes", "Schedule Nodes", items=[
-            NodeItem("EnViVentASched", label="Venting Availability"), NodeItem("EnViTempSPSched", label="Vent Temperature Set-point")]),
+            NodeItem("EnViFSched", label="Fraction Schedule"), NodeItem("EnViTempSPSched", label="Vent Temperature Set-point")]),
         EnViNodeCategory("PlantNodes", "Plant Nodes", items=[
             NodeItem("EnViFan", label="EnVi fan node")])]

@@ -132,7 +132,8 @@ def processf(pro_op, node):
                 'Zone Air System Sensible Heating Rate [W] !Hourly': 'Zone heating (W)',
                 'Zone Air System Sensible Cooling Rate [W] !Hourly': 'Zone cooling (W)',
                 'Zone Windows Total Transmitted Solar Radiation Rate [W] !Hourly': 'Solar gain (W)',
-                'AFN Zone Infiltration Volume [m3] !Hourly': 'AFN Volume (m'+u'\u00b3'+')'}
+                'AFN Zone Infiltration Volume [m3] !Hourly': 'Infiltration (m'+u'\u00b3'+')',
+                'AFN Zone Infiltration Air Change Rate [ach] !Hourly': 'ACH'}
     lresdict = {'AFN Linkage Node 1 to Node 2 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow 1 to 2'}
     resdict = {}
 
@@ -252,9 +253,9 @@ def objvol(obj):
     mesh = obj.data
     for f in mesh.polygons:
         if obj.data.materials[f.material_index].envi_con_type == 'Floor':
-            floor.append((f.area, f.center[2]))
+            floor.append((triarea(obj, f), (obj.matrix_world*mathutils.Vector(f.center))[2]))
         elif obj.data.materials[f.material_index].envi_con_type == 'Roof':
-            roof.append((f.area, f.center[2]))
+            roof.append((triarea(obj, f), (obj.matrix_world*mathutils.Vector(f.center))[2]))
     zfloor = list(zip(*floor))
     taf = sum(zfloor[0])
     avhf = sum([(zfloor[0][i]*zfloor[1][i])/taf for i in range(len(zfloor[0]))])
@@ -276,7 +277,9 @@ def ceilheight(obj, vertz):
     floor = [min((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) for poly in mesh.polygons if min((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) < zmin + 0.1 * (zmax - zmin)]
     return(sum(ceiling)/len(ceiling)-sum(floor)/len(floor))
 
-def triarea(vs):
+def triarea(obj, face):
+    omw = obj.matrix_world
+    vs = [omw*mathutils.Vector(face.center)] + [omw*obj.data.vertices[v].co for v in face.vertices] + [omw*obj.data.vertices[face.vertices[0]].co]
     if len(vs) == 5:
         cross = mathutils.Vector.cross(vs[3]-vs[1], vs[3]-vs[2])
         return(0.5*(cross[0]**2 + cross[1]**2 +cross[2]**2)**0.5)

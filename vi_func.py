@@ -221,31 +221,23 @@ def nfvprop(fvname, fvattr, fvdef, fvsub):
     return(FloatVectorProperty(name=fvname, attr = fvattr, default = fvdef, subtype = fvsub, update = nodeexported))
 
 def boundpoly(obj, mat, poly):
-    print('hi')
     if mat.envi_boundary:
-        
         polyloc = obj.matrix_world*mathutils.Vector(poly.center)
-        
         for node in bpy.data.node_groups['EnVi Network'].nodes:
-            print(node.name)
-            print(hasattr(node, 'zone'))
-            if hasattr(node, 'zone') and node.zone == obj.name:
-                print(node.zone)
-                if node.inputs[mat.name].is_linked == True:
-                    print(node.zone)
-                    bobj = bpy.data.objects[node.inputs[mat.name].links[0].from_node.zone]
+            if hasattr(node, 'zone'):
+                if node.inputs[mat.name+'_b'].is_linked == True:
+                    bobj = bpy.data.objects[node.inputs[mat.name+'_b'].links[0].from_node.zone]
                     for bpoly in bobj.data.polygons:
                         bpolyloc = bobj.matrix_world*mathutils.Vector(bpoly.center)
                         if bobj.data.materials[bpoly.material_index] == mat and max(bpolyloc - polyloc) < 0.001 and abs(bpoly.area - poly.area) < 0.01:
-                            return(("Surface", node.inputs[mat.name].links[0].from_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
+                            return(("Surface", node.inputs[mat.name+'_b'].links[0].from_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
 
-                elif node.outputs[mat.name].is_linked == True:
-                    print(node.zone)
-                    bobj = bpy.data.objects[node.outputs[mat.name].links[0].to_node.zone]
+                elif node.outputs[mat.name+'_b'].is_linked == True:
+                    bobj = bpy.data.objects[node.outputs[mat.name+'_b'].links[0].to_node.zone]
                     for bpoly in bobj.data.polygons:
                         bpolyloc = bobj.matrix_world*mathutils.Vector(bpoly.center)
                         if bobj.data.materials[bpoly.material_index] == mat and max(bpolyloc - polyloc) < 0.001 and abs(bpoly.area - poly.area) < 0.01:
-                            return(("Surface", node.outputs[mat.name].links[0].to_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
+                            return(("Surface", node.outputs[mat.name+'_b'].links[0].to_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
             else:
                 return(("Outdoors", "", "SunExposed", "WindExposed"))
         else:

@@ -1188,12 +1188,12 @@ class EnViZone(bpy.types.Node, EnViNodes):
 
         socklist = [odm[face.material_index].name for face in obj.data.polygons if odm[face.material_index].envi_boundary == 1 and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViBoundSocket']]
         for sock in sorted(set(socklist)):
-            self.outputs.new('EnViBoundSocket', sock, identifier = sock+'b')
-            self.inputs.new('EnViBoundSocket', sock, identifier = sock+'b')
+            self.outputs.new('EnViBoundSocket', sock+'_b')
+            self.inputs.new('EnViBoundSocket', sock+'_b')
         socklist = [(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].afsurface == 1 and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViCAirSocket']]
         for sock in sorted(set(socklist)):
-            self.outputs.new('EnViCAirSocket', sock, identifier = sock[0]+'c').sn = str(sock[1])
-            self.inputs.new('EnViCAirSocket', sock, identifier = sock[0]+'c').sn = str(sock[1])
+            self.outputs.new('EnViCAirSocket', sock[0]+'_c').sn = str(sock[1])
+            self.inputs.new('EnViCAirSocket', sock[0]+'_c').sn = str(sock[1])
 
     def supdate(self, context):
         if self.control == 'Temperature':
@@ -1306,12 +1306,13 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
     def init(self, context):
         self.inputs.new('EnViCAirSocket', 'Node 1')
         self.inputs.new('EnViCAirSocket', 'Node 2')
+        self.outputs.new('NodeSocket', 'Reference')
         self.outputs['Reference'].hide = True
         self.outputs.new('EnViCAirSocket', 'Node 1')
         self.outputs.new('EnViCAirSocket', 'Node 2')
         self.outputs.new('NodeSocket', 'VASchedule')
         self.outputs.new('NodeSocket', 'TSPSchedule')
-        self.outputs.new('NodeSocket', 'Reference')
+        
 
     def update(self):
         try:

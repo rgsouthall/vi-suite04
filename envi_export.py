@@ -536,10 +536,8 @@ Construction,\n\
     if node.resco2 == True:
         en_idf.write("Output:Variable,*,AFN Node CO2 Concentration,hourly;\n")
     if node.resl12ms == True:
-        print([cnode for cnode in bpy.data.node_groups['EnVi Network'].nodes if cnode.bl_idname == 'EnViCLink'])
         for cnode in [cnode for cnode in bpy.data.node_groups['EnVi Network'].nodes if cnode.bl_idname == 'EnViCLink']:
-            for su in cnode['surf']:
-                en_idf.write("Output:Variable,{},AFN Linkage Node 1 to Node 2 Volume Flow Rate,hourly;\n".format(su))
+            en_idf.write("Output:Variable,{},AFN Linkage Node 1 to Node 2 Volume Flow Rate,hourly;\n".format(cnode['sname']))
 #        for i in range(1, 1 + len([snode for snode in bpy.data.node_groups['EnVi Network'] if snode.bl_idname == 'EnViSLinkNode' and snode.inputs['Node 1'].is_linked])):
 #            en_idf.write("Output:Variable,Componentflow_{},AFN Linkage Node 1 to Node 2 Volume Flow Rate,timestep;\n".format(i))
     en_idf.close()
@@ -876,7 +874,6 @@ class infiltration(object):
         return(String+"\n")
 
 def writeafn(en_idf):
-    surf = []
     cf = 0
     for enode in bpy.data.node_groups['EnVi Network'].nodes:
         if enode.bl_idname == 'AFNCon':
@@ -958,9 +955,9 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}! - Surface Name\n\
     {:{width}}!- Leakage Component Name\n\
     {:{width}}! - External Node Name\n\
-    {:{width}}!- Window/Door Opening Factor\n\n'.format(('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-1], sock.links[0].to_socket.name[:-1])[sock.in_out == 'OUT']].envi_con_type == 'Door']+zn+'_'+sn+',',
+    {:{width}}!- Window/Door Opening Factor\n\n'.format(('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-2], sock.links[0].to_socket.name[:-2])[sock.in_out == 'OUT']].envi_con_type == 'Door']+zn+'_'+sn+',',
     'ComponentFlow_'+str(cf)+',', ',', str(enode.wdof)+';', width = s))
-                        surf.append(('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-1], sock.links[0].to_socket.name[:-1])[sock.in_out == 'OUT']].envi_con_type == 'Door']+zn+'_'+sn)
+                        enode['sname'] = ('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-2],  sock.links[0].to_socket.name[:-2])[sock.in_out == 'OUT']].envi_con_type == 'Door']+zn+'_'+sn
 
 
                     elif enode.linkmenu == 'Crack':
@@ -970,7 +967,7 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}! - External Node Name\n\
     {:{width}}!- Crack Opening Factor\n\n'.format(zn+'_'+sn+',',
     'ComponentFlow_'+str(cf)+',', ',', str(enode.cf)+';', width = s))
-                        surf.append(zn+'_'+sn)
+                        enode['sname'] = zn+'_'+sn
 
 
                     else:
@@ -980,8 +977,7 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}! - External Node Name\n\
     {:{width}}!- Crack Opening Factor\n\n'.format(zn+'_'+sn+',',
     'ComponentFlow_'+str(cf)+',', ',', '0.6;', width = s))
-                        surf.append(zn+'_'+sn)
-            enode['surf'] = surf
+                        enode['sname'] = zn+'_'+sn
 
 # Component defintions
 

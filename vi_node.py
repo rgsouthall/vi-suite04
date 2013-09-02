@@ -799,7 +799,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 def draw(self, context, layout, node, text):
                     layout.label('Y-axis 2')
             self.inputs['Y-axis 3'].hide = True
-            
+
         else:
             y2rtype, y2ctype, y2ztype, y2zrtype, y2ltype, y2lrtype = [], [], [], [], [], []
             innode = self.inputs[2].links[0].from_node
@@ -1198,24 +1198,24 @@ class EnViZone(bpy.types.Node, EnViNodes):
     def supdate(self, context):
         if self.control == 'Temperature':
             self.outputs['TSPSchedule'].hide = False
-            self.outputs['VASchedule'].hide = False
+#            self.outputs['VASchedule'].hide = False
 
         else:
             self.outputs['TSPSchedule'].hide = True
-            self.outputs['VASchedule'].hide = True
+#            self.outputs['VASchedule'].hide = True
 
     zone = bpy.props.StringProperty(update = zupdate)
     controltype = [("NoVent", "None", "No ventilation control"), ("Temperature", "Temperature", "Temperature control")]
     control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='NoVent', update = supdate)
     zonevolume = bpy.props.FloatProperty(name = '')
 
-    
+
     def init(self, context):
         self.outputs.new('EnViTempSPSched', 'TSPSchedule')
-        self.outputs['TSPSchedule'].hide == True
+        self.outputs['TSPSchedule'].hide = True
         self.outputs.new('EnViVentASched', 'VASchedule')
-        self.outputs['VASchedule'].hide == True
-    
+#        self.outputs['VASchedule'].hide = True
+
     def update(self):
         try:
             for inp in [inp for inp in self.inputs if inp.bl_idname in ('EnViBoundSocket', 'EnViCAirSocket')]:
@@ -1393,13 +1393,13 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
                         row.prop(self, 'of4')
                         row = layout.row()
                         row.label('DC4')
-                        row.prop(self, 'dcof3')
+                        row.prop(self, 'dcof4')
                         row = layout.row()
-                        row.prop(self, 'wfof3')
+                        row.prop(self, 'wfof4')
                         row = layout.row()
-                        row.prop(self, 'hfof3')
+                        row.prop(self, 'hfof4')
                         row = layout.row()
-                        row.prop(self, 'sfof3')
+                        row.prop(self, 'sfof4')
 
         elif self.linkmenu == 'HO':
             row = layout.row()
@@ -1556,7 +1556,7 @@ class EnViFanNode(bpy.types.Node, EnViNodes):
             row = layout.row()
             row.label("Airstream fraction:")
             row.prop(self, 'fmaf')
-            
+
 class EnViExtNode(bpy.types.Node, EnViNodes):
     '''Node describing a linkage component'''
     bl_idname = 'EnViExt'
@@ -1581,7 +1581,7 @@ class EnViFSched(bpy.types.Node, EnViNodes):
     bl_idname = 'EnViFSched'
     bl_label = 'Fraction Schedule'
     bl_icon = 'SOUND'
-    
+
     ed1 = ed2 = ed3 = ed4 = ed5 =  bpy.props.IntProperty(name = "", min = 1, max = 365, default = 365)
     ep11 = ep12 = ep13 = ep14 = ep15 = bpy.props.IntProperty(name = "", min = 1, max = 24, default = 24)
     fp11 = fp12 = fp13 = fp14 = fp15 = bpy.props.FloatProperty(name = "", min = 0, max = 1, default = 0)
@@ -1591,7 +1591,7 @@ class EnViFSched(bpy.types.Node, EnViNodes):
     fp31 = fp32 = fp33 = fp34 = fp35 = bpy.props.FloatProperty(name = "", min = 0, max = 1, default = 0)
     ep41 = ep42 = ep43 = ep44 = ep45 = bpy.props.IntProperty(name = "", min = 1, max = 24, default = 24)
     fp41 = fp42 = fp43 = fp44 = fp45 = bpy.props.FloatProperty(name = "", min = 0, max = 1, default = 0)
-    
+
     def init(self, context):
         self.inputs.new('NodeSocket', 'Schedule')
 
@@ -1618,7 +1618,7 @@ class EnViFSched(bpy.types.Node, EnViNodes):
                 row.prop(self, 'ep31')
                 row = layout.row()
                 row.label(' Period 3 Fraction')
-                row.prop(self, 'fp31')  
+                row.prop(self, 'fp31')
                 if self.ep31 < 24:
                     row = layout.row()
                     row.label(' Period 4 End Hour')
@@ -1639,7 +1639,7 @@ class EnViFSched(bpy.types.Node, EnViNodes):
             row.prop(self, 'fp12')
             if self.ep12 < 24:
                 row.prop(self, 'ep22')
-                row.prop(self, 'fp22')  
+                row.prop(self, 'fp22')
                 if self.ep22 < 24:
                     row.prop(self, 'ep32')
                     row.prop(self, 'fp32')
@@ -1655,7 +1655,7 @@ class EnViFSched(bpy.types.Node, EnViNodes):
                 row.prop(self, 'fp13')
                 if self.ep13 < 24:
                     row.prop(self, 'ep23')
-                    row.prop(self, 'fp23')  
+                    row.prop(self, 'fp23')
                     if self.ep23 < 24:
                         row.prop(self, 'ep33')
                         row.prop(self, 'fp33')
@@ -1671,7 +1671,7 @@ class EnViFSched(bpy.types.Node, EnViNodes):
                     row.prop(self, 'fp14')
                     if self.ep14 < 24:
                         row.prop(self, 'ep24')
-                        row.prop(self, 'fp24')  
+                        row.prop(self, 'fp24')
                         if self.ep24 < 24:
                             row.prop(self, 'ep34')
                             row.prop(self, 'fp34')
@@ -1687,7 +1687,7 @@ class EnViFSched(bpy.types.Node, EnViNodes):
                         row.prop(self, 'fp15')
                         if self.ep15 < 24:
                             row.prop(self, 'ep25')
-                            row.prop(self, 'fp25')  
+                            row.prop(self, 'fp25')
                             if self.ep24 < 24:
                                 row.prop(self, 'ep35')
                                 row.prop(self, 'fp35')
@@ -1703,29 +1703,26 @@ class EnViTempSPSched(bpy.types.Node, EnViNodes):
     bl_idname = 'EnViTempSPSched'
     bl_label = 'Ventilation Temperature Set-point Schedule'
     bl_icon = 'SOUND'
-    
+
     mvof = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 1)
     lowerlim = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 100)
     upperlim = bpy.props.FloatProperty(default = 50, name = "", min = 0, max = 100)
-    t1 = bpy.props.StringProperty(name = "")
-    f1 = bpy.props.StringProperty(name = "")
-    u11 = bpy.props.StringProperty(name = "")
-    u12 = bpy.props.StringProperty(name = "")
-    u13 = bpy.props.StringProperty(name = "")
-    t2 = bpy.props.StringProperty(name = "")
-    f2 = bpy.props.StringProperty(name = "")
-    u21 = bpy.props.StringProperty(name = "")
-    u22 = bpy.props.StringProperty(name = "")
-    u23 = bpy.props.StringProperty(name = "")
-    t3 = bpy.props.StringProperty(name = "")
-    f3 = bpy.props.StringProperty(name = "")
-    u31 = bpy.props.StringProperty(name = "")
-    u32 = bpy.props.StringProperty(name = "")
-    u33 = bpy.props.StringProperty(name = "")
-    
+    t1 = bpy.props.IntProperty(name = "Through", default = 365)
+    f1 = bpy.props.StringProperty(name = "Fors")
+    u1 = bpy.props.StringProperty(name = "Untils")
+    t2 = bpy.props.IntProperty(name = "Through")
+    f2 = bpy.props.StringProperty(name = "Fors")
+    u2 = bpy.props.StringProperty(name = "Untils")
+    t3 = bpy.props.IntProperty(name = "Through")
+    f3 = bpy.props.StringProperty(name = "Fors")
+    u3 = bpy.props.StringProperty(name = "Untils")
+    t4 = bpy.props.IntProperty(name = "Through")
+    f4 = bpy.props.StringProperty(name = "Fors")
+    u4 = bpy.props.StringProperty(name = "Untils")
+
     def init(self, context):
         self.inputs.new('NodeSocket', 'Schedule')
-    
+
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.label('Minimum OF')
@@ -1745,15 +1742,27 @@ class EnViTempSPSched(bpy.types.Node, EnViNodes):
         row = layout.row()
         row.label('Until')
         row.prop(self, 'u1')
-        row = layout.row()
-        row.label('Through')
-        row.prop(self, 't2')
-        row = layout.row()
-        row.label('For')
-        row.prop(self, 'f2')
-        row = layout.row()
-        row.label('Until')
-        row.prop(self, 'u2')
+        if self.u1 != '':
+            row = layout.row()
+            row.prop(self, 't2')
+            row = layout.row()
+            row.prop(self, 'f2')
+            row = layout.row()
+            row.prop(self, 'u2')
+            if self.u2 != '':
+                row = layout.row()
+                row.prop(self, 't3')
+                row = layout.row()
+                row.prop(self, 'f3')
+                row = layout.row()
+                row.prop(self, 'u3')
+                if self.u3 != '':
+                    row = layout.row()
+                    row.prop(self, 't4')
+                    row = layout.row()
+                    row.prop(self, 'f4')
+                    row = layout.row()
+                    row.prop(self, 'u4')
 
 
 #    def draw_buttons(self, context, layout):

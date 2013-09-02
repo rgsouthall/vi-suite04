@@ -910,22 +910,25 @@ AirflowNetwork:SimulationControl,\n\
         if enode.bl_idname == 'EnViZone':
             if enode.outputs['TSPSchedule'].is_linked:
                 snode = enode.outputs['TSPSchedule'].links[0].to_node
-                mvof, lowerlim, upperlim, sched = str(snode.mvof)+',', str(snode.lowerlim)+',', str(snode.upperlim)+',', enode.zone+'_tsps,'
-                en_idf.write('Schedule:Compact,\n\
-    {}!- Name\n\
-    {}!- Schedule Type Limits Name
-    Through: 12/31,          !- Field 1
-    For: Wednesday Thursday Friday Saturday, !- Field 2
-    Until: 24:00,21.11,      !- Field 3
-    For: Holiday SummerDesignDay, !- Field 5
-    Until: 24:00,21.11,      !- Field 6
-    For: Sunday Monday Tuesday, !- Field 8
-    Until: 24:00,25.55,      !- Field 9
-    For: WinterDesignDay CustomDay1 CustomDay2, !- Field 11
-    Until: 24:00,25.55;      !- Field 12.format(sched, 'Any Number,',)
-    
+                control, mvof, lowerlim, upperlim, sched = 'Temperature,', str(snode.mvof)+',', str(snode.lowerlim)+',', str(snode.upperlim)+',', enode.zone+'_tsps,'
+                ths = [ts for ts in (snode.t1, snode.t2, snode.t3, snode.t4)]
+                fos = [fs for fs in (snode.f1, snode.f2, snode.f3, snode.f4) if fs != '']
+                uns = [us for us in (snode.u1, snode.u2, snode.u3, snode.u4) if us != '']
+                ts, fs, us = vi_func.rettimes(ths, fos, uns)
+                for t in range(len(ts)):
+                    if t == 0:
+                        en_idf.write('Schedule:Compact,\n\
+    {:{width}}!- Name\n\
+    {:{width}}!- Schedule Type Limits Name\n'.format(sched, 'Any Number,', width = s))
+                    en_idf.write('    {:{width}}!- Field {}\n\
+    {:{width}}!- Field {}\n'.format(ts[t], t*4, fs[t], t*4 +1, width = s))
+                    for u in us[t]:
+                        en_idf.write('    {:{width}}!- Field {}\n'.format(u, t*4 + 2, width = s))
+                en_idf.write('\n')
+
             else:
-                mvof, lowerlim, upperlim, sched = ',', ',', ',', ','
+                control, mvof, lowerlim, upperlim, sched = 'NoVent,', ',', ',', ',', ','
+
             en_idf.write('AirflowNetwork:MultiZone:Zone,\n\
     {:{width}}!- Zone Name\n\
     {:{width}}!- Ventilation Control Mode\n\
@@ -935,7 +938,7 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}!- Upper value for modulating venting open factor (deltaC)\n\
     {:{width}}!- Indoor and Outdoor Enthalpy Difference Lower Limit For Maximum Venting Open Factor (deltaJ/kg)\n\
     {:{width}}!- Indoor and Outdoor Enthalpy Difference Upper Limit for Minimun Venting Open Factor (deltaJ/kg)\n\
-    {:{width}}!- Venting Availability Schedule Name\n\n'.format(enode.zone + ',', enode.control + ',', sched, mvof,
+    {:{width}}!- Venting Availability Schedule Name\n\n'.format(enode.zone + ',', control, sched, mvof,
     lowerlim, upperlim, str(0.0) + ',', str(300000.0) + ',', ';', width = s))
 
         if enode.bl_idname == 'EnViCLink':
@@ -956,7 +959,7 @@ AirflowNetwork:SimulationControl,\n\
     'ComponentFlow_'+str(cf)+',', ',', str(enode.wdof)+';', width = s))
                         surf.append(('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-1], sock.links[0].to_socket.name[:-1])[sock.in_out == 'OUT']].envi_con_type == 'Door']+zn+'_'+sn)
 
-                        
+
                     elif enode.linkmenu == 'Crack':
                         en_idf.write('AirflowNetwork:Multizone:Surface,\n\
     {:{width}}! - Surface Name\n\
@@ -966,7 +969,7 @@ AirflowNetwork:SimulationControl,\n\
     'ComponentFlow_'+str(cf)+',', ',', str(enode.cf)+';', width = s))
                         surf.append(zn+'_'+sn)
 
-                    
+
                     else:
                         en_idf.write('AirflowNetwork:Multizone:Surface,\n\
     {:{width}}! - Surface Name\n\
@@ -987,7 +990,7 @@ AirflowNetwork:SimulationControl,\n\
                 if enode.outputs['Reference'].is_linked:
                     en_idf.write('{:{width}}! - Reference Crack Conditions\n\n'.format('ReferenceCrackConditions;' if enode.outputs['Reference'].is_linked else ';', width = s))
                 cf += 1
-            
+
             if enode.linkmenu == 'ELA':
                 en_idf.write('AirflowNetwork:Multizone:Surface:EffectiveLeakageArea,\n\
     {:{width}}! - Name\n\
@@ -996,14 +999,14 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}! - Reference Pressure Difference\n\
     {:{width}}! - Air Mass Flow Exponent (dimensionless)\n\n'.format('ComponentFlow_'+str(cf)+',', str(enode.ela)+',', str(enode.dcof)+',', str(enode.rpd)+',', str(enode.amfe)+';', width = s))
                 cf += 1
-            
+
             elif enode.linkmenu == 'EF':
                 en_idf.write('AirflowNetwork:Multizone:Component:ZoneExhaustFan,\n\
     {:{width}}! - Name\n\
     {:{width}}! - Air Mass Flow Coefficient When the Zone Exhaust Fan is Off at Reference Conditions (kg/s)\n\
     {:{width}}! - Air Mass Flow Exponent When the Zone Exhaust Fan is Off (dimensionless)\n\n'.format('ComponentFlow_'+str(cf)+',', str(enode.amfc)+',', str(enode.amfe)+';', width = s))
                 cf += 1
-            
+
             elif enode.linkmenu == 'SO':
                 en_idf.write('AirflowNetwork:Multizone:Component:SimpleOpening,\n\
     {:{width}}! - Name\n\
@@ -1012,7 +1015,7 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}!- Minimum Density Difference for Two-way Flow\n\
     {:{width}}!- Discharge Coefficient\n\n'.format('ComponentFlow_'+str(cf)+',', str(enode.amfcc)+',', str(enode.amfec)+',', str(enode.ddtw)+',', str(enode.dcof)+';', width = s))
                 cf += 1
-                
+
             elif enode.linkmenu == 'DO':
                 en_idf.write('AirflowNetwork:Multizone:Component:DetailedOpening,\n\
     {:{width}}! - Name\n\
@@ -1035,7 +1038,7 @@ AirflowNetwork:SimulationControl,\n\
     str(enode.wfof1)+',', str(enode.hfof1)+ ',', str(enode.sfof1) + ',', str(enode.of2) + ',', str(enode.dcof2)+',',str(enode.wfof2)+',',
     str(enode.hfof2)+ ',', str(enode.sfof2) + (',', ';')[enode.noof == 2], width = s))
                 cf += 1
-                
+
                 if enode.noof > 2:
                     en_idf.write('    {:{width}}!- Opening Factor 3 (dimensionless)\n\
     {:{width}}!- Discharge Coefficient for Opening Factor 3 (dimensionless)\n\

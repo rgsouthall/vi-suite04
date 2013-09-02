@@ -1,6 +1,7 @@
-import bpy, os, sys, multiprocessing, mathutils, bmesh
+import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime
 from math import sin, cos, asin, acos, pi
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
+dtdf = datetime.date.fromordinal
 
 def obj(name, fr, node):
     if node.animmenu == "Geometry":
@@ -291,3 +292,22 @@ def triarea(obj, face):
             area += 0.5*(cross[0]**2 + cross[1]**2 +cross[2]**2)**0.5
             i += 1
         return(area)
+
+def rettimes(ts, fs, us):
+
+    tot = range(min(len(ts), len(fs), len(us)))
+    fstrings = [[] * t for t in tot]
+    ustrings = [[[]] * t for t in tot]
+    tstrings = ['Through: '+str(dtdf(ts[t]).month)+'/'+ts[t]+','+str(dtdf(ts[t]).day) for t in tot]
+
+#    fstrings = ['For: '+fs[t]+',' for t in tot]
+    for t in tot:
+        for f in fs[t].split(','):
+            fstrings[t].append('Until: '+''.join([f+',' for f in f.split(' ') if f != '']))
+        for u in us[t].split(';'):
+            ustrings[t].append('Until: '+''.join([u+',' for u in u.split(' ') if u != '']))
+        for v in ustrings[t].split(','):
+            ustrings[t]
+    ustrings[-1][-1][-1] = ustrings[-1][-1][-1][:-1]+';'
+    print(ustrings)
+    return(tstrings, fstrings, ustrings)

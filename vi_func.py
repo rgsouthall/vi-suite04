@@ -221,23 +221,31 @@ def nfvprop(fvname, fvattr, fvdef, fvsub):
     return(FloatVectorProperty(name=fvname, attr = fvattr, default = fvdef, subtype = fvsub, update = nodeexported))
 
 def boundpoly(obj, mat, poly):
+    print('hi')
     if mat.envi_boundary:
+        
         polyloc = obj.matrix_world*mathutils.Vector(poly.center)
+        
         for node in bpy.data.node_groups['EnVi Network'].nodes:
-            if hasattr(node, 'zone'):
+            print(node.name)
+            print(hasattr(node, 'zone'))
+            if hasattr(node, 'zone') and node.zone == obj.name:
+                print(node.zone)
                 if node.inputs[mat.name].is_linked == True:
+                    print(node.zone)
                     bobj = bpy.data.objects[node.inputs[mat.name].links[0].from_node.zone]
                     for bpoly in bobj.data.polygons:
                         bpolyloc = bobj.matrix_world*mathutils.Vector(bpoly.center)
                         if bobj.data.materials[bpoly.material_index] == mat and max(bpolyloc - polyloc) < 0.001 and abs(bpoly.area - poly.area) < 0.01:
-                            return(("Surface", node.inputs[mat.name].links[0].from_node.zone+str(bpoly.index), "NoSun", "NoWind"))
+                            return(("Surface", node.inputs[mat.name].links[0].from_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
 
                 elif node.outputs[mat.name].is_linked == True:
+                    print(node.zone)
                     bobj = bpy.data.objects[node.outputs[mat.name].links[0].to_node.zone]
                     for bpoly in bobj.data.polygons:
                         bpolyloc = bobj.matrix_world*mathutils.Vector(bpoly.center)
                         if bobj.data.materials[bpoly.material_index] == mat and max(bpolyloc - polyloc) < 0.001 and abs(bpoly.area - poly.area) < 0.01:
-                            return(("Surface", node.outputs[mat.name].links[0].to_node.zone+str(bpoly.index), "NoSun", "NoWind"))
+                            return(("Surface", node.outputs[mat.name].links[0].to_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
             else:
                 return(("Outdoors", "", "SunExposed", "WindExposed"))
         else:
@@ -294,20 +302,16 @@ def triarea(obj, face):
         return(area)
 
 def rettimes(ts, fs, us):
-
     tot = range(min(len(ts), len(fs), len(us)))
-    fstrings = [[] * t for t in tot]
-    ustrings = [[[]] * t for t in tot]
-    tstrings = ['Through: '+str(dtdf(ts[t]).month)+'/'+ts[t]+','+str(dtdf(ts[t]).day) for t in tot]
-
-#    fstrings = ['For: '+fs[t]+',' for t in tot]
+    fstrings = [[] for t in tot]
+    ustrings = [[] for t in tot]
+    tstrings = ['Through: '+str(dtdf(ts[t]).month)+'/'+str(dtdf(ts[t]).day)+',' for t in tot]
     for t in tot:
         for f in fs[t].split(','):
-            fstrings[t].append('Until: '+''.join([f+',' for f in f.split(' ') if f != '']))
-        for u in us[t].split(';'):
-            ustrings[t].append('Until: '+''.join([u+',' for u in u.split(' ') if u != '']))
-        for v in ustrings[t].split(','):
-            ustrings[t]
-    ustrings[-1][-1][-1] = ustrings[-1][-1][-1][:-1]+';'
-    print(ustrings)
+            fstrings[t].append('For: '+''.join([f+',' for f in f.split(' ') if f != '']))
+        for uf, ufor in enumerate(us[t].split(';')):
+            ustrings[t].append([])
+            for ut, utime in enumerate(ufor.split(',')):
+                ustrings[t][uf].append(['Until: '+''.join([u+',' for u in utime.split(' ') if u != ''])])
+    ustrings[-1][-1][-1][-1] = ustrings[-1][-1][-1][-1][:-1]+';'
     return(tstrings, fstrings, ustrings)

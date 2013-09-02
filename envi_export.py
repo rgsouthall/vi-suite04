@@ -920,10 +920,13 @@ AirflowNetwork:SimulationControl,\n\
                         en_idf.write('Schedule:Compact,\n\
     {:{width}}!- Name\n\
     {:{width}}!- Schedule Type Limits Name\n'.format(sched, 'Any Number,', width = s))
-                    en_idf.write('    {:{width}}!- Field {}\n\
-    {:{width}}!- Field {}\n'.format(ts[t], t*4, fs[t], t*4 +1, width = s))
-                    for u in us[t]:
-                        en_idf.write('    {:{width}}!- Field {}\n'.format(u, t*4 + 2, width = s))
+                    en_idf.write('    {:{width}}!- Field {}\n'.format(ts[t], t*4, width = s))
+                    
+                    for f in range(len(fs[t])):
+                        en_idf.write('    {:{width}}!- Field {}\n'.format(fs[t][f], t*4 +1, width = s))
+                        
+                        for u in range(len(us[t][f])):
+                            en_idf.write('    {:{width}}!- Field {}\n'.format(us[t][f][u][0], t*4 + 2, width = s))
                 en_idf.write('\n')
 
             else:

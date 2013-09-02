@@ -1188,12 +1188,12 @@ class EnViZone(bpy.types.Node, EnViNodes):
 
         socklist = [odm[face.material_index].name for face in obj.data.polygons if odm[face.material_index].envi_boundary == 1 and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViBoundSocket']]
         for sock in sorted(set(socklist)):
-            self.outputs.new('EnViBoundSocket', sock+'b')
-            self.inputs.new('EnViBoundSocket', sock+'b')
+            self.outputs.new('EnViBoundSocket', sock, identifier = sock+'b')
+            self.inputs.new('EnViBoundSocket', sock, identifier = sock+'b')
         socklist = [(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].afsurface == 1 and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViCAirSocket']]
         for sock in sorted(set(socklist)):
-            self.outputs.new('EnViCAirSocket', sock[0]+'c').sn = str(sock[1])
-            self.inputs.new('EnViCAirSocket', sock[0]+'c').sn = str(sock[1])
+            self.outputs.new('EnViCAirSocket', sock, identifier = sock[0]+'c').sn = str(sock[1])
+            self.inputs.new('EnViCAirSocket', sock, identifier = sock[0]+'c').sn = str(sock[1])
 
     def supdate(self, context):
         if self.control == 'Temperature':
@@ -1707,16 +1707,16 @@ class EnViTempSPSched(bpy.types.Node, EnViNodes):
     mvof = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 1)
     lowerlim = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 100)
     upperlim = bpy.props.FloatProperty(default = 50, name = "", min = 0, max = 100)
-    t1 = bpy.props.IntProperty(name = "Through", default = 365)
+    t1 = bpy.props.IntProperty(name = "", default = 365)
     f1 = bpy.props.StringProperty(name = "Fors")
     u1 = bpy.props.StringProperty(name = "Untils")
-    t2 = bpy.props.IntProperty(name = "Through")
+    t2 = bpy.props.IntProperty(name = "")
     f2 = bpy.props.StringProperty(name = "Fors")
     u2 = bpy.props.StringProperty(name = "Untils")
-    t3 = bpy.props.IntProperty(name = "Through")
+    t3 = bpy.props.IntProperty(name = "")
     f3 = bpy.props.StringProperty(name = "Fors")
     u3 = bpy.props.StringProperty(name = "Untils")
-    t4 = bpy.props.IntProperty(name = "Through")
+    t4 = bpy.props.IntProperty(name = "")
     f4 = bpy.props.StringProperty(name = "Fors")
     u4 = bpy.props.StringProperty(name = "Untils")
 
@@ -1734,13 +1734,11 @@ class EnViTempSPSched(bpy.types.Node, EnViNodes):
         row.label('Upper')
         row.prop(self, 'upperlim')
         row = layout.row()
-        row.label('Through')
+        row.label('End day:')
         row.prop(self, 't1')
         row = layout.row()
-        row.label('For')
         row.prop(self, 'f1')
         row = layout.row()
-        row.label('Until')
         row.prop(self, 'u1')
         if self.u1 != '':
             row = layout.row()

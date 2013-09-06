@@ -28,7 +28,7 @@ try:
 except:
     np = 0
 
-def radfexport(scene, export_op, node, geonode):    
+def radfexport(scene, export_op, node, geonode):
     for frame in range(scene.frame_start, scene.frame_end + 1):
         livi_export.fexport(scene, frame, export_op, node, geonode)
 
@@ -71,13 +71,13 @@ def li_calc(calc_op, node, geonode):
         else:
             num = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-ar", 128, 512, 1024), ("-as", 128, 512, 1024), ("-aa", 0.3, 0.15, 0.08), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
             params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(node.simacc)+1] for n in num]))
-    
+
         vi_func.clearscened(scene)
         res = [[0 for p in range(geonode.reslen)] for x in range(scene.frame_end + 1 - scene.frame_start)]
         for frame in range(scene.frame_start, scene.frame_end+1):
             if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
                 subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
-            rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, node.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res" 
+            rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, node.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
             rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
             resfile = open(geonode.newdir+geonode.fold+node.resname+"-"+str(frame)+".res", 'w')
             for l,line in enumerate(rtrun.stdout):
@@ -89,13 +89,13 @@ def li_calc(calc_op, node, geonode):
                 res[frame][l] =float(line.decode())
             resfile.write("{}".format(res[frame]).strip("]").strip("["))
             resfile.close()
-            
+
         node['maxres'] = [max(res[i]) for i in range(scene.frame_end + 1 - scene.frame_start)]
         node['minres'] = [min(res[i]) for i in range(scene.frame_end + 1 - scene.frame_start)]
         node['avres'] = [sum(res[i])/len(res[i]) for i in range(scene.frame_end + 1 - scene.frame_start)]
         resapply(res, node, geonode)
         calc_op.report({'INFO'}, "Calculation is finished.")
-    
+
 def resapply(res, node, geonode):
     scene = bpy.context.scene
 
@@ -109,6 +109,8 @@ def resapply(res, node, geonode):
             rgb.append(colorsys.hsv_to_rgb(h, 1.0, 1.0))
 
         for geo in [geo for geo in scene.objects if geo.type == 'MESH']:
+            if bpy.context.active_object:
+                bpy.ops.object.mode_set()
             bpy.ops.object.select_all(action = 'DESELECT')
             scene.objects.active = None
             try:
@@ -118,11 +120,11 @@ def resapply(res, node, geonode):
                     if frame == 0:
                         while len(geo.data.vertex_colors) > 0:
                             bpy.ops.mesh.vertex_color_remove()
-                        
+
                     bpy.ops.mesh.vertex_color_add()
                     geo.data.vertex_colors[frame].name = str(frame)
                     vertexColour = geo.data.vertex_colors[frame]
-             
+
                     for face in geo.data.polygons:
                         if "calcsurf" in str(geo.data.materials[face.material_index].name):
                             if geonode.cpoint == '1':
@@ -131,14 +133,14 @@ def resapply(res, node, geonode):
                                     col_i = [vi for vi, vval in enumerate(geo['cverts']) if v == geo['cverts'][vi]][0]
                                     lcol_i.append(col_i)
                                     vertexColour.data[loop_index].color = rgb[col_i+mcol_i]
-                                
+
                             if geonode.cpoint == '0':
                                 for loop_index in face.loop_indices:
                                     vertexColour.data[loop_index].color = rgb[f]
                                 f += 1
-                       
-                    mcol_i = len(tuple(set(lcol_i)))   
-    
+
+                    mcol_i = len(tuple(set(lcol_i)))
+
             except Exception as e:
                 print(e)
 
@@ -148,11 +150,11 @@ def resapply(res, node, geonode):
                 if frame == 0:
                     while len(geo.data.vertex_colors) > 0:
                         bpy.ops.mesh.vertex_color_remove()
-                    
+
                 bpy.ops.mesh.vertex_color_add()
                 geo.data.vertex_colors[frame].name = str(frame)
                 vertexColour = geo.data.vertex_colors[frame]
-         
+
                 for face in geo.data.polygons:
                     if "calcsurf" in str(geo.data.materials[face.material_index].name):
                         if geonode.cpoint == '1':
@@ -160,7 +162,7 @@ def resapply(res, node, geonode):
                             for loop_index in face.loop_indices:
                                 v = geo.data.loops[loop_index].vertex_index
                                 if v in cvtup:
-                                    col_i = cvtup.index(v) 
+                                    col_i = cvtup.index(v)
                                 lcol_i.append(col_i)
                                 vertexColour.data[loop_index].color = rgb[col_i+mcol_i]
 
@@ -170,7 +172,7 @@ def resapply(res, node, geonode):
                             f += 1
                 mcol_i = len(list(set(lcol_i)))
 
-    
+
     for frame in range(scene.frame_start, scene.frame_end+1):
         scene.frame_set(frame)
 #        bpy.ops.anim.change_frame(frame = frame)
@@ -188,14 +190,14 @@ def resapply(res, node, geonode):
                         vc.keyframe_insert("active")
                         vc.keyframe_insert("active_render")
     scene.li_disp_panel = 1
-    scene.li_display == 0       
+    scene.li_display == 0
     bpy.ops.wm.save_mainfile(check_existing = False)
 
-#class LiVi_c(object):  
+#class LiVi_c(object):
 #    def __init__(self, lexport, node, prev_op):
 #        self.acc = node.simacc
 #        self.scene = bpy.context.scene
-#        
+#
 #        if str(sys.platform) != 'win32':
 #            if lexport.scene.livi_export_time_type == "0" or lexport.scene.livi_anim == "1":
 #                self.simlistn = ("illumout", "irradout", "dfout")
@@ -205,7 +207,7 @@ def resapply(res, node, geonode):
 #                self.simlistn = ("cumillumout", "cumirradout", "", "", "daout")
 #                self.simlist = (" |  rcalc  -e '$1=47.4*$1+120*$2+11.6*$3' ", " |  rcalc  -e '$1=$1' ")
 #                self.unit = ("Luxhours", "Wh/m"+ u'\u00b2', "", "", "DA %")
-#        
+#
 #        if str(sys.platform) == 'win32':
 #            if lexport.scene.livi_export_time_type == "0"  or lexport.scene.livi_anim == "1":
 #                self.simlistn = ("illumout", "irradout", "dfout")
@@ -227,7 +229,7 @@ def resapply(res, node, geonode):
 #                    self.rad_calc(lexport, prev_op)
 #        except:
 #            pass
-#        
+#
 #    def rad_prev(self, lexport, prev_op):
 #        if os.path.isfile(lexport.filebase+"-0.poly"):
 #            cam = lexport.scene.camera
@@ -239,14 +241,14 @@ def resapply(res, node, geonode):
 #                prev_op.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
 #        else:
 #            prev_op.report({'ERROR'},"Missing export file. Make sure you have exported the scene.")
-#    
+#
 #    def rad_calc(self, lexport, calc_op):
 #        lexport.clearscened()
 #        res = [[] for frame in range(0, bpy.context.scene.frame_end+1)]
 #        for frame in range(0, bpy.context.scene.frame_end+1):
 #            if os.path.isfile("{}-{}.af".format(lexport.filebase, frame)):
 #                subprocess.call("{} {}-{}.af".format(lexport.rm, lexport.filebase, frame), shell=True)
-#            rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(lexport.nproc, lexport.sparams(self.acc), lexport.filebase, frame, self.simlist[int(lexport.metric)]) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res" 
+#            rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(lexport.nproc, lexport.sparams(self.acc), lexport.filebase, frame, self.simlist[int(lexport.metric)]) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
 #            rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
 #            resfile = open(lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res", 'w')
 #            for line in rtrun.stdout:
@@ -255,14 +257,14 @@ def resapply(res, node, geonode):
 #            resfile.close()
 #        self.resapply(res, lexport)
 #        calc_op.report({'INFO'}, "Calculation is finished.")
-#        
+#
 #    def rad_glare(self, lexport, calc_op):
 #        scene = bpy.context.scene
 #        cam = scene.camera
 #        if cam:
 #            gfiles=[]
 #            for frame in range(0, scene.frame_end+1):
-#                glarecmd = "rpict -w -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct | evalglare -c glare{4}.hdr".format(-1*cam.matrix_world, cam.location, lexport.sparams(self.acc), lexport.filename, frame)               
+#                glarecmd = "rpict -w -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct | evalglare -c glare{4}.hdr".format(-1*cam.matrix_world, cam.location, lexport.sparams(self.acc), lexport.filename, frame)
 #                glarerun = Popen(glarecmd, shell = True, stdout = PIPE)
 #                for line in glarerun.stdout:
 #                    if line.decode().split(",")[0] == 'dgp':
@@ -272,8 +274,8 @@ def resapply(res, node, geonode):
 #                        glaretf.close()
 #                subprocess.call("pcond -u 300 glare{0}.hdr > glaretm{0}.hdr".format(frame), shell=True)
 #                subprocess.call("{0} {1}.glare | psign -h 32 -cb 0 0 0 -cf 40 40 40 | pcompos glaretm{2}.hdr 0 0 - 800 550 > glare{2}.hdr" .format(lexport.cat, lexport.filename, frame), shell=True)
-#                subprocess.call("{} glaretm{}.hdr".format(lexport.rm, frame), shell=True)                    
-#                     
+#                subprocess.call("{} glaretm{}.hdr".format(lexport.rm, frame), shell=True)
+#
 #                gfile={"name":"glare"+str(frame)+".hdr"}
 #                gfiles.append(gfile)
 #            try:
@@ -287,9 +289,9 @@ def resapply(res, node, geonode):
 #                    filemode=9)
 #        else:
 #            calc_op.report({'ERROR'}, "There is no camera in the scene. Create one for glare analysis")
-#        
+#
 #        lexport.scene.livi_display_panel = 0
-#   
+#
 #    def dayavail(self, lexport, calc_op):
 #        lexport.clearscened()
 #        res = [[0] * lexport.reslen for frame in range(0, bpy.context.scene.frame_end+1)]
@@ -298,17 +300,17 @@ def resapply(res, node, geonode):
 #        vecvals = [[x%24, (fwd+x)%7] for x in range(0,8760)] if np == 0 else numpy.array([[x%24, (fwd+x)%7] + [0 for p in range(146)] for x in range(0,8760)])
 #        patch = 2
 #        if os.path.splitext(os.path.basename(lexport.scene.livi_export_epw_name))[1] in (".hdr", ".HDR"):
-#            skyrad = open(lexport.filebase+".whitesky", "w")    
+#            skyrad = open(lexport.filebase+".whitesky", "w")
 #            skyrad.write("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")
-#            skyrad.close() 
+#            skyrad.close()
 #            mtx = open(lexport.scene.livi_calc_mtx_name, "r")
 #            hour = 0
 #            mtxlines = mtx.readlines()
-#            mtx.close() 
+#            mtx.close()
 #            for fvals in mtxlines:
 #                linevals = fvals.split(" ")
 #                try:
-#                    sumvals = round(float(linevals[0]) +  float(linevals[1]) + float(linevals[2]), 4) 
+#                    sumvals = round(float(linevals[0]) +  float(linevals[1]) + float(linevals[2]), 4)
 #                    if sumvals > 0:
 #                        if np == 1:
 #                            vecvals[hour,patch] = sumvals
@@ -317,13 +319,13 @@ def resapply(res, node, geonode):
 #                    hour += 1
 #                except:
 #                    if fvals != "\n":
-#                        hour += 1 
+#                        hour += 1
 #                    else:
 #                        patch += 1
 #                        hour = 0
-#            
+#
 #        else:
-#            vecvals = lexport.vecvals 
+#            vecvals = lexport.vecvals
 #
 #        for frame in range(0, bpy.context.scene.frame_end+1):
 #            hours = 0
@@ -358,27 +360,27 @@ def resapply(res, node, geonode):
 #                    if reading > lexport.scene.livi_calc_min_lux:
 #                        res[frame][k] += 1
 #            finalillu = [0 for x in range(0, lexport.reslen)] if np == 0 else numpy.zeros((lexport.reslen))
-#                        
+#
 #            for r in range(0, len(res[frame])):
 #                if hours != 0:
 #                    res[frame][r] = res[frame][r]*100/hours
 #            daresfile = open(lexport.newdir+"/"+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res", "w")
 #            daresfile.write("{:.2f}\n".format(*res[frame]))
 #            daresfile.close()
-#        
-#        calc_op.report({'INFO'}, "Calculation is finished.") 
-#        self.resapply(res, lexport) 
-#        
+#
+#        calc_op.report({'INFO'}, "Calculation is finished.")
+#        self.resapply(res, lexport)
+#
 #    def resapply(self, res, lexport):
 #        maxres = []
 #        minres = []
 #        avres = []
-#        
+#
 #        for frame in range(0, lexport.scene.frame_end+1):
 #            maxres.append(max(res[frame]))
 #            minres.append(min(res[frame]))
 #            avres.append(sum(res[frame])/len(res[frame]))
-#            
+#
 #        self.scene['resav'] = avres
 #        self.scene['resmax'] = maxres
 #        self.scene['resmin'] = minres
@@ -402,11 +404,11 @@ def resapply(res, node, geonode):
 #                        if frame == 0:
 #                            while len(geo.data.vertex_colors) > 0:
 #                                bpy.ops.mesh.vertex_color_remove()
-#                            
+#
 #                        bpy.ops.mesh.vertex_color_add()
 #                        geo.data.vertex_colors[frame].name = str(frame)
 #                        vertexColour = geo.data.vertex_colors[frame]
-#                 
+#
 #                        for face in geo.data.polygons:
 #                            if "calcsurf" in str(geo.data.materials[face.material_index].name):
 #                                if self.scene['cp'] == 1:
@@ -415,14 +417,14 @@ def resapply(res, node, geonode):
 #                                        col_i = [vi for vi, vval in enumerate(geo['cverts']) if v == geo['cverts'][vi]][0]
 #                                        lcol_i.append(col_i)
 #                                        vertexColour.data[loop_index].color = rgb[col_i+mcol_i]
-#                                    
+#
 #                                if self.scene['cp'] == 0:
 #                                    for loop_index in face.loop_indices:
 #                                        vertexColour.data[loop_index].color = rgb[f]
 #                                    f += 1
-#                           
-#                        mcol_i = len(tuple(set(lcol_i)))   
-#        
+#
+#                        mcol_i = len(tuple(set(lcol_i)))
+#
 #                except Exception as e:
 #                    print(e)
 #
@@ -432,11 +434,11 @@ def resapply(res, node, geonode):
 #                    if frame == 0:
 #                        while len(geo.data.vertex_colors) > 0:
 #                            bpy.ops.mesh.vertex_color_remove()
-#                        
+#
 #                    bpy.ops.mesh.vertex_color_add()
 #                    geo.data.vertex_colors[frame].name = str(frame)
 #                    vertexColour = geo.data.vertex_colors[frame]
-#             
+#
 #                    for face in geo.data.polygons:
 #                        if "calcsurf" in str(geo.data.materials[face.material_index].name):
 #                            if self.scene['cp'] == 1:
@@ -444,7 +446,7 @@ def resapply(res, node, geonode):
 #                                for loop_index in face.loop_indices:
 #                                    v = geo.data.loops[loop_index].vertex_index
 #                                    if v in cvtup:
-#                                        col_i = cvtup.index(v) 
+#                                        col_i = cvtup.index(v)
 #                                    lcol_i.append(col_i)
 #                                    vertexColour.data[loop_index].color = rgb[col_i+mcol_i]
 #
@@ -454,7 +456,7 @@ def resapply(res, node, geonode):
 #                                f += 1
 #                    mcol_i = len(list(set(lcol_i)))
 #        lexport.scene.livi_display_panel = 1
-#        
+#
 #        for frame in range(0, self.scene.frame_end+1):
 #            bpy.ops.anim.change_frame(frame = frame)
 #            for geo in self.scene.objects:
@@ -470,5 +472,5 @@ def resapply(res, node, geonode):
 #                            vc.active_render = 0
 #                            vc.keyframe_insert("active")
 #                            vc.keyframe_insert("active_render")
-#           
+#
 #        bpy.ops.wm.save_mainfile(check_existing = False)

@@ -308,10 +308,64 @@ def rettimes(ts, fs, us):
                 ustrings[t][uf].append(['Until: '+''.join([u+',' for u in utime.split(' ') if u != ''])])
     ustrings[-1][-1][-1][-1] = ustrings[-1][-1][-1][-1][:-1]+';'
     return(tstrings, fstrings, ustrings)
-    
+
 def socklink(sock):
     try:
         if sock.is_linked and sock.draw_color(bpy.context, sock.node) != (sock.links[0].from_socket, sock.links[0].to_socket)[sock.in_out == 'Out'].draw_color(bpy.context, sock.node):
             bpy.data.node_groups['EnVi Network'].links.remove(sock.links[0])
     except:
         pass
+
+def windcompass():
+    rad1 = 1.4
+    dep = 2.8
+    lettwidth = 0.3
+    lettheight = 0.15
+    bpy.ops.mesh.primitive_torus_add(location=(0.0, 0.0, 0.0), view_align=False, rotation=(0.0, 0.0, 0.0), major_segments=48, minor_segments=12, major_radius=2.5, minor_radius=0.01)
+    bpy.ops.mesh.primitive_cone_add(location=(0.0, rad1, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, 0.0), radius1 = 0.01, depth = dep)
+    bpy.ops.mesh.primitive_cone_add(location=((rad1**2/2)**0.5, (rad1**2/2)**0.5, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-0.25), radius1 = 0.01, depth = dep)
+    bpy.ops.mesh.primitive_cone_add(location=(rad1, 0.0, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-0.5), radius1 = 0.01, depth = dep)
+    bpy.ops.mesh.primitive_cone_add(location=((rad1**2/2)**0.5, -(rad1**2/2)**0.5, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-0.75), radius1 = 0.01, depth = dep)
+    bpy.ops.mesh.primitive_cone_add(location=(0.0, -rad1, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-1), radius1 = 0.01, depth = dep)
+    bpy.ops.mesh.primitive_cone_add(location=(-(rad1**2/2)**0.5, -(rad1**2/2)**0.5, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-1.25), radius1 = 0.01, depth = dep)
+    bpy.ops.mesh.primitive_cone_add(location=(-rad1, 0.0, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-1.5), radius1 = 0.01, depth = dep)
+    bpy.ops.mesh.primitive_cone_add(location=(-(rad1**2/2)**0.5, (rad1**2/2)**0.5, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-1.75), radius1 = 0.01, depth = dep)
+    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-lettheight*1.3, dep, 0.0), rotation=(0.0, 0.0, 0.0))
+    txt = bpy.context.active_object
+    txt.data.body = 'N'
+    txt.scale = (0.5, 0.5, 0.5)
+    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=((dep**2/2)**0.5-lettheight, (1+dep**2/2)**0.5, 0.0), rotation=(0.0, 0.0, pi*-0.25))
+    txt = bpy.context.active_object
+    txt.data.body = 'NE'
+    txt.scale = (0.4, 0.4, 0.4)
+    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(dep, -lettheight, 0.0), rotation=(0.0, 0.0, 0.0))
+    txt = bpy.context.active_object
+    txt.data.body = 'W'
+    txt.scale = (0.5, 0.5, 0.5)
+    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=((dep**2/2)**0.5, -lettwidth-lettheight-(dep**2/2)**0.5, 0.0), rotation=(0.0, 0.0, pi*0.25))
+    txt = bpy.context.active_object
+    txt.data.body = 'SW'
+    txt.scale = (0.4, 0.4, 0.4)
+    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-lettwidth/3, -dep-lettwidth*1.3, 0.0), rotation=(0.0, 0.0, 0.0))
+    txt = bpy.context.active_object
+    txt.data.body = 'S'
+    txt.scale = (0.5, 0.5, 0.5)
+    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-(dep**2/2)**0.5-lettwidth-0.1, -lettwidth/2-(dep**2/2)**0.5, 0.0), rotation=(0.0, 0.0, pi*-0.25))
+    txt = bpy.context.active_object
+    txt.data.body = 'SE'
+    txt.scale = (0.4, 0.4, 0.4)
+    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-lettwidth-dep, -lettheight, 0.0), rotation=(0.0, 0.0, 0.0))
+    txt = bpy.context.active_object
+    txt.data.body = 'E'
+    txt.scale = (0.5, 0.5, 0.5)
+    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-(dep**2/2)**0.5-lettwidth, -(lettheight+lettwidth)*0.5+(dep**2/2)**0.5, 0.0), rotation=(0.0, 0.0, pi*0.25))
+    txt = bpy.context.active_object
+    txt.data.body = 'NW'
+    txt.scale = (0.4, 0.4, 0.4)
+    arrverts = ((0.05, -0.25, 0.0), (-0.05, -0.25, 0.0), (0.05, 0.25, 0.0), (-0.05, 0.25, 0.0), (0.15, 0.1875, 0.0), (-0.15, 0.1875, 0.0), (0.0, 0.5, 0.0))
+    arrfaces = ((1, 0, 2, 3), (2, 4, 6, 5, 3))
+    arrme = bpy.data.meshes.new('windarrow')
+    arrob = bpy.data.objects.new('windarrow', arrme)
+    arrme.from_pydata(arrverts, [], arrfaces)
+    arrme.update()
+    bpy.context.scene.objects.link(arrob)

@@ -52,6 +52,11 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     objfilebase = bpy.props.StringProperty()
     reslen = bpy.props.IntProperty()
     exported = bpy.props.BoolProperty()
+    nproc = bpy.props.StringProperty()
+    rm = bpy.props.StringProperty()
+    cp = bpy.props.StringProperty()
+    cat = bpy.props.StringProperty()
+    fold = bpy.props.StringProperty()
 
     def nodeexported(self, context):
         self.exported = False
@@ -1080,13 +1085,13 @@ class EnViBoundSocket(bpy.types.NodeSocket):
 
     def draw_color(self, context, node):
         return (0.5, 0.2, 0.0, 0.75)
-        
+
 class EnViSchedSocket(bpy.types.NodeSocket):
     '''Schedule socket'''
     bl_idname = 'EnViSchedSocket'
     bl_label = 'Schedule socket'
 #    bl_color = (0.0, 0.0, 1.0, 0.5)
-    
+
     def draw(self, context, layout, node, text):
         layout.label(text)
 
@@ -1098,19 +1103,19 @@ class EnViSchedSocket(bpy.types.NodeSocket):
 #    bl_idname = 'EnViFSchedSocket'
 #    bl_label = 'Fraction schedule socket'
 ##    bl_color = (0.0, 0.0, 1.0, 0.5)
-#    
+#
 #    def draw(self, context, layout, node, text):
 #        layout.label(text)
 #
 #    def draw_color(self, context, node):
 #        return (0.2, 0.2, 0.8, 0.75)
-#        
+#
 #class EnViANSchedSocket(bpy.types.NodeSocket):
 #    '''Any number socket socket'''
 #    bl_idname = 'EnViANSchedSocket'
 #    bl_label = 'Any number schedule socket'
 ##    bl_color = (0.0, 0.0, 1.0, 0.5)
-#    
+#
 #    def draw(self, context, layout, node, text):
 #        layout.label(text)
 #
@@ -1134,13 +1139,13 @@ class EnViCAirSocket(bpy.types.NodeSocket):
     bl_idname = 'EnViCAirSocket'
     bl_label = 'Plain zone airflow component socket'
     sn = bpy.props.StringProperty()
-    
+
     def draw(self, context, layout, node, text):
         layout.label(text)
 
     def draw_color(self, context, node):
         return (1.0, 0.2, 0.2, 0.75)
-        
+
 class EnViCrRefSocket(bpy.types.NodeSocket):
     '''A plain zone airflow component socket'''
     bl_idname = 'EnViCrRefSocket'
@@ -1294,7 +1299,7 @@ class EnViZone(bpy.types.Node, EnViNodes):
             row = layout.row()
             row.label('Upper')
             row.prop(self, 'upperlim')
-            
+
 class EnViSLinkNode(bpy.types.Node, EnViNodes):
     '''Node describing an surface airflow component'''
     bl_idname = 'EnViSLink'
@@ -1318,7 +1323,7 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
                 sock.hide = True
             for sock in [sock for sock in [outs for outs in self.outputs]+[ins for ins in self.inputs] if sock.bl_idname == 'EnViCAirSocket']:
                 sock.hide = False
-    
+
     linktype = [("SO", "Simple Opening", "Simple opening element"),("DO", "Detailed Opening", "Detailed opening element"),
         ("HO", "Horizontal Opening", "Horizontal opening element"),("Crack", "Crack", "Crack aperture used for leakage calculation"),
         ("ELA", "ELA", "Effective leakage area"), ("EF", "Exhaust fan", "Exhaust fan")]
@@ -1373,7 +1378,7 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
     hfof4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor 4 (dimensionless)')
     sfof4 = bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor 4 (dimensionless)')
     dcof = bpy.props.FloatProperty(default = 0.2, min = 0, max = 1, name = '', description = 'Discharge Coefficient')
-    
+
     def init(self, context):
         self.inputs.new('EnViSAirSocket', 'Node 1', identifier = 'Node1_s')
         self.inputs.new('EnViSAirSocket', 'Node 2', identifier = 'Node2_s')
@@ -1388,14 +1393,14 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
         self.outputs.new('EnViCAirSocket', 'Node 1', identifier = 'Node1_c')
         self.outputs.new('EnViCAirSocket', 'Node 2', identifier = 'Node2_c')
         for sock in [sock for sock in [outs for outs in self.outputs]+[ins for ins in self.inputs] if sock.identifier[-1] == 'c']:
-            sock.hide = True     
-        
+            sock.hide = True
+
     def update(self):
         for sock in [sock for sock in self.inputs]+[sock for sock in self.outputs]:
             socklink(sock)
         try:
-            
-                
+
+
             lsockids = [('Node1_s', 'Node2_s'), ('Node1_c', 'Node2_c')][self.linkmenu not in ('SO', 'DO', 'HO')]
             for ins in [ins for ins in self.inputs if ins.identifier in lsockids]:
                 if ins.is_linked == True and ins.bl_idname == ins.links[0].from_socket.bl_idname:
@@ -1406,7 +1411,7 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
                     for outs in self.outputs:
                         if outs.name == ins.name and outs.identifier == ins.identifier:
                             outs.hide = False
-            
+
             for outs in [outs for outs in self.outputs if outs.identifier in lsockids]:
                 if outs.is_linked == True:
                     for ins in self.inputs:
@@ -1418,7 +1423,7 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
                             ins.hide = False
         except:
             pass
-        
+
         for sock in self.inputs:
             if self.linkmenu == 'ELA' and sock.is_linked:
                 try:
@@ -1511,7 +1516,7 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
             row = layout.row()
             row.label('Discharge Coeff')
             row.prop(self, 'dcof')
-        
+
         if self.linkmenu in ('SO', 'DO', 'HO') and self.controls == 'Temperature':
             row = layout.row()
             row.label('Minimum OF')
@@ -1522,7 +1527,7 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
             row = layout.row()
             row.label('Upper OF')
             row.prop(self, 'uvof')
-        
+
         if self.linkmenu == "Crack":
             row = layout.row()
             row.label("Coefficient:")
@@ -1802,8 +1807,8 @@ class EnViSched(bpy.types.Node, EnViNodes):
 #    def supdate(self):
 #        self.inputs.new['Fraction'].hide = False if self.typemenu == 'Fraction' else True
 #        self.inputs.new['Any Number'].hide = False if self.typemenu == 'Any Number' else True
-    
-#    typemenu = bpy.props.enumProperty(name = "", default = 'Fraction', items=[('Fraction', 'Fraction', 'Fraction'), ('Any Number', 'Any Number', 'Any Number')]) 
+
+#    typemenu = bpy.props.enumProperty(name = "", default = 'Fraction', items=[('Fraction', 'Fraction', 'Fraction'), ('Any Number', 'Any Number', 'Any Number')])
     t1 = bpy.props.IntProperty(name = "", default = 365)
     f1 = bpy.props.StringProperty(name = "Fors", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")
     u1 = bpy.props.StringProperty(name = "Untils", description = "Valid entries (; separated for each 'For', comma separated for each day)")

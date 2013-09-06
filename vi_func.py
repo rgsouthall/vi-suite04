@@ -135,7 +135,8 @@ def processf(pro_op, node):
                 'Zone Windows Total Transmitted Solar Radiation Rate [W] !Hourly': 'Solar gain (W)',
                 'AFN Zone Infiltration Volume [m3] !Hourly': 'Infiltration (m'+u'\u00b3'+')',
                 'AFN Zone Infiltration Air Change Rate [ach] !Hourly': 'ACH'}
-    lresdict = {'AFN Linkage Node 1 to Node 2 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow 1 to 2'}
+    lresdict = {'AFN Linkage Node 1 to Node 2 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow 1 to 2',
+                'AFN Surface Venting Window or Door Opening Factor [] !Hourly': 'Opening Factor'}
     resdict = {}
 
     objlist = [obj.name.upper() for obj in bpy.data.objects if obj.envi_type == '1' and obj.layers[1] == True]
@@ -299,7 +300,7 @@ def rettimes(ts, fs, us):
     ustrings = [[] for t in tot]
     tstrings = ['Through: '+str(dtdf(ts[t]).month)+'/'+str(dtdf(ts[t]).day)+',' for t in tot]
     for t in tot:
-        for f in fs[t].split(','):
+        for f in fs[t].split(' '):
             fstrings[t].append('For: '+''.join([f+',' for f in f.split(' ') if f != '']))
         for uf, ufor in enumerate(us[t].split(';')):
             ustrings[t].append([])
@@ -307,3 +308,10 @@ def rettimes(ts, fs, us):
                 ustrings[t][uf].append(['Until: '+''.join([u+',' for u in utime.split(' ') if u != ''])])
     ustrings[-1][-1][-1][-1] = ustrings[-1][-1][-1][-1][:-1]+';'
     return(tstrings, fstrings, ustrings)
+    
+def socklink(sock):
+    try:
+        if sock.is_linked and sock.draw_color(bpy.context, sock.node) != (sock.links[0].from_socket, sock.links[0].to_socket)[sock.in_out == 'Out'].draw_color(bpy.context, sock.node):
+            bpy.data.node_groups['EnVi Network'].links.remove(sock.links[0])
+    except:
+        pass

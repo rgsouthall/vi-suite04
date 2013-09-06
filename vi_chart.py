@@ -35,9 +35,10 @@ def chart_disp(chart_op, dnode, rnodes, Sdate, Edate):
     for i in range(len(rd['Hour'])):
         if sm == dm[i] and sd == dd[i] and sh == dh[i] - 1:
             si = i
+        
         elif em == dm[i] and ed == dd[i] and eh == dh[i] - 1:
             ei = i
-
+        print(em, ed, eh, dm[i], dd[i], dh[i])
     plotstyle = ('k', 'k:', 'k--', 'o', 'o', 'o', 'r', 'b', 'g')
     if dnode.inputs['X-axis'].rtypemenu == 'Time':
         if dnode.timemenu == '0':

@@ -39,9 +39,9 @@ class ViNodes:
         return ntree.bl_idname == 'ViN'
 
 class ViGExLiNode(bpy.types.Node, ViNodes):
-    '''Node describing a VI-Suite export type'''
+    '''Node describing a LiVi geometry export node'''
     bl_idname = 'ViGExLiNode'
-    bl_label = 'VI lighting geometry export'
+    bl_label = 'LiVi Geometry'
     bl_icon = 'LAMP'
 
     filepath = bpy.props.StringProperty()
@@ -98,9 +98,9 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
 
 
 class ViLiNode(bpy.types.Node, ViNodes):
-    '''Node describing a VI-Suite analysis type'''
+    '''Node describing a basic LiVi analysis'''
     bl_idname = 'ViLiNode'
-    bl_label = 'VI Lighting Analysis'
+    bl_label = 'LiVi Basic'
     bl_icon = 'LAMP'
 
     analysistype = [('0', "Illuminance", "Lux Calculation"), ('1', "Irradiance", "W/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Factor", "DF (%) Calculation"),]
@@ -121,14 +121,27 @@ class ViLiNode(bpy.types.Node, ViNodes):
         self.exported = False
         self.bl_label = '*VI Lighting Analysis'
 
+    def edupdate(self, context):
+        if self.edoy < self.sdoy:
+            self.edoy = self.sdoy
+        self.bl_label = '*VI Lighting Analysis'
+        self.exported = False
+        
+    def ehupdate(self, context):
+        if self.edoy == self.sdoy:
+            if self.ehour < self.shour:
+                self.ehour = self.shour
+        self.bl_label = '*VI Lighting Analysis'
+        self.exported = False    
+        
     analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0', update = nodeexported)
     simalg = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="")
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
     skymenu = bpy.props.EnumProperty(items=skylist, name="", description="Specify the type of sky for the simulation", default="0", update = nodeexported)
-    shour = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=24, default=12, update = nodeexported)
-    sdoy = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=365, default=1, update = nodeexported)
-    ehour = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=24, default=12, update = nodeexported)
-    edoy = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=365, default=1, update = nodeexported)
+    shour = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=24, default=12, update = ehupdate)
+    sdoy = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=365, default=1, update = edupdate)
+    ehour = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=24, default=12, update = ehupdate)
+    edoy = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=365, default=1, update = edupdate)
     daysav = bpy.props.BoolProperty(name="", description="Enable daylight saving clock", default=False, update = nodeexported)
     lati = bpy.props.FloatProperty(name="", description="Site Latitude", min=-90, max=90, default=52, update = nodeexported)
     longi = bpy.props.FloatProperty(name="", description="Site Longitude relative to local meridian", min=-15, max=15, default=0, update = nodeexported)
@@ -239,7 +252,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
 class ViLiCBNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite climate based lighting node'''
     bl_idname = 'ViLiCBNode'
-    bl_label = 'VI Climate Based Daylighting Analysis'
+    bl_label = 'LiVi CBDM'
     bl_icon = 'LAMP'
 
     def nodeexported(self, context):
@@ -299,18 +312,18 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
 class ViLiCNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite lighting compliance node'''
     bl_idname = 'ViLiCNode'
-    bl_label = 'VI Lighting Compliance'
+    bl_label = 'LiVi Compliance'
     bl_icon = 'LAMP'
 
     def nodeexported(self, context):
         self.exported = False
         self.bl_label = '*VI Lighting Compliance'
-        self.skymenu = 3
+        self.skynum = 3
     
     interval = 0  
     exported = bpy.props.BoolProperty(default=False)
     TZ = bpy.props.StringProperty(default = 'GMT')
-    skymenu = bpy.props.IntProperty(default = 3)
+    skynum = bpy.props.IntProperty(default = 3)
     simalg = bpy.props.StringProperty(name="", description="Calculation algorithm", default="")
     resname = bpy.props.StringProperty()
     unit = bpy.props.StringProperty()
@@ -1092,9 +1105,9 @@ class EnViDataIn(bpy.types.NodeSocket):
     def draw_color(self, context, node):
         return (0.0, 1.0, 0.0, 0.75)
 
-viexnodecat = [NodeItem("ViGExLiNode", label="VI-Suite lighting export"), NodeItem("ViGExEnNode", label="VI-Suite energy export")]
+viexnodecat = [NodeItem("ViGExLiNode", label="LiVi Geometry"), NodeItem("ViGExEnNode", label="VI-Suite energy export")]
 
-vinodecat = [NodeItem("ViLiNode", label="VI-Suite lighting analysis"), NodeItem("ViLiCNode", label="VI-Suite lighting compliance"), NodeItem("ViLiCBNode", label="VI-Suite climate based lighting"),\
+vinodecat = [NodeItem("ViLiNode", label="LiVi Basic"), NodeItem("ViLiCNode", label="LiVi Compliance"), NodeItem("ViLiCBNode", label="VI-Suite climate based lighting"),\
              NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), NodeItem("ViGNode", label="VI-Suite glare"), NodeItem("ViExEnNode", label="VI-Suite energy")]
 
 vidisnodecat = [NodeItem("ViEnRNode", label="VI-Suite chart display"), NodeItem("ViEnRFNode", label="EnergyPlus result file")]

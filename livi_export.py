@@ -31,10 +31,13 @@ except:
     np = 0
 
 def radgexport(export_op, node):
+    scene = bpy.context.scene
+    scene.li_disp_panel = 0
+    scene.vi_display = 0
     if bpy.context.active_object:
         bpy.ops.object.mode_set()
     radfilelist = []
-    scene = bpy.context.scene
+
     vi_func.clearscenee(scene)
     vi_func.clearscened(scene)
     scene.frame_start = 0
@@ -139,7 +142,7 @@ def radgexport(export_op, node):
                 if geo.type == 'LAMP':
                     if geo.parent:
                         geo = geo.parent
-                    radfile.write("!xform -rx {0} -ry {1} -rz {2} -t {3[0]} {3[1]} {3[2]} {4}.rad\n\n".format((180/pi)*geo.rotation_euler[0], (180/pi)*geo.rotation_euler[1], (180/pi)*geo.rotation_euler[2], geo.location, node.newdir+"/"+iesname+"-"+str(frame)))
+                    radfile.write("!xform -rx {0} -ry {1} -rz {2} -t {3[0]} {3[1]} {3[2]} {4}.rad\n\n".format((180/pi)*geo.rotation_euler[0] - 180, (180/pi)*geo.rotation_euler[1], (180/pi)*geo.rotation_euler[2], geo.location, node.newdir+"/"+iesname+"-"+str(frame)))
                 if 'lightarray' in geo.name:
                     spotmatrix = geo.matrix_world
                     rotation = geo.rotation_euler
@@ -228,7 +231,10 @@ def radgexport(export_op, node):
 def radcexport(export_op, node):
     skyfileslist = []
     scene = bpy.context.scene
+    scene.li_disp_panel = 0
+    scene.vi_display = 0
     vi_func.clearscenee(scene)
+    vi_func.clearscened(scene)
     geonode = node.inputs[0].links[0].from_node
     if geonode.animmenu != 'Static' and node.animmenu != 'Static':
         export_op.report({'ERROR'},"You cannot run a geometry and time based animation at the same time")
@@ -332,8 +338,6 @@ def fexport(scene, frame, export_op, node, geonode):
     except:
         export_op.report({'ERROR'},"There is a problem with geometry export. If created in another package simplify the geometry, and turn off smooth shading")
         node.export = 0
-    scene.li_disp_panel = 0
-    scene.li_display = 0
     export_op.report({'INFO'},"Export is finished")
     scene.frame_set(0)
 

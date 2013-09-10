@@ -31,37 +31,37 @@ class Vi3DPanel(bpy.types.Panel):
         if scene.li_disp_panel == 1:
             layout = self.layout
             row = layout.row()
-            row.prop(scene, "li_leg_display")
-            row = layout.row()
             row.prop(view, "show_only_render")
             row = layout.row()
             row.prop(scene, "li_disp_3d")
-            if int(context.scene.li_disp_3d) == 1:
-                row.prop(scene, "li_disp_3dlevel")
             row = layout.row()
             row.operator("view3d.lidisplay", text="Radiance Display")
-#            try:
-#                if lexport.node.rp_display == False:
-#                    pass
-#                else:
-            if context.mode == "OBJECT":
+
+            if scene.vi_display == 1:
                 row = layout.row()
-                row.label(text="{:-<48}".format("Point visualisation "))
-                row = layout.row()
-                row.label(text = "Enable:")
-                row.prop(scene, "li_display_rp")
-                row = layout.row()
-                row.label(text = "Selected only:")
-                row.prop(scene, "li_display_sel_only")
-                row = layout.row()
-                row.label(text = "Font size:")
-                row.prop(scene, "li_display_rp_fs")
-                row = layout.row()
-                row.label(text="{:-<60}".format(""))
-        if scene.li_disp_panel == 2:
-            pass
-#            except:
-#                pass
+                row.prop(scene, "li_leg_display")
+                if scene.lic_disp_panel == 1:
+                    row = layout.row()
+                    row.label("Compliance Panel")
+                    row.prop(scene, "li_compliance")
+                if int(context.scene.li_disp_3d) == 1:
+                    row = layout.row()
+                    row.label("3D Level")
+                    row.prop(scene, "li_disp_3dlevel")
+                if context.mode == "OBJECT":
+                    row = layout.row()
+                    row.label(text="{:-<48}".format("Point visualisation "))
+                    row = layout.row()
+                    row.label(text = "Enable:")
+                    row.prop(scene, "li_display_rp")
+                    row = layout.row()
+                    row.label(text = "Selected only:")
+                    row.prop(scene, "li_display_sel_only")
+                    row = layout.row()
+                    row.label(text = "Font size:")
+                    row.prop(scene, "li_display_rp_fs")
+                    row = layout.row()
+                    row.label(text="{:-<60}".format(""))
 
 class VIMatPanel(bpy.types.Panel):
     bl_label = "VI-Suite Material Panel"

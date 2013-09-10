@@ -230,7 +230,7 @@ def li3D_legend(self, context, node):
         font_id = 0
         bgl.glEnable(bgl.GL_BLEND)
         bgl.glColor4f(1.0, 1.0, 1.0, 0.7)
-        bgl.glLineWidth(2)
+        bgl.glLineWidth(1)
         bgl.glBegin(bgl.GL_POLYGON)
         bgl.glVertex2i(20, height - 520)
         bgl.glVertex2i(70 + lenres*8, height - 520)
@@ -238,7 +238,7 @@ def li3D_legend(self, context, node):
         bgl.glVertex2i(20, height - 40)
         bgl.glEnd()
         bgl.glColor4f(0.0, 0.0, 0.0, 0.7)
-        bgl.glLineWidth(2)
+        bgl.glLineWidth(1)
         bgl.glBegin(bgl.GL_LINE_LOOP)
         bgl.glVertex2i(19, height - 520)
         bgl.glVertex2i(70 + lenres*8, height - 520)
@@ -280,65 +280,91 @@ def li3D_legend(self, context, node):
             blf.draw(font_id, "Min: {:.1f}".format(node['minres'][context.scene.frame_current]))
 
 
-def licompliance(self, context, node):
+def li_compliance(self, context, node):
     scene = context.scene
-    if scene.li_compliance != True:
+    if not scene.li_compliance:
         return
     else:
-        resvals = [('{:.0f}', '{:.0f}', '{:.1f}')[int(node.analysismenu)].format(min(node['minres'])+i*(max(node['maxres'])-min(node['minres']))/19) for i in range(20)]
         height = context.region.height
-        lenres = len(resvals[-1])
-        font_id = 0
         bgl.glEnable(bgl.GL_BLEND)
         bgl.glColor4f(1.0, 1.0, 1.0, 0.7)
-        bgl.glLineWidth(2)
+        bgl.glLineWidth(1)
         bgl.glBegin(bgl.GL_POLYGON)
-        bgl.glVertex2i(20, height - 520)
-        bgl.glVertex2i(70 + lenres*8, height - 520)
-        bgl.glVertex2i(70 + lenres*8, height - 40)
-        bgl.glVertex2i(20, height - 40)
+        bgl.glVertex2i(100, height - 200)
+        bgl.glVertex2i(750, height - 200)
+        bgl.glVertex2i(750, height - 40)
+        bgl.glVertex2i(100, height - 40)
         bgl.glEnd()
         bgl.glColor4f(0.0, 0.0, 0.0, 0.7)
-        bgl.glLineWidth(2)
-        bgl.glBegin(bgl.GL_LINE_LOOP)
-        bgl.glVertex2i(19, height - 520)
-        bgl.glVertex2i(70 + lenres*8, height - 520)
-        bgl.glVertex2i(70 + lenres*8, height - 40)
-        bgl.glVertex2i(19, height - 40)
-        bgl.glEnd()
-    
-        for i in range(20):
-            h = 0.75 - 0.75*(i/19)
-            bgl.glColor4f(colorsys.hsv_to_rgb(h, 1.0, 1.0)[0], colorsys.hsv_to_rgb(h, 1.0, 1.0)[1], colorsys.hsv_to_rgb(h, 1.0, 1.0)[2], 1.0)
-            bgl.glBegin(bgl.GL_POLYGON)
-            bgl.glVertex2i(20, (i*20)+height - 460)
-            bgl.glVertex2i(60, (i*20)+height - 460)
-            bgl.glVertex2i(60, (i*20)+height - 440)
-            bgl.glVertex2i(20, (i*20)+height - 440)
-            bgl.glEnd()
-            blf.position(font_id, 65, (i*20)+height - 455, 0)
-            blf.size(font_id, 20, 48)
-            bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-            blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
-        blf.position(font_id, 25, height - 57, 0)
-        blf.size(font_id, 20, 56)
-        bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-        blf.draw(font_id, node.unit)
         bgl.glLineWidth(1)
-        bgl.glDisable(bgl.GL_BLEND)
-        bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+        bgl.glBegin(bgl.GL_LINE_LOOP)
+        bgl.glVertex2i(99, height - 201)
+        bgl.glVertex2i(750, height - 201)
+        bgl.glVertex2i(750, height - 40)
+        bgl.glVertex2i(99, height - 40)
+        bgl.glEnd()
         
-        height = context.region.height
-        font_id = 0
-        if context.scene.frame_current in range(context.scene.frame_start, context.scene.frame_end + 1):
-            bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
-            blf.position(font_id, 22, height - 480, 0)
-            blf.size(font_id, 20, 48)
-            blf.draw(font_id, "Ave: {:.1f}".format(node['avres'][context.scene.frame_current]))
-            blf.position(font_id, 22, height - 495, 0)
-            blf.draw(font_id, "Max: {:.1f}".format(node['maxres'][context.scene.frame_current]))
-            blf.position(font_id, 22, height - 510, 0)
-            blf.draw(font_id, "Min: {:.1f}".format(node['minres'][context.scene.frame_current]))
+    node = bpy.data.node_groups['EnVi Network'].nodes[scene.resnode]
+    if node.analysismenu == '0':
+        standard = 'BREEAM HEA 1'
+        buildtype = ('School', 'Higher Education', 'Healthcare', 'Residentialnode.bambuildtype
+        if buildtype
+        
+        
+#        resvals = [('{:.0f}', '{:.0f}', '{:.1f}')[int(node.analysismenu)].format(min(node['minres'])+i*(max(node['maxres'])-min(node['minres']))/19) for i in range(20)]
+#        height = context.region.height
+#        lenres = len(resvals[-1])
+#        font_id = 0
+#        bgl.glEnable(bgl.GL_BLEND)
+#        bgl.glColor4f(1.0, 1.0, 1.0, 0.7)
+#        bgl.glLineWidth(2)
+#        bgl.glBegin(bgl.GL_POLYGON)
+#        bgl.glVertex2i(20, height - 520)
+#        bgl.glVertex2i(70 + lenres*8, height - 520)
+#        bgl.glVertex2i(70 + lenres*8, height - 40)
+#        bgl.glVertex2i(20, height - 40)
+#        bgl.glEnd()
+#        bgl.glColor4f(0.0, 0.0, 0.0, 0.7)
+#        bgl.glLineWidth(2)
+#        bgl.glBegin(bgl.GL_LINE_LOOP)
+#        bgl.glVertex2i(19, height - 520)
+#        bgl.glVertex2i(70 + lenres*8, height - 520)
+#        bgl.glVertex2i(70 + lenres*8, height - 40)
+#        bgl.glVertex2i(19, height - 40)
+#        bgl.glEnd()
+#    
+#        for i in range(20):
+#            h = 0.75 - 0.75*(i/19)
+#            bgl.glColor4f(colorsys.hsv_to_rgb(h, 1.0, 1.0)[0], colorsys.hsv_to_rgb(h, 1.0, 1.0)[1], colorsys.hsv_to_rgb(h, 1.0, 1.0)[2], 1.0)
+#            bgl.glBegin(bgl.GL_POLYGON)
+#            bgl.glVertex2i(20, (i*20)+height - 460)
+#            bgl.glVertex2i(60, (i*20)+height - 460)
+#            bgl.glVertex2i(60, (i*20)+height - 440)
+#            bgl.glVertex2i(20, (i*20)+height - 440)
+#            bgl.glEnd()
+#            blf.position(font_id, 65, (i*20)+height - 455, 0)
+#            blf.size(font_id, 20, 48)
+#            bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+#            blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
+#        blf.position(font_id, 25, height - 57, 0)
+#        blf.size(font_id, 20, 56)
+#        bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+#        blf.draw(font_id, node.unit)
+#        bgl.glLineWidth(1)
+#        bgl.glDisable(bgl.GL_BLEND)
+#        bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+#        
+#        height = context.region.height
+#        font_id = 0
+#        if context.scene.frame_current in range(context.scene.frame_start, context.scene.frame_end + 1):
+#            bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
+#            blf.position(font_id, 22, height - 480, 0)
+#            blf.size(font_id, 20, 48)
+#            blf.draw(font_id, "Ave: {:.1f}".format(node['avres'][context.scene.frame_current]))
+#            blf.position(font_id, 22, height - 495, 0)
+#            blf.draw(font_id, "Max: {:.1f}".format(node['maxres'][context.scene.frame_current]))
+#            blf.position(font_id, 22, height - 510, 0)
+#            blf.draw(font_id, "Min: {:.1f}".format(node['minres'][context.scene.frame_current]))
             
 def rendview(i):
     for scrn in bpy.data.screens:

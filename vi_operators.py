@@ -140,7 +140,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
 
     def invoke(self, context, event):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-        if self.nodename == 'VI Lighting Analysis':
+        if self.nodename == 'LiVi Basic':
             node.resname = ("illumout", "irradout", "dfout")[int(node.analysismenu)]
             node.unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(node.analysismenu)]
             node.skynum = int(node.skymenu)
@@ -150,10 +150,9 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
                 node.simalg = (' |  rcalc  -e "$1=47.4*$1+120*$2+11.6*$3" ', ' |  rcalc  -e "$1=$1" ', ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ')[int(node.analysismenu)]
             node.TZ = node.summer if node.daysav == True else node.stamer
         
-        elif self.nodename == 'VI Lighting Compliance':
+        elif self.nodename == 'LiVi Compliance':
             node.resname = 'breaamout'
             node.unit = "DF %"
-            node.skynum = 3
             if str(sys.platform) != 'win32':
                 node.simalg = " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' "
             else:
@@ -204,7 +203,9 @@ class NODE_OT_Calculate(bpy.types.Operator):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
         geonode = node.inputs[0].links[0].from_node
         livi_calc.li_calc(self, node, geonode)
+        context.scene.vi_display = 0
         context.scene.li_disp_panel = 1
+        context.scene.lic_disp_panel = 1 if self.nodename == 'LiVi Compliance' else 0
         context.scene.resnode = self.nodename
         return {'FINISHED'}
 
@@ -239,10 +240,13 @@ class VIEW3D_OT_LiNumDisplay(bpy.types.Operator):
 
     def modal(self, context, event):
         context.area.tag_redraw()
-        if context.scene.li_display == 0:
+        if context.scene.vi_display == 0:
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
 #            bpy.types.SpaceView3D.draw_handler_remove(self._handle_stat, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
+            if bpy.context.scene.resnode == 'LiVi Compliance':
+                bpy.types.SpaceView3D.draw_handler_remove(self._handle_comp, 'WINDOW')
+                
 
 #        if context.scene.leg_display == 1:
 #            context.scene.rp_display = False
@@ -256,7 +260,9 @@ class VIEW3D_OT_LiNumDisplay(bpy.types.Operator):
         if context.area.type == 'VIEW_3D':
             self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(vi_display.li3D_legend, (self, context, node), 'WINDOW', 'POST_PIXEL')
             self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(vi_display.linumdisplay, (self, context, node, geonode), 'WINDOW', 'POST_PIXEL')
-            context.scene.li_display = 1
+            if bpy.context.scene.resnode == 'LiVi Compliance':
+                self._handle_comp = bpy.types.SpaceView3D.draw_handler_add(vi_display.li_compliance, (self, context, node), 'WINDOW', 'POST_PIXEL')    
+            context.scene.vi_display = 1
             return {'RUNNING_MODAL'}
         else:
             self.report({'WARNING'}, "View3D not found, cannot run operator")

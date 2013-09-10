@@ -486,12 +486,16 @@ def register():
     Scene.vipath = sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
 
     Scene.li_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
-
+    
+    Scene.lic_disp_panel = bprop("", "",False)
+    
     Scene.li_disp_3d = bprop("VI 3D display", "Boolean for 3D results display",  False)
 
     Scene.li_disp_3dlevel = bpy.props.FloatProperty(name = "", description = "Level of 3D result plane extrusion", min = 0, max = 50, default = 0, update = eupdate)
 
-    Scene.li_display = bprop("", "",False)
+    Scene.vi_display = bprop("", "",False)
+    
+    Scene.li_compliance = bprop("", "", False)
 
     Scene.li_display_rp = bprop("", "", False)
     

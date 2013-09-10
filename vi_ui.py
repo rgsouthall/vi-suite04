@@ -31,6 +31,8 @@ class Vi3DPanel(bpy.types.Panel):
         if scene.li_disp_panel == 1:
             layout = self.layout
             row = layout.row()
+            row.prop(scene, "li_leg_display")
+            row = layout.row()
             row.prop(view, "show_only_render")
             row = layout.row()
             row.prop(scene, "li_disp_3d")

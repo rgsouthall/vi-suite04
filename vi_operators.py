@@ -1,4 +1,4 @@
-import bpy, bpy_extras, sys, datetime
+import bpy, bpy_extras, sys, datetime, mathutils
 import bpy_extras.io_utils as io_utils
 from collections import OrderedDict
 from datetime import date
@@ -27,13 +27,23 @@ class NODE_OT_LiGExport(bpy.types.Operator):
     bl_idname = "node.ligexport"
     bl_label = "VI-Suite export"
     nodename = bpy.props.StringProperty()
-
+                
     def execute(self, context):
-        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-        livi_export.radgexport(self, node)
-        node.exported = True
-        node.outputs[0].hide = False
-        return {'FINISHED'}
+        if bpy.data.filepath and " " not in bpy.data.filepath:
+            node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
+            livi_export.radgexport(self, node)
+            node.exported = True
+            node.outputs[0].hide = False
+            return {'FINISHED'}
+        elif " "  in bpy.data.filepath:
+            self.report({'ERROR'},"The directory path or Blender filename has a space in it. Please save again without any spaces and recreate this node")
+            bpy.ops.node.delete()
+            return {'FINISHED'}
+            
+        elif not bpy.data.filepath:
+            self.report({'ERROR'},"The Blender file has not been saved. Save the Blender file and recreate this node before exporting")
+            bpy.ops.node.delete()
+            return {'FINISHED'}
 
 class NODE_OT_EpwSelect(bpy.types.Operator, io_utils.ImportHelper):
     bl_idname = "node.epwselect"
@@ -130,18 +140,26 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
 
     def invoke(self, context, event):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-        node.resname = ("illumout", "irradout", "dfout")[int(node.analysismenu)]
-        node.unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(node.analysismenu)]
-        node.skynum = int(node.skymenu)
-
-        if str(sys.platform) != 'win32':
-            node.simalg = (" |  rcalc  -e '$1=47.4*$1+120*$2+11.6*$3' ", " |  rcalc  -e '$1=$1' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' ")[int(node.analysismenu)]
-        else:
-            node.simalg = (' |  rcalc  -e "$1=47.4*$1+120*$2+11.6*$3" ', ' |  rcalc  -e "$1=$1" ', ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ')[int(node.analysismenu)]
-
-        if bpy.data.filepath:
+        if self.nodename == 'VI Lighting Analysis':
+            node.resname = ("illumout", "irradout", "dfout")[int(node.analysismenu)]
+            node.unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(node.analysismenu)]
+            node.skynum = int(node.skymenu)
+            if str(sys.platform) != 'win32':
+                node.simalg = (" |  rcalc  -e '$1=47.4*$1+120*$2+11.6*$3' ", " |  rcalc  -e '$1=$1' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' ")[int(node.analysismenu)]
+            else:
+                node.simalg = (' |  rcalc  -e "$1=47.4*$1+120*$2+11.6*$3" ', ' |  rcalc  -e "$1=$1" ', ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ')[int(node.analysismenu)]
             node.TZ = node.summer if node.daysav == True else node.stamer
-
+        
+        elif self.nodename == 'VI Lighting Compliance':
+            node.resname = 'breaamout'
+            node.unit = "DF %"
+            node.skynum = 3
+            if str(sys.platform) != 'win32':
+                node.simalg = " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' "
+            else:
+                node.simalg = ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" '
+        
+        if bpy.data.filepath:
             if bpy.context.object:
                 if bpy.context.object.type == 'MESH' and bpy.context.object.hide == False and bpy.context.object.layers[0] == True:
                     bpy.ops.object.mode_set(mode = 'OBJECT')
@@ -199,11 +217,15 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
     nodename = bpy.props.StringProperty()
 
     def invoke(self, context, event):
+        
         node = bpy.data.node_groups['VI Network'].nodes[bpy.context.scene.resnode]
+        
         geonode = node.inputs[0].links[0].from_node
+#        bpy.types.Scene.li_disp_3dlevel = bpy.props.FloatProperty(name = "", description = "Level of 3D result plane extrusion", min = 0, max = 50, default = 0, update = eupdate)
         try:
             vi_display.li_display(node, geonode)
             bpy.ops.view3d.linumdisplay()
+#            bpy.ops.object.liextrude()
         except:
             self.report({'ERROR'},"No results available for display. Try re-running the calculation.")
             raise
@@ -219,35 +241,52 @@ class VIEW3D_OT_LiNumDisplay(bpy.types.Operator):
         context.area.tag_redraw()
         if context.scene.li_display == 0:
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
-            bpy.types.SpaceView3D.draw_handler_remove(self._handle_stat, 'WINDOW')
+#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_stat, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
+
+#        if context.scene.leg_display == 1:
 #            context.scene.rp_display = False
             return {'CANCELLED'}
         return {'PASS_THROUGH'}
 
-    def invoke(self, context, event):
-        if self._handle_leg:
-            bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
-
-
     def execute(self, context):
         node = bpy.data.node_groups['VI Network'].nodes[bpy.context.scene.resnode]
         geonode = node.inputs[0].links[0].from_node
+
         if context.area.type == 'VIEW_3D':
-
-
-#            if hasattr(self,'_handle_leg'):
-
             self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(vi_display.li3D_legend, (self, context, node), 'WINDOW', 'POST_PIXEL')
-            self._handle_stat = bpy.types.SpaceView3D.draw_handler_add(vi_display.lires_stat, (self, context, node), 'WINDOW', 'POST_PIXEL')
             self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(vi_display.linumdisplay, (self, context, node, geonode), 'WINDOW', 'POST_PIXEL')
-            context.window_manager.modal_handler_add(self)
             context.scene.li_display = 1
             return {'RUNNING_MODAL'}
         else:
             self.report({'WARNING'}, "View3D not found, cannot run operator")
             return {'CANCELLED'}
+            
 
+
+class OBJECT_OT_LiExtrude(bpy.types.Operator): 
+    """Move an object with the mouse, example""" 
+    bl_idname = "object.liextrude" 
+    bl_label = "Extrude Modal Operator" 
+
+    def modal(self, context, event): 
+        for o in [obj for obj in bpy.data.objects if obj.lires == 1]:
+            for vert in [poly.vertices[:] for poly in o.data.polygons if poly.select == True]:
+        #        o.data.vertices[vert].co += mathutils.Vector((vert.normal[0]*context.scene.li_disp_3dlevel, vert.normal[1]*context.scene.li_disp_3dlevel, vert.normal[2]*context.scene.li_disp_3dlevel))
+                pass#print(o.data.vertices[vert].co[2])
+        if event.type in {'RIGHTMOUSE', 'ESC'}: 
+            print("END") 
+            return {'CANCELLED'} 
+
+        return {'RUNNING_MODAL'} 
+
+    def execute(self, context): 
+        print("INVOKE") 
+        
+        context.window_manager.modal_handler_add(self) # add modal handler!!! 
+        return {'RUNNING_MODAL'} 
+        
+        
 class IES_Select(bpy.types.Operator, io_utils.ImportHelper):
     bl_idname = "livi.ies_select"
     bl_label = "Select IES file"

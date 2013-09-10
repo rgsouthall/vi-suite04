@@ -21,7 +21,7 @@ if "bpy" in locals():
 else:
     from . import vi_node, vi_operators, vi_ui, envi_mat, vi_func
 
-import sys, os, platform, inspect, bpy, nodeitems_utils
+import sys, os, platform, inspect, bpy, nodeitems_utils, mathutils, colorsys
 (iprop, bprop, eprop, sprop, fprop, fvprop) = (vi_func.iprop, vi_func.bprop, vi_func.eprop, vi_func.sprop, vi_func.fprop, vi_func.fvprop)
 
 epversion = "8-0-0"
@@ -102,6 +102,19 @@ def confunc(i):
 (walllist,floorlist,rooflist, glazelist, bricklist, stonelist, metallist, woodlist, gaslist, glasslist, concretelist, insullist, wgaslist, claddinglist) = [matfunc(i) for i in range(14)]
 (wallconlist, floorconlist, roofconlist, doorconlist, glazeconlist) = [confunc(i) for i in range(5)]
 
+
+def eupdate(self, context):
+    for frame in range(context.scene.frame_start, context.scene.frame_end + 1):
+        for o in [obj for obj in bpy.data.objects if obj.lires == 1]:
+            if len(o['cfaces']) > 0:
+                for i, fli in enumerate([face.loop_indices for face in o.data.polygons if face.select == True]):
+                    for li in fli:
+                        vi = o.data.loops[li].vertex_index
+                        o.data.shape_keys.key_blocks[str(frame)].data[vi].co = o.data.shape_keys.key_blocks['Basis'].data[vi].co + 0.1*context.scene.li_disp_3dlevel * ((0.75 - o['oreslist'][str(frame)][i]) * mathutils.Vector((0,0,1)))
+            for v, vn in enumerate(o['cverts']):
+                j = o['j'][v]
+                o.data.shape_keys.key_blocks[str(frame)].data[vn].co = o.data.shape_keys.key_blocks['Basis'].data[vn].co + 0.1*context.scene.li_disp_3dlevel * ((0.75 - o['oreslist'][str(frame)][j]) * o.data.vertices[vn].normal)
+        
 def register():
 #    bpy.utils.register_module(__name__)
     Object = bpy.types.Object
@@ -476,11 +489,13 @@ def register():
 
     Scene.li_disp_3d = bprop("VI 3D display", "Boolean for 3D results display",  False)
 
-    Scene.li_disp_3dlevel = fprop("VI 3D display level:", "Level of 3D result plane extrusion", 0, 50, 0)
+    Scene.li_disp_3dlevel = bpy.props.FloatProperty(name = "", description = "Level of 3D result plane extrusion", min = 0, max = 50, default = 0, update = eupdate)
 
     Scene.li_display = bprop("", "",False)
 
     Scene.li_display_rp = bprop("", "", False)
+    
+    Scene.li_leg_display = bprop("Legend", "", False)
 
     Scene.li_display_sel_only = bprop("", "", False)
 
@@ -488,6 +503,7 @@ def register():
 
     Scene.resnode = sprop("", "", 0, "")
 
+    bpy.utils.register_class(vi_operators.OBJECT_OT_LiExtrude)
     bpy.utils.register_class(vi_operators.NODE_OT_EpwSelect)
     bpy.utils.register_class(vi_operators.NODE_OT_HdrSelect)
     bpy.utils.register_class(vi_operators.NODE_OT_SkySelect)
@@ -549,6 +565,8 @@ def register():
 
 def unregister():
 #    bpy.utils.unregister_module(__name__)
+#    bpy.utils.unregister_class(vi_operators.NODE_OT_FileSave)
+    bpy.utils.unregister_class(vi_operators.OBJECT_OT_LiExtrude)
     bpy.utils.unregister_class(vi_operators.NODE_OT_EpwSelect)
     bpy.utils.unregister_class(vi_operators.NODE_OT_HdrSelect)
     bpy.utils.unregister_class(vi_operators.NODE_OT_SkySelect)

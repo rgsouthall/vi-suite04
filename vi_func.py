@@ -1,4 +1,4 @@
-import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime
+import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys
 from math import sin, cos, asin, acos, pi
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
 dtdf = datetime.date.fromordinal
@@ -369,3 +369,6 @@ def windcompass():
     arrme.from_pydata(arrverts, [], arrfaces)
     arrme.update()
     bpy.context.scene.objects.link(arrob)
+    
+def rgb2h(rgb):
+    return colorsys.rgb_to_hsv(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0)[0]

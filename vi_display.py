@@ -22,134 +22,6 @@ from bpy_extras import image_utils
 from . import livi_export
 from . import vi_func
 
-#class LiVi_d(livi_export.LiVi_e):
-#    def __init__(self):
-#        self.scene = bpy.context.scene
-#        self.clearscened()
-#        self.rad_display()
-#        self.rp_display = True
-#
-#    def rad_display(self):
-#        if len(bpy.app.handlers.frame_change_pre) == 0:
-#            bpy.app.handlers.frame_change_pre.append(livi_export.cyfc1)
-#        o = 0
-#        self.obcalclist = []
-#        self.obreslist = []
-#
-#        for geo in self.scene.objects:
-#            if geo.type == "MESH" and geo.livi_calc == 1:
-#                geo.select = True
-#                if geo.mode != 'OBJECT':
-#                    bpy.ops.object.mode_set(mode = 'OBJECT')
-#                bpy.ops.object.select_all(action = 'DESELECT')
-#                self.obcalclist.append(geo)
-#                o += 1
-#
-#        for frame in range(0, self.scene.frame_end + 1):
-#            self.scene.frame_set(frame)
-#            for obcalc in self.obcalclist:
-#                for vc in obcalc.data.vertex_colors:
-#                    if frame == int(vc.name):
-#                        vc.active = 1
-#                        vc.active_render = 1
-#                    else:
-#                        vc.active = 0
-#                        vc.active_render = 0
-#                    vc.keyframe_insert("active")
-#                    vc.keyframe_insert("active_render")
-#
-#        self.scene.frame_set(0)
-#        bpy.ops.object.select_all(action = 'DESELECT')
-#        self.scene.objects.active = None
-#
-#        if self.scene.livi_disp_3d == 1:
-#            resvertco = []
-#            fextrude = []
-#            for i, geo in enumerate(self.scene.objects):
-#                if geo.type == 'MESH' and geo.livi_calc == 1:
-#                    self.scene.objects.active = None
-#                    bpy.ops.object.select_all(action = 'DESELECT')
-#                    self.scene.objects.active = geo
-#                    geo.select = True
-#                    bpy.ops.object.mode_set(mode = 'EDIT')
-#                    bpy.context.tool_settings.mesh_select_mode = [False, False, True]
-#                    bpy.ops.mesh.select_all(action = 'DESELECT')
-#                    bpy.ops.object.mode_set(mode = 'OBJECT')
-#
-#                    for cf in geo["cfaces"]:
-#                        geo.data.polygons[int(cf)].select = True
-#
-#                    bpy.ops.object.mode_set(mode = 'EDIT')
-#                    bpy.ops.mesh.duplicate()
-#                    bpy.ops.mesh.separate()
-#                    bpy.ops.object.mode_set(mode = 'OBJECT')
-#                    self.scene.objects[0].name = geo.name+"res"
-#                    self.obreslist.append(self.scene.objects[0])
-#                    self.scene.objects[0].livi_res = 1
-#                    bpy.ops.object.select_all(action = 'DESELECT')
-#                    self.scene.objects.active = None
-#
-#            for obres in self.obreslist:
-#                self.scene.objects.active = obres
-#                obres.select = True
-#                fextrude = []
-#                resvertco = []
-#                bpy.ops.object.shape_key_add(from_mix = False)
-#                for frame in range(0, self.scene.frame_end + 1):
-#                    bpy.ops.object.shape_key_add(from_mix = False)
-#                    obres.active_shape_key.name = str(frame)
-#
-#                    if self.scene['cp'] == 0:
-#                        if frame == 0:
-#                            if len(obres.data.polygons) > 1:
-#                                bpy.ops.object.mode_set(mode = 'EDIT')
-#                                bpy.ops.mesh.select_all(action = 'SELECT')
-#                                bpy.ops.mesh.extrude_faces_move()
-#                                bpy.ops.object.mode_set(mode = 'OBJECT')
-#                                bpy.ops.object.select_all(action = 'DESELECT')
-#                                for face in obres.data.polygons:
-#                                    if face.select == True:
-#                                        fextrude.append(face)
-#                                for vert in obres.data.vertices:
-#                                    resvertco.append((vert.co, vert.normal))
-#                        for fex in fextrude:
-#                            for vert in fex.vertices:
-#                                j = [j for j,x in enumerate(obres.data.loops) if vert == x.vertex_index][0]
-#                                obres.active_shape_key.data[vert].co = resvertco[vert][0] + 0.1*resvertco[vert][1]*float(self.scene.livi_disp_3dlevel)*(0.75-colorsys.rgb_to_hsv(obres.data.vertex_colors[str(frame)].data[j].color[0], obres.data.vertex_colors[str(frame)].data[j].color[1], obres.data.vertex_colors[str(frame)].data[j].color[2])[0])
-#
-#                    elif self.scene['cp'] == 1:
-#                        for vert in obres.data.vertices:
-#                            j = [j for j,x in enumerate(obres.data.loops) if vert.index == x.vertex_index][0]
-#                            obres.active_shape_key.data[vert.index].co = obres.active_shape_key.data[vert.index].co + 0.1*float(self.scene.livi_disp_3dlevel)*(0.75-colorsys.rgb_to_hsv(obres.data.vertex_colors[str(frame)].data[j].color[0], obres.data.vertex_colors[str(frame)].data[j].color[1], obres.data.vertex_colors[str(frame)].data[j].color[2])[0])*(vert.normal)
-#
-#        for frame in range(0, self.scene.frame_end + 1):
-#            self.scene.frame_set(frame)
-#            for obres in self.obreslist:
-#                if self.scene.livi_disp_3d == 1:
-#                    for shape in obres.data.shape_keys.key_blocks:
-#                            if "Basis" not in shape.name:
-#                                if int(shape.name) == frame:
-#                                    shape.value = 1
-#                                    shape.keyframe_insert("value")
-#                                else:
-#                                    shape.value = 0
-#                                    shape.keyframe_insert("value")
-#
-#                for vc in obres.data.vertex_colors:
-#                    if frame == int(vc.name):
-#                        vc.active = 1
-#                        vc.active_render = 1
-#                        vc.keyframe_insert("active")
-#                        vc.keyframe_insert("active_render")
-#                    else:
-#                        vc.active = 0
-#                        vc.active_render = 0
-#                        vc.keyframe_insert("active")
-#                        vc.keyframe_insert("active_render")
-#        bpy.ops.wm.save_mainfile(check_existing = False)
-#        rendview(1)
-
-
 def li_display(node, geonode):
     scene = bpy.context.scene
     vi_func.clearscened(scene)
@@ -187,8 +59,6 @@ def li_display(node, geonode):
     scene.objects.active = None
 
     if scene.li_disp_3d == 1:
-        resvertco = []
-        fextrude = []
         for i, geo in enumerate(scene.objects):
             if geo.type == 'MESH' and geo.licalc == 1:
                 scene.objects.active = None
@@ -202,7 +72,11 @@ def li_display(node, geonode):
 
                 for cf in geo["cfaces"]:
                     geo.data.polygons[int(cf)].select = True
-
+                
+                if len(geo["cverts"]) > 0:
+                    bpy.context.tool_settings.mesh_select_mode = [True, False, False]
+                    for cv in geo["cverts"]:
+                        geo.data.vertices[int(cv)].select = True
                 bpy.ops.object.mode_set(mode = 'EDIT')
                 bpy.ops.mesh.duplicate()
                 bpy.ops.mesh.separate()
@@ -214,37 +88,37 @@ def li_display(node, geonode):
                 scene.objects.active = None
 
         for obres in obreslist:
+            oreslist = {}
             scene.objects.active = obres
             obres.select = True
-            fextrude = []
-            resvertco = []
+            j = []
+            
+            if geonode.cpoint == '0':
+                if len(obres.data.polygons) > 1:
+                    bpy.ops.object.mode_set(mode = 'EDIT')
+                    bpy.ops.mesh.select_all(action = 'SELECT')
+                    bpy.ops.mesh.extrude_faces_move()
+                    bpy.ops.object.mode_set(mode = 'OBJECT')
+                    bpy.ops.object.select_all(action = 'DESELECT')
+                       
+                    for fli in [face.loop_indices for face in obres.data.polygons if face.select == True]:
+                        for li in fli:
+                            j.append(obres.data.loops[li].vertex_index)
+            else:
+                for vn in obres['cverts']:
+                    j.append([j for j,x in enumerate(obres.data.loops) if vn == x.vertex_index][0])
+            
             bpy.ops.object.shape_key_add(from_mix = False)
+            
             for frame in range(0, scene.frame_end + 1):
                 bpy.ops.object.shape_key_add(from_mix = False)
                 obres.active_shape_key.name = str(frame)
-
                 if geonode.cpoint == '0':
-                    if frame == 0:
-                        if len(obres.data.polygons) > 1:
-                            bpy.ops.object.mode_set(mode = 'EDIT')
-                            bpy.ops.mesh.select_all(action = 'SELECT')
-                            bpy.ops.mesh.extrude_faces_move()
-                            bpy.ops.object.mode_set(mode = 'OBJECT')
-                            bpy.ops.object.select_all(action = 'DESELECT')
-                            for face in obres.data.polygons:
-                                if face.select == True:
-                                    fextrude.append(face)
-                            for vert in obres.data.vertices:
-                                resvertco.append((vert.co, vert.normal))
-                    for fex in fextrude:
-                        for vert in fex.vertices:
-                            j = [j for j,x in enumerate(obres.data.loops) if vert == x.vertex_index][0]
-                            obres.active_shape_key.data[vert].co = resvertco[vert][0] + 0.1*resvertco[vert][1]*float(scene.li_disp_3dlevel)*(0.75-colorsys.rgb_to_hsv(obres.data.vertex_colors[str(frame)].data[j].color[0], obres.data.vertex_colors[str(frame)].data[j].color[1], obres.data.vertex_colors[str(frame)].data[j].color[2])[0])
-
-                elif geonode.cpoint == '1':
-                    for vert in obres.data.vertices:
-                        j = [j for j,x in enumerate(obres.data.loops) if vert.index == x.vertex_index][0]
-                        obres.active_shape_key.data[vert.index].co = obres.active_shape_key.data[vert.index].co + 0.1*float(scene.li_disp_3dlevel)*(0.75-colorsys.rgb_to_hsv(obres.data.vertex_colors[str(frame)].data[j].color[0], obres.data.vertex_colors[str(frame)].data[j].color[1], obres.data.vertex_colors[str(frame)].data[j].color[2])[0])*(vert.normal)
+                    oreslist[str(frame)] = [vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[li].color) for li in [face.loop_indices[0] for face in obres.data.polygons if face.select == True]]
+                else:
+                    oreslist[str(frame)] = [vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[j].color) for j in range(len(obres.data.vertex_colors[str(frame)].data))]
+            obres['oreslist'] = oreslist
+            obres['j'] = j
 
     for frame in range(scene.frame_start, scene.frame_end + 1):
         scene.frame_set(frame)
@@ -275,9 +149,13 @@ def li_display(node, geonode):
     bpy.ops.wm.save_mainfile(check_existing = False)
     rendview(1)
 
+
+#def liextrude():
+#    for obj in [obj for obj in bpy.data.objects if obj]
+
+
 def linumdisplay(disp_op, context, node, geonode):
     scene = context.scene
-
     try:
         if obcalclist:
             pass
@@ -285,7 +163,7 @@ def linumdisplay(disp_op, context, node, geonode):
         obreslist = [ob for ob in bpy.data.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.licalc == 1 and ob.lires == 1]
         obcalclist = [ob for ob in bpy.data.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.licalc == 1 and ob.lires == 0]
 
-    if scene.li_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.li_display_sel_only == True) or scene.li_display_rp != True or scene.frame_current not in range(scene.frame_start, scene.frame_end+1):
+    if scene.li_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.li_display_sel_only == True)  or scene.frame_current not in range(scene.frame_start, scene.frame_end+1):
         return
 
     region = context.region
@@ -342,67 +220,126 @@ def linumdisplay(disp_op, context, node, geonode):
                             draw_index(0.0, 0.0, 0.0, int((1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*node['maxres'][fn]), vpos.to_4d())
 
 def li3D_legend(self, context, node):
-#    bgl.glClearColor(0.6, 0.6, 0.6, 0.0)
-#    bgl.glClear(bgl.GL_COLOR_BUFFER_BIT)
-#    bgl.glDisable(bgl.GL_BLEND)
-#    if hasattr(node, 'maxres'):
-    resvals = [('{:.0f}', '{:.0f}', '{:.1f}')[int(node.analysismenu)].format(min(node['minres'])+i*(max(node['maxres'])-min(node['minres']))/19) for i in range(20)]
-    height = context.region.height
-    lenres = len(resvals[-1])
-    font_id = 0
-    bgl.glEnable(bgl.GL_BLEND)
-    bgl.glColor4f(1.0, 1.0, 1.0, 0.7)
-    bgl.glLineWidth(2)
-    bgl.glBegin(bgl.GL_POLYGON)
-    bgl.glVertex2i(20, height - 520)
-    bgl.glVertex2i(70 + lenres*8, height - 520)
-    bgl.glVertex2i(70 + lenres*8, height - 40)
-    bgl.glVertex2i(20, height - 40)
-    bgl.glEnd()
-    bgl.glColor4f(0.0, 0.0, 0.0, 0.7)
-    bgl.glLineWidth(2)
-    bgl.glBegin(bgl.GL_LINE_LOOP)
-    bgl.glVertex2i(19, height - 520)
-    bgl.glVertex2i(70 + lenres*8, height - 520)
-    bgl.glVertex2i(70 + lenres*8, height - 40)
-    bgl.glVertex2i(19, height - 40)
-    bgl.glEnd()
-
-    for i in range(20):
-        h = 0.75 - 0.75*(i/19)
-        bgl.glColor4f(colorsys.hsv_to_rgb(h, 1.0, 1.0)[0], colorsys.hsv_to_rgb(h, 1.0, 1.0)[1], colorsys.hsv_to_rgb(h, 1.0, 1.0)[2], 1.0)
+    scene = context.scene
+    if scene.li_leg_display != True:
+        return
+    else:
+        resvals = [('{:.0f}', '{:.0f}', '{:.1f}')[int(node.analysismenu)].format(min(node['minres'])+i*(max(node['maxres'])-min(node['minres']))/19) for i in range(20)]
+        height = context.region.height
+        lenres = len(resvals[-1])
+        font_id = 0
+        bgl.glEnable(bgl.GL_BLEND)
+        bgl.glColor4f(1.0, 1.0, 1.0, 0.7)
+        bgl.glLineWidth(2)
         bgl.glBegin(bgl.GL_POLYGON)
-        bgl.glVertex2i(20, (i*20)+height - 460)
-        bgl.glVertex2i(60, (i*20)+height - 460)
-        bgl.glVertex2i(60, (i*20)+height - 440)
-        bgl.glVertex2i(20, (i*20)+height - 440)
+        bgl.glVertex2i(20, height - 520)
+        bgl.glVertex2i(70 + lenres*8, height - 520)
+        bgl.glVertex2i(70 + lenres*8, height - 40)
+        bgl.glVertex2i(20, height - 40)
         bgl.glEnd()
-        blf.position(font_id, 65, (i*20)+height - 455, 0)
-        blf.size(font_id, 20, 48)
+        bgl.glColor4f(0.0, 0.0, 0.0, 0.7)
+        bgl.glLineWidth(2)
+        bgl.glBegin(bgl.GL_LINE_LOOP)
+        bgl.glVertex2i(19, height - 520)
+        bgl.glVertex2i(70 + lenres*8, height - 520)
+        bgl.glVertex2i(70 + lenres*8, height - 40)
+        bgl.glVertex2i(19, height - 40)
+        bgl.glEnd()
+    
+        for i in range(20):
+            h = 0.75 - 0.75*(i/19)
+            bgl.glColor4f(colorsys.hsv_to_rgb(h, 1.0, 1.0)[0], colorsys.hsv_to_rgb(h, 1.0, 1.0)[1], colorsys.hsv_to_rgb(h, 1.0, 1.0)[2], 1.0)
+            bgl.glBegin(bgl.GL_POLYGON)
+            bgl.glVertex2i(20, (i*20)+height - 460)
+            bgl.glVertex2i(60, (i*20)+height - 460)
+            bgl.glVertex2i(60, (i*20)+height - 440)
+            bgl.glVertex2i(20, (i*20)+height - 440)
+            bgl.glEnd()
+            blf.position(font_id, 65, (i*20)+height - 455, 0)
+            blf.size(font_id, 20, 48)
+            bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+            blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
+        blf.position(font_id, 25, height - 57, 0)
+        blf.size(font_id, 20, 56)
         bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-        blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
-    blf.position(font_id, 25, height - 57, 0)
-    blf.size(font_id, 20, 56)
-    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-    blf.draw(font_id, node.unit)
-    bgl.glLineWidth(1)
-    bgl.glDisable(bgl.GL_BLEND)
-    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+        blf.draw(font_id, node.unit)
+        bgl.glLineWidth(1)
+        bgl.glDisable(bgl.GL_BLEND)
+        bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+        
+        height = context.region.height
+        font_id = 0
+        if context.scene.frame_current in range(context.scene.frame_start, context.scene.frame_end + 1):
+            bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
+            blf.position(font_id, 22, height - 480, 0)
+            blf.size(font_id, 20, 48)
+            blf.draw(font_id, "Ave: {:.1f}".format(node['avres'][context.scene.frame_current]))
+            blf.position(font_id, 22, height - 495, 0)
+            blf.draw(font_id, "Max: {:.1f}".format(node['maxres'][context.scene.frame_current]))
+            blf.position(font_id, 22, height - 510, 0)
+            blf.draw(font_id, "Min: {:.1f}".format(node['minres'][context.scene.frame_current]))
 
-def lires_stat(self, context, node):
-#    if hasattr(node, 'avres'):
-    height = context.region.height
-    font_id = 0
-    if context.scene.frame_current in range(context.scene.frame_start, context.scene.frame_end + 1):
-        bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
-        blf.position(font_id, 22, height - 480, 0)
-        blf.size(font_id, 20, 48)
-        blf.draw(font_id, "Ave: {:.1f}".format(node['avres'][context.scene.frame_current]))
-        blf.position(font_id, 22, height - 495, 0)
-        blf.draw(font_id, "Max: {:.1f}".format(node['maxres'][context.scene.frame_current]))
-        blf.position(font_id, 22, height - 510, 0)
-        blf.draw(font_id, "Min: {:.1f}".format(node['minres'][context.scene.frame_current]))
 
+def licompliance(self, context, node):
+    scene = context.scene
+    if scene.li_compliance != True:
+        return
+    else:
+        resvals = [('{:.0f}', '{:.0f}', '{:.1f}')[int(node.analysismenu)].format(min(node['minres'])+i*(max(node['maxres'])-min(node['minres']))/19) for i in range(20)]
+        height = context.region.height
+        lenres = len(resvals[-1])
+        font_id = 0
+        bgl.glEnable(bgl.GL_BLEND)
+        bgl.glColor4f(1.0, 1.0, 1.0, 0.7)
+        bgl.glLineWidth(2)
+        bgl.glBegin(bgl.GL_POLYGON)
+        bgl.glVertex2i(20, height - 520)
+        bgl.glVertex2i(70 + lenres*8, height - 520)
+        bgl.glVertex2i(70 + lenres*8, height - 40)
+        bgl.glVertex2i(20, height - 40)
+        bgl.glEnd()
+        bgl.glColor4f(0.0, 0.0, 0.0, 0.7)
+        bgl.glLineWidth(2)
+        bgl.glBegin(bgl.GL_LINE_LOOP)
+        bgl.glVertex2i(19, height - 520)
+        bgl.glVertex2i(70 + lenres*8, height - 520)
+        bgl.glVertex2i(70 + lenres*8, height - 40)
+        bgl.glVertex2i(19, height - 40)
+        bgl.glEnd()
+    
+        for i in range(20):
+            h = 0.75 - 0.75*(i/19)
+            bgl.glColor4f(colorsys.hsv_to_rgb(h, 1.0, 1.0)[0], colorsys.hsv_to_rgb(h, 1.0, 1.0)[1], colorsys.hsv_to_rgb(h, 1.0, 1.0)[2], 1.0)
+            bgl.glBegin(bgl.GL_POLYGON)
+            bgl.glVertex2i(20, (i*20)+height - 460)
+            bgl.glVertex2i(60, (i*20)+height - 460)
+            bgl.glVertex2i(60, (i*20)+height - 440)
+            bgl.glVertex2i(20, (i*20)+height - 440)
+            bgl.glEnd()
+            blf.position(font_id, 65, (i*20)+height - 455, 0)
+            blf.size(font_id, 20, 48)
+            bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+            blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
+        blf.position(font_id, 25, height - 57, 0)
+        blf.size(font_id, 20, 56)
+        bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+        blf.draw(font_id, node.unit)
+        bgl.glLineWidth(1)
+        bgl.glDisable(bgl.GL_BLEND)
+        bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+        
+        height = context.region.height
+        font_id = 0
+        if context.scene.frame_current in range(context.scene.frame_start, context.scene.frame_end + 1):
+            bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
+            blf.position(font_id, 22, height - 480, 0)
+            blf.size(font_id, 20, 48)
+            blf.draw(font_id, "Ave: {:.1f}".format(node['avres'][context.scene.frame_current]))
+            blf.position(font_id, 22, height - 495, 0)
+            blf.draw(font_id, "Max: {:.1f}".format(node['maxres'][context.scene.frame_current]))
+            blf.position(font_id, 22, height - 510, 0)
+            blf.draw(font_id, "Min: {:.1f}".format(node['minres'][context.scene.frame_current]))
+            
 def rendview(i):
     for scrn in bpy.data.screens:
         if scrn.name == 'Default':

@@ -38,9 +38,9 @@ def radgexport(export_op, node):
     vi_func.clearscenee(scene)
     vi_func.clearscened(scene)
     scene.frame_start = 0
-    fe = 0 if node.animmenu == 'Static' else scene.frame_end
+    scene.frame_end = 0 if node.animmenu == 'Static' else scene.frame_end
 
-    for frame in range(scene.frame_start, fe + 1):
+    for frame in range(scene.frame_start, node.fe + 1):
         scene.frame_current = frame
         radfile = open(node.filebase+"-{}.rad".format(frame), 'w')
         radfile.write("# Materials \n\n")
@@ -204,10 +204,11 @@ def radgexport(export_op, node):
                                 calcsurfverts += obcalcverts
                     if node.cpoint == '1':
                         geo['cverts'] = cverts
-                        geo['cfaces'] = csf
+                        geo['cfaces'] = []
                         node.reslen = len(calcsurfverts)
 
                     elif node.cpoint == '0':
+                        geo['cverts'] = []
                         geo['cfaces'] = csf
                         node.reslen = len(calcsurffaces)
                     bpy.data.meshes.remove(mesh)
@@ -234,14 +235,18 @@ def radcexport(export_op, node):
     else:
         if node.skynum < 4:
             node.skytypeparams = ("+s", "+i", "-c", "-b 22.86 -c")[node.skynum]
-            starttime = datetime.datetime(2013, 1, 1, node.shour) + datetime.timedelta(node.sdoy - 1)
+            if node.skynum < 3:
+                starttime = datetime.datetime(2013, 1, 1, node.shour) + datetime.timedelta(node.sdoy - 1)
+            else:
+                starttime = datetime.datetime(2013, 1, 1, 12)
             if node.animmenu == 'Time':
                 endtime = datetime.datetime(2013, 1, 1, node.ehour) + datetime.timedelta(node.edoy - 1)
                 hours = (endtime-starttime).days*24 + (endtime-starttime).seconds/3600
                 scene.frame_end = int(hours/node.interval)
+                geonode.fe = int(hours/node.interval)
 
-            fe = 0 if geonode.animmenu != 'Static' else scene.frame_end
-            for frame in range(scene.frame_start, fe + 1):
+#            geonode.fe = 0 if geonode.animmenu != 'Static' else scene.frame_end
+            for frame in range(scene.frame_start, geonode.fe + 1):
                 radskyhdrexport(scene, node, geonode, starttime, frame)
                 if node.skynum < 2 and node.analysismenu != '2':
                     if frame == 0:
@@ -292,8 +297,11 @@ def radcexport(export_op, node):
         fexport(scene, frame, export_op, node, geonode)
 
 def radskyhdrexport(scene, node, geonode, starttime, frame):
-    simtime = starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
-    subprocess.call("gensky {} {} {}:{:0>2d}{} -a {} -o {} {} > {}".format(simtime.month, simtime.day, simtime.hour, simtime.minute, node.TZ, node.lati, node.longi, node.skytypeparams, vi_func.sky(frame, node, geonode)), shell = True)
+    if node.skynum < 3:
+        simtime = starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
+        subprocess.call("gensky {} {} {}:{:0>2d}{} -a {} -o {} {} > {}".format(simtime.month, simtime.day, simtime.hour, simtime.minute, node.TZ, node.lati, node.longi, node.skytypeparams, vi_func.sky(frame, node, geonode)), shell = True)
+    elif node.skynum == 3:
+        subprocess.call("gensky {} {} {}:{:0>2d}{} -a {} -o {} {} > {}".format(1, 1, 12, 0, node.TZ, 50, 0, node.skytypeparams, vi_func.sky(frame, node, geonode)), shell = True)
     if node.hdr == True:
         subprocess.call("oconv {} > {}-{}sky.oct".format(vi_func.sky(frame, node, geonode), geonode.filebase, frame), shell=True)
         subprocess.call("cnt 250 500 | rcalc -f {}/lib/latlong.cal -e 'XD=500;YD=250;inXD=0.002;inYD=0.004' | rtrace -af pan.af -n {} -x 500 -y 250 -fac {}-{}sky.oct > {}/{}p.hdr".format(scene.vipath, geonode.nproc, geonode.filebase, frame, geonode.newdir, frame), shell=True)

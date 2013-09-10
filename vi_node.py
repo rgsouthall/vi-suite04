@@ -57,6 +57,8 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     cp = bpy.props.StringProperty()
     cat = bpy.props.StringProperty()
     fold = bpy.props.StringProperty()
+    fe = bpy.props.IntProperty()
+    fs = bpy.props.IntProperty()
 
     def nodeexported(self, context):
         self.exported = False
@@ -72,9 +74,9 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     radfiles = []
 
     def init(self, context):
-        nodeinit(self)
         self.outputs.new('ViLiGOut', 'Geometry out')
         self.outputs[0].hide = True
+        nodeinit(self)
 
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -151,7 +153,6 @@ class ViLiNode(bpy.types.Node, ViNodes):
     interval = bpy.props.FloatProperty(name="", description="Site Latitude", min=0.25, max=24, default=1, update = nodeexported)
     exported = bpy.props.BoolProperty(default=False)
     hdr = bpy.props.BoolProperty(name="HDR", description="Export HDR panoramas", default=False, update = nodeexported)
-    disp_leg = bpy.props.BoolProperty(default=False)
     hdrname = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="", update = nodeexported)
     skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="", update = nodeexported)
     skynum = bpy.props.IntProperty()
@@ -287,6 +288,9 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
            row = layout.row()
            row.label("Radiance parameters:")
            row.prop(self, 'cusacc')
+        row = layout.row()
+        row.prop(self, 'hdr')
+        row.operator("node.liexport", text = "Export").nodename = self.name
         if self.exported == True:
             row = layout.row()
             row.operator("node.radpreview", text = 'Preview').nodename = self.name
@@ -298,26 +302,61 @@ class ViLiCNode(bpy.types.Node, ViNodes):
     bl_label = 'VI Lighting Compliance'
     bl_icon = 'LAMP'
 
+    def nodeexported(self, context):
+        self.exported = False
+        self.bl_label = '*VI Lighting Compliance'
+        self.skymenu = 3
+    
+    interval = 0  
+    exported = bpy.props.BoolProperty(default=False)
+    TZ = bpy.props.StringProperty(default = 'GMT')
+    skymenu = bpy.props.IntProperty(default = 3)
+    simalg = bpy.props.StringProperty(name="", description="Calculation algorithm", default="")
+    resname = bpy.props.StringProperty()
+    unit = bpy.props.StringProperty()
+    hdr = bpy.props.BoolProperty(name="HDR", description="Export HDR panoramas", default=False, update = nodeexported)
     analysistype = [('0', "BREEAM", "BREEAM HEA1 calculation"), ('1', "LEED", "LEED EQ8.1 calculation"), ('2', "Green Star", "Green Star Calculation")]
-    buildtype = [('0', "School", "School lighting standard"), ('1', "Residential", "Residential lighting standard")]
+    bambuildtype = [('0', "School", "School lighting standard"), ('1', "Higher Education", "Higher education lighting standard"), ('2', "Healthcare", "Healthcare lighting standard"), ('3', "Residential", "Residential lighting standard"), ('3', "Retail", "Retail lighting standard")]
+    hspacetype = [('0', 'Public/Staff', 'Public/Staff area'), ('1', 'Patient', 'Patient area')]
+    rspacetype = [('0', "Kitchen", "Kitchen space"), ('1', "Living/Dining", "Living/Dining area")]   
+    respacetype = [('0', "Sales", "Sales space"), ('1', "Occupied", "Occupied space")]  
+    
     animtype = [('0', "Static", "Simple static analysis"), ('1', "Geometry", "Animated time analysis"), ('2', "Material", "Animated time analysis"), ('3', "Lights", "Animated time analysis")]
-    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = '0')
+    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = '0', update = nodeexported)
 
-    analysismenu = bpy.props.EnumProperty(name="", description="Type of analysis", items = analysistype, default = '0')
-    buildmenu = bpy.props.EnumProperty(name="", description="Type of building", items=buildtype, default = '0')
+    analysismenu = bpy.props.EnumProperty(name="", description="Type of analysis", items = analysistype, default = '0', update = nodeexported)
+    bambuildmenu = bpy.props.EnumProperty(name="", description="Type of building", items=bambuildtype, default = '0', update = nodeexported)
+    hspacemenu = bpy.props.EnumProperty(name="", description="Type of healthcare space", items=hspacetype, default = '0', update = nodeexported)
+    rspacemenu = bpy.props.EnumProperty(name="", description="Type of residential space", items=rspacetype, default = '0', update = nodeexported)
+    respacemenu = bpy.props.EnumProperty(name="", description="Type of retail space", items=respacetype, default = '0', update = nodeexported)
     simacc = bpy.props.EnumProperty(items=[("0", "Standard", "Standard accuracy for this metric"),("1", "Custom", "Edit Radiance parameters"), ],
-            name="", description="Simulation accuracy", default="0")
+            name="", description="Simulation accuracy", default="0", update = nodeexported)
     cusacc = bpy.props.StringProperty(
-            name="", description="Custom Radiance simulation parameters", default="")
-
+            name="", description="Custom Radiance simulation parameters", default="", update = nodeexported)
+    
+    def init(self, context):
+        self.inputs.new('ViLiGIn', 'Geometry in')
+    
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.label("Compliance standard:")
         row.prop(self, 'analysismenu')
         if self.analysismenu == '0':
-         row = layout.row()
-        row.label("Building type:")
-        row.prop(self, 'buildmenu')
+            row = layout.row()
+            row.label("Building type:")
+            row.prop(self, 'bambuildmenu')
+            if self.bambuildmenu == '2':
+                row = layout.row()
+                row.label("Space type:")
+                row.prop(self, 'hspacemenu')
+            elif self.bambuildmenu == '3':
+                row = layout.row()
+                row.label("Space type:")
+                row.prop(self, 'rspacemenu')
+            elif self.bambuildmenu == '4':
+                row = layout.row()
+                row.label("Space type:")
+                row.prop(self, 'respacemenu')
         row = layout.row()
         row.label('Animation:')
         row.prop(self, "animmenu")
@@ -329,8 +368,12 @@ class ViLiCNode(bpy.types.Node, ViNodes):
            row.label("Radiance parameters:")
            row.prop(self, 'cusacc')
         row = layout.row()
-        row.operator("node.radpreview", text = 'Preview')
-        row.operator("node.calculate", text = 'Calculate')
+        row.prop(self, 'hdr')
+        row.operator("node.liexport", text = "Export").nodename = self.name
+        if self.exported == True:
+            row = layout.row()
+            row.operator("node.radpreview", text = 'Preview').nodename = self.name
+            row.operator("node.calculate", text = 'Calculate').nodename = self.name
 
 class ViSPNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite sun path'''
@@ -341,7 +384,6 @@ class ViSPNode(bpy.types.Node, ViNodes):
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.operator("node.calculate", text = 'Calculate')
-
 
 class ViSSNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite sun path'''

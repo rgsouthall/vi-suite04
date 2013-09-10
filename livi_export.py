@@ -84,7 +84,7 @@ def radgexport(export_op, node):
 
 # geometry export routine
 
-        obs = [geo for geo in scene.objects if geo.type == 'MESH' and 'lightarray' not in geo.name and geo.hide == False and geo.layers[0] == True]
+        obs = [geo for geo in scene.objects if geo.type == 'MESH' and not geo.children  and 'lightarray' not in geo.name and geo.hide == False and geo.layers[0] == True]
 
         for o in obs:
             o.select = True
@@ -160,11 +160,11 @@ def radgexport(export_op, node):
     rtrace = open(node.filebase+".rtrace", "w")
     calcsurfverts = []
     calcsurffaces = []
-    if 0 not in [len(geo.data.materials) for geo in bpy.data.objects if geo.type == 'MESH' and 'lightarray' not in geo.name and geo.hide == False and geo.layers[0] == True ]:
+    if 0 not in [len(geo.data.materials) for geo in bpy.data.objects if geo.type == 'MESH' and not geo.children and 'lightarray' not in geo.name and geo.hide == False and geo.layers[0] == True ]:
         for o, geo in enumerate(scene.objects):
             csf = []
             cverts = []
-            if geo.type == 'MESH' and 'lightarray' not in geo.name and geo.hide == False and geo.layers[0] == True:
+            if geo.type == 'MESH' and not geo.children and 'lightarray' not in geo.name and geo.hide == False and geo.layers[0] == True:
                 if len([mat.name for mat in geo.material_slots if 'calcsurf' in mat.name]) != 0:
                     obcalcverts = []
                     scene.objects.active = geo
@@ -267,31 +267,9 @@ def radcexport(export_op, node):
         elif node.skynum == 5:
             subprocess.call("cp {} {}".format(node.radname, geonode.filebase+"-0.sky"), shell = True)
             node['skyfiles'] =  open(node.radname, 'r').read()
-#        for frame in range(scene.frame_start, scene.frame_end + 1):
-#            if node.skynum < 4:
-#                skyexport(node, open(geonode.filebase+"-{}.rad".format(frame), "a"))
-#                if geonode.animmenu == 'Static' and frame < scene.frame_end:
-#                    subprocess.call("cp {} {}".format(geonode.filebase+"-{}.rad".format(frame), geonode.filebase+"-{}.rad".format(frame+1)), shell = True)
-#
-#
-#            elif node.skynum == 4:
-#                hdrsky(open(geonode.filebase+"-{}.rad".format(frame), "a"), node.hdrname)
-#            elif node.skynum == 5:
-#                open(geonode.filebase+"-{}.rad".format(frame),'a').write(open(node.radfile).read( ))
-#                if frame == scene.frame_start:
-#                    skyradfile = open(node.radname, 'r')
-#                radfile
-
-
-
-
-
+            
         elif node.skynum == 6:
-            node['skyfiles'] = ""
-#            for frame in range(scene.frame_start, scene.frame_end + 1):
-#                rad_sky = open(geonode.lexport.sky(frame), "w")
-#                rad_sky.close()
-#            scene.frame_end = 0
+            node['skyfiles'] = ['']
 
     for frame in range(scene.frame_start, scene.frame_end + 1):
         fexport(scene, frame, export_op, node, geonode)

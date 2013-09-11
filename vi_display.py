@@ -72,7 +72,7 @@ def li_display(node, geonode):
 
                 for cf in geo["cfaces"]:
                     geo.data.polygons[int(cf)].select = True
-                
+
                 if len(geo["cverts"]) > 0:
                     bpy.context.tool_settings.mesh_select_mode = [True, False, False]
                     for cv in geo["cverts"]:
@@ -92,7 +92,7 @@ def li_display(node, geonode):
             scene.objects.active = obres
             obres.select = True
             j = []
-            
+
             if geonode.cpoint == '0':
                 if len(obres.data.polygons) > 1:
                     bpy.ops.object.mode_set(mode = 'EDIT')
@@ -100,16 +100,16 @@ def li_display(node, geonode):
                     bpy.ops.mesh.extrude_faces_move()
                     bpy.ops.object.mode_set(mode = 'OBJECT')
                     bpy.ops.object.select_all(action = 'DESELECT')
-                       
+
                     for fli in [face.loop_indices for face in obres.data.polygons if face.select == True]:
                         for li in fli:
                             j.append(obres.data.loops[li].vertex_index)
             else:
                 for vn in obres['cverts']:
                     j.append([j for j,x in enumerate(obres.data.loops) if vn == x.vertex_index][0])
-            
+
             bpy.ops.object.shape_key_add(from_mix = False)
-            
+
             for frame in range(0, scene.frame_end + 1):
                 bpy.ops.object.shape_key_add(from_mix = False)
                 obres.active_shape_key.name = str(frame)
@@ -245,7 +245,7 @@ def li3D_legend(self, context, node):
         bgl.glVertex2i(70 + lenres*8, height - 40)
         bgl.glVertex2i(19, height - 40)
         bgl.glEnd()
-    
+
         for i in range(20):
             h = 0.75 - 0.75*(i/19)
             bgl.glColor4f(colorsys.hsv_to_rgb(h, 1.0, 1.0)[0], colorsys.hsv_to_rgb(h, 1.0, 1.0)[1], colorsys.hsv_to_rgb(h, 1.0, 1.0)[2], 1.0)
@@ -266,7 +266,7 @@ def li3D_legend(self, context, node):
         bgl.glLineWidth(1)
         bgl.glDisable(bgl.GL_BLEND)
         bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-        
+
         height = context.region.height
         font_id = 0
         if context.scene.frame_current in range(context.scene.frame_start, context.scene.frame_end + 1):
@@ -281,6 +281,7 @@ def li3D_legend(self, context, node):
 
 
 def li_compliance(self, context, node):
+    crit = []
     scene = context.scene
     if not scene.li_compliance:
         return
@@ -303,14 +304,33 @@ def li_compliance(self, context, node):
         bgl.glVertex2i(750, height - 40)
         bgl.glVertex2i(99, height - 40)
         bgl.glEnd()
-        
+
     node = bpy.data.node_groups['EnVi Network'].nodes[scene.resnode]
     if node.analysismenu == '0':
         standard = 'BREEAM HEA 1'
-        buildtype = ('School', 'Higher Education', 'Healthcare', 'Residentialnode.bambuildtype
-        if buildtype
-        
-        
+        buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retails')[int(node.bambuildtype)]
+        if buildtype == 'School':
+            buidspace = 'Classroom'
+        elif buildtype == 'Higher Education':
+            buidspace = 'General'
+        elif buildtype == 'Healthcare':
+            buidspace = ('Public/Staff', 'Patient')[int(node.hspacemenu)]
+        elif buildtype == 'Residential':
+            buidspace = ('Kitchen', 'Living/Dining')[int(node.rspacemenu)]
+            if buildspace == 'Kitchen':
+                crit.append(('Average', 'DF', 2))
+
+
+        elif buildtype == 'Retail':
+            buidspace = ('Sales', 'Office')[int(node.respacemenu)]
+
+        crit1
+
+
+
+
+
+
 #        resvals = [('{:.0f}', '{:.0f}', '{:.1f}')[int(node.analysismenu)].format(min(node['minres'])+i*(max(node['maxres'])-min(node['minres']))/19) for i in range(20)]
 #        height = context.region.height
 #        lenres = len(resvals[-1])
@@ -332,7 +352,7 @@ def li_compliance(self, context, node):
 #        bgl.glVertex2i(70 + lenres*8, height - 40)
 #        bgl.glVertex2i(19, height - 40)
 #        bgl.glEnd()
-#    
+#
 #        for i in range(20):
 #            h = 0.75 - 0.75*(i/19)
 #            bgl.glColor4f(colorsys.hsv_to_rgb(h, 1.0, 1.0)[0], colorsys.hsv_to_rgb(h, 1.0, 1.0)[1], colorsys.hsv_to_rgb(h, 1.0, 1.0)[2], 1.0)
@@ -353,7 +373,7 @@ def li_compliance(self, context, node):
 #        bgl.glLineWidth(1)
 #        bgl.glDisable(bgl.GL_BLEND)
 #        bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-#        
+#
 #        height = context.region.height
 #        font_id = 0
 #        if context.scene.frame_current in range(context.scene.frame_start, context.scene.frame_end + 1):
@@ -365,7 +385,7 @@ def li_compliance(self, context, node):
 #            blf.draw(font_id, "Max: {:.1f}".format(node['maxres'][context.scene.frame_current]))
 #            blf.position(font_id, 22, height - 510, 0)
 #            blf.draw(font_id, "Min: {:.1f}".format(node['minres'][context.scene.frame_current]))
-            
+
 def rendview(i):
     for scrn in bpy.data.screens:
         if scrn.name == 'Default':

@@ -305,26 +305,18 @@ def li_compliance(self, context, node):
         bgl.glVertex2i(99, height - 40)
         bgl.glEnd()
 
-    node = bpy.data.node_groups['EnVi Network'].nodes[scene.resnode]
-    if node.analysismenu == '0':
-        standard = 'BREEAM HEA 1'
-        buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retails')[int(node.bambuildtype)]
-        if buildtype == 'School':
-            buidspace = 'Classroom'
-        elif buildtype == 'Higher Education':
-            buidspace = 'General'
-        elif buildtype == 'Healthcare':
-            buidspace = ('Public/Staff', 'Patient')[int(node.hspacemenu)]
-        elif buildtype == 'Residential':
-            buidspace = ('Kitchen', 'Living/Dining')[int(node.rspacemenu)]
-            if buildspace == 'Kitchen':
-                crit.append(('Average', 'DF', 2))
+    buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retails')[int(node.bambuildtype)]
+    if buildtype == 'School':
+        buildspace = 'Classroom'
+    elif buildtype == 'Higher Education':
+        buildspace = 'General'
+#    elif buildtype == 'Healthcare':
+#        buildspace = ('Public/Staff', 'Patient')[int(mat.hspacemenu)]
+#    elif buildtype == 'Residential':
+#        buildspace = ('Kitchen', 'Living/Dining/Study', 'Communal')[int(mat.rspacemenu)]
+            
 
 
-        elif buildtype == 'Retail':
-            buidspace = ('Sales', 'Office')[int(node.respacemenu)]
-
-        crit1
 
 
 

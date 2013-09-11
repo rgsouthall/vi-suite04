@@ -49,9 +49,9 @@ def radgexport(export_op, node):
         radfile.write("# Materials \n\n")
         for meshmat in bpy.data.materials:
             diff = [meshmat.diffuse_color[0]*meshmat.diffuse_intensity, meshmat.diffuse_color[1]*meshmat.diffuse_intensity, meshmat.diffuse_color[2]*meshmat.diffuse_intensity]
-            if "calcsurf" in meshmat.name:
+            if meshmat.livi_sense:
                 meshmat.use_vertex_color_paint = 1
-            if meshmat.use_shadeless == 1:
+            if meshmat.use_shadeless == 1 or meshmat.livi_compliance:
                 radfile.write("# Antimatter material\nvoid antimatter " + meshmat.name.replace(" ", "_") +"\n1 void\n0\n0\n\n")
 
             elif meshmat.emit > 0:
@@ -168,7 +168,7 @@ def radgexport(export_op, node):
             csf = []
             cverts = []
             if geo.type == 'MESH' and not geo.children and 'lightarray' not in geo.name and geo.hide == False and geo.layers[0] == True:
-                if len([mat.name for mat in geo.material_slots if 'calcsurf' in mat.name]) != 0:
+                if len([mat for mat in geo.material_slots if mat.material.livi_sense]) != 0:
                     obcalcverts = []
                     scene.objects.active = geo
                     bpy.ops.object.mode_set(mode = 'EDIT')
@@ -178,7 +178,7 @@ def radgexport(export_op, node):
                     mesh.transform(geo.matrix_world)
 
                     for face in mesh.polygons:
-                        if "calcsurf" in str(mesh.materials[face.material_index].name):
+                        if mesh.materials[face.material_index].livi_sense:
                             csf.append(face.index)
                             geo.licalc = 1
                             vsum = Vector((0, 0, 0))
@@ -346,7 +346,7 @@ def cyfc1(self):
         for materials in bpy.data.materials:
             if materials.use_nodes == 1:
                 try:
-                    if 'calcsurf' in materials.name:
+                    if materials.livi_sense:
                         nt = materials.node_tree
                         nt.nodes["Attribute"].attribute_name = str(bpy.context.scene.frame_current)
                 except Exception as e:

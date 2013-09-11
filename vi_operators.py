@@ -140,6 +140,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
 
     def invoke(self, context, event):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
+        node.bl_label = node.bl_label[1:] if node.bl_label[0] == '' else node.bl_label
         if self.nodename == 'LiVi Basic':
             node.resname = ("illumout", "irradout", "dfout")[int(node.analysismenu)]
             node.unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(node.analysismenu)]
@@ -151,12 +152,13 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
             node.TZ = node.summer if node.daysav == True else node.stamer
         
         elif self.nodename == 'LiVi Compliance':
-            node.resname = 'breaamout'
-            node.unit = "DF %"
-            if str(sys.platform) != 'win32':
-                node.simalg = " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' "
-            else:
-                node.simalg = ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" '
+            if node.analysismenu == '0':
+                node.resname = 'breaamout'
+                node.unit = "DF %"
+                if str(sys.platform) != 'win32':
+                    node.simalg = " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' "
+                else:
+                    node.simalg = ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" '
         
         if bpy.data.filepath:
             if bpy.context.object:

@@ -77,7 +77,33 @@ class VIMatPanel(bpy.types.Panel):
         cm = context.material
         layout = self.layout
         row = layout.row()
+        row.prop(cm, "livi_sense")
+        row = layout.row()
+        try:
+            node = bpy.data.node_groups['VI Network'].nodes['LiVi Compliance']
+            row.prop(cm, "livi_compliance")
+            if cm.livi_compliance:
+                if node.analysismenu == '0':
+                    if node.bambuildmenu == '2':
+                        row = layout.row()
+                        row.label("Space type:")
+                        row.prop(cm, 'hspacemenu')
+                    elif node.bambuildmenu == '3':
+                        row = layout.row()
+                        row.label("Space type:")
+                        row.prop(cm, 'rspacemenu')
+                        row = layout.row()
+                        row.prop(cm, 'gl_roof')
+                    elif node.bambuildmenu == '4':
+                        row = layout.row()
+                        row.label("Space type:")
+                        row.prop(cm, 'respacemenu')
+        except:
+            pass
+        
+        row = layout.row()
         row.label('LiVi Radiance type:')
+        
         if cm.use_shadeless == True:
             row.label('Shadeless')
         elif cm.emit > 0:

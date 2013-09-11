@@ -263,6 +263,18 @@ def register():
     Object.envi_infs3p3level = iprop("Level", "Level of Infiltration", 1, 500, 0)
     Object.envi_inf3watts = iprop("W/p", "Watts per person",70, 800, 90)
 
+# LiVi material definitions
+    Material.livi_sense = bprop("LiVi Sensor", "Flag to siginify whether the material represents a LiVi sensing surface", False)
+    Material.livi_compliance = bprop("LiVi Compliance Surface", "Flag to siginify whether the material represents a LiVi compliance surface", False)
+    Material.gl_roof = bprop("Glazed Roof", "Flag to siginify whether the communal area has a glazed roof", False)
+    hspacetype = [('0', 'Public/Staff', 'Public/Staff area'), ('1', 'Patient', 'Patient area')]
+    rspacetype = [('0', "Kitchen", "Kitchen space"), ('1', "Living/Dining/Study", "Living/Dining/Study area"), ('2', "Communal", "Non-residential or communal area")]   
+    respacetype = [('0', "Sales", "Sales space"), ('1', "Occupied", "Occupied space")]  
+    
+    Material.hspacemenu = eprop(hspacetype, "", "Type of healthcare space", '0')
+    Material.rspacemenu = eprop(rspacetype, "", "Type of residential space", '0')
+    Material.respacemenu = eprop(respacetype, "", "Type of retail space", '0')
+
 # EnVi material definitions
 
     Material.envi_con_type = eprop([("Wall", "Wall", "Wall construction"),("Floor", "Floor", "Floor construction"),("Roof", "Roof", "Roof construction"),("Window", "Window", "Window construction"), ("Door", "Door", "Door construction"),

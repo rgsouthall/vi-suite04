@@ -284,10 +284,8 @@ def li_compliance(self, context, node):
     scene = context.scene
     try:
         if not scene.li_compliance or not bpy.context.active_object['crit']:
-            print('hi')
             return
     except:
-        print('hi2')
         return
 
     crit = bpy.context.active_object['crit']
@@ -309,16 +307,54 @@ def li_compliance(self, context, node):
     bgl.glVertex2i(750, height - 40)
     bgl.glVertex2i(100, height - 40)
     bgl.glEnd()
+    
+    mat = [m for m in bpy.context.active_object.data.materials if m.livi_sense][0]
 
-    buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retails')[int(node.bambuildtype)]
+    buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retails')[int(node.bambuildmenu)]
     if buildtype == 'School':
         buildspace = 'Classroom'
     elif buildtype == 'Higher Education':
         buildspace = 'General'
-#    elif buildtype == 'Healthcare':
-#        buildspace = ('Public/Staff', 'Patient')[int(mat.hspacemenu)]
-#    elif buildtype == 'Residential':
-#        buildspace = ('Kitchen', 'Living/Dining/Study', 'Communal')[int(mat.rspacemenu)]
+    elif buildtype == 'Healthcare':
+        buildspace = ('Public/Staff', 'Patient')[int(mat.hspacemenu)]
+    elif buildtype == 'Residential':
+        buildspace = ('Kitchen', 'Living/Dining/Study', 'Communal')[int(mat.rspacemenu)]
+    elif buildtype == 'Retail':
+        buildspace = ('Sales', 'Office')[int(mat.respacemenu)]
+    font_id = 0
+    
+    blf.position(font_id, 120, height - 100, 0)
+    blf.size(font_id, 20, 48)
+    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+    blf.draw(font_id, buildtype)
+    blf.position(font_id, 120, height - 100, 0)
+    blf.size(font_id, 20, 48)
+    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+    blf.draw(font_id, 'Target')
+    blf.position(font_id, 120, height - 100, 0)
+    blf.size(font_id, 20, 48)
+    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+    blf.draw(font_id, 'Achieved')
+    blf.position(font_id, 120, height - 100, 0)
+    blf.size(font_id, 20, 48)
+    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+    blf.draw(font_id, 'Pass/Fail')
+
+    blf.position(font_id, 120, height - 100, 0)
+    blf.size(font_id, 20, 48)
+    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+    blf.draw(font_id, 'Credits')
+    for i, c in enumerate(crit):
+        blf.position(font_id, 120, height - 50 - 50*i, 0)
+        blf.size(font_id, 20, 48)
+        bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+        blf.draw(font_id, buildspace)
+        blf.position(font_id, 120, height - 50 - 50*i, 0)
+        blf.size(font_id, 20, 48)
+        bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+        blf.draw(font_id, buildspace)
+        
+        
 
 
 

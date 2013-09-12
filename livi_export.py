@@ -163,12 +163,13 @@ def radgexport(export_op, node):
     rtrace = open(node.filebase+".rtrace", "w")
     calcsurfverts = []
     calcsurffaces = []
-    if 0 not in [len(geo.data.materials) for geo in bpy.data.objects if geo.type == 'MESH' and not geo.children and 'lightarray' not in geo.name and geo.hide == False and geo.layers[0] == True ]:
-        for o, geo in enumerate(scene.objects):
-            csf = []
-            cverts = []
-            if geo.type == 'MESH' and not geo.children and 'lightarray' not in geo.name and geo.hide == False and geo.layers[0] == True:
-                if len([mat for mat in geo.material_slots if mat.material.livi_sense]) != 0:
+    for o, geo in enumerate(scene.objects):
+        if geo.type == 'MESH' and not geo.children and 'lightarray' not in geo.name and geo.hide == False and geo.layers[0] == True:
+            if len(geo.data.materials) > 0:
+                if len([mat for mat in geo.material_slots if mat.material.livi_sense]) > 0:
+                    geo.licalc = 1
+                    csf = []
+                    cverts = []
                     obcalcverts = []
                     scene.objects.active = geo
                     bpy.ops.object.mode_set(mode = 'EDIT')
@@ -180,7 +181,6 @@ def radgexport(export_op, node):
                     for face in mesh.polygons:
                         if mesh.materials[face.material_index].livi_sense:
                             csf.append(face.index)
-                            geo.licalc = 1
                             vsum = Vector((0, 0, 0))
                             scene.objects.active = geo
                             geo.select = True
@@ -194,8 +194,8 @@ def radgexport(export_op, node):
                                 fc = vsum/len(face.vertices)
                                 rtrace.write('{0[0]} {0[1]} {0[2]} {1[0]} {1[1]} {1[2]} \n'.format(fc, face.normal[:]))
                                 calcsurffaces.append((o, face))
-                            else:
 
+                            else:
                                 for v,vert in enumerate(face.vertices):
                                     if (mesh.vertices[vert]) not in obcalcverts:
                                         vcentx, vcenty, vcentz = mesh.vertices[vert].co[:]
@@ -205,6 +205,7 @@ def radgexport(export_op, node):
                                         obcalcverts.append(mesh.vertices[vert])
                                         cverts.append(vert)
                                 calcsurfverts += obcalcverts
+
                     if node.cpoint == '1':
                         geo['cverts'] = cverts
                         geo['cfaces'] = []
@@ -219,14 +220,14 @@ def radgexport(export_op, node):
                     geo.licalc = 0
                     for mat in geo.material_slots:
                         mat.material.use_transparent_shadows = True
+            else:
+                node.export = 0
+                for geo in scene.objects:
+                    if geo.type == 'MESH' and geo.name != 'lightarray' and geo.hide == False and geo.layers[0] == True and not geo.data.materials:
+                        export_op.report({'ERROR'},"Make sure your object "+geo.name+" has an associated material")
 
         rtrace.close()
         node.export = 1
-    else:
-        node.export = 0
-        for geo in scene.objects:
-            if geo.type == 'MESH' and geo.name != 'lightarray' and geo.hide == False and geo.layers[0] == True and not geo.data.materials:
-                export_op.report({'ERROR'},"Make sure your object "+geo.name+" has an associated material")
 
 def radcexport(export_op, node):
     skyfileslist = []
@@ -273,7 +274,7 @@ def radcexport(export_op, node):
         elif node.skynum == 5:
             subprocess.call("cp {} {}".format(node.radname, geonode.filebase+"-0.sky"), shell = True)
             node['skyfiles'] =  open(node.radname, 'r').read()
-            
+
         elif node.skynum == 6:
             node['skyfiles'] = ['']
 

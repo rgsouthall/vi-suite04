@@ -94,7 +94,7 @@ def li_calc(calc_op, node, geonode):
                         svres[frame][sv] = float(line.decode())
                     svresfile.write("{}".format(svres[frame]).strip("]").strip("["))
                     svresfile.close()
-                                
+
 
         node['maxres'] = [max(res[i]) for i in range(scene.frame_end + 1 - scene.frame_start)]
         node['minres'] = [min(res[i]) for i in range(scene.frame_end + 1 - scene.frame_start)]
@@ -103,7 +103,7 @@ def li_calc(calc_op, node, geonode):
         calc_op.report({'INFO'}, "Calculation is finished.")
 
 def resapply(res, svres, node, geonode):
-    
+
     scene = bpy.context.scene
 
     for frame in range(scene.frame_start, scene.frame_end+1):
@@ -133,109 +133,120 @@ def resapply(res, svres, node, geonode):
                 bpy.ops.mesh.vertex_color_add()
                 geo.data.vertex_colors[frame].name = str(frame)
                 vertexColour = geo.data.vertex_colors[frame]
+
                 mat = [matslot.material for matslot in geo.material_slots if matslot.material.livi_sense][0]
-                
+
                 if mat.livi_compliance:
                     if node.analysismenu == '0':
-#                            standard = 'BREEAM HEA 1'
+#      crit defines
 #                            buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retails')[int(node.bambuildtype)]
+#                    criterms = ('Percent', 'Ratio', 'Min', 'DF', )
                         if node.bambuildmenu == '0':
-                            crit.append('')
+                            crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, 0.5])
+                            crit.append(['Ratio', 100, 'Uni', 0.4, 'fail', 0.0, 0.5])
+                            crit.append(['Min', 100, 'PDF', 0.8, 'fail', 0.0, 0.5])
+                            crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, 0.5])
+                            cred = sum([c[6] for c in crit[1:] if crit[1][4] == 'pass'])
                         elif node.bambuildmenu == '1':
-                            crit.append('')
+                            crit.append(['Percent', 60, 'DF', 2, 'fail', 0.0, 1])
+                            crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, 1])
+                            cred = sum([c[6] for c in crit[1:] if c[4] == 'pass'])
                         elif node.bambuildmenu == '2':
                             if node.hspacemenu == '0':
-                                crit.append('')
+                                crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, 2])
+                                cred = sum([c[6] for c in crit[1:] if c[4] == 'pass'])
                             elif node.hspacemenu == '1':
-                                crit.append('')
+                                crit.append(['Percent', 80, 'DF', 3, 'fail', 0.0, 2])
+                                cred = sum([c[6] for c in crit[1:] if c[4] == 'pass'])
                         elif node.bambuildmenu == '3':
                             if mat.rspacemenu == '0':
-                                crit.append(['Percent', 80, 'DF', 2])
-                                crit.append(['Percent', 80, 'Skyview', 1])
+                                crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, 0.5])
+                                crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, 0.5])
+                                cred = sum([c[6] for c in crit[1:] if c[1][4] == 'pass' ])
                             elif mat.rspacemenu == '1':
-                                crit.append(['Percent', 80, 'DF', 1.5])
-                                crit.append(['Percent', 80, 'Skyview', 1])  
+                                crit.append(['Percent', 80, 'DF', 1.5, 'fail', 0.0, 0.5])
+                                crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, 0.5])
+                                cred = sum([c[6] for c in crit[1:] if c[1][4] == 'pass' ])
                             elif mat.rspacemenu == '2':
                                 if not mat.gl_roof:
-                                    crit.append(['Percent', 80, 'DF', 2]) 
-                                    crit.append(['Ratio', 100, 'Uni', 0.4]) 
-                                    crit.append(['Min', 100, 'DF', 0.8]) 
-                                    crit.append(['Percent', 80, 'Skyview', 1])
+                                    crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, 0.5])
+                                    crit.append(['Ratio', 100, 'Uni', 0.4, 'fail', 0.0, 0.5])
+                                    crit.append(['Min', 100, 'PDF', 0.8, 'fail', 0.0, 0.5])
+                                    crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, 0.5])
+                                    cred = sum([c[6] for c in crit[1:] if c[4] == 'pass'])
                                 else:
-                                    crit.append(['Percent', 80, 'DF', 2])
-                                    crit.append(['Ratio', 100, 'Uni', 0.7])
-                                    crit.append(['Min', 100, 'DF', 1.4])
-                                    crit.append(['Percent', 80, 'Skyview', 1])
+                                    crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, 0.5])
+                                    crit.append(['Ratio', 100, 'Uni', 0.7, 'fail', 0.0, 0.5])
+                                    crit.append(['Min', 100, 'PDF', 1.4, 'fail', 0.0, 0.5])
+                                    crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, 0.5])
+                                    cred = sum([c[6] for c in crit[1:] if c[4] == 'pass'])
+
                         elif node.bambuildmenu == '4':
                             if mat.respacemenu == '0':
-                                crit.append('')
+                                crit.append(['Percent', 35, 'PDF', 2, 'fail', 0.0, 1])
+                                cred = sum([c[6] for c in crit[1:] if c[4] == 'pass'])
+
                             if mat.respacemenu == '1':
-                                crit.append('')
-  
-                for c in crit:  
-                    
+                                crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, 0.5])
+                                crit.append(['Ratio', 100, 'Uni', 0.4, 'fail', 0.0, 0.5])
+                                crit.append(['Min', 100, 'PDF', 0.8, 'fail', 0.0, 0.5])
+                                crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, 0.5])
+                                cred = sum([c[6] for c in crit[1:] if crit[1][4] == 'pass'])
+
+                for c in crit:
                     for face in geo.data.polygons:
                         if geo.data.materials[face.material_index].livi_sense:
-                            if geonode.cpoint == '1':
-                                if c == 'foo':
-                                    for loop_index in face.loop_indices:
-                                        v = geo.data.loops[loop_index].vertex_index
-                                        col_i = [vi for vi, vval in enumerate(geo['cverts']) if v == geo['cverts'][vi]][0]
-                                        lcol_i.append(col_i)
-                                        vertexColour.data[loop_index].color = rgb[col_i+mcol_i]
-                                    
-                            if geonode.cpoint == '0':
-                                if c == 'foo':
-                                    for loop_index in face.loop_indices:
-                                        vertexColour.data[loop_index].color = rgb[f]
-                                else:
-                                    if geo.data.materials[face.material_index].livi_compliance:
+#                            if geonode.cpoint == '1':
+#                                if c == 'foo':
+#                                    for loop_index in face.loop_indices:
+#                                        v = geo.data.loops[loop_index].vertex_index
+#                                        col_i = [vi for vi, vval in enumerate(geo['cverts']) if v == geo['cverts'][vi]][0]
+#                                        lcol_i.append(col_i)
+#                                        vertexColour.data[loop_index].color = rgb[col_i+mcol_i]
+#
+#                            if geonode.cpoint == '0':
+                            if c == 'foo':
+                                for loop_index in face.loop_indices:
+                                    vertexColour.data[loop_index].color = rgb[f]
+                            else:
+                                if geo.data.materials[face.material_index].livi_compliance:
+                                    if c[0] == 'Percent':
+                                        totarea += vi_func.triarea(geo, face)
                                         if c[2] == 'DF':
-                                            if c[0] == 'Percent':
-                                                totarea += vi_func.triarea(geo, face)
-                                                if res[frame][f] > c[3]:
-                                                    passarea += vi_func.triarea(geo, face)
-                                        
-                                        if c[2] == 'Skyview':
-                                            totarea += vi_func.triarea(geo, face)
+                                            if res[frame][f] > c[3]:
+                                                passarea += vi_func.triarea(geo, face)
+                                        elif c[2] == 'Skyview':
                                             if svres[frame][f] > 0:
                                                 passarea += vi_func.triarea(geo, face)
-                                        
-                                        
-                                        
+
+#                                        elif c[0] == 'Min':
+#                                            if c[2] == 'PDF':
+#                                                totarea += vi_func.triarea(geo, face)
+#                                                if svres[frame][f] > c[3]:
+#                                                    passarea += vi_func.triarea(geo, face)
+
+
                         f += 1
-                    
+
                     if c != 'foo' and c[0] == 'Percent':
-                        
                         if passarea > c[1]*0.01*totarea:
-                            c.append('pass')
-                        else:
-                            c.append('fail')
-                        c.append(100*passarea/totarea)
-                        
+                            c[4] = 'pass'
+                        c[5] = 100*passarea/totarea
                         passarea, totarea = 0, 0
-                    
+
                     if c[0] == 'Min':
-                        if min(res[frame]) > c[3]:
-                            c.append('pass')
-                        else:
-                            c.append('fail')
-                        c.append(min(res[frame]))
-                        
-                    if c[2] == 'Uni':
+                        if min(svres[frame]) > c[3]:
+                            c[4] = 'pass'
+                        c[5] = min(svres[frame])
+
+                    if c[0] == 'Ratio':
                         if min(res[frame])/(sum(res[frame])/len(res[frame])) >= c[3]:
-                            c.append('pass')
-                        else:
-                            c.append('fail')
-                        c.append(min(res[frame])/(sum(res[frame])/len(res[frame])))
-                    
-                    f = 0    
+                            c[4] = 'pass'
+                        c[5] = min(res[frame])/(sum(res[frame])/len(res[frame]))
+
+                    geo['crit'] = [['{0[0]}, {0[1]}, {0[2]}, {0[3]}, {0[4]}, {0[5]:.2f}, {0[6]}'.format(c)] for c in crit[1:]]
+                    f = 0
                 mcol_i = len(tuple(set(lcol_i)))
-                print(crit)
-           
-            
-#            except Exception as e:
-#                print(e)
 
             if geo.licalc == 1:
                 scene.objects.active = geo

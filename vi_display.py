@@ -281,29 +281,34 @@ def li3D_legend(self, context, node):
 
 
 def li_compliance(self, context, node):
-    crit = []
     scene = context.scene
-    if not scene.li_compliance:
+    try:
+        if not scene.li_compliance or not bpy.context.active_object['crit']:
+            print('hi')
+            return
+    except:
+        print('hi2')
         return
-    else:
-        height = context.region.height
-        bgl.glEnable(bgl.GL_BLEND)
-        bgl.glColor4f(1.0, 1.0, 1.0, 0.7)
-        bgl.glLineWidth(1)
-        bgl.glBegin(bgl.GL_POLYGON)
-        bgl.glVertex2i(100, height - 200)
-        bgl.glVertex2i(750, height - 200)
-        bgl.glVertex2i(750, height - 40)
-        bgl.glVertex2i(100, height - 40)
-        bgl.glEnd()
-        bgl.glColor4f(0.0, 0.0, 0.0, 0.7)
-        bgl.glLineWidth(1)
-        bgl.glBegin(bgl.GL_LINE_LOOP)
-        bgl.glVertex2i(99, height - 201)
-        bgl.glVertex2i(750, height - 201)
-        bgl.glVertex2i(750, height - 40)
-        bgl.glVertex2i(99, height - 40)
-        bgl.glEnd()
+
+    crit = bpy.context.active_object['crit']
+    height = context.region.height
+    bgl.glEnable(bgl.GL_BLEND)
+    bgl.glColor4f(1.0, 1.0, 1.0, 0.7)
+    bgl.glLineWidth(1)
+    bgl.glBegin(bgl.GL_POLYGON)
+    bgl.glVertex2i(100, height - 50 - len(crit)*50)
+    bgl.glVertex2i(750, height - 50 - len(crit)*50)
+    bgl.glVertex2i(750, height - 40)
+    bgl.glVertex2i(100, height - 40)
+    bgl.glEnd()
+    bgl.glColor4f(0.0, 0.0, 0.0, 0.7)
+    bgl.glLineWidth(1)
+    bgl.glBegin(bgl.GL_LINE_LOOP)
+    bgl.glVertex2i(100, height - 50 - len(crit)*50)
+    bgl.glVertex2i(750, height - 50 - len(crit)*50)
+    bgl.glVertex2i(750, height - 40)
+    bgl.glVertex2i(100, height - 40)
+    bgl.glEnd()
 
     buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retails')[int(node.bambuildtype)]
     if buildtype == 'School':
@@ -314,7 +319,7 @@ def li_compliance(self, context, node):
 #        buildspace = ('Public/Staff', 'Patient')[int(mat.hspacemenu)]
 #    elif buildtype == 'Residential':
 #        buildspace = ('Kitchen', 'Living/Dining/Study', 'Communal')[int(mat.rspacemenu)]
-            
+
 
 
 
@@ -388,8 +393,6 @@ def rendview(i):
                         if space.type == 'VIEW_3D':
                             space.viewport_shade = 'SOLID'
                             if i ==  1:
-                                space.show_only_render = 1
                                 space.show_textured_solid = 1
                             else:
-                                space.show_only_render = 0
                                 space.show_textured_solid = 0

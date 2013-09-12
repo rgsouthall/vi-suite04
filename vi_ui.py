@@ -31,13 +31,13 @@ class Vi3DPanel(bpy.types.Panel):
         if scene.li_disp_panel == 1:
             layout = self.layout
             row = layout.row()
-            row.prop(view, "show_only_render")
-            row = layout.row()
             row.prop(scene, "li_disp_3d")
             row = layout.row()
             row.operator("view3d.lidisplay", text="Radiance Display")
 
             if scene.vi_display == 1:
+                row = layout.row()
+                row.prop(view, "show_only_render")
                 row = layout.row()
                 row.prop(scene, "li_leg_display")
                 if scene.lic_disp_panel == 1:
@@ -100,12 +100,12 @@ class VIMatPanel(bpy.types.Panel):
                         row.prop(cm, 'respacemenu')
         except:
             pass
-        
+
         row = layout.row()
         row.label('LiVi Radiance type:')
-        
+
         if cm.use_shadeless == True:
-            row.label('Shadeless')
+            row.label('Anti-matter')
         elif cm.emit > 0:
             row.label('Emission')
             row = layout.row()

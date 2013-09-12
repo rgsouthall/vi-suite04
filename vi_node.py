@@ -90,8 +90,12 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
         row.operator("node.ligexport", text = "Export").nodename = self.name
 
     def update(self):
-        for sock in [sock for sock in self.inputs]+[sock for sock in self.outputs]:
+        for sock in [sock for sock in self.outputs]:
             socklink(sock)
+        if sock.is_linked and sock.links[0].to_node.name == 'LiVi Compliance' and self.cpoint == '1':
+            self.cpoint = '0'
+            self.exported = False
+
 #        if self.outputs[0].is_linked:
 #            if self.outputs[0].links[0].to_socket.color() != self.outputs[0].color():
 #                link = self.outputs[0].links[0]
@@ -127,14 +131,14 @@ class ViLiNode(bpy.types.Node, ViNodes):
             self.edoy = self.sdoy
         self.bl_label = '*LiVi Basics'
         self.exported = False
-        
+
     def ehupdate(self, context):
         if self.edoy == self.sdoy:
             if self.ehour < self.shour:
                 self.ehour = self.shour
         self.bl_label = '*LiVi Basics'
-        self.exported = False    
-        
+        self.exported = False
+
     analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0', update = nodeexported)
     simalg = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="")
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
@@ -320,8 +324,8 @@ class ViLiCNode(bpy.types.Node, ViNodes):
         self.exported = False
         self.bl_label = '*LiVi Compliance'
         self.skynum = 3
-    
-    interval = 0  
+
+    interval = 0
     exported = bpy.props.BoolProperty(default=False)
     TZ = bpy.props.StringProperty(default = 'GMT')
     skynum = bpy.props.IntProperty(default = 3)
@@ -331,8 +335,8 @@ class ViLiCNode(bpy.types.Node, ViNodes):
     hdr = bpy.props.BoolProperty(name="HDR", description="Export HDR panoramas", default=False, update = nodeexported)
     analysistype = [('0', "BREEAM", "BREEAM HEA1 calculation"), ('1', "LEED", "LEED EQ8.1 calculation"), ('2', "Green Star", "Green Star Calculation")]
     bambuildtype = [('0', "School", "School lighting standard"), ('1', "Higher Education", "Higher education lighting standard"), ('2', "Healthcare", "Healthcare lighting standard"), ('3', "Residential", "Residential lighting standard"), ('3', "Retail", "Retail lighting standard")]
-   
-    
+
+
     animtype = [('0', "Static", "Simple static analysis"), ('1', "Geometry", "Animated time analysis"), ('2', "Material", "Animated time analysis"), ('3', "Lights", "Animated time analysis")]
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = '0', update = nodeexported)
 
@@ -342,20 +346,20 @@ class ViLiCNode(bpy.types.Node, ViNodes):
             name="", description="Simulation accuracy", default="1", update = nodeexported)
     cusacc = bpy.props.StringProperty(
             name="", description="Custom Radiance simulation parameters", default="", update = nodeexported)
-    
+
     def init(self, context):
         self.inputs.new('ViLiGIn', 'Geometry in')
-    
+
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.label("Compliance standard:")
         row.prop(self, 'analysismenu')
-        
+
         if self.analysismenu == '0':
             row = layout.row()
             row.label("Building type:")
             row.prop(self, 'bambuildmenu')
-            
+
         row = layout.row()
         row.label('Animation:')
         row.prop(self, "animmenu")
@@ -369,7 +373,7 @@ class ViLiCNode(bpy.types.Node, ViNodes):
         row = layout.row()
         row.prop(self, 'hdr')
         row.operator("node.liexport", text = "Export").nodename = self.name
-        if self.exported == True:
+        if self.inputs['Geometry in'].is_linked and self.exported == True and self.inputs[0].links[0].from_node.exported == True:
             row = layout.row()
             row.operator("node.radpreview", text = 'Preview').nodename = self.name
             row.operator("node.calculate", text = 'Calculate').nodename = self.name

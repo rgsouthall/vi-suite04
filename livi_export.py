@@ -161,6 +161,7 @@ def radgexport(export_op, node):
 # rtrace export routine
 
     rtrace = open(node.filebase+".rtrace", "w")
+    print(rtrace)
     calcsurfverts = []
     calcsurffaces = []
     for o, geo in enumerate(scene.objects):
@@ -226,8 +227,8 @@ def radgexport(export_op, node):
                     if geo.type == 'MESH' and geo.name != 'lightarray' and geo.hide == False and geo.layers[0] == True and not geo.data.materials:
                         export_op.report({'ERROR'},"Make sure your object "+geo.name+" has an associated material")
 
-        rtrace.close()
-        node.export = 1
+    rtrace.close()
+    node.export = 1
 
 def radcexport(export_op, node):
     skyfileslist = []
@@ -308,12 +309,15 @@ def sunexport(scene, node, starttime, frame, sun):
             elif node.skynum == 1:
                 sun.data.shadow_soft_size = 3
                 sun.data.energy = 3
-            sun.location = (0,0,10)
+        sun.location = [x*1000 for x in (sin((solazi)*deg2rad), -cos((solazi)*deg2rad), solalt/90)]
         sun.rotation_euler = (90-solalt)*deg2rad, 0, solazi*deg2rad
+        bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = sin((solazi)*deg2rad), -cos((solazi)*deg2rad), solalt/90
+        bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = frame)
         sun.keyframe_insert(data_path = 'location', frame = frame)
         sun.keyframe_insert(data_path = 'rotation_euler', frame = frame)
         sun.data.cycles.use_multiple_importance_sampling = True
         sun.data.shadow_soft_size = 0.01
+
 
     bpy.ops.object.select_all()
 

@@ -287,13 +287,23 @@ def li_compliance(self, context, node):
             return
     except:
         return
-
+    
+    mat = [m for m in bpy.context.active_object.data.materials if m.livi_sense][0]
     buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retails')[int(node.bambuildmenu)]
+    buildspace = ''
+    if node.bambuildmenu == '2':
+        buildspace = (' - Public/Staff', ' - Patient')[int(mat.rspacemenu)]
+    elif node.bambuildmenu == '3':
+        buildspace = (' - Kitchen', ' - Living/Dining/Study', ' - Communal')[int(mat.rspacemenu)]
+    elif node.bambuildmenu == '4':
+        buildspace = (' - Sales', ' - Office')[int(mat.respacemenu)]
+        
     crit = bpy.context.active_object['crit']
+
     height = context.region.height
 
     bgl.glEnable(bgl.GL_BLEND)
-    bgl.glColor4f(1.0, 1.0, 1.0, 0.9)
+    bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
     bgl.glLineWidth(1)
     bgl.glBegin(bgl.GL_POLYGON)
     bgl.glVertex2i(100, height - 65)
@@ -302,10 +312,16 @@ def li_compliance(self, context, node):
     bgl.glVertex2i(100, height - 40)
     bgl.glEnd()
     bgl.glBegin(bgl.GL_POLYGON)
-    bgl.glVertex2i(100, height - 70 - (2+len(crit))*25)
-    bgl.glVertex2i(900, height - 70 - (2+len(crit))*25)
+    bgl.glVertex2i(100, height - 70 - (1+len(crit))*25)
+    bgl.glVertex2i(900, height - 70 - (1+len(crit))*25)
     bgl.glVertex2i(900, height - 70)
     bgl.glVertex2i(100, height - 70)
+    bgl.glEnd()
+    bgl.glBegin(bgl.GL_POLYGON)
+    bgl.glVertex2i(100, height - 70 - (3+len(crit))*25)
+    bgl.glVertex2i(900, height - 70 - (3+len(crit))*25)
+    bgl.glVertex2i(900, height - 70 - (2+len(crit))*25)
+    bgl.glVertex2i(100, height - 70 - (2+len(crit))*25)
     bgl.glEnd()
     bgl.glColor4f(0.0, 0.0, 0.0, 0.7)
     bgl.glLineWidth(1)
@@ -328,23 +344,22 @@ def li_compliance(self, context, node):
     bgl.glVertex2i(633, height - 40)
     bgl.glEnd()
     bgl.glBegin(bgl.GL_LINE_LOOP)
-    bgl.glVertex2i(100, height - 70 - (2+len(crit))*25)
-    bgl.glVertex2i(900, height - 70 - (2+len(crit))*25)
+    bgl.glVertex2i(100, height - 70 - (1+len(crit))*25)
+    bgl.glVertex2i(900, height - 70 - (1+len(crit))*25)
     bgl.glVertex2i(900, height - 70)
     bgl.glVertex2i(100, height - 70)
     bgl.glEnd()
-    bgl.glDisable(bgl.GL_BLEND)
     bgl.glBegin(bgl.GL_LINE_LOOP)
-    bgl.glVertex2i(100, height - 70 - (1+len(crit))*25)
-    bgl.glVertex2i(500, height - 70 - (1+len(crit))*25)
-    bgl.glVertex2i(500, height - 70 - (2+len(crit))*25)
     bgl.glVertex2i(100, height - 70 - (2+len(crit))*25)
+    bgl.glVertex2i(500, height - 70 - (2+len(crit))*25)
+    bgl.glVertex2i(500, height - 70 - (3+len(crit))*25)
+    bgl.glVertex2i(100, height - 70 - (3+len(crit))*25)
     bgl.glEnd()
     bgl.glBegin(bgl.GL_LINE_LOOP)
-    bgl.glVertex2i(500, height - 70 - (1+len(crit))*25)
-    bgl.glVertex2i(900, height - 70 - (1+len(crit))*25)
-    bgl.glVertex2i(900, height - 70 - (2+len(crit))*25)
     bgl.glVertex2i(500, height - 70 - (2+len(crit))*25)
+    bgl.glVertex2i(900, height - 70 - (2+len(crit))*25)
+    bgl.glVertex2i(900, height - 70 - (3+len(crit))*25)
+    bgl.glVertex2i(500, height - 70 - (3+len(crit))*25)
     bgl.glEnd()
     bgl.glDisable(bgl.GL_BLEND)
     font_id = 0
@@ -352,19 +367,18 @@ def li_compliance(self, context, node):
 #    blf.shadow(font_id, 0, 1, 1, 1, 0)
 #    blf.blur(font_id, 2)
     blf.position(font_id, 110, height - 58, 0)
-    blf.size(font_id, 20, 56)
+    blf.size(font_id, 20, 44)
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-    blf.draw(font_id, 'Standard: '+('BREEAM HEA1', 'CSF', 'LEED EQ8.1', 'Green Star')[int(node.analysismenu)])
+    blf.draw(font_id, 'Standard: '+('BREEAM HEA1', 'CfSH', 'LEED EQ8.1', 'Green Star')[int(node.analysismenu)])
     blf.position(font_id, 377, height - 58, 0)
-    blf.draw(font_id, 'Buildtype: '+buildtype)
+    blf.draw(font_id, 'Buildtype: '+buildtype+buildspace)
     blf.position(font_id, 643, height - 58, 0)
-    blf.draw(font_id, 'Project Name: Isengaard')
-    blf.size(font_id, 20, 48)
-    mat = [m for m in bpy.context.active_object.data.materials if m.livi_sense][0]
+    blf.draw(font_id, 'Project Name: '+scene.li_projname)
+    blf.size(font_id, 20, 40)
 
-    bgl.glLineStipple(1, 0x3F07 )
+    bgl.glLineStipple(1, 0x3F07)
     widths = (100, 450, 600, 750, 900)
-    titles = ('Metric', 'Target', 'Achieved', 'PASS/FAIL')
+    titles = ('Zone Metric', 'Target', 'Achieved', 'PASS/FAIL')
     tables = [[] for c in range(len(crit))]
     for c, cr in enumerate(crit):
         if cr[0] == 'Percent':
@@ -376,46 +390,45 @@ def li_compliance(self, context, node):
 
     for j in range(4):
         bgl.glBegin(bgl.GL_LINE_LOOP)
-        bgl.glVertex2i(widths[j], height - 95)
-        bgl.glVertex2i(widths[j+1], height - 95)
-        bgl.glVertex2i(widths[j+1], height - 70)
-        bgl.glVertex2i(widths[j], height - 70)
+        bgl.glVertex2i(widths[j], height - 495)
+        bgl.glVertex2i(widths[j+1], height - 495)
+        bgl.glVertex2i(widths[j+1], height - 470)
+        bgl.glVertex2i(widths[j], height - 470)
         bgl.glEnd()
 
     bgl.glEnable(bgl.GL_LINE_STIPPLE)
     for t, tab in enumerate(tables):
         for j in range(4):
             bgl.glBegin(bgl.GL_LINE_LOOP)
-            bgl.glVertex2i(widths[j], height - 120 - t*25)
-            bgl.glVertex2i(widths[j+1], height - 120 - t*25)
-            bgl.glVertex2i(widths[j+1], height - 95 - t*25)
-            bgl.glVertex2i(widths[j], height - 95 - t*25)
+            bgl.glVertex2i(widths[j], height - 520 - t*25)
+            bgl.glVertex2i(widths[j+1], height - 520 - t*25)
+            bgl.glVertex2i(widths[j+1], height - 495 - t*25)
+            bgl.glVertex2i(widths[j], height - 495 - t*25)
             bgl.glEnd()
             if tab[j] == 'FAIL':
                 bgl.glColor4f(1.0, 0.0, 0.0, 1.0)
             elif tab[j] == 'PASS':
                 bgl.glColor4f(0.0, 1.0, 0.0, 1.0)
-            blf.size(font_id, 20, 48)
-            blf.position(font_id, widths[j]+(25, 50)[j != 0]+(0, 10)[j in (1, 3)], height - 113 - t*25, 0)
+            blf.size(font_id, 20, 44)
+            blf.position(font_id, widths[j]+(25, 50)[j != 0]+(0, 10)[j in (1, 3)], height - 513 - t*25, 0)
             blf.draw(font_id, tab[j])
             bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
             if t == 0:
-                blf.size(font_id, 20, 56)
-                blf.position(font_id, widths[j]+(20, 45)[j != 0], height - 88, 0)
+                blf.size(font_id, 20, 54)
+                blf.position(font_id, widths[j]+(20, 45)[j != 0], height - 488, 0)
                 blf.draw(font_id, titles[j])
-
 
     bgl.glDisable(bgl.GL_LINE_STIPPLE)
     blf.size(font_id, 20, 56)
-    blf.position(font_id, 110, height - 88 - (1+len(crit))*25, 0)
+    blf.position(font_id, 110, height - 88 - (2+len(crit))*25, 0)
     blf.draw(font_id, 'Overall conformance:')
-    blf.position(font_id, 510, height - 88 - (1+len(crit))*25, 0)
+    blf.position(font_id, 510, height - 88 - (2+len(crit))*25, 0)
     blf.draw(font_id, 'Credits awarded:')
 
     cr4 = [cri[4] for cri in crit]
     cr6 = [cri[6] for cri in crit]
 
-    if 'fail' in [c for i, c in enumerate(cr4) if cr6[i] == '1.0']:
+    if 'fail' in [c for i, c in enumerate(cr4) if cr6[i] == '1']:
         bgl.glColor4f(1.0, 0.0, 0.0, 1.0)
         blf.position(font_id, 280, height - 88 - (1+len(crit))*25, 0)
         blf.draw(font_id, 'FAIL')
@@ -438,7 +451,7 @@ def li_compliance(self, context, node):
         blf.position(font_id, 280, height - 88 - (1+len(crit))*25, 0)
         blf.draw(font_id, 'PASS')
         blf.position(font_id, 650, height - 88 - (1+len(crit))*25, 0)
-        blf.draw(font_id, str(int(sum([float(c) for c in cr6 if c == '1.0']))))
+        blf.draw(font_id, str(int(sum([float(c) for c in cr6 if c == '1']))))
 
 
 

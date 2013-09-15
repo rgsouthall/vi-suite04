@@ -103,7 +103,7 @@ def li_calc(calc_op, node, geonode):
         calc_op.report({'INFO'}, "Calculation is finished.")
 
 def resapply(res, svres, node, geonode):
-
+    crits = []
     scene = bpy.context.scene
 
     for frame in range(scene.frame_start, scene.frame_end+1):
@@ -115,9 +115,10 @@ def resapply(res, svres, node, geonode):
             h = 0.75*(1-(res[frame][i]-min(node['minres']))/(max(node['maxres']) + 0.01 - min(node['minres'])))
             rgb.append(colorsys.hsv_to_rgb(h, 1.0, 1.0))
 
+        if bpy.context.active_object and bpy.context.active_object.hide == 'False':
+            bpy.ops.object.mode_set()
+        
         for geo in [geo for geo in scene.objects if geo.type == 'MESH']:
-            if bpy.context.active_object:
-                bpy.ops.object.mode_set()
             bpy.ops.object.select_all(action = 'DESELECT')
             scene.objects.active = None
             if geo.licalc == 1:
@@ -136,59 +137,62 @@ def resapply(res, svres, node, geonode):
 
                 mat = [matslot.material for matslot in geo.material_slots if matslot.material.livi_sense][0]
 
-                if mat.livi_compliance:
+                if mat.livi_compliance and frame == 0:
                     if node.analysismenu == '0':
 #      crit defines
 #                            buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retails')[int(node.bambuildtype)]
 #                    criterms = ('Percent', 'Ratio', 'Min', 'DF', )
                         if node.bambuildmenu == '0':
-                            crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, 1.0])
-                            crit.append(['Ratio', 100, 'Uni', 0.4, 'fail', 0.0, 0.5])
-                            crit.append(['Min', 100, 'PDF', 0.8, 'fail', 0.0, 0.5])
-                            crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, 0.25])
+                            crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
+                            crit.append(['Ratio', 100, 'Uni', 0.4, 'fail', 0.0, '0.5'])
+                            crit.append(['Min', 100, 'PDF', 0.8, 'fail', 0.0, '0.5'])
+                            crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.25'])
                         elif node.bambuildmenu == '1':
-                            crit.append(['Percent', 60, 'DF', 2, 'fail', 0.0, 1.0])
-                            crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, 1.0])
+                            crit.append(['Percent', 60, 'DF', 2, 'fail', 0.0, '1'])
+                            crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
                         elif node.bambuildmenu == '2':
                             if node.hspacemenu == '0':
-                                crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, 2])
+                                crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '2'])
                             elif node.hspacemenu == '1':
-                                crit.append(['Percent', 80, 'DF', 3, 'fail', 0.0, 2])
+                                crit.append(['Percent', 80, 'DF', 3, 'fail', 0.0, '2'])
                         elif node.bambuildmenu == '3':
                             if mat.rspacemenu == '0':
-                                crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, 1.0])
-                                crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, 0.75])
-                                cred = sum([c[6] for c in crit[1:] if c[1][4] == 'pass' ])
+                                crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
+                                crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.75'])
                             elif mat.rspacemenu == '1':
-                                crit.append(['Percent', 80, 'DF', 1.5, 'fail', 0.0, 1.0])
-                                crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, 1.0])
-                                cred = sum([c[6] for c in crit[1:] if c[1][4] == 'pass' ])
+                                crit.append(['Percent', 80, 'DF', 1.5, 'fail', 0.0, '1'])
+                                crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.75'])
                             elif mat.rspacemenu == '2':
                                 if not mat.gl_roof:
-                                    crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, 1.0])
-                                    crit.append(['Ratio', 100, 'Uni', 0.4, 'fail', 0.0, 0.5])
-                                    crit.append(['Min', 100, 'PDF', 0.8, 'fail', 0.0, 0.5])
-                                    crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, 0.25])
-                                    cred = sum([c[6] for c in crit[1:] if c[4] == 'pass'])
+                                    crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
+                                    crit.append(['Ratio', 100, 'Uni', 0.4, 'fail', 0.0, '0.5'])
+                                    crit.append(['Min', 100, 'PDF', 0.8, 'fail', 0.0, '0.5'])
+                                    crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.25'])
                                 else:
-                                    crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, 1])
-                                    crit.append(['Ratio', 100, 'Uni', 0.7, 'fail', 0.0, 0.5])
-                                    crit.append(['Min', 100, 'PDF', 1.4, 'fail', 0.0, 0.5])
-                                    crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, 0.25])
-                                    cred = sum([c[6] for c in crit[1:] if c[4] == 'pass'])
+                                    crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
+                                    crit.append(['Ratio', 100, 'Uni', 0.7, 'fail', 0.0, '0.5'])
+                                    crit.append(['Min', 100, 'PDF', 1.4, 'fail', 0.0, '0.5'])
+                                    crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.25'])
 
                         elif node.bambuildmenu == '4':
                             if mat.respacemenu == '0':
-                                crit.append(['Percent', 35, 'PDF', 2, 'fail', 0.0, 1.0])
-                                cred = sum([c[6] for c in crit[1:] if c[4] == 'pass'])
+                                crit.append(['Percent', 35, 'PDF', 2, 'fail', 0.0, '1'])
 
                             if mat.respacemenu == '1':
-                                crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, 0.5])
-                                crit.append(['Ratio', 100, 'Uni', 0.4, 'fail', 0.0, 0.5])
-                                crit.append(['Min', 100, 'PDF', 0.8, 'fail', 0.0, 0.5])
-                                crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, 0.5])
-                                cred = sum([c[6] for c in crit[1:] if crit[1][4] == 'pass'])
-
+                                crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '0.5'])
+                                crit.append(['Ratio', 100, 'Uni', 0.4, 'fail', 0.0, '0.5'])
+                                crit.append(['Min', 100, 'PDF', 0.8, 'fail', 0.0, '0.5'])
+                                crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.5'])
+                    elif node.analysismenu == '1':
+                        if mat.rspacemenu == '0':
+                            crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
+                            crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.75'])
+                        elif mat.rspacemenu == '1':
+                            crit.append(['Percent', 80, 'DF', 1.5, 'fail', 0.0, '1'])
+                            crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.75'])
+                    
+                    crits.append(crit)                
+                
                 for c in crit:
                     for face in geo.data.polygons:
                         if geo.data.materials[face.material_index].livi_sense:
@@ -240,7 +244,8 @@ def resapply(res, svres, node, geonode):
                             c[4] = 'pass'
                         c[5] = min(res[frame])/(sum(res[frame])/len(res[frame]))
 
-                    geo['crit'] = [[c[0], str(c[1]), c[2], str(c[3]), c[4], '{:.2f}'.format(c[5]), str(c[6])] for c in crit[1:]]
+                    geo['crit'] = [[c[0], str(c[1]), c[2], str(c[3]), c[4], '{:.2f}'.format(c[5]), c[6]] for c in crit[1:]]
+                    
                     f = 0
                 mcol_i = len(tuple(set(lcol_i)))
 
@@ -272,7 +277,8 @@ def resapply(res, svres, node, geonode):
                             f += 1
                 mcol_i = len(list(set(lcol_i)))
 
-
+        scene['crits'] = crits
+        
     for frame in range(scene.frame_start, scene.frame_end+1):
         scene.frame_set(frame)
         for geo in scene.objects:

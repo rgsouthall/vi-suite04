@@ -333,7 +333,7 @@ class ViLiCNode(bpy.types.Node, ViNodes):
     resname = bpy.props.StringProperty()
     unit = bpy.props.StringProperty()
     hdr = bpy.props.BoolProperty(name="HDR", description="Export HDR panoramas", default=False, update = nodeexported)
-    analysistype = [('0', "BREEAM", "BREEAM HEA1 calculation"), ('1', "LEED", "LEED EQ8.1 calculation"), ('2', "Green Star", "Green Star Calculation")]
+    analysistype = [('0', "BREEAM", "BREEAM HEA1 calculation"), ('1', "CfSH", "Code for Sustainable Homes calculation"), ('2', "LEED", "LEED EQ8.1 calculation"), ('3', "Green Star", "Green Star Calculation")]
     bambuildtype = [('0', "School", "School lighting standard"), ('1', "Higher Education", "Higher education lighting standard"), ('2', "Healthcare", "Healthcare lighting standard"), ('3', "Residential", "Residential lighting standard"), ('3', "Retail", "Retail lighting standard")]
 
 

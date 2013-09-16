@@ -117,7 +117,7 @@ def resapply(res, svres, node, geonode):
 
         if bpy.context.active_object and bpy.context.active_object.hide == 'False':
             bpy.ops.object.mode_set()
-        
+
         for geo in [geo for geo in scene.objects if geo.type == 'MESH']:
             bpy.ops.object.select_all(action = 'DESELECT')
             scene.objects.active = None
@@ -190,9 +190,9 @@ def resapply(res, svres, node, geonode):
                         elif mat.rspacemenu == '1':
                             crit.append(['Percent', 80, 'DF', 1.5, 'fail', 0.0, '1'])
                             crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.75'])
-                    
-                    crits.append(crit)                
-                
+
+
+
                 for c in crit:
                     for face in geo.data.polygons:
                         if geo.data.materials[face.material_index].livi_sense:
@@ -245,7 +245,7 @@ def resapply(res, svres, node, geonode):
                         c[5] = min(res[frame])/(sum(res[frame])/len(res[frame]))
 
                     geo['crit'] = [[c[0], str(c[1]), c[2], str(c[3]), c[4], '{:.2f}'.format(c[5]), c[6]] for c in crit[1:]]
-                    
+                    crits.append(geo['crit'])
                     f = 0
                 mcol_i = len(tuple(set(lcol_i)))
 
@@ -278,7 +278,7 @@ def resapply(res, svres, node, geonode):
                 mcol_i = len(list(set(lcol_i)))
 
         scene['crits'] = crits
-        
+
     for frame in range(scene.frame_start, scene.frame_end+1):
         scene.frame_set(frame)
         for geo in scene.objects:

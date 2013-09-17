@@ -31,7 +31,7 @@ def li_display(node, geonode):
     if len(bpy.app.handlers.frame_change_pre) == 0:
         bpy.app.handlers.frame_change_pre.append(livi_export.cyfc1)
     o = 0
-#    bpy.ops.object.mode_set()
+
     for geo in scene.objects:
         if geo.type == "MESH" and geo.licalc == 1:
             geo.select = True
@@ -145,14 +145,8 @@ def li_display(node, geonode):
                     vc.keyframe_insert("active")
                     vc.keyframe_insert("active_render")
 
-#    bpy.ops.object.mode_set(mode = 'OBJECT')
     bpy.ops.wm.save_mainfile(check_existing = False)
     rendview(1)
-
-
-#def liextrude():
-#    for obj in [obj for obj in bpy.data.objects if obj]
-
 
 def linumdisplay(disp_op, context, node, geonode):
     scene = context.scene
@@ -197,8 +191,6 @@ def linumdisplay(disp_op, context, node, geonode):
             if x > 100 or y < height - 530:
                 blf.draw(0, str(index))
 
-        scene = context.scene
-
         for f in faces:
             if geonode.cpoint == "0" and node.exported == True:
                 vsum = mathutils.Vector((0, 0, 0))
@@ -229,7 +221,7 @@ def li3D_legend(self, context, node):
         lenres = len(resvals[-1])
         font_id = 0
         bgl.glEnable(bgl.GL_BLEND)
-        bgl.glColor4f(1.0, 1.0, 1.0, 0.7)
+        bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
         bgl.glLineWidth(1)
         bgl.glBegin(bgl.GL_POLYGON)
         bgl.glVertex2i(20, height - 520)
@@ -237,7 +229,7 @@ def li3D_legend(self, context, node):
         bgl.glVertex2i(70 + lenres*8, height - 40)
         bgl.glVertex2i(20, height - 40)
         bgl.glEnd()
-        bgl.glColor4f(0.0, 0.0, 0.0, 0.7)
+        bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
         bgl.glLineWidth(1)
         bgl.glBegin(bgl.GL_LINE_LOOP)
         bgl.glVertex2i(19, height - 520)
@@ -262,11 +254,9 @@ def li3D_legend(self, context, node):
 
         blf.position(font_id, 25, height - 57, 0)
         blf.size(font_id, 20, 56)
-        bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
         blf.draw(font_id, node.unit)
         bgl.glLineWidth(1)
         bgl.glDisable(bgl.GL_BLEND)
-        bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
 
         height = context.region.height
         font_id = 0
@@ -303,27 +293,19 @@ def li_compliance(self, context, node):
     bgl.glVertex2i(100, height - 40)
     bgl.glEnd()
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-    bgl.glBegin(bgl.GL_LINE_LOOP)
-    bgl.glVertex2i(100, height - 65)
-    bgl.glVertex2i(367, height - 65)
-    bgl.glVertex2i(367, height - 40)
-    bgl.glVertex2i(100, height - 40)
-    bgl.glEnd()
-    bgl.glBegin(bgl.GL_LINE_LOOP)
-    bgl.glVertex2i(367, height - 65)
-    bgl.glVertex2i(633, height - 65)
-    bgl.glVertex2i(633, height - 40)
-    bgl.glVertex2i(367, height - 40)
-    bgl.glEnd()
-    bgl.glBegin(bgl.GL_LINE_LOOP)
-    bgl.glVertex2i(633, height - 65)
-    bgl.glVertex2i(900, height - 65)
-    bgl.glVertex2i(900, height - 40)
-    bgl.glVertex2i(633, height - 40)
-    bgl.glEnd()
+    horpos = (100, 367, 633, 900)
+
+    for p in range(3):
+        bgl.glBegin(bgl.GL_LINE_LOOP)
+        bgl.glVertex2i(horpos[p], height - 65)
+        bgl.glVertex2i(horpos[p+1], height - 65)
+        bgl.glVertex2i(horpos[p+1], height - 40)
+        bgl.glVertex2i(horpos[p], height - 40)
+        bgl.glEnd()
+
     font_id = 0
     blf.position(font_id, 110, height - 58, 0)
-    blf.size(font_id, 20, 48)
+    blf.size(font_id, 20, 54)
 
     blf.draw(font_id, 'Standard: '+('BREEAM HEA1', 'CfSH', 'LEED EQ8.1', 'Green Star')[int(node.analysismenu)])
     blf.position(font_id, 643, height - 58, 0)
@@ -341,8 +323,9 @@ def li_compliance(self, context, node):
             cr6 = [cri[6] for cri in crit]
             if 'fail' in [c for i, c in enumerate(cr4) if cr6[i] == '1']:
                 pf = 'FAIL'
-
-            elif 'pass' not in [c for i, c in enumerate(cr4) if cr6[i] == '0.5']:
+            elif 'fail' in [c for i, c in enumerate(cr4) if cr6[i] == '0.75']:
+                pf = 'FAIL'
+            elif 'fail' in [c for i, c in enumerate(cr4) if cr6[i] == '0.5']:
                 if 'fail' in [c for i, c in enumerate(cr4) if cr6[i] == '0.25']:
                     pf = 'FAIL'
                 else:
@@ -370,13 +353,7 @@ def li_compliance(self, context, node):
                 bgl.glVertex2i(900, height - 70)
                 bgl.glVertex2i(100, height - 70)
                 bgl.glEnd()
-
                 bgl.glDisable(bgl.GL_BLEND)
-
-#                bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-#                blf.position(font_id, 280, height - 88 - (1+lencrit)*25, 0)
-#                blf.draw(font_id, pf)
-
 
                 mat = [m for m in bpy.context.active_object.data.materials if m.livi_sense][0]
                 if node.analysismenu == '0':
@@ -386,7 +363,6 @@ def li_compliance(self, context, node):
                         buildspace = (' - Kitchen', ' - Living/Dining/Study', ' - Communal')[int(mat.rspacemenu)]
                     elif node.bambuildmenu == '4':
                         buildspace = (' - Sales', ' - Office')[int(mat.respacemenu)]
-
 
                 widths = (100, 450, 600, 750, 900)
                 titles = ('Zone Metric', 'Target', 'Achieved', 'PASS/FAIL')
@@ -425,6 +401,7 @@ def li_compliance(self, context, node):
                         blf.draw(font_id, tab[j])
                         bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
                         if t == 0:
+                            blf.size(font_id, 20, 48)
                             blf.position(font_id, widths[j]+(25, 50)[j != 0]+(0, 10)[j in (1, 3)], height - 88, 0)
                             blf.draw(font_id, titles[j])
 
@@ -435,7 +412,7 @@ def li_compliance(self, context, node):
     build_compliance, lencrit, bs = space_compliance([geo for geo in bpy.data.objects if geo.type == 'MESH' and True in [m.livi_sense for m in geo.data.materials]])
 
     blf.position(font_id, 377, height - 58, 0)
-    blf.size(font_id, 20, 48)
+    blf.size(font_id, 20, 54)
     blf.draw(font_id, 'Buildtype: '+buildtype+bs)
     bgl.glEnable(bgl.GL_BLEND)
     bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
@@ -459,85 +436,64 @@ def li_compliance(self, context, node):
     bgl.glVertex2i(500, height - 75 - (lencrit)*25)
     bgl.glVertex2i(300, height - 75 - (lencrit)*25)
     bgl.glEnd()
-
-    blf.position(font_id, 110, height - 70 - (1+lencrit)*25, 0)
+    
+    blf.size(font_id, 20, 52)
+    blf.position(font_id, 110, height - 67 - (1+lencrit)*25, 0)
     blf.draw(font_id, 'Building Compliance:')
-    blf.position(font_id, 260, height - 70 - (1+lencrit)*25, 0)
+    blf.position(font_id, 260, height - 67 - (1+lencrit)*25, 0)
     blf.draw(font_id,  build_compliance)
-    blf.position(font_id, 310, height - 70 - (1+lencrit)*25, 0)
+    blf.position(font_id, 310, height - 67 - (1+lencrit)*25, 0)
     blf.draw(font_id, 'Credits achieved:')
-    blf.position(font_id, 480, height - 70 - (1+lencrit)*25, 0)
+    blf.position(font_id, 480, height - 67 - (1+lencrit)*25, 0)
+    
     if build_compliance == 'PASS':
         if node.analysismenu == '0':
             blf.draw(font_id,  ('1', '2', '2', '1', '1')[int(node.bambuildmenu)])
     else:
         blf.draw(font_id, '0')
-
-
-#            blf.position(font_id, 650, height - 88 - (1+lencrit)*25, 0)
-#            blf.draw(font_id, str(int(sum([float(c) for c in cr6 if c == '1']))))
-
-
-#
-#    for critgeo
-#
-#
-#
-#    buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retails')[int(node.bambuildmenu)]
-#
-#    try:
-#        lencrit = len(bpy.context.active_object['crit'])
-#    except:
-#        if node.analysismenu == '0':
-#            lencrit = (2, 2, 2, 4, 2)[int(node.bambuildmenu)]
-#
-#
-#
-#    font_id = 0
-##    blf.KERNING_DEFAULT = 12
-##    blf.shadow(font_id, 0, 1, 1, 1, 0)
-##    blf.blur(font_id, 2)
-#
-#
-#    if bpy.context.active_object and True in [m.livi_sense for m in bpy.context.active_object.data.materials]:
-#        crit = bpy.context.active_object['crit']
-#
-#                if t == 0:
-#                    blf.size(font_id, 20, 54)
-#                    blf.position(font_id, widths[j]+(20, 45)[j != 0], height - 88, 0)
-#                    blf.draw(font_id, titles[j])
-#
-#        bgl.glDisable(bgl.GL_LINE_STIPPLE)
-#
-#    else:
-#        blf.position(font_id, 377, height - 58, 0)
-#        blf.draw(font_id, 'Buildtype: '+buildtype)
-#        blf.size(font_id, 20, 56)
-#        blf.position(font_id, 110, height - 88 - (2+lencrit)*25, 0)
-#        blf.draw(font_id, 'Overall conformance:')
-#        blf.position(font_id, 510, height - 88 - (2+lencrit)*25, 0)
-#        blf.draw(font_id, 'Credits awarded:')
-##        titles = ('Building Requirement', 'Target', 'Achieved', 'PASS/FAIL')
-#
-#        if node.analysismenu == '0':
-#            if buildtype == 'School':
-#                tables = []
-#        tables = [[] for c in range(lencrit)]
-#
-#        for c, cr in enumerate(crit):
-#            if cr[0] == 'Percent':
-#                tables[c] = ('Area percentage with {} (%)'.format(('Skyview', 'Daylight Factor above {}'.format(cr[3]))[cr[2] == 'DF']), cr[1], cr[5], cr[4].upper())
-#            if cr[0] == 'Ratio':
-#                tables[c] = ('Uniformity ratio', cr[3], cr[5], cr[4].upper())
-#            if cr[0] == 'Min':
-#                tables[c] = ('Minimum {} (%)'.format('Point Daylight Factor'), cr[3], cr[5], cr[4].upper())
-
-
-
-
-
-
-
+        
+    bgl.glEnable(bgl.GL_BLEND)
+    bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
+    bgl.glLineWidth(1)
+    bgl.glBegin(bgl.GL_POLYGON)
+    bgl.glVertex2i(100, 25)
+    bgl.glVertex2i(900, 25)
+    bgl.glVertex2i(900, 50)
+    bgl.glVertex2i(100, 50)
+    bgl.glEnd()
+    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+    bgl.glBegin(bgl.GL_LINE_LOOP)
+    bgl.glVertex2i(100, 50)
+    bgl.glVertex2i(387, 50)
+    bgl.glVertex2i(387, 25)
+    bgl.glVertex2i(100, 25)
+    bgl.glEnd()
+    bgl.glBegin(bgl.GL_LINE_LOOP)
+    bgl.glVertex2i(387, 50)
+    bgl.glVertex2i(693, 50)
+    bgl.glVertex2i(693, 25)
+    bgl.glVertex2i(387, 25)
+    bgl.glEnd()
+    bgl.glBegin(bgl.GL_LINE_LOOP)
+    bgl.glVertex2i(693, 50)
+    bgl.glVertex2i(900, 50)
+    bgl.glVertex2i(900, 25)
+    bgl.glVertex2i(693, 25)
+    bgl.glEnd()
+    blf.size(font_id, 20, 44)
+    blf.position(font_id, 110, 32, 0)
+    blf.draw(font_id, 'Assessing Organisation:')
+    blf.position(font_id, 265, 32, 0)
+    blf.draw(font_id, scene.li_assorg)
+    blf.position(font_id, 397, 32, 0)
+    blf.draw(font_id, 'Assessing Individual:')
+    blf.position(font_id, 527, 32, 0)
+    blf.draw(font_id, scene.li_assind)
+    blf.position(font_id, 703, 32, 0)
+    blf.draw(font_id, 'Job Number:')
+    blf.position(font_id, 785, 32, 0)
+    blf.draw(font_id, scene.li_jobno)
+    
 def rendview(i):
     for scrn in bpy.data.screens:
         if scrn.name == 'Default':

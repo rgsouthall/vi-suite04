@@ -139,9 +139,6 @@ def resapply(res, svres, node, geonode):
 
                 if mat.livi_compliance and frame == 0:
                     if node.analysismenu == '0':
-#      crit defines
-#                            buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retails')[int(node.bambuildtype)]
-#                    criterms = ('Percent', 'Ratio', 'Min', 'DF', )
                         if node.bambuildmenu == '0':
                             crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
                             crit.append(['Ratio', 100, 'Uni', 0.4, 'fail', 0.0, '0.5'])
@@ -151,9 +148,10 @@ def resapply(res, svres, node, geonode):
                             crit.append(['Percent', 60, 'DF', 2, 'fail', 0.0, '1'])
                             crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
                         elif node.bambuildmenu == '2':
-                            if node.hspacemenu == '0':
-                                crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '2'])
-                            elif node.hspacemenu == '1':
+                            if mat.hspacemenu == '0':
+                                crit.append(['Percent', 60, 'DF', 2, 'fail', 0.0, '1'])
+                                crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])  
+                            else:
                                 crit.append(['Percent', 80, 'DF', 3, 'fail', 0.0, '2'])
                         elif node.bambuildmenu == '3':
                             if mat.rspacemenu == '0':
@@ -177,12 +175,12 @@ def resapply(res, svres, node, geonode):
                         elif node.bambuildmenu == '4':
                             if mat.respacemenu == '0':
                                 crit.append(['Percent', 35, 'PDF', 2, 'fail', 0.0, '1'])
-
                             if mat.respacemenu == '1':
                                 crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '0.5'])
                                 crit.append(['Ratio', 100, 'Uni', 0.4, 'fail', 0.0, '0.5'])
                                 crit.append(['Min', 100, 'PDF', 0.8, 'fail', 0.0, '0.5'])
                                 crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.5'])
+
                     elif node.analysismenu == '1':
                         if mat.rspacemenu == '0':
                             crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
@@ -190,8 +188,6 @@ def resapply(res, svres, node, geonode):
                         elif mat.rspacemenu == '1':
                             crit.append(['Percent', 80, 'DF', 1.5, 'fail', 0.0, '1'])
                             crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.75'])
-
-
 
                 for c in crit:
                     for face in geo.data.polygons:

@@ -309,10 +309,10 @@ def rettimes(ts, fs, us):
     ustrings[-1][-1][-1][-1] = ustrings[-1][-1][-1][-1][:-1]+';'
     return(tstrings, fstrings, ustrings)
 
-def socklink(sock):
+def socklink(sock, ng):
     try:
         if sock.is_linked and sock.draw_color(bpy.context, sock.node) != (sock.links[0].from_socket, sock.links[0].to_socket)[sock.in_out == 'Out'].draw_color(bpy.context, sock.node):
-            bpy.data.node_groups['EnVi Network'].links.remove(sock.links[0])
+            bpy.data.node_groups[ng].links.remove(sock.links[0])
     except:
         pass
 

@@ -22,7 +22,7 @@ from bpy_extras import image_utils
 from . import livi_export
 from . import vi_func
 
-def li_display(node, geonode):
+def li_display(simnode, connode, geonode):
     scene = bpy.context.scene
     vi_func.clearscened(scene)
     obreslist = []
@@ -148,7 +148,7 @@ def li_display(node, geonode):
     bpy.ops.wm.save_mainfile(check_existing = False)
     rendview(1)
 
-def linumdisplay(disp_op, context, node, geonode):
+def linumdisplay(disp_op, context, simnode, geonode):
     scene = context.scene
     try:
         if obcalclist:
@@ -192,7 +192,7 @@ def linumdisplay(disp_op, context, node, geonode):
                 blf.draw(0, str(index))
 
         for f in faces:
-            if geonode.cpoint == "0" and node.exported == True:
+            if geonode.cpoint == "0":
                 vsum = mathutils.Vector((0, 0, 0))
                 for v in f.vertices:
                     vsum = ob.active_shape_key.data[v].co + vsum if len(obreslist) > 0 else ob.data.vertices[v].co + vsum
@@ -200,23 +200,23 @@ def linumdisplay(disp_op, context, node, geonode):
                 if not f.hide and f.select:
                     loop_index = f.loop_indices[0]
                     if len(set(obm.vertex_colors[fn].data[loop_index].color[:])) > 1:
-                        draw_index(0.0, 0.0, 0.0, int(node['minres'][fn] + (1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*(node['maxres'][fn] - node['minres'][fn])), fc.to_4d())
+                        draw_index(0.0, 0.0, 0.0, int(simnode['minres'][fn] + (1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*(simnode['maxres'][fn] - simnode['minres'][fn])), fc.to_4d())
 
-            elif geonode.cpoint == "1" and node.exported == True:
+            elif geonode.cpoint == "1":
                 for loop_index in f.loop_indices:
                     v = obm.loops[loop_index].vertex_index
                     vpos = ob.active_shape_key.data[v].co if len(obreslist) > 0 else obm.vertices[v].co
                     if v not in vdone:
                         vdone.append(v)
                         if len(set(obm.vertex_colors[fn].data[loop_index].color[:])) > 1:
-                            draw_index(0.0, 0.0, 0.0, int((1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*node['maxres'][fn]), vpos.to_4d())
+                            draw_index(0.0, 0.0, 0.0, int((1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*simnode['maxres'][fn]), vpos.to_4d())
 
-def li3D_legend(self, context, node):
+def li3D_legend(self, context, simnode, connode):
     scene = context.scene
     if scene.li_leg_display != True:
         return
     else:
-        resvals = [('{:.0f}', '{:.0f}', '{:.1f}')[int(node.analysismenu)].format(min(node['minres'])+i*(max(node['maxres'])-min(node['minres']))/19) for i in range(20)]
+        resvals = [('{:.0f}', '{:.0f}', '{:.1f}')[int(connode.analysismenu)].format(min(simnode['minres'])+i*(max(simnode['maxres'])-min(simnode['minres']))/19) for i in range(20)]
         height = context.region.height
         lenres = len(resvals[-1])
         font_id = 0
@@ -254,7 +254,7 @@ def li3D_legend(self, context, node):
 
         blf.position(font_id, 25, height - 57, 0)
         blf.size(font_id, 20, 56)
-        blf.draw(font_id, node.unit)
+        blf.draw(font_id, connode.unit)
         bgl.glLineWidth(1)
         bgl.glDisable(bgl.GL_BLEND)
 
@@ -264,13 +264,13 @@ def li3D_legend(self, context, node):
             bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
             blf.position(font_id, 22, height - 480, 0)
             blf.size(font_id, 20, 48)
-            blf.draw(font_id, "Ave: {:.1f}".format(node['avres'][context.scene.frame_current]))
+            blf.draw(font_id, "Ave: {:.1f}".format(simnode['avres'][context.scene.frame_current]))
             blf.position(font_id, 22, height - 495, 0)
-            blf.draw(font_id, "Max: {:.1f}".format(node['maxres'][context.scene.frame_current]))
+            blf.draw(font_id, "Max: {:.1f}".format(simnode['maxres'][context.scene.frame_current]))
             blf.position(font_id, 22, height - 510, 0)
-            blf.draw(font_id, "Min: {:.1f}".format(node['minres'][context.scene.frame_current]))
+            blf.draw(font_id, "Min: {:.1f}".format(simnode['minres'][context.scene.frame_current]))
 
-def li_compliance(self, context, node):
+def li_compliance(self, context, connode):
     try:
         if not context.scene.li_compliance:
             return
@@ -278,9 +278,9 @@ def li_compliance(self, context, node):
         return
 
     scene = context.scene
-    if node.analysismenu == '0':
-        buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retails')[int(node.bambuildmenu)]
-    elif node.analysismenu == '1':
+    if connode.analysismenu == '0':
+        buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retails')[int(connode.bambuildmenu)]
+    elif connode.analysismenu == '1':
         buildtype == 'Residential'
     height = context.region.height
     bgl.glEnable(bgl.GL_BLEND)
@@ -293,7 +293,7 @@ def li_compliance(self, context, node):
     bgl.glVertex2i(100, height - 40)
     bgl.glEnd()
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-    horpos = (100, 367, 633, 900)
+    horpos = (100, 317, 633, 900)
 
     for p in range(3):
         bgl.glBegin(bgl.GL_LINE_LOOP)
@@ -307,7 +307,7 @@ def li_compliance(self, context, node):
     blf.position(font_id, 110, height - 58, 0)
     blf.size(font_id, 20, 54)
 
-    blf.draw(font_id, 'Standard: '+('BREEAM HEA1', 'CfSH', 'LEED EQ8.1', 'Green Star')[int(node.analysismenu)])
+    blf.draw(font_id, 'Standard: '+('BREEAM HEA1', 'CfSH', 'LEED EQ8.1', 'Green Star')[int(connode.analysismenu)])
     blf.position(font_id, 643, height - 58, 0)
     blf.draw(font_id, 'Project Name: '+scene.li_projname)
     blf.size(font_id, 20, 40)
@@ -356,12 +356,12 @@ def li_compliance(self, context, node):
                 bgl.glDisable(bgl.GL_BLEND)
 
                 mat = [m for m in bpy.context.active_object.data.materials if m.livi_sense][0]
-                if node.analysismenu == '0':
-                    if node.bambuildmenu == '2':
+                if connode.analysismenu == '0':
+                    if connode.bambuildmenu == '2':
                         buildspace = (' - Public/Staff', ' - Patient')[int(mat.rspacemenu)]
-                    elif node.bambuildmenu == '3':
+                    elif connode.bambuildmenu == '3':
                         buildspace = (' - Kitchen', ' - Living/Dining/Study', ' - Communal')[int(mat.rspacemenu)]
-                    elif node.bambuildmenu == '4':
+                    elif connode.bambuildmenu == '4':
                         buildspace = (' - Sales', ' - Office')[int(mat.respacemenu)]
 
                 widths = (100, 450, 600, 750, 900)
@@ -411,7 +411,7 @@ def li_compliance(self, context, node):
 
     build_compliance, lencrit, bs = space_compliance([geo for geo in bpy.data.objects if geo.type == 'MESH' and True in [m.livi_sense for m in geo.data.materials]])
 
-    blf.position(font_id, 377, height - 58, 0)
+    blf.position(font_id, 327, height - 58, 0)
     blf.size(font_id, 20, 54)
     blf.draw(font_id, 'Buildtype: '+buildtype+bs)
     bgl.glEnable(bgl.GL_BLEND)
@@ -447,8 +447,8 @@ def li_compliance(self, context, node):
     blf.position(font_id, 480, height - 67 - (1+lencrit)*25, 0)
     
     if build_compliance == 'PASS':
-        if node.analysismenu == '0':
-            blf.draw(font_id,  ('1', '2', '2', '1', '1')[int(node.bambuildmenu)])
+        if connode.analysismenu == '0':
+            blf.draw(font_id,  ('1', '2', '2', '1', '1')[int(connode.bambuildmenu)])
     else:
         blf.draw(font_id, '0')
         

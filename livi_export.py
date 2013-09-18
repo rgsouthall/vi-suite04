@@ -43,7 +43,7 @@ def radgexport(export_op, node):
     scene.frame_start = 0
     scene.frame_end = 0 if node.animmenu == 'Static' else scene.frame_end
 
-    for frame in range(scene.frame_start, node.fe + 1):
+    for frame in range(scene.frame_start, scene.frame_end + 1):
         scene.frame_current = frame
         radfile = open(node.filebase+"-{}.rad".format(frame), 'w')
         radfile.write("# Materials \n\n")
@@ -161,7 +161,6 @@ def radgexport(export_op, node):
 # rtrace export routine
 
     rtrace = open(node.filebase+".rtrace", "w")
-    print(rtrace)
     calcsurfverts = []
     calcsurffaces = []
     for o, geo in enumerate(scene.objects):
@@ -253,17 +252,19 @@ def radcexport(export_op, node):
                 scene.frame_end = int(hours/node.interval)
                 geonode.fe = int(hours/node.interval)
 
-#            geonode.fe = 0 if geonode.animmenu != 'Static' else scene.frame_end
             for frame in range(scene.frame_start, geonode.fe + 1):
-                radskyhdrexport(scene, node, geonode, starttime, frame)
+                sunexport(scene, node, geonode, starttime, frame)
                 if node.skynum < 2 and node.analysismenu != '2':
                     if frame == 0:
                         bpy.ops.object.lamp_add(type='SUN')
                         sun = bpy.context.object
-                    sunexport(scene, node, starttime, frame, sun)
+                    blsunexport(scene, node, starttime, frame, sun)
 
                 skyexport(node, open(geonode.filebase+"-{}.sky".format(frame), 'a'))
                 skyfileslist.append(open(geonode.filebase+"-{}.sky".format(frame), 'r').read())
+                if node.hdr == True:
+                    hdrexport(scene, frame, node, geonode)
+                    
             node['skyfiles'] = skyfileslist
 
         elif node.skynum == 4:
@@ -282,18 +283,23 @@ def radcexport(export_op, node):
     for frame in range(scene.frame_start, scene.frame_end + 1):
         fexport(scene, frame, export_op, node, geonode)
 
-def radskyhdrexport(scene, node, geonode, starttime, frame):
+def sunexport(scene, node, geonode, starttime, frame):
     if node.skynum < 3:
         simtime = starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
         subprocess.call("gensky {} {} {}:{:0>2d}{} -a {} -o {} {} > {}".format(simtime.month, simtime.day, simtime.hour, simtime.minute, node.TZ, node.lati, node.longi, node.skytypeparams, vi_func.sky(frame, node, geonode)), shell = True)
     elif node.skynum == 3:
         subprocess.call("gensky {} {} {}:{:0>2d}{} -a {} -o {} {} > {}".format(1, 1, 12, 0, node.TZ, 50, 0, node.skytypeparams, vi_func.sky(frame, node, geonode)), shell = True)
-    if node.hdr == True:
-        subprocess.call("oconv {} > {}-{}sky.oct".format(vi_func.sky(frame, node, geonode), geonode.filebase, frame), shell=True)
-        subprocess.call("cnt 250 500 | rcalc -f {}/lib/latlong.cal -e 'XD=500;YD=250;inXD=0.002;inYD=0.004' | rtrace -af pan.af -n {} -x 500 -y 250 -fac {}-{}sky.oct > {}/{}p.hdr".format(scene.vipath, geonode.nproc, geonode.filebase, frame, geonode.newdir, frame), shell=True)
-        subprocess.call("rpict -vta -vp 0 0 0 -vd 1 0 0 -vu 0 0 1 -vh 360 -vv 360 -x 1000 -y 1000 {}-{}sky.oct > {}/{}.hdr".format(geonode.filebase, frame, geonode.newdir, frame), shell=True)
-
-def sunexport(scene, node, starttime, frame, sun):
+    
+def hdrexport(scene, frame, node, geonode):
+    subprocess.call("oconv {} > {}-{}sky.oct".format(vi_func.sky(frame, node, geonode), geonode.filebase, frame), shell=True)
+    subprocess.call("rpict -vta -vp 0 0 0 -vd 1 0 0 -vu 0 0 1 -vh 360 -vv 360 -x 1000 -y 1000 {0}-{1}sky.oct > {2}{3}{1}.hdr".format(geonode.filebase, frame, geonode.newdir, geonode.fold), shell=True)
+    subprocess.call("cnt 250 500 | rcalc -f {0}{5}lib{5}latlong.cal -e 'XD=500;YD=250;inXD=0.002;inYD=0.004' | rtrace -af pan.af -n {1} -x 500 -y 250 -fac {2}-{3}sky.oct > {4}{5}{3}p.hdr".format(scene.vipath, geonode.nproc, geonode.filebase, frame, geonode.newdir, geonode.fold), shell=True)
+    if '{}p.hdr'.format(frame) not in bpy.data.images:
+        bpy.data.images.load("{}{}{}p.hdr".format(geonode.newdir, geonode.fold, frame))
+    else:
+        bpy.data.images['{}p.hdr'.format(frame)].reload()
+            
+def blsunexport(scene, node, starttime, frame, sun):
     simtime = starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
     deg2rad = 2*math.pi/360
     DS = 1 if node.daysav else 0
@@ -309,16 +315,15 @@ def sunexport(scene, node, starttime, frame, sun):
             elif node.skynum == 1:
                 sun.data.shadow_soft_size = 3
                 sun.data.energy = 3
-        sun.location = [x*1000 for x in (sin((solazi)*deg2rad), -cos((solazi)*deg2rad), solalt/90)]
+        sun.location = [x*20 for x in (sin((solazi)*deg2rad), -cos((solazi)*deg2rad), solalt/90)]
         sun.rotation_euler = (90-solalt)*deg2rad, 0, solazi*deg2rad
-        bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = sin((solazi)*deg2rad), -cos((solazi)*deg2rad), solalt/90
-        bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = frame)
+        if scene.render.engine == 'CYCLES':
+            bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = sin((solazi)*deg2rad), -cos((solazi)*deg2rad), solalt/90
+            bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = frame)
         sun.keyframe_insert(data_path = 'location', frame = frame)
         sun.keyframe_insert(data_path = 'rotation_euler', frame = frame)
         sun.data.cycles.use_multiple_importance_sampling = True
         sun.data.shadow_soft_size = 0.01
-
-
     bpy.ops.object.select_all()
 
 def skyexport(node, rad_sky):

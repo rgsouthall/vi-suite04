@@ -15,26 +15,21 @@ from . import vi_chart
 envi_mats = envi_mat.envi_materials()
 envi_cons = envi_mat.envi_constructions()
 
-class NODE_OT_GeoExport(bpy.types.Operator):
-    bl_idname = "node.geoexport"
-    bl_label = "EnVi geometry export"
-    nodename = bpy.props.StringProperty()
-
-    def execute(self, context):
-        return {'FINISHED'}
-
 class NODE_OT_LiGExport(bpy.types.Operator):
     bl_idname = "node.ligexport"
     bl_label = "VI-Suite export"
-    nodename = bpy.props.StringProperty()
+    nodeid = bpy.props.StringProperty()
                 
     def execute(self, context):
         if bpy.data.filepath and " " not in bpy.data.filepath:
-            node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
+            node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
             livi_export.radgexport(self, node)
             node.exported = True
+            if node.bl_label[0] == '*':
+                node.bl_label = node.bl_label[1:]
             node.outputs[0].hide = False
             return {'FINISHED'}
+            
         elif " "  in bpy.data.filepath:
             self.report({'ERROR'},"The directory path or Blender filename has a space in it. Please save again without any spaces and recreate this node")
             bpy.ops.node.delete()
@@ -54,7 +49,7 @@ class NODE_OT_EpwSelect(bpy.types.Operator, io_utils.ImportHelper):
     filter_glob = bpy.props.StringProperty(default="*.HDR;*.hdr;*.epw;*.EPW;", options={'HIDDEN'})
     bl_register = True
     bl_undo = True
-    nodename = bpy.props.StringProperty()
+    nodeid = bpy.props.StringProperty()
 
     def draw(self,context):
         layout = self.layout
@@ -64,7 +59,7 @@ class NODE_OT_EpwSelect(bpy.types.Operator, io_utils.ImportHelper):
 
     def execute(self, context):
         if self.filepath.split(".")[-1] in ("epw", "EPW", "HDR", "hdr"):
-            bpy.data.node_groups['VI Network'].nodes[self.nodename].epwname = self.filepath
+            bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].epwname = self.filepath
         if " " in self.filepath:
             self.report({'ERROR'}, "There is a space either in the EPW filename or its directory location. Remove this space and retry opening the file.")
         return {'FINISHED'}
@@ -82,7 +77,7 @@ class NODE_OT_HdrSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
     filter_glob = bpy.props.StringProperty(default="*.HDR;*.hdr;", options={'HIDDEN'})
     bl_register = True
     bl_undo = True
-    nodename = bpy.props.StringProperty()
+    nodeid = bpy.props.StringProperty()
 
     def draw(self,context):
         layout = self.layout
@@ -92,7 +87,7 @@ class NODE_OT_HdrSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
 
     def execute(self, context):
         if self.filepath.split(".")[-1] in ("HDR", "hdr"):
-            bpy.data.node_groups['VI Network'].nodes[self.nodename].hdrname = self.filepath
+            bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodename].hdrname = self.filepath
         if " " in self.filepath:
             self.report({'ERROR'}, "There is a space either in the HDR filename or its directory location. Remove this space and retry opening the file.")
         return {'FINISHED'}
@@ -110,7 +105,7 @@ class NODE_OT_SkySelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
     filter_glob = bpy.props.StringProperty(default="*.RAD;*.rad;", options={'HIDDEN'})
     bl_register = True
     bl_undo = True
-    nodename = bpy.props.StringProperty()
+    nodeid = bpy.props.StringProperty()
 
     def draw(self,context):
         layout = self.layout
@@ -120,7 +115,7 @@ class NODE_OT_SkySelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
 
     def execute(self, context):
         if self.filepath.split(".")[-1] in ("RAD", "rad"):
-            bpy.data.node_groups['VI Network'].nodes[self.nodename].skyname = self.filepath
+            bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodename].skyname = self.filepath
         if " " in self.filepath:
             self.report({'ERROR'}, "There is a space either in the Radiance sky filename or its directory location. Remove this space and retry opening the file.")
         return {'FINISHED'}
@@ -136,12 +131,12 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
     bl_register = True
     bl_undo = True
 
-    nodename = bpy.props.StringProperty()
+    nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-        node.bl_label = node.bl_label[1:] if node.bl_label[0] == '' else node.bl_label
-        if self.nodename == 'LiVi Basic':
+        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
+        if node.bl_label == 'LiVi Basic':
             node.resname = ("illumout", "irradout", "dfout")[int(node.analysismenu)]
             node.unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(node.analysismenu)]
             node.skynum = int(node.skymenu)
@@ -151,7 +146,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
                 node.simalg = (' |  rcalc  -e "$1=47.4*$1+120*$2+11.6*$3" ', ' |  rcalc  -e "$1=$1" ', ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ')[int(node.analysismenu)]
             node.TZ = node.summer if node.daysav == True else node.stamer
         
-        elif self.nodename == 'LiVi Compliance':
+        elif node.bl_label == 'LiVi Compliance':
             if node.analysismenu == '0':
                 node.resname = 'breaamout'
                 node.unit = "DF %"
@@ -170,13 +165,17 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
                     livi_export.radcexport(self, node)
                     node.disp_leg = False
                     node.exported = True
+                    node.outputs['Context out'].hide = False
                 else:
                     self.report({'ERROR'},"No geometry node is linked")
+                    node.outputs['Context out'].hide = True
             else:
+                node.outputs['Context out'].hide = True
                 self.report({'ERROR'},"The directory path or Blender filename has a space in it. Please save again without any spaces")
                 return {'FINISHED'}
             return {'FINISHED'}
         else:
+            node.outputs['Context out'].hide = True
             self.report({'ERROR'},"Save the Blender file before exporting")
             return {'FINISHED'}
 
@@ -187,28 +186,31 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
     bl_register = True
     bl_undo = True
 
-    nodename = bpy.props.StringProperty()
+    nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-        geonode = node.inputs[0].links[0].from_node
-        livi_calc.rad_prev(self, node, geonode)
+        simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        connode = simnode.inputs['Context in'].links[0].from_node
+        geonode = connode.inputs['Geometry in'].links[0].from_node
+        livi_calc.rad_prev(self, simnode, connode, geonode)
         return {'FINISHED'}
 
 class NODE_OT_Calculate(bpy.types.Operator):
     bl_idname = "node.calculate"
     bl_label = "Radiance Export and Simulation"
 
-    nodename = bpy.props.StringProperty()
+    nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-        geonode = node.inputs[0].links[0].from_node
-        livi_calc.li_calc(self, node, geonode)
+        simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        connode = simnode.inputs['Context in'].links[0].from_node
+        geonode = connode.inputs['Geometry in'].links[0].from_node
+        livi_calc.li_calc(self, simnode, connode, geonode)
         context.scene.vi_display = 0
         context.scene.li_disp_panel = 1
-        context.scene.lic_disp_panel = 1 if self.nodename == 'LiVi Compliance' else 0
-        context.scene.resnode = self.nodename
+        context.scene.lic_disp_panel = 1 if connode.bl_label == 'LiVi Compliance' else 0
+        context.scene.resnode = simnode.name
+        context.scene.restree = self.nodeid.split('@')[1]
         return {'FINISHED'}
 
 class VIEW3D_OT_LiDisplay(bpy.types.Operator):
@@ -217,18 +219,14 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
     bl_description = "Display the results on the sensor surfaces"
     bl_register = True
     bl_undo = True
-    nodename = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        
-        node = bpy.data.node_groups['VI Network'].nodes[bpy.context.scene.resnode]
-        
-        geonode = node.inputs[0].links[0].from_node
-#        bpy.types.Scene.li_disp_3dlevel = bpy.props.FloatProperty(name = "", description = "Level of 3D result plane extrusion", min = 0, max = 50, default = 0, update = eupdate)
+        simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]
+        connode = simnode.inputs['Context in'].links[0].from_node
+        geonode = connode.inputs['Geometry in'].links[0].from_node
         try:
-            vi_display.li_display(node, geonode)
+            vi_display.li_display(simnode, connode, geonode)
             bpy.ops.view3d.linumdisplay()
-#            bpy.ops.object.liextrude()
         except:
             self.report({'ERROR'},"No results available for display. Try re-running the calculation.")
             raise
@@ -239,7 +237,7 @@ class VIEW3D_OT_LiNumDisplay(bpy.types.Operator):
     bl_idname = "view3d.linumdisplay"
     bl_label = "Display results legend and stats in the 3D View"
     bl_options = {'REGISTER'}
-
+    
     def modal(self, context, event):
         context.area.tag_redraw()
         if context.scene.vi_display == 0:
@@ -256,45 +254,21 @@ class VIEW3D_OT_LiNumDisplay(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context):
-        node = bpy.data.node_groups['VI Network'].nodes[bpy.context.scene.resnode]
-        geonode = node.inputs[0].links[0].from_node
+        simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]
+        connode = simnode.inputs['Context in'].links[0].from_node
+        geonode = connode.inputs['Geometry in'].links[0].from_node
 
         if context.area.type == 'VIEW_3D':
-            self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(vi_display.li3D_legend, (self, context, node), 'WINDOW', 'POST_PIXEL')
-            self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(vi_display.linumdisplay, (self, context, node, geonode), 'WINDOW', 'POST_PIXEL')
-            if bpy.context.scene.resnode == 'LiVi Compliance':
-                self._handle_comp = bpy.types.SpaceView3D.draw_handler_add(vi_display.li_compliance, (self, context, node), 'WINDOW', 'POST_PIXEL')    
+            self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(vi_display.li3D_legend, (self, context, simnode, connode), 'WINDOW', 'POST_PIXEL')
+            self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(vi_display.linumdisplay, (self, context, connode, geonode), 'WINDOW', 'POST_PIXEL')
+            if connode.bl_label == 'LiVi Compliance':
+                self._handle_comp = bpy.types.SpaceView3D.draw_handler_add(vi_display.li_compliance, (self, context, connode), 'WINDOW', 'POST_PIXEL')    
             context.scene.vi_display = 1
             return {'RUNNING_MODAL'}
         else:
             self.report({'WARNING'}, "View3D not found, cannot run operator")
             return {'CANCELLED'}
             
-
-
-class OBJECT_OT_LiExtrude(bpy.types.Operator): 
-    """Move an object with the mouse, example""" 
-    bl_idname = "object.liextrude" 
-    bl_label = "Extrude Modal Operator" 
-
-    def modal(self, context, event): 
-        for o in [obj for obj in bpy.data.objects if obj.lires == 1]:
-            for vert in [poly.vertices[:] for poly in o.data.polygons if poly.select == True]:
-        #        o.data.vertices[vert].co += mathutils.Vector((vert.normal[0]*context.scene.li_disp_3dlevel, vert.normal[1]*context.scene.li_disp_3dlevel, vert.normal[2]*context.scene.li_disp_3dlevel))
-                pass#print(o.data.vertices[vert].co[2])
-        if event.type in {'RIGHTMOUSE', 'ESC'}: 
-            print("END") 
-            return {'CANCELLED'} 
-
-        return {'RUNNING_MODAL'} 
-
-    def execute(self, context): 
-        print("INVOKE") 
-        
-        context.window_manager.modal_handler_add(self) # add modal handler!!! 
-        return {'RUNNING_MODAL'} 
-        
-        
 class IES_Select(bpy.types.Operator, io_utils.ImportHelper):
     bl_idname = "livi.ies_select"
     bl_label = "Select IES file"

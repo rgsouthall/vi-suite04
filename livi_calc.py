@@ -28,66 +28,66 @@ try:
 except:
     np = 0
 
-def radfexport(scene, export_op, node, geonode):
+def radfexport(scene, export_op, connode, geonode):
     for frame in range(scene.frame_start, scene.frame_end + 1):
-        livi_export.fexport(scene, frame, export_op, node, geonode)
+        livi_export.fexport(scene, frame, export_op, connode, geonode)
 
-def rad_prev(prev_op, node, geonode):
+def rad_prev(prev_op, simnode, connode, geonode):
     scene = bpy.context.scene
-    if node.simacc == ("1", "3")[node.name == 'LiVi Basic']:
-        params = node.cusacc
+    if simnode.simacc == ("1", "3")[connode.bl_label == 'LiVi Basic']:
+        params = simnode.cusacc
     else:
         num = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-ar", 128, 512, 1024), ("-as", 128, 512, 1024), ("-aa", 0.3, 0.15, 0.08), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
-        params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(node.simacc)+1] for n in num]))
+        params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simnode.simacc)+1] for n in num]))
 
     if os.path.isfile(geonode.filebase+"-0.rad"):
         cam = scene.camera
         if cam != None:
-            cang = 180 if 'VI Glare' in node.name else cam.data.angle*180/pi
-            vv = 180 if 'VI Glare' in node.name else cang * scene.render.resolution_y/scene.render.resolution_x
+            cang = 180 if 'VI Glare' == connode.bl_label else cam.data.angle*180/pi
+            vv = 180 if 'VI Glare' == connode.bl_label else cang * scene.render.resolution_y/scene.render.resolution_x
             rvucmd = "rvu -w -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0][2]:.3f} {3[1][2]:.3f} {3[2][2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct &".format(geonode.nproc, vv, cang, -1*cam.matrix_world, cam.location, params, geonode.filebase, scene.frame_current)
             rvurun = Popen(rvucmd, shell = True, stdout=PIPE, stderr=STDOUT)
             for l,line in enumerate(rvurun.stdout):
                 if 'octree stale?' in line.decode():
-                    radfexport(scene, prev_op, node, geonode)
-                    rad_prev(prev_op, node, geonode)
+                    radfexport(scene, prev_op, simnode, connode, geonode)
+                    rad_prev(prev_op, simnode, connode, geonode)
                     return
         else:
             prev_op.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
     else:
         prev_op.report({'ERROR'},"Missing export file. Make sure you have exported the scene.")
 
-def li_calc(calc_op, node, geonode):
+def li_calc(calc_op, simnode, connode, geonode):
     scene = bpy.context.scene
     if os.lstat(geonode.filebase+".rtrace").st_size == 0:
         calc_op.report({'ERROR'},"There are no materials with the livi sensor option enabled")
     else:
-        if node.simacc == ("0", "3")[node.name == 'LiVi Basic']:
-            params = node.cusacc
+        if simnode.simacc == ("0", "3")[connode.bl_label == 'LiVi Basic']:
+            params = simnode.cusacc
         else:
             num = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-ar", 128, 512, 1024), ("-as", 128, 512, 1024), ("-aa", 0.3, 0.15, 0.08), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
-            params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(node.simacc)+1] for n in num]))
+            params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simnode.simacc)+1] for n in num]))
 
         vi_func.clearscened(scene)
         res = svres = [[0 for p in range(geonode.reslen)] for x in range(scene.frame_end + 1 - scene.frame_start)]
         for frame in range(scene.frame_start, scene.frame_end+1):
             if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
                 subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
-            rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, node.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+            rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
             rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
-            resfile = open(geonode.newdir+geonode.fold+node.resname+"-"+str(frame)+".res", 'w')
+            resfile = open(geonode.newdir+geonode.fold+connode.resname+"-"+str(frame)+".res", 'w')
             for l,line in enumerate(rtrun.stdout):
                 if 'octree stale?' in line.decode():
                     resfile.close()
-                    radfexport(scene, calc_op, node, geonode)
-                    li_calc(calc_op, node, geonode)
+                    radfexport(scene, calc_op, connode, geonode)
+                    li_calc(calc_op, simnode, connode, geonode)
                     return
                 res[frame][l] =float(line.decode())
             resfile.write("{}".format(res[frame]).strip("]").strip("["))
             resfile.close()
-            if node.name == 'LiVi Compliance':
-                if node.analysismenu == '0':
-                    svcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, '-ab 1', geonode.filebase, frame, node.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+            if connode.bl_label == 'LiVi Compliance':
+                if connode.analysismenu == '0':
+                    svcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, '-ab 1', geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                     svrun = Popen(svcmd, shell = True, stdout=PIPE, stderr=STDOUT)
                     svresfile = open(geonode.newdir+geonode.fold+'skyview'+"-"+str(frame)+".res", 'w')
                     for sv,line in enumerate(svrun.stdout):
@@ -95,14 +95,13 @@ def li_calc(calc_op, node, geonode):
                     svresfile.write("{}".format(svres[frame]).strip("]").strip("["))
                     svresfile.close()
 
-
-        node['maxres'] = [max(res[i]) for i in range(scene.frame_end + 1 - scene.frame_start)]
-        node['minres'] = [min(res[i]) for i in range(scene.frame_end + 1 - scene.frame_start)]
-        node['avres'] = [sum(res[i])/len(res[i]) for i in range(scene.frame_end + 1 - scene.frame_start)]
-        resapply(res, svres, node, geonode)
+        simnode['maxres'] = [max(res[i]) for i in range(scene.frame_end + 1 - scene.frame_start)]
+        simnode['minres'] = [min(res[i]) for i in range(scene.frame_end + 1 - scene.frame_start)]
+        simnode['avres'] = [sum(res[i])/len(res[i]) for i in range(scene.frame_end + 1 - scene.frame_start)]
+        resapply(res, svres, simnode, connode, geonode)
         calc_op.report({'INFO'}, "Calculation is finished.")
 
-def resapply(res, svres, node, geonode):
+def resapply(res, svres, simnode, connode, geonode):
     crits = []
     scene = bpy.context.scene
 
@@ -112,7 +111,7 @@ def resapply(res, svres, node, geonode):
         mcol_i = 0
         f = 0
         for i in range(0, len(res[frame])):
-            h = 0.75*(1-(res[frame][i]-min(node['minres']))/(max(node['maxres']) + 0.01 - min(node['minres'])))
+            h = 0.75*(1-(res[frame][i]-min(simnode['minres']))/(max(simnode['maxres']) + 0.01 - min(simnode['minres'])))
             rgb.append(colorsys.hsv_to_rgb(h, 1.0, 1.0))
 
         if bpy.context.active_object and bpy.context.active_object.hide == 'False':
@@ -137,23 +136,23 @@ def resapply(res, svres, node, geonode):
 
                 mat = [matslot.material for matslot in geo.material_slots if matslot.material.livi_sense][0]
 
-                if mat.livi_compliance and frame == 0:
-                    if node.analysismenu == '0':
-                        if node.bambuildmenu == '0':
+                if connode.bl_label == 'LiVi Compliance' and frame == 0:
+                    if connode.analysismenu == '0':
+                        if connode.bambuildmenu == '0':
                             crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
                             crit.append(['Ratio', 100, 'Uni', 0.4, 'fail', 0.0, '0.5'])
                             crit.append(['Min', 100, 'PDF', 0.8, 'fail', 0.0, '0.5'])
                             crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.25'])
-                        elif node.bambuildmenu == '1':
+                        elif connode.bambuildmenu == '1':
                             crit.append(['Percent', 60, 'DF', 2, 'fail', 0.0, '1'])
                             crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
-                        elif node.bambuildmenu == '2':
+                        elif connode.bambuildmenu == '2':
                             if mat.hspacemenu == '0':
                                 crit.append(['Percent', 60, 'DF', 2, 'fail', 0.0, '1'])
                                 crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])  
                             else:
                                 crit.append(['Percent', 80, 'DF', 3, 'fail', 0.0, '2'])
-                        elif node.bambuildmenu == '3':
+                        elif connode.bambuildmenu == '3':
                             if mat.rspacemenu == '0':
                                 crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
                                 crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.75'])
@@ -172,7 +171,7 @@ def resapply(res, svres, node, geonode):
                                     crit.append(['Min', 100, 'PDF', 1.4, 'fail', 0.0, '0.5'])
                                     crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.25'])
 
-                        elif node.bambuildmenu == '4':
+                        elif connode.bambuildmenu == '4':
                             if mat.respacemenu == '0':
                                 crit.append(['Percent', 35, 'PDF', 2, 'fail', 0.0, '1'])
                             if mat.respacemenu == '1':
@@ -181,7 +180,7 @@ def resapply(res, svres, node, geonode):
                                 crit.append(['Min', 100, 'PDF', 0.8, 'fail', 0.0, '0.5'])
                                 crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.5'])
 
-                    elif node.analysismenu == '1':
+                    elif connode.analysismenu == '1':
                         if mat.rspacemenu == '0':
                             crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
                             crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.75'])
@@ -192,20 +191,11 @@ def resapply(res, svres, node, geonode):
                 for c in crit:
                     for face in geo.data.polygons:
                         if geo.data.materials[face.material_index].livi_sense:
-#                            if geonode.cpoint == '1':
-#                                if c == 'foo':
-#                                    for loop_index in face.loop_indices:
-#                                        v = geo.data.loops[loop_index].vertex_index
-#                                        col_i = [vi for vi, vval in enumerate(geo['cverts']) if v == geo['cverts'][vi]][0]
-#                                        lcol_i.append(col_i)
-#                                        vertexColour.data[loop_index].color = rgb[col_i+mcol_i]
-#
-#                            if geonode.cpoint == '0':
                             if c == 'foo':
                                 for loop_index in face.loop_indices:
                                     vertexColour.data[loop_index].color = rgb[f]
                             else:
-                                if geo.data.materials[face.material_index].livi_compliance:
+                                if geo.data.materials[face.material_index].livi_sense:
                                     if c[0] == 'Percent':
                                         totarea += vi_func.triarea(geo, face)
                                         if c[2] == 'DF':
@@ -214,13 +204,6 @@ def resapply(res, svres, node, geonode):
                                         elif c[2] == 'Skyview':
                                             if svres[frame][f] > 0:
                                                 passarea += vi_func.triarea(geo, face)
-
-#                                        elif c[0] == 'Min':
-#                                            if c[2] == 'PDF':
-#                                                totarea += vi_func.triarea(geo, face)
-#                                                if svres[frame][f] > c[3]:
-#                                                    passarea += vi_func.triarea(geo, face)
-
 
                         f += 1
 
@@ -245,16 +228,16 @@ def resapply(res, svres, node, geonode):
                     f = 0
                 mcol_i = len(tuple(set(lcol_i)))
 
-            if geo.licalc == 1:
-                scene.objects.active = geo
-                geo.select = True
-                if frame == 0:
-                    while len(geo.data.vertex_colors) > 0:
-                        bpy.ops.mesh.vertex_color_remove()
-
-                bpy.ops.mesh.vertex_color_add()
-                geo.data.vertex_colors[frame].name = str(frame)
-                vertexColour = geo.data.vertex_colors[frame]
+##            if geo.licalc == 1:
+#                scene.objects.active = geo
+#                geo.select = True
+#                if frame == 0:
+#                    while len(geo.data.vertex_colors) > 0:
+#                        bpy.ops.mesh.vertex_color_remove()
+#
+#                bpy.ops.mesh.vertex_color_add()
+#                geo.data.vertex_colors[frame].name = str(frame)
+#                vertexColour = geo.data.vertex_colors[frame]
 
                 for face in geo.data.polygons:
                     if geo.data.materials[face.material_index].livi_sense:
@@ -272,8 +255,9 @@ def resapply(res, svres, node, geonode):
                                 vertexColour.data[loop_index].color = rgb[f]
                             f += 1
                 mcol_i = len(list(set(lcol_i)))
-
-        scene['crits'] = crits
+        
+        if 'LiVi Compliance' in scene.resnode:
+            scene['crits'] = crits
 
     for frame in range(scene.frame_start, scene.frame_end+1):
         scene.frame_set(frame)

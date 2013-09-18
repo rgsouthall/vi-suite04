@@ -107,10 +107,10 @@ def eupdate(self, context):
     for frame in range(context.scene.frame_start, context.scene.frame_end + 1):
         for o in [obj for obj in bpy.data.objects if obj.lires == 1]:
             if len(o['cfaces']) > 0:
-                for i, fli in enumerate([face.loop_indices for face in o.data.polygons if face.select == True]):
-                    for li in fli:
+                for i, fli in enumerate([(face, face.loop_indices) for face in o.data.polygons if face.select == True]):
+                    for li in fli[1]:
                         vi = o.data.loops[li].vertex_index
-                        o.data.shape_keys.key_blocks[str(frame)].data[vi].co = o.data.shape_keys.key_blocks['Basis'].data[vi].co + 0.1*context.scene.li_disp_3dlevel * ((0.75 - o['oreslist'][str(frame)][i]) * mathutils.Vector((0,0,1)))
+                        o.data.shape_keys.key_blocks[str(frame)].data[vi].co = o.data.shape_keys.key_blocks['Basis'].data[vi].co + 0.1*context.scene.li_disp_3dlevel * ((0.75 - o['oreslist'][str(frame)][i]) * fli[0].normal)
             for v, vn in enumerate(o['cverts']):
                 j = o['j'][v]
                 o.data.shape_keys.key_blocks[str(frame)].data[vn].co = o.data.shape_keys.key_blocks['Basis'].data[vn].co + 0.1*context.scene.li_disp_3dlevel * ((0.75 - o['oreslist'][str(frame)][j]) * o.data.vertices[vn].normal)
@@ -526,6 +526,8 @@ def register():
     Scene.li_jobno = sprop("", "Project job number", 1024, '')
 
     Scene.resnode = sprop("", "", 0, "")
+    
+    Scene.restree = sprop("", "", 0, "")
 
 #    bpy.utils.register_class(vi_operators.OBJECT_OT_LiExtrude)
 #    bpy.utils.register_class(vi_operators.NODE_OT_EpwSelect)

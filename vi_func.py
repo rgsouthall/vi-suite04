@@ -3,25 +3,25 @@ from math import sin, cos, asin, acos, pi
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
 dtdf = datetime.date.fromordinal
 
-def obj(name, fr, node):
+def retobj(name, fr, node):
     if node.animmenu == "Geometry":
         return(node.objfilebase+"-{}-{}.obj".format(name.replace(" ", "_"), fr))
     else:
         return(node.objfilebase+"-{}-0.obj".format(name.replace(" ", "_")))
 
-def mesh(name, fr, node):
+def retmesh(name, fr, node):
     if node.animmenu in ("Geometry", "Material"):
         return(node.objfilebase+"-{}-{}.mesh".format(name.replace(" ", "_"), fr))
     else:
         return(node.objfilebase+"-{}-0.mesh".format(name.replace(" ", "_")))
 
-def mat(fr, node):
+def retmat(fr, node):
     if node.animmenu == "Material":
         return(node.filebase+"-"+str(fr)+".rad")
     else:
         return(node.filebase+"-0.rad")
 
-def sky(fr, node, geonode):
+def retsky(fr, node, geonode):
     if node.animmenu == "Time":
         return(geonode.filebase+"-"+str(fr)+".sky")
     else:
@@ -29,17 +29,16 @@ def sky(fr, node, geonode):
 
 def nodeinit(node):
     if str(sys.platform) != 'win32':
-        node.nproc = str(multiprocessing.cpu_count())
         node.rm = "rm "
         node.cat = "cat "
         node.fold = "/"
         node.cp = "cp "
     else:
-        node.nproc = "1"
         node.rm = "del "
         node.cat = "type "
-        node.fold = "\\"
+        node.fold = r'"\"'
         node.cp = "copy "
+    node.nproc = str(multiprocessing.cpu_count())
     node.filepath = bpy.data.filepath
     node.filename = os.path.splitext(os.path.basename(node.filepath))[0]
     node.filedir = os.path.dirname(node.filepath)

@@ -3,17 +3,17 @@ import bpy_extras.io_utils as io_utils
 from collections import OrderedDict
 from datetime import date
 from datetime import datetime as dt
-from . import livi_export
-from . import livi_calc
-from . import vi_display
-from . import envi_export
-from . import envi_mat
-from . import envi_calc
-from . import vi_func
-from . import vi_chart
+from .livi_export import radcexport, radgexport
+from .livi_calc  import rad_prev, li_calc
+from .vi_display import li_display, li_compliance, linumdisplay, li3D_legend
+from .envi_export import enpolymatexport, pregeo
+from .envi_mat import envi_materials, envi_constructions
+from .envi_calc import envi_sim
+from .vi_func import processf
+from .vi_chart import chart_disp
 
-envi_mats = envi_mat.envi_materials()
-envi_cons = envi_mat.envi_constructions()
+envi_mats = envi_materials()
+envi_cons = envi_constructions()
 
 class NODE_OT_LiGExport(bpy.types.Operator):
     bl_idname = "node.ligexport"
@@ -23,7 +23,7 @@ class NODE_OT_LiGExport(bpy.types.Operator):
     def execute(self, context):
         if bpy.data.filepath and " " not in bpy.data.filepath:
             node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-            livi_export.radgexport(self, node)
+            radgexport(self, node)
             node.exported = True
             if node.bl_label[0] == '*':
                 node.bl_label = node.bl_label[1:]
@@ -162,7 +162,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
 
             if " " not in bpy.data.filepath:
                 if node.inputs['Geometry in'].is_linked:
-                    livi_export.radcexport(self, node)
+                    radcexport(self, node)
                     node.disp_leg = False
                     node.exported = True
                     node.outputs['Context out'].hide = False
@@ -192,7 +192,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         connode = simnode.inputs['Context in'].links[0].from_node
         geonode = connode.inputs['Geometry in'].links[0].from_node
-        livi_calc.rad_prev(self, simnode, connode, geonode)
+        rad_prev(self, simnode, connode, geonode)
         return {'FINISHED'}
 
 class NODE_OT_Calculate(bpy.types.Operator):
@@ -205,7 +205,7 @@ class NODE_OT_Calculate(bpy.types.Operator):
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         connode = simnode.inputs['Context in'].links[0].from_node
         geonode = connode.inputs['Geometry in'].links[0].from_node
-        livi_calc.li_calc(self, simnode, connode, geonode)
+        li_calc(self, simnode, connode, geonode)
         context.scene.vi_display = 0
         context.scene.li_disp_panel = 1
         context.scene.lic_disp_panel = 1 if connode.bl_label == 'LiVi Compliance' else 0
@@ -225,7 +225,7 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
         connode = simnode.inputs['Context in'].links[0].from_node
         geonode = connode.inputs['Geometry in'].links[0].from_node
         try:
-            vi_display.li_display(simnode, connode, geonode)
+            li_display(simnode, connode, geonode)
             bpy.ops.view3d.linumdisplay()
         except:
             self.report({'ERROR'},"No results available for display. Try re-running the calculation.")
@@ -259,10 +259,10 @@ class VIEW3D_OT_LiNumDisplay(bpy.types.Operator):
         geonode = connode.inputs['Geometry in'].links[0].from_node
 
         if context.area.type == 'VIEW_3D':
-            self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(vi_display.li3D_legend, (self, context, simnode, connode), 'WINDOW', 'POST_PIXEL')
-            self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(vi_display.linumdisplay, (self, context, connode, geonode), 'WINDOW', 'POST_PIXEL')
+            self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(li3D_legend, (self, context, simnode, connode), 'WINDOW', 'POST_PIXEL')
+            self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, simnode, geonode), 'WINDOW', 'POST_PIXEL')
             if connode.bl_label == 'LiVi Compliance':
-                self._handle_comp = bpy.types.SpaceView3D.draw_handler_add(vi_display.li_compliance, (self, context, connode), 'WINDOW', 'POST_PIXEL')    
+                self._handle_comp = bpy.types.SpaceView3D.draw_handler_add(li_compliance, (self, context, connode), 'WINDOW', 'POST_PIXEL')    
             context.scene.vi_display = 1
             return {'RUNNING_MODAL'}
         else:
@@ -326,7 +326,7 @@ class NODE_OT_EnGExport(bpy.types.Operator):
 
     def invoke(self, context, event):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-        envi_export.pregeo()
+        pregeo()
         node.exported = True
         node.outputs[0].hide = False
         return {'FINISHED'}
@@ -349,7 +349,7 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
 #                if not os.path.isdir(envi_settings.filedir+"/"+envi_settings.filename):
 #                    os.makedirs(envi_settings.filedir+"/"+envi_settings.filename)
 
-                envi_export.enpolymatexport(self, node, envi_mats, envi_cons)
+                enpolymatexport(self, node, envi_mats, envi_cons)
                 node.exported = True
             elif " " in str(node.filedir):
                 self.report({'ERROR'},"The directory path containing the Blender file has a space in it.")
@@ -372,7 +372,7 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
 
     def invoke(self, context, event):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-        envi_calc.envi_sim(self, node)
+        envi_sim(self, node)
         if not node.outputs:
             node.outputs.new('ViEnROut', 'Results out')
         if node.outputs[0].is_linked:
@@ -398,7 +398,7 @@ class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
         Edate = dt.fromordinal(dt(dt.now().year, 1, 1).toordinal() + node['End'] -1 ) + datetime.timedelta(hours = node.deh - 1)
 
         innodes = list(OrderedDict.fromkeys([inputs.links[0].from_node for inputs in node.inputs if inputs.is_linked]))
-        vi_chart.chart_disp(self, node, innodes, Sdate, Edate)
+        chart_disp(self, node, innodes, Sdate, Edate)
         return {'FINISHED'}
 
 class NODE_OT_FileProcess(bpy.types.Operator, io_utils.ExportHelper):
@@ -411,7 +411,7 @@ class NODE_OT_FileProcess(bpy.types.Operator, io_utils.ExportHelper):
 
     def invoke(self, context, event):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
-        vi_func.processf(self, node)
+        processf(self, node)
         if not node.outputs:
             node.outputs.new('ViEnROut', 'Results out')
         return {'FINISHED'}

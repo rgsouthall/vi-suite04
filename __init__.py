@@ -19,10 +19,14 @@ if "bpy" in locals():
     imp.reload(vi_func)
     imp.reload(envi_mat)
 else:
-    from . import vi_node, vi_operators, vi_ui, envi_mat, vi_func
+    from .vi_node import vinode_categories, envinode_categories
+    from .envi_mat import envi_materials, envi_constructions
+    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop
+    from .vi_operators import *
+    from .vi_ui import *
+
 
 import sys, os, platform, inspect, bpy, nodeitems_utils, mathutils, colorsys
-(iprop, bprop, eprop, sprop, fprop, fvprop) = (vi_func.iprop, vi_func.bprop, vi_func.eprop, vi_func.sprop, vi_func.fprop, vi_func.fvprop)
 
 epversion = "8-0-0"
 addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
@@ -41,23 +45,24 @@ if str(sys.platform) == 'linux':
         os.environ["RAYPATH"] = "/usr/local/radiance/lib:{}/io_visuite/lib".format(addonpath)
 
 elif str(sys.platform) == 'win32':
-    if os.path.isdir(r"C:\Program Files (x86)\Radiance"):
-        if r"C:\Program Files (x86)\Radiance\lib;"+sys.path[0]+"\io_visuite\lib" not in os.environ["RAYPATH"]:
+    if not hasattr(os.environ, 'RAYPATH'):
+        if os.path.isdir(r"C:\Program Files (x86)\Radiance"):
+#        if r"C:\Program Files (x86)\Radiance\lib;"+sys.path[0]+"\io_visuite\lib" not in os.environ["RAYPATH"]:
             os.environ["PATH"] = os.environ["PATH"] + r";C:\Program Files (x86)\Radiance\bin;"+sys.path[0]+"\io_visuite\windows;C:\EnergyPlusV{}".format(epversion)
             os.environ["RAYPATH"] = r"C:\Program Files (x86)\Radiance\lib;"+sys.path[0]+"\io_visuite\lib"
 
-    elif os.path.isdir(r"C:\Program Files\Radiance"):
-        if r"C:\Program Files\Radiance\lib;"+sys.path[0]+"\io_visuite\lib" not in os.environ["RAYPATH"]:
+        elif os.path.isdir(r"C:\Program Files\Radiance"):
+#        if r"C:\Program Files\Radiance\lib;"+sys.path[0]+"\io_visuite\lib" not in os.environ["RAYPATH"]:
             os.environ["PATH"] = os.environ["PATH"] + r";C:\Program Files\Radiance\bin;"+sys.path[0]+"\io_visuite\windows;C:\EnergyPlusV{}".format(epversion)
             os.environ["RAYPATH"] = "C:\Program Files\Radiance\lib;"+sys.path[0]+"\io_visuite\lib"
-    else:
-        print("Cannot find a valid Radiance directory. Please check that you have Radiance installed in either C:\Program Files(x86) (64bit windows) \
+        else:
+            print("Cannot find a valid Radiance directory. Please check that you have Radiance installed in either C:\Program Files(x86) (64bit windows) \
 or C:\Program Files (32bit windows)")
 
 matpath = addonpath+'/EPFiles/Materials/Materials.data'
 epwpath = addonpath+'/EPFiles/Weather/'
-envi_mats = envi_mat.envi_materials()
-envi_cons = envi_mat.envi_constructions()
+envi_mats = envi_materials()
+envi_cons = envi_constructions()
 
 #bpy.ops.node.new_node_tree(type='ViN', name ="VI-Suite Node Tree")
 def matfunc(i):
@@ -586,8 +591,8 @@ def register():
 #    bpy.utils.register_class(vi_node.ViExEnNode)
 #    bpy.utils.register_class(vi_node.ViEnRNode)
 #    bpy.utils.register_class(vi_node.ViEnRFNode)
-    nodeitems_utils.register_node_categories("Vi Nodes", vi_node.vinode_categories)
-    nodeitems_utils.register_node_categories("EnVi Nodes", vi_node.envinode_categories)
+    nodeitems_utils.register_node_categories("Vi Nodes", vinode_categories)
+    nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)
 
 def unregister():
     bpy.utils.unregister_module(__name__)
@@ -650,6 +655,6 @@ def unregister():
 #    bpy.utils.unregister_class(vi_node.ViExEnNode)
 #    bpy.utils.unregister_class(vi_node.ViEnRNode)
 #    bpy.utils.unregister_class(vi_node.ViEnRFNode)
-    nodeitems_utils.unregister_node_categories("Vi Nodes", vi_node.vinode_categories)
-    nodeitems_utils.unregister_node_categories("EnVi Nodes", vi_node.envinode_categories)
+    nodeitems_utils.unregister_node_categories("Vi Nodes")
+    nodeitems_utils.unregister_node_categories("EnVi Nodes")
 

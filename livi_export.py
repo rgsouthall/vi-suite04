@@ -16,12 +16,12 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, math, subprocess, datetime, multiprocessing, sys
+import bpy, os, math, subprocess, datetime, sys
 import time as ti
 from math import sin, cos, acos, asin, pi
 from mathutils import Vector
 from subprocess import PIPE, Popen
-from . import vi_func
+from .vi_func import retsky, retmat, retobj, retmesh, clearscenee, clearscened, solarPosition
 
 
 try:
@@ -38,8 +38,8 @@ def radgexport(export_op, node):
         bpy.ops.object.mode_set()
     radfilelist = []
 
-    vi_func.clearscenee(scene)
-    vi_func.clearscened(scene)
+    clearscenee(scene)
+    clearscened(scene)
     scene.frame_start = 0
     scene.frame_end = 0 if node.animmenu == 'Static' else scene.frame_end
 
@@ -92,12 +92,12 @@ def radgexport(export_op, node):
         for o in obs:
             o.select = True
             if node.animmenu == '1':
-                bpy.ops.export_scene.obj(filepath=vi_func.obj(o.name, frame, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=False, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
-                objcmd = "obj2mesh -a {} {} {}".format(vi_func.mat(frame, node), vi_func.obj(o.name, frame, node), vi_func.mesh(o.name, frame, node))
+                bpy.ops.export_scene.obj(filepath=retobj(o.name, frame, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=False, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
+                objcmd = "obj2mesh -a {} {} {}".format(retmat(frame, node), retobj(o.name, frame, node), retmesh(o.name, frame, node))
             else:
                 if frame == 0:
-                    bpy.ops.export_scene.obj(filepath=vi_func.obj(o.name, frame, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=False, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
-                    objcmd = "obj2mesh -a {} {} {}".format(vi_func.mat(frame, node), vi_func.obj(o.name, frame, node), vi_func.mesh(o.name, frame, node))
+                    bpy.ops.export_scene.obj(filepath=retobj(o.name, frame, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=False, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
+                    objcmd = "obj2mesh -a {} {} {}".format(retmat(frame, node), retobj(o.name, frame, node), retmesh(o.name, frame, node))
             objrun = Popen(objcmd, shell = True, stderr = PIPE)
             o.select = False
 
@@ -108,7 +108,7 @@ def radgexport(export_op, node):
             radfile = open(node.filebase+"-{}.rad".format(frame), 'a')
             radfile.write("# Geometry \n\n")
             if o.limerr == 0:
-                radfile.write("void mesh id \n1 "+vi_func.mesh(o.name, frame, node)+"\n0\n0\n\n")
+                radfile.write("void mesh id \n1 "+retmesh(o.name, frame, node)+"\n0\n0\n\n")
 
             else:
                 export_op.report({'INFO'}, o.name+" could not be converted into a Radiance mesh and simpler export routine has been used. No un-applied object modifiers will be exported.")
@@ -234,8 +234,8 @@ def radcexport(export_op, node):
     scene = bpy.context.scene
     scene.li_disp_panel = 0
     scene.vi_display = 0
-    vi_func.clearscenee(scene)
-    vi_func.clearscened(scene)
+    clearscenee(scene)
+    clearscened(scene)
     geonode = node.inputs[0].links[0].from_node
     if geonode.animmenu != 'Static' and node.animmenu != 'Static':
         export_op.report({'ERROR'},"You cannot run a geometry and time based animation at the same time")
@@ -286,14 +286,15 @@ def radcexport(export_op, node):
 def sunexport(scene, node, geonode, starttime, frame):
     if node.skynum < 3:
         simtime = starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
-        subprocess.call("gensky {} {} {}:{:0>2d}{} -a {} -o {} {} > {}".format(simtime.month, simtime.day, simtime.hour, simtime.minute, node.TZ, node.lati, node.longi, node.skytypeparams, vi_func.sky(frame, node, geonode)), shell = True)
+        subprocess.call("gensky {} {} {}:{:0>2d}{} -a {} -o {} {} > {}".format(simtime.month, simtime.day, simtime.hour, simtime.minute, node.TZ, node.lati, node.longi, node.skytypeparams, retsky(frame, node, geonode)), shell = True)
     elif node.skynum == 3:
-        subprocess.call("gensky {} {} {}:{:0>2d}{} -a {} -o {} {} > {}".format(1, 1, 12, 0, node.TZ, 50, 0, node.skytypeparams, vi_func.sky(frame, node, geonode)), shell = True)
+        subprocess.call("gensky {} {} {}:{:0>2d}{} -a {} -o {} {} > {}".format(1, 1, 12, 0, node.TZ, 50, 0, node.skytypeparams, retsky(frame, node, geonode)), shell = True)
     
 def hdrexport(scene, frame, node, geonode):
-    subprocess.call("oconv {} > {}-{}sky.oct".format(vi_func.sky(frame, node, geonode), geonode.filebase, frame), shell=True)
+    subprocess.call("oconv {} > {}-{}sky.oct".format(retsky(frame, node, geonode), geonode.filebase, frame), shell=True)
     subprocess.call("rpict -vta -vp 0 0 0 -vd 1 0 0 -vu 0 0 1 -vh 360 -vv 360 -x 1000 -y 1000 {0}-{1}sky.oct > {2}{3}{1}.hdr".format(geonode.filebase, frame, geonode.newdir, geonode.fold), shell=True)
-    subprocess.call("cnt 250 500 | rcalc -f {0}{5}lib{5}latlong.cal -e 'XD=500;YD=250;inXD=0.002;inYD=0.004' | rtrace -af pan.af -n {1} -x 500 -y 250 -fac {2}-{3}sky.oct > {4}{5}{3}p.hdr".format(scene.vipath, geonode.nproc, geonode.filebase, frame, geonode.newdir, geonode.fold), shell=True)
+    subprocess.call('cnt 250 500 | rcalc -f "{0}{5}lib{5}latlong.cal" -e "XD=500;YD=250;inXD=0.002;inYD=0.004" | rtrace -af pan.af -n {1} -x 500 -y 250 -fac {2}-{3}sky.oct > {4}{5}{3}p.hdr'.format(scene.vipath, geonode.nproc, geonode.filebase, frame, geonode.newdir, geonode.fold), shell=True)
+    print('cnt 250 500 | rcalc -f "{0}{5}lib{5}latlong.cal" -e "XD=500;YD=250;inXD=0.002;inYD=0.004" | rtrace -af pan.af -n {1} -x 500 -y 250 -fac {2}-{3}sky.oct > {4}{5}{3}p.hdr'.format(scene.vipath, geonode.nproc, geonode.filebase, frame, geonode.newdir, geonode.fold))
     if '{}p.hdr'.format(frame) not in bpy.data.images:
         bpy.data.images.load("{}{}{}p.hdr".format(geonode.newdir, geonode.fold, frame))
     else:
@@ -303,7 +304,7 @@ def blsunexport(scene, node, starttime, frame, sun):
     simtime = starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
     deg2rad = 2*math.pi/360
     DS = 1 if node.daysav else 0
-    ([solalt, solazi]) = vi_func.solarPosition(simtime.timetuple()[7], simtime.hour - DS + (simtime.minute)*0.016666, node.lati, node.longi)
+    ([solalt, solazi]) = solarPosition(simtime.timetuple()[7], simtime.hour - DS + (simtime.minute)*0.016666, node.lati, node.longi)
     if node.skynum < 2:
         if frame == 0:
             sun.data.shadow_method = 'RAY_SHADOW'

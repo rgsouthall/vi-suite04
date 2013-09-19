@@ -119,7 +119,7 @@ def eupdate(self, context):
             for v, vn in enumerate(o['cverts']):
                 j = o['j'][v]
                 o.data.shape_keys.key_blocks[str(frame)].data[vn].co = o.data.shape_keys.key_blocks['Basis'].data[vn].co + 0.1*context.scene.li_disp_3dlevel * ((0.75 - o['oreslist'][str(frame)][j]) * o.data.vertices[vn].normal)
-        
+
 def register():
     bpy.utils.register_module(__name__)
     Object = bpy.types.Object
@@ -273,9 +273,9 @@ def register():
     Material.livi_compliance = bprop("LiVi Compliance Surface", "Flag to siginify whether the material represents a LiVi compliance surface", False)
     Material.gl_roof = bprop("Glazed Roof", "Flag to siginify whether the communal area has a glazed roof", False)
     hspacetype = [('0', 'Public/Staff', 'Public/Staff area'), ('1', 'Patient', 'Patient area')]
-    rspacetype = [('0', "Kitchen", "Kitchen space"), ('1', "Living/Dining/Study", "Living/Dining/Study area"), ('2', "Communal", "Non-residential or communal area")]   
-    respacetype = [('0', "Sales", "Sales space"), ('1', "Occupied", "Occupied space")]  
-    
+    rspacetype = [('0', "Kitchen", "Kitchen space"), ('1', "Living/Dining/Study", "Living/Dining/Study area"), ('2', "Communal", "Non-residential or communal area")]
+    respacetype = [('0', "Sales", "Sales space"), ('1', "Occupied", "Occupied space")]
+
     Material.hspacemenu = eprop(hspacetype, "", "Type of healthcare space", '0')
     Material.rspacemenu = eprop(rspacetype, "", "Type of residential space", '0')
     Material.respacemenu = eprop(respacetype, "", "Type of retail space", '0')
@@ -503,35 +503,35 @@ def register():
     Scene.vipath = sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
 
     Scene.li_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
-    
+
     Scene.lic_disp_panel = bprop("", "",False)
-    
+
     Scene.li_disp_3d = bprop("VI 3D display", "Boolean for 3D results display",  False)
 
     Scene.li_disp_3dlevel = bpy.props.FloatProperty(name = "", description = "Level of 3D result plane extrusion", min = 0, max = 50, default = 0, update = eupdate)
 
     Scene.vi_display = bprop("", "",False)
-    
+
     Scene.li_compliance = bprop("", "", False)
 
     Scene.li_display_rp = bprop("", "", False)
-    
+
     Scene.li_leg_display = bprop("Legend", "", False)
 
     Scene.li_display_sel_only = bprop("", "", False)
 
     Scene.li_display_rp_fs = iprop("", "Point result font size", 4, 48, 9)
-    
+
     Scene.li_projname = sprop("", "Name of the building project", 1024, '')
-    
+
     Scene.li_assorg = sprop("", "Name of the assessing organisation", 1024, '')
-    
+
     Scene.li_assind = sprop("", "Name of the assessing individual", 1024, '')
-    
+
     Scene.li_jobno = sprop("", "Project job number", 1024, '')
 
     Scene.resnode = sprop("", "", 0, "")
-    
+
     Scene.restree = sprop("", "", 0, "")
 
 #    bpy.utils.register_class(vi_operators.OBJECT_OT_LiExtrude)

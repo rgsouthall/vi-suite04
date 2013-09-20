@@ -60,7 +60,7 @@ def li_display(simnode, connode, geonode):
 
     if scene.li_disp_3d == 1:
         for i, geo in enumerate(scene.objects):
-            if geo.type == 'MESH' and geo.licalc == 1:
+            if geo.type == 'MESH' and geo.licalc == 1 and geo.lires == 0:
                 scene.objects.active = None
                 bpy.ops.object.select_all(action = 'DESELECT')
                 scene.objects.active = geo

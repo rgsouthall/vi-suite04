@@ -29,7 +29,6 @@ class Vi3DPanel(bpy.types.Panel):
         scene = context.scene
 
         if scene.li_disp_panel == 1:
-            print('hi')
             layout = self.layout
             row = layout.row()
             row.prop(scene, "li_disp_3d")

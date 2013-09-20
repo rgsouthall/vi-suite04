@@ -214,7 +214,7 @@ def radgexport(export_op, node):
                     elif node.cpoint == '0':
                         geo['cverts'] = []
                         geo['cfaces'] = csf
-                        node.reslen = len(calcsurffaces)
+                        node.reslen = len(csf)
                     bpy.data.meshes.remove(mesh)
                 else:
                     geo.licalc = 0

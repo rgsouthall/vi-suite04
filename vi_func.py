@@ -42,14 +42,14 @@ def nodeinit(node):
     node.filepath = bpy.data.filepath
     node.filename = os.path.splitext(os.path.basename(node.filepath))[0]
     node.filedir = os.path.dirname(node.filepath)
-    if not os.path.isdir(node.filedir+node.fold+node.filename):
-        os.makedirs(node.filedir+node.fold+node.filename)
-    if not os.path.isdir(node.filedir+node.fold+node.filename+node.fold+'obj'):
-       os.makedirs(node.filedir+node.fold+node.filename+node.fold+'obj')
-    node.newdir = node.filedir+node.fold+node.filename
-    node.filebase = node.newdir+node.fold+node.filename
-    node.objfilebase = node.newdir+node.fold+'obj'+node.fold+node.filename
-    node.idf_file = node.newdir+node.fold+"in.idf"
+    if not os.path.isdir(os.path.join(node.filedir, node.filename)):
+        os.makedirs(os.path.join(node.filedir, node.filename))
+    if not os.path.isdir(os.path.join(node.filedir, node.filename, 'obj')):
+       os.makedirs(os.path.join(node.filedir, node.filename, 'obj'))
+    node.newdir = os.path.join(node.filedir, node.filename)
+    node.filebase = os.path.join(node.newdir, node.filename)
+    node.objfilebase = os.path.join(node.newdir, 'obj', node.filename)
+    node.idf_file = os.path.join(node.newdir, "in.idf")
 
 def nodeexported(self):
     self.exported = 0

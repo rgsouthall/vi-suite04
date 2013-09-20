@@ -373,7 +373,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             elif self.inputs['Context in'].links[0].from_node.bl_label == 'LiVi Compliance':
                 row.prop(self, 'csimacc')
             
-            if self.simacc == '3':
+            if (self.simacc == '3' and self.inputs['Context in'].links[0].from_node.bl_label == 'LiVi Basic') or (self.csimacc == '0' and self.inputs['Context in'].links[0].from_node.bl_label == 'LiVi Compliance'):
                row = layout.row()
                row.label("Radiance parameters:")
                row.prop(self, 'cusacc')

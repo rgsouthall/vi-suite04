@@ -75,7 +75,7 @@ def li_calc(calc_op, simnode, connode, geonode):
                 subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
             rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
             rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
-            resfile = open(geonode.newdir+geonode.fold+connode.resname+"-"+str(frame)+".res", 'w')
+            resfile = open(os.path.join(geonode.newdir, connode.resname+"-"+str(frame)+".res"), 'w')
             for l,line in enumerate(rtrun.stdout):
                 if 'octree stale?' in line.decode():
                     resfile.close()
@@ -89,7 +89,7 @@ def li_calc(calc_op, simnode, connode, geonode):
                 if connode.analysismenu == '0':
                     svcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, '-ab 1', geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                     svrun = Popen(svcmd, shell = True, stdout=PIPE, stderr=STDOUT)
-                    svresfile = open(geonode.newdir+geonode.fold+'skyview'+"-"+str(frame)+".res", 'w')
+                    svresfile = open(os.path.join(geonode.newdir,'skyview'+"-"+str(frame)+".res"), 'w')
                     for sv,line in enumerate(svrun.stdout):
                         svres[frame][sv] = float(line.decode())
                     svresfile.write("{}".format(svres[frame]).strip("]").strip("["))

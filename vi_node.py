@@ -342,8 +342,9 @@ class ViLiCNode(bpy.types.Node, ViNodes):
         row = layout.row()
         row.label('Animation:')
         row.prop(self, "animmenu")
-        row = layout.row()
-        row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
+        if self.inputs['Geometry in'].is_linked and self.inputs['Geometry in'].links[0].from_node.bl_label == 'LiVi Geometry':
+            row = layout.row()
+            row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
 
 class ViLiSNode(bpy.types.Node, ViNodes):
     '''Node describing a LiVi simulation'''

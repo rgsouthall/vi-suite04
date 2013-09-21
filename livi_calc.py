@@ -65,9 +65,9 @@ def li_calc(calc_op, simnode, connode, geonode):
         if simnode.simacc == ("0", "3")[connode.bl_label == 'LiVi Basic']:
             params = simnode.cusacc
         else:
-            num = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-ar", 128, 512, 1024), ("-as", 128, 512, 1024), ("-aa", 0.3, 0.15, 0.08), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
+            num = (("-ab", 2, 3, 4), ("-ad", 256, 512, 2048), ("-ar", 128, 256, 512), ("-as", 128, 256, 512), ("-aa", 0.3, 0.15, 0.08), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
             params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simnode.simacc)+1] for n in num]))
-
+            print(params)
         vi_func.clearscened(scene)
         res = svres = [[0 for p in range(geonode.reslen)] for x in range(scene.frame_end + 1 - scene.frame_start)]
         for frame in range(scene.frame_start, scene.frame_end+1):
@@ -204,7 +204,6 @@ def resapply(res, svres, simnode, connode, geonode):
                                         elif c[2] == 'Skyview':
                                             if svres[frame][f] > 0:
                                                 passarea += vi_func.triarea(geo, face)
-
                         f += 1
 
                     if c != 'foo' and c[0] == 'Percent':
@@ -227,17 +226,6 @@ def resapply(res, svres, simnode, connode, geonode):
                     crits.append(geo['crit'])
                     f = 0
                 mcol_i = len(tuple(set(lcol_i)))
-
-##            if geo.licalc == 1:
-#                scene.objects.active = geo
-#                geo.select = True
-#                if frame == 0:
-#                    while len(geo.data.vertex_colors) > 0:
-#                        bpy.ops.mesh.vertex_color_remove()
-#
-#                bpy.ops.mesh.vertex_color_add()
-#                geo.data.vertex_colors[frame].name = str(frame)
-#                vertexColour = geo.data.vertex_colors[frame]
 
                 for face in geo.data.polygons:
                     if geo.data.materials[face.material_index].livi_sense:

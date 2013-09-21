@@ -292,11 +292,10 @@ def sunexport(scene, node, geonode, starttime, frame):
     
 def hdrexport(scene, frame, node, geonode):
     subprocess.call("oconv {} > {}-{}sky.oct".format(retsky(frame, node, geonode), geonode.filebase, frame), shell=True)
-    subprocess.call("rpict -vta -vp 0 0 0 -vd 1 0 0 -vu 0 0 1 -vh 360 -vv 360 -x 1000 -y 1000 {0}-{1}sky.oct > {2}{3}{1}.hdr".format(geonode.filebase, frame, geonode.newdir, geonode.fold), shell=True)
-    subprocess.call('cnt 250 500 | rcalc -f "{0}{5}lib{5}latlong.cal" -e "XD=500;YD=250;inXD=0.002;inYD=0.004" | rtrace -af pan.af -n {1} -x 500 -y 250 -fac {2}-{3}sky.oct > {4}{5}{3}p.hdr'.format(scene.vipath, geonode.nproc, geonode.filebase, frame, geonode.newdir, geonode.fold), shell=True)
-    print('cnt 250 500 | rcalc -f "{0}{5}lib{5}latlong.cal" -e "XD=500;YD=250;inXD=0.002;inYD=0.004" | rtrace -af pan.af -n {1} -x 500 -y 250 -fac {2}-{3}sky.oct > {4}{5}{3}p.hdr'.format(scene.vipath, geonode.nproc, geonode.filebase, frame, geonode.newdir, geonode.fold))
+    subprocess.call("rpict -vta -vp 0 0 0 -vd 1 0 0 -vu 0 0 1 -vh 360 -vv 360 -x 1000 -y 1000 {0}-{1}sky.oct > ".format(geonode.filebase, frame) + os.path.join(geonode.newdir, str(frame)+".hdr"), shell=True)
+    subprocess.call('cnt 250 500 | rcalc -f "'+os.path.join(scene.vipath, 'lib', 'latlong.cal"')+' -e "XD=500;YD=250;inXD=0.002;inYD=0.004" | rtrace -af pan.af -n {0} -x 500 -y 250 -fac "{1}-{2}sky.oct" > '.format(geonode.nproc, geonode.filebase, frame) + '"'+os.path.join(geonode.newdir, str(frame)+'p.hdr')+'"', shell=True)
     if '{}p.hdr'.format(frame) not in bpy.data.images:
-        bpy.data.images.load("{}{}{}p.hdr".format(geonode.newdir, geonode.fold, frame))
+        bpy.data.images.load(os.path.join(geonode.newdir, str(frame)+"p.hdr"))
     else:
         bpy.data.images['{}p.hdr'.format(frame)].reload()
             

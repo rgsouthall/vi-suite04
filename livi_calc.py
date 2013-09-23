@@ -67,7 +67,6 @@ def li_calc(calc_op, simnode, connode, geonode):
         else:
             num = (("-ab", 2, 3, 4), ("-ad", 256, 512, 2048), ("-ar", 128, 256, 512), ("-as", 128, 256, 512), ("-aa", 0.3, 0.15, 0.08), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
             params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simnode.simacc)+1] for n in num]))
-            print(params)
         vi_func.clearscened(scene)
         res = svres = [[0 for p in range(geonode.reslen)] for x in range(scene.frame_end + 1 - scene.frame_start)]
         for frame in range(scene.frame_start, scene.frame_end+1):
@@ -104,7 +103,7 @@ def li_calc(calc_op, simnode, connode, geonode):
 def resapply(res, svres, simnode, connode, geonode):
     crits = []
     scene = bpy.context.scene
-
+    dftotarea = dfpassarea = scene['dfpass'] = 0
     for frame in range(scene.frame_start, scene.frame_end+1):
         rgb = []
         lcol_i = []
@@ -122,7 +121,8 @@ def resapply(res, svres, simnode, connode, geonode):
             scene.objects.active = None
             if geo.licalc == 1:
                 crit = ['foo']
-                totarea = 0
+                geoarea = sum([vi_func.triarea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
+#                totarea += geoarea
                 passarea = 0
                 scene.objects.active = geo
                 geo.select = True
@@ -138,11 +138,11 @@ def resapply(res, svres, simnode, connode, geonode):
 
                 if connode.bl_label == 'LiVi Compliance' and frame == 0:
                     if connode.analysismenu == '0':
-                        if connode.bambuildmenu == '0':
+                        if connode.bambuildmenu in ('0', '5'):
                             crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
                             crit.append(['Ratio', 100, 'Uni', 0.4, 'fail', 0.0, '0.5'])
                             crit.append(['Min', 100, 'PDF', 0.8, 'fail', 0.0, '0.5'])
-                            crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.25'])
+                            crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.75'])
                         elif connode.bambuildmenu == '1':
                             crit.append(['Percent', 60, 'DF', 2, 'fail', 0.0, '1'])
                             crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
@@ -152,6 +152,7 @@ def resapply(res, svres, simnode, connode, geonode):
                                 crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])  
                             else:
                                 crit.append(['Percent', 80, 'DF', 3, 'fail', 0.0, '2'])
+                        
                         elif connode.bambuildmenu == '3':
                             if mat.rspacemenu == '0':
                                 crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
@@ -164,13 +165,13 @@ def resapply(res, svres, simnode, connode, geonode):
                                     crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
                                     crit.append(['Ratio', 100, 'Uni', 0.4, 'fail', 0.0, '0.5'])
                                     crit.append(['Min', 100, 'PDF', 0.8, 'fail', 0.0, '0.5'])
-                                    crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.25'])
+                                    crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.75'])
                                 else:
                                     crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
                                     crit.append(['Ratio', 100, 'Uni', 0.7, 'fail', 0.0, '0.5'])
                                     crit.append(['Min', 100, 'PDF', 1.4, 'fail', 0.0, '0.5'])
-                                    crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.25'])
-
+                                    crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.75'])
+                                    
                         elif connode.bambuildmenu == '4':
                             if mat.respacemenu == '0':
                                 crit.append(['Percent', 35, 'PDF', 2, 'fail', 0.0, '1'])
@@ -179,7 +180,7 @@ def resapply(res, svres, simnode, connode, geonode):
                                 crit.append(['Ratio', 100, 'Uni', 0.4, 'fail', 0.0, '0.5'])
                                 crit.append(['Min', 100, 'PDF', 0.8, 'fail', 0.0, '0.5'])
                                 crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.5'])
-
+                        
                     elif connode.analysismenu == '1':
                         if mat.rspacemenu == '0':
                             crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
@@ -189,6 +190,15 @@ def resapply(res, svres, simnode, connode, geonode):
                             crit.append(['Percent', 80, 'Skyview', 1, 'fail', 0.0, '0.75'])
 
                 for c in crit:
+                    if c[0] == 'Percent':
+                        if c[2] == 'DF':
+                            scene['dfpass'] = 1
+                            if sum(res[frame])/len(res[frame]) > c[3]:
+                                dfpassarea += geoarea
+                                c[4] = 'pass'
+                                c[5] = sum(res[frame])/len(res[frame])
+                            dftotarea += geoarea
+                                
                     for face in geo.data.polygons:
                         if geo.data.materials[face.material_index].livi_sense:
                             if c == 'foo':
@@ -197,20 +207,16 @@ def resapply(res, svres, simnode, connode, geonode):
                             else:
                                 if geo.data.materials[face.material_index].livi_sense:
                                     if c[0] == 'Percent':
-                                        totarea += vi_func.triarea(geo, face)
-                                        if c[2] == 'DF':
-                                            if res[frame][f] > c[3]:
-                                                passarea += vi_func.triarea(geo, face)
-                                        elif c[2] == 'Skyview':
+                                        if c[2] == 'Skyview':
                                             if svres[frame][f] > 0:
                                                 passarea += vi_func.triarea(geo, face)
                         f += 1
 
-                    if c != 'foo' and c[0] == 'Percent':
-                        if passarea > c[1]*0.01*totarea:
+                    if c != 'foo' and c[0] == 'Percent' and c[2] == 'Skyview':
+                        if passarea > c[1]*0.01*geoarea:
                             c[4] = 'pass'
-                        c[5] = 100*passarea/totarea
-                        passarea, totarea = 0, 0
+                        c[5] = 100*passarea/geoarea
+                        passarea = 0
 
                     if c[0] == 'Min':
                         if min(svres[frame]) > c[3]:
@@ -244,8 +250,10 @@ def resapply(res, svres, simnode, connode, geonode):
                             f += 1
                 mcol_i = len(list(set(lcol_i)))
         
-        if 'LiVi Compliance' in scene.resnode:
+        
+        if connode.bl_label == 'LiVi Compliance':
             scene['crits'] = crits
+            scene['dfpass'] = 2 if dfpassarea/dftotarea >= 0.8 else scene['dfpass']
 
     for frame in range(scene.frame_start, scene.frame_end+1):
         scene.frame_set(frame)

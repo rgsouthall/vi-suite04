@@ -128,7 +128,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
     def edupdate(self, context):
         if self.edoy < self.sdoy:
             self.edoy = self.sdoy
-        self.bl_label = '*LiVi Basics'
+        self.bl_label = '*LiVi Basic'
         self.exported = False
         self.outputs['Context out'].hide = True
 
@@ -136,7 +136,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
         if self.edoy == self.sdoy:
             if self.ehour < self.shour:
                 self.ehour = self.shour
-        self.bl_label = '*LiVi Basics'
+        self.bl_label = '*LiVi Basic'
         self.exported = False
         self.outputs['Context out'].hide = True
 
@@ -239,8 +239,9 @@ class ViLiNode(bpy.types.Node, ViNodes):
                 row.prop(self, 'skyname')
         row = layout.row()
         row.prop(self, 'hdr')
-        row = layout.row()
-        row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
+        if self.inputs['Geometry in'].is_linked and self.inputs['Geometry in'].links[0].from_node.bl_label == 'LiVi Geometry':
+            row = layout.row()
+            row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
 
 class ViLiCBNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite climate based lighting node'''
@@ -286,8 +287,9 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         row = layout.row()
         row.label('Animation:')
         row.prop(self, "animmenu")
-        row = layout.row()
-        row.operator("node.liexport", text = "Export").nodename = self.name
+        if self.inputs['Geometry in'].is_linked and self.inputs['Geometry in'].links[0].from_node.bl_label == 'LiVi Geometry':
+            row = layout.row()
+            row.operator("node.liexport", text = "Export").nodename = self.name
 
 class ViLiCNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite lighting compliance node'''
@@ -309,7 +311,7 @@ class ViLiCNode(bpy.types.Node, ViNodes):
     unit = bpy.props.StringProperty()
     hdr = bpy.props.BoolProperty(name="HDR", description="Export HDR panoramas", default=False, update = nodeexported)
     analysistype = [('0', "BREEAM", "BREEAM HEA1 calculation"), ('1', "CfSH", "Code for Sustainable Homes calculation"), ('2', "LEED", "LEED EQ8.1 calculation"), ('3', "Green Star", "Green Star Calculation")]
-    bambuildtype = [('0', "School", "School lighting standard"), ('1', "Higher Education", "Higher education lighting standard"), ('2', "Healthcare", "Healthcare lighting standard"), ('3', "Residential", "Residential lighting standard"), ('3', "Retail", "Retail lighting standard")]
+    bambuildtype = [('0', "School", "School lighting standard"), ('1', "Higher Education", "Higher education lighting standard"), ('2', "Healthcare", "Healthcare lighting standard"), ('3', "Residential", "Residential lighting standard"), ('4', "Retail", "Retail lighting standard"), ('5', "Office & other", "Office and other space lighting standard")]
 
 
     animtype = [('0', "Static", "Simple static analysis"), ('1', "Geometry", "Animated time analysis"), ('2', "Material", "Animated time analysis"), ('3', "Lights", "Animated time analysis")]

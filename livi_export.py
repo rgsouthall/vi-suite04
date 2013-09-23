@@ -18,7 +18,7 @@
 
 import bpy, os, math, subprocess, datetime, sys
 import time as ti
-from math import sin, cos, acos, asin, pi
+from math import sin, cos, tan, pi
 from mathutils import Vector
 from subprocess import PIPE, Popen
 from .vi_func import retsky, retmat, retobj, retmesh, clearscenee, clearscened, solarPosition
@@ -237,6 +237,7 @@ def radcexport(export_op, node):
     clearscenee(scene)
     clearscened(scene)
     geonode = node.inputs[0].links[0].from_node
+
     if geonode.animmenu != 'Static' and node.animmenu != 'Static':
         export_op.report({'ERROR'},"You cannot run a geometry and time based animation at the same time")
     else:
@@ -246,13 +247,17 @@ def radcexport(export_op, node):
                 starttime = datetime.datetime(2013, 1, 1, node.shour) + datetime.timedelta(node.sdoy - 1)
             else:
                 starttime = datetime.datetime(2013, 1, 1, 12)
+            
             if node.animmenu == 'Time':
                 endtime = datetime.datetime(2013, 1, 1, node.ehour) + datetime.timedelta(node.edoy - 1)
                 hours = (endtime-starttime).days*24 + (endtime-starttime).seconds/3600
                 scene.frame_end = int(hours/node.interval)
-                geonode.fe = int(hours/node.interval)
-
-            for frame in range(scene.frame_start, geonode.fe + 1):
+            elif geonode.animmenu != 'Static':
+                scene.frame_end = geonode.fe
+            else:
+                scene.frame_end = scene.frame_start
+                
+            for frame in range(scene.frame_start, scene.frame_end + 1):
                 sunexport(scene, node, geonode, starttime, frame)
                 if node.skynum < 2 and node.analysismenu != '2':
                     if frame == 0:
@@ -266,7 +271,7 @@ def radcexport(export_op, node):
                     hdrexport(scene, frame, node, geonode)
                     
             node['skyfiles'] = skyfileslist
-
+            
         elif node.skynum == 4:
             if node.hdrname not in bpy.data.images:
                 bpy.data.images.load(node.hdrname)
@@ -279,7 +284,7 @@ def radcexport(export_op, node):
 
         elif node.skynum == 6:
             node['skyfiles'] = ['']
-
+   
     for frame in range(scene.frame_start, scene.frame_end + 1):
         fexport(scene, frame, export_op, node, geonode)
 
@@ -315,7 +320,7 @@ def blsunexport(scene, node, starttime, frame, sun):
             elif node.skynum == 1:
                 sun.data.shadow_soft_size = 3
                 sun.data.energy = 3
-        sun.location = [x*20 for x in (sin((solazi)*deg2rad), -cos((solazi)*deg2rad), solalt/90)]
+        sun.location = [x*20 for x in (sin(solazi*deg2rad), -cos(solazi*deg2rad), tan(solalt*deg2rad))]
         sun.rotation_euler = (90-solalt)*deg2rad, 0, solazi*deg2rad
         if scene.render.engine == 'CYCLES':
             bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = sin((solazi)*deg2rad), -cos((solazi)*deg2rad), solalt/90
@@ -330,8 +335,8 @@ def skyexport(node, rad_sky):
     rad_sky.write("\nskyfunc glow skyglow\n0\n0\n")
     rad_sky.write("4 .8 .8 1 0\n\n") if node.skynum < 3 else rad_sky.write("4 1 1 1 0\n\n")
     rad_sky.write("skyglow source sky\n0\n0\n4 0 0 1  180\n\n")
-    rad_sky.write("skyfunc glow groundglow\n0\n0\n4 .8 1.1 .8  0\n\n")
-    rad_sky.write("groundglow source ground\n0\n0\n4 0 0 -1  180\n\n")
+#    rad_sky.write("skyfunc glow groundglow\n0\n0\n4 0 0 0 0\n\n")
+#    rad_sky.write("groundglow source ground\n0\n0\n4 0 0 -1  180\n\n")
     rad_sky.close()
 
 def hdrsky(rad_sky, skyfile):

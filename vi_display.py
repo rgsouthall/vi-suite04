@@ -279,7 +279,7 @@ def li_compliance(self, context, connode):
 
     scene = context.scene
     if connode.analysismenu == '0':
-        buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retails')[int(connode.bambuildmenu)]
+        buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retails', 'Office & Other')[int(connode.bambuildmenu)]
     elif connode.analysismenu == '1':
         buildtype == 'Residential'
     height = context.region.height
@@ -321,15 +321,13 @@ def li_compliance(self, context, connode):
             crit = geo['crit']
             cr4 = [cri[4] for cri in crit]
             cr6 = [cri[6] for cri in crit]
-            if 'fail' in [c for i, c in enumerate(cr4) if cr6[i] == '1']:
+            if 'fail' in [c for i, c in enumerate(cr4) if cr6[i] == '1'] or bpy.context.scene['dfpass'] == 1:
                 pf = 'FAIL'
-            elif 'fail' in [c for i, c in enumerate(cr4) if cr6[i] == '0.75']:
-                pf = 'FAIL'
-            elif 'fail' in [c for i, c in enumerate(cr4) if cr6[i] == '0.5']:
-                if 'fail' in [c for i, c in enumerate(cr4) if cr6[i] == '0.25']:
+            elif 'pass' not in [c for i, c in enumerate(cr4) if cr6[i] == '0.75']:
+                if 'pass' not in [c for i, c in enumerate(cr4) if cr6[i] == '0.5']:
                     pf = 'FAIL'
                 else:
-                    pf = 'FAIL*'
+                    pf = 'pass'
             else:
                 pf = 'PASS'
             pfs.append(pf)
@@ -369,7 +367,7 @@ def li_compliance(self, context, connode):
                 tables = [[] for c in range(lencrit -1 )]
                 for c, cr in enumerate(crit):
                     if cr[0] == 'Percent':
-                        tables[c] = ('Area percentage with {} (%)'.format(('Skyview', 'Daylight Factor above {}'.format(cr[3]))[cr[2] == 'DF']), cr[1], cr[5], cr[4].upper())
+                        tables[c] = ('{} (%)'.format(('Percentage area with Skyview', 'Average Daylight Factor')[cr[2] == 'DF']), cr[3], cr[5], cr[4].upper())
                     if cr[0] == 'Ratio':
                         tables[c] = ('Uniformity ratio', cr[3], cr[5], cr[4].upper())
                     if cr[0] == 'Min':
@@ -448,7 +446,7 @@ def li_compliance(self, context, connode):
     
     if build_compliance == 'PASS':
         if connode.analysismenu == '0':
-            blf.draw(font_id,  ('1', '2', '2', '1', '1')[int(connode.bambuildmenu)])
+            blf.draw(font_id,  ('1', '2', '2', '1', '1', '1')[int(connode.bambuildmenu)])
     else:
         blf.draw(font_id, '0')
         

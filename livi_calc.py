@@ -120,7 +120,7 @@ def resapply(res, svres, simnode, connode, geonode):
             bpy.ops.object.select_all(action = 'DESELECT')
             scene.objects.active = None
             if geo.licalc == 1:
-                crit = ['foo']
+                
                 geoarea = sum([vi_func.triarea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
 #                totarea += geoarea
                 passarea = 0
@@ -129,7 +129,9 @@ def resapply(res, svres, simnode, connode, geonode):
                 if frame == 0:
                     while len(geo.data.vertex_colors) > 0:
                         bpy.ops.mesh.vertex_color_remove()
-
+                    while len(geo.data.shape_keys) > 0:
+                        bpy.ops.mesh.shape_keys_remove()
+                
                 bpy.ops.mesh.vertex_color_add()
                 geo.data.vertex_colors[frame].name = str(frame)
                 vertexColour = geo.data.vertex_colors[frame]
@@ -137,6 +139,7 @@ def resapply(res, svres, simnode, connode, geonode):
                 mat = [matslot.material for matslot in geo.material_slots if matslot.material.livi_sense][0]
 
                 if connode.bl_label == 'LiVi Compliance' and frame == 0:
+                    crit = ['foo']
                     if connode.analysismenu == '0':
                         if connode.bambuildmenu in ('0', '5'):
                             crit.append(['Percent', 80, 'DF', 2, 'fail', 0.0, '1'])
@@ -228,7 +231,7 @@ def resapply(res, svres, simnode, connode, geonode):
                             c[4] = 'pass'
                         c[5] = min(res[frame])/(sum(res[frame])/len(res[frame]))
 
-                    geo['crit'] = [[c[0], str(c[1]), c[2], str(c[3]), c[4], '{:.2f}'.format(c[5]), c[6]] for c in crit[1:]]
+                    geo['crit'].append([[c[0], str(c[1]), c[2], str(c[3]), c[4], '{:.2f}'.format(c[5]), c[6]] for c in crit[1:]])
                     crits.append(geo['crit'])
                     f = 0
                 mcol_i = len(tuple(set(lcol_i)))
@@ -250,11 +253,6 @@ def resapply(res, svres, simnode, connode, geonode):
                             f += 1
                 mcol_i = len(list(set(lcol_i)))
         
-        
-        if connode.bl_label == 'LiVi Compliance':
-            scene['crits'] = crits
-            scene['dfpass'] = 2 if dfpassarea/dftotarea >= 0.8 else scene['dfpass']
-
     for frame in range(scene.frame_start, scene.frame_end+1):
         scene.frame_set(frame)
         for geo in scene.objects:
@@ -270,6 +268,10 @@ def resapply(res, svres, simnode, connode, geonode):
                         vc.active_render = 0
                         vc.keyframe_insert("active")
                         vc.keyframe_insert("active_render")
-
+    
+    if connode.bl_label == 'LiVi Compliance':
+        scene['crits'] = crits
+        scene['dfpass'] = 2 if dfpassarea/dftotarea >= 0.8 else scene['dfpass']
+    
     bpy.ops.wm.save_mainfile(check_existing = False)
 

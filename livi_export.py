@@ -91,7 +91,7 @@ def radgexport(export_op, node):
 
         for o in obs:
             o.select = True
-            if node.animmenu == '1':
+            if node.animmenu == 'Geometry':
                 bpy.ops.export_scene.obj(filepath=retobj(o.name, frame, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=False, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
                 objcmd = "obj2mesh -a {} {} {}".format(retmat(frame, node), retobj(o.name, frame, node), retmesh(o.name, frame, node))
             else:
@@ -251,13 +251,11 @@ def radcexport(export_op, node):
             if node.animmenu == 'Time':
                 endtime = datetime.datetime(2013, 1, 1, node.ehour) + datetime.timedelta(node.edoy - 1)
                 hours = (endtime-starttime).days*24 + (endtime-starttime).seconds/3600
-                scene.frame_end = int(hours/node.interval)
-            elif geonode.animmenu != 'Static':
-                scene.frame_end = geonode.fe
+                scene.frame_end = fe = int(hours/node.interval)
             else:
-                scene.frame_end = scene.frame_start
-                
-            for frame in range(scene.frame_start, scene.frame_end + 1):
+                fe = scene.frame_start
+             
+            for frame in range(scene.frame_start, fe + 1):
                 sunexport(scene, node, geonode, starttime, frame)
                 if node.skynum < 2 and node.analysismenu != '2':
                     if frame == 0:

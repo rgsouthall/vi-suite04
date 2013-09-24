@@ -327,7 +327,7 @@ def li_compliance(self, context, connode):
                 if 'pass' not in [c for i, c in enumerate(cr4) if cr6[i] == '0.5']:
                     pf = 'FAIL'
                 else:
-                    pf = 'pass'
+                    pf = 'PASS'
             else:
                 pf = 'PASS'
             pfs.append(pf)
@@ -434,7 +434,7 @@ def li_compliance(self, context, connode):
     bgl.glVertex2i(500, height - 75 - (lencrit)*25)
     bgl.glVertex2i(300, height - 75 - (lencrit)*25)
     bgl.glEnd()
-    
+
     blf.size(font_id, 20, 52)
     blf.position(font_id, 110, height - 67 - (1+lencrit)*25, 0)
     blf.draw(font_id, 'Building Compliance:')
@@ -443,13 +443,13 @@ def li_compliance(self, context, connode):
     blf.position(font_id, 310, height - 67 - (1+lencrit)*25, 0)
     blf.draw(font_id, 'Credits achieved:')
     blf.position(font_id, 480, height - 67 - (1+lencrit)*25, 0)
-    
+
     if build_compliance == 'PASS':
         if connode.analysismenu == '0':
             blf.draw(font_id,  ('1', '2', '2', '1', '1', '1')[int(connode.bambuildmenu)])
     else:
         blf.draw(font_id, '0')
-        
+
     bgl.glEnable(bgl.GL_BLEND)
     bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
     bgl.glLineWidth(1)
@@ -491,7 +491,7 @@ def li_compliance(self, context, connode):
     blf.draw(font_id, 'Job Number:')
     blf.position(font_id, 785, 32, 0)
     blf.draw(font_id, scene.li_jobno)
-    
+
 def rendview(i):
     for scrn in bpy.data.screens:
         if scrn.name == 'Default':

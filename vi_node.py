@@ -238,7 +238,8 @@ class ViLiNode(bpy.types.Node, ViNodes):
                 row = layout.row()
                 row.prop(self, 'skyname')
         row = layout.row()
-        row.prop(self, 'hdr')
+        if self.skymenu != '6':
+            row.prop(self, 'hdr')
         if self.inputs['Geometry in'].is_linked and self.inputs['Geometry in'].links[0].from_node.bl_label == 'LiVi Geometry':
             row = layout.row()
             row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
@@ -268,7 +269,7 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
 
     def init(self, context):
         self.outputs.new('ViLiWResOut', 'Data out')
-        
+
         self.inputs.new('ViLiG', 'Geometry in')
 
     def update(self):
@@ -353,20 +354,20 @@ class ViLiSNode(bpy.types.Node, ViNodes):
     bl_idname = 'ViLiSNode'
     bl_label = 'LiVi Simulation'
     bl_icon = 'LAMP'
-    
+
     simacc = bpy.props.EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),("3", "Custom", "Edit Radiance parameters"), ],
             name="", description="Simulation accuracy", default="0")
     csimacc = bpy.props.EnumProperty(items=[("1", "Standard", "Standard accuracy for this metric"),("0", "Custom", "Edit Radiance parameters"), ],
             name="", description="Simulation accuracy", default="1")
     cusacc = bpy.props.StringProperty(
             name="", description="Custom Radiance simulation parameters", default="")
-    
+
     def init(self, context):
         self.inputs.new('ViLiC', 'Context in')
         for ng in bpy.data.node_groups:
             if self in ng.nodes[:]:
                 self['nodeid'] = self.name+'@'+ng.name
-        
+
     def draw_buttons(self, context, layout):
         if self.inputs['Context in'].is_linked and self.inputs['Context in'].links[0].from_node.exported and self.inputs['Context in'].links[0].from_node.inputs[0].is_linked and self.inputs['Context in'].links[0].from_node.inputs['Geometry in'].links[0].from_node.exported:
             row = layout.row()
@@ -375,7 +376,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
                 row.prop(self, 'simacc')
             elif self.inputs['Context in'].links[0].from_node.bl_label == 'LiVi Compliance':
                 row.prop(self, 'csimacc')
-            
+
             if (self.simacc == '3' and self.inputs['Context in'].links[0].from_node.bl_label == 'LiVi Basic') or (self.csimacc == '0' and self.inputs['Context in'].links[0].from_node.bl_label == 'LiVi Compliance'):
                row = layout.row()
                row.label("Radiance parameters:")
@@ -384,7 +385,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             row = layout.row()
             row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']
             row.operator("node.calculate", text = 'Calculate').nodeid = self['nodeid']
-    
+
 class ViSPNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite sun path'''
     bl_idname = 'ViSPNode'
@@ -1023,7 +1024,7 @@ class ViLiC(bpy.types.NodeSocket):
 
     def color(self):
         return (1.0, 1.0, 0.0, 0.75)
-        
+
 
 class ViEnGOut(bpy.types.NodeSocket):
     '''Energy geometry out socket'''

@@ -369,7 +369,7 @@ def li_compliance(self, context, connode):
                 tables = [[] for c in range(lencrit -1 )]
                 for c, cr in enumerate(crit):
                     if cr[0] == 'Percent':
-                        tables[c] = ('{} (%)'.format(('Percentage area with Skyview', 'Average Daylight Factor')[cr[2] == 'DF']), cr[3], '{:.2f}'.format(geo['comps'][frame][:][c*2 + 1]), cr4[c].upper())
+                        tables[c] = ('{} (%)'.format(('Percentage area with Skyview', 'Average Daylight Factor')[cr[2] == 'DF']), (cr[1],cr[3])[cr[2] == 'DF'], '{:.2f}'.format(geo['comps'][frame][:][c*2 + 1]), cr4[c].upper())
                     if cr[0] == 'Ratio':
                         tables[c] = ('Uniformity ratio', cr[3], '{:.2f}'.format(geo['comps'][frame][:][c*2 + 1]), cr4[c].upper())
                     if cr[0] == 'Min':

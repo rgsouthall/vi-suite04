@@ -272,7 +272,7 @@ def li3D_legend(self, context, simnode, connode):
 
 def li_compliance(self, context, connode):
     try:
-        if not context.scene.li_compliance:
+        if not context.scene.li_compliance or context.scene.frame_current not in range(context.scene.frame_start, context.scene.frame_end + 1):
             return
     except:
         return
@@ -313,15 +313,17 @@ def li_compliance(self, context, connode):
     blf.size(font_id, 20, 40)
 
     def space_compliance(geos):
+        frame = scene.frame_current
         buildspace =''
         pfs = []
         lencrit = 0
         for geo in geos:
             mat = [m for m in geo.data.materials if m.livi_sense][0]
             crit = geo['crit']
-            cr4 = [cri[4] for cri in crit]
-            cr6 = [cri[6] for cri in crit]
-            if 'fail' in [c for i, c in enumerate(cr4) if cr6[i] == '1'] or bpy.context.scene['dfpass'] == 1:
+#            cr4 = [cri[4] for cri in crit]
+            cr4 = [('fail', 'pass')[int(com)] for com in geo['comps'][frame][:][::2]]
+            cr6 = [cri[4] for cri in crit]
+            if 'fail' in [c for i, c in enumerate(cr4) if cr6[i] == '1'] or bpy.context.scene['dfpass'][frame] == 1:
                 pf = 'FAIL'
             elif 'pass' not in [c for i, c in enumerate(cr4) if cr6[i] == '0.75']:
                 if 'pass' not in [c for i, c in enumerate(cr4) if cr6[i] == '0.5']:
@@ -367,11 +369,11 @@ def li_compliance(self, context, connode):
                 tables = [[] for c in range(lencrit -1 )]
                 for c, cr in enumerate(crit):
                     if cr[0] == 'Percent':
-                        tables[c] = ('{} (%)'.format(('Percentage area with Skyview', 'Average Daylight Factor')[cr[2] == 'DF']), cr[3], cr[5], cr[4].upper())
+                        tables[c] = ('{} (%)'.format(('Percentage area with Skyview', 'Average Daylight Factor')[cr[2] == 'DF']), cr[3], '{:.2f}'.format(geo['comps'][frame][:][c*2 + 1]), cr4[c].upper())
                     if cr[0] == 'Ratio':
-                        tables[c] = ('Uniformity ratio', cr[3], cr[5], cr[4].upper())
+                        tables[c] = ('Uniformity ratio', cr[3], '{:.2f}'.format(geo['comps'][frame][:][c*2 + 1]), cr4[c].upper())
                     if cr[0] == 'Min':
-                        tables[c] = ('Minimum {} (%)'.format('Point Daylight Factor'), cr[3], cr[5], cr[4].upper())
+                        tables[c] = ('Minimum {} (%)'.format('Point Daylight Factor'), cr[3], '{:.2f}'.format(geo['comps'][frame][:][c*2 + 1]), cr4[c].upper())
 
                 for j in range(4):
                     bgl.glBegin(bgl.GL_LINE_LOOP)

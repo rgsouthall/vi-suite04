@@ -19,7 +19,7 @@ class NODE_OT_LiGExport(bpy.types.Operator):
     bl_idname = "node.ligexport"
     bl_label = "VI-Suite export"
     nodeid = bpy.props.StringProperty()
-                
+
     def execute(self, context):
         if bpy.data.filepath and " " not in bpy.data.filepath:
             node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
@@ -29,12 +29,12 @@ class NODE_OT_LiGExport(bpy.types.Operator):
                 node.bl_label = node.bl_label[1:]
             node.outputs[0].hide = False
             return {'FINISHED'}
-            
+
         elif " "  in bpy.data.filepath:
             self.report({'ERROR'},"The directory path or Blender filename has a space in it. Please save again without any spaces and recreate this node")
             bpy.ops.node.delete()
             return {'FINISHED'}
-            
+
         elif not bpy.data.filepath:
             self.report({'ERROR'},"The Blender file has not been saved. Save the Blender file and recreate this node before exporting")
             bpy.ops.node.delete()
@@ -139,13 +139,13 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
         if node.bl_label == 'LiVi Basic':
             node.resname = ("illumout", "irradout", "dfout")[int(node.analysismenu)]
             node.unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(node.analysismenu)]
-            node.skynum = int(node.skymenu)
+            node.skynum = int(node.skymenu) if node.analysismenu != "2" else 3
             if str(sys.platform) != 'win32':
                 node.simalg = (" |  rcalc  -e '$1=47.4*$1+120*$2+11.6*$3' ", " |  rcalc  -e '$1=$1' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' ")[int(node.analysismenu)]
             else:
                 node.simalg = (' |  rcalc  -e "$1=47.4*$1+120*$2+11.6*$3" ', ' |  rcalc  -e "$1=$1" ', ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ')[int(node.analysismenu)]
             node.TZ = node.summer if node.daysav == True else node.stamer
-        
+
         elif node.bl_label == 'LiVi Compliance':
             if node.analysismenu == '0':
                 node.resname = 'breaamout'
@@ -154,7 +154,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
                     node.simalg = " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' "
                 else:
                     node.simalg = ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" '
-        
+
         if bpy.data.filepath:
             if bpy.context.object:
                 if bpy.context.object.type == 'MESH' and bpy.context.object.hide == False and bpy.context.object.layers[0] == True:
@@ -237,7 +237,7 @@ class VIEW3D_OT_LiNumDisplay(bpy.types.Operator):
     bl_idname = "view3d.linumdisplay"
     bl_label = "Display results legend and stats in the 3D View"
     bl_options = {'REGISTER'}
-    
+
     def modal(self, context, event):
         context.area.tag_redraw()
         if context.scene.vi_display == 0:
@@ -246,7 +246,7 @@ class VIEW3D_OT_LiNumDisplay(bpy.types.Operator):
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
             if bpy.context.scene.resnode == 'LiVi Compliance':
                 bpy.types.SpaceView3D.draw_handler_remove(self._handle_comp, 'WINDOW')
-                
+
 
 #        if context.scene.leg_display == 1:
 #            context.scene.rp_display = False
@@ -262,13 +262,13 @@ class VIEW3D_OT_LiNumDisplay(bpy.types.Operator):
             self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(li3D_legend, (self, context, simnode, connode), 'WINDOW', 'POST_PIXEL')
             self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, simnode, geonode), 'WINDOW', 'POST_PIXEL')
             if connode.bl_label == 'LiVi Compliance':
-                self._handle_comp = bpy.types.SpaceView3D.draw_handler_add(li_compliance, (self, context, connode), 'WINDOW', 'POST_PIXEL')    
+                self._handle_comp = bpy.types.SpaceView3D.draw_handler_add(li_compliance, (self, context, connode), 'WINDOW', 'POST_PIXEL')
             context.scene.vi_display = 1
             return {'RUNNING_MODAL'}
         else:
             self.report({'WARNING'}, "View3D not found, cannot run operator")
             return {'CANCELLED'}
-            
+
 class IES_Select(bpy.types.Operator, io_utils.ImportHelper):
     bl_idname = "livi.ies_select"
     bl_label = "Select IES file"

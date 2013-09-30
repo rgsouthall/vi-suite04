@@ -49,15 +49,13 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     filebase = bpy.props.StringProperty()
     objfilebase = bpy.props.StringProperty()
     nodetree = bpy.props.StringProperty()
-    reslen = bpy.props.IntProperty()
+    reslen = bpy.props.IntProperty(default = 0)
     exported = bpy.props.BoolProperty()
     nproc = bpy.props.StringProperty()
     rm = bpy.props.StringProperty()
     cp = bpy.props.StringProperty()
     cat = bpy.props.StringProperty()
     fold = bpy.props.StringProperty()
-    fe = bpy.props.IntProperty()
-    fs = bpy.props.IntProperty()
 
     def nodeexported(self, context):
         self.exported = False

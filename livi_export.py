@@ -41,7 +41,7 @@ def radgexport(export_op, node):
     clearscenee(scene)
     clearscened(scene)
     scene.frame_start = 0
-    scene.frame_end = 0 if node.animmenu == 'Static' else scene.frame_end
+    scene.frame_end = node.feg = 0 if node.animmenu == 'Static' else scene.frame_end
 
     for frame in range(scene.frame_start, scene.frame_end + 1):
         scene.frame_current = frame
@@ -209,12 +209,12 @@ def radgexport(export_op, node):
                     if node.cpoint == '1':
                         geo['cverts'] = cverts
                         geo['cfaces'] = []
-                        node.reslen = len(calcsurfverts)
+                        node.reslen += len(calcsurfverts)
 
                     elif node.cpoint == '0':
                         geo['cverts'] = []
                         geo['cfaces'] = csf
-                        node.reslen = len(csf)
+                        node.reslen += len(csf)
                     bpy.data.meshes.remove(mesh)
                 else:
                     geo.licalc = 0
@@ -247,14 +247,16 @@ def radcexport(export_op, node):
                 starttime = datetime.datetime(2013, 1, 1, node.shour) + datetime.timedelta(node.sdoy - 1)
             else:
                 starttime = datetime.datetime(2013, 1, 1, 12)
-            
-            if node.animmenu == 'Time':
+
+            if node.animmenu == 'Time' and node.skynum < 3:
                 endtime = datetime.datetime(2013, 1, 1, node.ehour) + datetime.timedelta(node.edoy - 1)
                 hours = (endtime-starttime).days*24 + (endtime-starttime).seconds/3600
                 scene.frame_end = fe = int(hours/node.interval)
             else:
                 fe = scene.frame_start
-             
+                if geonode.animmenu == 'Static':
+                    scene.frame_end = fe
+
             for frame in range(scene.frame_start, fe + 1):
                 sunexport(scene, node, geonode, starttime, frame)
                 if node.skynum < 2 and node.analysismenu != '2':
@@ -267,9 +269,9 @@ def radcexport(export_op, node):
                 skyfileslist.append(open(geonode.filebase+"-{}.sky".format(frame), 'r').read())
                 if node.hdr == True:
                     hdrexport(scene, frame, node, geonode)
-                    
+
             node['skyfiles'] = skyfileslist
-            
+
         elif node.skynum == 4:
             if node.hdrname not in bpy.data.images:
                 bpy.data.images.load(node.hdrname)
@@ -282,7 +284,7 @@ def radcexport(export_op, node):
 
         elif node.skynum == 6:
             node['skyfiles'] = ['']
-   
+
     for frame in range(scene.frame_start, scene.frame_end + 1):
         fexport(scene, frame, export_op, node, geonode)
 
@@ -292,7 +294,7 @@ def sunexport(scene, node, geonode, starttime, frame):
         subprocess.call("gensky {} {} {}:{:0>2d}{} -a {} -o {} {} > {}".format(simtime.month, simtime.day, simtime.hour, simtime.minute, node.TZ, node.lati, node.longi, node.skytypeparams, retsky(frame, node, geonode)), shell = True)
     elif node.skynum == 3:
         subprocess.call("gensky {} {} {}:{:0>2d}{} -a {} -o {} {} > {}".format(1, 1, 12, 0, node.TZ, 50, 0, node.skytypeparams, retsky(frame, node, geonode)), shell = True)
-    
+
 def hdrexport(scene, frame, node, geonode):
     subprocess.call("oconv {} > {}-{}sky.oct".format(retsky(frame, node, geonode), geonode.filebase, frame), shell=True)
     subprocess.call("rpict -vta -vp 0 0 0 -vd 1 0 0 -vu 0 0 1 -vh 360 -vv 360 -x 1000 -y 1000 {0}-{1}sky.oct > ".format(geonode.filebase, frame) + os.path.join(geonode.newdir, str(frame)+".hdr"), shell=True)
@@ -301,7 +303,7 @@ def hdrexport(scene, frame, node, geonode):
         bpy.data.images.load(os.path.join(geonode.newdir, str(frame)+"p.hdr"))
     else:
         bpy.data.images['{}p.hdr'.format(frame)].reload()
-            
+
 def blsunexport(scene, node, starttime, frame, sun):
     simtime = starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
     deg2rad = 2*math.pi/360

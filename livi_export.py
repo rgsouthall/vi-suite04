@@ -323,8 +323,9 @@ def blsunexport(scene, node, starttime, frame, sun):
         sun.location = [x*20 for x in (sin(solazi*deg2rad), -cos(solazi*deg2rad), tan(solalt*deg2rad))]
         sun.rotation_euler = (90-solalt)*deg2rad, 0, solazi*deg2rad
         if scene.render.engine == 'CYCLES':
-            bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = sin((solazi)*deg2rad), -cos((solazi)*deg2rad), solalt/90
-            bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = frame)
+            if 'Sky Texture' in [node.bl_label for node in bpy.data.worlds['World'].node_tree.nodes]:
+                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = sin((solazi)*deg2rad), -cos((solazi)*deg2rad), solalt/90
+                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = frame)
         sun.keyframe_insert(data_path = 'location', frame = frame)
         sun.keyframe_insert(data_path = 'rotation_euler', frame = frame)
         sun.data.cycles.use_multiple_importance_sampling = True

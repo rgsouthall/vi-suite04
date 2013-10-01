@@ -266,9 +266,9 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
     exported = bpy.props.BoolProperty(default=False)
 
     def init(self, context):
-        self.outputs.new('ViLiWResOut', 'Data out')
-
         self.inputs.new('ViLiG', 'Geometry in')
+        self.outputs.new('ViLiC', 'Context out')
+        self.outputs['Context out'].hide = True
 
     def update(self):
         if self.outputs['Data out'].is_linked:
@@ -311,8 +311,6 @@ class ViLiCNode(bpy.types.Node, ViNodes):
     hdr = bpy.props.BoolProperty(name="HDR", description="Export HDR panoramas", default=False, update = nodeexported)
     analysistype = [('0', "BREEAM", "BREEAM HEA1 calculation"), ('1', "CfSH", "Code for Sustainable Homes calculation"), ('2', "LEED", "LEED EQ8.1 calculation"), ('3', "Green Star", "Green Star Calculation")]
     bambuildtype = [('0', "School", "School lighting standard"), ('1', "Higher Education", "Higher education lighting standard"), ('2', "Healthcare", "Healthcare lighting standard"), ('3', "Residential", "Residential lighting standard"), ('4', "Retail", "Retail lighting standard"), ('5', "Office & other", "Office and other space lighting standard")]
-
-
     animtype = [('Static', "Static", "Simple static analysis")]
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
 

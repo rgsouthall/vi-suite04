@@ -17,8 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, blf, colorsys, bgl, math, mathutils
-from bpy_extras import image_utils
+import bpy, blf, colorsys, bgl, mathutils
 from . import livi_export
 from . import vi_func
 
@@ -281,7 +280,7 @@ def li_compliance(self, context, connode):
     if connode.analysismenu == '0':
         buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retails', 'Office & Other')[int(connode.bambuildmenu)]
     elif connode.analysismenu == '1':
-        buildtype == 'Residential'
+        buildtype = 'Residential'
     height = context.region.height
     bgl.glEnable(bgl.GL_BLEND)
     bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
@@ -373,6 +372,7 @@ def li_compliance(self, context, connode):
                     if cr[0] == 'Ratio':
                         tables[c] = ('Uniformity ratio', cr[3], '{:.2f}'.format(geo['comps'][frame][:][c*2 + 1]), cr4[c].upper())
                     if cr[0] == 'Min':
+                        print(c, cr, geo['comps'][frame][:], cr4)
                         tables[c] = ('Minimum {} (%)'.format('Point Daylight Factor'), cr[3], '{:.2f}'.format(geo['comps'][frame][:][c*2 + 1]), cr4[c].upper())
 
                 for j in range(4):

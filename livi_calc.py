@@ -85,7 +85,7 @@ def li_calc(calc_op, simnode, connode, geonode):
             resfile.write("{}".format(res[frame]).strip("]").strip("["))
             resfile.close()
             if connode.bl_label == 'LiVi Compliance':
-                if connode.analysismenu == '0':
+                if connode.analysismenu in ('0', '1'):
                     svcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, '-ab 1', geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                     svrun = Popen(svcmd, shell = True, stdout=PIPE, stderr=STDOUT)
                     svresfile = open(os.path.join(geonode.newdir,'skyview'+"-"+str(frame)+".res"), 'w')
@@ -121,8 +121,6 @@ def resapply(res, svres, simnode, connode, geonode):
             bpy.ops.object.select_all(action = 'DESELECT')
             scene.objects.active = None
             if geo.licalc == 1:
-
-
                 geoarea = sum([vi_func.triarea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
 #                totarea += geoarea
                 passarea = 0
@@ -159,9 +157,9 @@ def resapply(res, svres, simnode, connode, geonode):
 
                 if connode.bl_label == 'LiVi Compliance':
                     if frame == 0:
-                        geo['crit'] = []
+                        geo['crit'] = crit = []
                         comps = [[] * f for f in range(scene.frame_start, scene.frame_end+1)]
-                        crit = ['foo']
+#                        crit = ['foo']
                         if connode.analysismenu == '0':
                             if connode.bambuildmenu in ('0', '5'):
                                 crit.append(['Percent', 80, 'DF', 2, '1'])
@@ -226,38 +224,37 @@ def resapply(res, svres, simnode, connode, geonode):
                                     comps[frame].append(sum(res[frame])/len(res[frame]))
                                     dftotarea += geoarea
 
-
-                            for face in geo.data.polygons:
+                            for fa, face in enumerate(geo.data.polygons):
                                 if geo.data.materials[face.material_index].livi_sense:
                                     if c[0] == 'Percent':
                                         if c[2] == 'Skyview':
-                                            if svres[frame][f] > 0:
+                                            if svres[frame][fa] > 0:
                                                 passarea += vi_func.triarea(geo, face)
 
 
-                    if c != 'foo' and c[0] == 'Percent' and c[2] == 'Skyview':
-                        if passarea == geoarea:
-                            comps[frame].append(1)
-                        else:
-                            comps[frame].append(0)
-                        comps[frame].append(100*passarea/geoarea)
-                        passarea = 0
+                            if c[0] == 'Percent' and c[2] == 'Skyview':
+                                if passarea == geoarea:
+                                    comps[frame].append(1)
+                                else:
+                                    comps[frame].append(0)
+                                comps[frame].append(100*passarea/geoarea)
+                                passarea = 0
 
-                    if c[0] == 'Min':
-                        if min(svres[frame]) > c[3]:
-                            comps[frame].append(1)
-                        else:
-                            comps[frame].append(0)
-                        comps[frame].append(min(svres[frame]))
+                            if c[0] == 'Min':
+                                if min(svres[frame]) > c[3]:
+                                    comps[frame].append(1)
+                                else:
+                                    comps[frame].append(0)
+                                comps[frame].append(min(svres[frame]))
 
-                    if c[0] == 'Ratio':
-                        if min(res[frame])/(sum(res[frame])/len(res[frame])) >= c[3]:
-                            comps[frame].append(1)
-                        else:
-                            comps[frame].append(0)
-                        comps[frame].append(min(res[frame])/(sum(res[frame])/len(res[frame])))
+                            if c[0] == 'Ratio':
+                                if min(res[frame])/(sum(res[frame])/len(res[frame])) >= c[3]:
+                                    comps[frame].append(1)
+                                else:
+                                    comps[frame].append(0)
+                                comps[frame].append(min(res[frame])/(sum(res[frame])/len(res[frame])))
 
-                    geo['crit'] = [[c[0], str(c[1]), c[2], str(c[3]), c[4]] for c in crit[1:]]
+                    geo['crit'] = [[c[0], str(c[1]), c[2], str(c[3]), c[4]] for c in crit[:]]
                     geo['comps'] = comps
                     crits.append(geo['crit'])
 

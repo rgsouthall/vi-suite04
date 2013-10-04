@@ -371,3 +371,10 @@ def windcompass():
     
 def rgb2h(rgb):
     return colorsys.rgb_to_hsv(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0)[0]
+    
+def livisimacc(simnode, connode):
+    return(simnode.csimacc if connode.bl_label == 'LiVi Compliance' else simnode.simacc)
+    
+def dispoff(scene):
+    for disp in (scene.vi_display):
+        pass

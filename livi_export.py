@@ -32,8 +32,6 @@ except:
 
 def radgexport(export_op, node):
     scene = bpy.context.scene
-    scene.li_disp_panel = 0
-    scene.vi_display = 0
     if bpy.context.active_object:
         bpy.ops.object.mode_set()
     radfilelist = []
@@ -48,9 +46,12 @@ def radgexport(export_op, node):
         radfile = open(node.filebase+"-{}.rad".format(frame), 'w')
         radfile.write("# Materials \n\n")
         for meshmat in bpy.data.materials:
+            if scene.render.engine == 'CYCLES' and hasattr(meshmat.node_tree, 'nodes'):
+                pass
+                
             diff = [meshmat.diffuse_color[0]*meshmat.diffuse_intensity, meshmat.diffuse_color[1]*meshmat.diffuse_intensity, meshmat.diffuse_color[2]*meshmat.diffuse_intensity]
-            if meshmat.livi_sense:
-                meshmat.use_vertex_color_paint = 1
+            meshmat.use_vertex_color_paint = 1 if meshmat.livi_sense else 0
+             
             if meshmat.use_shadeless == 1 or meshmat.livi_compliance:
                 radfile.write("# Antimatter material\nvoid antimatter " + meshmat.name.replace(" ", "_") +"\n1 void\n0\n0\n\n")
 
@@ -88,7 +89,10 @@ def radgexport(export_op, node):
 # geometry export routine
 
         obs = [geo for geo in scene.objects if geo.type == 'MESH' and not geo.children  and 'lightarray' not in geo.name and geo.hide == False and geo.layers[0] == True]
-
+        
+        radfile = open(node.filebase+"-{}.rad".format(frame), 'a')
+        radfile.write("# Geometry \n\n")
+        
         for o in obs:
             o.select = True
             if node.animmenu == 'Geometry':
@@ -104,12 +108,8 @@ def radgexport(export_op, node):
             for line in objrun.stderr:
                 if 'fatal' in str(line):
                     o.limerr = 1
-
-            radfile = open(node.filebase+"-{}.rad".format(frame), 'a')
-            radfile.write("# Geometry \n\n")
             if o.limerr == 0:
                 radfile.write("void mesh id \n1 "+retmesh(o.name, frame, node)+"\n0\n0\n\n")
-
             else:
                 export_op.report({'INFO'}, o.name+" could not be converted into a Radiance mesh and simpler export routine has been used. No un-applied object modifiers will be exported.")
                 o.limerr = 0
@@ -322,7 +322,7 @@ def blsunexport(scene, node, starttime, frame, sun):
                 sun.data.energy = 3
         sun.location = [x*20 for x in (sin(solazi*deg2rad), -cos(solazi*deg2rad), tan(solalt*deg2rad))]
         sun.rotation_euler = (90-solalt)*deg2rad, 0, solazi*deg2rad
-        if scene.render.engine == 'CYCLES':
+        if scene.render.engine == 'CYCLES' and hasattr(bpy.data.worlds['World'].node_tree, 'nodes'):
             if 'Sky Texture' in [node.bl_label for node in bpy.data.worlds['World'].node_tree.nodes]:
                 bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = sin((solazi)*deg2rad), -cos((solazi)*deg2rad), solalt/90
                 bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = frame)

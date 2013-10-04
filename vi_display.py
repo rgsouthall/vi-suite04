@@ -212,7 +212,7 @@ def linumdisplay(disp_op, context, simnode, geonode):
 
 def li3D_legend(self, context, simnode, connode):
     scene = context.scene
-    if scene.li_leg_display != True:
+    if scene.li_leg_display != True or scene.vi_display == 0:
         return
     else:
         resvals = [('{:.0f}', '{:.0f}', '{:.1f}')[int(connode.analysismenu)].format(min(simnode['minres'])+i*(max(simnode['maxres'])-min(simnode['minres']))/19) for i in range(20)]
@@ -271,7 +271,7 @@ def li3D_legend(self, context, simnode, connode):
 
 def li_compliance(self, context, connode):
     try:
-        if not context.scene.li_compliance or context.scene.frame_current not in range(context.scene.frame_start, context.scene.frame_end + 1):
+        if not context.scene.li_compliance or context.scene.frame_current not in range(context.scene.frame_start, context.scene.frame_end + 1) or scene.vi_display == 0:
             return
     except:
         return

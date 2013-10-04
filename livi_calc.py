@@ -32,7 +32,7 @@ def radfexport(scene, export_op, connode, geonode):
     for frame in range(scene.frame_start, scene.frame_end + 1):
         livi_export.fexport(scene, frame, export_op, connode, geonode)
 
-def rad_prev(prev_op, simnode, connode, geonode):
+def rad_prev(prev_op, simnode, connode, geonode, simacc):
     scene = bpy.context.scene
     if simnode.simacc == ("1", "3")[connode.bl_label == 'LiVi Basic']:
         params = simnode.cusacc
@@ -57,22 +57,23 @@ def rad_prev(prev_op, simnode, connode, geonode):
     else:
         prev_op.report({'ERROR'},"Missing export file. Make sure you have exported the scene.")
 
-def li_calc(calc_op, simnode, connode, geonode):
+def li_calc(calc_op, simnode, connode, geonode, simacc):
     scene = bpy.context.scene
     if os.lstat(geonode.filebase+".rtrace").st_size == 0:
         calc_op.report({'ERROR'},"There are no materials with the livi sensor option enabled")
     else:
-        if simnode.simacc == ("0", "3")[connode.bl_label == 'LiVi Basic']:
+        if simacc == ("0", "3")[connode.bl_label == 'LiVi Basic']:
             params = simnode.cusacc
         else:
             num = (("-ab", 2, 3, 4), ("-ad", 256, 512, 2048), ("-ar", 128, 256, 512), ("-as", 128, 256, 512), ("-aa", 0.3, 0.15, 0.08), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
-            params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simnode.simacc)+1] for n in num]))
+            params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simacc)+1] for n in num]))
         vi_func.clearscened(scene)
         res = svres = [[0 for p in range(geonode.reslen)] for x in range(scene.frame_end + 1 - scene.frame_start)]
         for frame in range(scene.frame_start, scene.frame_end+1):
             if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
                 subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
             rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+            print(rtcmd, '-af {2}-{3}.af '.format('','','','',''))
             rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
             resfile = open(os.path.join(geonode.newdir, connode.resname+"-"+str(frame)+".res"), 'w')
             for l,line in enumerate(rtrun.stdout):
@@ -86,7 +87,7 @@ def li_calc(calc_op, simnode, connode, geonode):
             resfile.close()
             if connode.bl_label == 'LiVi Compliance':
                 if connode.analysismenu in ('0', '1'):
-                    svcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, '-ab 1', geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+                    svcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, '-ab 1 -ad 512 -aa 0.15 -ar 256 -as 256', geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                     svrun = Popen(svcmd, shell = True, stdout=PIPE, stderr=STDOUT)
                     svresfile = open(os.path.join(geonode.newdir,'skyview'+"-"+str(frame)+".res"), 'w')
                     for sv,line in enumerate(svrun.stdout):

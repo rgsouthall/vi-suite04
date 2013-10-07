@@ -213,6 +213,12 @@ def resapply(res, svres, simnode, connode, geonode):
                                 crit.append(['Percent', 80, 'DF', 1.5, '1'])
                                 crit.append(['Percent', 100, 'Skyview', 1, '0.75'])
 
+                        elif connode.analysismenu == '2':
+                            crit.append(['Percent', 75, 'FC', 108, '1'])
+                            crit.append(['Percent', 75, 'FC', 5400, '1'])
+                            crit.append(['Percent', 90, 'FC', 108, '1'])
+                            crit.append(['Percent', 90, 'FC', 5400, '1'])
+
                         for c in crit:
                             if c[0] == 'Percent':
                                 if c[2] == 'DF':

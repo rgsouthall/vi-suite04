@@ -23,6 +23,7 @@ class NODE_OT_LiGExport(bpy.types.Operator):
     def execute(self, context):
         if bpy.data.filepath and " " not in bpy.data.filepath:
             node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+            bpy.data.node_groups[self.nodeid.split('@')[1]].use_fake_user = 1
             radgexport(self, node)
             node.exported = True
             if node.bl_label[0] == '*':
@@ -135,7 +136,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
 
     def invoke(self, context, event):
         context.scene.li_disp_panel = 0
-        context.scene.lic_disp_panel = 0 
+        context.scene.lic_disp_panel = 0
         context.scene.vi_display = 0
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
@@ -215,7 +216,7 @@ class NODE_OT_Calculate(bpy.types.Operator):
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         connode = simnode.inputs['Context in'].links[0].from_node
         geonode = connode.inputs['Geometry in'].links[0].from_node
-       
+
         li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
         context.scene.vi_display = 0
         context.scene.li_disp_panel = 1

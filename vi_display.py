@@ -270,13 +270,13 @@ def li3D_legend(self, context, simnode, connode):
             blf.draw(font_id, "Min: {:.1f}".format(simnode['minres'][context.scene.frame_current]))
 
 def li_compliance(self, context, connode):
+    scene = context.scene
     try:
-        if not context.scene.li_compliance or context.scene.frame_current not in range(context.scene.frame_start, context.scene.frame_end + 1) or scene.vi_display == 0:
+        if not scene.li_compliance or scene.frame_current not in range(scene.frame_start, scene.frame_end + 1) or scene.vi_display == 0:
             return
     except:
         return
 
-    scene = context.scene
     if connode.analysismenu == '0':
         buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retails', 'Office & Other')[int(connode.bambuildmenu)]
     elif connode.analysismenu == '1':
@@ -315,23 +315,42 @@ def li_compliance(self, context, connode):
         frame = scene.frame_current
         buildspace =''
         pfs = []
+        epfs = []
         lencrit = 0
         for geo in geos:
             mat = [m for m in geo.data.materials if m.livi_sense][0]
+#            if connode.analysismenu == '0':
+#                if connode.bambuildmenu == '
             crit = geo['crit']
 #            cr4 = [cri[4] for cri in crit]
             cr4 = [('fail', 'pass')[int(com)] for com in geo['comps'][frame][:][::2]]
             cr6 = [cri[4] for cri in crit]
             if 'fail' in [c for i, c in enumerate(cr4) if cr6[i] == '1'] or bpy.context.scene['dfpass'][frame] == 1:
                 pf = 'FAIL'
-            elif 'pass' not in [c for i, c in enumerate(cr4) if cr6[i] == '0.75']:
-                if 'pass' not in [c for i, c in enumerate(cr4) if cr6[i] == '0.5']:
+            elif 'pass' not in [c for i, c in enumerate(cr4) if cr6[i] == '0.75'] and len([c for i, c in enumerate(cr4) if cr6[i] == '0.75']) > 0:
+                if 'pass' not in [c for i, c in enumerate(cr4) if cr6[i] == '0.5'] and len([c for i, c in enumerate(cr4) if cr6[i] == '0.5']) > 0:
                     pf = 'FAIL'
                 else:
                     pf = 'PASS'
             else:
                 pf = 'PASS'
             pfs.append(pf)
+
+            ecrit = geo['ecrit']
+#            cr4 = [cri[4] for cri in crit]
+            cr4 = [('fail', 'pass')[int(com)] for com in geo['ecomps'][frame][:][::2]]
+            cr6 = [cri[4] for cri in ecrit]
+            if 'fail' in [c for i, c in enumerate(cr4) if cr6[i] == '1'] or bpy.context.scene['dfpass'][frame] == 1:
+                epf = 'FAIL'
+            elif 'pass' not in [c for i, c in enumerate(cr4) if cr6[i] == '0.75'] and len([c for i, c in enumerate(cr4) if cr6[i] == '0.75']) > 0:
+                if 'pass' not in [c for i, c in enumerate(cr4) if cr6[i] == '0.5'] and len([c for i, c in enumerate(cr4) if cr6[i] == '0.5']) > 0:
+                    epf = 'FAIL'
+                else:
+                    epf = 'EXEMPLARY'
+            else:
+                epf = 'EXEMPLARY'
+            epfs.append(epf)
+
 
             if geo == bpy.context.active_object:
                 lencrit = 1 + len(geo['crit'])
@@ -357,22 +376,23 @@ def li_compliance(self, context, connode):
                 mat = [m for m in bpy.context.active_object.data.materials if m.livi_sense][0]
                 if connode.analysismenu == '0':
                     if connode.bambuildmenu == '2':
-                        buildspace = (' - Public/Staff', ' - Patient')[int(mat.rspacemenu)]
+                        buildspace = (' - Public/Staff', ' - Patient')[int(mat.hspacemenu)]
                     elif connode.bambuildmenu == '3':
                         buildspace = (' - Kitchen', ' - Living/Dining/Study', ' - Communal')[int(mat.rspacemenu)]
                     elif connode.bambuildmenu == '4':
                         buildspace = (' - Sales', ' - Office')[int(mat.respacemenu)]
+                elif connode.analysismenu == '1':
+                    buildspace = (' - Kitchen', ' - Living/Dining/Study')[int(mat.rspacemenu)]
 
                 widths = (100, 450, 600, 750, 900)
                 titles = ('Zone Metric', 'Target', 'Achieved', 'PASS/FAIL')
                 tables = [[] for c in range(lencrit -1 )]
                 for c, cr in enumerate(crit):
                     if cr[0] == 'Percent':
-                        tables[c] = ('{} (%)'.format(('Percentage area with Skyview', 'Average Daylight Factor')[cr[2] == 'DF']), (cr[1],cr[3])[cr[2] == 'DF'], '{:.2f}'.format(geo['comps'][frame][:][c*2 + 1]), cr4[c].upper())
-                    if cr[0] == 'Ratio':
+                        tables[c] = ('{} (%)'.format(('Percentage area with Skyview', 'Average{}Daylight Factor'.format((' ', ' Point ')[cr[2] == 'PDF']))[cr[2] in ('DF', 'PDF')]), (cr[1],cr[3])[cr[2] in ('PDF','DF')], '{:.2f}'.format(geo['comps'][frame][:][c*2 + 1]), cr4[c].upper())
+                    elif cr[0] == 'Ratio':
                         tables[c] = ('Uniformity ratio', cr[3], '{:.2f}'.format(geo['comps'][frame][:][c*2 + 1]), cr4[c].upper())
-                    if cr[0] == 'Min':
-                        print(c, cr, geo['comps'][frame][:], cr4)
+                    elif cr[0] == 'Min':
                         tables[c] = ('Minimum {} (%)'.format('Point Daylight Factor'), cr[3], '{:.2f}'.format(geo['comps'][frame][:][c*2 + 1]), cr4[c].upper())
 
                 for j in range(4):
@@ -407,7 +427,10 @@ def li_compliance(self, context, connode):
 
                 bgl.glDisable(bgl.GL_LINE_STIPPLE)
 
-        return('FAIL' if 'FAIL' in pfs or 'FAIL*' in pfs else 'PASS', lencrit, buildspace)
+        tpf = 'FAIL' if 'FAIL' in pfs or 'FAIL*' in pfs else 'PASS'
+        tpf = 'EXEMPLARY' if tpf == 'PASS' and ('FAIL' not in epfs or 'FAIL*' not in epfs) else tpf
+
+        return(tpf, lencrit, buildspace)
 
     build_compliance, lencrit, bs = space_compliance([geo for geo in bpy.data.objects if geo.type == 'MESH' and True in [m.livi_sense for m in geo.data.materials]])
 
@@ -426,31 +449,39 @@ def li_compliance(self, context, connode):
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
     bgl.glBegin(bgl.GL_LINE_LOOP)
     bgl.glVertex2i(100, height - 75 - (1 + lencrit)*25)
-    bgl.glVertex2i(300, height - 75 - (1 + lencrit)*25)
-    bgl.glVertex2i(300, height - 75 - (lencrit)*25)
+    bgl.glVertex2i(350, height - 75 - (1 + lencrit)*25)
+    bgl.glVertex2i(350, height - 75 - (lencrit)*25)
     bgl.glVertex2i(100, height - 75 - (lencrit)*25)
     bgl.glEnd()
     bgl.glBegin(bgl.GL_LINE_LOOP)
-    bgl.glVertex2i(300, height - 75 - (1 + lencrit)*25)
+    bgl.glVertex2i(350, height - 75 - (1 + lencrit)*25)
     bgl.glVertex2i(500, height - 75 - (1 + lencrit)*25)
     bgl.glVertex2i(500, height - 75 - (lencrit)*25)
-    bgl.glVertex2i(300, height - 75 - (lencrit)*25)
+    bgl.glVertex2i(350, height - 75 - (lencrit)*25)
     bgl.glEnd()
 
     blf.size(font_id, 20, 52)
     blf.position(font_id, 110, height - 67 - (1+lencrit)*25, 0)
     blf.draw(font_id, 'Building Compliance:')
-    blf.position(font_id, 260, height - 67 - (1+lencrit)*25, 0)
+    blf.position(font_id, 250, height - 67 - (1+lencrit)*25, 0)
     blf.draw(font_id,  build_compliance)
-    blf.position(font_id, 310, height - 67 - (1+lencrit)*25, 0)
+    blf.position(font_id, 360, height - 67 - (1+lencrit)*25, 0)
     blf.draw(font_id, 'Credits achieved:')
     blf.position(font_id, 480, height - 67 - (1+lencrit)*25, 0)
 
-    if build_compliance == 'PASS':
-        if connode.analysismenu == '0':
-            blf.draw(font_id,  ('1', '2', '2', '1', '1', '1')[int(connode.bambuildmenu)])
-    else:
-        blf.draw(font_id, '0')
+    if connode.analysismenu == '0':
+        if build_compliance == 'PASS':
+           blf.draw(font_id,  ('1', '2', '2', '1', '1', '1')[int(connode.bambuildmenu)])
+        elif build_compliance == 'EXEMPLARY':
+            blf.draw(font_id,  ('2', '3', '3', '2', '2', '2')[int(connode.bambuildmenu)])
+        else:
+            blf.draw(font_id, '0')
+
+        if connode.analysismenu == '1':
+            if build_compliance == 'PASS':
+                blf.draw(font_id,  '3')
+            else:
+                blf.draw(font_id,  '0')
 
     bgl.glEnable(bgl.GL_BLEND)
     bgl.glColor4f(1.0, 1.0, 1.0, 0.8)

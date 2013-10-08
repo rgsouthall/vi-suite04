@@ -56,7 +56,7 @@ class Vi3DPanel(bpy.types.Panel):
                     row = layout.row()
                     row.label("Project name:")
                     row.prop(scene, "li_projname")
-                    
+
                 if int(context.scene.li_disp_3d) == 1:
                     row = layout.row()
                     row.label("3D Level")
@@ -97,30 +97,30 @@ class VIMatPanel(bpy.types.Panel):
                 if 'LiVi Compliance' in [node.bl_label for node in ng.nodes]:
                     node = [node for node in ng.nodes if node.bl_label == 'LiVi Compliance' and node.inputs['Geometry in'].is_linked][0]
 #            row.prop(cm, "livi_compliance")
-#            if cm.livi_compliance:
-                    if node.analysismenu == '0':
-                        if node.bambuildmenu == '2':
-                            row = layout.row()
-                            row.label("Space type:")
-                            row.prop(cm, 'hspacemenu')
-                        elif node.bambuildmenu == '3':
-                            row = layout.row()
-                            row.label("Space type:")
-                            row.prop(cm, 'rspacemenu')
-                            if cm.rspacemenu == '2':
-                                row = layout.row()
-                                row.prop(cm, 'gl_roof')
-                        elif node.bambuildmenu == '4':
-                            row = layout.row()
-                            row.label("Space type:")
-                            row.prop(cm, 'respacemenu')
-                    elif node.analysismenu == '1':
+            if cm.livi_sense:
+                if node.analysismenu == '0':
+                    if node.bambuildmenu == '2':
+                        row = layout.row()
+                        row.label("Space type:")
+                        row.prop(cm, 'hspacemenu')
+                    elif node.bambuildmenu == '3':
                         row = layout.row()
                         row.label("Space type:")
                         row.prop(cm, 'rspacemenu')
                         if cm.rspacemenu == '2':
                             row = layout.row()
-                            row.label('Warning: Not an assessable CfSH space')
+                            row.prop(cm, 'gl_roof')
+                    elif node.bambuildmenu == '4':
+                        row = layout.row()
+                        row.label("Space type:")
+                        row.prop(cm, 'respacemenu')
+                elif node.analysismenu == '1':
+                    row = layout.row()
+                    row.label("Space type:")
+                    row.prop(cm, 'rspacemenu')
+                    if cm.rspacemenu == '2':
+                        row = layout.row()
+                        row.label('Warning: Not an assessable CfSH space')
         row = layout.row()
         row.label('LiVi Radiance type:')
 

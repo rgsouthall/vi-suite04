@@ -70,6 +70,8 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
     cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
             name="", description="Specify the calculation point geometry", default="1", update = nodeexported)
+    buildstorey = bpy.props.EnumProperty(items=[("0", "Single", "Single storey building"),("1", "Multi", "Multi-storey building")], name="", description="Building storeys", default="0", update = nodeexported)
+
     radfiles = []
 
     def init(self, context):
@@ -82,6 +84,9 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
                 self['nodeid'] = self.name+'@'+ng.name
 
     def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.label('Storeys:')
+        row.prop(self, 'buildstorey')
         row = layout.row()
         row.label('Animation:')
         row.prop(self, 'animmenu')

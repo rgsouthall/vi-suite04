@@ -21,8 +21,10 @@ class NODE_OT_LiGExport(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
 
     def execute(self, context):
+        context.scene.vi_display = 0
         if bpy.data.filepath and " " not in bpy.data.filepath:
             node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+            node.reslen = 0
             bpy.data.node_groups[self.nodeid.split('@')[1]].use_fake_user = 1
             radgexport(self, node)
             node.exported = True

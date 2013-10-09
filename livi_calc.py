@@ -65,7 +65,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
         if simacc == ("0", "3")[connode.bl_label == 'LiVi Basic']:
             params = simnode.cusacc
         else:
-            num = (("-ab", 2, 3, 4), ("-ad", 256, 512, 2048), ("-ar", 128, 256, 512), ("-as", 128, 256, 512), ("-aa", 0.3, 0.15, 0.08), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
+            num = (("-ab", 2, 3, 4), ("-ad", 256, 512, 2048), ("-ar", 128, 256, 512), ("-as", 128, 256, 512), ("-aa", 0.3, 0.1, 0.08), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
             params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simacc)+1] for n in num]))
         vi_func.clearscened(scene)
         res = svres = [[0 for p in range(geonode.reslen)] for x in range(scene.frame_end + 1 - scene.frame_start)]

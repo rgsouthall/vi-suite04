@@ -1,4 +1,4 @@
-import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys
+import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl
 from math import sin, cos, asin, acos, pi
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
 dtdf = datetime.date.fromordinal
@@ -368,13 +368,29 @@ def windcompass():
     arrme.from_pydata(arrverts, [], arrfaces)
     arrme.update()
     bpy.context.scene.objects.link(arrob)
-    
+
 def rgb2h(rgb):
     return colorsys.rgb_to_hsv(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0)[0]
-    
+
 def livisimacc(simnode, connode):
     return(simnode.csimacc if connode.bl_label == 'LiVi Compliance' else simnode.simacc)
-    
-def dispoff(scene):
-    for disp in (scene.vi_display):
-        pass
+
+def drawpoly(lencrit, height, x1, y1, x2, y2):
+    bgl.glEnable(bgl.GL_BLEND)
+    bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
+    bgl.glBegin(bgl.GL_POLYGON)
+    bgl.glVertex2i(x1, height - y1 - (1+lencrit)*25)
+    bgl.glVertex2i(x2, height - y2 - (1+lencrit)*25)
+    bgl.glVertex2i(x2, height - y1 - (1+lencrit)*25)
+    bgl.glVertex2i(x1, height - y2 - (1+lencrit)*25)
+    bgl.glEnd()
+    bgl.glDisable(bgl.GL_BLEND)
+
+def drawloop(lencrit, height, x1, y1, x2, y2):
+    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+    bgl.glBegin(bgl.GL_LINE_LOOP)
+    bgl.glVertex2i(x1, height - y2 - (1+lencrit)*25)
+    bgl.glVertex2i(x2, height - y2 - (1+lencrit)*25)
+    bgl.glVertex2i(x2, height - y1 - (1+lencrit)*25)
+    bgl.glVertex2i(x1, height - y1 - (1+lencrit)*25)
+    bgl.glEnd()

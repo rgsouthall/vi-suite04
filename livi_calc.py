@@ -158,6 +158,7 @@ def resapply(res, svres, simnode, connode, geonode):
                 if connode.bl_label == 'LiVi Compliance':
                     if frame == 0:
                         crit = []
+                        ecrit = []
                         comps =  [[] * f for f in range(scene.frame_start, scene.frame_end+1)]
                         ecomps = [[] * f for f in range(scene.frame_start, scene.frame_end+1)]
 #                        crit = ['foo']

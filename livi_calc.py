@@ -69,22 +69,40 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
             params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simacc)+1] for n in num]))
         vi_func.clearscened(scene)
         res = svres = [[0 for p in range(geonode.reslen)] for x in range(scene.frame_end + 1 - scene.frame_start)]
+
         for frame in range(scene.frame_start, scene.frame_end+1):
-            if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
-                subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
-            rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
-            rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
-            resfile = open(os.path.join(geonode.newdir, connode.resname+"-"+str(frame)+".res"), 'w')
-            for l,line in enumerate(rtrun.stdout):
-                if 'octree stale?' in line.decode():
-                    resfile.close()
-                    radfexport(scene, calc_op, connode, geonode)
-                    li_calc(calc_op, simnode, connode, geonode, simacc)
-                    return
-                res[frame][l] = float(line.decode())
-            resfile.write("{}".format(res[frame]).strip("]").strip("["))
-            resfile.close()
+            if connode.bl_label == 'LiVi Basic':
+                if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
+                    subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
+                rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+                rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
+                resfile = open(os.path.join(geonode.newdir, connode.resname+"-"+str(frame)+".res"), 'w')
+                for l,line in enumerate(rtrun.stdout):
+                    if 'octree stale?' in line.decode():
+                        resfile.close()
+                        radfexport(scene, calc_op, connode, geonode)
+                        li_calc(calc_op, simnode, connode, geonode, simacc)
+                        return
+                    res[frame][l] = float(line.decode())
+                resfile.write("{}".format(res[frame]).strip("]").strip("["))
+                resfile.close()
+
             if connode.bl_label == 'LiVi Compliance':
+                if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
+                    subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
+                rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+                rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
+                resfile = open(os.path.join(geonode.newdir, connode.resname+"-"+str(frame)+".res"), 'w')
+                for l,line in enumerate(rtrun.stdout):
+                    if 'octree stale?' in line.decode():
+                        resfile.close()
+                        radfexport(scene, calc_op, connode, geonode)
+                        li_calc(calc_op, simnode, connode, geonode, simacc)
+                        return
+                    res[frame][l] = float(line.decode())
+                resfile.write("{}".format(res[frame]).strip("]").strip("["))
+                resfile.close()
+
                 if connode.analysismenu in ('0', '1'):
                     svcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, '-ab 1 -ad 512 -aa 0.15 -ar 256 -as 256', geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                     svrun = Popen(svcmd, shell = True, stdout=PIPE, stderr=STDOUT)
@@ -93,6 +111,91 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                         svres[frame][sv] = float(line.decode())
                     svresfile.write("{}".format(svres[frame]).strip("]").strip("["))
                     svresfile.close()
+
+            if connode.bl_label == 'LiVi CBDM':
+                vi_func.clearscened(scene)
+                res = [[0] * geonode.reslen for frame in range(0, bpy.context.scene.frame_end+1)]
+                wd = (7, 5)[int(connode.weekdays)]
+                patch = 2
+                if os.path.splitext(os.path.basename(connode.epwname))[1] in (".hdr", ".HDR"):
+                    fwd = datetime.datetime(2010, 1, 1).weekday()
+                    vecvals = [[x%24, (fwd+x)%7] for x in range(0,8760)] if np == 0 else numpy.array([[x%24, (fwd+x)%7] + [0 for p in range(146)] for x in range(0,8760)])
+                    skyrad = open(geonode.filebase+".whitesky", "w")
+                    skyrad.write("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")
+                    skyrad.close()
+                    mtx = open(lexport.scene.livi_calc_mtx_name, "r")
+                    hour = 0
+                    mtxlines = mtx.readlines()
+                    mtx.close()
+                    for fvals in mtxlines:
+                        linevals = fvals.split(" ")
+                        try:
+                            sumvals = round(float(linevals[0]) +  float(linevals[1]) + float(linevals[2]), 4)
+                            if sumvals > 0:
+                                if np == 1:
+                                    vecvals[hour,patch] = sumvals
+                                else:
+                                    vecvals[hour][patch] = sumvals
+                            hour += 1
+                        except:
+                            if fvals != "\n":
+                                hour += 1
+                            else:
+                                patch += 1
+                                hour = 0
+                else:
+                    if np == 1:
+                        vecvals = numpy.array(connode['vecvals'])
+                    else:
+                        vecvals = connode['vecvals']
+
+                for frame in range(0, bpy.context.scene.frame_end+1):
+                    hours = 0
+                    sensarray = [[0 for x in range(geonode.reslen)] for y in range(146)] if np == 0 else numpy.zeros([146, geonode.reslen])
+                    subprocess.call("oconv -w {0}.whitesky {0}-{1}.rad > {0}-{1}ws.oct".format(geonode.filebase, frame), shell = True)
+                    if not os.path.isdir(os.path.join(geonode.newdir, "s_data")):
+                        os.makedirs(os.path.join(geonode.newdir, "s_data"))
+                    subprocess.call(geonode.cat+geonode.filebase+".rtrace | rcontrib -w -h -I -fo -bn 146 -ab 3 -ad 4096 -lw 0.0003 -n "+geonode.nproc+" -f tregenza.cal -b tbin -o "+os.path.join(geonode.newdir, "s_data/"+str(frame)+"-sensor%d.dat")+" -m sky_glow "+geonode.filebase+"-"+str(frame)+"ws.oct", shell = True)
+
+
+                    for i in range(0, 146):
+                        sensfile = open(geonode.newdir+"/s_data/"+str(frame)+"-sensor"+str(i)+".dat", "r")
+                        for s,sens in enumerate(sensfile.readlines()):
+                            sensfloat = [float(x) for x in (sens.split("\t")[0:-1])]
+                            if np == 1:
+                                sensarray[i,s] = 179 * (0.265*sensfloat[0] + 0.67*sensfloat[1]+0.065*sensfloat[2])
+                            elif np == 0:
+                                sensarray[i][s] = 179 * (0.265*sensfloat[0] + 0.67*sensfloat[1]+0.065*sensfloat[2])
+                        sensfile.close()
+
+                    for l, readings in enumerate(vecvals):
+                        if connode.cbdm_start_hour <= readings[:][0] < connode.cbdm_end_hour and readings[:][1] < wd:
+                            finalillu = [0 for x in range(0, geonode.reslen)] if np == 0 else numpy.zeros((geonode.reslen))
+                            for i in range(0, 146):
+                                for j, senreading in enumerate(sensarray[i]):
+                                    finalillu[j] += senreading*readings[:][i+2]
+                                    if j == 25:
+                                        print(finalillu[j], senreading, readings[:][i+2])
+                            hours += 1
+
+                            if connode.analysismenu == '2':
+                                for k, reading in enumerate(finalillu):
+                                    if reading >= connode.dalux:
+                                        res[frame][k] += 1
+
+                            elif connode.analysismenu == '4':
+                                for k, reading in enumerate(finalillu):
+                                    if reading >= connode.dasupp and reading <= connode.daauto:
+                                        res[frame][k] += 1
+
+                    for r in range(0, len(res[frame])):
+                        if hours != 0:
+                            res[frame][r] = res[frame][r]*100/hours
+
+                    daresfile = open(os.path.join(geonode.newdir, connode.resname+"-"+str(frame)+".res"), "w")
+                    for r in res[frame]:
+                        daresfile.write("{:.2f}\n".format(r))
+                    daresfile.close()
 
         simnode['maxres'] = [max(res[i]) for i in range(scene.frame_end + 1 - scene.frame_start)]
         simnode['minres'] = [min(res[i]) for i in range(scene.frame_end + 1 - scene.frame_start)]

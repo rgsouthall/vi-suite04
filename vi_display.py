@@ -215,7 +215,10 @@ def li3D_legend(self, context, simnode, connode):
     if scene.li_leg_display != True or scene.vi_display == 0:
         return
     else:
-        resvals = [('{:.0f}', '{:.0f}', '{:.1f}')[int(connode.analysismenu)].format(min(simnode['minres'])+i*(max(simnode['maxres'])-min(simnode['minres']))/19) for i in range(20)]
+        if connode.bl_label == 'LiVi CBDM':
+            resvals = ['{:.0f}'.format(min(simnode['minres'])+i*(max(simnode['maxres'])-min(simnode['minres']))/19) for i in range(20)]
+        else:
+            resvals = [('{:.0f}', '{:.0f}', '{:.1f}')[int(connode.analysismenu)].format(min(simnode['minres'])+i*(max(simnode['maxres'])-min(simnode['minres']))/19) for i in range(20)]
         height = context.region.height
         lenres = len(resvals[-1])
         font_id = 0

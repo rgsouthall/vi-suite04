@@ -168,6 +168,10 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
                 else:
                     node.simalg = ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" '
 
+        elif node.bl_label == 'LiVi CBDM':
+            node.resname = ('luxhours', 'cumwatth', 'dayauto', 'hourrad', 'udi')[int(node.analysismenu)]
+            node.unit = ('LuxHours', 'Annual Wh', 'DA (%)', '', 'UDI-a (%)')[int(node.analysismenu)]
+
         if bpy.data.filepath:
             if bpy.context.object:
                 if bpy.context.object.type == 'MESH' and bpy.context.object.hide == False and bpy.context.object.layers[0] == True:

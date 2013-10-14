@@ -21,6 +21,12 @@ import bpy, glob, os, inspect
 from nodeitems_utils import NodeCategory, NodeItem
 from .vi_func import nodeinit, objvol, triarea, socklink
 
+try:
+    import numpy
+    np =1
+except:
+    np = 0
+
 class ViNetwork(bpy.types.NodeTree):
     '''A node tree for VI-Suite analysis.'''
     bl_idname = 'ViN'
@@ -144,7 +150,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
         self.outputs['Context out'].hide = True
 
     analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0', update = nodeexported)
-    simalg = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="")
+    simalg = bpy.props.StringProperty(name="", description="Algorithm to run on the radiance results", default="")
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
     skymenu = bpy.props.EnumProperty(items=skylist, name="", description="Specify the type of sky for the simulation", default="0", update = nodeexported)
     shour = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=24, default=12, update = ehupdate)
@@ -256,26 +262,44 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
     def nodeexported(self, context):
         self.exported = False
 
-    analysistype = [('0', "Annual Light Exposure", "LuxHours Calculation"), ('1', "Annual Radiation Exposure", "kWh/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Availability", "DA (%) Calculation"), ('3', "Hourly irradiance", "Irradiance for each simulation time step")]
+    analysistype = [('0', "Annual Light Exposure", "LuxHours Calculation"), ('1', "Annual Radiation Exposure", "kWh/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Autonomy", "DA (%) Calculation"), ('3', "Hourly irradiance", "Irradiance for each simulation time step"), ('4', "UDI", "Useful Daylight Illuminance")]
     analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0', update = nodeexported)
-    animtype = [('0', "Static", "Simple static analysis"), ('1', "Geometry", "Animated time analysis"), ('2', "Material", "Animated time analysis"), ('3', "Lights", "Animated time analysis")]
+    animtype = [('0', "Static", "Simple static analysis"), ('1', "Geometry", "Animated time analysis"), ('2', "Material", "Animated time analysis")]
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = '0', update = nodeexported)
-
+    simalg = bpy.props.StringProperty(name="", description="Algorithm to run on the radiance results", default="")
     simacc = bpy.props.EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),("3", "Custom", "Edit Radiance parameters"), ],
             name="", description="Simulation accuracy", default="0", update = nodeexported)
     cusacc = bpy.props.StringProperty(
             name="", description="Custom Radiance simulation parameters", default="", update = nodeexported)
     epwname = bpy.props.StringProperty(
             name="", description="Name of the EnergyPlus weather file", default="", update = nodeexported)
-
-    exported = bpy.props.BoolProperty(default=False)
+    weekdays = bpy.props.BoolProperty(default = False)
+    cbdm_start_hour =  bpy.props.IntProperty(name = '', default = 8, min = 1, max = 24)
+    cbdm_end_hour =  bpy.props.IntProperty(name = '', default = 20, min = 1, max = 24)
+    dalux =  bpy.props.IntProperty(name = '', default = 300, min = 1, max = 2000)
+    damin = bpy.props.IntProperty(name = '', default = 100, min = 1, max = 2000)
+    dasupp = bpy.props.IntProperty(name = '', default = 300, min = 1, max = 2000)
+    daauto = bpy.props.IntProperty(name = '', default = 3000, min = 1, max = 5000)
+    exported = bpy.props.BoolProperty(name = '', default = False)
+    resname = bpy.props.StringProperty()
+    unit = bpy.props.StringProperty()
+#    fwd = datetime.datetime(int(epwyear), 1, 1).weekday()
+#    if np == 0:
+#        vecvals = [[x%24, (fwd+x)%7] + [0 for p in range(146)] for x in range(0,8760)]
+##        vals = [0 for x in range(146)]
+#    else:
+#        vecvals = numpy.array([[x%24, (fwd+x)%7] + [0 for p in range(146)] for x in range(0,8760)])
+##        vals = numpy.zeros((146))
 
     def init(self, context):
-        self.outputs.new('ViLiWResOut', 'Data out')
-        self.outputs['Data out'].hide = True
+        self.inputs.new('ViLiG', 'Geometry in')
         self.outputs.new('ViLiC', 'Context out')
         self.outputs['Context out'].hide = True
-        self.inputs.new('ViLiG', 'Geometry in')
+        for ng in bpy.data.node_groups:
+            if self in ng.nodes[:]:
+                self['nodeid'] = self.name+'@'+ng.name
+        self.outputs.new('ViLiWResOut', 'Data out')
+        self.outputs['Data out'].hide = True
 
     def update(self):
         if self.outputs['Data out'].is_linked:
@@ -285,9 +309,34 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         row = layout.row()
         row.label("Analysis Type:")
         row.prop(self, 'analysismenu')
+        if self.analysismenu in ('2', '4'):
+           row = layout.row()
+           row.label('Weekdays only:')
+           row.prop(self, 'weekdays')
+           row = layout.row()
+           row.label('Start hour::')
+           row.prop(self, 'cbdm_start_hour')
+           row = layout.row()
+           row.label('End hour:')
+           row.prop(self, 'cbdm_end_hour')
+           if self.analysismenu =='2':
+               row = layout.row()
+               row.label('Min Lux level::')
+               row.prop(self, 'dalux')
+           if self.analysismenu =='4':
+               row = layout.row()
+               row.label('Fell short (Max):')
+               row.prop(self, 'damin')
+               row = layout.row()
+               row.label('Supplementry (Max):')
+               row.prop(self, 'dasupp')
+               row = layout.row()
+               row.label('Autonomous (Max):')
+               row.prop(self, 'daauto')
+
         row = layout.row()
         row.label('EPW file:')
-        row.operator('node.epwselect', text = 'Select EPW').nodename = self.name
+        row.operator('node.epwselect', text = 'Select EPW').nodeid = self['nodeid']
         row = layout.row()
         row.prop(self, "epwname")
         row = layout.row()
@@ -295,7 +344,7 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         row.prop(self, "animmenu")
         if self.inputs['Geometry in'].is_linked and self.inputs['Geometry in'].links[0].from_node.bl_label == 'LiVi Geometry':
             row = layout.row()
-            row.operator("node.liexport", text = "Export").nodename = self.name
+            row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
 
 class ViLiCNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite lighting compliance node'''
@@ -377,6 +426,8 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             if self.inputs['Context in'].links[0].from_node.bl_label == 'LiVi Basic':
                 row.prop(self, 'simacc')
             elif self.inputs['Context in'].links[0].from_node.bl_label == 'LiVi Compliance':
+                row.prop(self, 'csimacc')
+            elif self.inputs['Context in'].links[0].from_node.bl_label == 'LiVi CBDM':
                 row.prop(self, 'csimacc')
 
             if (self.simacc == '3' and self.inputs['Context in'].links[0].from_node.bl_label == 'LiVi Basic') or (self.csimacc == '0' and self.inputs['Context in'].links[0].from_node.bl_label == 'LiVi Compliance'):

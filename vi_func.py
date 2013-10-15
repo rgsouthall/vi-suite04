@@ -394,3 +394,36 @@ def drawloop(lencrit, height, x1, y1, x2, y2):
     bgl.glVertex2i(x2, height - y1 - (1+lencrit)*25)
     bgl.glVertex2i(x1, height - y1 - (1+lencrit)*25)
     bgl.glEnd()
+    
+def mtx2vals(mtx, fwd):
+    try:
+        import numpy
+        vecvals = numpy.array([[x%24, (fwd+int(x/24))%7] + [0 for p in range(146)] for x in range(0,8760)])
+        vals = numpy.zeros((146))
+    except:
+        vecvals = [[x%24, (fwd+int(x/24))%7] + [0 for p in range(146)] for x in range(0,8760)]
+        vals = [0 for x in range(146)]
+    
+    hour = 0
+    patch = 2
+    mtxlines = mtx.readlines()
+    mtx.close()
+
+    for fvals in mtxlines:
+        linevals = fvals.split(" ")
+        try:
+            sumvals = eval(linevals[0] + linevals[1] + linevals[2])
+            if sumvals > 0:
+                vals[patch - 2] += sumvals
+                if np == 1:
+                    vecvals[hour,patch] = sumvals
+                else:
+                    vecvals[hour][patch] = sumvals
+            hour += 1
+        except:
+            if fvals != "\n":
+                hour += 1
+            else:
+                patch += 1
+                hour = 0
+    return(vecvals)

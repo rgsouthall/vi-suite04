@@ -314,7 +314,7 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
            row.label('Weekdays only:')
            row.prop(self, 'weekdays')
            row = layout.row()
-           row.label('Start hour::')
+           row.label('Start hour:')
            row.prop(self, 'cbdm_start_hour')
            row = layout.row()
            row.label('End hour:')
@@ -367,8 +367,6 @@ class ViLiCNode(bpy.types.Node, ViNodes):
     hdr = bpy.props.BoolProperty(name="HDR", description="Export HDR panoramas", default=False, update = nodeexported)
     analysistype = [('0', "BREEAM", "BREEAM HEA1 calculation"), ('1', "CfSH", "Code for Sustainable Homes calculation"), ('2', "LEED", "LEED EQ8.1 calculation"), ('3', "Green Star", "Green Star Calculation")]
     bambuildtype = [('0', "School", "School lighting standard"), ('1', "Higher Education", "Higher education lighting standard"), ('2', "Healthcare", "Healthcare lighting standard"), ('3', "Residential", "Residential lighting standard"), ('4', "Retail", "Retail lighting standard"), ('5', "Office & other", "Office and other space lighting standard")]
-
-
     animtype = [('Static', "Static", "Simple static analysis")]
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
     analysismenu = bpy.props.EnumProperty(name="", description="Type of analysis", items = analysistype, default = '0', update = nodeexported)

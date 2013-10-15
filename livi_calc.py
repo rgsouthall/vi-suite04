@@ -116,33 +116,13 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                 vi_func.clearscened(scene)
                 res = [[0] * geonode.reslen for frame in range(0, bpy.context.scene.frame_end+1)]
                 wd = (7, 5)[int(connode.weekdays)]
-                patch = 2
                 if os.path.splitext(os.path.basename(connode.epwname))[1] in (".hdr", ".HDR"):
-                    fwd = datetime.datetime(2010, 1, 1).weekday()
-                    vecvals = [[x%24, (fwd+x)%7] for x in range(0,8760)] if np == 0 else numpy.array([[x%24, (fwd+x)%7] + [0 for p in range(146)] for x in range(0,8760)])
+   #                 fwd = datetime.datetime(2010, 1, 1).weekday()
+   #                 vecvals = [[x%24, (fwd+x)%7] for x in range(0,8760)] if np == 0 else numpy.array([[x%24, (fwd+x)%7] + [0 for p in range(146)] for x in range(0,8760)])
                     skyrad = open(geonode.filebase+".whitesky", "w")
                     skyrad.write("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")
                     skyrad.close()
-                    mtx = open(lexport.scene.livi_calc_mtx_name, "r")
-                    hour = 0
-                    mtxlines = mtx.readlines()
-                    mtx.close()
-                    for fvals in mtxlines:
-                        linevals = fvals.split(" ")
-                        try:
-                            sumvals = round(float(linevals[0]) +  float(linevals[1]) + float(linevals[2]), 4)
-                            if sumvals > 0:
-                                if np == 1:
-                                    vecvals[hour,patch] = sumvals
-                                else:
-                                    vecvals[hour][patch] = sumvals
-                            hour += 1
-                        except:
-                            if fvals != "\n":
-                                hour += 1
-                            else:
-                                patch += 1
-                                hour = 0
+                    vecvals = vi_func.mtx2vals(open(os.path.splitext(os.path.basename(connode.epwname))[0]+'.mtx', "r"), datetime.datetime(2010, 1, 1).weekday())
                 else:
                     if np == 1:
                         vecvals = numpy.array(connode['vecvals'])
@@ -156,7 +136,6 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                     if not os.path.isdir(os.path.join(geonode.newdir, "s_data")):
                         os.makedirs(os.path.join(geonode.newdir, "s_data"))
                     subprocess.call(geonode.cat+geonode.filebase+".rtrace | rcontrib -w -h -I -fo -bn 146 -ab 3 -ad 4096 -lw 0.0003 -n "+geonode.nproc+" -f tregenza.cal -b tbin -o "+os.path.join(geonode.newdir, "s_data/"+str(frame)+"-sensor%d.dat")+" -m sky_glow "+geonode.filebase+"-"+str(frame)+"ws.oct", shell = True)
-
 
                     for i in range(0, 146):
                         sensfile = open(geonode.newdir+"/s_data/"+str(frame)+"-sensor"+str(i)+".dat", "r")

@@ -307,38 +307,12 @@ def radcexport(export_op, node):
                 wea.close()
             if not os.path.isfile(geonode.newdir+"/"+epwbase[0]+".mtx"):
                 subprocess.call("gendaymtx -r -90 -m 1 {0}.wea > {0}.mtx".format(geonode.newdir+"/"+epwbase[0]), shell=True)
+#
+#            patch = 2
+#            fwd = datetime.datetime(int(epwyear), 1, 1).weekday()
+#            
 
-            patch = 2
-            hour = 0
-            fwd = datetime.datetime(int(epwyear), 1, 1).weekday()
-            if np == 0:
-                vecvals = [[x%24, (fwd+int(x/24))%7] + [0 for p in range(146)] for x in range(0,8760)]
-                vals = [0 for x in range(146)]
-            else:
-                vecvals = numpy.array([[x%24, (fwd+int(x/24))%7] + [0 for p in range(146)] for x in range(0,8760)])
-                vals = numpy.zeros((146))
-
-            mtx = open(geonode.newdir+"/"+epwbase[0]+".mtx", "r")
-            mtxlines = mtx.readlines()
-            mtx.close()
-
-            for fvals in mtxlines:
-                linevals = fvals.split(" ")
-                try:
-                    sumvals = float(linevals[0]) +  float(linevals[1]) + float(linevals[2])
-                    if sumvals > 0:
-                        vals[patch - 2] += sumvals
-                        if np == 1:
-                            vecvals[hour,patch] = sumvals
-                        else:
-                            vecvals[hour][patch] = sumvals
-                    hour += 1
-                except:
-                    if fvals != "\n":
-                        hour += 1
-                    else:
-                        patch += 1
-                        hour = 0
+            vecvals = vi_func.mtx2vals(open(geonode.newdir+"/"+epwbase[0]+".mtx", "r"), datetime.datetime(int(epwyear), 1, 1).weekday())
 
             skyrad = open(geonode.filename+".whitesky", "w")
             skyrad.write("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")
@@ -355,10 +329,6 @@ def radcexport(export_op, node):
                 node['vecvals'] = vecvals.tolist()
             else:
                 node['vecvals'] = vecvals
-#            print(node['vecvals'])
-#            self.skyhdrexport(geonode.newdir+"/"+epwbase[0]+".hdr")
-#        elif epwbase[-1] in (".hdr", ".HDR"):
-#            self.skyhdrexport(self.scene.livi_export_epw_name)
 
 def sunexport(scene, node, geonode, starttime, frame):
     if node.skynum < 3:
@@ -394,6 +364,7 @@ def blsunexport(scene, node, starttime, frame, sun):
                 sun.data.energy = 3
         sun.location = [x*20 for x in (sin(solazi*deg2rad), -cos(solazi*deg2rad), tan(solalt*deg2rad))]
         sun.rotation_euler = (90-solalt)*deg2rad, 0, solazi*deg2rad
+
         if scene.render.engine == 'CYCLES' and hasattr(bpy.data.worlds['World'].node_tree, 'nodes'):
             if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
                 bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = sin((solazi)*deg2rad), -cos((solazi)*deg2rad), solalt/90

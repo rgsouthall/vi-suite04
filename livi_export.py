@@ -21,7 +21,7 @@ import time as ti
 from math import sin, cos, tan, pi
 from mathutils import Vector
 from subprocess import PIPE, Popen
-from .vi_func import retsky, retmat, retobj, retmesh, clearscenee, clearscened, solarPosition
+from .vi_func import retsky, retmat, retobj, retmesh, clearscenee, clearscened, solarPosition, mtx2vals
 
 
 try:
@@ -306,13 +306,13 @@ def radcexport(export_op, node):
                     wea.write("{0[1]} {0[2]} {0[3]} {0[14]} {0[15]} \n".format(epwline.split(",")))
                 wea.close()
             if not os.path.isfile(geonode.newdir+"/"+epwbase[0]+".mtx"):
-                subprocess.call("gendaymtx -r -90 -m 1 {0}.wea > {0}.mtx".format(geonode.newdir+"/"+epwbase[0]), shell=True)
+                subprocess.call("gendaymtx -m 1 {0}.wea > {0}.mtx".format(geonode.newdir+"/"+epwbase[0]), shell=True)
 #
 #            patch = 2
 #            fwd = datetime.datetime(int(epwyear), 1, 1).weekday()
-#            
+#
 
-            vecvals = vi_func.mtx2vals(open(geonode.newdir+"/"+epwbase[0]+".mtx", "r"), datetime.datetime(int(epwyear), 1, 1).weekday())
+            vecvals, vals = mtx2vals(open(geonode.newdir+"/"+epwbase[0]+".mtx", "r"), datetime.datetime(int(epwyear), 1, 1).weekday())
 
             skyrad = open(geonode.filename+".whitesky", "w")
             skyrad.write("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")

@@ -216,7 +216,7 @@ def li3D_legend(self, context, simnode, connode):
         return
     else:
         if connode.bl_label == 'LiVi CBDM':
-            resvals = ['{:.0f}'.format(min(simnode['minres'])+i*(max(simnode['maxres'])-min(simnode['minres']))/19) for i in range(20)]
+            resvals = ['{:.1f}'.format(min(simnode['minres'])+i*(max(simnode['maxres'])-min(simnode['minres']))/19) for i in range(20)]
         else:
             resvals = [('{:.0f}', '{:.0f}', '{:.1f}')[int(connode.analysismenu)].format(min(simnode['minres'])+i*(max(simnode['maxres'])-min(simnode['minres']))/19) for i in range(20)]
         height = context.region.height

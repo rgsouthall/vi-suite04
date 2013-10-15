@@ -58,6 +58,7 @@ def rad_prev(prev_op, simnode, connode, geonode, simacc):
         prev_op.report({'ERROR'},"Missing export file. Make sure you have exported the scene.")
 
 def li_calc(calc_op, simnode, connode, geonode, simacc):
+    os.chdir(geonode.newdir)
     scene = bpy.context.scene
     if os.lstat(geonode.filebase+".rtrace").st_size == 0:
         calc_op.report({'ERROR'},"There are no materials with the livi sensor option enabled")
@@ -117,17 +118,12 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                 res = [[0] * geonode.reslen for frame in range(0, bpy.context.scene.frame_end+1)]
                 wd = (7, 5)[int(connode.weekdays)]
                 if os.path.splitext(os.path.basename(connode.epwname))[1] in (".hdr", ".HDR"):
-   #                 fwd = datetime.datetime(2010, 1, 1).weekday()
-   #                 vecvals = [[x%24, (fwd+x)%7] for x in range(0,8760)] if np == 0 else numpy.array([[x%24, (fwd+x)%7] + [0 for p in range(146)] for x in range(0,8760)])
                     skyrad = open(geonode.filebase+".whitesky", "w")
                     skyrad.write("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")
                     skyrad.close()
-                    vecvals = vi_func.mtx2vals(open(os.path.splitext(os.path.basename(connode.epwname))[0]+'.mtx', "r"), datetime.datetime(2010, 1, 1).weekday())
+                    vecvals, vals = vi_func.mtx2vals(open(os.path.splitext(os.path.basename(connode.epwname))[0]+'.mtx', "r"), datetime.datetime(2010, 1, 1).weekday())
                 else:
-                    if np == 1:
-                        vecvals = numpy.array(connode['vecvals'])
-                    else:
-                        vecvals = connode['vecvals']
+                    vecvals = numpy.array(connode['vecvals']) if np == 1 else connode['vecvals']
 
                 for frame in range(0, bpy.context.scene.frame_end+1):
                     hours = 0
@@ -135,16 +131,16 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                     subprocess.call("oconv -w {0}.whitesky {0}-{1}.rad > {0}-{1}ws.oct".format(geonode.filebase, frame), shell = True)
                     if not os.path.isdir(os.path.join(geonode.newdir, "s_data")):
                         os.makedirs(os.path.join(geonode.newdir, "s_data"))
-                    subprocess.call(geonode.cat+geonode.filebase+".rtrace | rcontrib -w -h -I -fo -bn 146 -ab 3 -ad 4096 -lw 0.0003 -n "+geonode.nproc+" -f tregenza.cal -b tbin -o "+os.path.join(geonode.newdir, "s_data/"+str(frame)+"-sensor%d.dat")+" -m sky_glow "+geonode.filebase+"-"+str(frame)+"ws.oct", shell = True)
-
+                    subprocess.call(geonode.cat+geonode.filebase+".rtrace | rcontrib -w  -h -I -fo -bn 146 -ab 4 -ad 4096 -lw 0.0003 -n "+geonode.nproc+" -f tregenza.cal -b tbin -o "+os.path.join(geonode.newdir, "s_data/"+str(frame)+"-sensor%d.dat")+" -m sky_glow "+geonode.filebase+"-"+str(frame)+"ws.oct", shell = True)
+                    print(geonode.cat+geonode.filebase+".rtrace | rcontrib -w -c 0 -h -I -fo -bn 146 -ab 4 -ad 2048 -ar 512 -as 512 -aa 0.1  -n "+geonode.nproc+" -f tregenza.cal -b tbin -o "+os.path.join(geonode.newdir, "s_data/"+str(frame)+"-sensor%d.dat")+" -m sky_glow "+geonode.filebase+"-"+str(frame)+"ws.oct")
                     for i in range(0, 146):
                         sensfile = open(geonode.newdir+"/s_data/"+str(frame)+"-sensor"+str(i)+".dat", "r")
                         for s,sens in enumerate(sensfile.readlines()):
-                            sensfloat = [float(x) for x in (sens.split("\t")[0:-1])]
+                            sensvals = [float(x) for x in (sens.split("\t")[0:-1])]
                             if np == 1:
-                                sensarray[i,s] = 179 * (0.265*sensfloat[0] + 0.67*sensfloat[1]+0.065*sensfloat[2])
+                                sensarray[i,s] =  179*((sensvals[0]*0.265)+ (sensvals[1]*0.67) + (sensvals[2]*0.065))
                             elif np == 0:
-                                sensarray[i][s] = 179 * (0.265*sensfloat[0] + 0.67*sensfloat[1]+0.065*sensfloat[2])
+                                sensarray[i][s] = 179*((sensvals[0]*0.265)+ (sensvals[1]*0.67) + (sensvals[2]*0.065))
                         sensfile.close()
 
                     for l, readings in enumerate(vecvals):
@@ -153,8 +149,6 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                             for i in range(0, 146):
                                 for j, senreading in enumerate(sensarray[i]):
                                     finalillu[j] += senreading*readings[:][i+2]
-                                    if j == 25:
-                                        print(finalillu[j], senreading, readings[:][i+2])
                             hours += 1
 
                             if connode.analysismenu == '2':

@@ -105,7 +105,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                 resfile.close()
 
                 if connode.analysismenu in ('0', '1'):
-                    svcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, '-ab 1 -ad 512 -aa 0.15 -ar 256 -as 256', geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+                    svcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, '-ab 1 -ad 8192 -aa 0 -ar 512 -as 1024 -lw 0.0002', geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                     svrun = Popen(svcmd, shell = True, stdout=PIPE, stderr=STDOUT)
                     svresfile = open(os.path.join(geonode.newdir,'skyview'+"-"+str(frame)+".res"), 'w')
                     for sv,line in enumerate(svrun.stdout):
@@ -132,7 +132,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                     if not os.path.isdir(os.path.join(geonode.newdir, "s_data")):
                         os.makedirs(os.path.join(geonode.newdir, "s_data"))
                     subprocess.call(geonode.cat+geonode.filebase+".rtrace | rcontrib -w  -h -I -fo -bn 146 -ab 4 -ad 4096 -lw 0.0003 -n "+geonode.nproc+" -f tregenza.cal -b tbin -o "+os.path.join(geonode.newdir, "s_data/"+str(frame)+"-sensor%d.dat")+" -m sky_glow "+geonode.filebase+"-"+str(frame)+"ws.oct", shell = True)
-                    print(geonode.cat+geonode.filebase+".rtrace | rcontrib -w -c 0 -h -I -fo -bn 146 -ab 4 -ad 2048 -ar 512 -as 512 -aa 0.1  -n "+geonode.nproc+" -f tregenza.cal -b tbin -o "+os.path.join(geonode.newdir, "s_data/"+str(frame)+"-sensor%d.dat")+" -m sky_glow "+geonode.filebase+"-"+str(frame)+"ws.oct")
+
                     for i in range(0, 146):
                         sensfile = open(geonode.newdir+"/s_data/"+str(frame)+"-sensor"+str(i)+".dat", "r")
                         for s,sens in enumerate(sensfile.readlines()):
@@ -187,18 +187,21 @@ def resapply(res, svres, simnode, connode, geonode):
         lcol_i = []
         mcol_i = 0
         f = 0
+        fstart = 0
+        fsv = 0
         for i in range(0, len(res[frame])):
             h = 0.75*(1-(res[frame][i]-min(simnode['minres']))/(max(simnode['maxres']) + 0.01 - min(simnode['minres'])))
             rgb.append(colorsys.hsv_to_rgb(h, 1.0, 1.0))
         if bpy.context.active_object and bpy.context.active_object.hide == 'False':
             bpy.ops.object.mode_set()
-
         for geo in [geo for geo in scene.objects if geo.type == 'MESH']:
             bpy.ops.object.select_all(action = 'DESELECT')
             scene.objects.active = None
             if geo.licalc == 1:
+                geofaces = [face for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense]
                 geoarea = sum([vi_func.triarea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
-#                totarea += geoarea
+                fend = f + len(geofaces)
+                
                 passarea = 0
                 scene.objects.active = geo
                 geo.select = True
@@ -215,23 +218,43 @@ def resapply(res, svres, simnode, connode, geonode):
                 mat = [matslot.material for matslot in geo.material_slots if matslot.material.livi_sense][0]
                 mcol_i = len(tuple(set(lcol_i)))
 
-                for face in geo.data.polygons:
-                    if geo.data.materials[face.material_index].livi_sense:
-                        if geonode.cpoint == '1':
-                            cvtup = tuple(geo['cverts'])
-                            for loop_index in face.loop_indices:
-                                v = geo.data.loops[loop_index].vertex_index
-                                if v in cvtup:
-                                    col_i = cvtup.index(v)
-                                lcol_i.append(col_i)
-                                vertexColour.data[loop_index].color = rgb[col_i+mcol_i]
+                for face in geofaces:
+                    if geonode.cpoint == '1':
+                        cvtup = tuple(geo['cverts'])
+                        for loop_index in face.loop_indices:
+                            v = geo.data.loops[loop_index].vertex_index
+                            if v in cvtup:
+                                col_i = cvtup.index(v)
+                            lcol_i.append(col_i)
+                            vertexColour.data[loop_index].color = rgb[col_i+mcol_i]
 
-                        if geonode.cpoint == '0':
-                            for loop_index in face.loop_indices:
-                                vertexColour.data[loop_index].color = rgb[f]
-                            f += 1
-
+                    if geonode.cpoint == '0':
+                        for loop_index in face.loop_indices:
+                            vertexColour.data[loop_index].color = rgb[f]
+                        f += 1
+                
                 if connode.bl_label == 'LiVi Compliance':
+                    if connode.analysismenu == '1':
+                        bpy.ops.mesh.vertex_color_add()
+                        geo.data.vertex_colors[frame+1].name = '{}sv'.format(frame)
+                        vertexColour = geo.data.vertex_colors[frame+1]
+                        for face in geo.data.polygons:
+                            if geo.data.materials[face.material_index].livi_sense:
+                                if geonode.cpoint == '1':
+                                    cvtup = tuple(geo['cverts'])
+                                    for loop_index in face.loop_indices:
+                                        v = geo.data.loops[loop_index].vertex_index
+                                        if v in cvtup:
+                                            col_i = cvtup.index(v)
+                                        lcol_i.append(col_i)
+                                        vertexColour.data[loop_index].color = rgb[col_i+mcol_i]
+        
+                                if geonode.cpoint == '0':
+                                    for loop_index in face.loop_indices:
+                                        vertexColour.data[loop_index].color = (0, 1, 0) if svres[frame][fsv] > 0 else (1, 0, 0)
+                                    fsv += 1
+                    
+                    
                     if frame == 0:
                         crit = []
                         ecrit = []
@@ -417,30 +440,29 @@ def resapply(res, svres, simnode, connode, geonode):
                             if c[0] == 'Percent':
                                 if c[2] == 'DF':
                                     dfpass[frame] = 1
-                                    if sum(res[frame])/len(res[frame]) > c[3]:
+                                    if sum(res[frame][fstart:fend])/(fend -fstart) > c[3]:
                                         dfpassarea += geoarea
                                         comps[frame].append(1)
                                     else:
                                         comps[frame].append(0)
-                                    comps[frame].append(sum(res[frame])/len(res[frame]))
+                                    comps[frame].append(sum(res[frame][fstart:fend])/(fend - fstart))
                                     dftotarea += geoarea
 
                                 elif c[2] == 'PDF':
                                     dfpass[frame] = 1
-                                    if sum(svres[frame])/len(svres[frame]) > c[3]:
+                                    if sum(svres[frame])/(fend - fstart) > c[3]:
                                         dfpassarea += geoarea
                                         comps[frame].append(1)
                                     else:
                                         comps[frame].append(0)
-                                    comps[frame].append(sum(svres[frame])/len(svres[frame]))
+                                    comps[frame].append(sum(svres[frame])/(fend -fstart))
                                     dftotarea += geoarea
 
                                 elif c[2] == 'Skyview':
-                                    for fa, face in enumerate(geo.data.polygons):
-                                        if geo.data.materials[face.material_index].livi_sense:
-                                           if svres[frame][fa] > 0:
-                                                passarea += vi_func.triarea(geo, face)
-                                    if passarea == geoarea:
+                                    for fa, face in enumerate(geofaces):
+                                       if svres[frame][fa + fstart] > 0:
+                                            passarea += vi_func.triarea(geo, face)
+                                    if passarea >= c[1]*geoarea/100:
                                         comps[frame].append(1)
                                     else:
                                         comps[frame].append(0)
@@ -462,6 +484,10 @@ def resapply(res, svres, simnode, connode, geonode):
                                 comps[frame].append(min(res[frame])/(sum(res[frame])/len(res[frame])))
 
                             elif c[0] == 'Average':
+                                for face in geofaces:
+                                    
+                                    
+                                
                                 if sum(res[frame])/len(res[frame]) > c[3]:
                                     comps[frame].append(1)
                                 else:
@@ -531,7 +557,8 @@ def resapply(res, svres, simnode, connode, geonode):
                     geo['comps'] = comps
                     geo['ecomps'] = ecomps
                     crits.append(geo['crit'])
-
+                    fstart = fend
+                    
         if connode.bl_label == 'LiVi Compliance' and dfpass[frame] == 1:
             dfpass[frame] = 2 if dfpassarea/dftotarea >= 0.8 else dfpass[frame]
 
@@ -540,7 +567,7 @@ def resapply(res, svres, simnode, connode, geonode):
         for geo in scene.objects:
             if geo.licalc == 1:
                 for vc in geo.data.vertex_colors:
-                    if frame == int(vc.name):
+                    if vc.name == str(frame):
                         vc.active = 1
                         vc.active_render = 1
                         vc.keyframe_insert("active")

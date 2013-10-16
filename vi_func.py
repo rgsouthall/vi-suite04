@@ -87,7 +87,7 @@ def negneg(x):
         x = 0
     return float(x)
 
-def clearscenee(scene):
+def clearscenece(scene):
     for sunob in [ob for ob in scene.objects if ob.type == 'LAMP' and ob.data.type == 'SUN']:
         scene.objects.unlink(sunob)
 
@@ -96,6 +96,12 @@ def clearscenee(scene):
         for vcol in ob.data.vertex_colors:
             bpy.ops.mesh.vertex_color_remove()
 
+def clearscenege(scene):
+    for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
+        scene.objects.active = ob
+        for vcol in ob.data.vertex_colors:
+            bpy.ops.mesh.vertex_color_remove()
+            
 def clearscened(scene):
     for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
         if ob.lires == 1:
@@ -379,10 +385,10 @@ def drawpoly(lencrit, height, x1, y1, x2, y2):
     bgl.glEnable(bgl.GL_BLEND)
     bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
     bgl.glBegin(bgl.GL_POLYGON)
-    bgl.glVertex2i(x1, height - y1 - (1+lencrit)*25)
+    bgl.glVertex2i(x1, height - y2 - (1+lencrit)*25)
     bgl.glVertex2i(x2, height - y2 - (1+lencrit)*25)
     bgl.glVertex2i(x2, height - y1 - (1+lencrit)*25)
-    bgl.glVertex2i(x1, height - y2 - (1+lencrit)*25)
+    bgl.glVertex2i(x1, height - y1 - (1+lencrit)*25)
     bgl.glEnd()
     bgl.glDisable(bgl.GL_BLEND)
 

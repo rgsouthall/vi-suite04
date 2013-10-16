@@ -21,7 +21,7 @@ import time as ti
 from math import sin, cos, tan, pi
 from mathutils import Vector
 from subprocess import PIPE, Popen
-from .vi_func import retsky, retmat, retobj, retmesh, clearscenee, clearscened, solarPosition, mtx2vals
+from .vi_func import retsky, retmat, retobj, retmesh, clearscenege, clearscenece, clearscened, solarPosition, mtx2vals
 
 
 try:
@@ -36,7 +36,7 @@ def radgexport(export_op, node):
         bpy.ops.object.mode_set()
     radfilelist = []
 
-    clearscenee(scene)
+    clearscenege(scene)
     clearscened(scene)
     scene.frame_start = 0
     scene.frame_end = node.feg = 0 if node.animmenu == 'Static' else scene.frame_end
@@ -234,7 +234,7 @@ def radcexport(export_op, node):
     scene = bpy.context.scene
     scene.li_disp_panel = 0
     scene.vi_display = 0
-    clearscenee(scene)
+    clearscenece(scene)
     clearscened(scene)
     geonode = node.inputs[0].links[0].from_node
 

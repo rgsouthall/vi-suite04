@@ -44,7 +44,7 @@ def li_display(simnode, connode, geonode):
         scene.frame_set(frame)
         for obcalc in obcalclist:
             for vc in obcalc.data.vertex_colors:
-                if frame == int(vc.name):
+                if vc.name == str(frame):
                     vc.active = 1
                     vc.active_render = 1
                 else:
@@ -133,7 +133,7 @@ def li_display(simnode, connode, geonode):
                                 shape.keyframe_insert("value")
 
             for vc in obres.data.vertex_colors:
-                if frame == int(vc.name):
+                if vc.name == str(frame):
                     vc.active = 1
                     vc.active_render = 1
                     vc.keyframe_insert("active")

@@ -159,13 +159,13 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
                     node.simalg = " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' "
                 else:
                     node.simalg = ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" '
-            
+
                 if node.analysismenu == '0':
                     node.resname = 'breaamout'
-                    
+
                 elif node.analysismenu == '1':
                     node.resname = 'cfsh'
-                
+
         elif node.bl_label == 'LiVi CBDM':
             node.resname = ('luxhours', 'cumwatth', 'dayauto', 'hourrad', 'udi')[int(node.analysismenu)]
             node.unit = ('LuxHours', 'Annual Wh', 'DA (%)', '', 'UDI-a (%)')[int(node.analysismenu)]
@@ -251,8 +251,10 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
 class VIEW3D_OT_LiNumDisplay(bpy.types.Operator):
     '''Display results legend and stats in the 3D View'''
     bl_idname = "view3d.linumdisplay"
-    bl_label = "Display results legend and stats in the 3D View"
-    bl_options = {'REGISTER'}
+    bl_label = "Point numbers"
+    bl_description = "Display the point results on the sensor surfaces"
+    bl_register = True
+    bl_undo = True
 
     def modal(self, context, event):
         context.area.tag_redraw()
@@ -267,7 +269,7 @@ class VIEW3D_OT_LiNumDisplay(bpy.types.Operator):
 #        if context.scene.leg_display == 1:
 #            context.scene.rp_display = False
             return {'CANCELLED'}
-        return {'PASS_THROUGH'}
+        return {'RUNNING_MODAL'}
 
     def execute(self, context):
         simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]

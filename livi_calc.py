@@ -201,7 +201,7 @@ def resapply(res, svres, simnode, connode, geonode):
                 geofaces = [face for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense]
                 geoarea = sum([vi_func.triarea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
                 fend = f + len(geofaces)
-                
+
                 passarea = 0
                 scene.objects.active = geo
                 geo.select = True
@@ -232,7 +232,7 @@ def resapply(res, svres, simnode, connode, geonode):
                         for loop_index in face.loop_indices:
                             vertexColour.data[loop_index].color = rgb[f]
                         f += 1
-                
+
                 if connode.bl_label == 'LiVi Compliance':
                     if connode.analysismenu == '1':
                         bpy.ops.mesh.vertex_color_add()
@@ -248,13 +248,13 @@ def resapply(res, svres, simnode, connode, geonode):
                                             col_i = cvtup.index(v)
                                         lcol_i.append(col_i)
                                         vertexColour.data[loop_index].color = rgb[col_i+mcol_i]
-        
+
                                 if geonode.cpoint == '0':
                                     for loop_index in face.loop_indices:
                                         vertexColour.data[loop_index].color = (0, 1, 0) if svres[frame][fsv] > 0 else (1, 0, 0)
                                     fsv += 1
-                    
-                    
+
+
                     if frame == 0:
                         crit = []
                         ecrit = []
@@ -470,61 +470,56 @@ def resapply(res, svres, simnode, connode, geonode):
                                     passarea = 0
 
                             elif c[0] == 'Min':
-                                if min(svres[frame]) > c[3]:
+                                if min(svres[frame][fend - fstart]) > c[3]:
                                     comps[frame].append(1)
                                 else:
                                     comps[frame].append(0)
-                                comps[frame].append(min(svres[frame]))
+                                comps[frame].append(min(svres[frame][fend - fstart]))
 
                             elif c[0] == 'Ratio':
-                                if min(res[frame])/(sum(res[frame])/len(res[frame])) >= c[3]:
+                                if min(res[frame])/(sum(res[frame][fend - fstart])/len(res[frame])) >= c[3]:
                                     comps[frame].append(1)
                                 else:
                                     comps[frame].append(0)
-                                comps[frame].append(min(res[frame])/(sum(res[frame])/len(res[frame])))
+                                comps[frame].append(min(res[frame][fend - fstart])/(sum(res[frame])/(fend - fstart)))
 
                             elif c[0] == 'Average':
-                                for face in geofaces:
-                                    
-                                    
-                                
-                                if sum(res[frame])/len(res[frame]) > c[3]:
+                                if sum([vi_func.triarea(geo, face) * res[frame][fa+fstart] for fa, face in enumerate(geofaces)])/geoarea > c[3]:
                                     comps[frame].append(1)
                                 else:
                                     comps[frame].append(0)
-                                comps[frame].append(sum(res[frame])/len(res[frame]))
+                                comps[frame].append(sum([vi_func.triarea(geo, face) * res[frame][fa+fstart] for fa, face in enumerate(geofaces)])/geoarea)
 
                         for e in ecrit:
                             if e[0] == 'Percent':
                                 if e[2] == 'DF':
                                     dfpass[frame] = 1
-                                    if sum(res[frame])/len(res[frame]) > e[3]:
+                                    if sum(res[frame][fend - fstart])/(fend - fstart) > e[3]:
                                         dfpassarea += geoarea
                                         ecomps[frame].append(1)
                                     else:
                                         ecomps[frame].append(0)
-                                    ecomps[frame].append(sum(res[frame])/len(res[frame]))
+                                    ecomps[frame].append(sum(res[frame][fend - fstart])/(fend - fstart))
                                     edftotarea += geoarea
 #                                    dfpassarea = 0
 
                                 elif e[2] == 'PDF':
                                     dfpass[frame] = 1
-                                    if sum(svres[frame])/len(svres[frame]) > e[3]:
+                                    if sum(svres[frame][fend - fstart])/(fend - fstart) > e[3]:
                                         dfpassarea += geoarea
                                         ecomps[frame].append(1)
                                     else:
                                         ecomps[frame].append(0)
-                                    ecomps[frame].append(sum(svres[frame])/len(svres[frame]))
+                                    ecomps[frame].append(sum(svres[frame][fend - fstart])/(fend - fstart))
                                     edftotarea += geoarea
 #                                    dfpassarea = 0
 
                                 elif e[2] == 'Skyview':
-                                    for fa, face in enumerate(geo.data.polygons):
-                                        if geo.data.materials[face.material_index].livi_sense:
-                                           if svres[frame][fa] > 0:
-                                                passarea += vi_func.triarea(geo, face)
+                                    for fa, face in enumerate(geofaces):
+                                        if svres[frame][fa] > 0:
+                                            passarea += vi_func.triarea(geo, face)
 
-                                    if passarea == geoarea:
+                                    if passarea >= e[1] * geoarea /100:
                                         ecomps[frame].append(1)
                                     else:
                                         ecomps[frame].append(0)
@@ -532,25 +527,25 @@ def resapply(res, svres, simnode, connode, geonode):
                                     passarea = 0
 
                             elif e[0] == 'Min':
-                                if min(svres[frame]) > e[3]:
+                                if min(svres[frame][fend - fstart]) > e[3]:
                                     ecomps[frame].append(1)
                                 else:
                                     ecomps[frame].append(0)
-                                ecomps[frame].append(min(svres[frame]))
+                                ecomps[frame].append(min(svres[frame][fend - fstart]))
 
                             elif e[0] == 'Ratio':
-                                if min(res[frame])/(sum(res[frame])/len(res[frame])) >= e[3]:
+                                if min(res[frame])/(sum(res[frame][fend - fstart])/len(res[frame][fend - fstart])) >= e[3]:
                                     ecomps[frame].append(1)
                                 else:
                                     ecomps[frame].append(0)
-                                ecomps[frame].append(min(res[frame])/(sum(res[frame])/len(res[frame])))
+                                ecomps[frame].append(min(res[frame][fend - fstart])/(sum(res[frame][fend - fstart])/len(res[frame][fend - fstart])))
 
                             elif e[0] == 'Average':
-                                if sum(res[frame])/len(res[frame]) > e[3]:
+                                if sum(res[frame][fend - fstart])/len(res[frame][fend - fstart]) > e[3]:
                                     ecomps[frame].append(1)
                                 else:
                                     ecomps[frame].append(0)
-                                ecomps[frame].append(sum(res[frame])/len(res[frame]))
+                                ecomps[frame].append(sum(res[frame][fend - fstart])/len(res[frame][fend - fstart]))
 
                     geo['crit'] = [[c[0], str(c[1]), c[2], str(c[3]), c[4]] for c in crit[:]]
                     geo['ecrit'] = [[c[0], str(c[1]), c[2], str(c[3]), c[4]] for c in ecrit[:]]
@@ -558,7 +553,7 @@ def resapply(res, svres, simnode, connode, geonode):
                     geo['ecomps'] = ecomps
                     crits.append(geo['crit'])
                     fstart = fend
-                    
+
         if connode.bl_label == 'LiVi Compliance' and dfpass[frame] == 1:
             dfpass[frame] = 2 if dfpassarea/dftotarea >= 0.8 else dfpass[frame]
 

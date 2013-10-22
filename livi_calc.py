@@ -450,12 +450,12 @@ def resapply(res, svres, simnode, connode, geonode):
 
                                 elif c[2] == 'PDF':
                                     dfpass[frame] = 1
-                                    if sum(svres[frame])/(fend - fstart) > c[3]:
+                                    if sum(svres[frame][fstart:fend])/(fend - fstart) > c[3]:
                                         dfpassarea += geoarea
                                         comps[frame].append(1)
                                     else:
                                         comps[frame].append(0)
-                                    comps[frame].append(sum(svres[frame])/(fend -fstart))
+                                    comps[frame].append(sum(svres[frame][fstart:fend])/(fend -fstart))
                                     dftotarea += geoarea
 
                                 elif c[2] == 'Skyview':
@@ -470,18 +470,18 @@ def resapply(res, svres, simnode, connode, geonode):
                                     passarea = 0
 
                             elif c[0] == 'Min':
-                                if min(svres[frame][fend - fstart]) > c[3]:
+                                if min(svres[frame][fstart:fend]) > c[3]:
                                     comps[frame].append(1)
                                 else:
                                     comps[frame].append(0)
-                                comps[frame].append(min(svres[frame][fend - fstart]))
+                                comps[frame].append(min(svres[frame][fstart:fend]))
 
                             elif c[0] == 'Ratio':
-                                if min(res[frame])/(sum(res[frame][fend - fstart])/len(res[frame])) >= c[3]:
+                                if min(res[frame])/(sum(res[frame][fstart:fend])/len(res[frame])) >= c[3]:
                                     comps[frame].append(1)
                                 else:
                                     comps[frame].append(0)
-                                comps[frame].append(min(res[frame][fend - fstart])/(sum(res[frame])/(fend - fstart)))
+                                comps[frame].append(min(res[frame][fstart:fend])/(sum(res[frame])/(fend - fstart)))
 
                             elif c[0] == 'Average':
                                 if sum([vi_func.triarea(geo, face) * res[frame][fa+fstart] for fa, face in enumerate(geofaces)])/geoarea > c[3]:
@@ -494,23 +494,23 @@ def resapply(res, svres, simnode, connode, geonode):
                             if e[0] == 'Percent':
                                 if e[2] == 'DF':
                                     dfpass[frame] = 1
-                                    if sum(res[frame][fend - fstart])/(fend - fstart) > e[3]:
+                                    if sum(res[frame][fstart:fend])/(fend - fstart) > e[3]:
                                         dfpassarea += geoarea
                                         ecomps[frame].append(1)
                                     else:
                                         ecomps[frame].append(0)
-                                    ecomps[frame].append(sum(res[frame][fend - fstart])/(fend - fstart))
+                                    ecomps[frame].append(sum(res[frame][fstart:fend])/(fend - fstart))
                                     edftotarea += geoarea
 #                                    dfpassarea = 0
 
                                 elif e[2] == 'PDF':
                                     dfpass[frame] = 1
-                                    if sum(svres[frame][fend - fstart])/(fend - fstart) > e[3]:
+                                    if sum(svres[frame][fstart:fend])/(fend - fstart) > e[3]:
                                         dfpassarea += geoarea
                                         ecomps[frame].append(1)
                                     else:
                                         ecomps[frame].append(0)
-                                    ecomps[frame].append(sum(svres[frame][fend - fstart])/(fend - fstart))
+                                    ecomps[frame].append(sum(svres[frame][fstart:fend])/(fend - fstart))
                                     edftotarea += geoarea
 #                                    dfpassarea = 0
 
@@ -527,25 +527,25 @@ def resapply(res, svres, simnode, connode, geonode):
                                     passarea = 0
 
                             elif e[0] == 'Min':
-                                if min(svres[frame][fend - fstart]) > e[3]:
+                                if min(svres[frame][fstart:fend]) > e[3]:
                                     ecomps[frame].append(1)
                                 else:
                                     ecomps[frame].append(0)
-                                ecomps[frame].append(min(svres[frame][fend - fstart]))
+                                ecomps[frame].append(min(svres[frame][fstart:fend]))
 
                             elif e[0] == 'Ratio':
-                                if min(res[frame])/(sum(res[frame][fend - fstart])/len(res[frame][fend - fstart])) >= e[3]:
+                                if min(res[frame][fstart:fend])/(sum(res[frame][fstart:fend])/(fend - fstart)) >= e[3]:
                                     ecomps[frame].append(1)
                                 else:
                                     ecomps[frame].append(0)
-                                ecomps[frame].append(min(res[frame][fend - fstart])/(sum(res[frame][fend - fstart])/len(res[frame][fend - fstart])))
+                                ecomps[frame].append(min(res[frame][fstart:fend])/(sum(res[frame][fstart:fend])/(fend - fstart)))
 
                             elif e[0] == 'Average':
-                                if sum(res[frame][fend - fstart])/len(res[frame][fend - fstart]) > e[3]:
+                                if sum(res[frame][fstart:fend])/(fend - fstart) > e[3]:
                                     ecomps[frame].append(1)
                                 else:
                                     ecomps[frame].append(0)
-                                ecomps[frame].append(sum(res[frame][fend - fstart])/len(res[frame][fend - fstart]))
+                                ecomps[frame].append(sum(res[frame][fstart:fend])/(fend - fstart))
 
                     geo['crit'] = [[c[0], str(c[1]), c[2], str(c[3]), c[4]] for c in crit[:]]
                     geo['ecrit'] = [[c[0], str(c[1]), c[2], str(c[3]), c[4]] for c in ecrit[:]]

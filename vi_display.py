@@ -509,8 +509,6 @@ def li_compliance(self, context, connode):
         vi_func.drawloop(lencrit, height, 350, 70, 525, 95)
         blf.draw(font_id, 'Building Compliance:')
         vi_func.drawfont(build_compliance, 0, lencrit, height, 250, 87)
-#        blf.position(font_id, 250, height - 87 - lencrit*26, 0)
-#        blf.draw(font_id,  build_compliance)
         blf.position(font_id, 360, height - 87 - lencrit*26, 0)
         blf.draw(font_id, 'Credits achieved:')
         blf.position(font_id, 480, height - 87 - lencrit*26, 0)
@@ -525,10 +523,6 @@ def li_compliance(self, context, connode):
         vi_func.drawpoly(lencrit, height, 100, 70, 300, 95)
         vi_func.drawloop(lencrit, height, 100, 70, 300, 95)
         vi_func.drawfont('Credits achieved:', 0, lencrit, height, 110, 87)
-#        blf.position(font_id, 110, height - 87 - lencrit*26, 0)
-#        blf.draw(font_id, 'Credits achieved:')
-
-
         cfshcred = 0
         if cfshpfsdict['kitdf'] == cfshpfsdict['totkit'] and cfshpfsdict['totkit'] != 0:
             cfshcred += 1
@@ -538,7 +532,6 @@ def li_compliance(self, context, connode):
             cfshcred += 1
         blf.position(font_id, 250, height - 87 - lencrit*26, 0)
         blf.draw(font_id, '{} of {}'.format(cfshcred, '3' if 0 not in (cfshpfsdict['totkit'], cfshpfsdict['totliv']) else '2'))
-        print(cfshpfsdict)
 
     bgl.glEnable(bgl.GL_BLEND)
     bgl.glColor4f(1.0, 1.0, 1.0, 0.8)

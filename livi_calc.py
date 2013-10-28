@@ -66,7 +66,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
         if simacc == ("0", "3")[connode.bl_label == 'LiVi Basic']:
             params = simnode.cusacc
         else:
-            num = (("-ab", 2, 3, 4), ("-ad", 256, 512, 2048), ("-ar", 128, 256, 512), ("-as", 128, 256, 512), ("-aa", 0.3, 0.1, 0.08), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
+            num = (("-ab", 3, 4, 5), ("-ad", 512, 1024, 2048), ("-ar", 64, 128, 0), ("-as", 128, 512, 1024), ("-aa", 0.3, 0.08, 0.05), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.001, 0.0002))
             params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simacc)+1] for n in num]))
         vi_func.clearscened(scene)
         res, svres = [[[0 for p in range(geonode.reslen)] for x in range(scene.frame_end + 1 - scene.frame_start)] for x in range(2)]
@@ -92,6 +92,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                 if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
                     subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
                 rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+                print(rtcmd)
                 rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
                 resfile = open(os.path.join(geonode.newdir, connode.resname+"-"+str(frame)+".res"), 'w')
                 for l,line in enumerate(rtrun.stdout):
@@ -194,7 +195,7 @@ def resapply(res, svres, simnode, connode, geonode):
             rgb.append(colorsys.hsv_to_rgb(h, 1.0, 1.0))
         if bpy.context.active_object and bpy.context.active_object.hide == 'False':
             bpy.ops.object.mode_set()
-        for geo in [geo for geo in scene.objects if geo.type == 'MESH']:
+        for geo in [geo for geo in scene.objects if geo.type == 'MESH' and geo.hide == False]:
             bpy.ops.object.select_all(action = 'DESELECT')
             scene.objects.active = None
             if geo.licalc == 1:

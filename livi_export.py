@@ -169,6 +169,7 @@ def radgexport(export_op, node):
                 if len([mat for mat in geo.material_slots if mat.material.livi_sense]) > 0:
                     geo.licalc = 1
                     csf = []
+                    csv =[]
                     cverts = []
                     obcalcverts = []
                     scene.objects.active = geo
@@ -200,7 +201,7 @@ def radgexport(export_op, node):
                                     if (mesh.vertices[vert]) not in obcalcverts:
                                         vcentx, vcenty, vcentz = mesh.vertices[vert].co[:]
                                         vnormx, vnormy, vnormz = (mesh.vertices[vert].normal*geo.matrix_world.inverted())[:]
-
+                                        csv.append(vert)
                                         rtrace.write('{0[0]} {0[1]} {0[2]} {1[0]} {1[1]} {1[2]} \n'.format(mesh.vertices[vert].co[:], (mesh.vertices[vert].normal*geo.matrix_world.inverted())[:]))
                                         obcalcverts.append(mesh.vertices[vert])
                                         cverts.append(vert)
@@ -209,7 +210,7 @@ def radgexport(export_op, node):
                     if node.cpoint == '1':
                         geo['cverts'] = cverts
                         geo['cfaces'] = []
-                        node.reslen += len(calcsurfverts)
+                        node.reslen += len(csv)
 
                     elif node.cpoint == '0':
                         geo['cverts'] = []

@@ -416,12 +416,12 @@ def mtx2vals(mtxlines, fwd):
 
 def framerange(scene):
     return(range(scene.frame_start, scene.frame_end +1))
-    
-def retobjs(otypes): 
+
+def retobjs(otypes):
     scene = bpy.context.scene
-    if otypes == 'livig': 
+    if otypes == 'livig':
         return([geo for geo in scene.objects if geo.type == 'MESH' and not geo.children  and 'lightarray' not in geo.name and geo.hide == False and geo.layers[scene.active_layer] == True])
-    elif otypes == 'livil': 
+    elif otypes == 'livil':
         return([geo for geo in scene.objects if (geo.ies_name != "" or 'lightarray' in geo.name) and geo.hide == False and geo.layers[scene.active_layer] == True])
     elif otypes == 'livic':
         return([geo for geo in scene.objects if geo.type == 'MESH' and geo.licalc == 1 and geo.lires == 0 and geo.hide == False and geo.layers[scene.active_layer] == True])
@@ -433,16 +433,16 @@ def retobjs(otypes):
 def sunpath(context, sun, sunob, spathob):
     scene = context.scene
     beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
-    sunob.location.z = sun.location.z = scene.soldistance * sin(beta) 
+    sunob.location.z = sun.location.z = scene.soldistance * sin(beta)
     sunob.location.x = sun.location.x = (scene.soldistance**2 - sun.location.z**2)**0.5  * sin(phi)
     sunob.location.y = sun.location.y = -(scene.soldistance**2 - sun.location.z**2)**0.5 * cos(phi)
     sun.rotation_euler = pi * 0.5 - beta, 0, phi
-    
-                            
+
+
 #Compute solar position (altitude and azimuth in degrees) based on day of year (doy; integer), local solar time (lst; decimal hours), latitude (lat; decimal degrees), and longitude (lon; decimal degrees).
 def solarPosition(doy, lst, lat, lon):
     #Set the local standard time meridian (lsm) (integer degrees of arc)
-    lsm = int(lon/15)*15
+    lsm = round(lon/15, 0)*15
     #Approximation for equation of time (et) (minutes) comes from the Wikipedia article on Equation of Time
     b = 2*pi*(doy-81)/364
     et = 9.87 * sin(2*b) - 7.53 * cos(b) - 1.5 * sin(b)
@@ -467,4 +467,4 @@ def solarPosition(doy, lst, lat, lon):
     phi = 2*pi - phi if ast<=12 or ast >= 24 else phi
     azimuth = radToDeg*phi
     return([altitude, azimuth, beta, phi])
-    
+

@@ -67,7 +67,7 @@ envi_cons = envi_constructions()
 #bpy.ops.node.new_node_tree(type='ViN', name ="VI-Suite Node Tree")
 
 
-                        
+
 def matfunc(i):
     if i == 0:
         return [((wall, wall, 'Contruction type')) for wall in list(envi_mats.wall_dat.keys())]
@@ -127,14 +127,26 @@ def eupdate(self, context):
 def sunpath(self, context):
     scene = context.scene
     sun = [ob for ob in scene.objects if ob.spob == 1][0]
-    sunob = [ob for ob in scene.objects if ob.spsunob == 2][0]
-    spathob = [ob for ob in scene.objects if ob.spathob == 3][0]
+    sunob = [ob for ob in scene.objects if ob.spob == 2][0]
+    spathob = [ob for ob in scene.objects if ob.spob == 3][0]
     beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
-    sunob.location.z = sun.location.z = scene.soldistance * sin(beta) 
-    sunob.location.x = sun.location.x = (scene.soldistance**2 - sun.location.z**2)**0.5  * sin(phi)
+    sunob.location.z = sun.location.z = scene.soldistance * sin(beta)
+    sunob.location.x = sun.location.x = -(scene.soldistance**2 - sun.location.z**2)**0.5  * sin(phi)
     sunob.location.y = sun.location.y = -(scene.soldistance**2 - sun.location.z**2)**0.5 * cos(phi)
-    sun.rotation_euler = pi * 0.5 - beta, 0, phi
+    sun.rotation_euler = pi * 0.5 - beta, 0, -phi
+    spathob.scale = 3 * [scene.soldistance/100]
+    if scene.render.engine == 'CYCLES' and hasattr(bpy.data.worlds['World'].node_tree, 'nodes'):
+        if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
+            bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), beta/(0.5*pi)
+#            bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = frame)
+            for blnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Blackbody']:
+                blnode.inputs[0].default_value = 3000 + 50*beta*180/pi
+            for smblnode in [node for node in sunob.data.materials[0].node_tree.nodes if node.bl_label == 'Blackbody']:
+                smblnode.inputs[0].default_value = 3000 + 50*beta*180/pi
 
+
+
+#sin((solazi)*deg2rad), -cos((solazi)*deg2rad), solalt/90
 def register():
     bpy.utils.register_module(__name__)
     Object = bpy.types.Object
@@ -158,12 +170,12 @@ def register():
     Object.lires = bprop("", "", False)
 
     Object.limerr = bprop("", "", False)
-    
+
     Object.spob = iprop("", "", 0, 3, 0)
-    
-    Object.spsunob = iprop("", "", 0, 3, 0)
-    
-    Object.spsun = iprop("", "", 0, 3, 0)
+
+#    Object.spsunob = iprop("", "", 0, 3, 0)
+#
+#    Object.spsun = iprop("", "", 0, 3, 0)
 
 # EnVi zone definitions
 
@@ -523,16 +535,16 @@ def register():
 
     Scene.vipath = sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
     Scene.solday = bpy.props.IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath)
-    Scene.solhour = iprop("Display Panel", "Shows the Display Panel", 1, 24, 12)
-    Scene.soldistance = iprop("Display Panel", "Shows the Display Panel", 1, 5000, 100)
-    
+    Scene.solhour = bpy.props.FloatProperty(name = "", description = "Time of day", min = 0, max = 24, default = 12, update=sunpath)
+    Scene.soldistance = bpy.props.IntProperty(name = "", description = "Sun path scale", min = 1, max = 5000, default = 100, update=sunpath)
+
 #    Scene.vi_loc = eprop([("0", "Manual", "Manual location"), ("1", "From EPW file", "EPW location")], "Location", "Location", "0")
-    
+
 #    Scene.vi_weather = eprop(items = weatherlist, name="Weather location", description="Weather for this project")
-    
-    Scene.latitude = bpy.props.FloatProperty(name="Lat", description="Site Latitude", min=-90, max=90, default=52)
-    Scene.longitude = bpy.props.FloatProperty(name="Long", description="Site Longitude", min=-15, max=15, default=0)  
-    
+
+    Scene.latitude = bpy.props.FloatProperty(name="", description="Site Latitude", min=-90, max=90, default=52)
+    Scene.longitude = bpy.props.FloatProperty(name="", description="Site Longitude", min=-180, max=180, default=0)
+
 #    Scene.vi_meridian = eprop(
 #            [("-9", "YST", ""),
 #                   ("-8", "PST", ""),
@@ -546,12 +558,12 @@ def register():
 #                   ("4", "GST", ""),
 #                   ("5.5", "IST", ""),
 #                   ("9", "JST", ""),
-#                   ("12", "NZST", ""),                   
+#                   ("12", "NZST", ""),
 #                    ],
 #            "",
 #            "Specify the local meridian",
 #            "0")
-    
+
     Scene.li_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
 
     Scene.lic_disp_panel = bprop("", "",False)
@@ -561,7 +573,7 @@ def register():
     Scene.li_disp_3dlevel = bpy.props.FloatProperty(name = "", description = "Level of 3D result plane extrusion", min = 0, max = 50, default = 0, update = eupdate)
 
     Scene.vi_display = bprop("", "",False)
-    
+
     Scene.sp_disp_panel = bprop("", "",False)
 
     Scene.li_compliance = bprop("", "", False)

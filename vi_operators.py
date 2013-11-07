@@ -429,7 +429,7 @@ class NODE_OT_FileProcess(bpy.types.Operator, io_utils.ExportHelper):
         if not node.outputs:
             node.outputs.new('ViEnROut', 'Results out')
         return {'FINISHED'}
-        
+
 class NODE_OT_SunPath(bpy.types.Operator):
     bl_idname = "node.sunpath"
     bl_label = "Sun Path"
@@ -441,25 +441,25 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
     def invoke(self, context, event):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        locnode = node.inputs[0].links[0].from_node 
+        locnode = node.inputs[0].links[0].from_node
         scene = context.scene
-        if len([ob for ob in context.scene.objects if ob.type == "LAMP" and ob.data.type == "SUN"]) == 0:
-            bpy.ops.object.lamp_add(type = "SUN")  
+        if len([ob for ob in context.scene.objects if ob.spob == 1]) == 0:
+            bpy.ops.object.lamp_add(type = "SUN")
             sun = context.active_object
         else:
-            sun = [ob for ob in context.scene.objects if ob.type == "LAMP" and ob.data.type == 'SUN'][0]
-        sun['spsun'] = 1
-        
-        if len([ob for ob in context.scene.objects if ob.type == "MESH" and ob.name == "SunMesh"]) == 0:
+            sun = [ob for ob in context.scene.objects if ob.spob == 1][0]
+        sun.spob = 1
+
+        if len([ob for ob in context.scene.objects if ob.spob == 2]) == 0:
             bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=12, size=0.1)
             sunob = context.active_object
             sunob.name = "SunMesh"
         else:
-            sunob = [ob for ob in context.scene.objects if ob.name == 'SunMesh'][0]
-        sunob['spsunob'] = 1
-        
-        if len([ob for ob in context.scene.objects if ob.type == "MESH" and ob.name == "SPathMesh"]) != 0:
-            context.scene.objects.unlink([ob for ob in context.scene.objects if ob.type == "MESH" and ob.name == "SPathMesh"][0])
+            sunob = [ob for ob in context.scene.objects if ob.spob == 2][0]
+        sunob.spob = 2
+
+        if len([ob for ob in context.scene.objects if ob.spob == 3]) != 0:
+            context.scene.objects.unlink([ob for ob in context.scene.objects if ob.spob == 3][0])
             [ob for ob in bpy.data.objects if ob.type == "MESH" and ob.name == "SPathMesh"][0].name = 'oldspathmesh'
         bpy.ops.object.add(type = "MESH")
         bpy.ops.object.mode_set(mode='EDIT')
@@ -467,19 +467,19 @@ class NODE_OT_SunPath(bpy.types.Operator):
         bpy.ops.object.mode_set(mode='OBJECT')
         spathob = context.active_object
         spathob.name = "SPathMesh"
-        spathob['spob'] = 1
-        
-        spathmesh = spathob.data 
+        spathob.spob = 3
+
+        spathmesh = spathob.data
         for v in spathmesh.vertices:
             v.remove()
-        
+
         for doy in range(0, 363):
             if (doy-4)%7 == 0:
                 for hour in range(1, 25):
                     if locnode.loc == "1":
                         with open(bpy.context.scene.envi_export_weather, "r") as epwfile:
                             fl = epwfile.readline()
-                            scene.latitude, scene.longitude = float(fl.split(",")[6]), float(fl.split(",")[7]) 
+                            scene.latitude, scene.longitude = float(fl.split(",")[6]), float(fl.split(",")[7])
 
                     ([solalt, solazi]) = solarPosition(doy, hour, scene.latitude, scene.longitude)[2:]
 
@@ -488,35 +488,35 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
         for v in range(24, len(spathmesh.vertices)):
             spathmesh.edges.add(1)
-            spathmesh.edges[-1].vertices[0] = v 
+            spathmesh.edges[-1].vertices[0] = v
             spathmesh.edges[-1].vertices[1] = v - 24
             if v in range(1224, 1248):
                 spathmesh.edges.add(1)
-                spathmesh.edges[-1].vertices[0] = v 
+                spathmesh.edges[-1].vertices[0] = v
                 spathmesh.edges[-1].vertices[1] = v - 1224
- 
+
             if v in (1200, 96, 192, 264, 360, 456, 576):
                 for e in range(v, v+23):
                     spathmesh.edges.add(1)
-                    spathmesh.edges[-1].vertices[0] = e 
+                    spathmesh.edges[-1].vertices[0] = e
                     spathmesh.edges[-1].vertices[1] = e + 1
                 spathmesh.edges.add(1)
                 spathmesh.edges[-1].vertices[0] = v
                 spathmesh.edges[-1].vertices[1] = v + 23
-                    
+
 #        sunpath(context, sun, sunob, spathob)
 #        bpy.ops.view3d.sunpath()
         context.scene.sp_disp_panel = 1
         context.scene.li_disp_panel = 0
         return {'FINISHED'}
-        
+
 class VIEW3D_OT_SunPath(bpy.types.Operator):
     bl_idname = "view3d.sunpath"
     bl_label = "Sun Path"
     bl_description = "Modify a Sun Path"
     bl_register = True
     bl_undo = True
-    
+
     def modal(self, context, event):
         if context.scene.vi_display == 0:
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_sp, 'WINDOW')
@@ -529,4 +529,4 @@ class VIEW3D_OT_SunPath(bpy.types.Operator):
         spathob= [ob for ob in context.scene.objects if ob.type == "MESH" and ob.name == "SPathMesh"]
         self._handle_sp = bpy.types.SpaceView3D.draw_handler_add(sunpath, (context, sun, sunob, spathob), 'WINDOW', 'POST_PIXEL')
         return {'RUNNING_MODAL'}
-    
+

@@ -443,38 +443,21 @@ class ViSPNode(bpy.types.Node, ViNodes):
     bl_idname = 'ViSPNode'
     bl_label = 'VI Sun Path'
     bl_icon = 'LAMP'
-    
-    
-    
+
+
+
     def init(self, context):
         self.inputs.new('ViLoc', 'Location in')
         for ng in bpy.data.node_groups:
             if self in ng.nodes[:]:
                 self['nodeid'] = self.name+'@'+ng.name
-        
+
     def draw_buttons(self, context, layout):
-#        scene = context.scene
-#        row = layout.row()
-#        row.label(text = 'Location:')
-#        row.prop(scene, "vi_loc")
-#        if scene.vi_loc == "1":
-#            row = layout.row()
-#            row.prop(scene, "vi_weather")
-#
-#        else:
-#            row = layout.row()
-#            row.prop(scene, "envi_export_latitude")
-#            row.prop(scene, "envi_export_longitude")
-#            row = layout.row()
-#            row.label(text = 'Meridian:')
-#            col = row.column()
-#            col.prop(scene, "envi_export_meridian")
-#        
-        if self.inputs[0].is_linked:
-            
+        if self.inputs[0].is_linked and self.inputs[0].links[0].from_node.bl_label == 'VI Location':
+
             row = layout.row()
-            row.operator("node.sunpath", text="Create Sun").nodeid = self['nodeid']
-            
+            row.operator("node.sunpath", text="Create Sun Path").nodeid = self['nodeid']
+
 
 
 class ViSSNode(bpy.types.Node, ViNodes):
@@ -506,15 +489,15 @@ class ViGNode(bpy.types.Node, ViNodes):
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.operator("node.calculate", text = 'Calculate')
-        
+
 class ViLoc(bpy.types.Node, ViNodes):
     '''Node describing a geographical location manually or with an EPW file'''
     bl_idname = 'ViLoc'
     bl_label = 'VI Location'
     bl_icon = 'LAMP'
-    
-    
-                        
+
+
+
     addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
     epwpath = addonpath+'/EPFiles/Weather/'
     weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]
@@ -534,15 +517,15 @@ class ViLoc(bpy.types.Node, ViNodes):
                                        ("4", "GST", ""),
                                        ("5.5", "IST", ""),
                                        ("9", "JST", ""),
-                                       ("12", "NZST", ""),                   
+                                       ("12", "NZST", ""),
                     ],
             name = "",
             description = "Specify the local meridian",
             default = "0")
-    
+
     def init(self, context):
         self.outputs.new('ViLoc', 'Location out')
-        
+
     def draw_buttons(self, context, layout):
         scene = context.scene
         row = layout.row()
@@ -553,13 +536,16 @@ class ViLoc(bpy.types.Node, ViNodes):
             row.prop(self, "weather")
         else:
             row = layout.row()
+            row.label('Latitude')
             row.prop(scene, "latitude")
-            row.prop(scene, "longitude")
             row = layout.row()
-            row.label(text = 'Meridian:')
-            col = row.column()
-            col.prop(self, "meridian")
-            
+            row.label('Longitude')
+            row.prop(scene, "longitude")
+#            row = layout.row()
+#            row.label(text = 'Meridian:')
+#            col = row.column()
+#            col.prop(self, "meridian")
+
 
 
 class ViGExEnNode(bpy.types.Node, ViNodes):
@@ -1132,7 +1118,7 @@ class ViLocOut(bpy.types.NodeSocket):
 
     def draw_color(self, context, node):
         return (0.0, 0.0, 1.0, 0.75)
-        
+
 class ViLiWResOut(bpy.types.NodeSocket):
     '''LiVi irradiance out socket'''
     bl_idname = 'LiViWOut'
@@ -1307,7 +1293,7 @@ class EnViCrRefSocket(bpy.types.NodeSocket):
 
     def draw_color(self, context, node):
         return (1.0, 0.4, 0.0, 0.75)
-        
+
 class EnViOccSocket(bpy.types.NodeSocket):
     '''An EnVi zone occupancy socket'''
     bl_idname = 'EnViOccSocket'

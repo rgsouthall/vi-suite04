@@ -71,7 +71,7 @@ def li_display(simnode, connode, geonode):
                 bpy.context.tool_settings.mesh_select_mode = [True, False, False]
                 for cv in geo["cverts"]:
                     geo.data.vertices[int(cv)].select = True
-            
+
             bpy.ops.object.mode_set(mode = 'EDIT')
             bpy.ops.mesh.duplicate()
             bpy.ops.mesh.separate()
@@ -255,7 +255,7 @@ def li_compliance(self, context, connode):
     elif connode.analysismenu == '1':
         buildtype = 'Residential'
         cfshpfsdict = {'totkit': 0, 'kitdf': 0, 'kitsv': 0, 'totliv': 0, 'livdf': 0, 'livsv': 0}
-    
+
     vi_func.drawpoly(100, height - 40, 900, height - 65)
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
     horpos = (100, 317, 633, 900)
@@ -441,7 +441,7 @@ def li_compliance(self, context, connode):
     bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
     bgl.glLineWidth(1)
     sw = 8
-    
+
     aolen, ailen, jnlen = len(scene.li_assorg), len(scene.li_assind), len(scene.li_jobno)
     vi_func.drawpoly(100, 50, 500 + aolen*sw + ailen*sw + jnlen*sw, 25)
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
@@ -475,57 +475,6 @@ def rendview(i):
                                 space.show_textured_solid = 1
                             else:
                                 space.show_textured_solid = 0
-                
-#def sunpath(context, locnode, spnode):
-#    scene = context.scene
-#    if scene.sp_disp_panel != True:
-#        return
-#    else:
-#        if len([ob for ob in scene.objects if ob.type == "LAMP" and ob.data.type == "SUN"]) == 0:
-#            bpy.ops.object.lamp_add(type = "SUN")  
-#        else 
-#        if len([ob for ob in scene.objects if ob.type == "MESH" and ob.name == "SunMesh"]) == 0:
-#            bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=12, size=0.01*scene.soldistance)
-#            context.active_object.name = "SunMesh"
-#        if len([ob for ob in scene.objects if ob.type == "MESH" and ob.name == "SolMesh"]) == 0:
-#            bpy.ops.object.add(type = "MESH")
-#            bpy.ops.object.mode_set(mode='EDIT')
-#            bpy.ops.mesh.wireframe(thickness=0.005)
-#            bpy.ops.object.mode_set(mode='OBJECT')
-#            context.active_object.name = "SolMesh"
-#            solmesh = context.active_object.data
-#            
-#            for doy in range(0, 363):
-#                if (doy-4)%7 == 0:
-#                    for hour in range(1, 25):
-#                        ([solalt, solazi]) = vi_func.solarPosition(doy, hour, locnode.latitude, locnode.longitude)[2:4]
-#   
-#                        solmesh.vertices.add(1)
-#                        solmesh.vertices[-1].co = [(scene.soldistance-(scene.soldistance-(context.scene.soldistance*cos(solalt))))*sin(solazi), -(scene.soldistance-(context.scene.soldistance-(context.scene.soldistance*cos(solalt))))*cos(solazi), context.scene.soldistance*sin(solalt)]
-#    
-#            for v in range(24, len(solmesh.vertices)):
-#                solmesh.edges.add(1)
-#                solmesh.edges[-1].vertices[0] = v 
-#                solmesh.edges[-1].vertices[1] = v - 24
-#                if v in range(1224, 1248):
-#                    solmesh.edges.add(1)
-#                    solmesh.edges[-1].vertices[0] = v 
-#                    solmesh.edges[-1].vertices[1] = v - 1224
-#     
-#                if v in (1200, 96, 192, 264, 360, 456, 576):
-#                    for e in range(v, v+23):
-#                        solmesh.edges.add(1)
-#                        solmesh.edges[-1].vertices[0] = e 
-#                        solmesh.edges[-1].vertices[1] = e + 1
-#                    solmesh.edges.add(1)
-#                    solmesh.edges[-1].vertices[0] = v
-#                    solmesh.edges[-1].vertices[1] = v + 23
-#                    
-##        context.scene["solday31"] = context.scene.solday31
-##        context.scene["solday30"] = context.scene.solday30
-##        context.scene["solday28"] = context.scene.solday28
-##        context.scene["solmonth"] = context.scene.solmonth
-##        context.scene["solhour"] = context.scene.solhour
-#    
-#        return {'FINISHED'}
-    
+
+
+

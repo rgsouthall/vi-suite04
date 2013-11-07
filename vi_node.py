@@ -17,9 +17,10 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, glob, os, inspect
+import bpy, glob, os, inspect, datetime
+from math import pi, sin, cos
 from nodeitems_utils import NodeCategory, NodeItem
-from .vi_func import nodeinit, objvol, triarea, socklink
+from .vi_func import nodeinit, objvol, triarea, socklink, solarPosition
 
 try:
     import numpy
@@ -406,7 +407,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
 
     simacc = bpy.props.EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),("3", "Custom", "Edit Radiance parameters"), ],
             name="", description="Simulation accuracy", default="0")
-    csimacc = bpy.props.EnumProperty(items=[("1", "Standard", "Standard accuracy for this metric"),("0", "Custom", "Edit Radiance parameters"), ],
+    csimacc = bpy.props.EnumProperty(items=[("0", "Custom", "Edit Radiance parameters"), ("1", "Initial", "Initial accuracy for this metric"), ("2", "Final", "Final accuracy for this metric")],
             name="", description="Simulation accuracy", default="1")
     cusacc = bpy.props.StringProperty(
             name="", description="Custom Radiance simulation parameters", default="")
@@ -442,15 +443,44 @@ class ViSPNode(bpy.types.Node, ViNodes):
     bl_idname = 'ViSPNode'
     bl_label = 'VI Sun Path'
     bl_icon = 'LAMP'
-
+    
+    
+    
+    def init(self, context):
+        self.inputs.new('ViLoc', 'Location in')
+        for ng in bpy.data.node_groups:
+            if self in ng.nodes[:]:
+                self['nodeid'] = self.name+'@'+ng.name
+        
     def draw_buttons(self, context, layout):
-        row = layout.row()
-        row.operator("node.calculate", text = 'Calculate')
+#        scene = context.scene
+#        row = layout.row()
+#        row.label(text = 'Location:')
+#        row.prop(scene, "vi_loc")
+#        if scene.vi_loc == "1":
+#            row = layout.row()
+#            row.prop(scene, "vi_weather")
+#
+#        else:
+#            row = layout.row()
+#            row.prop(scene, "envi_export_latitude")
+#            row.prop(scene, "envi_export_longitude")
+#            row = layout.row()
+#            row.label(text = 'Meridian:')
+#            col = row.column()
+#            col.prop(scene, "envi_export_meridian")
+#        
+        if self.inputs[0].is_linked:
+            
+            row = layout.row()
+            row.operator("node.sunpath", text="Create Sun").nodeid = self['nodeid']
+            
+
 
 class ViSSNode(bpy.types.Node, ViNodes):
-    '''Node describing a VI-Suite sun path'''
-    bl_idname = 'ViSPNode'
-    bl_label = 'VI Sun Path'
+    '''Node describing a VI-Suite shadow study'''
+    bl_idname = 'ViSSNode'
+    bl_label = 'VI Shadow Study'
     bl_icon = 'LAMP'
 
     def draw_buttons(self, context, layout):
@@ -476,6 +506,61 @@ class ViGNode(bpy.types.Node, ViNodes):
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.operator("node.calculate", text = 'Calculate')
+        
+class ViLoc(bpy.types.Node, ViNodes):
+    '''Node describing a geographical location manually or with an EPW file'''
+    bl_idname = 'ViLoc'
+    bl_label = 'VI Location'
+    bl_icon = 'LAMP'
+    
+    
+                        
+    addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
+    epwpath = addonpath+'/EPFiles/Weather/'
+    weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]
+    weather = bpy.props.EnumProperty(items = weatherlist, name="", description="Weather for this project")
+    loc = bpy.props.EnumProperty(items = [("0", "Manual", "Manual location"), ("1", "From EPW file", "EPW location")], name = "", description = "Location", default = "0")
+    latitude = bpy.props.FloatProperty(name="", description="Site Latitude", min=-90, max=90, default=52)
+    longitude = bpy.props.FloatProperty(name="", description="Site Longitude", min=-15, max=15, default=0)
+    meridian = bpy.props.EnumProperty(items = [("-9", "YST", ""),
+                                       ("-8", "PST", ""),
+                                       ("-7", "MST", ""),
+                                       ("-6", "CST", ""),
+                                       ("-5", "EST", ""),
+                                       ("0", "GMT", ""),
+                                       ("1", "CET", ""),
+                                       ("2", "EET", ""),
+                                       ("3", "AST", ""),
+                                       ("4", "GST", ""),
+                                       ("5.5", "IST", ""),
+                                       ("9", "JST", ""),
+                                       ("12", "NZST", ""),                   
+                    ],
+            name = "",
+            description = "Specify the local meridian",
+            default = "0")
+    
+    def init(self, context):
+        self.outputs.new('ViLoc', 'Location out')
+        
+    def draw_buttons(self, context, layout):
+        scene = context.scene
+        row = layout.row()
+        row.label(text = 'Location:')
+        row.prop(self, "loc")
+        if self.loc == "1":
+            row = layout.row()
+            row.prop(self, "weather")
+        else:
+            row = layout.row()
+            row.prop(scene, "latitude")
+            row.prop(scene, "longitude")
+            row = layout.row()
+            row.label(text = 'Meridian:')
+            col = row.column()
+            col.prop(self, "meridian")
+            
+
 
 class ViGExEnNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite export type'''
@@ -1037,6 +1122,17 @@ class ViNodeCategory(NodeCategory):
     def poll(cls, context):
         return context.space_data.tree_type == 'ViN'
 
+class ViLocOut(bpy.types.NodeSocket):
+    '''Vi Location socket'''
+    bl_idname = 'ViLoc'
+    bl_label = 'Location socket'
+
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+
+    def draw_color(self, context, node):
+        return (0.0, 0.0, 1.0, 0.75)
+        
 class ViLiWResOut(bpy.types.NodeSocket):
     '''LiVi irradiance out socket'''
     bl_idname = 'LiViWOut'
@@ -1130,7 +1226,7 @@ class EnViDataIn(bpy.types.NodeSocket):
     def draw_color(self, context, node):
         return (0.0, 1.0, 0.0, 0.75)
 
-viexnodecat = [NodeItem("ViGExLiNode", label="LiVi Geometry"), NodeItem("ViLiNode", label="LiVi Basic"), NodeItem("ViLiCNode", label="LiVi Compliance"), NodeItem("ViLiCBNode", label="LiVi Climate Based"), NodeItem("ViGExEnNode", label="EnVi Export")]
+viexnodecat = [NodeItem("ViGExLiNode", label="LiVi Geometry"), NodeItem("ViLiNode", label="LiVi Basic"), NodeItem("ViLiCNode", label="LiVi Compliance"), NodeItem("ViLiCBNode", label="LiVi Climate Based"), NodeItem("ViGExEnNode", label="EnVi Export"), NodeItem("ViLoc", label="VI Location")]
 
 vinodecat = [NodeItem("ViLiSNode", label="LiVi Simulation"),\
              NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), NodeItem("ViGNode", label="VI-Suite glare"), NodeItem("ViExEnNode", label="EnVi Simulation")]
@@ -1211,6 +1307,18 @@ class EnViCrRefSocket(bpy.types.NodeSocket):
 
     def draw_color(self, context, node):
         return (1.0, 0.4, 0.0, 0.75)
+        
+class EnViOccSocket(bpy.types.NodeSocket):
+    '''An EnVi zone occupancy socket'''
+    bl_idname = 'EnViOccSocket'
+    bl_label = 'Zone occupancy socket'
+    sn = bpy.props.StringProperty()
+
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+
+    def draw_color(self, context, node):
+        return (1.0, 0.2, 0.2, 0.75)
 
 class AFNCon(bpy.types.Node, EnViNodes):
     '''Node defining the overall airflow network simulation'''
@@ -1358,7 +1466,7 @@ class EnViZone(bpy.types.Node, EnViNodes):
 class EnViSLinkNode(bpy.types.Node, EnViNodes):
     '''Node describing an surface airflow component'''
     bl_idname = 'EnViSLink'
-    bl_label = 'Envi urface airflow Component'
+    bl_label = 'Envi surface airflow Component'
     bl_icon = 'SOUND'
 
     def supdate(self, context):

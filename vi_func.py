@@ -54,33 +54,7 @@ def nodeinit(node):
 def nodeexported(self):
     self.exported = 0
 
-#Compute solar position (altitude and azimuth in degrees) based on day of year (doy; integer), local solar time (lst; decimal hours), latitude (lat; decimal degrees), and longitude (lon; decimal degrees).
-def solarPosition(doy, lst, lat, lon):
-    #Set the local standard time meridian (lsm) (integer degrees of arc)
-    lsm = int(lon/15)*15
-    #Approximation for equation of time (et) (minutes) comes from the Wikipedia article on Equation of Time
-    b = 2*pi*(doy-81)/364
-    et = 9.87 * sin(2*b) - 7.53 * cos(b) - 1.5 * sin(b)
-    #The following formulas adapted from the 2005 ASHRAE Fundamentals, pp. 31.13-31.16
-    #Conversion multipliers
-    degToRad = 2*pi/360
-    radToDeg = 1/degToRad
-    #Apparent solar time (ast)
-    ast = lst + et/60 + (lsm-lon)/15
-    #Solar declination (delta) (radians)
-    delta = degToRad*23.45 * sin(2*pi*(284+doy)/365)
-    #Hour angle (h) (radians)
-    h = degToRad*15 * (ast-12)
-     #Local latitude (l) (radians)
-    l = degToRad*lat
-    #Solar altitude (beta) (radians)
-    beta = asin(cos(l) * cos(delta) * cos(h) + sin(l) * sin(delta))
-    #Solar azimuth phi (radians)
-    phi = acos((sin(beta) * sin(l) - sin(delta))/(cos(beta) * cos(l)))
-    #Convert altitude and azimuth from radians to degrees, since the Spatial Analyst's Hillshade function inputs solar angles in degrees
-    altitude = radToDeg*beta
-    azimuth = radToDeg*phi if ast<=12 else 360 - radToDeg*phi
-    return([altitude, azimuth])
+
 
 def negneg(x):
     if float(x) < 0:
@@ -284,9 +258,13 @@ def ceilheight(obj, vertz):
     floor = [min((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) for poly in mesh.polygons if min((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) < zmin + 0.1 * (zmax - zmin)]
     return(sum(ceiling)/len(ceiling)-sum(floor)/len(floor))
 
+
 def triarea(obj, face):
     omw = obj.matrix_world
     vs = [omw*mathutils.Vector(face.center)] + [omw*obj.data.vertices[v].co for v in face.vertices] + [omw*obj.data.vertices[face.vertices[0]].co]
+    return(vsarea(obj, vs))
+
+def vsarea(obj, vs):
     if len(vs) == 5:
         cross = mathutils.Vector.cross(vs[3]-vs[1], vs[3]-vs[2])
         return(0.5*(cross[0]**2 + cross[1]**2 +cross[2]**2)**0.5)
@@ -381,31 +359,31 @@ def rgb2h(rgb):
 def livisimacc(simnode, connode):
     return(simnode.csimacc if connode.bl_label == 'LiVi Compliance' else simnode.simacc)
 
-def drawpoly(lencrit, height, x1, y1, x2, y2):
+def drawpoly(x1, y1, x2, y2):
     bgl.glEnable(bgl.GL_BLEND)
     bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
     bgl.glBegin(bgl.GL_POLYGON)
-    bgl.glVertex2i(x1, height - y2 - lencrit*26)
-    bgl.glVertex2i(x2, height - y2 - lencrit*26)
-    bgl.glVertex2i(x2, height - y1 - lencrit*26)
-    bgl.glVertex2i(x1, height - y1 - lencrit*26)
+    bgl.glVertex2i(x1, y2)
+    bgl.glVertex2i(x2, y2)
+    bgl.glVertex2i(x2, y1)
+    bgl.glVertex2i(x1, y1)
     bgl.glEnd()
     bgl.glDisable(bgl.GL_BLEND)
 
-def drawloop(lencrit, height, x1, y1, x2, y2):
+def drawloop(x1, y1, x2, y2):
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
     bgl.glBegin(bgl.GL_LINE_LOOP)
-    bgl.glVertex2i(x1, height - y2 - lencrit*26)
-    bgl.glVertex2i(x2, height - y2 - lencrit*26)
-    bgl.glVertex2i(x2, height - y1 - lencrit*26)
-    bgl.glVertex2i(x1, height - y1 - lencrit*26)
+    bgl.glVertex2i(x1, y2)
+    bgl.glVertex2i(x2, y2)
+    bgl.glVertex2i(x2, y1)
+    bgl.glVertex2i(x1, y1)
     bgl.glEnd()
 
 def drawfont(text, fi, lencrit, height, x1, y1):
     blf.position(fi, x1, height - y1 - lencrit*26, 0)
     blf.draw(fi, text)
 
-def mtx2vals(mtx, fwd):
+def mtx2vals(mtxlines, fwd):
     np = 0
     try:
         import numpy
@@ -418,9 +396,6 @@ def mtx2vals(mtx, fwd):
 
     hour = 0
     patch = 2
-    mtxlines = mtx.readlines()
-    mtx.close()
-
     for fvals in mtxlines:
         try:
             sumvals = sum([float(lv) for lv in fvals.split(" ")])
@@ -438,3 +413,58 @@ def mtx2vals(mtx, fwd):
                 patch += 1
                 hour = 0
     return(vecvals, vals)
+
+def framerange(scene):
+    return(range(scene.frame_start, scene.frame_end +1))
+    
+def retobjs(otypes): 
+    scene = bpy.context.scene
+    if otypes == 'livig': 
+        return([geo for geo in scene.objects if geo.type == 'MESH' and not geo.children  and 'lightarray' not in geo.name and geo.hide == False and geo.layers[scene.active_layer] == True])
+    elif otypes == 'livil': 
+        return([geo for geo in scene.objects if (geo.ies_name != "" or 'lightarray' in geo.name) and geo.hide == False and geo.layers[scene.active_layer] == True])
+    elif otypes == 'livic':
+        return([geo for geo in scene.objects if geo.type == 'MESH' and geo.licalc == 1 and geo.lires == 0 and geo.hide == False and geo.layers[scene.active_layer] == True])
+    elif otypes == 'livir':
+        return([geo for geo in bpy.data.objects if geo.type == 'MESH' and True in [m.livi_sense for m in geo.data.materials] and geo.licalc and geo.layers[scene.active_layer] == True])
+    elif otypes == 'envig':
+        return([geo for geo in scene.objects if geo.type == 'MESH' and geo.hide == False and geo.layers[0] == True])
+
+def sunpath(context, sun, sunob, spathob):
+    scene = context.scene
+    beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
+    sunob.location.z = sun.location.z = scene.soldistance * sin(beta) 
+    sunob.location.x = sun.location.x = (scene.soldistance**2 - sun.location.z**2)**0.5  * sin(phi)
+    sunob.location.y = sun.location.y = -(scene.soldistance**2 - sun.location.z**2)**0.5 * cos(phi)
+    sun.rotation_euler = pi * 0.5 - beta, 0, phi
+    
+                            
+#Compute solar position (altitude and azimuth in degrees) based on day of year (doy; integer), local solar time (lst; decimal hours), latitude (lat; decimal degrees), and longitude (lon; decimal degrees).
+def solarPosition(doy, lst, lat, lon):
+    #Set the local standard time meridian (lsm) (integer degrees of arc)
+    lsm = int(lon/15)*15
+    #Approximation for equation of time (et) (minutes) comes from the Wikipedia article on Equation of Time
+    b = 2*pi*(doy-81)/364
+    et = 9.87 * sin(2*b) - 7.53 * cos(b) - 1.5 * sin(b)
+    #The following formulas adapted from the 2005 ASHRAE Fundamentals, pp. 31.13-31.16
+    #Conversion multipliers
+    degToRad = 2*pi/360
+    radToDeg = 1/degToRad
+    #Apparent solar time (ast)
+    ast = lst + et/60 + (lsm-lon)/15
+    #Solar declination (delta) (radians)
+    delta = degToRad*23.45 * sin(2*pi*(284+doy)/365)
+    #Hour angle (h) (radians)
+    h = degToRad*15 * (ast-12)
+     #Local latitude (l) (radians)
+    l = degToRad*lat
+    #Solar altitude (beta) (radians)
+    beta = asin(cos(l) * cos(delta) * cos(h) + sin(l) * sin(delta))
+    #Solar azimuth phi (radians)
+    phi = acos((sin(beta) * sin(l) - sin(delta))/(cos(beta) * cos(l)))
+    #Convert altitude and azimuth from radians to degrees, since the Spatial Analyst's Hillshade function inputs solar angles in degrees
+    altitude = radToDeg*beta
+    phi = 2*pi - phi if ast<=12 or ast >= 24 else phi
+    azimuth = radToDeg*phi
+    return([altitude, azimuth, beta, phi])
+    

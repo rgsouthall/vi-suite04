@@ -27,9 +27,21 @@ class Vi3DPanel(bpy.types.Panel):
     def draw(self, context):
         view = context.space_data
         scene = context.scene
-
+        layout = self.layout
+        if scene.sp_disp_panel == 1:
+            row = layout.row()
+            row.prop(scene, "latitude")
+            row = layout.row()
+            row.prop(scene, "longitude")
+            row = layout.row()
+            row.prop(scene, "solday")
+            row = layout.row()
+            row.prop(scene, "solhour")
+            row = layout.row()
+            row.prop(scene, "soldistance")
+            
         if scene.li_disp_panel == 1:
-            layout = self.layout
+            
             row = layout.row()
             row.prop(scene, "li_disp_3d")
             row = layout.row()

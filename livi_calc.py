@@ -29,7 +29,7 @@ except:
     np = 0
 
 def radfexport(scene, export_op, connode, geonode):
-    for frame in range(scene.frame_start, scene.frame_end + 1):
+    for frame in vi_func.framerange(scene):
         livi_export.fexport(scene, frame, export_op, connode, geonode)
 
 def rad_prev(prev_op, simnode, connode, geonode, simacc):
@@ -49,8 +49,8 @@ def rad_prev(prev_op, simnode, connode, geonode, simacc):
             rvurun = Popen(rvucmd, shell = True, stdout=PIPE, stderr=STDOUT)
             for l,line in enumerate(rvurun.stdout):
                 if 'octree stale?' in line.decode():
-                    radfexport(scene, prev_op, simnode, connode, geonode)
-                    rad_prev(prev_op, simnode, connode, geonode)
+                    radfexport(scene, prev_op, connode, geonode)
+                    rad_prev(prev_op, simnode, connode, geonode, simacc)
                     return
         else:
             prev_op.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
@@ -66,12 +66,12 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
         if simacc == ("0", "3")[connode.bl_label == 'LiVi Basic']:
             params = simnode.cusacc
         else:
-            num = (("-ab", 3, 4, 5), ("-ad", 512, 1024, 2048), ("-ar", 64, 128, 0), ("-as", 128, 512, 1024), ("-aa", 0.3, 0.08, 0.05), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.001, 0.0002))
+            num = (("-ab", 2, 3, 5), ("-ad", 512, 2048, 4096), ("-ar", 128, 512, 1024), ("-as", 256, 1024, 2048), ("-aa", 0.3, 0.2, 0.18), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.001, 0.0002))
             params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simacc)+1] for n in num]))
         vi_func.clearscened(scene)
         res, svres = [[[0 for p in range(geonode.reslen)] for x in range(scene.frame_end + 1 - scene.frame_start)] for x in range(2)]
 
-        for frame in range(scene.frame_start, scene.frame_end+1):
+        for frame in vi_func.framerange(scene):
             if connode.bl_label == 'LiVi Basic':
                 if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
                     subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
@@ -180,25 +180,25 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
 def resapply(res, svres, simnode, connode, geonode):
     crits = []
     scene = bpy.context.scene
-    dfpass = [0 for f in range(scene.frame_start, scene.frame_end+1)]
+    dfpass = [0 for f in vi_func.framerange(scene)]
 
-    for frame in range(scene.frame_start, scene.frame_end+1):
-        dftotarea = dfpassarea = edftotarea = 0
-        rgb = []
-        lcol_i = []
-        mcol_i = 0
-        f = 0
-        fstart = 0
-        fsv = 0
+    for frame in vi_func.framerange(scene):
+        dftotarea, dfpassarea, edftotarea, mcol_i, f, fstart, fsv = 0, 0, 0, 0, 0, 0, 0
+        rgb, lcol_i = [], []
         for i in range(0, len(res[frame])):
             h = 0.75*(1-(res[frame][i]-min(simnode['minres']))/(max(simnode['maxres']) + 0.01 - min(simnode['minres'])))
             rgb.append(colorsys.hsv_to_rgb(h, 1.0, 1.0))
+        
         if bpy.context.active_object and bpy.context.active_object.hide == 'False':
             bpy.ops.object.mode_set()
-        for geo in [geo for geo in scene.objects if geo.type == 'MESH' and geo.hide == False]:
-            bpy.ops.object.select_all(action = 'DESELECT')
-            scene.objects.active = None
+        
+        for geo in vi_func.retobjs('livig'):
+#            bpy.ops.object.select_all(action = 'DESELECT')
+#            scene.objects.active = None
             if geo.licalc == 1:
+                weightres = 0
+                bpy.ops.object.select_all(action = 'DESELECT')
+                scene.objects.active = None
                 geofaces = [face for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense]
                 geoarea = sum([vi_func.triarea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
                 fend = f + len(geofaces)
@@ -228,11 +228,14 @@ def resapply(res, svres, simnode, connode, geonode):
                                 col_i = cvtup.index(v)
                             lcol_i.append(col_i)
                             vertexColour.data[loop_index].color = rgb[col_i+mcol_i]
+#                            weigthres += face.area*res[col_i+mcol_i]/geoarea
 
                     if geonode.cpoint == '0':
                         for loop_index in face.loop_indices:
                             vertexColour.data[loop_index].color = rgb[f]
+                        weightres += vi_func.triarea(geo, face) * res[frame][f]/geoarea
                         f += 1
+                geo['avres'] = weightres
 
                 if connode.bl_label == 'LiVi Compliance':
                     if connode.analysismenu == '1':
@@ -254,7 +257,6 @@ def resapply(res, svres, simnode, connode, geonode):
                                     for loop_index in face.loop_indices:
                                         vertexColour.data[loop_index].color = (0, 1, 0) if svres[frame][fsv] > 0 else (1, 0, 0)
                                     fsv += 1
-
 
                     if frame == 0:
                         crit = []
@@ -558,7 +560,7 @@ def resapply(res, svres, simnode, connode, geonode):
         if connode.bl_label == 'LiVi Compliance' and dfpass[frame] == 1:
             dfpass[frame] = 2 if dfpassarea/dftotarea >= 0.8 else dfpass[frame]
 
-    for frame in range(scene.frame_start, scene.frame_end+1):
+    for frame in vi_func.framerange(scene):
         scene.frame_set(frame)
         for geo in scene.objects:
             if geo.licalc == 1:

@@ -21,7 +21,7 @@ if "bpy" in locals():
 else:
     from .vi_node import vinode_categories, envinode_categories
     from .envi_mat import envi_materials, envi_constructions
-    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop
+    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, solarPosition
     from .vi_operators import *
     from .vi_ui import *
 
@@ -65,6 +65,9 @@ envi_mats = envi_materials()
 envi_cons = envi_constructions()
 
 #bpy.ops.node.new_node_tree(type='ViN', name ="VI-Suite Node Tree")
+
+
+                        
 def matfunc(i):
     if i == 0:
         return [((wall, wall, 'Contruction type')) for wall in list(envi_mats.wall_dat.keys())]
@@ -111,14 +114,26 @@ def confunc(i):
 def eupdate(self, context):
     for frame in range(context.scene.frame_start, context.scene.frame_end + 1):
         for o in [obj for obj in bpy.data.objects if obj.lires == 1]:
+            maxo, mino = max(o['oreslist'][str(frame)]), min(o['oreslist'][str(frame)])
             if len(o['cfaces']) > 0:
                 for i, fli in enumerate([(face, face.loop_indices) for face in o.data.polygons if face.select == True]):
                     for li in fli[1]:
                         vi = o.data.loops[li].vertex_index
-                        o.data.shape_keys.key_blocks[str(frame)].data[vi].co = o.data.shape_keys.key_blocks['Basis'].data[vi].co + 0.1*context.scene.li_disp_3dlevel * ((0.75 - o['oreslist'][str(frame)][i]) * fli[0].normal)
+                        o.data.shape_keys.key_blocks[str(frame)].data[vi].co = o.data.shape_keys.key_blocks['Basis'].data[vi].co + 0.1*context.scene.li_disp_3dlevel * ((1 - (o['oreslist'][str(frame)][i]-mino)/(maxo - mino)) * fli[0].normal)
             for v, vn in enumerate(o['cverts']):
                 j = o['j'][v]
-                o.data.shape_keys.key_blocks[str(frame)].data[vn].co = o.data.shape_keys.key_blocks['Basis'].data[vn].co + 0.1*context.scene.li_disp_3dlevel * ((0.75 - o['oreslist'][str(frame)][j]) * o.data.vertices[vn].normal)
+                o.data.shape_keys.key_blocks[str(frame)].data[vn].co = o.data.shape_keys.key_blocks['Basis'].data[vn].co + 0.1*context.scene.li_disp_3dlevel * ((1 - (o['oreslist'][str(frame)][j]-mino)/(maxo -mino)) * o.data.vertices[vn].normal)
+
+def sunpath(self, context):
+    scene = context.scene
+    sun = [ob for ob in scene.objects if ob.spob == 1][0]
+    sunob = [ob for ob in scene.objects if ob.spsunob == 2][0]
+    spathob = [ob for ob in scene.objects if ob.spathob == 3][0]
+    beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
+    sunob.location.z = sun.location.z = scene.soldistance * sin(beta) 
+    sunob.location.x = sun.location.x = (scene.soldistance**2 - sun.location.z**2)**0.5  * sin(phi)
+    sunob.location.y = sun.location.y = -(scene.soldistance**2 - sun.location.z**2)**0.5 * cos(phi)
+    sun.rotation_euler = pi * 0.5 - beta, 0, phi
 
 def register():
     bpy.utils.register_module(__name__)
@@ -143,6 +158,12 @@ def register():
     Object.lires = bprop("", "", False)
 
     Object.limerr = bprop("", "", False)
+    
+    Object.spob = iprop("", "", 0, 3, 0)
+    
+    Object.spsunob = iprop("", "", 0, 3, 0)
+    
+    Object.spsun = iprop("", "", 0, 3, 0)
 
 # EnVi zone definitions
 
@@ -501,7 +522,36 @@ def register():
 
 
     Scene.vipath = sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
-
+    Scene.solday = bpy.props.IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath)
+    Scene.solhour = iprop("Display Panel", "Shows the Display Panel", 1, 24, 12)
+    Scene.soldistance = iprop("Display Panel", "Shows the Display Panel", 1, 5000, 100)
+    
+#    Scene.vi_loc = eprop([("0", "Manual", "Manual location"), ("1", "From EPW file", "EPW location")], "Location", "Location", "0")
+    
+#    Scene.vi_weather = eprop(items = weatherlist, name="Weather location", description="Weather for this project")
+    
+    Scene.latitude = bpy.props.FloatProperty(name="Lat", description="Site Latitude", min=-90, max=90, default=52)
+    Scene.longitude = bpy.props.FloatProperty(name="Long", description="Site Longitude", min=-15, max=15, default=0)  
+    
+#    Scene.vi_meridian = eprop(
+#            [("-9", "YST", ""),
+#                   ("-8", "PST", ""),
+#                   ("-7", "MST", ""),
+#                   ("-6", "CST", ""),
+#                   ("-5", "EST", ""),
+#                   ("0", "GMT", ""),
+#                   ("1", "CET", ""),
+#                   ("2", "EET", ""),
+#                   ("3", "AST", ""),
+#                   ("4", "GST", ""),
+#                   ("5.5", "IST", ""),
+#                   ("9", "JST", ""),
+#                   ("12", "NZST", ""),                   
+#                    ],
+#            "",
+#            "Specify the local meridian",
+#            "0")
+    
     Scene.li_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
 
     Scene.lic_disp_panel = bprop("", "",False)
@@ -511,6 +561,8 @@ def register():
     Scene.li_disp_3dlevel = bpy.props.FloatProperty(name = "", description = "Level of 3D result plane extrusion", min = 0, max = 50, default = 0, update = eupdate)
 
     Scene.vi_display = bprop("", "",False)
+    
+    Scene.sp_disp_panel = bprop("", "",False)
 
     Scene.li_compliance = bprop("", "", False)
 

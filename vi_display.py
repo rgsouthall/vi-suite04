@@ -18,6 +18,7 @@
 
 
 import bpy, blf, colorsys, bgl, mathutils
+from math import cos, sin
 from . import livi_export
 from . import vi_func
 
@@ -40,16 +41,11 @@ def li_display(simnode, connode, geonode):
             obcalclist.append(geo)
             o += 1
 
-    for frame in range(scene.frame_start, scene.frame_end + 1):
+    for frame in vi_func.framerange(scene):
         scene.frame_set(frame)
         for obcalc in obcalclist:
             for vc in obcalc.data.vertex_colors:
-                if vc.name == str(frame):
-                    vc.active = 1
-                    vc.active_render = 1
-                else:
-                    vc.active = 0
-                    vc.active_render = 0
+                (vc.active, vc.active_render) = (1, 1) if vc.name == str(frame) else (0, 0)
                 vc.keyframe_insert("active")
                 vc.keyframe_insert("active_render")
 
@@ -58,33 +54,33 @@ def li_display(simnode, connode, geonode):
     scene.objects.active = None
 
     if scene.li_disp_3d == 1:
-        for i, geo in enumerate(scene.objects):
-            if geo.type == 'MESH' and geo.licalc == 1 and geo.lires == 0 and geo.hide == False:
-                scene.objects.active = None
-                bpy.ops.object.select_all(action = 'DESELECT')
-                scene.objects.active = geo
-                geo.select = True
-                bpy.ops.object.mode_set(mode = 'EDIT')
-                bpy.context.tool_settings.mesh_select_mode = [False, False, True]
-                bpy.ops.mesh.select_all(action = 'DESELECT')
-                bpy.ops.object.mode_set(mode = 'OBJECT')
+        for i, geo in enumerate(vi_func.retobjs('livic')):
+            scene.objects.active = None
+            bpy.ops.object.select_all(action = 'DESELECT')
+            scene.objects.active = geo
+            geo.select = True
+            bpy.ops.object.mode_set(mode = 'EDIT')
+            bpy.context.tool_settings.mesh_select_mode = [False, False, True]
+            bpy.ops.mesh.select_all(action = 'DESELECT')
+            bpy.ops.object.mode_set(mode = 'OBJECT')
 
-                for cf in geo["cfaces"]:
-                    geo.data.polygons[int(cf)].select = True
+            for cf in geo["cfaces"]:
+                geo.data.polygons[int(cf)].select = True
 
-                if len(geo["cverts"]) > 0:
-                    bpy.context.tool_settings.mesh_select_mode = [True, False, False]
-                    for cv in geo["cverts"]:
-                        geo.data.vertices[int(cv)].select = True
-                bpy.ops.object.mode_set(mode = 'EDIT')
-                bpy.ops.mesh.duplicate()
-                bpy.ops.mesh.separate()
-                bpy.ops.object.mode_set(mode = 'OBJECT')
-                scene.objects[0].name = geo.name+"res"
-                obreslist.append(scene.objects[0])
-                scene.objects[0].lires = 1
-                bpy.ops.object.select_all(action = 'DESELECT')
-                scene.objects.active = None
+            if len(geo["cverts"]) > 0:
+                bpy.context.tool_settings.mesh_select_mode = [True, False, False]
+                for cv in geo["cverts"]:
+                    geo.data.vertices[int(cv)].select = True
+            
+            bpy.ops.object.mode_set(mode = 'EDIT')
+            bpy.ops.mesh.duplicate()
+            bpy.ops.mesh.separate()
+            bpy.ops.object.mode_set(mode = 'OBJECT')
+            scene.objects[0].name = geo.name+"res"
+            obreslist.append(scene.objects[0])
+            scene.objects[0].lires = 1
+            bpy.ops.object.select_all(action = 'DESELECT')
+            scene.objects.active = None
 
         for obres in obreslist:
             oreslist = {}
@@ -113,9 +109,9 @@ def li_display(simnode, connode, geonode):
                 bpy.ops.object.shape_key_add(from_mix = False)
                 obres.active_shape_key.name = str(frame)
                 if geonode.cpoint == '0':
-                    oreslist[str(frame)] = [vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[li].color) for li in [face.loop_indices[0] for face in obres.data.polygons if face.select == True]]
+                    oreslist[str(frame)] = [simnode['minres'][frame] + (simnode['maxres'][frame] - simnode['minres'][frame]) * 1/0.75 * vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[li].color) for li in [face.loop_indices[0] for face in obres.data.polygons if face.select == True]]
                 else:
-                    oreslist[str(frame)] = [vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[j].color) for j in range(len(obres.data.vertex_colors[str(frame)].data))]
+                    oreslist[str(frame)] = [simnode['minres'][frame] + (simnode['maxres'][frame] - simnode['minres'][frame]) * 1/0.75 * vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[j].color) for j in range(len(obres.data.vertex_colors[str(frame)].data))]
             obres['oreslist'] = oreslist
             obres['j'] = j
 
@@ -125,24 +121,13 @@ def li_display(simnode, connode, geonode):
             if scene.li_disp_3d == 1:
                 for shape in obres.data.shape_keys.key_blocks:
                         if "Basis" not in shape.name:
-                            if int(shape.name) == frame:
-                                shape.value = 1
-                                shape.keyframe_insert("value")
-                            else:
-                                shape.value = 0
-                                shape.keyframe_insert("value")
+                            shape.value = 1 if int(shape.name) == frame else 0
+                            shape.keyframe_insert("value")
 
             for vc in obres.data.vertex_colors:
-                if vc.name == str(frame):
-                    vc.active = 1
-                    vc.active_render = 1
-                    vc.keyframe_insert("active")
-                    vc.keyframe_insert("active_render")
-                else:
-                    vc.active = 0
-                    vc.active_render = 0
-                    vc.keyframe_insert("active")
-                    vc.keyframe_insert("active_render")
+                (vc.active, vc.active_render) = (1, 1) if vc.name == str(frame) else (0, 0)
+                vc.keyframe_insert("active")
+                vc.keyframe_insert("active_render")
 
     bpy.ops.wm.save_mainfile(check_existing = False)
     rendview(1)
@@ -183,8 +168,7 @@ def linumdisplay(disp_op, context, simnode, geonode):
         def draw_index(r, g, b, index, center):
             vec = total_mat * center
             vec = mathutils.Vector((vec[0] / vec[3], vec[1] / vec[3], vec[2] / vec[3]))
-            x = int(mid_x + vec[0] * width / 2)
-            y = int(mid_y + vec[1] * height / 2)
+            x, y = int(mid_x + vec[0] * width / 2), int(mid_y + vec[1] * height / 2)
             bgl.glColor3f(r, g, b)
             blf.position(0, x, y, 0)
             if x > 100 or y < height - 530:
@@ -222,23 +206,8 @@ def li3D_legend(self, context, simnode, connode):
         height = context.region.height
         lenres = len(resvals[-1])
         font_id = 0
-        bgl.glEnable(bgl.GL_BLEND)
-        bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
-        bgl.glLineWidth(1)
-        bgl.glBegin(bgl.GL_POLYGON)
-        bgl.glVertex2i(20, height - 520)
-        bgl.glVertex2i(70 + lenres*8, height - 520)
-        bgl.glVertex2i(70 + lenres*8, height - 40)
-        bgl.glVertex2i(20, height - 40)
-        bgl.glEnd()
-        bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-        bgl.glLineWidth(1)
-        bgl.glBegin(bgl.GL_LINE_LOOP)
-        bgl.glVertex2i(19, height - 520)
-        bgl.glVertex2i(70 + lenres*8, height - 520)
-        bgl.glVertex2i(70 + lenres*8, height - 40)
-        bgl.glVertex2i(19, height - 40)
-        bgl.glEnd()
+        vi_func.drawpoly(20, height - 40, 70 + lenres*8, height - 520)
+        vi_func.drawloop(19, height - 40, 70 + lenres*8, height - 520)
 
         for i in range(20):
             h = 0.75 - 0.75*(i/19)
@@ -249,30 +218,31 @@ def li3D_legend(self, context, simnode, connode):
             bgl.glVertex2i(60, (i*20)+height - 440)
             bgl.glVertex2i(20, (i*20)+height - 440)
             bgl.glEnd()
-            blf.position(font_id, 65, (i*20)+height - 455, 0)
             blf.size(font_id, 20, 48)
             bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+            blf.position(font_id, 65, (i*20)+height - 455, 0)
             blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
 
-        blf.position(font_id, 25, height - 57, 0)
         blf.size(font_id, 20, 56)
-        blf.draw(font_id, connode.unit)
+        vi_func.drawfont(connode.unit, font_id, 0, height, 25, 57)
         bgl.glLineWidth(1)
         bgl.glDisable(bgl.GL_BLEND)
-
         height = context.region.height
         font_id = 0
-        if context.scene.frame_current in range(context.scene.frame_start, context.scene.frame_end + 1):
+        if context.scene.frame_current in vi_func.framerange(context.scene):
             bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
-            blf.position(font_id, 22, height - 480, 0)
             blf.size(font_id, 20, 48)
-            blf.draw(font_id, "Ave: {:.1f}".format(simnode['avres'][context.scene.frame_current]))
-            blf.position(font_id, 22, height - 495, 0)
-            blf.draw(font_id, "Max: {:.1f}".format(simnode['maxres'][context.scene.frame_current]))
-            blf.position(font_id, 22, height - 510, 0)
-            blf.draw(font_id, "Min: {:.1f}".format(simnode['minres'][context.scene.frame_current]))
+            if hasattr(context.active_object, 'lires') and context.active_object.lires:
+                vi_func.drawfont("Ave: {:.1f}".format(bpy.context.active_object['avres']), font_id, 0, height, 22, 480)
+                vi_func.drawfont("Max: {:.1f}".format(max(context.active_object['oreslist'][str(context.scene.frame_current)])), font_id, 0, height, 22, 495)
+                vi_func.drawfont("Min: {:.1f}".format(min(context.active_object['oreslist'][str(context.scene.frame_current)])), font_id, 0, height, 22, 510)
+            else:
+                vi_func.drawfont("Ave: {:.1f}".format(simnode['avres'][context.scene.frame_current]), font_id, 0, height, 22, 480)
+                vi_func.drawfont("Max: {:.1f}".format(simnode['maxres'][context.scene.frame_current]), font_id, 0, height, 22, 495)
+                vi_func.drawfont("Min: {:.1f}".format(simnode['minres'][context.scene.frame_current]), font_id, 0, height, 22, 510)
 
 def li_compliance(self, context, connode):
+    height = context.region.height
     scene = context.scene
     try:
         if not scene.li_compliance or scene.frame_current not in range(scene.frame_start, scene.frame_end + 1) or scene.vi_display == 0:
@@ -285,36 +255,19 @@ def li_compliance(self, context, connode):
     elif connode.analysismenu == '1':
         buildtype = 'Residential'
         cfshpfsdict = {'totkit': 0, 'kitdf': 0, 'kitsv': 0, 'totliv': 0, 'livdf': 0, 'livsv': 0}
-
-    height = context.region.height
-    bgl.glEnable(bgl.GL_BLEND)
-    bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
-    bgl.glLineWidth(1)
-    bgl.glBegin(bgl.GL_POLYGON)
-    bgl.glVertex2i(100, height - 65)
-    bgl.glVertex2i(900, height - 65)
-    bgl.glVertex2i(900, height - 40)
-    bgl.glVertex2i(100, height - 40)
-    bgl.glEnd()
+    
+    vi_func.drawpoly(100, height - 40, 900, height - 65)
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
     horpos = (100, 317, 633, 900)
     widths = (100, 450, 600, 750, 900)
 
     for p in range(3):
-        bgl.glBegin(bgl.GL_LINE_LOOP)
-        bgl.glVertex2i(horpos[p], height - 65)
-        bgl.glVertex2i(horpos[p+1], height - 65)
-        bgl.glVertex2i(horpos[p+1], height - 40)
-        bgl.glVertex2i(horpos[p], height - 40)
-        bgl.glEnd()
+        vi_func.drawloop(horpos[p], height - 40, horpos[p+1], height - 65)
 
     font_id = 0
-    blf.position(font_id, 110, height - 58, 0)
     blf.size(font_id, 20, 54)
-
-    blf.draw(font_id, 'Standard: '+('BREEAM HEA1', 'CfSH', 'LEED EQ8.1', 'Green Star')[int(connode.analysismenu)])
-    blf.position(font_id, 643, height - 58, 0)
-    blf.draw(font_id, 'Project Name: '+scene.li_projname)
+    vi_func.drawfont('Standard: '+('BREEAM HEA1', 'CfSH', 'LEED EQ8.1', 'Green Star')[int(connode.analysismenu)], font_id, 0, height, 110, 58)
+    vi_func.drawfont('Project Name: '+scene.li_projname, font_id, 0, height, 643, 58)
     blf.size(font_id, 20, 40)
 
     def space_compliance(geos):
@@ -346,7 +299,6 @@ def li_compliance(self, context, connode):
                 if geo['cr4'][1] == 'pass':
                     cfshpfsdict[('kitsv', 'livsv')[mat.rspacemenu == '1']] += 1
 
-
             if connode.analysismenu == '0':
                 ecrit = geo['ecrit']
                 geo['ecr4'] = [('fail', 'pass')[int(com)] for com in geo['ecomps'][frame][:][::2]]
@@ -365,25 +317,8 @@ def li_compliance(self, context, connode):
         if bpy.context.active_object in geos:
             geo = bpy.context.active_object
             lencrit = 1 + len(geo['crit'])
-            bgl.glEnable(bgl.GL_BLEND)
-            bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
-            bgl.glBegin(bgl.GL_POLYGON)
-            bgl.glVertex2i(100, height - 70 - (lencrit)*25)
-            bgl.glVertex2i(900, height - 70 - (lencrit)*25)
-            bgl.glVertex2i(900, height - 70)
-            bgl.glVertex2i(100, height - 70)
-            bgl.glEnd()
-
-            bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-            bgl.glLineWidth(1)
-            bgl.glBegin(bgl.GL_LINE_LOOP)
-            bgl.glVertex2i(100, height - 70 - (lencrit)*25)
-            bgl.glVertex2i(900, height - 70 - (lencrit)*25)
-            bgl.glVertex2i(900, height - 70)
-            bgl.glVertex2i(100, height - 70)
-            bgl.glEnd()
-            bgl.glDisable(bgl.GL_BLEND)
-
+            vi_func.drawpoly(100, height - 70, 900, height - 70  - (lencrit)*25)
+            vi_func.drawloop(100, height - 70, 900, height - 70  - (lencrit)*25)
             mat = [m for m in bpy.context.active_object.data.materials if m.livi_sense][0]
             if connode.analysismenu == '0':
                 if connode.bambuildmenu == '2':
@@ -416,34 +351,22 @@ def li_compliance(self, context, connode):
                         etables[e] = ('Minimum {} (%)'.format('Point Daylight Factor'), ecr[3], '{:.2f}'.format(geo['ecomps'][frame][:][e*2 + 1]), geo['ecr4'][e].upper())
 
             for j in range(4):
-                bgl.glBegin(bgl.GL_LINE_LOOP)
-                bgl.glVertex2i(widths[j], height - 95)
-                bgl.glVertex2i(widths[j+1], height - 95)
-                bgl.glVertex2i(widths[j+1], height - 70)
-                bgl.glVertex2i(widths[j], height - 70)
-                bgl.glEnd()
+                vi_func.drawloop(widths[j], height - 70, widths[j+1], height - 95)
 
             bgl.glEnable(bgl.GL_LINE_STIPPLE)
             for t, tab in enumerate(tables):
                 for j in range(4):
-                    bgl.glBegin(bgl.GL_LINE_LOOP)
-                    bgl.glVertex2i(widths[j], height - 120 - t*25)
-                    bgl.glVertex2i(widths[j+1], height - 120 - t*25)
-                    bgl.glVertex2i(widths[j+1], height - 95 - t*25)
-                    bgl.glVertex2i(widths[j], height - 95 - t*25)
-                    bgl.glEnd()
+                    vi_func.drawloop(widths[j], height - 95 - t*25, widths[j+1], height - 120 - t*25)
                     if tab[j] == 'FAIL':
                         bgl.glColor4f(1.0, 0.0, 0.0, 1.0)
                     elif tab[j] == 'PASS':
                         bgl.glColor4f(0.0, 0.7, 0.0, 1.0)
                     blf.size(font_id, 20, 44)
-                    blf.position(font_id, widths[j]+(25, 50)[j != 0]+(0, 10)[j in (1, 3)], height - 113 - t*25, 0)
-                    blf.draw(font_id, tab[j])
+                    vi_func.drawfont(tab[j], 0, 0, height, widths[j]+(25, 50)[j != 0]+(0, 10)[j in (1, 3)], 113 + t*25)
                     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
                     if t == 0:
                         blf.size(font_id, 20, 48)
-                        blf.position(font_id, widths[j]+(25, 50)[j != 0]+(0, 10)[j in (1, 3)], height - 88, 0)
-                        blf.draw(font_id, titles[j])
+                        vi_func.drawfont(titles[j], 0, 0, height, widths[j]+(25, 50)[j != 0]+(0, 10)[j in (1, 3)], 88)
             bgl.glDisable(bgl.GL_LINE_STIPPLE)
         else:
             etables = []
@@ -455,37 +378,17 @@ def li_compliance(self, context, connode):
 
         return(tpf, lencrit, buildspace, etables)
 
-    build_compliance, lencrit, bs, etables = space_compliance([geo for geo in bpy.data.objects if geo.type == 'MESH' and True in [m.livi_sense for m in geo.data.materials] and geo.licalc])
+    build_compliance, lencrit, bs, etables = space_compliance(vi_func.retobjs('livir'))
 
     if build_compliance == 'EXEMPLARY':
-
         for t, tab in enumerate(etables):
             if t == 0:
-                bgl.glEnable(bgl.GL_BLEND)
-                bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
-                bgl.glBegin(bgl.GL_POLYGON)
-                bgl.glVertex2i(100, height - 70 - ((lencrit - len(etables)) * 25))
-                bgl.glVertex2i(900, height - 70 - ((lencrit - len(etables)) * 25))
-                bgl.glVertex2i(900, height - 70 - (lencrit * 25))
-                bgl.glVertex2i(100, height - 70 - (lencrit * 25))
-                bgl.glEnd()
-                bgl.glBegin(bgl.GL_LINE_LOOP)
-                bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-                bgl.glVertex2i(100, height - 70 - (lencrit * 25))
-                bgl.glVertex2i(900, height - 70 - (lencrit * 25))
-                bgl.glVertex2i(900, height - 70 - ((lencrit - len(etables)) * 25))
-                bgl.glVertex2i(100, height - 70 - ((lencrit - len(etables)) * 25))
-                bgl.glEnd()
-                bgl.glDisable(bgl.GL_BLEND)
+                vi_func.drawpoly(100, height - 70 - (lencrit * 25), 900, height - 70 - ((lencrit - len(etables)) * 25))
+                vi_func.drawloop(100, height - 70 - (lencrit * 25), 900, height - 70 - ((lencrit - len(etables)) * 25))
 
             for j in range(4):
                 bgl.glEnable(bgl.GL_LINE_STIPPLE)
-                bgl.glBegin(bgl.GL_LINE_LOOP)
-                bgl.glVertex2i(widths[j], height - 120 - (lencrit - len(etables) + t - 1) * 25)
-                bgl.glVertex2i(widths[j+1], height - 120 - (lencrit - len(etables) + t - 1) * 25)
-                bgl.glVertex2i(widths[j+1], height - 95 - (lencrit - len(etables) + t - 1) * 25)
-                bgl.glVertex2i(widths[j], height - 95 - (lencrit - len(etables) + t - 1) * 25)
-                bgl.glEnd()
+                vi_func.drawloop(widths[j], height - 95 - (lencrit - len(etables) + t - 1) * 25, widths[j+1], height - 120 - (lencrit - len(etables) + t - 1) * 25)
                 if tab[j] == 'FAIL':
                     bgl.glColor4f(1.0, 0.0, 0.0, 1.0)
                 elif tab[j] == 'PASS':
@@ -504,9 +407,10 @@ def li_compliance(self, context, connode):
     blf.size(font_id, 20, 52)
     blf.position(font_id, 110, height - 87 - lencrit*26, 0)
     if connode.analysismenu == '0':
-        vi_func.drawpoly(lencrit, height, 100, 70, 525, 95)
-        vi_func.drawloop(lencrit, height, 100, 70, 350, 95)
-        vi_func.drawloop(lencrit, height, 350, 70, 525, 95)
+        vi_func.drawpoly(100, height - 70 - lencrit*26, 525, height - 95 - lencrit*26)
+        vi_func.drawloop(100, height - 70 - lencrit*26, 350, height - 95 - lencrit*26)
+        vi_func.drawloop(100, height - 70 - lencrit*26, 350, height - 95 - lencrit*26)
+        vi_func.drawloop(350, height - 70 - lencrit*26, 525, height - 95 - lencrit*26)
         blf.draw(font_id, 'Building Compliance:')
         vi_func.drawfont(build_compliance, 0, lencrit, height, 250, 87)
         blf.position(font_id, 360, height - 87 - lencrit*26, 0)
@@ -520,8 +424,8 @@ def li_compliance(self, context, connode):
             blf.draw(font_id, '0')
 
     elif connode.analysismenu == '1':
-        vi_func.drawpoly(lencrit, height, 100, 70, 300, 95)
-        vi_func.drawloop(lencrit, height, 100, 70, 300, 95)
+        vi_func.drawpoly(100, height - 70 - lencrit*26, 300, height - 95 - lencrit*26)
+        vi_func.drawloop(100, height - 70 - lencrit*26, 300, height - 95 - lencrit*26)
         vi_func.drawfont('Credits achieved:', 0, lencrit, height, 110, 87)
         cfshcred = 0
         if cfshpfsdict['kitdf'] == cfshpfsdict['totkit'] and cfshpfsdict['totkit'] != 0:
@@ -536,24 +440,26 @@ def li_compliance(self, context, connode):
     bgl.glEnable(bgl.GL_BLEND)
     bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
     bgl.glLineWidth(1)
-
-    vi_func.drawpoly(0, 75, 100, 25, 900, 50)
+    sw = 8
+    
+    aolen, ailen, jnlen = len(scene.li_assorg), len(scene.li_assind), len(scene.li_jobno)
+    vi_func.drawpoly(100, 50, 500 + aolen*sw + ailen*sw + jnlen*sw, 25)
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-    vi_func.drawloop(0, 75, 100, 25, 387, 50)
-    vi_func.drawloop(0, 75, 387, 25, 693, 50)
-    vi_func.drawloop(0, 75, 693, 25, 900, 50)
+    vi_func.drawloop(100, 50, 260 + aolen*sw, 25)
+    vi_func.drawloop(260 + aolen*sw, 50, 400 + aolen*sw + ailen*sw, 25)
+    vi_func.drawloop(400 + aolen*sw + ailen*sw, 50, 500 + aolen*sw + ailen*sw + jnlen*sw, 25)
     blf.size(font_id, 20, 44)
     blf.position(font_id, 110, 32, 0)
     blf.draw(font_id, 'Assessing Organisation:')
-    blf.position(font_id, 265, 32, 0)
+    blf.position(font_id, 250, 32, 0)
     blf.draw(font_id, scene.li_assorg)
-    blf.position(font_id, 397, 32, 0)
+    blf.position(font_id, 270 + aolen*sw, 32, 0)
     blf.draw(font_id, 'Assessing Individual:')
-    blf.position(font_id, 527, 32, 0)
+    blf.position(font_id, 395 + aolen*sw, 32, 0)
     blf.draw(font_id, scene.li_assind)
-    blf.position(font_id, 703, 32, 0)
+    blf.position(font_id, 410 + aolen*sw + ailen*sw, 32, 0)
     blf.draw(font_id, 'Job Number:')
-    blf.position(font_id, 785, 32, 0)
+    blf.position(font_id, 490 + aolen*sw + ailen*sw, 32, 0)
     blf.draw(font_id, scene.li_jobno)
 
 def rendview(i):
@@ -569,3 +475,57 @@ def rendview(i):
                                 space.show_textured_solid = 1
                             else:
                                 space.show_textured_solid = 0
+                
+#def sunpath(context, locnode, spnode):
+#    scene = context.scene
+#    if scene.sp_disp_panel != True:
+#        return
+#    else:
+#        if len([ob for ob in scene.objects if ob.type == "LAMP" and ob.data.type == "SUN"]) == 0:
+#            bpy.ops.object.lamp_add(type = "SUN")  
+#        else 
+#        if len([ob for ob in scene.objects if ob.type == "MESH" and ob.name == "SunMesh"]) == 0:
+#            bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=12, size=0.01*scene.soldistance)
+#            context.active_object.name = "SunMesh"
+#        if len([ob for ob in scene.objects if ob.type == "MESH" and ob.name == "SolMesh"]) == 0:
+#            bpy.ops.object.add(type = "MESH")
+#            bpy.ops.object.mode_set(mode='EDIT')
+#            bpy.ops.mesh.wireframe(thickness=0.005)
+#            bpy.ops.object.mode_set(mode='OBJECT')
+#            context.active_object.name = "SolMesh"
+#            solmesh = context.active_object.data
+#            
+#            for doy in range(0, 363):
+#                if (doy-4)%7 == 0:
+#                    for hour in range(1, 25):
+#                        ([solalt, solazi]) = vi_func.solarPosition(doy, hour, locnode.latitude, locnode.longitude)[2:4]
+#   
+#                        solmesh.vertices.add(1)
+#                        solmesh.vertices[-1].co = [(scene.soldistance-(scene.soldistance-(context.scene.soldistance*cos(solalt))))*sin(solazi), -(scene.soldistance-(context.scene.soldistance-(context.scene.soldistance*cos(solalt))))*cos(solazi), context.scene.soldistance*sin(solalt)]
+#    
+#            for v in range(24, len(solmesh.vertices)):
+#                solmesh.edges.add(1)
+#                solmesh.edges[-1].vertices[0] = v 
+#                solmesh.edges[-1].vertices[1] = v - 24
+#                if v in range(1224, 1248):
+#                    solmesh.edges.add(1)
+#                    solmesh.edges[-1].vertices[0] = v 
+#                    solmesh.edges[-1].vertices[1] = v - 1224
+#     
+#                if v in (1200, 96, 192, 264, 360, 456, 576):
+#                    for e in range(v, v+23):
+#                        solmesh.edges.add(1)
+#                        solmesh.edges[-1].vertices[0] = e 
+#                        solmesh.edges[-1].vertices[1] = e + 1
+#                    solmesh.edges.add(1)
+#                    solmesh.edges[-1].vertices[0] = v
+#                    solmesh.edges[-1].vertices[1] = v + 23
+#                    
+##        context.scene["solday31"] = context.scene.solday31
+##        context.scene["solday30"] = context.scene.solday30
+##        context.scene["solday28"] = context.scene.solday28
+##        context.scene["solmonth"] = context.scene.solmonth
+##        context.scene["solhour"] = context.scene.solhour
+#    
+#        return {'FINISHED'}
+    

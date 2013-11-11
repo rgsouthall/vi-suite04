@@ -451,6 +451,12 @@ class NODE_OT_SunPath(bpy.types.Operator):
         scene = context.scene
         scene.resnode = node.name
         scene.restree = self.nodeid.split('@')[1]
+
+        if locnode.loc == "1":
+            with open(locnode.weather, "r") as epwfile:
+               fl = epwfile.readline()
+               scene.latitude, scene.longitude = float(fl.split(",")[6]), float(fl.split(",")[7])
+
         if len([ob for ob in context.scene.objects if ob.spob == 1]) == 0:
             bpy.ops.object.lamp_add(type = "SUN")
             sun = context.active_object
@@ -485,35 +491,38 @@ class NODE_OT_SunPath(bpy.types.Operator):
         for doy in range(0, 363):
             if (doy-4)%7 == 0:
                 for hour in range(1, 25):
-                    if locnode.loc == "1":
-                        with open(locnode.weather, "r") as epwfile:
-                            fl = epwfile.readline()
-                            scene.latitude, scene.longitude = float(fl.split(",")[6]), float(fl.split(",")[7])
-
                     ([solalt, solazi]) = solarPosition(doy, hour, scene.latitude, scene.longitude)[2:]
 
                     spathmesh.vertices.add(1)
                     spathmesh.vertices[-1].co = [(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
 
         for v in range(24, len(spathmesh.vertices)):
+
             spathmesh.edges.add(1)
             spathmesh.edges[-1].vertices[0] = v
             spathmesh.edges[-1].vertices[1] = v - 24
             if v in range(1224, 1248):
+
                 spathmesh.edges.add(1)
                 spathmesh.edges[-1].vertices[0] = v
                 spathmesh.edges[-1].vertices[1] = v - 1224
 
             if v in (1200, 96, 192, 264, 360, 456, 576):
                 for e in range(v, v+23):
+
                     spathmesh.edges.add(1)
                     spathmesh.edges[-1].vertices[0] = e
                     spathmesh.edges[-1].vertices[1] = e + 1
+
                 spathmesh.edges.add(1)
                 spathmesh.edges[-1].vertices[0] = v
                 spathmesh.edges[-1].vertices[1] = v + 23
         bpy.ops.object.convert(target='CURVE')
         bpy.data.objects['SPathMesh'].data.bevel_depth = 0.1
+
+        for edge in spathmesh.edges:
+            if spathmesh.vertices(edge.vertices[0]).co.z < 0
+            if len([spathmesh.vertices(edges.vertices[0:2]) for edges in spathmesh.edges
 
 #        sunpath(context, sun, sunob, spathob)
         if node.modal == 1:

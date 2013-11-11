@@ -445,7 +445,8 @@ class ViSPNode(bpy.types.Node, ViNodes):
     bl_icon = 'LAMP'
 
 
-
+    modal = bpy.props.BoolProperty(name = '', default = 0)
+    
     def init(self, context):
         self.inputs.new('ViLoc', 'Location in')
         for ng in bpy.data.node_groups:
@@ -454,7 +455,9 @@ class ViSPNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         if self.inputs[0].is_linked and self.inputs[0].links[0].from_node.bl_label == 'VI Location':
-
+            row = layout.row()
+            row.label('Modal')
+            row.prop(self, "modal")
             row = layout.row()
             row.operator("node.sunpath", text="Create Sun Path").nodeid = self['nodeid']
 
@@ -505,6 +508,7 @@ class ViLoc(bpy.types.Node, ViNodes):
     loc = bpy.props.EnumProperty(items = [("0", "Manual", "Manual location"), ("1", "From EPW file", "EPW location")], name = "", description = "Location", default = "0")
     latitude = bpy.props.FloatProperty(name="", description="Site Latitude", min=-90, max=90, default=52)
     longitude = bpy.props.FloatProperty(name="", description="Site Longitude", min=-15, max=15, default=0)
+    
     meridian = bpy.props.EnumProperty(items = [("-9", "YST", ""),
                                        ("-8", "PST", ""),
                                        ("-7", "MST", ""),
@@ -541,6 +545,7 @@ class ViLoc(bpy.types.Node, ViNodes):
             row = layout.row()
             row.label('Longitude')
             row.prop(scene, "longitude")
+
 #            row = layout.row()
 #            row.label(text = 'Meridian:')
 #            col = row.column()

@@ -30,14 +30,13 @@ class Vi3DPanel(bpy.types.Panel):
         layout = self.layout
         if scene.sp_disp_panel == 1:
             row = layout.row()
-            row.prop(scene, "latitude")
-            row = layout.row()
-            row.prop(scene, "longitude")
-            row = layout.row()
+            row.label("Day of year")
             row.prop(scene, "solday")
             row = layout.row()
+            row.label("Hour of day")
             row.prop(scene, "solhour")
             row = layout.row()
+            row.label("Sunpath scale") 
             row.prop(scene, "soldistance")
             
         if scene.li_disp_panel == 1:

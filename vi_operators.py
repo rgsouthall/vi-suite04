@@ -440,15 +440,19 @@ class NODE_OT_SunPath(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
+        sd = 100
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         locnode = node.inputs[0].links[0].from_node
         scene = context.scene
+        scene.resnode = node.name
+        scene.restree = self.nodeid.split('@')[1]
         if len([ob for ob in context.scene.objects if ob.spob == 1]) == 0:
             bpy.ops.object.lamp_add(type = "SUN")
             sun = context.active_object
         else:
             sun = [ob for ob in context.scene.objects if ob.spob == 1][0]
         sun.spob = 1
+        sun['solhour'], sun['solday'], sun['soldistance'] = scene.solhour, scene.solday, scene.soldistance
 
         if len([ob for ob in context.scene.objects if ob.spob == 2]) == 0:
             bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=12, size=0.1)
@@ -477,14 +481,14 @@ class NODE_OT_SunPath(bpy.types.Operator):
             if (doy-4)%7 == 0:
                 for hour in range(1, 25):
                     if locnode.loc == "1":
-                        with open(bpy.context.scene.envi_export_weather, "r") as epwfile:
+                        with open(locnode.weather, "r") as epwfile:
                             fl = epwfile.readline()
                             scene.latitude, scene.longitude = float(fl.split(",")[6]), float(fl.split(",")[7])
 
                     ([solalt, solazi]) = solarPosition(doy, hour, scene.latitude, scene.longitude)[2:]
 
                     spathmesh.vertices.add(1)
-                    spathmesh.vertices[-1].co = [(scene.soldistance-(scene.soldistance-(scene.soldistance*cos(solalt))))*sin(solazi), -(context.scene.soldistance-(context.scene.soldistance-(context.scene.soldistance*cos(solalt))))*cos(solazi), context.scene.soldistance*sin(solalt)]
+                    spathmesh.vertices[-1].co = [(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
 
         for v in range(24, len(spathmesh.vertices)):
             spathmesh.edges.add(1)
@@ -505,7 +509,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 spathmesh.edges[-1].vertices[1] = v + 23
 
 #        sunpath(context, sun, sunob, spathob)
-#        bpy.ops.view3d.sunpath()
+        if node.modal == 1:
+            bpy.ops.view3d.sunpath()
         context.scene.sp_disp_panel = 1
         context.scene.li_disp_panel = 0
         return {'FINISHED'}
@@ -521,12 +526,63 @@ class VIEW3D_OT_SunPath(bpy.types.Operator):
         if context.scene.vi_display == 0:
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_sp, 'WINDOW')
             return {'CANCELLED'}
-        return {'RUNNING_MODAL'}
+        return {'PASS_THROUGH'}
 
     def execute(self, context):
-        sun = [ob for ob in context.scene.objects if ob.type == "LAMP" and ob.data.type == 'SUN'][0]
-        sunob = [ob for ob in context.scene.objects if ob.name == 'SunMesh'][0]
-        spathob= [ob for ob in context.scene.objects if ob.type == "MESH" and ob.name == "SPathMesh"]
-        self._handle_sp = bpy.types.SpaceView3D.draw_handler_add(sunpath, (context, sun, sunob, spathob), 'WINDOW', 'POST_PIXEL')
+#        sun = [ob for ob in context.scene.objects if ob.type == "LAMP" and ob.data.type == 'SUN'][0]
+#        sunob = [ob for ob in context.scene.objects if ob.name == 'SunMesh'][0]
+#        spathob= [ob for ob in context.scene.objects if ob.type == "MESH" and ob.name == "SPathMesh"]
+    
+        self._handle_sp = bpy.types.SpaceView3D.draw_handler_add(sunpath, (self, context), 'WINDOW', 'POST_PIXEL')
         return {'RUNNING_MODAL'}
 
+#class VIEW3D_OT_SunPath(bpy.types.Operator):
+#    bl_idname = "view3d.sunpath"
+#    bl_label = "Screencast Keys"
+#    bl_description = "Display keys pressed in the 3D View"
+# 
+#    _handle = None
+#    _timer = None
+# 
+#    @staticmethod
+#    def handle_add(self, context):
+#        VIEW3D_OT_SunPath._handle = bpy.types.SpaceView3D.draw_handler_add(sunpath, (self, context), 'WINDOW', 'POST_PIXEL')
+#        VIEW3D_OT_SunPath._timer = context.window_manager.event_timer_add(0.075, context.window)
+# 
+#    @staticmethod
+#    def handle_remove(context):
+#        if VIEW3D_OT_SunPath._handle is not None:
+#            context.window_manager.event_timer_remove(VIEW3D_OT_SunPath._timer)
+#            bpy.types.SpaceView3D.draw_handler_remove(VIEW3D_OT_SunPath._handle, 'WINDOW')
+#        VIEW3D_OT_SunPath._handle = None
+#        VIEW3D_OT_SunPath._timer = None
+# 
+#    def modal(self, context, event):
+#        # ...
+# 
+#        if context.scene.vi_display == 0:
+#            # stop script
+# 
+#            VIEW3D_OT_SunPath.handle_remove(context)
+#            return {'CANCELLED'}
+# 
+#        return {'PASS_THROUGH'}
+# 
+#    def cancel(self, context):
+#        if context.scene.vi_display == 0:
+# 
+#            VIEW3D_OT_SunPath.handle_remove(context)
+#            context.scene.vi_display = 0
+#        return {'CANCELLED'}
+# 
+#    def execute(self, context):
+#        # ...
+# 
+# 
+# 
+#         VIEW3D_OT_SunPath.handle_add(self, context)
+#         return {'RUNNING_MODAL'}
+ 
+# ...
+#def unregister():
+#    ScreencastKeysStatus.handle_remove(bpy.context)

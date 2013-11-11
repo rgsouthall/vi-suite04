@@ -430,15 +430,39 @@ def retobjs(otypes):
     elif otypes == 'envig':
         return([geo for geo in scene.objects if geo.type == 'MESH' and geo.hide == False and geo.layers[0] == True])
 
-def sunpath(context, sun, sunob, spathob):
+#def sunpath(context, sun, sunob, spathob):
+#    scene = context.scene
+#    beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
+#    sunob.location.z = sun.location.z = scene.soldistance * sin(beta)
+#    sunob.location.x = sun.location.x = (scene.soldistance**2 - sun.location.z**2)**0.5  * sin(phi)
+#    sunob.location.y = sun.location.y = -(scene.soldistance**2 - sun.location.z**2)**0.5 * cos(phi)
+#    sun.rotation_euler = pi * 0.5 - beta, 0, phi
+
+def sunpath(self, context):
     scene = context.scene
-    beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
-    sunob.location.z = sun.location.z = scene.soldistance * sin(beta)
-    sunob.location.x = sun.location.x = (scene.soldistance**2 - sun.location.z**2)**0.5  * sin(phi)
-    sunob.location.y = sun.location.y = -(scene.soldistance**2 - sun.location.z**2)**0.5 * cos(phi)
-    sun.rotation_euler = pi * 0.5 - beta, 0, phi
-
-
+    sun = [ob for ob in scene.objects if ob.spob == 1][0]
+    if 0 in (sun['solhour'] == scene.solhour, sun['solday'] == scene.solday, sun['soldistance'] == scene.soldistance):
+        sunob = [ob for ob in scene.objects if ob.spob == 2][0]
+        spathob = [ob for ob in scene.objects if ob.spob == 3][0]
+        beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
+        sunob.location.z = sun.location.z = scene.soldistance * sin(beta)
+        sunob.location.x = sun.location.x = -(scene.soldistance**2 - sun.location.z**2)**0.5  * sin(phi)
+        sunob.location.y = sun.location.y = -(scene.soldistance**2 - sun.location.z**2)**0.5 * cos(phi)
+        sun.rotation_euler = pi * 0.5 - beta, 0, -phi
+        spathob.scale = 3 * [scene.soldistance/100]
+        sunob.scale = 3 * [scene.soldistance/50]
+        if scene.render.engine == 'CYCLES' and hasattr(bpy.data.worlds['World'].node_tree, 'nodes'):
+            if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
+                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), beta/(0.5*pi)
+    #            bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = frame)
+                for blnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Blackbody']:
+                    blnode.inputs[0].default_value = 3000 + 50*beta*180/pi
+                for smblnode in [node for node in sunob.data.materials[0].node_tree.nodes if sunob.data.materials and node.bl_label == 'Blackbody']:
+                    smblnode.inputs[0].default_value = 3000 + 50*beta*180/pi
+        sun['solhour'], sun['solday'], sun['soldistance'] = scene.solhour, scene.solday, scene.soldistance
+#    context.scene.spupdate = 0
+    else:
+        return
 #Compute solar position (altitude and azimuth in degrees) based on day of year (doy; integer), local solar time (lst; decimal hours), latitude (lat; decimal degrees), and longitude (lon; decimal degrees).
 def solarPosition(doy, lst, lat, lon):
     #Set the local standard time meridian (lsm) (integer degrees of arc)

@@ -21,7 +21,7 @@ if "bpy" in locals():
 else:
     from .vi_node import vinode_categories, envinode_categories
     from .envi_mat import envi_materials, envi_constructions
-    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, solarPosition
+    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, solarPosition, sunpath
     from .vi_operators import *
     from .vi_ui import *
 
@@ -124,26 +124,10 @@ def eupdate(self, context):
                 j = o['j'][v]
                 o.data.shape_keys.key_blocks[str(frame)].data[vn].co = o.data.shape_keys.key_blocks['Basis'].data[vn].co + 0.1*context.scene.li_disp_3dlevel * ((1 - (o['oreslist'][str(frame)][j]-mino)/(maxo -mino)) * o.data.vertices[vn].normal)
 
-def sunpath(self, context):
-    scene = context.scene
-    sun = [ob for ob in scene.objects if ob.spob == 1][0]
-    sunob = [ob for ob in scene.objects if ob.spob == 2][0]
-    spathob = [ob for ob in scene.objects if ob.spob == 3][0]
-    beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
-    sunob.location.z = sun.location.z = scene.soldistance * sin(beta)
-    sunob.location.x = sun.location.x = -(scene.soldistance**2 - sun.location.z**2)**0.5  * sin(phi)
-    sunob.location.y = sun.location.y = -(scene.soldistance**2 - sun.location.z**2)**0.5 * cos(phi)
-    sun.rotation_euler = pi * 0.5 - beta, 0, -phi
-    spathob.scale = 3 * [scene.soldistance/100]
-    if scene.render.engine == 'CYCLES' and hasattr(bpy.data.worlds['World'].node_tree, 'nodes'):
-        if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
-            bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), beta/(0.5*pi)
-#            bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = frame)
-            for blnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Blackbody']:
-                blnode.inputs[0].default_value = 3000 + 50*beta*180/pi
-            for smblnode in [node for node in sunob.data.materials[0].node_tree.nodes if node.bl_label == 'Blackbody']:
-                smblnode.inputs[0].default_value = 3000 + 50*beta*180/pi
 
+def spupdate(self, context):
+    context.scene.spupdate = 1
+    
 
 
 #sin((solazi)*deg2rad), -cos((solazi)*deg2rad), solalt/90
@@ -537,7 +521,7 @@ def register():
     Scene.solday = bpy.props.IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath)
     Scene.solhour = bpy.props.FloatProperty(name = "", description = "Time of day", min = 0, max = 24, default = 12, update=sunpath)
     Scene.soldistance = bpy.props.IntProperty(name = "", description = "Sun path scale", min = 1, max = 5000, default = 100, update=sunpath)
-
+    Scene.spupdate = bprop("", "",0)
 #    Scene.vi_loc = eprop([("0", "Manual", "Manual location"), ("1", "From EPW file", "EPW location")], "Location", "Location", "0")
 
 #    Scene.vi_weather = eprop(items = weatherlist, name="Weather location", description="Weather for this project")
@@ -598,127 +582,11 @@ def register():
 
     Scene.restree = sprop("", "", 0, "")
 
-#    bpy.utils.register_class(vi_operators.OBJECT_OT_LiExtrude)
-#    bpy.utils.register_class(vi_operators.NODE_OT_EpwSelect)
-#    bpy.utils.register_class(vi_operators.NODE_OT_HdrSelect)
-#    bpy.utils.register_class(vi_operators.NODE_OT_SkySelect)
-#    bpy.utils.register_class(vi_operators.NODE_OT_ESOSelect)
-#    bpy.utils.register_class(vi_operators.IES_Select)
-#    bpy.utils.register_class(vi_operators.NODE_OT_RadPreview)
-#    bpy.utils.register_class(vi_operators.NODE_OT_Calculate)
-#    bpy.utils.register_class(vi_operators.NODE_OT_GeoExport)
-#    bpy.utils.register_class(vi_operators.NODE_OT_LiExport)
-#    bpy.utils.register_class(vi_operators.NODE_OT_LiGExport)
-#    bpy.utils.register_class(vi_operators.NODE_OT_EnGExport)
-#    bpy.utils.register_class(vi_operators.NODE_OT_EnExport)
-#    bpy.utils.register_class(vi_operators.NODE_OT_EnSim)
-#    bpy.utils.register_class(vi_operators.NODE_OT_Chart)
-#    bpy.utils.register_class(vi_operators.NODE_OT_FileProcess)
-#    bpy.utils.register_class(vi_operators.VIEW3D_OT_LiDisplay)
-#    bpy.utils.register_class(vi_operators.VIEW3D_OT_LiNumDisplay)
-#    bpy.utils.register_class(vi_ui.Vi3DPanel)
-#    bpy.utils.register_class(vi_ui.IESPanel)
-#    bpy.utils.register_class(vi_ui.VIMatPanel)
-#    bpy.utils.register_class(vi_ui.EnZonePanel)
-##    bpy.utils.register_class(vi_ui.EnMatPanel)
-#    bpy.utils.register_class(vi_node.EnViDataIn)
-#    bpy.utils.register_class(vi_node.ViLiWResOut)
-#    bpy.utils.register_class(vi_node.ViLiGIn)
-#    bpy.utils.register_class(vi_node.ViLiGOut)
-#    bpy.utils.register_class(vi_node.ViEnGOut)
-#    bpy.utils.register_class(vi_node.ViEnROut)
-#    bpy.utils.register_class(vi_node.ViEnGIn)
-#    bpy.utils.register_class(vi_node.ViNetwork)
-#    bpy.utils.register_class(vi_node.AFNCon)
-#    bpy.utils.register_class(vi_node.EnViNetwork)
-#    bpy.utils.register_class(vi_node.EnViSchedSocket)
-#    bpy.utils.register_class(vi_node.EnViCrRefSocket)
-#    bpy.utils.register_class(vi_node.EnViCAirSocket)
-#    bpy.utils.register_class(vi_node.EnViSAirSocket)
-#    bpy.utils.register_class(vi_node.EnViBoundSocket)
-##    bpy.utils.register_class(vi_node.EnViTempSPSched)
-#    bpy.utils.register_class(vi_node.EnViSched)
-#    bpy.utils.register_class(vi_node.EnViSLinkNode)
-#    bpy.utils.register_class(vi_node.EnViCLinkNode)
-#    bpy.utils.register_class(vi_node.EnViCrRef)
-#    bpy.utils.register_class(vi_node.EnViFanNode)
-#    bpy.utils.register_class(vi_node.EnViZone)
-#    bpy.utils.register_class(vi_node.ViLiNode)
-#    bpy.utils.register_class(vi_node.ViGExLiNode)
-#    bpy.utils.register_class(vi_node.ViGExEnNode)
-#    bpy.utils.register_class(vi_node.ViLiCNode)
-#    bpy.utils.register_class(vi_node.ViLiCBNode)
-#    bpy.utils.register_class(vi_node.ViSPNode)
-#    bpy.utils.register_class(vi_node.ViSSNode)
-#    bpy.utils.register_class(vi_node.ViWRNode)
-#    bpy.utils.register_class(vi_node.ViGNode)
-#    bpy.utils.register_class(vi_node.ViExEnNode)
-#    bpy.utils.register_class(vi_node.ViEnRNode)
-#    bpy.utils.register_class(vi_node.ViEnRFNode)
     nodeitems_utils.register_node_categories("Vi Nodes", vinode_categories)
     nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)
 
 def unregister():
     bpy.utils.unregister_module(__name__)
-#    bpy.utils.unregister_class(vi_operators.NODE_OT_FileSave)
-#    bpy.utils.unregister_class(vi_operators.OBJECT_OT_LiExtrude)
-#    bpy.utils.unregister_class(vi_operators.NODE_OT_EpwSelect)
-#    bpy.utils.unregister_class(vi_operators.NODE_OT_HdrSelect)
-#    bpy.utils.unregister_class(vi_operators.NODE_OT_SkySelect)
-#    bpy.utils.unregister_class(vi_operators.NODE_OT_ESOSelect)
-#    bpy.utils.unregister_class(vi_operators.IES_Select)
-#    bpy.utils.unregister_class(vi_operators.NODE_OT_RadPreview)
-#    bpy.utils.unregister_class(vi_operators.NODE_OT_LiCalculate)
-#    bpy.utils.unregister_class(vi_operators.NODE_OT_GeoExport)
-#    bpy.utils.unregister_class(vi_operators.NODE_OT_LiExport)
-#    bpy.utils.unregister_class(vi_operators.NODE_OT_LiGExport)
-#    bpy.utils.unregister_class(vi_operators.NODE_OT_EnGExport)
-#    bpy.utils.unregister_class(vi_operators.NODE_OT_EnExport)
-#    bpy.utils.unregister_class(vi_operators.NODE_OT_EnSim)
-#    bpy.utils.unregister_class(vi_operators.NODE_OT_Chart)
-#    bpy.utils.unregister_class(vi_operators.NODE_OT_FileProcess)
-#    bpy.utils.unregister_class(vi_operators.VIEW3D_OT_LiDisplay)
-#    bpy.utils.unregister_class(vi_operators.VIEW3D_OT_LiNumDisplay)
-#    bpy.utils.unregister_class(vi_ui.Vi3DPanel)
-#    bpy.utils.unregister_class(vi_ui.IESPanel)
-#    bpy.utils.unregister_class(vi_ui.VIMatPanel)
-#    bpy.utils.unregister_class(vi_ui.EnZonePanel)
-##    bpy.utils.unregister_class(vi_ui.EnMatPanel)
-#    bpy.utils.unregister_class(vi_node.EnViDataIn)
-#    bpy.utils.unregister_class(vi_node.ViLiWResOut)
-#    bpy.utils.unregister_class(vi_node.ViLiGIn)
-#    bpy.utils.unregister_class(vi_node.ViLiGOut)
-#    bpy.utils.unregister_class(vi_node.ViEnGOut)
-#    bpy.utils.unregister_class(vi_node.ViEnROut)
-#    bpy.utils.unregister_class(vi_node.ViEnRXIn)
-#    bpy.utils.unregister_class(vi_node.ViEnGIn)
-#    bpy.utils.unregister_class(vi_node.ViNetwork)
-#    bpy.utils.unregister_class(vi_node.AFNCon)
-#    bpy.utils.unregister_class(vi_node.EnViNetwork)
-#    bpy.utils.unregister_class(vi_node.EnViSchedSocket)
-##    bpy.utils.unregister_class(vi_node.EnViANSchedSocket)
-#    bpy.utils.unregister_class(vi_node.EnViCAirSocket)
-#    bpy.utils.unregister_class(vi_node.EnViSAirSocket)
-#    bpy.utils.unregister_class(vi_node.EnViBoundSocket)
-##    bpy.utils.unregister_class(vi_node.EnViTempSPSched)
-#    bpy.utils.unregister_class(vi_node.EnViSched)
-#    bpy.utils.unregister_class(vi_node.EnViCLinkNode)
-#    bpy.utils.unregister_class(vi_node.EnViSLinkNode)
-#    bpy.utils.unregister_class(vi_node.EnViCrRef)
-#    bpy.utils.unregister_class(vi_node.EnViFanNode)
-#    bpy.utils.unregister_class(vi_node.EnViZone)
-#    bpy.utils.unregister_class(vi_node.ViLiNode)
-#    bpy.utils.unregister_class(vi_node.ViGExLiNode)
-#    bpy.utils.unregister_class(vi_node.ViGExEnNode)
-#    bpy.utils.unregister_class(vi_node.ViLiCNode)
-#    bpy.utils.unregister_class(vi_node.ViLiCBNode)
-#    bpy.utils.unregister_class(vi_node.ViSPNode)
-#    bpy.utils.unregister_class(vi_node.ViSSNode)
-#    bpy.utils.unregister_class(vi_node.ViWRNode)
-#    bpy.utils.unregister_class(vi_node.ViGNode)
-#    bpy.utils.unregister_class(vi_node.ViExEnNode)
-#    bpy.utils.unregister_class(vi_node.ViEnRNode)
-#    bpy.utils.unregister_class(vi_node.ViEnRFNode)
     nodeitems_utils.unregister_node_categories("Vi Nodes")
     nodeitems_utils.unregister_node_categories("EnVi Nodes")
 

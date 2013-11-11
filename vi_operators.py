@@ -1,9 +1,13 @@
 import bpy, bpy_extras, sys, datetime, mathutils
 import bpy_extras.io_utils as io_utils
+import numpy as np
 from collections import OrderedDict
 from datetime import date
 from datetime import datetime as dt
-from math import cos, sin, pi
+from math import cos, sin, pi, ceil
+from numpy import arange
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 from .livi_export import radcexport, radgexport
 from .livi_calc  import rad_prev, li_calc
 from .vi_display import li_display, li_compliance, linumdisplay, li3D_legend
@@ -12,6 +16,7 @@ from .envi_mat import envi_materials, envi_constructions
 from .envi_calc import envi_sim
 from .vi_func import processf, livisimacc, solarPosition, sunpath
 from .vi_chart import chart_disp
+#from . import windrose
 
 envi_mats = envi_materials()
 envi_cons = envi_constructions()
@@ -455,7 +460,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         sun['solhour'], sun['solday'], sun['soldistance'] = scene.solhour, scene.solday, scene.soldistance
 
         if len([ob for ob in context.scene.objects if ob.spob == 2]) == 0:
-            bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=12, size=0.1)
+            bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=12, size=1)
             sunob = context.active_object
             sunob.name = "SunMesh"
         else:
@@ -464,7 +469,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
         if len([ob for ob in context.scene.objects if ob.spob == 3]) != 0:
             context.scene.objects.unlink([ob for ob in context.scene.objects if ob.spob == 3][0])
-            [ob for ob in bpy.data.objects if ob.type == "MESH" and ob.name == "SPathMesh"][0].name = 'oldspathmesh'
+            [ob for ob in bpy.data.objects if ob.type == "CURVE" and ob.name == "SPathMesh"][0].name = 'oldspathmesh'
         bpy.ops.object.add(type = "MESH")
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.wireframe(thickness=0.005)
@@ -507,6 +512,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 spathmesh.edges.add(1)
                 spathmesh.edges[-1].vertices[0] = v
                 spathmesh.edges[-1].vertices[1] = v + 23
+        bpy.ops.object.convert(target='CURVE')
+        bpy.data.objects['SPathMesh'].data.bevel_depth = 0.1
 
 #        sunpath(context, sun, sunob, spathob)
         if node.modal == 1:
@@ -529,60 +536,93 @@ class VIEW3D_OT_SunPath(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context):
-#        sun = [ob for ob in context.scene.objects if ob.type == "LAMP" and ob.data.type == 'SUN'][0]
-#        sunob = [ob for ob in context.scene.objects if ob.name == 'SunMesh'][0]
-#        spathob= [ob for ob in context.scene.objects if ob.type == "MESH" and ob.name == "SPathMesh"]
-    
         self._handle_sp = bpy.types.SpaceView3D.draw_handler_add(sunpath, (self, context), 'WINDOW', 'POST_PIXEL')
         return {'RUNNING_MODAL'}
 
-#class VIEW3D_OT_SunPath(bpy.types.Operator):
-#    bl_idname = "view3d.sunpath"
-#    bl_label = "Screencast Keys"
-#    bl_description = "Display keys pressed in the 3D View"
-# 
-#    _handle = None
-#    _timer = None
-# 
-#    @staticmethod
-#    def handle_add(self, context):
-#        VIEW3D_OT_SunPath._handle = bpy.types.SpaceView3D.draw_handler_add(sunpath, (self, context), 'WINDOW', 'POST_PIXEL')
-#        VIEW3D_OT_SunPath._timer = context.window_manager.event_timer_add(0.075, context.window)
-# 
-#    @staticmethod
-#    def handle_remove(context):
-#        if VIEW3D_OT_SunPath._handle is not None:
-#            context.window_manager.event_timer_remove(VIEW3D_OT_SunPath._timer)
-#            bpy.types.SpaceView3D.draw_handler_remove(VIEW3D_OT_SunPath._handle, 'WINDOW')
-#        VIEW3D_OT_SunPath._handle = None
-#        VIEW3D_OT_SunPath._timer = None
-# 
-#    def modal(self, context, event):
-#        # ...
-# 
-#        if context.scene.vi_display == 0:
-#            # stop script
-# 
-#            VIEW3D_OT_SunPath.handle_remove(context)
-#            return {'CANCELLED'}
-# 
-#        return {'PASS_THROUGH'}
-# 
-#    def cancel(self, context):
-#        if context.scene.vi_display == 0:
-# 
-#            VIEW3D_OT_SunPath.handle_remove(context)
-#            context.scene.vi_display = 0
-#        return {'CANCELLED'}
-# 
-#    def execute(self, context):
-#        # ...
-# 
-# 
-# 
-#         VIEW3D_OT_SunPath.handle_add(self, context)
-#         return {'RUNNING_MODAL'}
- 
-# ...
-#def unregister():
-#    ScreencastKeysStatus.handle_remove(bpy.context)
+class NODE_OT_WindRose(bpy.types.Operator):
+    bl_idname = "node.windrose"
+    bl_label = "Wind Rose"
+    bl_description = "Create a Wind Rose"
+    bl_register = True
+    bl_undo = True
+
+    nodeid = bpy.props.StringProperty()
+
+    def invoke(self, context, event):
+#        aws, awd = [], []
+        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        locnode = node.inputs[0].links[0].from_node
+        with open(locnode.weather, "r") as epwfile:
+            wvals = [line.split(",")[20:22] for l, line in enumerate(epwfile.readlines()) if l > 7 and node.startmonth <= int(line.split(",")[1]) < node.endmonth]
+
+        awd = [float(val[0]) for val in wvals]
+        aws = [float(val[1]) for val in wvals]
+
+#            aws = [float(line.split(",")[21]) for l, line in enumerate(epwfile.readlines()) if l > 7 and node.startmonth <= int(line.split(",")[1]) < node.endmonth]
+#            for l, line in enumerate(epwfile.readlines()):
+#                if l > 7 and int(line.split(",")[1]) >= node.startmonthm and int(line.split(",")[1]) <= node.endmonth:
+#                    if line.split(",")[21] != "" and line.split(",")[20] != "":
+#                        aws.append(float(line.split(",")[21]))
+#                        awd.append(float(line.split(",")[20]))
+#def envi_wind(epwfile, sm, em):
+#    filepath = bpy.data.filepath
+#    filename = os.path.splitext(os.path.basename(filepath))[0]
+#    filedir = os.path.dirname(filepath)
+#    if not os.path.isdir(filedir+"/envi_"+filename):
+#        os.makedirs(filedir+"/envi_"+filename)
+#    newdir = filedir+"/envi_"+filename
+#    aws = []
+#    awd = []
+#    epwfile = open(epwfile)
+        print(aws, awd)
+        ax = plt.subplot(111, polar=True)
+        ax.set_theta_zero_location('N')
+        ax.set_theta_direction(-1)
+#        theta = np.linspace(0.0, 2 * np.pi, 20, endpoint=False)
+#        radii = 10 * np.random.rand(N)
+    #    ax.contourf(awd, aws, bins=arange(0,int(math.ceil(max(aws))),1), normed = 1, cmap=cm.hot)
+    #    ax.contour(awd, aws, bins=arange(0,int(math.ceil(max(aws))),1), normed = 1, colors='black')
+#        bars = ax.bar(theta, radii, width=width, bottom=0.0)
+        ax.hist(awd, aws, bins=arange(0,int(ceil(max(aws))),2))
+     #   ax.box(awd, aws, bins=arange(0,int(math.ceil(max(aws))),1), normed = 1)
+#        set_legend(ax)
+        plt.savefig(locnode.newdir+'/disp_wind.png', dpi = (300), transparent=True)
+        plt.savefig(locnode.newdir+'/disp_wind.svg')
+
+        if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
+            bpy.data.images.load(locnode.newdir+'/disp_wind.png')
+        else:
+            bpy.data.images['disp_wind.png'].filepath = locnode.newdir+'/disp_wind.png'
+            bpy.data.images['disp_wind.png'].reload()
+
+        if 'Wind_Plane' not in [wp.name for wp in bpy.data.objects]:
+
+            bpy.ops.mesh.primitive_plane_add(enter_editmode=False, location=(0.0, 0.0, 0.0))
+
+            wind_mat = bpy.data.materials.new('Wind_Rose')
+            tex = bpy.data.textures.new(type = 'IMAGE', name = 'Wind_Tex')
+            tex.image = bpy.data.images['disp_wind.png']
+            wind_mat.texture_slots.add()
+            wind_mat.texture_slots[0].texture = tex
+            wind_mat.texture_slots[0].use_map_alpha = True
+
+            bpy.context.active_object.name = "Wind_Plane"
+            bpy.ops.object.material_slot_add()
+            bpy.context.active_object.material_slots[0].material = wind_mat
+            bpy.context.active_object.data.uv_textures.new()
+            bpy.context.active_object.data.uv_textures[0].data[0].image = bpy.data.images['disp_wind.png']
+            bpy.context.active_object.scale = (100, 100, 100)
+            wind_mat.use_transparency = True
+            wind_mat.transparency_method = 'Z_TRANSPARENCY'
+            wind_mat.alpha = 0.0
+
+def new_axes():
+    fig = plt.figure(figsize=(8, 8), dpi=80, facecolor='w', edgecolor='w')
+    rect = [0.1, 0.1, 0.8, 0.8]
+    ax = windrose.WindroseAxes(fig, rect, axisbg='w')
+    fig.add_axes(ax)
+    return ax
+
+def set_legend(ax):
+    l = ax.legend(axespad=-0.10)
+    plt.setp(l.get_texts(), fontsize=8)

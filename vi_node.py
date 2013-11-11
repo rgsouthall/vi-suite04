@@ -446,7 +446,7 @@ class ViSPNode(bpy.types.Node, ViNodes):
 
 
     modal = bpy.props.BoolProperty(name = '', default = 0)
-    
+
     def init(self, context):
         self.inputs.new('ViLoc', 'Location in')
         for ng in bpy.data.node_groups:
@@ -479,9 +479,26 @@ class ViWRNode(bpy.types.Node, ViNodes):
     bl_label = 'VI Wind Rose'
     bl_icon = 'LAMP'
 
+    startmonth = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 12, description = 'Start Month')
+    endmonth = bpy.props.IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month')
+
+    def init(self, context):
+        self.inputs.new('ViLoc', 'Location in')
+        for ng in bpy.data.node_groups:
+            if self in ng.nodes[:]:
+                self['nodeid'] = self.name+'@'+ng.name
+
     def draw_buttons(self, context, layout):
-        row = layout.row()
-        row.operator("node.calculate", text = 'Calculate')
+        if self.inputs[0].is_linked and self.inputs[0].links[0].from_node.bl_label == 'VI Location':
+            row = layout.row()
+            row.label('Start Month')
+            row.prop(self, "startmonth")
+            row = layout.row()
+            row.label('End Month')
+            row.prop(self, "endmonth")
+            row = layout.row()
+            row.operator("node.windrose", text="Create Wind Rose").nodeid = self['nodeid']
+
 
 class ViGNode(bpy.types.Node, ViNodes):
     '''Node describing a glare analysis'''
@@ -500,7 +517,20 @@ class ViLoc(bpy.types.Node, ViNodes):
     bl_icon = 'LAMP'
 
 
-
+    filepath = bpy.props.StringProperty()
+    filename = bpy.props.StringProperty()
+    filedir = bpy.props.StringProperty()
+    newdir = bpy.props.StringProperty()
+    filebase = bpy.props.StringProperty()
+    objfilebase = bpy.props.StringProperty()
+    nodetree = bpy.props.StringProperty()
+    reslen = bpy.props.IntProperty(default = 0)
+    exported = bpy.props.BoolProperty()
+    nproc = bpy.props.StringProperty()
+    rm = bpy.props.StringProperty()
+    cp = bpy.props.StringProperty()
+    cat = bpy.props.StringProperty()
+    fold = bpy.props.StringProperty()
     addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
     epwpath = addonpath+'/EPFiles/Weather/'
     weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]
@@ -508,7 +538,7 @@ class ViLoc(bpy.types.Node, ViNodes):
     loc = bpy.props.EnumProperty(items = [("0", "Manual", "Manual location"), ("1", "From EPW file", "EPW location")], name = "", description = "Location", default = "0")
     latitude = bpy.props.FloatProperty(name="", description="Site Latitude", min=-90, max=90, default=52)
     longitude = bpy.props.FloatProperty(name="", description="Site Longitude", min=-15, max=15, default=0)
-    
+
     meridian = bpy.props.EnumProperty(items = [("-9", "YST", ""),
                                        ("-8", "PST", ""),
                                        ("-7", "MST", ""),
@@ -528,6 +558,8 @@ class ViLoc(bpy.types.Node, ViNodes):
             default = "0")
 
     def init(self, context):
+        if bpy.data.filepath:
+            nodeinit(self)
         self.outputs.new('ViLoc', 'Location out')
 
     def draw_buttons(self, context, layout):

@@ -469,9 +469,25 @@ class ViSSNode(bpy.types.Node, ViNodes):
     bl_label = 'VI Shadow Study'
     bl_icon = 'LAMP'
 
+    startday = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 365, description = 'Start day')
+    endday = bpy.props.IntProperty(name = '', default = 365, min = 1, max = 365, description = 'End day')
+#    interval = bpy.props.IntProperty(name = '', default = 1, min = 0.1, max = 12, description = 'End Month')
+
+    def init(self, context):
+        self.inputs.new('ViLoc', 'Location in')
+        for ng in bpy.data.node_groups:
+            if self in ng.nodes[:]:
+                self['nodeid'] = self.name+'@'+ng.name
+
     def draw_buttons(self, context, layout):
         row = layout.row()
-        row.operator("node.calculate", text = 'Calculate')
+        row.label('Start day')
+        row.prop(self, "startday")
+        row = layout.row()
+        row.label('End day')
+        row.prop(self, "endday")
+        row = layout.row()
+        row.operator("node.shad", text = 'Calculate').nodeid = self['nodeid']
 
 class ViWRNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite wind rose generator'''
@@ -481,7 +497,7 @@ class ViWRNode(bpy.types.Node, ViNodes):
 
     startmonth = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 12, description = 'Start Month')
     endmonth = bpy.props.IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month')
-
+    wrtype = bpy.props.EnumProperty(items = [("0", "Hist 1", "Stacked histogram"), ("1", "Hist 2", "Stacked Histogram 2"), ("2", "Cont 1", "Filled contour"), ("3", "Cont 2", "Edged contour"), ("4", "Cont 3", "Lined contour")], name = "", default = '0')
     def init(self, context):
         self.inputs.new('ViLoc', 'Location in')
         for ng in bpy.data.node_groups:
@@ -490,6 +506,9 @@ class ViWRNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         if self.inputs[0].is_linked and self.inputs[0].links[0].from_node.bl_label == 'VI Location':
+            row = layout.row()
+            row.label('Type')
+            row.prop(self, "wrtype")
             row = layout.row()
             row.label('Start Month')
             row.prop(self, "startmonth")
@@ -577,12 +596,6 @@ class ViLoc(bpy.types.Node, ViNodes):
             row = layout.row()
             row.label('Longitude')
             row.prop(scene, "longitude")
-
-#            row = layout.row()
-#            row.label(text = 'Meridian:')
-#            col = row.column()
-#            col.prop(self, "meridian")
-
 
 
 class ViGExEnNode(bpy.types.Node, ViNodes):

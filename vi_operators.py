@@ -14,9 +14,8 @@ from .vi_display import li_display, li_compliance, linumdisplay, li3D_legend
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .envi_calc import envi_sim
-from .vi_func import processf, livisimacc, solarPosition, sunpath
+from .vi_func import processf, livisimacc, solarPosition, sunpath, wr_axes, set_legend
 from .vi_chart import chart_disp
-#from . import windrose
 
 envi_mats = envi_materials()
 envi_cons = envi_constructions()
@@ -497,33 +496,40 @@ class NODE_OT_SunPath(bpy.types.Operator):
                     spathmesh.vertices[-1].co = [(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
 
         for v in range(24, len(spathmesh.vertices)):
-
-            spathmesh.edges.add(1)
-            spathmesh.edges[-1].vertices[0] = v
-            spathmesh.edges[-1].vertices[1] = v - 24
-            if v in range(1224, 1248):
-
+            if spathmesh.vertices[v].co.z > 0 or spathmesh.vertices[v - 24].co.z > 0:
                 spathmesh.edges.add(1)
                 spathmesh.edges[-1].vertices[0] = v
-                spathmesh.edges[-1].vertices[1] = v - 1224
+                spathmesh.edges[-1].vertices[1] = v - 24
+            if v in range(1224, 1248):
+                if spathmesh.vertices[v].co.z > 0 or spathmesh.vertices[v - 1224].co.z > 0:
+                    spathmesh.edges.add(1)
+                    spathmesh.edges[-1].vertices[0] = v
+                    spathmesh.edges[-1].vertices[1] = v - 1224
 
             if v in (1200, 96, 192, 264, 360, 456, 576):
                 for e in range(v, v+23):
-
+                    if spathmesh.vertices[e].co.z > 0 or spathmesh.vertices[e + 1].co.z > 0:
+                        spathmesh.edges.add(1)
+                        spathmesh.edges[-1].vertices[0] = e
+                        spathmesh.edges[-1].vertices[1] = e + 1
+                if spathmesh.vertices[v].co.z > 0 or spathmesh.vertices[v + 23].co.z > 0:
                     spathmesh.edges.add(1)
-                    spathmesh.edges[-1].vertices[0] = e
-                    spathmesh.edges[-1].vertices[1] = e + 1
+                    spathmesh.edges[-1].vertices[0] = v
+                    spathmesh.edges[-1].vertices[1] = v + 23
 
-                spathmesh.edges.add(1)
-                spathmesh.edges[-1].vertices[0] = v
-                spathmesh.edges[-1].vertices[1] = v + 23
-        bpy.ops.object.convert(target='CURVE')
-        bpy.data.objects['SPathMesh'].data.bevel_depth = 0.1
 
         for edge in spathmesh.edges:
-            if spathmesh.vertices(edge.vertices[0]).co.z < 0
-            if len([spathmesh.vertices(edges.vertices[0:2]) for edges in spathmesh.edges
+            intersect = mathutils.geometry.intersect_line_plane(spathmesh.vertices[edge.vertices[0]].co, spathmesh.vertices[edge.vertices[1]].co, mathutils.Vector((0,0,0)), mathutils.Vector((0,0,1)))
+            if spathmesh.vertices[edge.vertices[0]].co.z < 0:
+                spathmesh.vertices[edge.vertices[0]].co = intersect
+            if spathmesh.vertices[edge.vertices[1]].co.z < 0:
+                spathmesh.vertices[edge.vertices[1]].co = intersect
 
+        bpy.ops.object.convert(target='CURVE')
+        bpy.data.objects['SPathMesh'].data.bevel_depth = 0.2
+        for i in range(1, 6):
+            bpy.ops.curve.primitive_bezier_circle_add(radius=i*sd/5, view_align=False, enter_editmode=False, location=(0.0, 0.0, 0.0), rotation=(0.0, 0.0, 0.0))
+            bpy.context.active_object.data.bevel_depth = i * 0.05
 #        sunpath(context, sun, sunob, spathob)
         if node.modal == 1:
             bpy.ops.view3d.sunpath()
@@ -558,7 +564,6 @@ class NODE_OT_WindRose(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-#        aws, awd = [], []
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         locnode = node.inputs[0].links[0].from_node
         with open(locnode.weather, "r") as epwfile:
@@ -566,36 +571,20 @@ class NODE_OT_WindRose(bpy.types.Operator):
 
         awd = [float(val[0]) for val in wvals]
         aws = [float(val[1]) for val in wvals]
-
-#            aws = [float(line.split(",")[21]) for l, line in enumerate(epwfile.readlines()) if l > 7 and node.startmonth <= int(line.split(",")[1]) < node.endmonth]
-#            for l, line in enumerate(epwfile.readlines()):
-#                if l > 7 and int(line.split(",")[1]) >= node.startmonthm and int(line.split(",")[1]) <= node.endmonth:
-#                    if line.split(",")[21] != "" and line.split(",")[20] != "":
-#                        aws.append(float(line.split(",")[21]))
-#                        awd.append(float(line.split(",")[20]))
-#def envi_wind(epwfile, sm, em):
-#    filepath = bpy.data.filepath
-#    filename = os.path.splitext(os.path.basename(filepath))[0]
-#    filedir = os.path.dirname(filepath)
-#    if not os.path.isdir(filedir+"/envi_"+filename):
-#        os.makedirs(filedir+"/envi_"+filename)
-#    newdir = filedir+"/envi_"+filename
-#    aws = []
-#    awd = []
-#    epwfile = open(epwfile)
-        print(aws, awd)
-        ax = plt.subplot(111, polar=True)
-        ax.set_theta_zero_location('N')
-        ax.set_theta_direction(-1)
-#        theta = np.linspace(0.0, 2 * np.pi, 20, endpoint=False)
-#        radii = 10 * np.random.rand(N)
-    #    ax.contourf(awd, aws, bins=arange(0,int(math.ceil(max(aws))),1), normed = 1, cmap=cm.hot)
-    #    ax.contour(awd, aws, bins=arange(0,int(math.ceil(max(aws))),1), normed = 1, colors='black')
-#        bars = ax.bar(theta, radii, width=width, bottom=0.0)
-        ax.hist(awd, aws, bins=arange(0,int(ceil(max(aws))),2))
-     #   ax.box(awd, aws, bins=arange(0,int(math.ceil(max(aws))),1), normed = 1)
-#        set_legend(ax)
-        plt.savefig(locnode.newdir+'/disp_wind.png', dpi = (300), transparent=True)
+        ax = wr_axes()
+        if node.wrtype == '0':
+            ax.bar(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True, opening=0.8, edgecolor='white')
+        if node.wrtype == '1':
+            ax.box(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True)
+        if node.wrtype == '2':
+            ax.contourf(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True, cmap=cm.hot)
+        if node.wrtype == '3':
+            ax.contourf(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True, cmap=cm.hot)
+            ax.contour(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True, colors='black')
+        if node.wrtype == '4':
+            ax.contour(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True, cmap=cm.hot)
+        set_legend(ax)
+        plt.savefig(locnode.newdir+'/disp_wind.png', dpi = (300), transparent=False)
         plt.savefig(locnode.newdir+'/disp_wind.svg')
 
         if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
@@ -605,9 +594,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
             bpy.data.images['disp_wind.png'].reload()
 
         if 'Wind_Plane' not in [wp.name for wp in bpy.data.objects]:
-
             bpy.ops.mesh.primitive_plane_add(enter_editmode=False, location=(0.0, 0.0, 0.0))
-
             wind_mat = bpy.data.materials.new('Wind_Rose')
             tex = bpy.data.textures.new(type = 'IMAGE', name = 'Wind_Tex')
             tex.image = bpy.data.images['disp_wind.png']
@@ -625,13 +612,28 @@ class NODE_OT_WindRose(bpy.types.Operator):
             wind_mat.transparency_method = 'Z_TRANSPARENCY'
             wind_mat.alpha = 0.0
 
-def new_axes():
-    fig = plt.figure(figsize=(8, 8), dpi=80, facecolor='w', edgecolor='w')
-    rect = [0.1, 0.1, 0.8, 0.8]
-    ax = windrose.WindroseAxes(fig, rect, axisbg='w')
-    fig.add_axes(ax)
-    return ax
+        return {'FINISHED'}
 
-def set_legend(ax):
-    l = ax.legend(axespad=-0.10)
-    plt.setp(l.get_texts(), fontsize=8)
+class NODE_OT_Shadow(bpy.types.Operator):
+    bl_idname = "node.shad"
+    bl_label = "Shadow Study"
+    bl_description = "Undertake a shadow study"
+    bl_register = True
+    bl_undo = True
+
+    nodeid = bpy.props.StringProperty()
+
+    def invoke(self, context, event):
+        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        locnode = node.inputs[0].links[0].from_node
+        if locnode.loc == "1":
+            with open(locnode.weather, "r") as epwfile:
+               fl = epwfile.readline()
+               scene.latitude, scene.longitude = float(fl.split(",")[6]), float(fl.split(",")[7])
+
+
+
+
+
+        return {'FINISHED'}
+

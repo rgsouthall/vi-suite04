@@ -1,6 +1,10 @@
 import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf
 from math import sin, cos, asin, acos, pi
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
+import matplotlib.pyplot as plt
+from . import windrose
+
+#from . import windrose
 dtdf = datetime.date.fromordinal
 
 def retobj(name, fr, node):
@@ -488,3 +492,13 @@ def solarPosition(doy, lst, lat, lon):
     azimuth = radToDeg*phi
     return([altitude, azimuth, beta, phi])
 
+def set_legend(ax):
+    l = ax.legend(borderaxespad = -4)
+    plt.setp(l.get_texts(), fontsize=8)
+
+def wr_axes():
+    fig = plt.figure(figsize=(8, 8), dpi=80, facecolor='w', edgecolor='w')
+    rect = [0.1, 0.1, 0.8, 0.8]
+    ax = windrose.WindroseAxes(fig, rect, axisbg='w')
+    fig.add_axes(ax)
+    return ax

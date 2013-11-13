@@ -127,7 +127,7 @@ def eupdate(self, context):
 
 def spupdate(self, context):
     context.scene.spupdate = 1
-    
+
 
 
 #sin((solazi)*deg2rad), -cos((solazi)*deg2rad), solalt/90
@@ -286,7 +286,8 @@ def register():
     Object.envi_inf3watts = iprop("W/p", "Watts per person",70, 800, 90)
 
 # LiVi material definitions
-    Material.livi_sense = bprop("LiVi Sensor", "Flag to siginify whether the material represents a LiVi sensing surface", False)
+    Material.vi_shadow = bprop("VI Shadow", "Flag to signify whether the material represents a VI Shadow sensing surface", False)
+    Material.livi_sense = bprop("LiVi Sensor", "Flag to signify whether the material represents a LiVi sensing surface", False)
     Material.livi_compliance = bprop("LiVi Compliance Surface", "Flag to siginify whether the material represents a LiVi compliance surface", False)
     Material.gl_roof = bprop("Glazed Roof", "Flag to siginify whether the communal area has a glazed roof", False)
     hspacetype = [('0', 'Public/Staff', 'Public/Staff area'), ('1', 'Patient', 'Patient area')]

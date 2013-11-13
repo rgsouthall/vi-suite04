@@ -471,7 +471,9 @@ class ViSSNode(bpy.types.Node, ViNodes):
 
     startday = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 365, description = 'Start day')
     endday = bpy.props.IntProperty(name = '', default = 365, min = 1, max = 365, description = 'End day')
-#    interval = bpy.props.IntProperty(name = '', default = 1, min = 0.1, max = 12, description = 'End Month')
+    starthour = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 24, description = 'Start hour')
+    endhour = bpy.props.IntProperty(name = '', default = 24, min = 1, max = 24, description = 'End hour')
+    interval = bpy.props.FloatProperty(name = '', default = 1, min = 0.1, max = 12, description = 'Interval')
 
     def init(self, context):
         self.inputs.new('ViLoc', 'Location in')

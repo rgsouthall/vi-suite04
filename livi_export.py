@@ -75,38 +75,38 @@ def radgexport(export_op, node):
             elif scene.render.engine == 'BLENDER RENDER':
                 diff = [meshmat.diffuse_color[0]*meshmat.diffuse_intensity, meshmat.diffuse_color[1]*meshmat.diffuse_intensity, meshmat.diffuse_color[2]*meshmat.diffuse_intensity]
                 meshmat.use_vertex_color_paint = 1 if meshmat.livi_sense else 0
-    
+
                 if meshmat.use_shadeless == 1 or meshmat.livi_compliance:
                     radfile += "# Antimatter material\nvoid antimatter " + meshmat.name.replace(" ", "_") +"\n1 void\n0\n0\n\n"
-    
+
                 elif meshmat.emit > 0:
                     radfile += "# Light material\nvoid light " + meshmat.name.replace(" ", "_") +"\n0\n0\n3 {:.2f} {:.2f} {:.2f}\n".format(meshmat.emit * diff[0], meshmat.emit * diff[1], meshmat.emit * diff[2])
                     for o in [o for o in bpy.data.objects if o.type == 'MESH']:
                         if meshmat in [om for om in o.data.materials]:
                             o['merr'] = 1
                             export_op.report({'INFO'}, o.name+" has a emission material. Basic export routine used with no modifiers.")
-    
+
                 elif meshmat.use_transparency == False and meshmat.raytrace_mirror.use == True and meshmat.raytrace_mirror.reflect_factor >= 0.99:
                     radfile += "# Mirror material\nvoid mirror " + meshmat.name.replace(" ", "_") +"\n0\n0\n3 {0[0]} {0[1]} {0[2]}\n\n".format(meshmat.mirror_color)
                     for o in [o for o in bpy.data.objects if o.type == 'MESH']:
                         if meshmat in [om for om in o.data.materials]:
                             o['merr'] = 1
                             export_op.report({'INFO'}, o.name+" has a mirror material. Basic export routine used with no modifiers.")
-    
+
                 elif meshmat.use_transparency == True and meshmat.transparency_method == 'RAYTRACE' and meshmat.alpha < 1.0 and meshmat.translucency == 0:
                     if "{:.2f}".format(meshmat.raytrace_transparency.ior) == "1.52":
                         radfile += "# Glass material\nvoid glass " + meshmat.name.replace(" ", "_") +"\n0\n0\n3 {:.3f} {:.3f} {:.3f}\n\n".format((1.0 - meshmat.alpha)*diff[0], (1.0 - meshmat.alpha)*diff[1], (1.0 - meshmat.alpha)*diff[2])
                     else:
                         radfile += "# Glass material\nvoid glass " + meshmat.name.replace(" ", "_") +"\n0\n0\n4 {0:.3f} {1:.3f} {2:.3f} {3}\n\n".format((1.0 - meshmat.alpha)*diff[0], (1.0 - meshmat.alpha)*diff[1], (1.0 - meshmat.alpha)*diff[2], meshmat.raytrace_transparency.ior)
-    
+
                 elif meshmat.use_transparency == True and meshmat.transparency_method == 'RAYTRACE' and meshmat.alpha < 1.0 and meshmat.translucency > 0.001:
                     radfile += "# Translucent material\nvoid trans " + meshmat.name.replace(" ", "_")+"\n0\n0\n7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2} {3} {4}\n\n".format(diff, meshmat.specular_intensity, 1.0 - meshmat.specular_hardness/511.0, 1.0 - meshmat.alpha, 1.0 - meshmat.translucency)
-    
+
                 elif meshmat.use_transparency == False and meshmat.raytrace_mirror.use == True and meshmat.raytrace_mirror.reflect_factor < 0.99:
                     radfile += "# Metal material\nvoid metal " + meshmat.name.replace(" ", "_") +"\n0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2}\n\n".format(diff, meshmat.specular_intensity, 1.0-meshmat.specular_hardness/511.0)
                 else:
                     radfile += "# Plastic material\nvoid plastic " + meshmat.name.replace(" ", "_") +"\n0\n0\n5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.2f} {2:.2f}\n\n".format(diff, meshmat.specular_intensity, 1.0-meshmat.specular_hardness/511.0)
-    
+
             bpy.ops.object.select_all(action='DESELECT')
 
 # geometry export routine
@@ -195,7 +195,7 @@ def radgexport(export_op, node):
                     bpy.ops.object.mode_set(mode = 'OBJECT')
                     mesh = geo.to_mesh(scene, True, 'PREVIEW', calc_tessface=False)
                     mesh.transform(geo.matrix_world)
-    
+
                     for face in mesh.polygons:
                         if mesh.materials[face.material_index].livi_sense:
                             csf.append(face.index)
@@ -205,14 +205,14 @@ def radgexport(export_op, node):
                             bpy.ops.object.mode_set(mode = 'OBJECT')
                             for vc in geo.data.vertex_colors:
                                 bpy.ops.mesh.vertex_color_remove()
-    
+
                             if node.cpoint == '0':
                                 for v in face.vertices:
                                     vsum += mesh.vertices[v].co
                                 fc = vsum/len(face.vertices)
                                 rtrace.write('{0[0]} {0[1]} {0[2]} {1[0]} {1[1]} {1[2]} \n'.format(fc, face.normal[:]))
                                 calcsurffaces.append((o, face))
-    
+
                             else:
                                 for v,vert in enumerate(face.vertices):
                                     if (mesh.vertices[vert]) not in obcalcverts:
@@ -223,14 +223,14 @@ def radgexport(export_op, node):
                                         obcalcverts.append(mesh.vertices[vert])
                                         cverts.append(vert)
                                 calcsurfverts += obcalcverts
-    
+
                     (geo['cverts'], geo['cfaces']) = (cverts, []) if node.cpoint == '1' else ([], csf)
                     node.reslen += len(csv) if node.cpoint == '1' else len(csf)
-    
+
 #                    elif node.cpoint == '0':
 #                        geo['cverts'], geo['cfaces'] = [], csf
 #                        node.reslen += len(csf)
-                    
+
                     bpy.data.meshes.remove(mesh)
                 else:
                     geo.licalc = 0
@@ -357,9 +357,9 @@ def hdrexport(scene, frame, node, geonode):
 
 def blsunexport(scene, node, starttime, frame, sun):
     simtime = starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
-    deg2rad = 2*math.pi/360
+#    deg2rad = 2*math.pi/360
     DS = 1 if node.daysav else 0
-    ([solalt, solazi]) = solarPosition(simtime.timetuple()[7], simtime.hour - DS + (simtime.minute)*0.016666, node.lati, node.longi)
+    solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour - DS + (simtime.minute)*0.016666, node.lati, node.longi)
     if node.skynum < 2:
         if frame == 0:
             sun.data.shadow_method = 'RAY_SHADOW'
@@ -371,12 +371,12 @@ def blsunexport(scene, node, starttime, frame, sun):
             elif node.skynum == 1:
                 sun.data.shadow_soft_size = 3
                 sun.data.energy = 3
-        sun.location = [x*20 for x in (sin(solazi*deg2rad), -cos(solazi*deg2rad), tan(solalt*deg2rad))]
-        sun.rotation_euler = (90-solalt)*deg2rad, 0, solazi*deg2rad
+        sun.location = [x*20 for x in (sin(phi), -cos(phi), tan(beta))]
+        sun.rotation_euler = (math.pi/2) - beta, 0, phi
 
         if scene.render.engine == 'CYCLES' and hasattr(bpy.data.worlds['World'].node_tree, 'nodes'):
             if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
-                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = sin((solazi)*deg2rad), -cos((solazi)*deg2rad), solalt/90
+                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = sin(phi), -cos(phi), 2* beta/math.pi
                 bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = frame)
         sun.keyframe_insert(data_path = 'location', frame = frame)
         sun.keyframe_insert(data_path = 'rotation_euler', frame = frame)

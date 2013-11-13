@@ -36,11 +36,11 @@ class Vi3DPanel(bpy.types.Panel):
             row.label("Hour of day")
             row.prop(scene, "solhour")
             row = layout.row()
-            row.label("Sunpath scale") 
+            row.label("Sunpath scale")
             row.prop(scene, "soldistance")
-            
+
         if scene.li_disp_panel == 1:
-            
+
             row = layout.row()
             row.prop(scene, "li_disp_3d")
             row = layout.row()
@@ -100,6 +100,8 @@ class VIMatPanel(bpy.types.Panel):
     def draw(self, context):
         cm = context.material
         layout = self.layout
+        row = layout.row()
+        row.prop(cm, "vi_shadow")
         row = layout.row()
         row.prop(cm, "livi_sense")
         row = layout.row()

@@ -644,34 +644,44 @@ class NODE_OT_Shadow(bpy.types.Operator):
             if beta > 0:
                 direcs.append(mathutils.Vector((sin(phi), -cos(phi), tan(beta))))
             time += interval
-        shadows = [0 for x in range(len(shadfaces))]
+        shadows = [0 for x in shadfaces]
 
 #        beta, phi = solarPosition(time.day, time.hour, scene.latitude, scene.longitude)
 #        if beta > 0:
 #            direc = mathutils.Vector((sin(phi), -cos(phi), tan(beta)))
+        shadobs = []
+        for ob in [ob for ob in scene.objects if not ob.hide and ob.type == 'MESH']:
+            tempob = bmesh.new()
+            tempob.from_mesh(ob.data)
+            bmesh.ops.dissolve_limit(tempob, angle_limit = 0.1, use_dissolve_boundaries = False, verts = tempob.verts, edges = tempob.edges)
+            bmesh.ops.triangulate(tempob, faces = tempob.faces)
+            shadobs.append(tempob)
 
         for direc in direcs:
-            for ob in [ob for ob in scene.objects if not ob.hide and ob.type == 'MESH']:
-                tempob = bmesh.new()
-                tempob.from_mesh(ob.data)
-                bmesh.ops.dissolve_limit(tempob, angle_limit = 0.1, use_dissolve_boundaries = False, verts = tempob.verts, edges = tempob.edges)
-                bmesh.ops.triangulate(tempob, faces = tempob.faces)
-                for f, face in enumerate(shadfaces):
-                    for tri in tempob.faces:
-                        if mathutils.geometry.intersect_ray_tri(tri.verts[0].co, tri.verts[1].co, tri.verts[2].co, direc, mathutils.Vector(face.center) + 0.001 * face.normal, True):
-                            break
-#                            print(mathutils.geometry.intersect_ray_tri(tri.verts[0].co, tri.verts[1].co, tri.verts[2].co, direc, mathutils.Vector(face.center) + 0.001 * face.normal, True))
+            for f, face in enumerate(shadfaces):
+                shadows[f] += shaded(direc, face, shadobs)/len(direcs)
+#                print(shaded(direc, face, shadobs))
+#        for direc in direcs:
+#            for f, face in enumerate(shadfaces):
+#                for tempob in shadobs:
+#                    for tri in tempob.faces:
+#                        if mathutils.geometry.intersect_ray_tri(tri.verts[0].co, tri.verts[1].co, tri.verts[2].co, direc, mathutils.Vector(face.center) + 0.001 * face.normal, True):
+#                            i = 1
+##                            shadows[f] += 1/len(direcs)
+##                            print(f)
+##                        else:
 #                            break
-                    else:
-                        shadows[f] += 1/len(direcs)
-                        continue
+##                            print(mathutils.geometry.intersect_ray_tri(tri.verts[0].co, tri.verts[1].co, tri.verts[2].co, direc, mathutils.Vector(face.center) + 0.001 * face.normal, True))
+##                            break
+#                    else:
+#                        continue
+#                    shadows[f] += 1/len(direcs)
 #                    break
 #                else:
-#                    shadows[f] += 1/len(direcs)
+#
 #                    continue
+#
 #                break
-
-
 
         print(len(direcs), shadows)
 
@@ -682,4 +692,16 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
 
         return {'FINISHED'}
+
+def shaded(direc, face, shadobs):
+    for tempob in shadobs:
+        for tri in tempob.faces:
+            print(mathutils.geometry.intersect_ray_tri(tri.verts[0].co, tri.verts[1].co, tri.verts[2].co, direc, mathutils.Vector(face.center) + 0.001 * face.normal, True))
+            if mathutils.geometry.intersect_ray_tri(tri.verts[0].co, tri.verts[1].co, tri.verts[2].co, direc, mathutils.Vector(face.center) + 0.001 * face.normal, True):
+                print(tri.verts[0].co, tri.verts[1].co, tri.verts[2].co, mathutils.Vector(face.center) + 0.001 * face.normal, direc)
+
+                return(0)
+    print('unshaded')
+    return(1)
+
 

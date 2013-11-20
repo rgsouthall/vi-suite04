@@ -4,7 +4,7 @@ import numpy as np
 from collections import OrderedDict
 from datetime import date
 from datetime import datetime as dt
-from math import cos, sin, pi, ceil, tan
+from math import cos, sin, pi, ceil, tan, modf
 from numpy import arange
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -624,7 +624,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        direcs, shadfaces = [], []
+        direcs = []
         scene = context.scene
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         locnode = node.inputs[0].links[0].from_node
@@ -635,73 +635,35 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
         time = datetime.datetime.combine(datetime.date.fromordinal(node.startday), datetime.time(node.starthour - 1))
         endtime = datetime.datetime.combine(datetime.date.fromordinal(node.endday), datetime.time(node.endhour - 1))
-        interval = datetime.timedelta(hours = int(node.interval), seconds = int(3600 * (node.interval - int(node.interval))))
-        for ob in [ob for ob in scene.objects if not ob.hide and ob.type == 'MESH']:
-            for face in [face for face in  ob.data.polygons if ob.data.materials[face.material_index].vi_shadow]:
-                shadfaces.append(face)
+        interval = datetime.timedelta(hours = modf(node.interval)[0], minutes = 60 * modf(node.interval)[1])
         while time <= endtime:
-            beta, phi = solarPosition(time.day, time.hour, scene.latitude, scene.longitude)[2:]
-            if beta > 0:
-                direcs.append(mathutils.Vector((sin(phi), -cos(phi), tan(beta))))
+            beta, phi = solarPosition(time.timetuple().tm_yday, time.hour+time.minute/60, scene.latitude, scene.longitude)[2:]
+            if beta > 0 and node.starthour <= time.hour < node.endhour:
+                direcs.append(mathutils.Vector((-sin(phi), -cos(phi), tan(beta))))
             time += interval
-        shadows = [0 for x in shadfaces]
 
-#        beta, phi = solarPosition(time.day, time.hour, scene.latitude, scene.longitude)
-#        if beta > 0:
-#            direc = mathutils.Vector((sin(phi), -cos(phi), tan(beta)))
-        shadobs = []
-        for ob in [ob for ob in scene.objects if not ob.hide and ob.type == 'MESH']:
-            tempob = bmesh.new()
-            tempob.from_mesh(ob.data)
-            bmesh.ops.dissolve_limit(tempob, angle_limit = 0.1, use_dissolve_boundaries = False, verts = tempob.verts, edges = tempob.edges)
-            bmesh.ops.triangulate(tempob, faces = tempob.faces)
-            shadobs.append(tempob)
+        for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
+            shadfaces, shadcentres = [], []
+            if len([mat for mat in ob.data.materials if mat.vi_shadow]) > 0:
+                obm = ob.matrix_world
+                if not ob.data.vertex_colors:
+                    bpy.ops.mesh.vertex_color_add()
+                ob.data.vertex_colors[0].name = 'SolarShade'
+                vertexColor = ob.data.vertex_colors[0]
 
-        for direc in direcs:
-            for f, face in enumerate(shadfaces):
-                shadows[f] += shaded(direc, face, shadobs)/len(direcs)
-#                print(shaded(direc, face, shadobs))
-#        for direc in direcs:
-#            for f, face in enumerate(shadfaces):
-#                for tempob in shadobs:
-#                    for tri in tempob.faces:
-#                        if mathutils.geometry.intersect_ray_tri(tri.verts[0].co, tri.verts[1].co, tri.verts[2].co, direc, mathutils.Vector(face.center) + 0.001 * face.normal, True):
-#                            i = 1
-##                            shadows[f] += 1/len(direcs)
-##                            print(f)
-##                        else:
-#                            break
-##                            print(mathutils.geometry.intersect_ray_tri(tri.verts[0].co, tri.verts[1].co, tri.verts[2].co, direc, mathutils.Vector(face.center) + 0.001 * face.normal, True))
-##                            break
-#                    else:
-#                        continue
-#                    shadows[f] += 1/len(direcs)
-#                    break
-#                else:
-#
-#                    continue
-#
-#                break
-
-        print(len(direcs), shadows)
-
-
-
-
-
-
+                for face in [face for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow]:
+                    shadcentres.append([obm*mathutils.Vector((face.center)) + 0.2*face.normal, obm*mathutils.Vector((face.center)), 0])
+                    for li in face.loop_indices:
+                        vertexColor.data[li].color = (1, 1, 1)
+                    for direc in direcs:
+                        hit = bpy.data.scenes[0].ray_cast(shadcentres[-1][0], shadcentres[-1][1] + 10000*direc)
+                        if hit[0] == True:
+                            shadcentres[-1][2] += 1/(len(direcs))
+                    if shadcentres[-1][2] > 0:
+                        for li in face.loop_indices:
+                            vertexColor.data[li].color = 1- shadcentres[-1][2], 1- shadcentres[-1][2], 1- shadcentres[-1][2]
 
         return {'FINISHED'}
 
-def shaded(direc, face, shadobs):
-    for tempob in shadobs:
-        for tri in tempob.faces:
-            print(mathutils.geometry.intersect_ray_tri(tri.verts[0].co, tri.verts[1].co, tri.verts[2].co, direc, mathutils.Vector(face.center) + 0.001 * face.normal, True))
-            if mathutils.geometry.intersect_ray_tri(tri.verts[0].co, tri.verts[1].co, tri.verts[2].co, direc, mathutils.Vector(face.center) + 0.001 * face.normal, True):
-                print(tri.verts[0].co, tri.verts[1].co, tri.verts[2].co, mathutils.Vector(face.center) + 0.001 * face.normal, direc)
-
-                return(0)
-    print('unshaded')
-    return(1)
 
 

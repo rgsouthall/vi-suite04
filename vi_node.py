@@ -473,7 +473,7 @@ class ViSSNode(bpy.types.Node, ViNodes):
     endday = bpy.props.IntProperty(name = '', default = 365, min = 1, max = 365, description = 'End day')
     starthour = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 24, description = 'Start hour')
     endhour = bpy.props.IntProperty(name = '', default = 24, min = 1, max = 24, description = 'End hour')
-    interval = bpy.props.FloatProperty(name = '', default = 1, min = 0.1, max = 12, description = 'Interval')
+    interval = bpy.props.FloatProperty(name = '', default = 1, min = 0.1, max = 24, description = 'Interval')
 
     def init(self, context):
         self.inputs.new('ViLoc', 'Location in')
@@ -488,6 +488,15 @@ class ViSSNode(bpy.types.Node, ViNodes):
         row = layout.row()
         row.label('End day')
         row.prop(self, "endday")
+        row = layout.row()
+        row.label('Start hour')
+        row.prop(self, "starthour")
+        row = layout.row()
+        row.label('End hour')
+        row.prop(self, "endhour")
+        row = layout.row()
+        row.label('Interval')
+        row.prop(self, "interval")
         row = layout.row()
         row.operator("node.shad", text = 'Calculate').nodeid = self['nodeid']
 

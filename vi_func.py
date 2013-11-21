@@ -7,6 +7,11 @@ from . import windrose
 #from . import windrose
 dtdf = datetime.date.fromordinal
 
+def newrow(layout, s1, root, s2):
+    row = layout.row()
+    row.label(s1)
+    row.prop(root, s2)
+    
 def retobj(name, fr, node):
     if node.animmenu == "Geometry":
         return(node.objfilebase+"-{}-{}.obj".format(name.replace(" ", "_"), fr))

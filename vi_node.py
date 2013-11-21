@@ -20,7 +20,7 @@
 import bpy, glob, os, inspect, datetime
 from math import pi, sin, cos
 from nodeitems_utils import NodeCategory, NodeItem
-from .vi_func import nodeinit, objvol, triarea, socklink, solarPosition
+from .vi_func import nodeinit, objvol, triarea, socklink, newrow
 
 try:
     import numpy
@@ -34,9 +34,9 @@ class ViNetwork(bpy.types.NodeTree):
     bl_label = 'Vi Network'
     bl_icon = 'LAMP_SUN'
 
-    def __init__(self):
-        self.name = 'VI Network'
-        print(self.name)
+#    def __init__(self):
+#        self.name = 'VI Network'
+#        print(self.name)
 
 class ViNodes:
     @classmethod
@@ -48,21 +48,10 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     bl_idname = 'ViGExLiNode'
     bl_label = 'LiVi Geometry'
     bl_icon = 'LAMP'
-
-    filepath = bpy.props.StringProperty()
-    filename = bpy.props.StringProperty()
-    filedir = bpy.props.StringProperty()
-    newdir = bpy.props.StringProperty()
-    filebase = bpy.props.StringProperty()
-    objfilebase = bpy.props.StringProperty()
-    nodetree = bpy.props.StringProperty()
+    
+    (filepath, filename, filedir, newdir, filebase, objfilebase, nodetree, nproc, rm, cp, cat, fold) = (bpy.props.StringProperty() for x in range(12))
     reslen = bpy.props.IntProperty(default = 0)
     exported = bpy.props.BoolProperty()
-    nproc = bpy.props.StringProperty()
-    rm = bpy.props.StringProperty()
-    cp = bpy.props.StringProperty()
-    cat = bpy.props.StringProperty()
-    fold = bpy.props.StringProperty()
 
     def nodeexported(self, context):
         self.exported = False
@@ -91,15 +80,9 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
                 self['nodeid'] = self.name+'@'+ng.name
 
     def draw_buttons(self, context, layout):
-        row = layout.row()
-        row.label('Storeys:')
-        row.prop(self, 'buildstorey')
-        row = layout.row()
-        row.label('Animation:')
-        row.prop(self, 'animmenu')
-        row = layout.row()
-        row.label('Calculation point:')
-        row.prop(self, 'cpoint')
+        newrow(layout, 'Storeys:', self, 'buildstorey')
+        newrow(layout, 'Animation:', self, 'animmenu')
+        newrow(layout, 'Calculation point:', self, 'cpoint')
         row = layout.row()
         row.operator("node.ligexport", text = "Export").nodeid = self['nodeid']
 
@@ -200,41 +183,23 @@ class ViLiNode(bpy.types.Node, ViNodes):
             row.label("Sky type:")
             row.prop(self, 'skymenu')
             if self.skymenu in ('0', '1', '2'):
-                row = layout.row()
-                row.label("Animation:")
-                row.prop(self, 'animmenu')
-                row = layout.row()
-                row.label("Daylight saving:")
-                row.prop(self, 'daysav')
+                newrow(layout, "Animation:", self, 'animmenu')
+                newrow(layout, "Daylight saving:", self, 'daysav')
                 row = layout.row()
                 row.label("Local meridian:")
                 row.prop(self, 'stamer') if self.daysav == False else row.prop(self, 'summer')
-                row = layout.row()
-                row.label("Latitude:")
-                row.prop(self, 'lati')
-                row = layout.row()
-                row.label("Longitude:")
-                row.prop(self, 'longi')
-                row = layout.row()
-                row.label("Start hour:")
-                row.prop(self, 'shour')
-                row = layout.row()
-                row.label("Start day of year:")
-                row.prop(self, 'sdoy')
+                newrow(layout, "Latitude:", self, 'lati')
+                newrow(layout, "Longitude:", self, 'longi')
+                newrow(layout, "Start hour:", self, 'shour')
+                newrow(layout, "Start day of year:", self, 'sdoy')
                 if self.animmenu == 'Time':
-                    row = layout.row()
-                    row.label("End hour:")
-                    row.prop(self, 'ehour')
-                    row = layout.row()
-                    row.label("End day of year:")
-                    row.prop(self, 'edoy')
+                    newrow(layout, "End hour:", self, 'ehour')
+                    newrow(layout, "End day of year:", self, 'edoy')
                     if self.edoy < self.sdoy:
                         self.edoy = self.sdoy
                     if self.edoy == self.sdoy and self.ehour < self.shour:
                         self.ehour = self.shour
-                    row = layout.row()
-                    row.label("Interval (hours):")
-                    row.prop(self, 'interval')
+                    newrow(layout, "Interval (hours):", self, 'interval')
             elif self.skymenu == '4':
                 row = layout.row()
                 row.label("HDR file:")
@@ -311,38 +276,22 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         row.label("Analysis Type:")
         row.prop(self, 'analysismenu')
         if self.analysismenu in ('2', '4'):
-           row = layout.row()
-           row.label('Weekdays only:')
-           row.prop(self, 'weekdays')
-           row = layout.row()
-           row.label('Start hour:')
-           row.prop(self, 'cbdm_start_hour')
-           row = layout.row()
-           row.label('End hour:')
-           row.prop(self, 'cbdm_end_hour')
+           newrow(layout, 'Weekdays only:', self, 'weekdays')
+           newrow(layout, 'Start hour:', self, 'cbdm_start_hour')
+           newrow(layout, 'End hour:', self, 'cbdm_end_hour')
            if self.analysismenu =='2':
-               row = layout.row()
-               row.label('Min Lux level::')
-               row.prop(self, 'dalux')
+               newrow(layout, 'Min Lux level:', self, 'dalux')
            if self.analysismenu =='4':
-               row = layout.row()
-               row.label('Fell short (Max):')
-               row.prop(self, 'damin')
-               row = layout.row()
-               row.label('Supplementry (Max):')
-               row.prop(self, 'dasupp')
-               row = layout.row()
-               row.label('Autonomous (Max):')
-               row.prop(self, 'daauto')
+               newrow(layout, 'Fell short (Max):', self, 'damin')
+               newrow(layout, 'Supplementry (Max):', self, 'dasupp')
+               newrow(layout, 'Autonomous (Max):', self, 'daauto')
 
         row = layout.row()
         row.label('EPW file:')
         row.operator('node.epwselect', text = 'Select EPW').nodeid = self['nodeid']
         row = layout.row()
         row.prop(self, "epwname")
-        row = layout.row()
-        row.label('Animation:')
-        row.prop(self, "animmenu")
+        newrow(layout, 'Animation:', self, "animmenu")
         if self.inputs['Geometry in'].is_linked and self.inputs['Geometry in'].links[0].from_node.bl_label == 'LiVi Geometry':
             row = layout.row()
             row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
@@ -383,18 +332,10 @@ class ViLiCNode(bpy.types.Node, ViNodes):
                 self['nodeid'] = self.name+'@'+ng.name
 
     def draw_buttons(self, context, layout):
-        row = layout.row()
-        row.label("Compliance standard:")
-        row.prop(self, 'analysismenu')
-
+        newrow(layout, "Compliance standard:", self, 'analysismenu')
         if self.analysismenu == '0':
-            row = layout.row()
-            row.label("Building type:")
-            row.prop(self, 'bambuildmenu')
-
-        row = layout.row()
-        row.label('Animation:')
-        row.prop(self, "animmenu")
+            newrow(layout, "Building type:", self, 'bambuildmenu')
+        newrow(layout, 'Animation:', self, "animmenu")
         if self.inputs['Geometry in'].is_linked and self.inputs['Geometry in'].links[0].from_node.bl_label == 'LiVi Geometry':
             row = layout.row()
             row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
@@ -430,9 +371,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
                 row.prop(self, 'csimacc')
 
             if (self.simacc == '3' and self.inputs['Context in'].links[0].from_node.bl_label == 'LiVi Basic') or (self.csimacc == '0' and self.inputs['Context in'].links[0].from_node.bl_label == 'LiVi Compliance'):
-               row = layout.row()
-               row.label("Radiance parameters:")
-               row.prop(self, 'cusacc')
+               newrow(layout, "Radiance parameters:", self, 'cusacc')
 
             row = layout.row()
             row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']
@@ -444,7 +383,6 @@ class ViSPNode(bpy.types.Node, ViNodes):
     bl_label = 'VI Sun Path'
     bl_icon = 'LAMP'
 
-
     modal = bpy.props.BoolProperty(name = '', default = 0)
 
     def init(self, context):
@@ -455,13 +393,9 @@ class ViSPNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         if self.inputs[0].is_linked and self.inputs[0].links[0].from_node.bl_label == 'VI Location':
-            row = layout.row()
-            row.label('Modal')
-            row.prop(self, "modal")
+            newrow(layout, 'Modal', self, "modal")
             row = layout.row()
             row.operator("node.sunpath", text="Create Sun Path").nodeid = self['nodeid']
-
-
 
 class ViSSNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite shadow study'''
@@ -482,21 +416,11 @@ class ViSSNode(bpy.types.Node, ViNodes):
                 self['nodeid'] = self.name+'@'+ng.name
 
     def draw_buttons(self, context, layout):
-        row = layout.row()
-        row.label('Start day')
-        row.prop(self, "startday")
-        row = layout.row()
-        row.label('End day')
-        row.prop(self, "endday")
-        row = layout.row()
-        row.label('Start hour')
-        row.prop(self, "starthour")
-        row = layout.row()
-        row.label('End hour')
-        row.prop(self, "endhour")
-        row = layout.row()
-        row.label('Interval')
-        row.prop(self, "interval")
+        newrow(layout, 'Start day', self, "startday")
+        newrow(layout, 'End day', self, "endday")
+        newrow(layout, 'Start hour', self, "starthour")
+        newrow(layout, 'End hour', self, "endhour")
+        newrow(layout, 'Interval', self, "interval")
         row = layout.row()
         row.operator("node.shad", text = 'Calculate').nodeid = self['nodeid']
 
@@ -509,6 +433,7 @@ class ViWRNode(bpy.types.Node, ViNodes):
     startmonth = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 12, description = 'Start Month')
     endmonth = bpy.props.IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month')
     wrtype = bpy.props.EnumProperty(items = [("0", "Hist 1", "Stacked histogram"), ("1", "Hist 2", "Stacked Histogram 2"), ("2", "Cont 1", "Filled contour"), ("3", "Cont 2", "Edged contour"), ("4", "Cont 3", "Lined contour")], name = "", default = '0')
+    
     def init(self, context):
         self.inputs.new('ViLoc', 'Location in')
         for ng in bpy.data.node_groups:
@@ -517,18 +442,11 @@ class ViWRNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         if self.inputs[0].is_linked and self.inputs[0].links[0].from_node.bl_label == 'VI Location':
-            row = layout.row()
-            row.label('Type')
-            row.prop(self, "wrtype")
-            row = layout.row()
-            row.label('Start Month')
-            row.prop(self, "startmonth")
-            row = layout.row()
-            row.label('End Month')
-            row.prop(self, "endmonth")
+            newrow(layout, 'Type', self, "wrtype")
+            newrow(layout, 'Start Month', self, "startmonth")
+            newrow(layout, 'End Month', self, "endmonth")
             row = layout.row()
             row.operator("node.windrose", text="Create Wind Rose").nodeid = self['nodeid']
-
 
 class ViGNode(bpy.types.Node, ViNodes):
     '''Node describing a glare analysis'''
@@ -546,46 +464,34 @@ class ViLoc(bpy.types.Node, ViNodes):
     bl_label = 'VI Location'
     bl_icon = 'LAMP'
 
-
-    filepath = bpy.props.StringProperty()
-    filename = bpy.props.StringProperty()
-    filedir = bpy.props.StringProperty()
-    newdir = bpy.props.StringProperty()
-    filebase = bpy.props.StringProperty()
-    objfilebase = bpy.props.StringProperty()
-    nodetree = bpy.props.StringProperty()
+    (filepath, filename, filedir, newdir, filebase, objfilebase, nodetree, nproc, rm , cp, cat, fold) = (bpy.props.StringProperty() for x in range(12))
     reslen = bpy.props.IntProperty(default = 0)
     exported = bpy.props.BoolProperty()
-    nproc = bpy.props.StringProperty()
-    rm = bpy.props.StringProperty()
-    cp = bpy.props.StringProperty()
-    cat = bpy.props.StringProperty()
-    fold = bpy.props.StringProperty()
     addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
     epwpath = addonpath+'/EPFiles/Weather/'
     weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]
     weather = bpy.props.EnumProperty(items = weatherlist, name="", description="Weather for this project")
     loc = bpy.props.EnumProperty(items = [("0", "Manual", "Manual location"), ("1", "From EPW file", "EPW location")], name = "", description = "Location", default = "0")
     latitude = bpy.props.FloatProperty(name="", description="Site Latitude", min=-90, max=90, default=52)
-    longitude = bpy.props.FloatProperty(name="", description="Site Longitude", min=-15, max=15, default=0)
+    longitude = bpy.props.FloatProperty(name="", description="Site Longitude (East is positive, West is negative)", min=-180, max=180, default=0)
 
-    meridian = bpy.props.EnumProperty(items = [("-9", "YST", ""),
-                                       ("-8", "PST", ""),
-                                       ("-7", "MST", ""),
-                                       ("-6", "CST", ""),
-                                       ("-5", "EST", ""),
-                                       ("0", "GMT", ""),
-                                       ("1", "CET", ""),
-                                       ("2", "EET", ""),
-                                       ("3", "AST", ""),
-                                       ("4", "GST", ""),
-                                       ("5.5", "IST", ""),
-                                       ("9", "JST", ""),
-                                       ("12", "NZST", ""),
-                    ],
-            name = "",
-            description = "Specify the local meridian",
-            default = "0")
+#    meridian = bpy.props.EnumProperty(items = [("-9", "YST", ""),
+#                                       ("-8", "PST", ""),
+#                                       ("-7", "MST", ""),
+#                                       ("-6", "CST", ""),
+#                                       ("-5", "EST", ""),
+#                                       ("0", "GMT", ""),
+#                                       ("1", "CET", ""),
+#                                       ("2", "EET", ""),
+#                                       ("3", "AST", ""),
+#                                       ("4", "GST", ""),
+#                                       ("5.5", "IST", ""),
+#                                       ("9", "JST", ""),
+#                                       ("12", "NZST", ""),
+#                    ],
+#            name = "",
+#            description = "Specify the local meridian",
+#            default = "0")
 
     def init(self, context):
         if bpy.data.filepath:

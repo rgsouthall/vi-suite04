@@ -11,7 +11,7 @@ def newrow(layout, s1, root, s2):
     row = layout.row()
     row.label(s1)
     row.prop(root, s2)
-    
+
 def retobj(name, fr, node):
     if node.animmenu == "Geometry":
         return(node.objfilebase+"-{}-{}.obj".format(name.replace(" ", "_"), fr))
@@ -62,8 +62,6 @@ def nodeinit(node):
 
 def nodeexported(self):
     self.exported = 0
-
-
 
 def negneg(x):
     if float(x) < 0:
@@ -303,7 +301,8 @@ def rettimes(ts, fs, us):
 
 def socklink(sock, ng):
     try:
-        if sock.is_linked and sock.draw_color(bpy.context, sock.node) != (sock.links[0].from_socket, sock.links[0].to_socket)[sock.in_out == 'Out'].draw_color(bpy.context, sock.node):
+        lsock = (sock.links[0].from_socket, sock.links[0].to_socket)[sock.in_out == 'OUT']
+        if sock.is_linked and sock.draw_color(bpy.context, sock.node) != lsock.draw_color(bpy.context, lsock.node):
             bpy.data.node_groups[ng].links.remove(sock.links[0])
     except:
         pass

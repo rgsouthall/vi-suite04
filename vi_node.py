@@ -34,10 +34,6 @@ class ViNetwork(bpy.types.NodeTree):
     bl_label = 'Vi Network'
     bl_icon = 'LAMP_SUN'
 
-#    def __init__(self):
-#        self.name = 'VI Network'
-#        print(self.name)
-
 class ViNodes:
     @classmethod
     def poll(cls, ntree):
@@ -48,7 +44,7 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     bl_idname = 'ViGExLiNode'
     bl_label = 'LiVi Geometry'
     bl_icon = 'LAMP'
-    
+
     (filepath, filename, filedir, newdir, filebase, objfilebase, nodetree, nproc, rm, cp, cat, fold) = (bpy.props.StringProperty() for x in range(12))
     reslen = bpy.props.IntProperty(default = 0)
     exported = bpy.props.BoolProperty()
@@ -433,7 +429,7 @@ class ViWRNode(bpy.types.Node, ViNodes):
     startmonth = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 12, description = 'Start Month')
     endmonth = bpy.props.IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month')
     wrtype = bpy.props.EnumProperty(items = [("0", "Hist 1", "Stacked histogram"), ("1", "Hist 2", "Stacked Histogram 2"), ("2", "Cont 1", "Filled contour"), ("3", "Cont 2", "Edged contour"), ("4", "Cont 3", "Lined contour")], name = "", default = '0')
-    
+
     def init(self, context):
         self.inputs.new('ViLoc', 'Location in')
         for ng in bpy.data.node_groups:
@@ -465,43 +461,28 @@ class ViLoc(bpy.types.Node, ViNodes):
     bl_icon = 'LAMP'
 
     (filepath, filename, filedir, newdir, filebase, objfilebase, nodetree, nproc, rm , cp, cat, fold) = (bpy.props.StringProperty() for x in range(12))
-    reslen = bpy.props.IntProperty(default = 0)
-    exported = bpy.props.BoolProperty()
-    addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
-    epwpath = addonpath+'/EPFiles/Weather/'
+    epwpath = os.path.dirname(inspect.getfile(inspect.currentframe()))+'/EPFiles/Weather/'
     weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]
     weather = bpy.props.EnumProperty(items = weatherlist, name="", description="Weather for this project")
-    loc = bpy.props.EnumProperty(items = [("0", "Manual", "Manual location"), ("1", "From EPW file", "EPW location")], name = "", description = "Location", default = "0")
+    loc = bpy.props.EnumProperty(items = [("0", "Manual", "Manual location"), ("1", "EPW ", "Get location from EPW file")], name = "", description = "Location", default = "0")
     latitude = bpy.props.FloatProperty(name="", description="Site Latitude", min=-90, max=90, default=52)
     longitude = bpy.props.FloatProperty(name="", description="Site Longitude (East is positive, West is negative)", min=-180, max=180, default=0)
 
-#    meridian = bpy.props.EnumProperty(items = [("-9", "YST", ""),
-#                                       ("-8", "PST", ""),
-#                                       ("-7", "MST", ""),
-#                                       ("-6", "CST", ""),
-#                                       ("-5", "EST", ""),
-#                                       ("0", "GMT", ""),
-#                                       ("1", "CET", ""),
-#                                       ("2", "EET", ""),
-#                                       ("3", "AST", ""),
-#                                       ("4", "GST", ""),
-#                                       ("5.5", "IST", ""),
-#                                       ("9", "JST", ""),
-#                                       ("12", "NZST", ""),
-#                    ],
-#            name = "",
-#            description = "Specify the local meridian",
-#            default = "0")
-
     def init(self, context):
+        for ng in bpy.data.node_groups:
+            if self in ng.nodes[:]:
+                self['nodeid'] = self.name+'@'+ng.name
         if bpy.data.filepath:
             nodeinit(self)
         self.outputs.new('ViLoc', 'Location out')
 
+    def update(self):
+        socklink(self.outputs[0], self['nodeid'].split('@')[1])
+
     def draw_buttons(self, context, layout):
         scene = context.scene
         row = layout.row()
-        row.label(text = 'Location:')
+        row.label(text = 'Source:')
         row.prop(self, "loc")
         if self.loc == "1":
             row = layout.row()
@@ -1084,7 +1065,7 @@ class ViLocOut(bpy.types.NodeSocket):
         layout.label(text)
 
     def draw_color(self, context, node):
-        return (0.0, 0.0, 1.0, 0.75)
+        return (0.0, 1.0, 0.0, 0.75)
 
 class ViLiWResOut(bpy.types.NodeSocket):
     '''LiVi irradiance out socket'''

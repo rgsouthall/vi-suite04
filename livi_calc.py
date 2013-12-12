@@ -92,7 +92,6 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                 if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
                     subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
                 rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
-                print(rtcmd)
                 rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
                 resfile = open(os.path.join(geonode.newdir, connode.resname+"-"+str(frame)+".res"), 'w')
                 for l,line in enumerate(rtrun.stdout):
@@ -188,10 +187,10 @@ def resapply(res, svres, simnode, connode, geonode):
         for i in range(0, len(res[frame])):
             h = 0.75*(1-(res[frame][i]-min(simnode['minres']))/(max(simnode['maxres']) + 0.01 - min(simnode['minres'])))
             rgb.append(colorsys.hsv_to_rgb(h, 1.0, 1.0))
-        
+
         if bpy.context.active_object and bpy.context.active_object.hide == 'False':
             bpy.ops.object.mode_set()
-        
+
         for geo in vi_func.retobjs('livig'):
 #            bpy.ops.object.select_all(action = 'DESELECT')
 #            scene.objects.active = None

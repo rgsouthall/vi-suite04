@@ -379,7 +379,7 @@ class ViSPNode(bpy.types.Node, ViNodes):
     bl_label = 'VI Sun Path'
     bl_icon = 'LAMP'
 
-    modal = bpy.props.BoolProperty(name = '', default = 0)
+    modal = bpy.props.BoolProperty()
 
     def init(self, context):
         self.inputs.new('ViLoc', 'Location in')
@@ -389,7 +389,8 @@ class ViSPNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         if self.inputs[0].is_linked and self.inputs[0].links[0].from_node.bl_label == 'VI Location':
-            newrow(layout, 'Modal', self, "modal")
+            row = layout.row()
+            row.prop(self, 'modal')
             row = layout.row()
             row.operator("node.sunpath", text="Create Sun Path").nodeid = self['nodeid']
 
@@ -472,6 +473,7 @@ class ViLoc(bpy.types.Node, ViNodes):
         for ng in bpy.data.node_groups:
             if self in ng.nodes[:]:
                 self['nodeid'] = self.name+'@'+ng.name
+                ng.use_fake_user = True
         if bpy.data.filepath:
             nodeinit(self)
         self.outputs.new('ViLoc', 'Location out')
@@ -494,7 +496,6 @@ class ViLoc(bpy.types.Node, ViNodes):
             row = layout.row()
             row.label('Longitude')
             row.prop(scene, "longitude")
-
 
 class ViGExEnNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite export type'''

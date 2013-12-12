@@ -441,6 +441,7 @@ def retobjs(otypes):
 def sunpath(self, context):
     scene = context.scene
     sun = [ob for ob in scene.objects if ob.spob == 1][0]
+
     if 0 in (sun['solhour'] == scene.solhour, sun['solday'] == scene.solday, sun['soldistance'] == scene.soldistance):
         sunob = [ob for ob in scene.objects if ob.spob == 2][0]
         spathob = [ob for ob in scene.objects if ob.spob == 3][0]
@@ -450,22 +451,24 @@ def sunpath(self, context):
         sunob.location.y = sun.location.y = -(scene.soldistance**2 - sun.location.z**2)**0.5 * cos(phi)
         sun.rotation_euler = pi * 0.5 - beta, 0, -phi
         spathob.scale = 3 * [scene.soldistance/100]
-        sunob.scale = 3 * [scene.soldistance/10]
+        sunob.scale = 3*[scene.soldistance/100]
 
         if scene.render.engine == 'CYCLES' and hasattr(bpy.data.worlds['World'].node_tree, 'nodes'):
             if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
                 bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
 #                bpy.data.worlds['World'].node_tree.nodes['Background'].inputs[1].default_value = sin(beta)
                 for blnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Blackbody']:
-                    blnode.inputs[0].default_value = 3000 + 50*beta*180/pi
+                    blnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
                 for emnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Emission']:
                     emnode.inputs[1].default_value = 5 * sin(beta)
                 for smblnode in [node for node in sunob.data.materials[0].node_tree.nodes if sunob.data.materials and node.bl_label == 'Blackbody']:
-                    smblnode.inputs[0].default_value = 3000 + 50*beta*180/pi
+                    smblnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
 
         sun['solhour'], sun['solday'], sun['soldistance'] = scene.solhour, scene.solday, scene.soldistance
     else:
         return
+
+
 
 #Compute solar position (altitude and azimuth in degrees) based on day of year (doy; integer), local solar time (lst; decimal hours), latitude (lat; decimal degrees), and longitude (lon; decimal degrees).
 def solarPosition(doy, lst, lat, lon):

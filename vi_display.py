@@ -132,8 +132,19 @@ def li_display(simnode, connode, geonode):
     bpy.ops.wm.save_mainfile(check_existing = False)
     rendview(1)
 
+def spnumdisplay(disp_op, context, simnode):
+    scene = context.scene
+    ob = bpy.data.objects['SPathMesh']
+    if scene.hourdisp == True:
+        for np in ob['numpos']:
+            print(np, ob['numpos'][np][:])
+            vi_func.draw_index(vi_func.viewdesc(context), ob, 0, 0, 0, np.split('-')[1], mathutils.Vector(ob['numpos'][np]).to_4d())
+    else:
+        return
+
 def linumdisplay(disp_op, context, simnode, geonode):
     scene = context.scene
+    fn = context.scene.frame_current
     try:
         if obcalclist:
             pass
@@ -144,13 +155,6 @@ def linumdisplay(disp_op, context, simnode, geonode):
     if scene.li_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.li_display_sel_only == True)  or scene.frame_current not in range(scene.frame_start, scene.frame_end+1):
         return
 
-    region = context.region
-    mid_x = region.width / 2
-    mid_y = region.height / 2
-    width = region.width
-    height = region.height
-    fn = scene.frame_current
-
     if scene.li_display_sel_only == False:
         obd = obreslist if len(obreslist) > 0 else obcalclist
     else:
@@ -160,19 +164,6 @@ def linumdisplay(disp_op, context, simnode, geonode):
         faces = [f for f in ob.data.polygons if f.select == True] if len(obreslist) > 0 else [f for f in ob.data.polygons]
         vdone = []
         obm = ob.data
-        view_mat = context.space_data.region_3d.perspective_matrix
-        ob_mat = ob.matrix_world
-        total_mat = view_mat * ob_mat
-        blf.size(0, context.scene.li_display_rp_fs, 72)
-
-        def draw_index(r, g, b, index, center):
-            vec = total_mat * center
-            vec = mathutils.Vector((vec[0] / vec[3], vec[1] / vec[3], vec[2] / vec[3]))
-            x, y = int(mid_x + vec[0] * width / 2), int(mid_y + vec[1] * height / 2)
-            bgl.glColor3f(r, g, b)
-            blf.position(0, x, y, 0)
-            if x > 100 or y < height - 530:
-                blf.draw(0, str(index))
 
         for f in faces:
             if geonode.cpoint == "0":
@@ -183,7 +174,7 @@ def linumdisplay(disp_op, context, simnode, geonode):
                 if not f.hide and f.select:
                     loop_index = f.loop_indices[0]
                     if len(set(obm.vertex_colors[fn].data[loop_index].color[:])) > 1:
-                        draw_index(0.0, 0.0, 0.0, int(simnode['minres'][fn] + (1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*(simnode['maxres'][fn] - simnode['minres'][fn])), fc.to_4d())
+                        vi_func.draw_index(vi_func.viewdesc(context), ob, 0.0, 0.0, 0.0, int(simnode['minres'][fn] + (1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*(simnode['maxres'][fn] - simnode['minres'][fn])), fc.to_4d())
 
             elif geonode.cpoint == "1":
                 for loop_index in f.loop_indices:
@@ -192,7 +183,7 @@ def linumdisplay(disp_op, context, simnode, geonode):
                     if v not in vdone:
                         vdone.append(v)
                         if len(set(obm.vertex_colors[fn].data[loop_index].color[:])) > 1:
-                            draw_index(0.0, 0.0, 0.0, int((1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*simnode['maxres'][fn]), vpos.to_4d())
+                            vi_func.draw_index(vi_func.viewdesc(context), ob, 0.0, 0.0, 0.0, int((1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*simnode['maxres'][fn]), vpos.to_4d())
 
 def li3D_legend(self, context, simnode, connode):
     scene = context.scene

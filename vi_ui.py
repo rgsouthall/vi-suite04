@@ -14,6 +14,13 @@ import bpy
 #    def invoke(self, context, event):
 #        vi_node.vinodegen()
 #        return{'FINISHED'}
+
+def newrow(layout, s1, root, s2):
+    row = layout.row()
+    row.label(s1)
+    row.prop(root, s2)
+
+
 from .envi_mat import *
 envi_mats = envi_materials()
 envi_cons = envi_constructions()
@@ -29,15 +36,12 @@ class Vi3DPanel(bpy.types.Panel):
         scene = context.scene
         layout = self.layout
         if scene.sp_disp_panel == 1:
-            row = layout.row()
-            row.label("Day of year")
-            row.prop(scene, "solday")
-            row = layout.row()
-            row.label("Hour of day")
-            row.prop(scene, "solhour")
-            row = layout.row()
-            row.label("Sunpath scale")
-            row.prop(scene, "soldistance")
+            newrow(layout, "Day of year", scene, "solday")
+            newrow(layout, "Hour of day", scene, "solhour")
+            newrow(layout, "Sunpath scale", scene, "soldistance")
+            newrow(layout, "Display hours", scene, "hourdisp")
+            newrow(layout, "Display solstice", scene, "solstdisp")
+            newrow(layout, "Font size", scene, "li_display_rp_fs")
 
         if scene.li_disp_panel == 1:
 

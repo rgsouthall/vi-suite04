@@ -10,11 +10,11 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from .livi_export import radcexport, radgexport
 from .livi_calc  import rad_prev, li_calc
-from .vi_display import li_display, li_compliance, linumdisplay, li3D_legend
+from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .envi_calc import envi_sim
-from .vi_func import processf, livisimacc, solarPosition, sunpath, wr_axes, set_legend
+from .vi_func import processf, livisimacc, solarPosition, sunpath2, wr_axes, set_legend
 from .vi_chart import chart_disp
 
 envi_mats = envi_materials()
@@ -444,12 +444,10 @@ class NODE_OT_SunPath(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        solringnum, sd = 0, 100
+        solringnum, sd, numpos = 0, 100, {}
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         locnode = node.inputs[0].links[0].from_node
-        scene = context.scene
-        scene.resnode = node.name
-        scene.restree = self.nodeid.split('@')[1]
+        scene, scene.resnode, scene.restree = context.scene, node.name, self.nodeid.split('@')[1]
 
         if 'SolEquoRings' not in [mat.name for mat in bpy.data.materials]:
             bpy.data.materials.new('SolEquoRings')
@@ -503,7 +501,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 for hour in range(1, 25):
                     ([solalt, solazi]) = solarPosition(doy, hour, scene.latitude, scene.longitude)[2:]
                     spathmesh.vertices.add(1)
-                    spathmesh.vertices[-1].co = [(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
+                    spathmesh.vertices[-1].co = [-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
 
         for v in range(24, len(spathmesh.vertices)):
             if spathmesh.vertices[v].co.z > 0 or spathmesh.vertices[v - 24].co.z > 0:
@@ -516,12 +514,13 @@ class NODE_OT_SunPath(bpy.types.Operator):
                     spathmesh.edges[-1].vertices[0] = v
                     spathmesh.edges[-1].vertices[1] = v - 1224
 
-
         for doy in (79, 172, 355):
             for hour in range(1, 25):
                 ([solalt, solazi]) = solarPosition(doy, hour, scene.latitude, scene.longitude)[2:]
                 spathmesh.vertices.add(1)
-                spathmesh.vertices[-1].co = [(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
+                spathmesh.vertices[-1].co = [-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
+                if spathmesh.vertices[-1].co.z >= 0 and doy in (172, 355):
+                    numpos['{}-{}'.format(doy, hour)] = spathmesh.vertices[-1].co[:]
                 if hour != 1:
                     if spathmesh.vertices[-2].co.z > 0 or spathmesh.vertices[-1].co.z > 0:
                         spathmesh.edges.add(1)
@@ -551,7 +550,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
         bpy.ops.object.material_slot_add()
         bpy.data.objects['SPathMesh'].material_slots[0].material = bpy.data.materials['HourRings']
-
+        bpy.data.objects['SPathMesh']['numpos'] = numpos
 
         for vert in bpy.data.objects['SPathMesh'].data.vertices:
             if vert.index < 16 * (solringnum + 1):
@@ -576,11 +575,34 @@ class NODE_OT_SunPath(bpy.types.Operator):
         bpy.data.objects['SPathMesh'].cycles_visibility.glossy = False
         bpy.data.objects['SPathMesh'].cycles_visibility.transmission = False
 
-  #      if node.modal == 1:
-        bpy.app.handlers.frame_change_post.append(sunpath2)
+        if sunpath2 not in bpy.app.handlers.frame_change_post:
+            bpy.app.handlers.frame_change_post.append(sunpath2)
         context.scene.sp_disp_panel = 1
         context.scene.li_disp_panel = 0
+        bpy.ops.view3d.spnumdisplay()
         return {'FINISHED'}
+
+class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
+    '''Display results legend and stats in the 3D View'''
+    bl_idname = "view3d.spnumdisplay"
+    bl_label = "Point numbers"
+    bl_description = "Display the times and solstices on the sunpath"
+    bl_register = True
+    bl_undo = True
+
+    def modal(self, context, event):
+        context.area.tag_redraw()
+        if context.scene.vi_display == 0:
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle_spnum, 'WINDOW')
+            return {'CANCELLED'}
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]
+        self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(spnumdisplay, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
+        context.scene.vi_display = 1
+        return {'RUNNING_MODAL'}
+
 
 #class VIEW3D_OT_SunPath(bpy.types.Operator):
 #    bl_idname = "view3d.sunpath"
@@ -711,33 +733,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
         return {'FINISHED'}
 
 
-def sunpath2(scene):
-    sun = [ob for ob in scene.objects if ob.spob == 1][0]
 
-    if 0 in (sun['solhour'] == scene.solhour, sun['solday'] == scene.solday, sun['soldistance'] == scene.soldistance):
-        sunob = [ob for ob in scene.objects if ob.spob == 2][0]
-        spathob = [ob for ob in scene.objects if ob.spob == 3][0]
-        beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
-        sunob.location.z = sun.location.z = scene.soldistance * sin(beta)
-        sunob.location.x = sun.location.x = -(scene.soldistance**2 - sun.location.z**2)**0.5  * sin(phi)
-        sunob.location.y = sun.location.y = -(scene.soldistance**2 - sun.location.z**2)**0.5 * cos(phi)
-        sun.rotation_euler = pi * 0.5 - beta, 0, -phi
-        spathob.scale = 3 * [scene.soldistance/100]
-        sunob.scale = 3*[scene.soldistance/100]
-
-        if scene.render.engine == 'CYCLES' and hasattr(bpy.data.worlds['World'].node_tree, 'nodes'):
-            if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
-                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
-#                bpy.data.worlds['World'].node_tree.nodes['Background'].inputs[1].default_value = sin(beta)
-                for blnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Blackbody']:
-                    blnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
-                for emnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Emission']:
-                    emnode.inputs[1].default_value = 5 * sin(beta)
-                for smblnode in [node for node in sunob.data.materials[0].node_tree.nodes if sunob.data.materials and node.bl_label == 'Blackbody']:
-                    smblnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
-
-        sun['solhour'], sun['solday'], sun['soldistance'] = scene.solhour, scene.solday, scene.soldistance
-    else:
-        return
 
 

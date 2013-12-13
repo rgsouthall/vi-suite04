@@ -438,8 +438,37 @@ def retobjs(otypes):
     elif otypes == 'envig':
         return([geo for geo in scene.objects if geo.type == 'MESH' and geo.hide == False and geo.layers[0] == True])
 
-def sunpath(self, context):
-    scene = context.scene
+def viewdesc(context):
+    region = context.region
+    mid_x = region.width / 2
+    mid_y = region.height / 2
+    width = region.width
+    height = region.height
+    return(context, mid_x, mid_y, width, height)
+
+
+def draw_index(vd, ob, r, g, b, index, center):
+    context, mid_x, mid_y, width, height = vd[:]
+    view_mat = context.space_data.region_3d.perspective_matrix
+    ob_mat = ob.matrix_world
+    total_mat = view_mat# * ob_mat
+    blf.size(0, context.scene.li_display_rp_fs, 72)
+    vec = total_mat * center
+    vec = mathutils.Vector((vec[0] / vec[3], vec[1] / vec[3], vec[2] / vec[3]))
+    x, y = int(mid_x + vec[0] * width / 2), int(mid_y + vec[1] * height / 2)
+    bgl.glColor3f(r, g, b)
+    blf.position(0, x, y, 0)
+    if x > 100 or y < height - 530:
+        blf.draw(0, str(index))
+
+def sunpath1(self, context):
+    sunpath()
+
+def sunpath2(scene):
+    sunpath()
+
+def sunpath():
+    scene = bpy.context.scene
     sun = [ob for ob in scene.objects if ob.spob == 1][0]
 
     if 0 in (sun['solhour'] == scene.solhour, sun['solday'] == scene.solday, sun['soldistance'] == scene.soldistance):
@@ -467,8 +496,6 @@ def sunpath(self, context):
         sun['solhour'], sun['solday'], sun['soldistance'] = scene.solhour, scene.solday, scene.soldistance
     else:
         return
-
-
 
 #Compute solar position (altitude and azimuth in degrees) based on day of year (doy; integer), local solar time (lst; decimal hours), latitude (lat; decimal degrees), and longitude (lon; decimal degrees).
 def solarPosition(doy, lst, lat, lon):

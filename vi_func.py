@@ -451,7 +451,7 @@ def draw_index(vd, ob, r, g, b, index, center):
     context, mid_x, mid_y, width, height = vd[:]
     view_mat = context.space_data.region_3d.perspective_matrix
     ob_mat = ob.matrix_world
-    total_mat = view_mat# * ob_mat
+    total_mat = view_mat * ob_mat
     blf.size(0, context.scene.li_display_rp_fs, 72)
     vec = total_mat * center
     vec = mathutils.Vector((vec[0] / vec[3], vec[1] / vec[3], vec[2] / vec[3]))

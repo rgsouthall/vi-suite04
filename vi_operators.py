@@ -20,13 +20,16 @@ from .vi_chart import chart_disp
 envi_mats = envi_materials()
 envi_cons = envi_constructions()
 
+scene = bpy.context.scene
+
 class NODE_OT_LiGExport(bpy.types.Operator):
     bl_idname = "node.ligexport"
     bl_label = "VI-Suite export"
     nodeid = bpy.props.StringProperty()
 
     def execute(self, context):
-        context.scene.vi_display = 0
+        scene = context.scene
+        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel = 0, 0, 0, 0, 0
         if bpy.data.filepath and " " not in bpy.data.filepath:
             node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
             node.reslen = 0
@@ -142,9 +145,8 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        context.scene.li_disp_panel = 0
-        context.scene.lic_disp_panel = 0
-        context.scene.vi_display = 0
+        scene = context.scene
+        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel = 0, 0, 0, 0, 0, 0
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
         if node.bl_label == 'LiVi Basic':
@@ -209,6 +211,8 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
+        scene = context.scene
+        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel = 0, 0, 0, 0, 0, 0
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         connode = simnode.inputs['Context in'].links[0].from_node
         geonode = connode.inputs['Geometry in'].links[0].from_node
@@ -222,14 +226,12 @@ class NODE_OT_Calculate(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
+        scene = context.scene
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         connode = simnode.inputs['Context in'].links[0].from_node
         geonode = connode.inputs['Geometry in'].links[0].from_node
-
         li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
-        context.scene.vi_display = 0
-        context.scene.li_disp_panel = 1
-        context.scene.lic_disp_panel = 1 if connode.bl_label == 'LiVi Compliance' else 0
+        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel = 1, 1, 1, 0, 0, 0 if connode.bl_label == 'LiVi Compliance'  else 1, 1, 0, 0, 0, 0
         context.scene.resnode = simnode.name
         context.scene.restree = self.nodeid.split('@')[1]
         return {'FINISHED'}
@@ -248,6 +250,7 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
         try:
             li_display(simnode, connode, geonode)
             bpy.ops.view3d.linumdisplay()
+            scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel = 1, 0, 2, 0, 0, 0
         except:
             self.report({'ERROR'},"No results available for display. Try re-running the calculation.")
 #            raise
@@ -343,6 +346,8 @@ class NODE_OT_EnGExport(bpy.types.Operator):
     nodename = bpy.props.StringProperty()
 
     def invoke(self, context, event):
+        scene = context.scene
+        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel = 0, 0, 0, 0, 0, 0
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
         pregeo()
         node.exported = True
@@ -358,6 +363,8 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
     nodename = bpy.props.StringProperty()
 
     def invoke(self, context, event):
+        scene = context.scene
+        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel = 0, 0, 0, 0, 0, 0
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
         if bpy.data.filepath:
             if bpy.context.object:
@@ -398,8 +405,8 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
             socket2 = node.outputs[0].links[0].to_socket
             bpy.data.node_groups['VI Network'].links.remove(node.outputs[0].links[0])
             bpy.data.node_groups['VI Network'].links.new(socket1, socket2)
-
-        context.scene.li_disp_panel = 2
+        scene = context.scene
+        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel = 1, 0, 2, 0, 0, 0
         return {'FINISHED'}
 
 class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
@@ -444,10 +451,11 @@ class NODE_OT_SunPath(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        solringnum, sd, numpos = 0, 100, {}
+        solringnum, sd, numpos, ordinals = 0, 100, {}, []
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         locnode = node.inputs[0].links[0].from_node
         scene, scene.resnode, scene.restree = context.scene, node.name, self.nodeid.split('@')[1]
+        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel = 1, 1, 0, 0, 0, 0
 
         if 'SolEquoRings' not in [mat.name for mat in bpy.data.materials]:
             bpy.data.materials.new('SolEquoRings')
@@ -485,9 +493,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
             [ob for ob in bpy.data.objects if ob.type == "MESH" and ob.name == "SPathMesh"][0].name = 'oldspathmesh'
 
         bpy.ops.object.add(type = "MESH")
-#        bpy.ops.object.mode_set(mode='EDIT')
-#        bpy.ops.mesh.wireframe(thickness=0.005)
-#        bpy.ops.object.mode_set(mode='OBJECT')
         spathob = context.active_object
         spathob.name = "SPathMesh"
         spathob.spob = 3
@@ -543,25 +548,25 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 spathmesh.vertices[edge.vertices[1]].co = intersect
 
         bpy.ops.object.convert(target='CURVE')
-        bpy.data.objects['SPathMesh'].data.bevel_depth = 0.08
-        bpy.data.objects['SPathMesh'].data.bevel_resolution = 6
+        spathob.data.bevel_depth = 0.08
+        spathob.data.bevel_resolution = 6
         bpy.context.object.data.fill_mode = 'FULL'
         bpy.ops.object.convert(target='MESH')
 
         bpy.ops.object.material_slot_add()
-        bpy.data.objects['SPathMesh'].material_slots[0].material = bpy.data.materials['HourRings']
-        bpy.data.objects['SPathMesh']['numpos'] = numpos
+        spathob.material_slots[0].material = bpy.data.materials['HourRings']
+        spathob['numpos'] = numpos
 
-        for vert in bpy.data.objects['SPathMesh'].data.vertices:
-            if vert.index < 16 * (solringnum + 1):
+        for vert in spathob.data.vertices:
+            if vert.index < 16 * (solringnum + 3):
                 vert.select = True
 
         bpy.ops.object.material_slot_add()
-        bpy.data.objects['SPathMesh'].material_slots[1].material = bpy.data.materials['SolEquoRings']
+        spathob.material_slots[1].material = bpy.data.materials['SolEquoRings']
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.object.material_slot_assign()
         bpy.ops.object.material_slot_add()
-        bpy.data.objects['SPathMesh'].material_slots[2].material = bpy.data.materials['SPBase']
+        spathob.material_slots[2].material = bpy.data.materials['SPBase']
         for i in range(1, 6):
             bpy.ops.mesh.primitive_torus_add(major_radius=i*sd*0.2, minor_radius=i*0.1*0.2, major_segments=48, minor_segments=12, location=(0.0, 0.0, 0.0), rotation=(0.0, 0.0, 0.0))
             bpy.ops.object.material_slot_assign()
@@ -570,10 +575,30 @@ class NODE_OT_SunPath(bpy.types.Operator):
             bpy.ops.object.material_slot_assign()
         bpy.ops.object.mode_set(mode='OBJECT')
 
-        bpy.data.objects['SPathMesh'].cycles_visibility.diffuse = False
-        bpy.data.objects['SPathMesh'].cycles_visibility.shadow = False
-        bpy.data.objects['SPathMesh'].cycles_visibility.glossy = False
-        bpy.data.objects['SPathMesh'].cycles_visibility.transmission = False
+        for c in range(8):
+            bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=((-4, -8)[c%2], sd*1.025, 0.0), rotation=(0.0, 0.0, 0.0))
+            txt = bpy.context.active_object
+            txt.scale = (10, 10, 10)
+            txt.data.extrude = 0.1
+            txt = bpy.context.active_object
+            txt.data.body = ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')[c]
+            bpy.ops.object.convert(target='MESH')
+            bpy.ops.object.material_slot_add()
+            txt.material_slots[0].material = bpy.data.materials['SPBase']
+            bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+            txt.rotation_euler=(0, 0, -c*pi*0.25)
+            ordinals.append(txt)
+
+        for o in ordinals:
+            o.select = True
+        spathob.select = True
+        bpy.context.scene.objects.active = spathob
+        bpy.ops.object.join()
+
+        spathob.cycles_visibility.diffuse = False
+        spathob.cycles_visibility.shadow = False
+        spathob.cycles_visibility.glossy = False
+        spathob.cycles_visibility.transmission = False
 
         if sunpath2 not in bpy.app.handlers.frame_change_post:
             bpy.app.handlers.frame_change_post.append(sunpath2)
@@ -693,6 +718,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
     def invoke(self, context, event):
         direcs = []
         scene = context.scene
+        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel = 1, 0, 0, 0, 0, 1
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         locnode = node.inputs[0].links[0].from_node
         if locnode.loc == "1":

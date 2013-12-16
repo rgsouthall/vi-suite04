@@ -32,64 +32,64 @@ class Vi3DPanel(bpy.types.Panel):
     bl_region_type = "UI"
 
     def draw(self, context):
-        view = context.space_data
-        scene = context.scene
-        layout = self.layout
-        if scene.sp_disp_panel == 1:
-            newrow(layout, "Day of year", scene, "solday")
-            newrow(layout, "Hour of day", scene, "solhour")
-            newrow(layout, "Sunpath scale", scene, "soldistance")
-            newrow(layout, "Display hours", scene, "hourdisp")
-            newrow(layout, "Display solstice", scene, "solstdisp")
-            newrow(layout, "Font size", scene, "li_display_rp_fs")
+        if scene.vi_display == 1:
+            view = context.space_data
+            scene = context.scene
+            layout = self.layout
+            if scene.sp_disp_panel == 1:
+                newrow(layout, "Day of year", scene, "solday")
+                newrow(layout, "Hour of day", scene, "solhour")
+                newrow(layout, "Sunpath scale", scene, "soldistance")
+                newrow(layout, "Display hours", scene, "hourdisp")
+                newrow(layout, "Font size", scene, "li_display_rp_fs")
 
-        if scene.li_disp_panel == 1:
+            if scene.li_disp_panel in (1,2):
 
-            row = layout.row()
-            row.prop(scene, "li_disp_3d")
-            row = layout.row()
-            row.operator("view3d.lidisplay", text="Radiance Display")
-
-            if scene.vi_display == 1:
                 row = layout.row()
-                row.prop(view, "show_only_render")
+                row.prop(scene, "li_disp_3d")
                 row = layout.row()
-                row.prop(scene, "li_leg_display")
-                if scene.lic_disp_panel == 1:
-                    row = layout.row()
-                    row.label("Compliance Panel")
-                    row.prop(scene, "li_compliance")
-                    row = layout.row()
-                    row.label("Asessment organisation:")
-                    row.prop(scene, "li_assorg")
-                    row = layout.row()
-                    row.label("Assesment individiual:")
-                    row.prop(scene, "li_assind")
-                    row = layout.row()
-                    row.label("Job number:")
-                    row.prop(scene, "li_jobno")
-                    row = layout.row()
-                    row.label("Project name:")
-                    row.prop(scene, "li_projname")
+                row.operator("view3d.lidisplay", text="Radiance Display")
 
-                if int(context.scene.li_disp_3d) == 1:
+                if scene.li_disp_panel == 2:
                     row = layout.row()
-                    row.label("3D Level")
-                    row.prop(scene, "li_disp_3dlevel")
-                if context.mode == "OBJECT":
+                    row.prop(view, "show_only_render")
                     row = layout.row()
-                    row.label(text="{:-<48}".format("Point visualisation "))
-                    row = layout.row()
-                    row.label(text = "Enable:")
-                    row.prop(scene, "li_display_rp")
-                    row = layout.row()
-                    row.label(text = "Selected only:")
-                    row.prop(scene, "li_display_sel_only")
-                    row = layout.row()
-                    row.label(text = "Font size:")
-                    row.prop(scene, "li_display_rp_fs")
-                    row = layout.row()
-                    row.label(text="{:-<60}".format(""))
+                    row.prop(scene, "li_leg_display")
+                    if scene.lic_disp_panel == 1:
+                        row = layout.row()
+                        row.label("Compliance Panel")
+                        row.prop(scene, "li_compliance")
+                        row = layout.row()
+                        row.label("Asessment organisation:")
+                        row.prop(scene, "li_assorg")
+                        row = layout.row()
+                        row.label("Assesment individiual:")
+                        row.prop(scene, "li_assind")
+                        row = layout.row()
+                        row.label("Job number:")
+                        row.prop(scene, "li_jobno")
+                        row = layout.row()
+                        row.label("Project name:")
+                        row.prop(scene, "li_projname")
+
+                    if int(context.scene.li_disp_3d) == 1:
+                        row = layout.row()
+                        row.label("3D Level")
+                        row.prop(scene, "li_disp_3dlevel")
+                    if context.mode == "OBJECT":
+                        row = layout.row()
+                        row.label(text="{:-<48}".format("Point visualisation "))
+                        row = layout.row()
+                        row.label(text = "Enable:")
+                        row.prop(scene, "li_display_rp")
+                        row = layout.row()
+                        row.label(text = "Selected only:")
+                        row.prop(scene, "li_display_sel_only")
+                        row = layout.row()
+                        row.label(text = "Font size:")
+                        row.prop(scene, "li_display_rp_fs")
+                        row = layout.row()
+                        row.label(text="{:-<60}".format(""))
 
 class VIMatPanel(bpy.types.Panel):
     bl_label = "VI-Suite Material Panel"

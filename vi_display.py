@@ -134,12 +134,14 @@ def li_display(simnode, connode, geonode):
 
 def spnumdisplay(disp_op, context, simnode):
     scene = context.scene
-    ob = bpy.data.objects['SPathMesh']
-    if scene.hourdisp == True:
-        for np in ob['numpos']:
-            print(np, ob['numpos'][np][:])
-            vi_func.draw_index(vi_func.viewdesc(context), ob, 0, 0, 0, np.split('-')[1], mathutils.Vector(ob['numpos'][np]).to_4d())
-    else:
+    try:
+        ob = bpy.data.objects['SPathMesh']
+        if scene.hourdisp == True:
+            for np in ob['numpos']:
+                vi_func.draw_index(vi_func.viewdesc(context), ob, 0, 0, 0, np.split('-')[1], mathutils.Vector(ob['numpos'][np]).to_4d())
+        else:
+            return
+    except:
         return
 
 def linumdisplay(disp_op, context, simnode, geonode):

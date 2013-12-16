@@ -523,7 +523,6 @@ def register():
     Scene.solhour = bpy.props.FloatProperty(name = "", description = "Time of day", min = 0, max = 24, default = 12, update=sunpath1)
     Scene.soldistance = bpy.props.IntProperty(name = "", description = "Sun path scale", min = 1, max = 5000, default = 100, update=sunpath1)
     Scene.hourdisp = bprop("", "",0)
-    Scene.solstdisp = bprop("", "",0)
     Scene.spupdate = bprop("", "",0)
 #    Scene.vi_loc = eprop([("0", "Manual", "Manual location"), ("1", "From EPW file", "EPW location")], "Location", "Location", "0")
 

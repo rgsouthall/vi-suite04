@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from .livi_export import radcexport, radgexport
 from .livi_calc  import rad_prev, li_calc
-from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend
+from .vi_display import li_display, ss_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .envi_calc import envi_sim
@@ -19,8 +19,6 @@ from .vi_chart import chart_disp
 
 envi_mats = envi_materials()
 envi_cons = envi_constructions()
-
-scene = bpy.context.scene
 
 class NODE_OT_LiGExport(bpy.types.Operator):
     bl_idname = "node.ligexport"
@@ -244,6 +242,7 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
     bl_undo = True
 
     def invoke(self, context, event):
+        scene = context.scene
         simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]
         connode = simnode.inputs['Context in'].links[0].from_node
         geonode = connode.inputs['Geometry in'].links[0].from_node
@@ -738,6 +737,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
             shadfaces, shadcentres = [], []
             if len([mat for mat in ob.data.materials if mat.vi_shadow]) > 0:
+                bpy.context.scene.objects.active = ob
                 obm = ob.matrix_world
                 if not ob.data.vertex_colors:
                     bpy.ops.mesh.vertex_color_add()
@@ -759,6 +759,22 @@ class NODE_OT_Shadow(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class VIEW3D_OT_SSDisplay(bpy.types.Operator):
+    bl_idname = "view3d.ssdisplay"
+    bl_label = "Shadow Study Display"
+    bl_description = "Display the shadow results on the sensor surfaces"
+    bl_register = True
+    bl_undo = True
 
+    def invoke(self, context, event):
+        scene = context.scene
+        try:
+            ss_display()
+            bpy.ops.view3d.linumdisplay()
+            scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel = 1, 0, 0, 0, 0, 2
+        except:
+            self.report({'ERROR'},"No results available for display. Try re-running the calculation.")
+#            raise
+        return {'FINISHED'}
 
 

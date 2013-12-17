@@ -447,7 +447,7 @@ def viewdesc(context):
     return(context, mid_x, mid_y, width, height)
 
 
-def draw_index(vd, ob, r, g, b, index, center):
+def draw_index(vd, ob, index, center):
     context, mid_x, mid_y, width, height = vd[:]
     view_mat = context.space_data.region_3d.perspective_matrix
     ob_mat = ob.matrix_world
@@ -456,9 +456,14 @@ def draw_index(vd, ob, r, g, b, index, center):
     vec = total_mat * center
     vec = mathutils.Vector((vec[0] / vec[3], vec[1] / vec[3], vec[2] / vec[3]))
     x, y = int(mid_x + vec[0] * width / 2), int(mid_y + vec[1] * height / 2)
-    bgl.glColor3f(r, g, b)
+
     blf.position(0, x, y, 0)
-    if x > 100 or y < height - 530:
+#    bpy.ops.object.mode_set(mode='EDIT')
+#    bpy.ops.mesh.select_all(action='DESELECT')
+#    bpy.ops.view3d.select_border(gesture_mode=0, xmin=0, xmax=width, ymin=0, ymax=height, extend=False)
+#    bpy.ops.object.mode_set(mode='OBJECT')
+
+    if x > 100 or y < height - 530 :
         blf.draw(0, str(index))
 
 def sunpath1(self, context):

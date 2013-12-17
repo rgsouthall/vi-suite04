@@ -22,6 +22,9 @@ from math import cos, sin
 from . import livi_export
 from . import vi_func
 
+def ss_display():
+    pass
+
 def li_display(simnode, connode, geonode):
     scene = bpy.context.scene
     vi_func.clearscened(scene)
@@ -136,9 +139,10 @@ def spnumdisplay(disp_op, context, simnode):
     scene = context.scene
     try:
         ob = bpy.data.objects['SPathMesh']
+        bgl.glColor3f(0,0,0)
         if scene.hourdisp == True:
             for np in ob['numpos']:
-                vi_func.draw_index(vi_func.viewdesc(context), ob, 0, 0, 0, np.split('-')[1], mathutils.Vector(ob['numpos'][np]).to_4d())
+                vi_func.draw_index(vi_func.viewdesc(context), ob, np.split('-')[1], mathutils.Vector(ob['numpos'][np]).to_4d())
         else:
             return
     except:

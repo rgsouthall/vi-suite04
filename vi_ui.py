@@ -32,7 +32,7 @@ class Vi3DPanel(bpy.types.Panel):
     bl_region_type = "UI"
 
     def draw(self, context):
-        if scene.vi_display == 1:
+        if context.scene.vi_display == 1:
             view = context.space_data
             scene = context.scene
             layout = self.layout
@@ -42,6 +42,39 @@ class Vi3DPanel(bpy.types.Panel):
                 newrow(layout, "Sunpath scale", scene, "soldistance")
                 newrow(layout, "Display hours", scene, "hourdisp")
                 newrow(layout, "Font size", scene, "li_display_rp_fs")
+
+            if scene.ss_disp_panel in (1,2):
+
+                row = layout.row()
+                row.prop(scene, "li_disp_3d")
+                row = layout.row()
+                row.operator("view3d.ssdisplay", text="Shadow Display")
+
+                if scene.ss_disp_panel == 2:
+                    row = layout.row()
+                    row.prop(view, "show_only_render")
+                    row = layout.row()
+                    row.prop(scene, "ss_leg_display")
+
+                    if int(context.scene.li_disp_3d) == 1:
+                        row = layout.row()
+                        row.label("3D Level")
+                        row.prop(scene, "li_disp_3dlevel")
+
+                    if context.mode == "OBJECT":
+                        row = layout.row()
+                        row.label(text="{:-<48}".format("Point visualisation "))
+                        row = layout.row()
+                        row.label(text = "Enable:")
+                        row.prop(scene, "li_display_rp")
+                        row = layout.row()
+                        row.label(text = "Selected only:")
+                        row.prop(scene, "li_display_sel_only")
+                        row = layout.row()
+                        row.label(text = "Font size:")
+                        row.prop(scene, "li_display_rp_fs")
+                        row = layout.row()
+                        row.label(text="{:-<60}".format(""))
 
             if scene.li_disp_panel in (1,2):
 

@@ -562,6 +562,12 @@ def register():
 
     Scene.sp_disp_panel = bprop("", "",False)
 
+    Scene.ss_disp_panel = bprop("", "",False)
+
+    Scene.ss_leg_display = bprop("", "",False)
+
+    Scene.en_disp_panel = bprop("", "",False)
+
     Scene.li_compliance = bprop("", "", False)
 
     Scene.li_display_rp = bprop("", "", False)

@@ -141,11 +141,17 @@ def spnumdisplay(disp_op, context, simnode):
         ob = bpy.data.objects['SPathMesh']
         bgl.glColor3f(0,0,0)
         if scene.hourdisp == True:
+            mid_x, mid_y, width, height = vi_func.viewdesc(context)
+            view_mat = context.space_data.region_3d.perspective_matrix
+            ob_mat = ob.matrix_world
+            total_mat = view_mat*ob_mat
             for np in ob['numpos']:
-                vi_func.draw_index(vi_func.viewdesc(context), ob, np.split('-')[1], mathutils.Vector(ob['numpos'][np]).to_4d())
+                vi_func.draw_index(context, mid_x, mid_y, width, height, total_mat, np.split('-')[1], mathutils.Vector(ob['numpos'][np]))
         else:
             return
-    except:
+
+    except Exception as e:
+        print(e)
         return
 
 def linumdisplay(disp_op, context, simnode, geonode):
@@ -318,12 +324,13 @@ def li_compliance(self, context, connode):
             vi_func.drawloop(100, height - 70, 900, height - 70  - (lencrit)*25)
             mat = [m for m in bpy.context.active_object.data.materials if m.livi_sense][0]
             if connode.analysismenu == '0':
-                if connode.bambuildmenu == '2':
-                    buildspace = (' - Public/Staff', ' - Patient')[int(mat.hspacemenu)]
-                elif connode.bambuildmenu == '3':
-                    buildspace = (' - Kitchen', ' - Living/Dining/Study', ' - Communal')[int(mat.rspacemenu)]
-                elif connode.bambuildmenu == '4':
-                    buildspace = (' - Sales', ' - Office')[int(mat.respacemenu)]
+                buildspace = ('', '', (' - Public/Staff', ' - Patient')[int(mat.hspacemenu)], (' - Kitchen', ' - Living/Dining/Study', ' - Communal')[int(mat.rspacemenu)], (' - Sales', ' - Office')[int(mat.respacemenu)])[int(connode.bambuildmenu)]
+#                if connode.bambuildmenu == '2':
+#                    buildspace = (' - Public/Staff', ' - Patient')[int(mat.hspacemenu)]
+#                elif connode.bambuildmenu == '3':
+#                    buildspace = (' - Kitchen', ' - Living/Dining/Study', ' - Communal')[int(mat.rspacemenu)]
+#                elif connode.bambuildmenu == '4':
+#                    buildspace = (' - Sales', ' - Office')[int(mat.respacemenu)]
             elif connode.analysismenu == '1':
                 buildspace = (' - Kitchen', ' - Living/Dining/Study')[int(mat.rspacemenu)]
 

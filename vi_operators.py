@@ -370,9 +370,6 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
                 if bpy.context.object.type == 'MESH':
                     bpy.ops.object.mode_set(mode = 'OBJECT')
             if " " not in str(node.filedir) and " " not in str(node.filename):
-#                if not os.path.isdir(envi_settings.filedir+"/"+envi_settings.filename):
-#                    os.makedirs(envi_settings.filedir+"/"+envi_settings.filename)
-
                 enpolymatexport(self, node, envi_mats, envi_cons)
                 node.exported = True
             elif " " in str(node.filedir):
@@ -465,6 +462,9 @@ class NODE_OT_SunPath(bpy.types.Operator):
         if 'SPBase' not in [mat.name for mat in bpy.data.materials]:
             bpy.data.materials.new('SPBase')
             bpy.data.materials['SPBase'].diffuse_color = (1, 1, 1)
+        if 'Sun' not in [mat.name for mat in bpy.data.materials]:
+            bpy.data.materials.new('Sun')
+            bpy.data.materials['Sun'].diffuse_color = (1, 1, 1)
 
         if locnode.loc == "1":
             with open(locnode.weather, "r") as epwfile:
@@ -487,6 +487,11 @@ class NODE_OT_SunPath(bpy.types.Operator):
             sunob = [ob for ob in context.scene.objects if ob.spob == 2][0]
         sunob.spob = 2
 
+        if len(sunob.material_slots) == 0:
+             bpy.ops.object.material_slot_add()
+             sunob.material_slots[0].material = bpy.data.materials['Sun']
+
+
         if len([ob for ob in context.scene.objects if ob.spob == 3]) != 0:
             context.scene.objects.unlink([ob for ob in context.scene.objects if ob.spob == 3][0])
             [ob for ob in bpy.data.objects if ob.type == "MESH" and ob.name == "SPathMesh"][0].name = 'oldspathmesh'
@@ -497,8 +502,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
         spathob.spob = 3
 
         spathmesh = spathob.data
-        for v in spathmesh.vertices:
-            v.remove()
 
         for doy in range(0, 363):
             if (doy-4)%7 == 0:
@@ -556,9 +559,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
         spathob.material_slots[0].material = bpy.data.materials['HourRings']
         spathob['numpos'] = numpos
 
-        for vert in spathob.data.vertices:
-            if vert.index < 16 * (solringnum + 3):
-                vert.select = True
+        for vert in spathob.data.vertices[0:16 * (solringnum + 3)]:
+            vert.select = True
 
         bpy.ops.object.material_slot_add()
         spathob.material_slots[1].material = bpy.data.materials['SolEquoRings']
@@ -594,10 +596,11 @@ class NODE_OT_SunPath(bpy.types.Operator):
         bpy.context.scene.objects.active = spathob
         bpy.ops.object.join()
 
-        spathob.cycles_visibility.diffuse = False
-        spathob.cycles_visibility.shadow = False
-        spathob.cycles_visibility.glossy = False
-        spathob.cycles_visibility.transmission = False
+        for ob in (spathob, sunob):
+            spathob.cycles_visibility.diffuse = False
+            spathob.cycles_visibility.shadow = False
+            spathob.cycles_visibility.glossy = False
+            spathob.cycles_visibility.transmission = False
 
         if sunpath2 not in bpy.app.handlers.frame_change_post:
             bpy.app.handlers.frame_change_post.append(sunpath2)
@@ -626,24 +629,6 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(spnumdisplay, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
         context.scene.vi_display = 1
         return {'RUNNING_MODAL'}
-
-
-#class VIEW3D_OT_SunPath(bpy.types.Operator):
-#    bl_idname = "view3d.sunpath"
-#    bl_label = "Sun Path"
-#    bl_description = "Modify a Sun Path"
-#    bl_register = True
-#    bl_undo = True
-#
-#    def modal(self, context, event):
-#        if context.scene.vi_display == 0:
-#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_sp, 'WINDOW')
-#            return {'CANCELLED'}
-#        return {'PASS_THROUGH'}
-#
-#    def execute(self, context):
-#        self._handle_sp = bpy.types.SpaceView3D.draw_handler_add(sunpath, (self, context), 'WINDOW', 'POST_PIXEL')
-#        return {'RUNNING_MODAL'}
 
 class NODE_OT_WindRose(bpy.types.Operator):
     bl_idname = "node.windrose"
@@ -717,6 +702,9 @@ class NODE_OT_Shadow(bpy.types.Operator):
     def invoke(self, context, event):
         direcs = []
         scene = context.scene
+        simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        scene.resnode = simnode.name
+        scene.restree = self.nodeid.split('@')[1]
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel = 1, 0, 0, 0, 0, 1
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         locnode = node.inputs[0].links[0].from_node
@@ -768,8 +756,9 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
 
     def invoke(self, context, event):
         scene = context.scene
+        simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]
         try:
-            ss_display()
+            ss_display(simnode)
             bpy.ops.view3d.linumdisplay()
             scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel = 1, 0, 0, 0, 0, 2
         except:

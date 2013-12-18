@@ -444,26 +444,17 @@ def viewdesc(context):
     mid_y = region.height / 2
     width = region.width
     height = region.height
-    return(context, mid_x, mid_y, width, height)
+    return(mid_x, mid_y, width, height)
 
 
-def draw_index(vd, ob, index, center):
-    context, mid_x, mid_y, width, height = vd[:]
-    view_mat = context.space_data.region_3d.perspective_matrix
-    ob_mat = ob.matrix_world
-    total_mat = view_mat * ob_mat
+def draw_index(context, mid_x, mid_y, width, height, total_mat, index, center):
     blf.size(0, context.scene.li_display_rp_fs, 72)
-    vec = total_mat * center
+    vec = total_mat * center.to_4d()
     vec = mathutils.Vector((vec[0] / vec[3], vec[1] / vec[3], vec[2] / vec[3]))
     x, y = int(mid_x + vec[0] * width / 2), int(mid_y + vec[1] * height / 2)
-
     blf.position(0, x, y, 0)
-#    bpy.ops.object.mode_set(mode='EDIT')
-#    bpy.ops.mesh.select_all(action='DESELECT')
-#    bpy.ops.view3d.select_border(gesture_mode=0, xmin=0, xmax=width, ymin=0, ymax=height, extend=False)
-#    bpy.ops.object.mode_set(mode='OBJECT')
 
-    if x > 100 or y < height - 530 :
+    if (x > 100 or y < height - 530) and (total_mat*center)[2] > 0:
         blf.draw(0, str(index))
 
 def sunpath1(self, context):
@@ -487,14 +478,16 @@ def sunpath():
         spathob.scale = 3 * [scene.soldistance/100]
         sunob.scale = 3*[scene.soldistance/100]
 
-        if scene.render.engine == 'CYCLES' and hasattr(bpy.data.worlds['World'].node_tree, 'nodes'):
+        if scene.render.engine == 'CYCLES' and bpy.data.worlds['World'].node_tree:
             if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
                 bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
 #                bpy.data.worlds['World'].node_tree.nodes['Background'].inputs[1].default_value = sin(beta)
+            if sun.data.node_tree:
                 for blnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Blackbody']:
                     blnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
                 for emnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Emission']:
                     emnode.inputs[1].default_value = 5 * sin(beta)
+            if sunob.data.materials[0].node_tree:
                 for smblnode in [node for node in sunob.data.materials[0].node_tree.nodes if sunob.data.materials and node.bl_label == 'Blackbody']:
                     smblnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
 

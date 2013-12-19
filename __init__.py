@@ -562,7 +562,7 @@ def register():
 
     Scene.sp_disp_panel = bprop("", "",False)
 
-    Scene.ss_disp_panel = bprop("", "",False)
+    Scene.ss_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
 
     Scene.ss_leg_display = bprop("", "",False)
 

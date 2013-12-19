@@ -275,13 +275,16 @@ class VIEW3D_OT_LiNumDisplay(bpy.types.Operator):
 
     def execute(self, context):
         simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]
-        connode = simnode.inputs['Context in'].links[0].from_node
-        geonode = connode.inputs['Geometry in'].links[0].from_node
+        if simnode.bl_label == 'VI Shadow Study':
+            connode, geonode = '', ''
+        else:
+            connode = simnode.inputs['Context in'].links[0].from_node
+            geonode = connode.inputs['Geometry in'].links[0].from_node
 
         if context.area.type == 'VIEW_3D':
             self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(li3D_legend, (self, context, simnode, connode), 'WINDOW', 'POST_PIXEL')
             self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, simnode, geonode), 'WINDOW', 'POST_PIXEL')
-            if connode.bl_label == 'LiVi Compliance':
+            if simnode.bl_label != 'VI Shadow Study' and connode.bl_label == 'LiVi Compliance':
                 self._handle_comp = bpy.types.SpaceView3D.draw_handler_add(li_compliance, (self, context, connode), 'WINDOW', 'POST_PIXEL')
             context.scene.vi_display = 1
             return {'RUNNING_MODAL'}
@@ -703,6 +706,10 @@ class NODE_OT_Shadow(bpy.types.Operator):
         direcs = []
         scene = context.scene
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        scmaxres = [100]
+        scminres = [0]
+        scavres = [[]]
+
         scene.resnode = simnode.name
         scene.restree = self.nodeid.split('@')[1]
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel = 1, 0, 0, 0, 0, 1
@@ -723,8 +730,10 @@ class NODE_OT_Shadow(bpy.types.Operator):
             time += interval
 
         for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
+            obavres = 0
             shadfaces, shadcentres = [], []
             if len([mat for mat in ob.data.materials if mat.vi_shadow]) > 0:
+                ob.licalc = 1
                 bpy.context.scene.objects.active = ob
                 obm = ob.matrix_world
                 if not ob.data.vertex_colors:
@@ -732,7 +741,12 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 ob.data.vertex_colors[0].name = 'SolarShade'
                 vertexColor = ob.data.vertex_colors[0]
 
+                ob['cfaces'] = [face.index for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow]
+                ob['cverts'] = []
+                obsumarea = sum([face.area for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow])
+
                 for face in [face for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow]:
+
                     shadcentres.append([obm*mathutils.Vector((face.center)) + 0.2*face.normal, obm*mathutils.Vector((face.center)), 0])
                     for li in face.loop_indices:
                         vertexColor.data[li].color = (1, 1, 1)
@@ -743,7 +757,17 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     if shadcentres[-1][2] > 0:
                         for li in face.loop_indices:
                             vertexColor.data[li].color = 1- shadcentres[-1][2], 1- shadcentres[-1][2], 1- shadcentres[-1][2]
+                    obavres += face.area * 100* (1 - shadcentres[-1][2])
+                ob['maxres'] = [100* (1 - min([sh[2] for sh in shadcentres]))]
+                scmaxres[0] = ob['maxres'][0] if ob['maxres'][0] > scmaxres[0] else scmaxres[0]
+                ob['minres'] = [100* (1 - max([sh[2] for sh in shadcentres]))]
+                scminres[0] = ob['minres'][0] if ob['minres'][0] < scminres[0] else scminres[0]
+                ob['avres'] = [obavres/obsumarea]
+                scavres[0].append(ob['avres'][0])
 
+            else:
+               ob.licalc = 0
+        simnode['maxres'], simnode['minres'], simnode['avres'] = scmaxres, scminres, [sum(scavres[0])/len([ob for ob in scene.objects if ob.licalc])]
         return {'FINISHED'}
 
 
@@ -758,12 +782,12 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         scene = context.scene
         simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]
         try:
-            ss_display(simnode)
+            li_display(simnode, '', '')
             bpy.ops.view3d.linumdisplay()
             scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel = 1, 0, 0, 0, 0, 2
-        except:
+        except Exception as e:
+            print(e)
             self.report({'ERROR'},"No results available for display. Try re-running the calculation.")
-#            raise
         return {'FINISHED'}
 
 

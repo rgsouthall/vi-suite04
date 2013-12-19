@@ -405,6 +405,8 @@ class ViSSNode(bpy.types.Node, ViNodes):
     starthour = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 24, description = 'Start hour')
     endhour = bpy.props.IntProperty(name = '', default = 24, min = 1, max = 24, description = 'End hour')
     interval = bpy.props.FloatProperty(name = '', default = 1, min = 0.1, max = 24, description = 'Interval')
+    cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
+            name="", description="Specify the calculation point geometry", default="0")
 
     def init(self, context):
         self.inputs.new('ViLoc', 'Location in')
@@ -418,6 +420,7 @@ class ViSSNode(bpy.types.Node, ViNodes):
         newrow(layout, 'Start hour', self, "starthour")
         newrow(layout, 'End hour', self, "endhour")
         newrow(layout, 'Interval', self, "interval")
+        newrow(layout, 'Calculation point:', self, 'cpoint')
         row = layout.row()
         row.operator("node.shad", text = 'Calculate').nodeid = self['nodeid']
 

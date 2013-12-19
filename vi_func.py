@@ -437,6 +437,8 @@ def retobjs(otypes):
         return([geo for geo in bpy.data.objects if geo.type == 'MESH' and True in [m.livi_sense for m in geo.data.materials] and geo.licalc and geo.layers[scene.active_layer] == True])
     elif otypes == 'envig':
         return([geo for geo in scene.objects if geo.type == 'MESH' and geo.hide == False and geo.layers[0] == True])
+    elif otypes == 'ssc':
+        return([geo for geo in scene.objects if geo.type == 'MESH' and geo.licalc == 1 and geo.lires == 0 and geo.hide == False and geo.layers[scene.active_layer] == True])
 
 def viewdesc(context):
     region = context.region
@@ -447,14 +449,14 @@ def viewdesc(context):
     return(mid_x, mid_y, width, height)
 
 
-def draw_index(context, mid_x, mid_y, width, height, total_mat, index, center):
+def draw_index(context, leg, mid_x, mid_y, width, height, total_mat, index, center):
     blf.size(0, context.scene.li_display_rp_fs, 72)
     vec = total_mat * center.to_4d()
     vec = mathutils.Vector((vec[0] / vec[3], vec[1] / vec[3], vec[2] / vec[3]))
     x, y = int(mid_x + vec[0] * width / 2), int(mid_y + vec[1] * height / 2)
     blf.position(0, x, y, 0)
 
-    if (x > 100 or y < height - 530) and (total_mat*center)[2] > 0:
+    if (leg == 1 and (x > 100 or y < height - 530) and (total_mat*center)[2] > 0) or (leg == 0 and (total_mat*center)[2] > 0):
         blf.draw(0, str(index))
 
 def sunpath1(self, context):

@@ -730,8 +730,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             time += interval
 
         for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
-            obavres = 0
-            shadfaces, shadcentres = [], []
+            obavres, shadfaces, shadcentres, obcalcverts = 0, [], [], []
             if len([mat for mat in ob.data.materials if mat.vi_shadow]) > 0:
                 ob.licalc = 1
                 bpy.context.scene.objects.active = ob
@@ -757,6 +756,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     if shadcentres[-1][2] > 0:
                         for li in face.loop_indices:
                             vertexColor.data[li].color = 1- shadcentres[-1][2], 1- shadcentres[-1][2], 1- shadcentres[-1][2]
+
                     obavres += face.area * 100* (1 - shadcentres[-1][2])
                 ob['maxres'] = [100* (1 - min([sh[2] for sh in shadcentres]))]
                 scmaxres[0] = ob['maxres'][0] if ob['maxres'][0] > scmaxres[0] else scmaxres[0]

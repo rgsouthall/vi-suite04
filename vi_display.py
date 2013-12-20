@@ -26,7 +26,7 @@ def ss_display():
     pass
 
 def li_display(simnode, connode, geonode):
-    cp = simnode.cpoint if not geonode else geonode.cpoint
+    cp = '0' if not geonode else geonode.cpoint
     scene = bpy.context.scene
     vi_func.clearscened(scene)
     obreslist = []
@@ -112,10 +112,13 @@ def li_display(simnode, connode, geonode):
             for frame in range(0, scene.frame_end + 1):
                 bpy.ops.object.shape_key_add(from_mix = False)
                 obres.active_shape_key.name = str(frame)
-                if cp == '0':
+                if cp == '0' and geonode:
                     oreslist[str(frame)] = [simnode['minres'][frame] + (simnode['maxres'][frame] - simnode['minres'][frame]) * 1/0.75 * vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[li].color) for li in [face.loop_indices[0] for face in obres.data.polygons if face.select == True]]
-                else:
+                elif not geonode:
+                    oreslist[str(frame)] = [simnode['minres'][frame] + (simnode['maxres'][frame] - simnode['minres'][frame]) * obres.data.vertex_colors['SolarShade'].data[li].color[0] for li in [face.loop_indices[0] for face in obres.data.polygons if face.select == True]]
+                elif cp == '1':
                     oreslist[str(frame)] = [simnode['minres'][frame] + (simnode['maxres'][frame] - simnode['minres'][frame]) * 1/0.75 * vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[j].color) for j in range(len(obres.data.vertex_colors[str(frame)].data))]
+            print('hi')
             obres['oreslist'] = oreslist
             obres['j'] = j
 
@@ -158,18 +161,21 @@ def spnumdisplay(disp_op, context, simnode):
         return
 
 def linumdisplay(disp_op, context, simnode, geonode):
-    cp = geonode.cpoint if geonode else simnode.cpoint
     scene = context.scene
-    fn = context.scene.frame_current
+
     try:
         if obcalclist:
             pass
     except:
-        obreslist = [ob for ob in bpy.data.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.licalc == 1 and ob.lires == 1]
-        obcalclist = [ob for ob in bpy.data.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.licalc == 1 and ob.lires == 0]
+        obreslist = [ob for ob in scene.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.licalc == 1 and ob.lires == 1]
+        obcalclist = [ob for ob in scene.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.licalc == 1 and ob.lires == 0]
 
     if scene.li_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.li_display_sel_only == True)  or scene.frame_current not in range(scene.frame_start, scene.frame_end+1):
         return
+
+    cp = geonode.cpoint if geonode else simnode.cpoint
+    fn = context.scene.frame_current
+    mid_x, mid_y, width, height = vi_func.viewdesc(context)
 
     if scene.li_display_sel_only == False:
         obd = obreslist if len(obreslist) > 0 else obcalclist
@@ -180,26 +186,31 @@ def linumdisplay(disp_op, context, simnode, geonode):
         faces = [f for f in ob.data.polygons if f.select == True] if len(obreslist) > 0 else [f for f in ob.data.polygons]
         vdone = []
         obm = ob.data
+        view_mat = context.space_data.region_3d.perspective_matrix
+        ob_mat = ob.matrix_world
+        total_mat = view_mat*ob_mat
 
         for f in faces:
-            if cp == "0":
+            if cp == "0" or not geonode:
                 vsum = mathutils.Vector((0, 0, 0))
                 for v in f.vertices:
                     vsum = ob.active_shape_key.data[v].co + vsum if len(obreslist) > 0 else ob.data.vertices[v].co + vsum
                 fc = vsum/len(f.vertices)
-                if not f.hide and f.select:
+                if not f.hide:
                     loop_index = f.loop_indices[0]
-                    if len(set(obm.vertex_colors[fn].data[loop_index].color[:])) > 1:
-                        vi_func.draw_index(vi_func.viewdesc(context), ob, 0.0, 0.0, 0.0, int(simnode['minres'][fn] + (1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*(simnode['maxres'][fn] - simnode['minres'][fn])), fc.to_4d())
-
+                    if len(set(obm.vertex_colors[fn].data[loop_index].color[:])) > 0:
+                        if geonode:
+                            vi_func.draw_index(context, 1, mid_x, mid_y, width, height, total_mat, int(simnode['minres'][fn] + (1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*(simnode['maxres'][fn] - simnode['minres'][fn])), fc.to_4d())
+                        else:
+                            vi_func.draw_index(context, 1, mid_x, mid_y, width, height, total_mat, int(simnode['minres'][fn] + (100 - (obm.vertex_colors[fn].data[loop_index].color[0])*(simnode['maxres'][fn] - simnode['minres'][fn]))), fc.to_4d())
             elif cp == "1":
                 for loop_index in f.loop_indices:
                     v = obm.loops[loop_index].vertex_index
                     vpos = ob.active_shape_key.data[v].co if len(obreslist) > 0 else obm.vertices[v].co
                     if v not in vdone:
                         vdone.append(v)
-                        if len(set(obm.vertex_colors[fn].data[loop_index].color[:])) > 1:
-                            vi_func.draw_index(vi_func.viewdesc(context), ob, 0.0, 0.0, 0.0, int((1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*simnode['maxres'][fn]), vpos.to_4d())
+                        if len(set(obm.vertex_colors[fn].data[loop_index].color[:])) > 0:
+                            vi_func.draw_index(context, 1, mid_x, mid_y, width, height, total_mat, int((1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*simnode['maxres'][fn]), vpos.to_4d())
 
 def li3D_legend(self, context, simnode, connode):
     scene = context.scene

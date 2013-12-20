@@ -420,7 +420,6 @@ class ViSSNode(bpy.types.Node, ViNodes):
         newrow(layout, 'Start hour', self, "starthour")
         newrow(layout, 'End hour', self, "endhour")
         newrow(layout, 'Interval', self, "interval")
-        newrow(layout, 'Calculation point:', self, 'cpoint')
         row = layout.row()
         row.operator("node.shad", text = 'Calculate').nodeid = self['nodeid']
 

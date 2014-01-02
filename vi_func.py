@@ -192,8 +192,8 @@ def sprop(sname, sdesc, smaxlen, sdef):
     return(StringProperty(name = sname, description = sdesc, maxlen = smaxlen, default = sdef))
 def fprop(fname, fdesc, fmin, fmax, fdef):
     return(FloatProperty(name = fname, description = fdesc, min = fmin, max = fmax, default = fdef))
-def fvprop(fvname, fvattr, fvdef, fvsub):
-    return(FloatVectorProperty(name=fvname, attr = fvattr, default = fvdef, subtype =fvsub))
+def fvprop(fvsize, fvname, fvattr, fvdef, fvsub, fvmin, fvmax):
+    return(FloatVectorProperty(size = fvsize, name = fvname, attr = fvattr, default = fvdef, subtype =fvsub, min = fvmin, max = fvmax))
 def niprop(iname, idesc, imin, imax, idef):
         return(IntProperty(name = iname, description = idesc, min = imin, max = imax, default = idef, update = nodeexported))
 def neprop(eitems, ename, edesc, edef):
@@ -455,7 +455,6 @@ def draw_index(context, leg, mid_x, mid_y, width, height, total_mat, index, cent
     vec = mathutils.Vector((vec[0] / vec[3], vec[1] / vec[3], vec[2] / vec[3]))
     x, y = int(mid_x + vec[0] * width / 2), int(mid_y + vec[1] * height / 2)
     blf.position(0, x, y, 0)
-
     if (leg == 1 and (x > 100 or y < height - 530) and (total_mat*center)[2] > 0) or (leg == 0 and (total_mat*center)[2] > 0):
         blf.draw(0, str(index))
 

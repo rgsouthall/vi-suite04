@@ -147,7 +147,7 @@ def register():
 
     Object.ies_unit = eprop([("m", "Meters", ""), ("c", "Centimeters", ""), ("f", "Feet", ""), ("i", "Inches", "")], "", "Specify the IES file measurement unit", "m")
 
-    Object.ies_colour = fvprop("IES Colour",'IES Colour', [1.0, 1.0, 1.0], 'COLOR')
+    Object.ies_colour = fvprop(3, "IES Colour",'IES Colour', [1.0, 1.0, 1.0], 'COLOR', 0, 1)
 
     Object.licalc = bprop("", "", False)
 
@@ -577,6 +577,10 @@ def register():
     Scene.li_display_sel_only = bprop("", "", False)
 
     Scene.li_display_rp_fs = iprop("", "Point result font size", 4, 48, 9)
+
+    Scene.li_display_rp_fc = fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
+
+    Scene.li_display_rp_fsh = fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
 
     Scene.li_projname = sprop("", "Name of the building project", 1024, '')
 

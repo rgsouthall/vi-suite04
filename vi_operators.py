@@ -14,7 +14,7 @@ from .vi_display import li_display, ss_display, li_compliance, linumdisplay, spn
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .envi_calc import envi_sim
-from .vi_func import processf, livisimacc, solarPosition, sunpath2, wr_axes, set_legend
+from .vi_func import processf, livisimacc, solarPosition, sunpath2, wr_axes, set_legend, clearscened
 from .vi_chart import chart_disp
 
 envi_mats = envi_materials()
@@ -705,6 +705,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
     def invoke(self, context, event):
         direcs = []
         scene = context.scene
+        clearscened(scene)
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         scmaxres = [100]
         scminres = [0]
@@ -750,20 +751,20 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     for li in face.loop_indices:
                         vertexColor.data[li].color = (1, 1, 1)
                     for direc in direcs:
-                        hit = bpy.data.scenes[0].ray_cast(shadcentres[-1][0], shadcentres[-1][1] + 10000*direc)
-                        if hit[0] == True:
+                        if bpy.data.scenes[0].ray_cast(shadcentres[-1][0], shadcentres[-1][1] + 10000*direc)[0]:
                             shadcentres[-1][2] += 1/(len(direcs))
                     if shadcentres[-1][2] > 0:
                         for li in face.loop_indices:
-                            vertexColor.data[li].color = 1- shadcentres[-1][2], 1- shadcentres[-1][2], 1- shadcentres[-1][2]
+                            vertexColor.data[li].color = [1- shadcentres[-1][2]]*3
 
-                    obavres += face.area * 100* (1 - shadcentres[-1][2])
-                ob['maxres'] = [100* (1 - min([sh[2] for sh in shadcentres]))]
+                    obavres += face.area * 100* (shadcentres[-1][2])
+                ob['maxres'] = [100* (max([sh[2] for sh in shadcentres]))]
                 scmaxres[0] = ob['maxres'][0] if ob['maxres'][0] > scmaxres[0] else scmaxres[0]
-                ob['minres'] = [100* (1 - max([sh[2] for sh in shadcentres]))]
+                ob['minres'] = [100* (min([sh[2] for sh in shadcentres]))]
                 scminres[0] = ob['minres'][0] if ob['minres'][0] < scminres[0] else scminres[0]
                 ob['avres'] = [obavres/obsumarea]
                 scavres[0].append(ob['avres'][0])
+
 
             else:
                ob.licalc = 0

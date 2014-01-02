@@ -73,6 +73,8 @@ class Vi3DPanel(bpy.types.Panel):
                         row = layout.row()
                         row.label(text = "Font size:")
                         row.prop(scene, "li_display_rp_fs")
+                        newrow(layout, "Font colour:", scene, "li_display_rp_fc")
+                        newrow(layout, "Font shadow:", scene, "li_display_rp_fsh")
                         row = layout.row()
                         row.label(text="{:-<60}".format(""))
 

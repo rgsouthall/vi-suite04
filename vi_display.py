@@ -162,6 +162,9 @@ def spnumdisplay(disp_op, context, simnode):
 
 def linumdisplay(disp_op, context, simnode, geonode):
     scene = context.scene
+    blf.enable(0, 4)
+    blf.shadow(0, 5,scene.li_display_rp_fsh[0], scene.li_display_rp_fsh[1], scene.li_display_rp_fsh[2], scene.li_display_rp_fsh[3])
+    bgl.glColor4f(scene.li_display_rp_fc[0], scene.li_display_rp_fc[1], scene.li_display_rp_fc[2], scene.li_display_rp_fc[3])
 
     try:
         if obcalclist:
@@ -183,11 +186,33 @@ def linumdisplay(disp_op, context, simnode, geonode):
         obd = [context.active_object]
 
     for ob in obd:
-        faces = [f for f in ob.data.polygons if f.select == True] if len(obreslist) > 0 else [f for f in ob.data.polygons]
-        vdone = []
+
         obm = ob.data
-        view_mat = context.space_data.region_3d.perspective_matrix
         ob_mat = ob.matrix_world
+        view_mat = context.space_data.region_3d.perspective_matrix
+        view_pos = (view_mat.inverted()[0][3]/5, view_mat.inverted()[1][3]/5, view_mat.inverted()[2][3]/5)
+        faces = [f for f in ob.data.polygons if f.select == True and ob.ray_cast(ob_mat*mathutils.Vector((f.center)) - ob.location + 0.2*f.normal, view_pos)[2] == -1] if len(obreslist) > 0 else [f for f in ob.data.polygons]
+        print(ob.ray_cast(mathutils.Vector((ob.data.polygons[0].center))+ 0.2*ob.data.polygons[0].normal, view_pos)[2])
+        vdone = []
+#        t = (matrix[0][3], matrix[1][3], matrix[2][3])
+#        r = (
+#          (matrix[0][0], matrix[0][1], matrix[0][2]),
+#          (matrix[1][0], matrix[1][1], matrix[1][2]),
+#          (matrix[2][0], matrix[2][1], matrix[2][2])
+#        )
+#        rp = (
+#          (-r[0][0], -r[1][0], -r[2][0]),
+#          (-r[0][1], -r[1][1], -r[2][1]),
+#          (-r[0][2], -r[1][2], -r[2][2])
+#        )
+#        output = (
+#          rp[0][0] * t[0] + rp[0][1] * t[1] + rp[0][2] * t[2],
+#          rp[1][0] * t[0] + rp[1][1] * t[1] + rp[1][2] * t[2],
+#          rp[2][0] * t[0] + rp[2][1] * t[1] + rp[2][2] * t[2],
+#        )
+#        view_pos = -1.0*view_mat.translation_part()*view_mat.rotation_part()
+
+
         total_mat = view_mat*ob_mat
 
         for f in faces:
@@ -211,7 +236,7 @@ def linumdisplay(disp_op, context, simnode, geonode):
                         vdone.append(v)
                         if len(set(obm.vertex_colors[fn].data[loop_index].color[:])) > 0:
                             vi_func.draw_index(context, 1, mid_x, mid_y, width, height, total_mat, int((1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*simnode['maxres'][fn]), vpos.to_4d())
-
+    blf.disable(0, 4)
 def li3D_legend(self, context, simnode, connode):
     scene = context.scene
     if scene.li_leg_display != True or scene.vi_display == 0:
@@ -257,9 +282,9 @@ def li3D_legend(self, context, simnode, connode):
             bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
             blf.size(font_id, 20, 48)
             if hasattr(context.active_object, 'lires') and context.active_object.lires:
-                vi_func.drawfont("Ave: {:.1f}".format(bpy.context.active_object['avres']), font_id, 0, height, 22, 480)
-                vi_func.drawfont("Max: {:.1f}".format(context.active_object['maxres'][str(context.scene.frame_current)]), font_id, 0, height, 22, 495)
-                vi_func.drawfont("Min: {:.1f}".format(context.active_object['minres'][str(context.scene.frame_current)]), font_id, 0, height, 22, 510)
+                vi_func.drawfont("Ave: {:.1f}".format(context.active_object['avres'][context.scene.frame_current]), font_id, 0, height, 22, 480)
+                vi_func.drawfont("Max: {:.1f}".format(context.active_object['maxres'][context.scene.frame_current]), font_id, 0, height, 22, 495)
+                vi_func.drawfont("Min: {:.1f}".format(context.active_object['minres'][context.scene.frame_current]), font_id, 0, height, 22, 510)
             else:
                 vi_func.drawfont("Ave: {:.1f}".format(simnode['avres'][context.scene.frame_current]), font_id, 0, height, 22, 480)
                 vi_func.drawfont("Max: {:.1f}".format(simnode['maxres'][context.scene.frame_current]), font_id, 0, height, 22, 495)

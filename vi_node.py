@@ -399,7 +399,16 @@ class ViSSNode(bpy.types.Node, ViNodes):
     bl_idname = 'ViSSNode'
     bl_label = 'VI Shadow Study'
     bl_icon = 'LAMP'
+    
+    exported = bpy.props.BoolProperty()
 
+    def nodeexported(self, context):
+        self.exported = False
+        if self.bl_label[0] != '*':
+            self.bl_label = '*'+self.bl_label
+    
+    animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis")]
+    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
     startday = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 365, description = 'Start day')
     endday = bpy.props.IntProperty(name = '', default = 365, min = 1, max = 365, description = 'End day')
     starthour = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 24, description = 'Start hour')
@@ -415,11 +424,12 @@ class ViSSNode(bpy.types.Node, ViNodes):
                 self['nodeid'] = self.name+'@'+ng.name
 
     def draw_buttons(self, context, layout):
-        newrow(layout, 'Start day', self, "startday")
-        newrow(layout, 'End day', self, "endday")
-        newrow(layout, 'Start hour', self, "starthour")
-        newrow(layout, 'End hour', self, "endhour")
-        newrow(layout, 'Interval', self, "interval")
+        newrow(layout, 'Animation:', self, "animmenu")
+        newrow(layout, 'Start day:', self, "startday")
+        newrow(layout, 'End day:', self, "endday")
+        newrow(layout, 'Start hour:', self, "starthour")
+        newrow(layout, 'End hour:', self, "endhour")
+        newrow(layout, 'Interval:', self, "interval")
         row = layout.row()
         row.operator("node.shad", text = 'Calculate').nodeid = self['nodeid']
 
@@ -470,6 +480,9 @@ class ViLoc(bpy.types.Node, ViNodes):
     loc = bpy.props.EnumProperty(items = [("0", "Manual", "Manual location"), ("1", "EPW ", "Get location from EPW file")], name = "", description = "Location", default = "0")
     latitude = bpy.props.FloatProperty(name="", description="Site Latitude", min=-90, max=90, default=52)
     longitude = bpy.props.FloatProperty(name="", description="Site Longitude (East is positive, West is negative)", min=-180, max=180, default=0)
+    maxws = bpy.props.FloatProperty(name="", description="Max wind speed", min=0, max=90, default=0)
+    minws = bpy.props.FloatProperty(name="", description="Min wind speed", min=0, max=90, default=0)
+    avws = bpy.props.FloatProperty(name="", description="Average wind speed", min=0, max=90, default=0)
 
     def init(self, context):
         for ng in bpy.data.node_groups:

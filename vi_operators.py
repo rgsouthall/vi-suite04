@@ -643,10 +643,15 @@ class NODE_OT_WindRose(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
+        scene = context.scene
+        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel = 0, 0, 0, 0, 0, 0
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         locnode = node.inputs[0].links[0].from_node
         with open(locnode.weather, "r") as epwfile:
             wvals = [line.split(",")[20:22] for l, line in enumerate(epwfile.readlines()) if l > 7 and node.startmonth <= int(line.split(",")[1]) < node.endmonth]
+            node.maxws = max([w[0] for w in wvals])
+            node.minws = min([w[0] for w in wvals])
+            node.avws = sum([float(w[0]) for w in wvals])/len(wvals)
 
         awd = [float(val[0]) for val in wvals]
         aws = [float(val[1]) for val in wvals]
@@ -662,7 +667,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
             ax.contour(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True, colors='black')
         if node.wrtype == '4':
             ax.contour(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True, cmap=cm.hot)
-        set_legend(ax)
+#        set_legend(ax)
         plt.savefig(locnode.newdir+'/disp_wind.png', dpi = (300), transparent=False)
         plt.savefig(locnode.newdir+'/disp_wind.svg')
 
@@ -703,72 +708,83 @@ class NODE_OT_Shadow(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        direcs = []
         scene = context.scene
-        clearscened(scene)
-        simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        scmaxres = [100]
-        scminres = [0]
-        scavres = [[]]
-
-        scene.resnode = simnode.name
         scene.restree = self.nodeid.split('@')[1]
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel = 1, 0, 0, 0, 0, 1
-        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        locnode = node.inputs[0].links[0].from_node
+        clearscened(scene)
+        simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        scene.resnode = simnode.name
+        direcs = []
+        if simnode.animmenu == 'Static':
+            scmaxres, scminres, scavres = [100], [0], [0]
+            fe = scene.frame_start
+        else:
+            scmaxres = [100 for f in range(scene.frame_end - scene.frame_start + 1)]
+            scminres = [0 for f in range(scene.frame_end - scene.frame_start + 1)]
+            scavres = [0 for f in range(scene.frame_end - scene.frame_start + 1)]
+            fe = scene.frame_end
+        
+        locnode = simnode.inputs[0].links[0].from_node
         if locnode.loc == "1":
             with open(locnode.weather, "r") as epwfile:
                fl = epwfile.readline()
                scene.latitude, scene.longitude = float(fl.split(",")[6]), float(fl.split(",")[7])
 
-        time = datetime.datetime.combine(datetime.date.fromordinal(node.startday), datetime.time(node.starthour - 1))
-        endtime = datetime.datetime.combine(datetime.date.fromordinal(node.endday), datetime.time(node.endhour - 1))
-        interval = datetime.timedelta(hours = modf(node.interval)[0], minutes = 60 * modf(node.interval)[1])
+        time = datetime.datetime.combine(datetime.date.fromordinal(simnode.startday), datetime.time(simnode.starthour - 1))
+        endtime = datetime.datetime.combine(datetime.date.fromordinal(simnode.endday), datetime.time(simnode.endhour - 1))
+        interval = datetime.timedelta(hours = modf(simnode.interval)[0], minutes = 60 * modf(simnode.interval)[1])
         while time <= endtime:
             beta, phi = solarPosition(time.timetuple().tm_yday, time.hour+time.minute/60, scene.latitude, scene.longitude)[2:]
-            if beta > 0 and node.starthour <= time.hour < node.endhour:
+            if beta > 0 and simnode.starthour <= time.hour < simnode.endhour:
                 direcs.append(mathutils.Vector((-sin(phi), -cos(phi), tan(beta))))
             time += interval
-
-        for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
-            obavres, shadfaces, shadcentres, obcalcverts = 0, [], [], []
+        
+        for ob in [ob for ob in scene.objects if ob.type == 'MESH' and not ob.hide]:
+            obavres, shadfaces, shadcentres = [0] * (fe - scene.frame_start + 1), [[] for f in range(fe - scene.frame_start + 1)], [[] for f in range(fe - scene.frame_start + 1)]
+            obsumarea, obmaxres, obminres = [0 for f in range(fe - scene.frame_start + 1)], [0 for f in range(fe - scene.frame_start + 1)], [0 for f in range(fe - scene.frame_start + 1)]
             if len([mat for mat in ob.data.materials if mat.vi_shadow]) > 0:
                 ob.licalc = 1
                 bpy.context.scene.objects.active = ob
                 obm = ob.matrix_world
-                if not ob.data.vertex_colors:
-                    bpy.ops.mesh.vertex_color_add()
-                ob.data.vertex_colors[0].name = 'SolarShade'
-                vertexColor = ob.data.vertex_colors[0]
-
                 ob['cfaces'] = [face.index for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow]
                 ob['cverts'] = []
-                obsumarea = sum([face.area for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow])
+                for frame in range(scene.frame_start, fe + 1):
+                    scene.frame_set(frame)
 
-                for face in [face for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow]:
-
-                    shadcentres.append([obm*mathutils.Vector((face.center)) + 0.2*face.normal, obm*mathutils.Vector((face.center)), 0])
-                    for li in face.loop_indices:
-                        vertexColor.data[li].color = (1, 1, 1)
-                    for direc in direcs:
-                        if bpy.data.scenes[0].ray_cast(shadcentres[-1][0], shadcentres[-1][1] + 10000*direc)[0]:
-                            shadcentres[-1][2] += 1/(len(direcs))
-                    if shadcentres[-1][2] > 0:
+                    if 'SolarShade{}'.format(frame) not in [vc.name for vc in ob.data.vertex_colors]:
+                        bpy.ops.mesh.vertex_color_add()
+                    ob.data.vertex_colors[-1].name = 'SolarShade{}'.format(frame)
+                    vertexColor = ob.data.vertex_colors[-1]
+                    obsumarea[frame - scene.frame_start] = sum([face.area for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow])
+                    for face in [face for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow]:
+    
+                        shadcentres[frame - scene.frame_start].append([obm*mathutils.Vector((face.center)) + 0.2*face.normal, obm*mathutils.Vector((face.center)), 0])
                         for li in face.loop_indices:
-                            vertexColor.data[li].color = [1- shadcentres[-1][2]]*3
-
-                    obavres += face.area * 100* (shadcentres[-1][2])
-                ob['maxres'] = [100* (max([sh[2] for sh in shadcentres]))]
-                scmaxres[0] = ob['maxres'][0] if ob['maxres'][0] > scmaxres[0] else scmaxres[0]
-                ob['minres'] = [100* (min([sh[2] for sh in shadcentres]))]
-                scminres[0] = ob['minres'][0] if ob['minres'][0] < scminres[0] else scminres[0]
-                ob['avres'] = [obavres/obsumarea]
-                scavres[0].append(ob['avres'][0])
-
-
+                            vertexColor.data[li].color = (1, 1, 1)
+                        for direc in direcs:
+                            if bpy.data.scenes[0].ray_cast(shadcentres[frame][-1][0], shadcentres[frame][-1][1] + 10000*direc)[0]:
+                                shadcentres[frame][-1][2] += 1/(len(direcs))
+                        if shadcentres[frame][-1][2] > 0:
+                            for li in face.loop_indices:
+                                vertexColor.data[li].color = [1- shadcentres[frame][-1][2]]*3
+    
+                        obavres[frame - scene.frame_start] += face.area * 100* (shadcentres[frame][-1][2])/obsumarea[frame]
+                        obmaxres[frame - scene.frame_start] = 100* (max([sh[2] for sh in shadcentres[frame]]))
+                        scmaxres[frame - scene.frame_start] = obmaxres[frame] if obmaxres[frame] > scmaxres[frame] else scmaxres[frame]
+                        obminres[frame - scene.frame_start] = 100* (min([sh[2] for sh in shadcentres[frame]]))
+                        scminres[frame - scene.frame_start] = obminres[frame] if obminres[frame] < scminres[frame] else scminres[frame]
+                        scavres[frame - scene.frame_start] += obavres[frame]
+                ob['maxres'] = obmaxres
+                ob['minres'] = obminres
+                ob['avres'] = [obavres[f]/obsumarea[f] for f in range(fe - scene.frame_start + 1)]
+                
             else:
                ob.licalc = 0
-        simnode['maxres'], simnode['minres'], simnode['avres'] = scmaxres, scminres, [sum(scavres[0])/len([ob for ob in scene.objects if ob.licalc])]
+  
+        simnode['maxres'], simnode['minres'], simnode['avres'] = scmaxres, scminres, [scavres[f]/len([ob for ob in scene.objects if ob.licalc]) for f in range(fe - scene.frame_start + 1)]
+        scene.frame_set(scene.frame_start)
+        if simnode.bl_label[0] == '*':
+            simnode.bl_label = simnode.bl_label[1:]
         return {'FINISHED'}
 
 

@@ -2,7 +2,7 @@ bl_info = {
     "name": "VI-Suite",
     "author": "Ryan Southall",
     "version": (0, 1, 0),
-    "blender": (2, 6, 8),
+    "blender": (2, 6, 9),
     "api":"",
     "location": "Node Editor & 3D View > Properties Panel",
     "description": "Radiance/EnergyPlus exporter and results visualiser",
@@ -119,10 +119,10 @@ def eupdate(self, context):
                 for i, fli in enumerate([(face, face.loop_indices) for face in o.data.polygons if face.select == True]):
                     for li in fli[1]:
                         vi = o.data.loops[li].vertex_index
-                        o.data.shape_keys.key_blocks[str(frame)].data[vi].co = o.data.shape_keys.key_blocks['Basis'].data[vi].co + 0.1*context.scene.li_disp_3dlevel * ((1 - (o['oreslist'][str(frame)][i]-mino)/(maxo - mino)) * fli[0].normal)
+                        o.data.shape_keys.key_blocks[str(frame)].data[vi].co = o.data.shape_keys.key_blocks['Basis'].data[vi].co + 0.1*context.scene.vi_disp_3dlevel * ((1 - (o['oreslist'][str(frame)][i]-mino)/(maxo - mino)) * fli[0].normal)
             for v, vn in enumerate(o['cverts']):
                 j = o['j'][v]
-                o.data.shape_keys.key_blocks[str(frame)].data[vn].co = o.data.shape_keys.key_blocks['Basis'].data[vn].co + 0.1*context.scene.li_disp_3dlevel * ((1 - (o['oreslist'][str(frame)][j]-mino)/(maxo -mino)) * o.data.vertices[vn].normal)
+                o.data.shape_keys.key_blocks[str(frame)].data[vn].co = o.data.shape_keys.key_blocks['Basis'].data[vn].co + 0.1*context.scene.vi_disp_3dlevel * ((1 - (o['oreslist'][str(frame)][j]-mino)/(maxo -mino)) * o.data.vertices[vn].normal)
 
 
 def spupdate(self, context):
@@ -554,9 +554,9 @@ def register():
 
     Scene.lic_disp_panel = bprop("", "",False)
 
-    Scene.li_disp_3d = bprop("VI 3D display", "Boolean for 3D results display",  False)
+    Scene.vi_disp_3d = bprop("VI 3D display", "Boolean for 3D results display",  False)
 
-    Scene.li_disp_3dlevel = bpy.props.FloatProperty(name = "", description = "Level of 3D result plane extrusion", min = 0, max = 50, default = 0, update = eupdate)
+    Scene.vi_disp_3dlevel = bpy.props.FloatProperty(name = "", description = "Level of 3D result plane extrusion", min = 0, max = 50, default = 0, update = eupdate)
 
     Scene.vi_display = bprop("", "",False)
 
@@ -570,17 +570,17 @@ def register():
 
     Scene.li_compliance = bprop("", "", False)
 
-    Scene.li_display_rp = bprop("", "", False)
+    Scene.vi_display_rp = bprop("", "", False)
 
-    Scene.li_leg_display = bprop("Legend", "", False)
+    Scene.vi_leg_display = bprop("Legend", "", False)
 
-    Scene.li_display_sel_only = bprop("", "", False)
+    Scene.vi_display_sel_only = bprop("", "", False)
 
-    Scene.li_display_rp_fs = iprop("", "Point result font size", 4, 48, 9)
+    Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 48, 9)
+    
+    Scene.vi_display_rp_fc = fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
 
-    Scene.li_display_rp_fc = fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
-
-    Scene.li_display_rp_fsh = fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
+    Scene.vi_display_rp_fsh = fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
 
     Scene.li_projname = sprop("", "Name of the building project", 1024, '')
 

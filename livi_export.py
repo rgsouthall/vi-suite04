@@ -184,12 +184,7 @@ def radgexport(export_op, node):
         for o, geo in enumerate(retobjs('livig')):
             if len(geo.data.materials) > 0:
                 if len([mat for mat in geo.material_slots if mat.material.livi_sense]) > 0:
-                    geo.licalc = 1
-                    csf = []
-                    csv =[]
-                    cverts = []
-                    obcalcverts = []
-                    scene.objects.active = geo
+                    geo.licalc, csf, csv, cverts, obcalcverts, scene.objects.active = 1, [], [], [], [], geo 
                     bpy.ops.object.mode_set(mode = 'EDIT')
                     bpy.ops.mesh.select_all(action='SELECT')
                     bpy.ops.object.mode_set(mode = 'OBJECT')
@@ -252,11 +247,7 @@ def radcexport(export_op, node):
     elif node.bl_label != 'LiVi CBDM':
         if node.skynum < 4:
             node.skytypeparams = ("+s", "+i", "-c", "-b 22.86 -c")[node.skynum]
-            if node.skynum < 3:
-                starttime = datetime.datetime(2013, 1, 1, node.shour) + datetime.timedelta(node.sdoy - 1)
-            else:
-                starttime = datetime.datetime(2013, 1, 1, 12)
-
+            starttime = datetime.datetime(2013, 1, 1, node.shour) + datetime.timedelta(node.sdoy - 1) if node.skynum < 3 else datetime.datetime(2013, 1, 1, 12)
             if node.animmenu == 'Time' and node.skynum < 3:
                 endtime = datetime.datetime(2013, 1, 1, node.ehour) + datetime.timedelta(node.edoy - 1)
                 hours = (endtime-starttime).days*24 + (endtime-starttime).seconds/3600

@@ -450,7 +450,6 @@ def viewdesc(context):
 
 
 def draw_index(context, leg, mid_x, mid_y, width, height, total_mat, index, center):
-    blf.size(0, context.scene.li_display_rp_fs, 72)
     vec = total_mat * center.to_4d()
     vec = mathutils.Vector((vec[0] / vec[3], vec[1] / vec[3], vec[2] / vec[3]))
     x, y = int(mid_x + vec[0] * width / 2), int(mid_y + vec[1] * height / 2)

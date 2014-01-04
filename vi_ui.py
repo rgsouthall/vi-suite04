@@ -44,7 +44,6 @@ class Vi3DPanel(bpy.types.Panel):
                 newrow(layout, "Font size", scene, "li_display_rp_fs")
 
             if scene.ss_disp_panel in (1,2):
-
                 row = layout.row()
                 row.prop(scene, "li_disp_3d")
                 row = layout.row()
@@ -57,22 +56,14 @@ class Vi3DPanel(bpy.types.Panel):
                     row.prop(scene, "li_leg_display")
 
                     if int(context.scene.li_disp_3d) == 1:
-                        row = layout.row()
-                        row.label("3D Level")
-                        row.prop(scene, "li_disp_3dlevel")
+                        newrow(layout, "3D Level", scene, "li_disp_3dlevel")
 
                     if context.mode == "OBJECT":
                         row = layout.row()
                         row.label(text="{:-<48}".format("Point visualisation "))
-                        row = layout.row()
-                        row.label(text = "Enable:")
-                        row.prop(scene, "li_display_rp")
-                        row = layout.row()
-                        row.label(text = "Selected only:")
-                        row.prop(scene, "li_display_sel_only")
-                        row = layout.row()
-                        row.label(text = "Font size:")
-                        row.prop(scene, "li_display_rp_fs")
+                        newrow(layout, "Enable:", scene, "li_display_rp")
+                        newrow(layout, "Selected only:", scene, "li_display_sel_only")
+                        newrow(layout, "Font size:", scene, "li_display_rp_fs")
                         newrow(layout, "Font colour:", scene, "li_display_rp_fc")
                         newrow(layout, "Font shadow:", scene, "li_display_rp_fsh")
                         row = layout.row()

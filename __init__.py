@@ -123,7 +123,7 @@ def eupdate(self, context):
             for v, vn in enumerate(o['cverts']):
                 j = o['j'][v]
                 o.data.shape_keys.key_blocks[str(frame)].data[vn].co = o.data.shape_keys.key_blocks['Basis'].data[vn].co + 0.1*context.scene.vi_disp_3dlevel * ((1 - (o['oreslist'][str(frame)][j]-mino)/(maxo -mino)) * o.data.vertices[vn].normal)
-
+            o.data.update()
 
 def spupdate(self, context):
     context.scene.spupdate = 1

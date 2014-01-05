@@ -7,6 +7,12 @@ from . import windrose
 #from . import windrose
 dtdf = datetime.date.fromordinal
 
+def face_centre(ob, obresnum, f):
+    vsum = mathutils.Vector((0, 0, 0))
+    for v in f.vertices:
+        vsum = ob.active_shape_key.data[v].co + vsum if obresnum > 0 else ob.data.vertices[v].co + vsum
+    return(vsum/len(f.vertices))
+
 def newrow(layout, s1, root, s2):
     row = layout.row()
     row.label(s1)

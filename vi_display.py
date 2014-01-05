@@ -188,15 +188,13 @@ def linumdisplay(disp_op, context, simnode, geonode):
         obd = obreslist if len(obreslist) > 0 else obcalclist
     else:
         obd = [context.active_object]
-
+    
     for ob in obd:
-
         obm = ob.data
         ob_mat = ob.matrix_world
         view_mat = context.space_data.region_3d.perspective_matrix
         view_pos = (view_mat.inverted()[0][3]/5, view_mat.inverted()[1][3]/5, view_mat.inverted()[2][3]/5)
-        faces = [f for f in ob.data.polygons if f.select == True and ob.ray_cast(ob_mat*mathutils.Vector((f.center)) - ob.location + 0.2*f.normal, view_pos)[2] == -1] if len(obreslist) > 0 else [f for f in ob.data.polygons]
-        print(ob.ray_cast(mathutils.Vector((ob.data.polygons[0].center))+ 0.2*ob.data.polygons[0].normal, view_pos)[2])
+        faces = [f for f in ob.data.polygons if f.select == True and not scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f)))) + 0.02*f.normal, view_pos)[0]] if len(obreslist) > 0 else [f for f in ob.data.polygons]
         vdone = []
         total_mat = view_mat*ob_mat
          
@@ -313,6 +311,7 @@ def viwr_legend(self, context, simnode):
         bgl.glDisable(bgl.GL_BLEND)
         height = context.region.height
         font_id = 0
+
         if context.scene.frame_current in vi_func.framerange(context.scene):
             bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
             blf.size(font_id, 20, 48)
@@ -363,7 +362,6 @@ def li_compliance(self, context, connode):
         lencrit = 0
         for geo in geos:
             mat = [m for m in geo.data.materials if m.livi_sense][0]
-#            crit = geo['crit']
             geo['cr4'] = [('fail', 'pass')[int(com)] for com in geo['comps'][frame][:][::2]]
             geo['cr6'] = [cri[4] for cri in geo['crit']]
             if 'fail' in [c for i, c in enumerate(geo['cr4']) if geo['cr6'][i] == '1'] or bpy.context.scene['dfpass'][frame] == 1:

@@ -63,6 +63,7 @@ class Vi3DPanel(bpy.types.Panel):
                         row.label(text="{:-<48}".format("Point visualisation "))
                         newrow(layout, "Enable:", scene, "vi_display_rp")
                         newrow(layout, "Selected only:", scene, "vi_display_sel_only")
+                        newrow(layout, "Visible only:", scene, "vi_display_vis_only")
                         newrow(layout, "Font size:", scene, "vi_display_rp_fs")
                         newrow(layout, "Font colour:", scene, "vi_display_rp_fc")
                         newrow(layout, "Font shadow:", scene, "vi_display_rp_fsh")

@@ -32,7 +32,7 @@ def li_display(simnode, connode, geonode):
     obreslist = []
     obcalclist = []
 
-    if simnode.bl_label != 'VI Shadow Study' and len(bpy.app.handlers.frame_change_pre) == 0:
+    if len(bpy.app.handlers.frame_change_pre) == 0:
         bpy.app.handlers.frame_change_pre.append(livi_export.cyfc1)
         o = 0
 
@@ -87,14 +87,12 @@ def li_display(simnode, connode, geonode):
             scene.objects.active = None
 
         for obres in obreslist:
-            oreslist = {str(frame): 0 for frame in range(scene.frame_end - scene.frame_start + 1)}
-            print(oreslist)
+            oreslist =  {str(scene.frame_start): 0} if simnode.animmenu == "Static" else {str(frame): 0 for frame in range(scene.frame_end - scene.frame_start + 1)}
             scene.objects.active = obres
             obres.select = True
             j = []
 
             if cp == '0' or not geonode:
-                
                 if len(obres.data.polygons) > 1:
                     bpy.ops.object.mode_set(mode = 'EDIT')
                     bpy.ops.mesh.select_all(action = 'SELECT')
@@ -112,14 +110,15 @@ def li_display(simnode, connode, geonode):
             bpy.ops.object.shape_key_add(from_mix = False)
 
             for frame in range(scene.frame_start, scene.frame_end + 1):
+                findex = frame - scene.frame_start
                 bpy.ops.object.shape_key_add(from_mix = False)
                 obres.active_shape_key.name = str(frame)
                 if cp == '0' and geonode:
-                    oreslist[str(frame)] = [simnode['minres'][frame] + (simnode['maxres'][frame] - simnode['minres'][frame]) * 1/0.75 * vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[li].color) for li in [face.loop_indices[0] for face in obres.data.polygons if face.select == True]]
+                    oreslist[str(frame)] = [simnode['minres'][frame] + (simnode['maxres'][findex] - simnode['minres'][findex]) * 1/0.75 * vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[li].color) for li in [face.loop_indices[0] for face in obres.data.polygons if face.select == True]]
                 elif not geonode:
-                    oreslist[str(frame)] = [simnode['minres'][frame] + (simnode['maxres'][frame] - simnode['minres'][frame]) * obres.data.vertex_colors['SolarShade{}'.format(frame)].data[li].color[0] for li in [face.loop_indices[0] for face in obres.data.polygons if face.select == True]]
+                    oreslist[str(frame)] = [simnode['minres'][frame] + (simnode['maxres'][findex] - simnode['minres'][findex]) * obres.data.vertex_colors['{}'.format(frame)].data[li].color[0] for li in [face.loop_indices[0] for face in obres.data.polygons if face.select == True]]
                 elif cp == '1':
-                    oreslist[str(frame)] = [simnode['minres'][frame] + (simnode['maxres'][frame] - simnode['minres'][frame]) * 1/0.75 * vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[j].color) for j in range(len(obres.data.vertex_colors[str(frame)].data))]
+                    oreslist[str(frame)] = [simnode['minres'][frame] + (simnode['maxres'][findex] - simnode['minres'][findex]) * 1/0.75 * vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[j].color) for j in range(len(obres.data.vertex_colors[str(frame)].data))]
             
             obres['oreslist'] = oreslist
             obres['j'] = j
@@ -140,6 +139,7 @@ def li_display(simnode, connode, geonode):
                 vc.keyframe_insert("active_render")
 
     bpy.ops.wm.save_mainfile(check_existing = False)
+    scene.frame_set(scene.frame_start)
     rendview(1)
 
 def spnumdisplay(disp_op, context, simnode):
@@ -175,8 +175,7 @@ def linumdisplay(disp_op, context, simnode, geonode):
     except:
         obreslist = [ob for ob in scene.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.licalc == 1 and ob.lires == 1]
         obcalclist = [ob for ob in scene.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.licalc == 1 and ob.lires == 0]
-
-    if scene.vi_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.vi_display_sel_only == True)  or scene.frame_current not in range(scene.frame_start, scene.frame_end+1):
+    if (simnode.animmenu == 'Static' and scene.frame_current != scene.frame_start) or scene.vi_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.vi_display_sel_only == True)  or scene.frame_current not in range(scene.frame_start, scene.frame_end+1):
         return
     
     bgl.glColor3f = scene.vi_display_rp_fc
@@ -194,7 +193,10 @@ def linumdisplay(disp_op, context, simnode, geonode):
         ob_mat = ob.matrix_world
         view_mat = context.space_data.region_3d.perspective_matrix
         view_pos = (view_mat.inverted()[0][3]/5, view_mat.inverted()[1][3]/5, view_mat.inverted()[2][3]/5)
-        faces = [f for f in ob.data.polygons if f.select == True and not scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f)))) + 0.02*f.normal, view_pos)[0]] if len(obreslist) > 0 else [f for f in ob.data.polygons]
+        if scene.vi_display_vis_only:
+            faces = [f for f in ob.data.polygons if f.select == True and not scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f)))) + 0.02*f.normal, view_pos)[0]] if ob.lires else [f for f in ob.data.polygons if not scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f)))) + 0.02*f.normal, view_pos)[0]]
+        else:
+            faces = [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons]
         vdone = []
         total_mat = view_mat*ob_mat
          
@@ -262,17 +264,18 @@ def li3D_legend(self, context, simnode, connode):
         bgl.glDisable(bgl.GL_BLEND)
         height = context.region.height
         font_id = 0
-        if context.scene.frame_current in vi_func.framerange(context.scene):
+        if scene.frame_current in vi_func.framerange(scene):
+            findex = scene.frame_current - scene.frame_start
             bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
             blf.size(font_id, 20, 48)
             if hasattr(context.active_object, 'lires') and context.active_object.lires:
-                vi_func.drawfont("Ave: {:.1f}".format(context.active_object['avres'][context.scene.frame_current]), font_id, 0, height, 22, 480)
-                vi_func.drawfont("Max: {:.1f}".format(context.active_object['maxres'][context.scene.frame_current]), font_id, 0, height, 22, 495)
-                vi_func.drawfont("Min: {:.1f}".format(context.active_object['minres'][context.scene.frame_current]), font_id, 0, height, 22, 510)
+                vi_func.drawfont("Ave: {:.1f}".format(context.active_object['avres'][findex]), font_id, 0, height, 22, 480)
+                vi_func.drawfont("Max: {:.1f}".format(context.active_object['maxres'][findex]), font_id, 0, height, 22, 495)
+                vi_func.drawfont("Min: {:.1f}".format(context.active_object['minres'][findex]), font_id, 0, height, 22, 510)
             else:
-                vi_func.drawfont("Ave: {:.1f}".format(simnode['avres'][context.scene.frame_current]), font_id, 0, height, 22, 480)
-                vi_func.drawfont("Max: {:.1f}".format(simnode['maxres'][context.scene.frame_current]), font_id, 0, height, 22, 495)
-                vi_func.drawfont("Min: {:.1f}".format(simnode['minres'][context.scene.frame_current]), font_id, 0, height, 22, 510)
+                vi_func.drawfont("Ave: {:.1f}".format(simnode['avres'][findex]), font_id, 0, height, 22, 480)
+                vi_func.drawfont("Max: {:.1f}".format(simnode['maxres'][findex]), font_id, 0, height, 22, 495)
+                vi_func.drawfont("Min: {:.1f}".format(simnode['minres'][findex]), font_id, 0, height, 22, 510)
 
 def viwr_legend(self, context, simnode):
     scene = context.scene

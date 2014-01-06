@@ -716,8 +716,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         scene.resnode = simnode.name
         direcs = []
         if simnode.animmenu == 'Static':
-            scmaxres, scminres, scavres = [100], [0], [0]
-            fe = scene.frame_start
+            scmaxres, scminres, scavres, fe = [100], [0], [0], scene.frame_start
         else:
             scmaxres = [100 for f in range(scene.frame_end - scene.frame_start + 1)]
             scminres = [0 for f in range(scene.frame_end - scene.frame_start + 1)]
@@ -750,30 +749,31 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 ob['cverts'] = []
                 for frame in range(scene.frame_start, fe + 1):
                     scene.frame_set(frame)
-
-                    if 'SolarShade{}'.format(frame) not in [vc.name for vc in ob.data.vertex_colors]:
+                    findex = frame - scene.frame_start
+                    for vc in ob.data.vertex_colors:
+                        bpy.ops.mesh.vertex_color_remove()
+                    if '{}'.format(frame) not in [vc.name for vc in ob.data.vertex_colors]:
                         bpy.ops.mesh.vertex_color_add()
-                    ob.data.vertex_colors[-1].name = 'SolarShade{}'.format(frame)
+                    ob.data.vertex_colors[-1].name = '{}'.format(frame)
                     vertexColor = ob.data.vertex_colors[-1]
-                    obsumarea[frame - scene.frame_start] = sum([face.area for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow])
+                    obsumarea[findex] = sum([face.area for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow])
                     for face in [face for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow]:
-    
-                        shadcentres[frame - scene.frame_start].append([obm*mathutils.Vector((face.center)) + 0.2*face.normal, obm*mathutils.Vector((face.center)), 0])
+                        shadcentres[findex].append([obm*mathutils.Vector((face.center)) + 0.2*face.normal, obm*mathutils.Vector((face.center)), 0])
                         for li in face.loop_indices:
                             vertexColor.data[li].color = (1, 1, 1)
                         for direc in direcs:
-                            if bpy.data.scenes[0].ray_cast(shadcentres[frame][-1][0], shadcentres[frame][-1][1] + 10000*direc)[0]:
-                                shadcentres[frame][-1][2] += 1/(len(direcs))
-                        if shadcentres[frame][-1][2] > 0:
+                            if bpy.data.scenes[0].ray_cast(shadcentres[findex][-1][0], shadcentres[findex][-1][1] + 10000*direc)[0]:
+                                shadcentres[frame - scene.frame_start][-1][2] += 1/(len(direcs))
+                        if shadcentres[frame - scene.frame_start][-1][2] > 0:
                             for li in face.loop_indices:
-                                vertexColor.data[li].color = [1- shadcentres[frame][-1][2]]*3
+                                vertexColor.data[li].color = [1- shadcentres[frame - scene.frame_start][-1][2]]*3
     
-                        obavres[frame - scene.frame_start] += face.area * 100* (shadcentres[frame][-1][2])/obsumarea[frame]
-                        obmaxres[frame - scene.frame_start] = 100* (max([sh[2] for sh in shadcentres[frame]]))
-                        scmaxres[frame - scene.frame_start] = obmaxres[frame] if obmaxres[frame] > scmaxres[frame] else scmaxres[frame]
-                        obminres[frame - scene.frame_start] = 100* (min([sh[2] for sh in shadcentres[frame]]))
-                        scminres[frame - scene.frame_start] = obminres[frame] if obminres[frame] < scminres[frame] else scminres[frame]
-                        scavres[frame - scene.frame_start] += obavres[frame]
+                        obavres[findex] += face.area * 100* (shadcentres[findex][-1][2])/obsumarea[findex]
+                        obmaxres[findex] = 100* (max([sh[2] for sh in shadcentres[findex]]))
+                        scmaxres[findex] = obmaxres[frame] if obmaxres[findex] > scmaxres[findex] else scmaxres[findex]
+                        obminres[findex] = 100* (min([sh[2] for sh in shadcentres[findex]]))
+                        scminres[findex] = obminres[findex] if obminres[findex] < scminres[findex] else scminres[findex]
+                        scavres[findex] += obavres[findex]
                 ob['maxres'] = obmaxres
                 ob['minres'] = obminres
                 ob['avres'] = [obavres[f]/obsumarea[f] for f in range(fe - scene.frame_start + 1)]
@@ -799,7 +799,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         scene = context.scene
         simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]
         try:
-            li_display(simnode, '', '')
+            li_display(simnode, 0, 0)
             bpy.ops.view3d.linumdisplay()
             scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel = 1, 0, 0, 0, 0, 2
         except Exception as e:

@@ -397,26 +397,26 @@ def fexport(scene, frame, export_op, node, geonode):
 
 def cyfc1(self):
     if bpy.data.scenes[0].render.engine == "CYCLES":
-        for materials in bpy.data.materials:
-            if materials.use_nodes == 1:
+        for material in bpy.data.materials:
+            if material.use_nodes == 1:
                 try:
-                    if materials.livi_sense:
-                        nt = materials.node_tree
+                    if material.livi_sense or material.vi_shadow:
+                        nt = material.node_tree
                         nt.nodes["Attribute"].attribute_name = str(bpy.context.scene.frame_current)
                 except Exception as e:
                     print(e, 'Something wrong with changing the material attribute name')
         if hasattr(bpy.data.worlds, 'World'):
             if bpy.data.worlds["World"].use_nodes == False:
                 bpy.data.worlds["World"].use_nodes = True
-        nt = bpy.data.worlds[0].node_tree
-        if hasattr(nt.nodes, 'Environment Texture'):
-            nt.nodes['Environment Texture'].image.filepath = bpy.context.scene['newdir']+"/%sp.hdr" %(bpy.context.scene.frame_current)
-            nt.nodes['Environment Texture'].image.reload()
-        if hasattr(bpy.data.worlds[0].node_tree.nodes, 'Background'):
-            try:
-                bpy.data.worlds[0].node_tree.nodes["Background"].inputs[1].keyframe
-            except:
-                bpy.data.worlds[0].node_tree.nodes["Background"].inputs[1].keyframe_insert('default_value')
+            nt = bpy.data.worlds[0].node_tree
+            if hasattr(nt.nodes, 'Environment Texture'):
+                nt.nodes['Environment Texture'].image.filepath = bpy.context.scene['newdir']+"/%sp.hdr" %(bpy.context.scene.frame_current)
+                nt.nodes['Environment Texture'].image.reload()
+            if hasattr(bpy.data.worlds[0].node_tree.nodes, 'Background'):
+                try:
+                    bpy.data.worlds[0].node_tree.nodes["Background"].inputs[1].keyframe
+                except:
+                    bpy.data.worlds[0].node_tree.nodes["Background"].inputs[1].keyframe_insert('default_value')
         bpy.data.worlds[0].use_nodes = 0
         ti.sleep(0.1)
         bpy.data.worlds[0].use_nodes = 1

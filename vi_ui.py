@@ -36,6 +36,11 @@ class Vi3DPanel(bpy.types.Panel):
             view = context.space_data
             scene = context.scene
             layout = self.layout
+
+            if scene.wr_disp_panel == 1:
+                row = layout.row()
+                row.prop(scene, "vi_leg_display")
+
             if scene.sp_disp_panel == 1:
                 newrow(layout, "Day of year", scene, "solday")
                 newrow(layout, "Hour of day", scene, "solhour")

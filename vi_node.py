@@ -399,14 +399,14 @@ class ViSSNode(bpy.types.Node, ViNodes):
     bl_idname = 'ViSSNode'
     bl_label = 'VI Shadow Study'
     bl_icon = 'LAMP'
-    
+
     exported = bpy.props.BoolProperty()
 
     def nodeexported(self, context):
         self.exported = False
         if self.bl_label[0] != '*':
             self.bl_label = '*'+self.bl_label
-    
+
     animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis")]
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
     startday = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 365, description = 'Start day')
@@ -450,12 +450,15 @@ class ViWRNode(bpy.types.Node, ViNodes):
                 self['nodeid'] = self.name+'@'+ng.name
 
     def draw_buttons(self, context, layout):
-        if self.inputs[0].is_linked and self.inputs[0].links[0].from_node.bl_label == 'VI Location':
+        if self.inputs[0].is_linked and self.inputs[0].links[0].from_node.bl_label == 'VI Location' and self.inputs[0].links[0].from_node.loc == '1':
             newrow(layout, 'Type', self, "wrtype")
             newrow(layout, 'Start Month', self, "startmonth")
             newrow(layout, 'End Month', self, "endmonth")
             row = layout.row()
             row.operator("node.windrose", text="Create Wind Rose").nodeid = self['nodeid']
+        else:
+            row = layout.row()
+            row.label('Error with location node')
 
 class ViGNode(bpy.types.Node, ViNodes):
     '''Node describing a glare analysis'''

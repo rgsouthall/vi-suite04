@@ -119,7 +119,7 @@ def eupdate(self, context):
                 for i, fli in enumerate([(face, face.loop_indices) for face in o.data.polygons if face.select == True]):
                     for li in fli[1]:
                         vi = o.data.loops[li].vertex_index
-                        o.data.shape_keys.key_blocks[str(frame)].data[vi].co = o.data.shape_keys.key_blocks['Basis'].data[vi].co + 0.1*context.scene.vi_disp_3dlevel * ((1 - (o['oreslist'][str(frame)][i]-mino)/(maxo - mino)) * fli[0].normal)
+                        o.data.shape_keys.key_blocks[str(frame)].data[vi].co = o.data.shape_keys.key_blocks['Basis'].data[vi].co + 0.1*context.scene.vi_disp_3dlevel * (((o['oreslist'][str(frame)][i]-mino)/(maxo - mino)) * fli[0].normal)
             for v, vn in enumerate(o['cverts']):
                 j = o['j'][v]
                 o.data.shape_keys.key_blocks[str(frame)].data[vn].co = o.data.shape_keys.key_blocks['Basis'].data[vn].co + 0.1*context.scene.vi_disp_3dlevel * ((1 - (o['oreslist'][str(frame)][j]-mino)/(maxo -mino)) * o.data.vertices[vn].normal)
@@ -562,6 +562,8 @@ def register():
 
     Scene.sp_disp_panel = bprop("", "",False)
 
+    Scene.wr_disp_panel = bprop("", "",False)
+
     Scene.ss_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
 
     Scene.ss_leg_display = bprop("", "",False)
@@ -575,11 +577,11 @@ def register():
     Scene.vi_leg_display = bprop("Legend", "", False)
 
     Scene.vi_display_sel_only = bprop("", "", False)
-    
+
     Scene.vi_display_vis_only = bprop("", "", False)
 
     Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 48, 9)
-    
+
     Scene.vi_display_rp_fc = fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
 
     Scene.vi_display_rp_fsh = fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)

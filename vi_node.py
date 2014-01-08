@@ -458,7 +458,7 @@ class ViWRNode(bpy.types.Node, ViNodes):
             row.operator("node.windrose", text="Create Wind Rose").nodeid = self['nodeid']
         else:
             row = layout.row()
-            row.label('Error with location node')
+            row.label('Location node error')
 
 class ViGNode(bpy.types.Node, ViNodes):
     '''Node describing a glare analysis'''

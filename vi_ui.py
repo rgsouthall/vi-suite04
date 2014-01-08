@@ -1,27 +1,11 @@
 import bpy
 
-#from . import vi_operators
-#scene = bpy.context.scene
-
-#class ViNodeGen(bpy.types.Operator):
-#    '''Initial node network registration and creation'''
-#    bl_idname = "scene.ving"
-#    bl_label = "Generate VI Nodes"
-#    bl_options = {'REGISTER', 'UNDO'}
-#    bl_register = True
-#    bl_undo = True
-#
-#    def invoke(self, context, event):
-#        vi_node.vinodegen()
-#        return{'FINISHED'}
-
 def newrow(layout, s1, root, s2):
     row = layout.row()
     row.label(s1)
     row.prop(root, s2)
 
-
-from .envi_mat import *
+from .envi_mat import envi_materials, envi_constructions
 envi_mats = envi_materials()
 envi_cons = envi_constructions()
 
@@ -169,28 +153,23 @@ class VIMatPanel(bpy.types.Panel):
             row.label('{:.2f}'.format(cm.raytrace_transparency.ior))
         elif cm.use_transparency == True and cm.transparency_method == 'RAYTRACE' and cm.alpha < 1.0 and cm.translucency > 0:
             for matprop in ('Translucent', 0, 'RGB transmission:', '({:.2f}, {:.2f}, {:.2f})'.format(*cm.diffuse_color), 0, 'Specularity', '{:.2f}'.format(cm.specular_intensity), 0, 'Roughness:', '{:.2f}'.format(1.0-cm.specular_hardness/511.0), 0, 'Transmissivity', '{:.2f}'.format(1.0 - cm.alpha), 0, 'Transmitted Specular', '{:.2f}'.format(1.0 - cm.translucency)):
-                row.label(matprop) if matprop else row = layout.row()
-#            row = layout.row()
-#            row.label('RGB transmission:')
-#            row.label('({:.2f}, {:.2f}, {:.2f})'.format(*cm.diffuse_color))
-#            row = layout.row()
-#            row.label('Specularity')
-#            row.label('{:.2f}'.format(cm.specular_intensity))
-#            row = layout.row()
-#            row.label('Roughness:')
-#            row.label('{:.2f}'.format(1.0 - cm.specular_hardness/511.0))
-#            row = layout.row()
-#            row.label('Transmissivity')
-#            row.label('{:.2f}'.format(1.0 - cm.alpha))
-#            row = layout.row()
-#            row.label('Transmitted Specular')
-#            row.label('{:.2f}'.format(1.0 - cm.translucency))
+                if matprop:
+                    row.label(matprop)  
+                else:
+                    row = layout.row()
+
         elif cm.raytrace_mirror.use == True and cm.raytrace_mirror.reflect_factor <= 0.99:
             for matprop in ('Metal', 0, 'RGB refelectance:', '({:.2f}, {:.2f}, {:.2f})'.format(*cm.diffuse_color), 0, 'Specularity', '{:.2f}'.format(cm.specular_intensity), 0, 'Roughness:', '{:.2f}'.format(1.0-cm.specular_hardness/511.0)):
-                row.label(matprop) if matprop else row = layout.row()
+                if matprop:
+                    row.label(matprop) 
+                else:
+                    row = layout.row()
         else:
             for matprop in ('Plastic', 0, 'RGB refelectance:', '({:.2f}, {:.2f}, {:.2f})'.format(*cm.diffuse_color), 0, 'Specularity', '{:.2f}'.format(cm.specular_intensity), 0, 'Roughness:', '{:.2f}'.format(1.0-cm.specular_hardness/511.0)):
-                row.label(matprop) if matprop else row = layout.row()
+                if matprop:
+                    row.label(matprop) 
+                else:
+                    row = layout.row()
 
         layout = self.layout
         row = layout.row()
@@ -218,11 +197,17 @@ class VIMatPanel(bpy.types.Panel):
 
                 elif cm.envi_layero == '2' and cm.envi_con_type != 'Window':
                     for end in ('name', 0, 'thi', 'tc', 0, 'rho', 'shc', 0, 'tab', 'sab', 0, 'vab', 'rough'):
-                        row.prop(cm, '{}{}'.format("envi_export_l0_", end)) if end else row = layout.row()
+                        if end:
+                            row.prop(cm, '{}{}'.format("envi_export_l0_", end)) 
+                        else: 
+                            row = layout.row()
 
                 elif cm.envi_layero == '2' and cm.envi_con_type == 'Window':
                     for end in ('name', 0, 'thi', 'tc', 0, 'odt', 'sds', 0, 'stn', 'fsn', 'bsn', 0, 'vtn', 'fvrn', 'bvrn', 0, 'itn', 'fie', 'bie'):
-                        row.prop(cm, '{}{}'.format("envi_export_l0_", end)) if end else row = layout.row()
+                        if end:
+                            row.prop(cm, '{}{}'.format("envi_export_l0_", end))  
+                        else:
+                            row = layout.row()
 
                 if cm.envi_layero != '0':
                     newrow(layout, "2nd layer:", cm, "envi_layer1")
@@ -240,7 +225,10 @@ class VIMatPanel(bpy.types.Panel):
                             row.prop(cm, "envi_export_l1_thi")
                     elif cm.envi_layer1 == '2' and cm.envi_con_type != 'Window':
                         for end in ('name', 0, 'thi', 'tc', 0, 'rho', 'shc', 0, 'tab', 'sab', 0, 'vab', 'rough'):
-                            row.prop(cm, '{}{}'.format("envi_export_l1_", end)) if end else row = layout.row()
+                            if end:
+                                row.prop(cm, '{}{}'.format("envi_export_l1_", end))  
+                            else:
+                                row = layout.row()
 
                     elif cm.envi_layer1 == '2' and cm.envi_con_type == 'Window':
                         row.prop(cm, "envi_export_l1_name")
@@ -262,11 +250,17 @@ class VIMatPanel(bpy.types.Panel):
 
                         elif cm.envi_layer2 == '2'and cm.envi_con_type != 'Window':
                             for end in ('name', 0, 'thi', 'tc', 0, 'rho', 'shc', 0, 'tab', 'sab', 0, 'vab', 'rough'):
-                                row.prop(cm, '{}{}'.format("envi_export_l2_", end)) if end else row = layout.row()
+                                if end:
+                                    row.prop(cm, '{}{}'.format("envi_export_l2_", end))  
+                                else: 
+                                    row = layout.row()
 
                         elif cm.envi_layer2 == '2' and cm.envi_con_type == 'Window':
                             for end in ('name', 0, 'thi', 'tc', 0, 'odt', 'sds', 0, 'stn', 'fsn', 'bsn', 0, 'vtn', 'fvrn', 'bvrn', 0, 'itn', 'fie', 'bie'):
-                                row.prop(cm, '{}{}'.format("envi_export_l2_", end)) if end else row = layout.row()
+                                if end:
+                                    row.prop(cm, '{}{}'.format("envi_export_l2_", end))  
+                                else:
+                                    row = layout.row()
 
                         if cm.envi_layer2 != '0':
                             row = layout.row()
@@ -289,7 +283,10 @@ class VIMatPanel(bpy.types.Panel):
 
                             elif cm.envi_layer3 == '2'and cm.envi_con_type != 'Window':
                                 for end in ('name', 0, 'thi', 'tc', 0, 'rho', 'shc', 0, 'tab', 'sab', 0, 'vab', 'rough'):
-                                    row.prop(cm, '{}{}'.format("envi_export_l3_", end)) if end else row = layout.row()
+                                    if end:
+                                        row.prop(cm, '{}{}'.format("envi_export_l3_", end))  
+                                    else:
+                                        row = layout.row()
 
                             elif cm.envi_layer3 == '2' and cm.envi_con_type == 'Window':
                                 row.prop(cm, "envi_export_l1_name")
@@ -318,11 +315,17 @@ class VIMatPanel(bpy.types.Panel):
 
                                 elif cm.envi_layer4 == '2' and cm.envi_con_type != 'Window':
                                     for end in ('name', 0, 'thi', 'tc', 0, 'rho', 'shc', 0, 'tab', 'sab', 0, 'vab', 'rough'):
-                                        row.prop(cm, '{}{}'.format("envi_export_l4_", end)) if end else row = layout.row()
+                                        if end:
+                                            row.prop(cm, '{}{}'.format("envi_export_l4_", end))  
+                                        else:
+                                            row = layout.row()
 
                                 elif cm.envi_layer4 == '2' and cm.envi_con_type == 'Window':
                                     for end in ('name', 0, 'thi', 'tc', 0, 'odt', 'sds', 0, 'stn', 'fsn', 'bsn', 0, 'vtn', 'fvrn', 'bvrn', 0, 'itn', 'fie', 'bie'):
-                                        row.prop(cm, '{}{}'.format("envi_export_l4_", end)) if end else row = layout.row()
+                                        if end:
+                                            row.prop(cm, '{}{}'.format("envi_export_l4_", end)) 
+                                        else:
+                                            row = layout.row()
 
             elif cm.envi_con_makeup == '0':
                 thicklist = ("envi_export_lo_thi", "envi_export_l1_thi", "envi_export_l2_thi", "envi_export_l3_thi", "envi_export_l4_thi")
@@ -336,6 +339,7 @@ class VIMatPanel(bpy.types.Panel):
                             row.prop(cm, thicklist[l])
                             row.label(text = "default: "+str(envi_mats.matdat[layername][7])+"mm")
                         row = layout.row()
+                
                 elif cm.envi_con_type == 'Floor':
                     row.prop(cm, "envi_export_floorconlist")
                     row = layout.row()
@@ -413,7 +417,10 @@ class EnZonePanel(bpy.types.Panel):
             row.prop(object, "envi_heats1")
             if object.envi_heats1 == True:
                 for end in ('s1d', 0, 'p1st', 'p1et', 'sp1', 0, 'p2st', 'p2et', 'sp2', 0, 'p3st', 'p3et', 'sp3'):
-                    row.prop(object, '{}{}'.format("envi_heats1", end)) if end else row = layout.row()
+                    if end:
+                        row.prop(object, '{}{}'.format("envi_heats1", end))  
+                    else:
+                        row = layout.row()
                 if object.envi_heats1d != "0":
                     row = layout.row()
                     row.prop(object, "envi_heats2")
@@ -423,7 +430,10 @@ class EnZonePanel(bpy.types.Panel):
                         else:
                             row.prop(object, "envi_heats2dwd")
                         for end in (0, 'p1st', 'p1et', 'sp1', 0, 'p2st', 'p2et', 'sp2', 0, 'p3st', 'p3et', 'sp3'):
-                            row.prop(object, '{}{}'.format("envi_heats2", end)) if end else row = layout.row()
+                            if end:
+                                row.prop(object, '{}{}'.format("envi_heats2", end))  
+                            else:
+                                row = layout.row()
 
             row = layout.row()
             row.label('-------------------------------------')
@@ -436,7 +446,10 @@ class EnZonePanel(bpy.types.Panel):
 
             if object.envi_cools1 == True:
                 for end in ('s1d', 0, 'p1st', 'p1et', 'sp1', 0, 'p2st', 'p2et', 'sp2', 0, 'p3st', 'p3et', 'sp3'):
-                    row.prop(object, '{}{}'.format("envi_cools1", end)) if end else row = layout.row()
+                    if end:
+                        row.prop(object, '{}{}'.format("envi_cools1", end))  
+                    else:
+                        row = layout.row()
 
                 if object.envi_cools1d != "0":
                     row = layout.row()
@@ -447,7 +460,10 @@ class EnZonePanel(bpy.types.Panel):
                         else:
                             row.prop(object, "envi_cools2dwd")
                         for end in (0, 'p1st', 'p1et', 'sp1', 0, 'p2st', 'p2et', 'sp2', 0, 'p3st', 'p3et', 'sp3'):
-                            row.prop(object, '{}{}'.format("envi_cools2", end)) if end else row = layout.row()
+                            if end:
+                                row.prop(object, '{}{}'.format("envi_cools2", end))  
+                            else:
+                                row = layout.row()
 
             row = layout.row()
             row.label('------------------------------------------------------------')
@@ -457,7 +473,10 @@ class EnZonePanel(bpy.types.Panel):
             row.prop(object, "envi_occtype")
             if object.envi_occtype != "0":
                 for end in ('max', '1d', 0, '1p1st', '1p1et', '1p1level', 0, '1p2st', '1p2et', '1p2level', 0, '1p3st', '1p3et', '1p3level', 0, '1watts'):
-                    row.prop(object, '{}{}'.format("envi_occs", end)) if end else row = layout.row()
+                    if end:
+                        row.prop(object, '{}{}'.format("envi_occs", end))  
+                    else:
+                        row = layout.row()
                 row = layout.row()
                 if object.envi_occs1d != "0":
                     row.prop(object, "envi_occs2")
@@ -467,7 +486,10 @@ class EnZonePanel(bpy.types.Panel):
                         else:
                             row.prop(object, "envi_occs2dwd")
                         for end in ('2p1st', '2p1et', '2p1level', 0, '2p2st', '2p2et', '2p2level', 0, '2p3st', '2p3et', '2p3level', 0, '2watts'):
-                            row.prop(object, '{}{}'.format("envi_occs", end)) if end else row = layout.row()
+                            if end:
+                                row.prop(object, '{}{}'.format("envi_occs", end))  
+                            else:
+                                row = layout.row()
 
             row = layout.row()
             row.label('---------------------------------------------------------')

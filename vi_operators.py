@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from .livi_export import radcexport, radgexport
 from .livi_calc  import rad_prev, li_calc
-from .vi_display import li_display, ss_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend
+from .vi_display import li_display, ss_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .envi_calc import envi_sim
@@ -608,8 +608,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
         if sunpath2 not in bpy.app.handlers.frame_change_post:
             bpy.app.handlers.frame_change_post.append(sunpath2)
-        context.scene.sp_disp_panel = 1
-        context.scene.li_disp_panel = 0
         bpy.ops.view3d.spnumdisplay()
         return {'FINISHED'}
 
@@ -644,19 +642,22 @@ class NODE_OT_WindRose(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        scene = context.scene
-        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 0, 1
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         locnode = simnode.inputs[0].links[0].from_node
+        scene, scene.resnode, scene.restree = context.scene, simnode.name, self.nodeid.split('@')[1]
+        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 0, 1
+
         with open(locnode.weather, "r") as epwfile:
             wvals = [line.split(",")[20:22] for l, line in enumerate(epwfile.readlines()) if l > 7 and simnode.startmonth <= int(line.split(",")[1]) < simnode.endmonth]
-            simnode['maxres'] = max([w[0] for w in wvals])
-            simnode['minres'] = min([w[0] for w in wvals])
-            simnode['avres'] = sum([float(w[0]) for w in wvals])/len(wvals)
+            simnode['maxres'] = max([float(w[1]) for w in wvals])
+            simnode['minres'] = min([float(w[1]) for w in wvals])
+            simnode['avres'] = sum([float(w[1]) for w in wvals])/len(wvals)
 
         awd = [float(val[0]) for val in wvals]
         aws = [float(val[1]) for val in wvals]
         ax = wr_axes()
+        simnode['nbins'] = len(arange(0,int(ceil(max(aws))),2))
+        
         if simnode.wrtype == '0':
             ax.bar(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True, opening=0.8, edgecolor='white')
         if simnode.wrtype == '1':
@@ -668,9 +669,13 @@ class NODE_OT_WindRose(bpy.types.Operator):
             ax.contour(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True, colors='black')
         if simnode.wrtype == '4':
             ax.contour(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True, cmap=cm.hot)
-#        set_legend(ax)
-        plt.savefig(locnode.newdir+'/disp_wind.png', dpi = (300), transparent=False)
-        plt.savefig(locnode.newdir+'/disp_wind.svg')
+        set_legend(ax)
+        if locnode.newdir:
+            plt.savefig(locnode.newdir+'/disp_wind.png', dpi = (300), transparent=True)
+            plt.savefig(locnode.newdir+'/disp_wind.svg')
+        else:
+            self.report({'ERROR'},"No project directory. Save the Blender file and recreate the VI Location node.")
+            return {'CANCELLED'}
 
         if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
             bpy.data.images.load(locnode.newdir+'/disp_wind.png')
@@ -695,7 +700,28 @@ class NODE_OT_WindRose(bpy.types.Operator):
             wind_mat.use_transparency = True
             wind_mat.transparency_method = 'Z_TRANSPARENCY'
             wind_mat.alpha = 0.0
+        bpy.ops.view3d.wrlegdisplay()
         return {'FINISHED'}
+        
+class VIEW3D_OT_WRLegDisplay(bpy.types.Operator):
+    '''Display results legend and stats in the 3D View'''
+    bl_idname = "view3d.wrlegdisplay"
+    bl_label = "Wind rose legend"
+    bl_description = "Display Wind Rose legend"
+    bl_register = True
+    bl_undo = True
+
+    def modal(self, context, event):
+        context.area.tag_redraw()
+        if context.scene.vi_display == 0:
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle_spnum, 'WINDOW')
+            return {'CANCELLED'}
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]
+        self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(viwr_legend, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
+        return {'RUNNING_MODAL'}
 
 class NODE_OT_Shadow(bpy.types.Operator):
     bl_idname = "node.shad"

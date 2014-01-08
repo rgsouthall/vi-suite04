@@ -282,19 +282,15 @@ def viwr_legend(self, context, simnode):
     if scene.vi_leg_display != True or scene.vi_display == 0:
         return
     else:
-        if not connode or (connode and connode.bl_label == 'LiVi CBDM'):
-            resvals = ['{:.1f}'.format(min(simnode['minres'])+i*(max(simnode['maxres'])-min(simnode['minres']))/19) for i in range(20)]
-        else:
-            resvals = [('{:.0f}', '{:.0f}', '{:.1f}')[int(connode.analysismenu)].format(min(simnode['minres'])+i*(max(simnode['maxres'])-min(simnode['minres']))/19) for i in range(20)]
-
+        resvals = ['{:.1f}'.format(simnode['minres']+i*(simnode['maxres']-simnode['minres'])/simnode['nbins']) for i in range(simnode['nbins'])]
         height = context.region.height
         lenres = len(resvals[-1])
         font_id = 0
         vi_func.drawpoly(20, height - 40, 70 + lenres*8, height - 520)
         vi_func.drawloop(19, height - 40, 70 + lenres*8, height - 520)
-
-        for i in range(nbin):
-            bgl.glColor4f(matplotlib.cm.hot(0, 1, (i * 1/(nbin-1))))
+        cm = matplotlib.cm.jet if simnode.wrtype in ('0', '1') else matplotlib.cm.hot
+        for i in range(simnode['nbins']):
+            bgl.glColor4f(*cm(i * 1/(simnode['nbins']-1), 1))
             bgl.glBegin(bgl.GL_POLYGON)
             bgl.glVertex2i(20, (i*20)+height - 460)
             bgl.glVertex2i(60, (i*20)+height - 460)

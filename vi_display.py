@@ -87,7 +87,7 @@ def li_display(simnode, connode, geonode):
             scene.objects.active = None
 
         for obres in obreslist:
-            oreslist =  {str(scene.frame_start): 0} if simnode.animmenu == "Static" else {str(frame): 0 for frame in range(scene.frame_end - scene.frame_start + 1)}
+            (oreslist, fe) =  ({str(scene.frame_start): 0}, scene.frame_start) if simnode.animmenu == "Static" else ({str(frame): 0 for frame in range(scene.frame_end - scene.frame_start + 1)}, scene.frame_end)
             scene.objects.active = obres
             obres.select = True
             j = []
@@ -109,22 +109,22 @@ def li_display(simnode, connode, geonode):
 
             bpy.ops.object.shape_key_add(from_mix = False)
 
-            for frame in range(scene.frame_start, scene.frame_end + 1):
+            for frame in range(scene.frame_start, fe + 1):
                 findex = frame - scene.frame_start
                 bpy.ops.object.shape_key_add(from_mix = False)
                 obres.active_shape_key.name = str(frame)
                 if cp == '0' and geonode:
-                    oreslist[str(frame)] = [simnode['minres'][frame] + (simnode['maxres'][findex] - simnode['minres'][findex]) * 1/0.75 * vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[li].color) for li in [face.loop_indices[0] for face in obres.data.polygons if face.select == True]]
+                    oreslist[str(frame)] = [simnode['minres'][findex] + (simnode['maxres'][findex] - simnode['minres'][findex]) * 1/0.75 * vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[li].color) for li in [face.loop_indices[0] for face in obres.data.polygons if face.select == True]]
                 elif not geonode:
-                    oreslist[str(frame)] = [simnode['minres'][frame] + (simnode['maxres'][findex] - simnode['minres'][findex]) * obres.data.vertex_colors['{}'.format(frame)].data[li].color[0] for li in [face.loop_indices[0] for face in obres.data.polygons if face.select == True]]
+                    oreslist[str(frame)] = [simnode['minres'][findex] + (simnode['maxres'][findex] - simnode['minres'][findex]) * obres.data.vertex_colors['{}'.format(frame)].data[li].color[0] for li in [face.loop_indices[0] for face in obres.data.polygons if face.select == True]]
                 elif cp == '1':
-                    oreslist[str(frame)] = [simnode['minres'][frame] + (simnode['maxres'][findex] - simnode['minres'][findex]) * 1/0.75 * vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[j].color) for j in range(len(obres.data.vertex_colors[str(frame)].data))]
+                    oreslist[str(frame)] = [simnode['minres'][findex] + (simnode['maxres'][findex] - simnode['minres'][findex]) * 1/0.75 * vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[j].color) for j in range(len(obres.data.vertex_colors[str(frame)].data))]
 
             obres['oreslist'] = oreslist
             obres['j'] = j
 
 
-    for frame in range(scene.frame_start, scene.frame_end + 1):
+    for frame in range(scene.frame_start, fe + 1):
         scene.frame_set(frame)
         for obres in obreslist:
             if scene.vi_disp_3d == 1:
@@ -180,7 +180,7 @@ def linumdisplay(disp_op, context, simnode, geonode):
 
     bgl.glColor3f = scene.vi_display_rp_fc
     cp = geonode.cpoint if geonode else simnode.cpoint
-    fn = context.scene.frame_current
+    fn = context.scene.frame_current - context.scene.frame_start
     mid_x, mid_y, width, height = vi_func.viewdesc(context)
 
     if scene.vi_display_sel_only == False:

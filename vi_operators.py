@@ -779,8 +779,11 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
             else:
                ob.licalc = 0
-
-        simnode['maxres'], simnode['minres'], simnode['avres'] = scmaxres, scminres, [scavres[f]/len([ob for ob in scene.objects if ob.licalc]) for f in range(fe - scene.frame_start + 1)]
+        try:
+            simnode['maxres'], simnode['minres'], simnode['avres'] = scmaxres, scminres, [scavres[f]/len([ob for ob in scene.objects if ob.licalc]) for f in range(fe - scene.frame_start + 1)]
+        except ZeroDivisionError:
+            self.report({'ERROR'},"No objects have a VI Shadow material attached.")
+                        
         scene.frame_set(scene.frame_start)
         if simnode.bl_label[0] == '*':
             simnode.bl_label = simnode.bl_label[1:]

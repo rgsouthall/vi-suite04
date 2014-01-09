@@ -669,7 +669,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
             ax.contour(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True, colors='black')
         if simnode.wrtype == '4':
             ax.contour(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True, cmap=cm.hot)
-        set_legend(ax)
+#        set_legend(ax)
         if locnode.newdir:
             plt.savefig(locnode.newdir+'/disp_wind.png', dpi = (300), transparent=True)
             plt.savefig(locnode.newdir+'/disp_wind.svg')

@@ -282,28 +282,29 @@ def viwr_legend(self, context, simnode):
     if scene.vi_leg_display != True or scene.vi_display == 0:
         return
     else:
-        resvals = ['{:.1f}'.format(simnode['minres']+i*(simnode['maxres']-simnode['minres'])/simnode['nbins']) for i in range(simnode['nbins'])]
+        resvals = ['{0:.0f} to {1:.0f}'.format(2*i, 2*(i+1)) for i in range(simnode['nbins'])]
+        resvals[-1] = resvals[-1][:-int(len('{:.0f}'.format(simnode['maxres'])))] + u"\u221E"
         height = context.region.height
         lenres = len(resvals[-1])
         font_id = 0
-        vi_func.drawpoly(20, height - 40, 70 + lenres*8, height - 520)
-        vi_func.drawloop(19, height - 40, 70 + lenres*8, height - 520)
+        vi_func.drawpoly(20, height - 40, 70 + lenres*8, height - (simnode['nbins']+6)*20)
+        vi_func.drawloop(19, height - 40, 70 + lenres*8, height - (simnode['nbins']+6)*20)
         cm = matplotlib.cm.jet if simnode.wrtype in ('0', '1') else matplotlib.cm.hot
         for i in range(simnode['nbins']):
             bgl.glColor4f(*cm(i * 1/(simnode['nbins']-1), 1))
             bgl.glBegin(bgl.GL_POLYGON)
-            bgl.glVertex2i(20, (i*20)+height - 460)
-            bgl.glVertex2i(60, (i*20)+height - 460)
-            bgl.glVertex2i(60, (i*20)+height - 440)
-            bgl.glVertex2i(20, (i*20)+height - 440)
+            bgl.glVertex2i(20, height - 70 - (simnode['nbins'] * 20) + (i*20))
+            bgl.glVertex2i(60, height - 70 - (simnode['nbins'] * 20) + (i*20))
+            bgl.glVertex2i(60, height - 50 - (simnode['nbins'] * 20) + (i*20))
+            bgl.glVertex2i(20, height - 50 - (simnode['nbins'] * 20) + (i*20))
             bgl.glEnd()
             blf.size(font_id, 20, 48)
             bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-            blf.position(font_id, 65, (i*20)+height - 455, 0)
+            blf.position(font_id, 65, height - 65 - (simnode['nbins'] * 20) + (i*20), 0)
             blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
 
         blf.size(font_id, 20, 56)
-        cu = 'Wind Speed (m/s)'
+        cu = 'Speed (m/s)'
 
         vi_func.drawfont(cu, font_id, 0, height, 25, 57)
         bgl.glLineWidth(1)
@@ -314,14 +315,9 @@ def viwr_legend(self, context, simnode):
         if context.scene.frame_current in vi_func.framerange(context.scene):
             bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
             blf.size(font_id, 20, 48)
-            if hasattr(context.active_object, 'lires') and context.active_object.lires:
-                vi_func.drawfont("Ave: {:.1f}".format(bpy.context.active_object['avres']), font_id, 0, height, 22, 480)
-                vi_func.drawfont("Max: {:.1f}".format(context.active_object['maxres'][str(context.scene.frame_current)]), font_id, 0, height, 22, 495)
-                vi_func.drawfont("Min: {:.1f}".format(context.active_object['minres'][str(context.scene.frame_current)]), font_id, 0, height, 22, 510)
-            else:
-                vi_func.drawfont("Ave: {:.1f}".format(simnode['avres'][context.scene.frame_current]), font_id, 0, height, 22, 480)
-                vi_func.drawfont("Max: {:.1f}".format(simnode['maxres'][context.scene.frame_current]), font_id, 0, height, 22, 495)
-                vi_func.drawfont("Min: {:.1f}".format(simnode['minres'][context.scene.frame_current]), font_id, 0, height, 22, 510)
+            vi_func.drawfont("Ave: {:.1f}".format(simnode['avres']), font_id, 0, height, 22, simnode['nbins']*20 + 85)
+            vi_func.drawfont("Max: {:.1f}".format(simnode['maxres']), font_id, 0, height, 22, simnode['nbins']*20 + 100)
+            vi_func.drawfont("Min: {:.1f}".format(simnode['minres']), font_id, 0, height, 22, simnode['nbins']*20 + 115)
 
 
 def li_compliance(self, context, connode):

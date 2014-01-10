@@ -14,7 +14,7 @@ from .vi_display import li_display, ss_display, li_compliance, linumdisplay, spn
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .envi_calc import envi_sim
-from .vi_func import processf, livisimacc, solarPosition, sunpath2, wr_axes, set_legend, clearscened
+from .vi_func import processf, livisimacc, solarPosition, sunpath2, wr_axes, set_legend, clearscened, frameindex, framerange
 from .vi_chart import chart_disp
 
 envi_mats = envi_materials()
@@ -255,8 +255,8 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
     def invoke(self, context, event):
         scene = context.scene
         simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]
-        connode = 0 if scene.resnode == 'VI Shadow Study' else simnode.inputs['Context in'].links[0].from_node
-        geonode = 0 if scene.resnode == 'VI Shadow Study' else connode.inputs['Geometry in'].links[0].from_node
+        connode = 0 if simnode.bl_label == 'VI Shadow Study' else simnode.inputs['Context in'].links[0].from_node
+        geonode = 0 if simnode.bl_label == 'VI Shadow Study' else connode.inputs['Geometry in'].links[0].from_node
         li_display(simnode, connode, geonode)
         scene.li_disp_panel, scene.ss_disp_panel = 2, 2
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')
@@ -744,7 +744,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 obm = ob.matrix_world
                 ob['cfaces'] = [face.index for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow]
                 ob['cverts'] = []
-                for frame in range(fdiff):
+                for frame in framerange(scene, simnode.animmenu):
                     scene.frame_set(frame)
                     findex = frame - scene.frame_start
                     for vc in ob.data.vertex_colors:

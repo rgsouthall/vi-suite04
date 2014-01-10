@@ -428,8 +428,17 @@ def mtx2vals(mtxlines, fwd):
                 hour = 0
     return(vecvals, vals)
 
-def framerange(scene):
-    return(range(scene.frame_start, scene.frame_end +1))
+def framerange(scene, anim):
+    if anim == 'Static':
+        return(range(scene.frame_start, scene.frame_start +1))
+    else:
+        return(range(scene.frame_start, scene.frame_end +1))
+
+def frameindex(scene, anim):
+    if anim == 'Static':
+        return(range(0, 1))
+    else:
+        return(range(0, scene.frame_end - scene.frame_start +1))
 
 def retobjs(otypes):
     scene = bpy.context.scene

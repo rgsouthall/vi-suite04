@@ -27,7 +27,9 @@ def ss_display():
 
 def li_display(simnode, connode, geonode):
     cp = '0' if not geonode else geonode.cpoint
-    animmenu = geonode.animmenu if geonode else simnode.animmenu
+    ganimmenu = geonode.animmenu if geonode else simnode.animmenu
+    canimmenu = connode.animmenu if connode else simnode.animmenu
+    animmenu = [a for a in (ganimmenu, canimmenu) if a !='Static'][0] if (ganimmenu, canimmenu) != ('Static', 'Static') else 'Static'
     scene = bpy.context.scene
     vi_func.clearscened(scene)
     obreslist = []
@@ -46,7 +48,7 @@ def li_display(simnode, connode, geonode):
                 obcalclist.append(geo)
                 o += 1
 
-        for frame in vi_func.framerange(scene):
+        for frame in vi_func.framerange(scene, 'Animted'):
             scene.frame_set(frame)
             for obcalc in obcalclist:
                 for vc in obcalc.data.vertex_colors:
@@ -77,23 +79,28 @@ def li_display(simnode, connode, geonode):
                 for cv in geo["cverts"]:
                     geo.data.vertices[int(cv)].select = True
 
+
             bpy.ops.object.mode_set(mode = 'EDIT')
             bpy.ops.mesh.duplicate()
             bpy.ops.mesh.separate()
             bpy.ops.object.mode_set(mode = 'OBJECT')
+            for f in scene.objects[0].data.polygons:
+                f.select = True
             scene.objects[0].name = geo.name+"res"
             obreslist.append(scene.objects[0])
             scene.objects[0].lires = 1
             bpy.ops.object.select_all(action = 'DESELECT')
             scene.objects.active = None
-        
+
+
         for obres in obreslist:
-            (oreslist, fe) =  ({str(scene.frame_start): 0}, scene.frame_start) if animmenu == "Static" else ({str(frame): 0 for frame in range(scene.frame_end - scene.frame_start + 1)}, scene.frame_end)
+            oreslist = {str(f): 0 for f in vi_func.framerange(scene, animmenu)}
+#            (oreslist, fe) =  ({str(scene.frame_start): 0}, scene.frame_start) if animmenu == "Static" else ({str(frame): 0 for frame in range(scene.frame_end - scene.frame_start + 1)}, scene.frame_end)
             scene.objects.active = obres
             obres.select = True
             j = []
-            
-            if cp == '0' or not geonode:               
+
+            if cp == '0' or not geonode:
                 if len(obres.data.polygons) > 1:
                     bpy.ops.object.mode_set(mode = 'EDIT')
                     bpy.ops.mesh.select_all(action = 'SELECT')
@@ -110,7 +117,8 @@ def li_display(simnode, connode, geonode):
 
             bpy.ops.object.shape_key_add(from_mix = False)
 
-            for frame in range(scene.frame_start, fe + 1):
+#            for frame in range(scene.frame_start, fe + 1):
+            for frame in vi_func.framerange(scene, animmenu):
                 findex = frame - scene.frame_start
                 bpy.ops.object.shape_key_add(from_mix = False)
                 obres.active_shape_key.name = str(frame)
@@ -123,15 +131,15 @@ def li_display(simnode, connode, geonode):
 
             obres['oreslist'] = oreslist
             try:
-                obres['omax'] ={str(f):max(oreslist[str(f)]) for f in range(scene.frame_start, fe + 1)}
-                obres['omin'] ={str(f):min(oreslist[str(f)]) for f in range(scene.frame_start, fe + 1)}
-                obres['oave'] ={str(f):sum(oreslist[str(f)])/len(oreslist[str(f)]) for f in range(scene.frame_start, fe + 1)}
+                obres['omax'] ={str(f):max(oreslist[str(f)]) for f in vi_func.framerange(scene, animmenu)}
+                obres['omin'] ={str(f):min(oreslist[str(f)]) for f in vi_func.framerange(scene, animmenu)}
+                obres['oave'] ={str(f):sum(oreslist[str(f)])/len(oreslist[str(f)]) for f in vi_func.framerange(scene, animmenu)}
             except Exception as e:
                 print(e)
             obres['j'] = j
 
 
-    for frame in range(scene.frame_start, fe + 1):
+    for frame in vi_func.framerange(scene, animmenu):
         scene.frame_set(frame)
         for obres in obreslist:
             if scene.vi_disp_3d == 1:
@@ -156,8 +164,7 @@ def spnumdisplay(disp_op, context, simnode):
         ob = bpy.data.objects['SPathMesh']
         bgl.glColor3f = scene.vi_display_rp_fc
         if scene.hourdisp == True:
-            mid_x, mid_y, width, height = vi_func.viewdesc(context)
-            view_mat = context.space_data.region_3d.perspective_matrix
+            mid_x, mid_y, width, height, view_mat  = vi_func.viewdesc(context), context.space_data.region_3d.perspective_matrix
             ob_mat = ob.matrix_world
             total_mat = view_mat*ob_mat
             for np in ob['numpos']:
@@ -169,9 +176,11 @@ def spnumdisplay(disp_op, context, simnode):
         print(e)
         return
 
-def linumdisplay(disp_op, context, simnode, geonode):
+def linumdisplay(disp_op, context, simnode, connode, geonode):
     scene = context.scene
-    animmenu = geonode.animmenu if geonode else simnode.animmenu
+    ganimmenu = geonode.animmenu if geonode else simnode.animmenu
+    canimmenu = connode.animmenu if connode else simnode.animmenu
+    animmenu = [a for a in (ganimmenu, canimmenu) if a !='Static'][0] if (ganimmenu, canimmenu) != ('Static', 'Static') else 'Static'
     blf.enable(0, 4)
     blf.shadow(0, 5,scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])
     bgl.glColor4f(scene.vi_display_rp_fc[0], scene.vi_display_rp_fc[1], scene.vi_display_rp_fc[2], scene.vi_display_rp_fc[3])
@@ -189,6 +198,8 @@ def linumdisplay(disp_op, context, simnode, geonode):
     bgl.glColor3f = scene.vi_display_rp_fc
     cp = geonode.cpoint if geonode else simnode.cpoint
     fn = context.scene.frame_current - context.scene.frame_start
+
+
     mid_x, mid_y, width, height = vi_func.viewdesc(context)
 
     if scene.vi_display_sel_only == False:
@@ -197,14 +208,19 @@ def linumdisplay(disp_op, context, simnode, geonode):
         obd = [context.active_object]
 
     for ob in obd:
+        if ob.active_shape_key_index != fn+1:
+            ob.active_shape_key_index = fn+1
+#        ob.active_shape_key_index = fn+1
         obm = ob.data
         ob_mat = ob.matrix_world
         view_mat = context.space_data.region_3d.perspective_matrix
         view_pos = (view_mat.inverted()[0][3]/5, view_mat.inverted()[1][3]/5, view_mat.inverted()[2][3]/5)
+
         if scene.vi_display_vis_only:
             faces = [f for f in ob.data.polygons if f.select == True and not scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f)))) + 0.02*f.normal, view_pos)[0]] if ob.lires else [f for f in ob.data.polygons if not scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f)))) + 0.02*f.normal, view_pos)[0]]
         else:
             faces = [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons]
+
         vdone = []
         total_mat = view_mat*ob_mat
 
@@ -273,7 +289,7 @@ def li3D_legend(self, context, simnode, connode, geonode):
         bgl.glDisable(bgl.GL_BLEND)
         height = context.region.height
         font_id = 0
-        if scene.frame_current in vi_func.framerange(scene):
+        if scene.frame_current in vi_func.framerange(scene, 'Animted'):
             findex = scene.frame_current - scene.frame_start if animmenu != 'Static' else 0
             bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
             blf.size(font_id, 20, 48)
@@ -321,7 +337,7 @@ def viwr_legend(self, context, simnode):
         height = context.region.height
         font_id = 0
 
-        if context.scene.frame_current in vi_func.framerange(context.scene):
+        if context.scene.frame_current in vi_func.framerange(context.scene, 'Animted'):
             bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
             blf.size(font_id, 20, 48)
             vi_func.drawfont("Ave: {:.1f}".format(simnode['avres']), font_id, 0, height, 22, simnode['nbins']*20 + 85)

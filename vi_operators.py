@@ -240,9 +240,9 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
     bl_description = "Display the results on the sensor surfaces"
     bl_register = True
     bl_undo = True
-    
+
     _handle = None
-    
+
     def modal(self, context, event):
         if context.scene.li_disp_panel != 2 and context.scene.ss_disp_panel != 2:
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
@@ -251,7 +251,7 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
                 bpy.types.SpaceView3D.draw_handler_remove(self._handle_comp, 'WINDOW')
             return {'CANCELLED'}
         return {'PASS_THROUGH'}
-        
+
     def invoke(self, context, event):
         scene = context.scene
         simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]
@@ -259,7 +259,7 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
         geonode = 0 if scene.resnode == 'VI Shadow Study' else connode.inputs['Geometry in'].links[0].from_node
         li_display(simnode, connode, geonode)
         scene.li_disp_panel, scene.ss_disp_panel = 2, 2
-        self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, simnode, geonode), 'WINDOW', 'POST_PIXEL')
+        self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')
         self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(li3D_legend, (self, context, simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
@@ -628,7 +628,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
         aws = [float(val[1]) for val in wvals]
         ax = wr_axes()
         simnode['nbins'] = len(arange(0,int(ceil(max(aws))),2))
-        
+
         if simnode.wrtype == '0':
             ax.bar(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True, opening=0.8, edgecolor='white')
         if simnode.wrtype == '1':
@@ -673,7 +673,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
             wind_mat.alpha = 0.0
         bpy.ops.view3d.wrlegdisplay('INVOKE_DEFAULT')
         return {'FINISHED'}
-        
+
 class VIEW3D_OT_WRLegDisplay(bpy.types.Operator):
     '''Display results legend and stats in the 3D View'''
     bl_idname = "view3d.wrlegdisplay"
@@ -781,7 +781,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             simnode['maxres'], simnode['minres'], simnode['avres'] = scmaxres, scminres, [scavres[f]/len([ob for ob in scene.objects if ob.licalc]) for f in range(fdiff)]
         except ZeroDivisionError:
             self.report({'ERROR'},"No objects have a VI Shadow material attached.")
-                        
+
         scene.frame_set(scene.frame_start)
         if simnode.bl_label[0] == '*':
             simnode.bl_label = simnode.bl_label[1:]

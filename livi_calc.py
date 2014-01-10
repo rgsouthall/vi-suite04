@@ -29,7 +29,7 @@ except:
     np = 0
 
 def radfexport(scene, export_op, connode, geonode):
-    for frame in vi_func.framerange(scene):
+    for frame in vi_func.framerange(scene, 'Animated'):
         livi_export.fexport(scene, frame, export_op, connode, geonode)
 
 def rad_prev(prev_op, simnode, connode, geonode, simacc):
@@ -71,7 +71,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
         vi_func.clearscened(scene)
         res, svres = [[[0 for p in range(geonode.reslen)] for x in range(scene.frame_end + 1 - scene.frame_start)] for x in range(2)]
 
-        for frame in vi_func.framerange(scene):
+        for frame in vi_func.framerange(scene, 'Animated'):
             if connode.bl_label == 'LiVi Basic':
                 if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
                     subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
@@ -179,9 +179,9 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
 def resapply(res, svres, simnode, connode, geonode):
     crits = []
     scene = bpy.context.scene
-    dfpass = [0 for f in vi_func.framerange(scene)]
+    dfpass = [0 for f in vi_func.framerange(scene, 'Animated')]
 
-    for frame in vi_func.framerange(scene):
+    for frame in vi_func.framerange(scene, 'Animated'):
         dftotarea, dfpassarea, edftotarea, mcol_i, f, fstart, fsv = 0, 0, 0, 0, 0, 0, 0
         rgb, lcol_i = [], []
         for i in range(0, len(res[frame])):
@@ -559,7 +559,7 @@ def resapply(res, svres, simnode, connode, geonode):
         if connode.bl_label == 'LiVi Compliance' and dfpass[frame] == 1:
             dfpass[frame] = 2 if dfpassarea/dftotarea >= 0.8 else dfpass[frame]
 
-    for frame in vi_func.framerange(scene):
+    for frame in vi_func.framerange(scene, 'Animated'):
         scene.frame_set(frame)
         for geo in scene.objects:
             if geo.licalc == 1:

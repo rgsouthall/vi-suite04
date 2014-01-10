@@ -37,10 +37,10 @@ def radgexport(export_op, node):
 
     clearscenege(scene)
     clearscened(scene)
-    scene.frame_start = 0 if node.animmenu == 'Static' else scene.frame_start
-    scene.frame_end = node.feg = 0 if node.animmenu == 'Static' else scene.frame_end
+#    scene.frame_start = 0 if node.animmenu == 'Static' else scene.frame_start
+#    scene.frame_end = node.feg = 0 if node.animmenu == 'Static' else scene.frame_end
 
-    for frame in framerange(scene):
+    for frame in framerange(scene, node.animmenu):
         scene.frame_current = frame
         radfile = ''
         radfile += "# Materials \n\n"
@@ -72,11 +72,15 @@ def radgexport(export_op, node):
 #                        mixmat1, mixmat2 = matnode.inputs[0].links[0].from_node, matnode.inputs[0].links[0].from_node
 #                        if 'Diffuse BDSF' in [i.bl_label for i in (mixmat1, mixmat2)] and 'Glossy BDSF' in [i.bl_label for i in (mixmat1, mixmat2)]:
 #                            radfile += "# Metal material\nvoid metal " + meshmat.name.replace(" ", "_") +"\n0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2}\n\n".format(diff, meshmat.specular_intensity, 1.0-meshmat.specular_hardness/511.0)
+                    else:
+                        radfile += ("# Antimatter material\nvoid antimatter " + meshmat.name.replace(" ", "_") +"\n1 void\n0\n0\n\n")
+                else:
+                    radfile += ("# Antimatter material\nvoid antimatter " + meshmat.name.replace(" ", "_") +"\n1 void\n0\n0\n\n")
 
             elif scene.render.engine == 'BLENDER_RENDER':
                 diff = [meshmat.diffuse_color[0]*meshmat.diffuse_intensity, meshmat.diffuse_color[1]*meshmat.diffuse_intensity, meshmat.diffuse_color[2]*meshmat.diffuse_intensity]
                 meshmat.use_vertex_color_paint = 1 if meshmat.livi_sense else 0
-                if meshmat.use_shadeless == 1 or meshmat.livi_compliance:                    
+                if meshmat.use_shadeless == 1 or meshmat.livi_compliance:
                     radfile += "# Antimatter material\nvoid antimatter " + meshmat.name.replace(" ", "_") +"\n1 void\n0\n0\n\n"
 
                 elif meshmat.emit > 0:
@@ -147,7 +151,7 @@ def radgexport(export_op, node):
                                 sk1co = geomatrix*sk1.data[vertindex].co
                                 radfile += " {} {} {}\n".format(sk0co[0]+(sk1co[0]-sk0co[0])*sk1.value, sk0co[1]+(sk1co[1]-sk0co[1])*sk1.value, sk0co[2]+(sk1co[2]-sk0co[2])*sk1.value)
                         else:
-                            
+
                             for vertindex in vertices:
                                 radfile += " {0[0]} {0[1]} {0[2]}\n".format(geomatrix*o.data.vertices[vertindex].co)
                         radfile += "\n"
@@ -184,7 +188,7 @@ def radgexport(export_op, node):
         for o, geo in enumerate(retobjs('livig')):
             if len(geo.data.materials) > 0:
                 if len([mat for mat in geo.material_slots if mat.material.livi_sense]) > 0:
-                    geo.licalc, csf, csv, cverts, obcalcverts, scene.objects.active = 1, [], [], [], [], geo 
+                    geo.licalc, csf, csv, cverts, obcalcverts, scene.objects.active = 1, [], [], [], [], geo
                     bpy.ops.object.mode_set(mode = 'EDIT')
                     bpy.ops.mesh.select_all(action='SELECT')
                     bpy.ops.object.mode_set(mode = 'OBJECT')
@@ -242,22 +246,30 @@ def radcexport(export_op, node):
     clearscened(scene)
     geonode = node.inputs[0].links[0].from_node
 
-    if geonode.animmenu != 'Static' and node.animmenu != 'Static':
+    if geonode.animmenu == 'Static' and node.animmenu == 'Static':
+        animmenu = 'Static'
+
+    elif geonode.animmenu != 'Static' and node.animmenu != 'Static':
         export_op.report({'ERROR'},"You cannot run a geometry and time based animation at the same time")
-    elif node.bl_label != 'LiVi CBDM':
+        return
+    else:
+        animmenu = 'Animated'
+
+    if node.bl_label != 'LiVi CBDM':
         if node.skynum < 4:
             node.skytypeparams = ("+s", "+i", "-c", "-b 22.86 -c")[node.skynum]
             starttime = datetime.datetime(2013, 1, 1, node.shour) + datetime.timedelta(node.sdoy - 1) if node.skynum < 3 else datetime.datetime(2013, 1, 1, 12)
             if node.animmenu == 'Time' and node.skynum < 3:
                 endtime = datetime.datetime(2013, 1, 1, node.ehour) + datetime.timedelta(node.edoy - 1)
                 hours = (endtime-starttime).days*24 + (endtime-starttime).seconds/3600
-                scene.frame_end = fe = int(hours/node.interval)
-            else:
-                fe = scene.frame_start
-                if geonode.animmenu == 'Static':
-                    scene.frame_end = fe
+                scene.frame_end = int(hours/node.interval)
+#                scene.frame_end = fe = int(hours/node.interval)
+#            else:
+#                fe = scene.frame_start
+#                if geonode.animmenu == 'Static':
+#                    scene.frame_end = fe
 
-            for frame in range(scene.frame_start, fe + 1):
+            for frame in framerange(scene, ('Static', 'Animated')[node.animmenu == 'Time']):
                 sunexport(scene, node, geonode, starttime, frame)
                 if node.skynum < 2 and node.analysismenu != '2':
                     if frame == 0:
@@ -289,7 +301,7 @@ def radcexport(export_op, node):
         elif node.skynum == 6:
             node['skyfiles'] = ['']
 
-        for frame in framerange(scene):
+        for frame in framerange(scene, node.animmenu):
             fexport(scene, frame, export_op, node, geonode)
 
     elif node.bl_label == 'LiVi CBDM':

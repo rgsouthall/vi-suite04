@@ -229,7 +229,7 @@ class NODE_OT_Calculate(bpy.types.Operator):
         connode = simnode.inputs['Context in'].links[0].from_node
         geonode = connode.inputs['Geometry in'].links[0].from_node
         li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
-        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 1, 1, 0, 0, 0, 0 if connode.bl_label == 'LiVi Compliance'  else 1, 1, 0, 0, 0, 0, 0
+        (scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel) = (1, 0, 1, 1, 0, 0, 0) if connode.bl_label == 'LiVi Compliance'  else (1, 0, 1, 0, 0, 0, 0)
         context.scene.resnode = simnode.name
         context.scene.restree = self.nodeid.split('@')[1]
         return {'FINISHED'}
@@ -240,58 +240,29 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
     bl_description = "Display the results on the sensor surfaces"
     bl_register = True
     bl_undo = True
-
-    def invoke(self, context, event):
-        scene = context.scene
-        simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]
-        connode = simnode.inputs['Context in'].links[0].from_node
-        geonode = connode.inputs['Geometry in'].links[0].from_node
-        try:
-            li_display(simnode, connode, geonode)
-            bpy.ops.view3d.linumdisplay()
-            scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 2, 0, 0, 0, 0
-        except:
-            self.report({'ERROR'},"No results available for display. Try re-running the calculation.")
-#            raise
-        return {'FINISHED'}
-
-class VIEW3D_OT_LiNumDisplay(bpy.types.Operator):
-    '''Display results legend and stats in the 3D View'''
-    bl_idname = "view3d.linumdisplay"
-    bl_label = "Point numbers"
-    bl_description = "Display the point results on the sensor surfaces"
-    bl_register = True
-    bl_undo = True
-
+    
+    _handle = None
+    
     def modal(self, context, event):
-        context.area.tag_redraw()
-        if context.scene.vi_display == 0:
+        if context.scene.li_disp_panel != 2 and context.scene.ss_disp_panel != 2:
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
             if bpy.context.scene.resnode == 'LiVi Compliance':
                 bpy.types.SpaceView3D.draw_handler_remove(self._handle_comp, 'WINDOW')
             return {'CANCELLED'}
-        return {'RUNNING_MODAL'}
-
-    def execute(self, context):
+        return {'PASS_THROUGH'}
+        
+    def invoke(self, context, event):
+        scene = context.scene
         simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]
-        if simnode.bl_label == 'VI Shadow Study':
-            connode, geonode = '', ''
-        else:
-            connode = simnode.inputs['Context in'].links[0].from_node
-            geonode = connode.inputs['Geometry in'].links[0].from_node
-
-        if context.area.type == 'VIEW_3D':
-            self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, simnode, geonode), 'WINDOW', 'POST_PIXEL')
-            self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(li3D_legend, (self, context, simnode, connode), 'WINDOW', 'POST_PIXEL')
-
-            if simnode.bl_label != 'VI Shadow Study' and connode.bl_label == 'LiVi Compliance':
-                self._handle_comp = bpy.types.SpaceView3D.draw_handler_add(li_compliance, (self, context, connode), 'WINDOW', 'POST_PIXEL')
-            context.scene.vi_display = 1
-            return {'RUNNING_MODAL'}
-        else:
-            self.report({'WARNING'}, "View3D not found, cannot run operator")
-            return {'CANCELLED'}
+        connode = 0 if scene.resnode == 'VI Shadow Study' else simnode.inputs['Context in'].links[0].from_node
+        geonode = 0 if scene.resnode == 'VI Shadow Study' else connode.inputs['Geometry in'].links[0].from_node
+        li_display(simnode, connode, geonode)
+        scene.li_disp_panel, scene.ss_disp_panel = 2, 2
+        self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, simnode, geonode), 'WINDOW', 'POST_PIXEL')
+        self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(li3D_legend, (self, context, simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
 
 class IES_Select(bpy.types.Operator, io_utils.ImportHelper):
     bl_idname = "livi.ies_select"
@@ -621,7 +592,7 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
 
     def modal(self, context, event):
         context.area.tag_redraw()
-        if context.scene.vi_display == 0:
+        if context.scene.vi_display == 0 or context.scene.sp_disp_panel != 2:
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_spnum, 'WINDOW')
             return {'CANCELLED'}
         return {'RUNNING_MODAL'}
@@ -700,7 +671,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
             wind_mat.use_transparency = True
             wind_mat.transparency_method = 'Z_TRANSPARENCY'
             wind_mat.alpha = 0.0
-        bpy.ops.view3d.wrlegdisplay()
+        bpy.ops.view3d.wrlegdisplay('INVOKE_DEFAULT')
         return {'FINISHED'}
         
 class VIEW3D_OT_WRLegDisplay(bpy.types.Operator):
@@ -713,14 +684,15 @@ class VIEW3D_OT_WRLegDisplay(bpy.types.Operator):
 
     def modal(self, context, event):
         context.area.tag_redraw()
-        if context.scene.vi_display == 0:
+        if context.scene.vi_display == 0 or context.scene.wr_disp_panel != 1:
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_spnum, 'WINDOW')
             return {'CANCELLED'}
-        return {'RUNNING_MODAL'}
+        return {'PASS_THROUGH'}
 
-    def execute(self, context):
+    def invoke(self, context, event):
         simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]
         self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(viwr_legend, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
+        context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
 class NODE_OT_Shadow(bpy.types.Operator):
@@ -741,13 +713,13 @@ class NODE_OT_Shadow(bpy.types.Operator):
         scene.resnode = simnode.name
         direcs = []
         if simnode.animmenu == 'Static':
-            scmaxres, scminres, scavres, fe = [100], [0], [0], scene.frame_start
+            scmaxres, scminres, scavres, scene.frame_end = [100], [0], [0], scene.frame_start
         else:
             scmaxres = [100 for f in range(scene.frame_end - scene.frame_start + 1)]
             scminres = [0 for f in range(scene.frame_end - scene.frame_start + 1)]
             scavres = [0 for f in range(scene.frame_end - scene.frame_start + 1)]
-            fe = scene.frame_end
-
+#            fe = scene.frame_end
+        fdiff = scene.frame_end - scene.frame_start + 1
         locnode = simnode.inputs[0].links[0].from_node
         if locnode.loc == "1":
             with open(locnode.weather, "r") as epwfile:
@@ -764,15 +736,15 @@ class NODE_OT_Shadow(bpy.types.Operator):
             time += interval
 
         for ob in [ob for ob in scene.objects if ob.type == 'MESH' and not ob.hide]:
-            obavres, shadfaces, shadcentres = [0] * (fe - scene.frame_start + 1), [[] for f in range(fe - scene.frame_start + 1)], [[] for f in range(fe - scene.frame_start + 1)]
-            obsumarea, obmaxres, obminres = [0 for f in range(fe - scene.frame_start + 1)], [0 for f in range(fe - scene.frame_start + 1)], [0 for f in range(fe - scene.frame_start + 1)]
+            obavres, shadfaces, shadcentres = [0] * (fdiff), [[] for f in range(fdiff)], [[] for f in range(fdiff)]
+            obsumarea, obmaxres, obminres = [0 for f in range(fdiff)], [0 for f in range(fdiff)], [0 for f in range(fdiff)]
             if len([mat for mat in ob.data.materials if mat.vi_shadow]) > 0:
                 ob.licalc = 1
-                bpy.context.scene.objects.active = ob
+                scene.objects.active = ob
                 obm = ob.matrix_world
                 ob['cfaces'] = [face.index for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow]
                 ob['cverts'] = []
-                for frame in range(scene.frame_start, fe + 1):
+                for frame in range(fdiff):
                     scene.frame_set(frame)
                     findex = frame - scene.frame_start
                     for vc in ob.data.vertex_colors:
@@ -799,40 +771,20 @@ class NODE_OT_Shadow(bpy.types.Operator):
                         obminres[findex] = 100* (min([sh[2] for sh in shadcentres[findex]]))
                         scminres[findex] = obminres[findex] if obminres[findex] < scminres[findex] else scminres[findex]
                         scavres[findex] += obavres[findex]
-                ob['maxres'] = obmaxres
-                ob['minres'] = obminres
-                ob['avres'] = [obavres[f] for f in range(fe - scene.frame_start + 1)]
+                ob['omax'] = {str(f):obmaxres[f] for f in range(fdiff)}
+                ob['omin'] = {str(f):obminres[f] for f in range(fdiff)}
+                ob['oave'] = {str(f):obavres[f] for f in range(fdiff)}
 
             else:
                ob.licalc = 0
         try:
-            simnode['maxres'], simnode['minres'], simnode['avres'] = scmaxres, scminres, [scavres[f]/len([ob for ob in scene.objects if ob.licalc]) for f in range(fe - scene.frame_start + 1)]
+            simnode['maxres'], simnode['minres'], simnode['avres'] = scmaxres, scminres, [scavres[f]/len([ob for ob in scene.objects if ob.licalc]) for f in range(fdiff)]
         except ZeroDivisionError:
             self.report({'ERROR'},"No objects have a VI Shadow material attached.")
                         
         scene.frame_set(scene.frame_start)
         if simnode.bl_label[0] == '*':
             simnode.bl_label = simnode.bl_label[1:]
-        return {'FINISHED'}
-
-
-class VIEW3D_OT_SSDisplay(bpy.types.Operator):
-    bl_idname = "view3d.ssdisplay"
-    bl_label = "Shadow Study Display"
-    bl_description = "Display the shadow results on the sensor surfaces"
-    bl_register = True
-    bl_undo = True
-
-    def invoke(self, context, event):
-        scene = context.scene
-        simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]
-        try:
-            li_display(simnode, 0, 0)
-            bpy.ops.view3d.linumdisplay()
-            scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 2, 0
-        except Exception as e:
-            print(e)
-            self.report({'ERROR'},"No results available for display. Try re-running the calculation.")
         return {'FINISHED'}
 
 

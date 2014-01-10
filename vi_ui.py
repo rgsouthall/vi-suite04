@@ -32,13 +32,16 @@ class Vi3DPanel(bpy.types.Panel):
                 newrow(layout, "Display hours", scene, "hourdisp")
                 newrow(layout, "Font size", scene, "vi_display_rp_fs")
 
-            if scene.ss_disp_panel in (1,2):
+            if scene.ss_disp_panel in (1,2) or scene.li_disp_panel in (1,2):
                 row = layout.row()
                 row.prop(scene, "vi_disp_3d")
                 row = layout.row()
-                row.operator("view3d.ssdisplay", text="Shadow Display")
+                if scene.resnode == 'VI Shadow Study':
+                    row.operator("view3d.lidisplay", text="Shadow Display")
+                else:
+                    row.operator("view3d.lidisplay", text="Radiance Display")
 
-                if scene.ss_disp_panel == 2:
+                if scene.ss_disp_panel == 2 or scene.li_disp_panel == 2:
                     row = layout.row()
                     row.prop(view, "show_only_render")
                     row = layout.row()
@@ -59,18 +62,6 @@ class Vi3DPanel(bpy.types.Panel):
                         row = layout.row()
                         row.label(text="{:-<60}".format(""))
 
-            if scene.li_disp_panel in (1,2):
-
-                row = layout.row()
-                row.prop(scene, "vi_disp_3d")
-                row = layout.row()
-                row.operator("view3d.lidisplay", text="Radiance Display")
-
-                if scene.li_disp_panel == 2:
-                    row = layout.row()
-                    row.prop(view, "show_only_render")
-                    row = layout.row()
-                    row.prop(scene, "vi_leg_display")
                     if scene.lic_disp_panel == 1:
                         newrow(layout, "Compliance Panel", scene, "li_compliance")
                         newrow(layout, "Asessment organisation:", scene, "li_assorg")
@@ -78,16 +69,6 @@ class Vi3DPanel(bpy.types.Panel):
                         newrow(layout, "Job number:", scene, "li_jobno")
                         newrow(layout, "Project name:", scene, "li_projname")
 
-                    if int(context.scene.li_disp_3d) == 1:
-                        newrow(layout, "3D Level", scene, "li_disp_3dlevel")
-                    if context.mode == "OBJECT":
-                        row = layout.row()
-                        row.label(text="{:-<48}".format("Point visualisation "))
-                        newrow(layout, "Enable:", scene, "li_display_rp")
-                        newrow(layout, "Selected only:", scene, "li_display_sel_only")
-                        newrow(layout, "Font size:", scene, "li_display_rp_fs")
-                        row = layout.row()
-                        row.label(text="{:-<60}".format(""))
 
 class VIMatPanel(bpy.types.Panel):
     bl_label = "VI-Suite Material Panel"

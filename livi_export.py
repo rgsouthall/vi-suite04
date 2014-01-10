@@ -31,7 +31,7 @@ except:
 
 def radgexport(export_op, node):
     scene = bpy.context.scene
-    if bpy.context.active_object and bpy.context.active_object.type == 'MESH':
+    if bpy.context.active_object and bpy.context.active_object.type == 'MESH' and bpy.context.active_object.hide == 0:
         bpy.ops.object.mode_set()
     radfilelist = []
 
@@ -47,36 +47,36 @@ def radgexport(export_op, node):
         for meshmat in bpy.data.materials:
             if scene.render.engine == 'CYCLES' and hasattr(meshmat.node_tree, 'nodes'):
                 if meshmat.node_tree.nodes['Material Output'].inputs['Surface'].is_linked:
-                   matnode = meshmat.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node
-                   if matnode.bl_label == 'Diffuse BSDF':
-                       radfile += "# Plastic material\nvoid plastic " + meshmat.name.replace(" ", "_") +"\n0\n0\n5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}\n\n".format(matnode.inputs[0].default_value, '0', matnode.inputs[1].default_value)
-                   elif matnode.bl_label == 'Glass BSDF':
-                       radfile += "# Glass material\nvoid glass " + meshmat.name.replace(" ", "_") +"\n0\n0\n4 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.3f}\n\n".format(matnode.inputs[0].default_value, matnode.inputs[2].default_value)
-                   elif matnode.bl_label == 'Glossy BSDF':
+                    matnode = meshmat.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node
+                    if matnode.bl_label == 'Diffuse BSDF':
+                        radfile += "# Plastic material\nvoid plastic " + meshmat.name.replace(" ", "_") +"\n0\n0\n5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}\n\n".format(matnode.inputs[0].default_value, '0', matnode.inputs[1].default_value)
+                    elif matnode.bl_label == 'Glass BSDF':
+                        radfile += "# Glass material\nvoid glass " + meshmat.name.replace(" ", "_") +"\n0\n0\n4 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.3f}\n\n".format(matnode.inputs[0].default_value, matnode.inputs[2].default_value)
+                    elif matnode.bl_label == 'Glossy BSDF':
                         radfile += "# Mirror material\nvoid mirror " + meshmat.name.replace(" ", "_") +"\n0\n0\n3 {0[0]} {0[1]} {0[2]}\n\n".format(meshmat.inputs[0].default_value)
                         for o in [o for o in bpy.data.objects if o.type == 'MESH']:
                             if meshmat in [om for om in o.data.materials]:
                                 o['merr'] = 1
                                 export_op.report({'INFO'}, o.name+" has a mirror material. Basic export routine used with no modifiers.")
-                   elif matnode.bl_label == 'Translucent BSDF':
+                    elif matnode.bl_label == 'Translucent BSDF':
                         radfile += "# Translucent material\nvoid trans " + meshmat.name.replace(" ", "_")+"\n0\n0\n7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2} {3} {4}\n\n".format(matnode.inputs[0].default_value, '0', '0', '0', '0')
-                   elif matnode.bl_label == 'Ambient Occlusion':
+                    elif matnode.bl_label == 'Ambient Occlusion':
                         radfile += ("# Antimatter material\nvoid antimatter " + meshmat.name.replace(" ", "_") +"\n1 void\n0\n0\n\n")
-                   elif matnode.bl_label == 'Emission':
+                    elif matnode.bl_label == 'Emission':
                         radfile += "# Light material\nvoid light " + meshmat.name.replace(" ", "_") +"\n0\n0\n3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n".format([c * matnode.inputs[1].default_value for c in matnode.inputs[0].default_value])
                         for o in [o for o in bpy.data.objects if o.type == 'MESH']:
                             if meshmat in [om for om in o.data.materials]:
                                 o['merr'] = 1
                                 export_op.report({'INFO'}, o.name+" has a emission material. Basic export routine used with no modifiers.")
 #                    elif matnode.bl_label == 'Mix Shader':
-#                        if 'Diffuse BDSF' in [i.bl_label for in Matnode.inputs[0:2] and 'Glossy BDSF' in [i.bl_label for in Matnode.inputs[0:2]:
+#                        mixmat1, mixmat2 = matnode.inputs[0].links[0].from_node, matnode.inputs[0].links[0].from_node
+#                        if 'Diffuse BDSF' in [i.bl_label for i in (mixmat1, mixmat2)] and 'Glossy BDSF' in [i.bl_label for i in (mixmat1, mixmat2)]:
 #                            radfile += "# Metal material\nvoid metal " + meshmat.name.replace(" ", "_") +"\n0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2}\n\n".format(diff, meshmat.specular_intensity, 1.0-meshmat.specular_hardness/511.0)
 
-            elif scene.render.engine == 'BLENDER RENDER':
+            elif scene.render.engine == 'BLENDER_RENDER':
                 diff = [meshmat.diffuse_color[0]*meshmat.diffuse_intensity, meshmat.diffuse_color[1]*meshmat.diffuse_intensity, meshmat.diffuse_color[2]*meshmat.diffuse_intensity]
                 meshmat.use_vertex_color_paint = 1 if meshmat.livi_sense else 0
-
-                if meshmat.use_shadeless == 1 or meshmat.livi_compliance:
+                if meshmat.use_shadeless == 1 or meshmat.livi_compliance:                    
                     radfile += "# Antimatter material\nvoid antimatter " + meshmat.name.replace(" ", "_") +"\n1 void\n0\n0\n\n"
 
                 elif meshmat.emit > 0:
@@ -130,7 +130,6 @@ def radgexport(export_op, node):
                     o.limerr = 1
             if o.limerr == 0:
                 radfile += "void mesh id \n1 "+retmesh(o.name, frame, node)+"\n0\n0\n\n"
-                print('hi')
             else:
                 export_op.report({'INFO'}, o.name+" could not be converted into a Radiance mesh and simpler export routine has been used. No un-applied object modifiers will be exported.")
                 o.limerr = 0
@@ -139,15 +138,16 @@ def radgexport(export_op, node):
                     try:
                         vertices = face.vertices[:]
                         radfile += "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(o.data.materials[face.material_index].name.replace(" ", "_"), o.data.name.replace(" ", "_"), face.index, 3*len(face.vertices))
-                        try:
-                            if o.data.shape_keys and o.data.shape_keys.key_blocks[0] and o.data.shape_keys.key_blocks[1]:
-                                for vertindex in vertices:
-                                    sk0 = o.data.shape_keys.key_blocks[0]
-                                    sk0co = geomatrix*sk0.data[vertindex].co
-                                    sk1 = o.data.shape_keys.key_blocks[1]
-                                    sk1co = geomatrix*sk1.data[vertindex].co
-                                    radfile += " {} {} {}\n".format(sk0co[0]+(sk1co[0]-sk0co[0])*sk1.value, sk0co[1]+(sk1co[1]-sk0co[1])*sk1.value, sk0co[2]+(sk1co[2]-sk0co[2])*sk1.value)
-                        except:
+                        if o.data.shape_keys and o.data.shape_keys.key_blocks[0] and o.data.shape_keys.key_blocks[1]:
+                            print('hi')
+                            for vertindex in vertices:
+                                sk0 = o.data.shape_keys.key_blocks[0]
+                                sk0co = geomatrix*sk0.data[vertindex].co
+                                sk1 = o.data.shape_keys.key_blocks[1]
+                                sk1co = geomatrix*sk1.data[vertindex].co
+                                radfile += " {} {} {}\n".format(sk0co[0]+(sk1co[0]-sk0co[0])*sk1.value, sk0co[1]+(sk1co[1]-sk0co[1])*sk1.value, sk0co[2]+(sk1co[2]-sk0co[2])*sk1.value)
+                        else:
+                            
                             for vertindex in vertices:
                                 radfile += " {0[0]} {0[1]} {0[2]}\n".format(geomatrix*o.data.vertices[vertindex].co)
                         radfile += "\n"
@@ -362,8 +362,8 @@ def blsunexport(scene, node, starttime, frame, sun):
             elif node.skynum == 1:
                 sun.data.shadow_soft_size = 3
                 sun.data.energy = 3
-        sun.location = [x*20 for x in (sin(phi), -cos(phi), tan(beta))]
-        sun.rotation_euler = (math.pi/2) - beta, 0, phi
+        sun.location = [x*20 for x in (-sin(phi), -cos(phi), tan(beta))]
+        sun.rotation_euler = (math.pi/2) - beta, 0, -phi
 
         if scene.render.engine == 'CYCLES' and hasattr(bpy.data.worlds['World'].node_tree, 'nodes'):
             if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:

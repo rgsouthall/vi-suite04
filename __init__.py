@@ -112,18 +112,20 @@ def confunc(i):
 
 
 def eupdate(self, context):
+    inv = 0 if context.scene.resnode == 'VI Shadow Study' else 1        
     for frame in range(context.scene.frame_start, context.scene.frame_end + 1):
         for o in [obj for obj in bpy.data.objects if obj.lires == 1]:
-            maxo, mino = max(o['oreslist'][str(frame)]), min(o['oreslist'][str(frame)])
-            if len(o['cfaces']) > 0:
-                for i, fli in enumerate([(face, face.loop_indices) for face in o.data.polygons if face.select == True]):
-                    for li in fli[1]:
-                        vi = o.data.loops[li].vertex_index
-                        o.data.shape_keys.key_blocks[str(frame)].data[vi].co = o.data.shape_keys.key_blocks['Basis'].data[vi].co + 0.1*context.scene.vi_disp_3dlevel * (((o['oreslist'][str(frame)][i]-mino)/(maxo - mino)) * fli[0].normal)
-            for v, vn in enumerate(o['cverts']):
-                j = o['j'][v]
-                o.data.shape_keys.key_blocks[str(frame)].data[vn].co = o.data.shape_keys.key_blocks['Basis'].data[vn].co + 0.1*context.scene.vi_disp_3dlevel * ((1 - (o['oreslist'][str(frame)][j]-mino)/(maxo -mino)) * o.data.vertices[vn].normal)
-            o.data.update()
+            if str(frame) in o['omax'].keys():
+                maxo, mino = o['omax'][str(frame)], o['omin'][str(frame)]
+                if len(o['cfaces']) > 0:
+                    for i, fli in enumerate([(face, face.loop_indices) for face in o.data.polygons if face.select == True]):
+                        for li in fli[1]:
+                            vi = o.data.loops[li].vertex_index
+                            o.data.shape_keys.key_blocks[str(frame)].data[vi].co = o.data.shape_keys.key_blocks['Basis'].data[vi].co + 0.1*context.scene.vi_disp_3dlevel * (abs(inv - (o['oreslist'][str(frame)][i]-mino)/(maxo - mino)) * fli[0].normal)
+                for v, vn in enumerate(o['cverts']):
+                    j = o['j'][v]
+                    o.data.shape_keys.key_blocks[str(frame)].data[vn].co = o.data.shape_keys.key_blocks['Basis'].data[vn].co + 0.1*context.scene.vi_disp_3dlevel * (abs(inv - (o['oreslist'][str(frame)][j]-mino)/(maxo -mino)) * o.data.vertices[vn].normal)
+                o.data.update()
 
 def spupdate(self, context):
     context.scene.spupdate = 1

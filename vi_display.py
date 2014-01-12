@@ -79,7 +79,6 @@ def li_display(simnode, connode, geonode):
                 for cv in geo["cverts"]:
                     geo.data.vertices[int(cv)].select = True
 
-
             bpy.ops.object.mode_set(mode = 'EDIT')
             bpy.ops.mesh.duplicate()
             bpy.ops.mesh.separate()
@@ -160,20 +159,21 @@ def li_display(simnode, connode, geonode):
 def spnumdisplay(disp_op, context, simnode):
     scene = context.scene
     leg = 0 if simnode.bl_label == 'VI Sun Path' else 1
-    try:
-        ob = bpy.data.objects['SPathMesh']
-        bgl.glColor3f = scene.vi_display_rp_fc
-        if scene.hourdisp == True:
-            mid_x, mid_y, width, height, view_mat  = vi_func.viewdesc(context), context.space_data.region_3d.perspective_matrix
-            ob_mat = ob.matrix_world
-            total_mat = view_mat*ob_mat
-            for np in ob['numpos']:
-                vi_func.draw_index(context, leg, mid_x, mid_y, width, height, total_mat, np.split('-')[1], mathutils.Vector(ob['numpos'][np]))
-        else:
-            return
+    ob = bpy.data.objects['SPathMesh']
 
-    except Exception as e:
-        print(e)
+    if scene.hourdisp == True:
+        blf.enable(0, 4)
+        blf.shadow(0, 5,scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])
+        bgl.glColor4f(scene.vi_display_rp_fc[0], scene.vi_display_rp_fc[1], scene.vi_display_rp_fc[2], scene.vi_display_rp_fc[3])
+        blf.size(0, scene.vi_display_rp_fs, 72)
+        mid_x, mid_y, width, height = vi_func.viewdesc(context)
+        view_mat = context.space_data.region_3d.perspective_matrix
+        ob_mat = ob.matrix_world
+        total_mat = view_mat*ob_mat
+        for np in ob['numpos']:
+            vi_func.draw_index(context, leg, mid_x, mid_y, width, height, total_mat, np.split('-')[1], mathutils.Vector(ob['numpos'][np]))
+        blf.disable(0, 4)
+    else:
         return
 
 def linumdisplay(disp_op, context, simnode, connode, geonode):
@@ -198,8 +198,6 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
     bgl.glColor3f = scene.vi_display_rp_fc
     cp = geonode.cpoint if geonode else simnode.cpoint
     fn = context.scene.frame_current - context.scene.frame_start
-
-
     mid_x, mid_y, width, height = vi_func.viewdesc(context)
 
     if scene.vi_display_sel_only == False:
@@ -210,14 +208,20 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
     for ob in obd:
         if ob.active_shape_key_index != fn+1:
             ob.active_shape_key_index = fn+1
-#        ob.active_shape_key_index = fn+1
         obm = ob.data
         ob_mat = ob.matrix_world
         view_mat = context.space_data.region_3d.perspective_matrix
-        view_pos = (view_mat.inverted()[0][3]/5, view_mat.inverted()[1][3]/5, view_mat.inverted()[2][3]/5)
+        view_pos = (view_mat.inverted()[0][3]/6, view_mat.inverted()[1][3]/6, view_mat.inverted()[2][3]/6)
 
         if scene.vi_display_vis_only:
-            faces = [f for f in ob.data.polygons if f.select == True and not scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f)))) + 0.02*f.normal, view_pos)[0]] if ob.lires else [f for f in ob.data.polygons if not scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f)))) + 0.02*f.normal, view_pos)[0]]
+            if cp == "0" or not geonode:
+                faces = [f for f in ob.data.polygons if f.select == True and not scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f)))) \
+                + 0.02*f.normal, view_pos)[0]] if ob.lires else [f for f in ob.data.polygons if not scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f)))) + 0.02*f.normal, view_pos)[0]]
+            else:
+                fselv = set(sum([list(f.vertices[:]) for f in ob.data.polygons if f.select], []))
+                for v in [v for v in ob.data.vertices if v.index in fselv]:
+                    v.select = True if not scene.ray_cast(ob_mat*vi_func.v_pos(ob, v.index) + 0.02*v.normal,view_pos)[0] else False
+                faces = [f for f in ob.data.polygons if False not in [ob.data.vertices[v].select for v in f.vertices] and f.select]
         else:
             faces = [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons]
 
@@ -249,7 +253,10 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
 
 def li3D_legend(self, context, simnode, connode, geonode):
     scene = context.scene
-    animmenu = geonode.animmenu if geonode else simnode.animmenu
+    ganimmenu = geonode.animmenu if geonode else simnode.animmenu
+    canimmenu = connode.animmenu if connode else simnode.animmenu
+    animmenu = [a for a in (ganimmenu, canimmenu) if a !='Static'][0] if (ganimmenu, canimmenu) != ('Static', 'Static') else 'Static'
+    
     if scene.vi_leg_display != True or scene.vi_display == 0 or (scene.wr_disp_panel != 1 and scene.li_disp_panel != 2 and scene.ss_disp_panel != 2):
         return
     else:
@@ -294,9 +301,9 @@ def li3D_legend(self, context, simnode, connode, geonode):
             bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
             blf.size(font_id, 20, 48)
             if hasattr(context.active_object, 'lires') and context.active_object.lires:
-                vi_func.drawfont("Ave: {:.1f}".format(context.active_object['oave'][str(findex)]), font_id, 0, height, 22, 480)
-                vi_func.drawfont("Max: {:.1f}".format(context.active_object['omax'][str(findex)]), font_id, 0, height, 22, 495)
-                vi_func.drawfont("Min: {:.1f}".format(context.active_object['omin'][str(findex)]), font_id, 0, height, 22, 510)
+                vi_func.drawfont("Ave: {:.1f}".format(context.active_object['oave'][str(scene.frame_current)]), font_id, 0, height, 22, 480)
+                vi_func.drawfont("Max: {:.1f}".format(context.active_object['omax'][str(scene.frame_current)]), font_id, 0, height, 22, 495)
+                vi_func.drawfont("Min: {:.1f}".format(context.active_object['omin'][str(scene.frame_current)]), font_id, 0, height, 22, 510)
             else:
                 vi_func.drawfont("Ave: {:.1f}".format(simnode['avres'][findex]), font_id, 0, height, 22, 480)
                 vi_func.drawfont("Max: {:.1f}".format(simnode['maxres'][findex]), font_id, 0, height, 22, 495)

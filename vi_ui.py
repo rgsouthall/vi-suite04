@@ -30,7 +30,10 @@ class Vi3DPanel(bpy.types.Panel):
                 newrow(layout, "Hour of day", scene, "solhour")
                 newrow(layout, "Sunpath scale", scene, "soldistance")
                 newrow(layout, "Display hours", scene, "hourdisp")
-                newrow(layout, "Font size", scene, "vi_display_rp_fs")
+                if scene.hourdisp:
+                    newrow(layout, "Font size", scene, "vi_display_rp_fs")
+                    newrow(layout, "Font colour:", scene, "vi_display_rp_fc")
+                    newrow(layout, "Font shadow:", scene, "vi_display_rp_fsh")
 
             if scene.ss_disp_panel in (1,2) or scene.li_disp_panel in (1,2):
                 row = layout.row()

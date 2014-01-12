@@ -399,7 +399,14 @@ def fexport(scene, frame, export_op, node, geonode):
     with open(geonode.filebase+"-{}.rad".format(frame), 'w') as radfile:
         radfile.write(geonode['radfiles'][0] + node['skyfiles'][frame]) if len(geonode['radfiles']) == 1 else radfile.write(geonode['radfiles'][frame] + node['skyfiles'][0])
     try:
-        subprocess.call("oconv -w {0}-{1}.rad > {0}-{1}.oct".format(geonode.filebase, frame), shell=True)
+        oconvcmd = "oconv -w {0}-{1}.rad > {0}-{1}.oct".format(geonode.filebase, frame)
+        oconvrun = Popen(oconvcmd, shell = True, stdout=PIPE)
+        for l,line in enumerate(oconvrun.stdout):
+            print(line)
+            if 'fatal' in line:
+                export_op.report({'ERROR'},line)
+                
+#        subprocess.call("oconv -w {0}-{1}.rad > {0}-{1}.oct".format(geonode.filebase, frame), shell=True)
         node.export = 1
     except:
         export_op.report({'ERROR'},"There is a problem with geometry export. If created in another package simplify the geometry, and turn off smooth shading")

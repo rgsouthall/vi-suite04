@@ -52,6 +52,9 @@ def rad_prev(prev_op, simnode, connode, geonode, simacc):
                     radfexport(scene, prev_op, connode, geonode)
                     rad_prev(prev_op, simnode, connode, geonode, simacc)
                     return
+                if 'truncated octree' in line.decode():
+                    prev_op.report({'ERROR'},"Radiance octree is incomplete. Re-run geometry and context export")
+                    return
         else:
             prev_op.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
     else:
@@ -84,6 +87,9 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                         radfexport(scene, calc_op, connode, geonode)
                         li_calc(calc_op, simnode, connode, geonode, simacc)
                         return
+                    if 'truncated octree' in line.decode():
+                        calc_op.report({'ERROR'},"Radiance octree is incomplete. Re-run geometry and context export")
+                        return
                     res[frame][l] = float(line.decode())
                 resfile.write("{}".format(res[frame]).strip("]").strip("["))
                 resfile.close()
@@ -99,6 +105,9 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                         resfile.close()
                         radfexport(scene, calc_op, connode, geonode)
                         li_calc(calc_op, simnode, connode, geonode, simacc)
+                        return
+                    if 'truncated octree' in line.decode():
+                        calc_op.report({'ERROR'},"Radiance octree is incomplete. Re-run geometry and context export")
                         return
                     res[frame][l] = float(line.decode())
                 resfile.write("{}".format(res[frame]).strip("]").strip("["))

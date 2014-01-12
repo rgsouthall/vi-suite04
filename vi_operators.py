@@ -536,13 +536,16 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
         for vert in spathob.data.vertices[0:16 * (solringnum + 3)]:
             vert.select = True
-
+        
         bpy.ops.object.material_slot_add()
-        spathob.material_slots[1].material = bpy.data.materials['SolEquoRings']
+        spathob.material_slots[-1].material = bpy.data.materials['SolEquoRings']
+        spathob.active_material_index = 1
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.object.material_slot_assign()
         bpy.ops.object.material_slot_add()
-        spathob.material_slots[2].material = bpy.data.materials['SPBase']
+        spathob.material_slots[-1].material = bpy.data.materials['SPBase']
+        spathob.active_material_index = 2
+        
         for i in range(1, 6):
             bpy.ops.mesh.primitive_torus_add(major_radius=i*sd*0.2, minor_radius=i*0.1*0.2, major_segments=48, minor_segments=12, location=(0.0, 0.0, 0.0), rotation=(0.0, 0.0, 0.0))
             bpy.ops.object.material_slot_assign()
@@ -579,7 +582,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
         if sunpath2 not in bpy.app.handlers.frame_change_post:
             bpy.app.handlers.frame_change_post.append(sunpath2)
-        bpy.ops.view3d.spnumdisplay()
+        bpy.ops.view3d.spnumdisplay('INVOKE_DEFAULT')
         return {'FINISHED'}
 
 class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
@@ -592,14 +595,15 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
 
     def modal(self, context, event):
         context.area.tag_redraw()
-        if context.scene.vi_display == 0 or context.scene.sp_disp_panel != 2:
+        if context.scene.vi_display == 0 or not context.scene.sp_disp_panel:
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_spnum, 'WINDOW')
             return {'CANCELLED'}
-        return {'RUNNING_MODAL'}
+        return {'PASS_THROUGH'}
 
-    def execute(self, context):
+    def invoke(self, context, event):
         simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]
         self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(spnumdisplay, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
+        context.window_manager.modal_handler_add(self)
         context.scene.vi_display = 1
         return {'RUNNING_MODAL'}
 

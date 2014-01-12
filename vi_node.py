@@ -53,10 +53,10 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
         self.exported = False
         if self.bl_label[0] != '*':
             self.bl_label = '*'+self.bl_label
-        if self.outputs[0].is_linked:
-            link = self.outputs[0].links[0]
-            bpy.data.node_groups[self['nodeid'].split('@')[1]].links.remove(link)
-        self.outputs[0].hide = True
+#        if self.outputs[0].is_linked:
+#            link = self.outputs[0].links[0]
+#            bpy.data.node_groups[self['nodeid'].split('@')[1]].links.remove(link)
+#        self.outputs[0].hide = True
 
     animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis"), ('Material', "Material", "Animated material analysis"), ('Lights', "Lights", "Animated artificial lighting analysis")]
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
@@ -83,14 +83,14 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
         row.operator("node.ligexport", text = "Export").nodeid = self['nodeid']
 
     def update(self):
-        if self.exported == False:
-            if self.outputs[0].is_linked:
-                link = self.outputs[0].links[0]
-                bpy.data.node_groups[self['nodeid'].split('@')[1]].links.remove(link)
-        else:
-            socklink(self.outputs[0], self['nodeid'].split('@')[1])
-            if self.outputs[0].is_linked and self.outputs[0].links[0].to_node.name == 'LiVi Compliance' and self.cpoint == '1':
-                self.cpoint = '0'
+#        if self.exported == False:
+#            if self.outputs[0].is_linked:
+#                link = self.outputs[0].links[0]
+#                bpy.data.node_groups[self['nodeid'].split('@')[1]].links.remove(link)
+#        else:
+        socklink(self.outputs[0], self['nodeid'].split('@')[1])
+        if self.outputs[0].is_linked and self.outputs[0].links[0].to_node.name == 'LiVi Compliance' and self.cpoint == '1':
+            self.cpoint = '0'
 
 class ViLiNode(bpy.types.Node, ViNodes):
     '''Node describing a basic LiVi analysis'''

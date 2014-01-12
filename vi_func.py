@@ -13,6 +13,9 @@ def face_centre(ob, obresnum, f):
         vsum = ob.active_shape_key.data[v].co + vsum if obresnum > 0 else ob.data.vertices[v].co + vsum
     return(vsum/len(f.vertices))
 
+def v_pos(ob, v):
+    return(ob.active_shape_key.data[v].co if ob.lires else ob.data.vertices[v].co)
+
 def newrow(layout, s1, root, s2):
     row = layout.row()
     row.label(s1)

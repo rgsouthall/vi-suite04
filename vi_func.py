@@ -467,12 +467,12 @@ def viewdesc(context):
     return(mid_x, mid_y, width, height)
 
 
-def draw_index(context, leg, mid_x, mid_y, width, height, total_mat, index, center):
-    vec = total_mat * center.to_4d()
+def draw_index(context, leg, mid_x, mid_y, width, height, index, vec):
+#    vec = total_mat * center.to_4d()
     vec = mathutils.Vector((vec[0] / vec[3], vec[1] / vec[3], vec[2] / vec[3]))
     x, y = int(mid_x + vec[0] * width / 2), int(mid_y + vec[1] * height / 2)
     blf.position(0, x, y, 0)
-    if (leg == 1 and (x > 100 or y < height - 530) and (total_mat*center)[2] > 0) or (leg == 0 and (total_mat*center)[2] > 0):
+    if (leg == 1 and (x > 120 or y < height - 530)) or leg == 0:
         blf.draw(0, str(index))
 
 def sunpath1(self, context):

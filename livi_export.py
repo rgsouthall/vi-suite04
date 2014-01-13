@@ -197,6 +197,7 @@ def radgexport(export_op, node):
 
                     for face in mesh.polygons:
                         if mesh.materials[face.material_index].livi_sense:
+                            face.select = True
                             csf.append(face.index)
                             vsum = Vector((0, 0, 0))
                             scene.objects.active = geo
@@ -209,7 +210,7 @@ def radgexport(export_op, node):
                                 for v in face.vertices:
                                     vsum += mesh.vertices[v].co
                                 fc = vsum/len(face.vertices)
-                                rtrace.write('{0[0]} {0[1]} {0[2]} {1[0]} {1[1]} {1[2]} \n'.format(fc, face.normal[:]))
+                                rtrace.write('{0[0]} {0[1]} {0[2]} {1[0]} {1[1]} {1[2]} \n'.format(fc, face.normal.normalized()[:]))
                                 calcsurffaces.append((o, face))
 
                             else:
@@ -218,10 +219,12 @@ def radgexport(export_op, node):
                                         vcentx, vcenty, vcentz = mesh.vertices[vert].co[:]
                                         vnormx, vnormy, vnormz = (mesh.vertices[vert].normal*geo.matrix_world.inverted())[:]
                                         csv.append(vert)
-                                        rtrace.write('{0[0]} {0[1]} {0[2]} {1[0]} {1[1]} {1[2]} \n'.format(mesh.vertices[vert].co[:], (mesh.vertices[vert].normal*geo.matrix_world.inverted())[:]))
+                                        rtrace.write('{0[0]} {0[1]} {0[2]} {1[0]} {1[1]} {1[2]} \n'.format(mesh.vertices[vert].co[:], (mesh.vertices[vert].normal*geo.matrix_world.inverted()).normalized()[:]))
                                         obcalcverts.append(mesh.vertices[vert])
                                         cverts.append(vert)
                                 calcsurfverts += obcalcverts
+                        else:
+                            face.select = False
 
                     (geo['cverts'], geo['cfaces']) = (cverts, []) if node.cpoint == '1' else ([], csf)
                     node.reslen += len(csv) if node.cpoint == '1' else len(csf)
@@ -246,12 +249,13 @@ def radcexport(export_op, node):
     clearscened(scene)
     geonode = node.inputs[0].links[0].from_node
 
-    if geonode.animmenu == 'Static' and node.animmenu == 'Static':
+    if geonode.animmenu == 'Static' and (node.animmenu == 'Static' or node.skynum > 2):
         animmenu = 'Static'
-
     elif geonode.animmenu != 'Static' and node.animmenu != 'Static':
         export_op.report({'ERROR'},"You cannot run a geometry and time based animation at the same time")
         return
+    elif node.animmenu == 'Time' and node.skynum < 3:
+        animmenu = 'TAnimated'
     else:
         animmenu = 'Animated'
 
@@ -269,7 +273,7 @@ def radcexport(export_op, node):
 #                if geonode.animmenu == 'Static':
 #                    scene.frame_end = fe
 
-            for frame in framerange(scene, ('Static', 'Animated')[node.animmenu == 'Time']):
+            for frame in framerange(scene, ('Static', 'Animated')[animmenu == 'TAnimated']):
                 sunexport(scene, node, geonode, starttime, frame)
                 if node.skynum < 2 and node.analysismenu != '2':
                     if frame == 0:
@@ -301,7 +305,7 @@ def radcexport(export_op, node):
         elif node.skynum == 6:
             node['skyfiles'] = ['']
 
-        for frame in framerange(scene, node.animmenu):
+        for frame in framerange(scene, animmenu):
             fexport(scene, frame, export_op, node, geonode)
 
     elif node.bl_label == 'LiVi CBDM':
@@ -402,17 +406,14 @@ def fexport(scene, frame, export_op, node, geonode):
         oconvcmd = "oconv -w {0}-{1}.rad > {0}-{1}.oct".format(geonode.filebase, frame)
         oconvrun = Popen(oconvcmd, shell = True, stdout=PIPE)
         for l,line in enumerate(oconvrun.stdout):
-            print(line)
             if 'fatal' in line:
                 export_op.report({'ERROR'},line)
-                
-#        subprocess.call("oconv -w {0}-{1}.rad > {0}-{1}.oct".format(geonode.filebase, frame), shell=True)
         node.export = 1
     except:
         export_op.report({'ERROR'},"There is a problem with geometry export. If created in another package simplify the geometry, and turn off smooth shading")
         node.export = 0
     export_op.report({'INFO'},"Export is finished")
-    scene.frame_set(0)
+    scene.frame_set(scene.frame_start)
 
 def cyfc1(self):
     if bpy.data.scenes[0].render.engine == "CYCLES":

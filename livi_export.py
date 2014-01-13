@@ -45,25 +45,33 @@ def radgexport(export_op, node):
         radfile = ''
         radfile += "# Materials \n\n"
         for meshmat in bpy.data.materials:
+            matname = meshmat.name.replace(" ", "_")
             if scene.render.engine == 'CYCLES' and hasattr(meshmat.node_tree, 'nodes'):
                 if meshmat.node_tree.nodes['Material Output'].inputs['Surface'].is_linked:
                     matnode = meshmat.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node
+
                     if matnode.bl_label == 'Diffuse BSDF':
-                        radfile += "# Plastic material\nvoid plastic " + meshmat.name.replace(" ", "_") +"\n0\n0\n5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}\n\n".format(matnode.inputs[0].default_value, '0', matnode.inputs[1].default_value)
+                        radfile += "# Plastic material\nvoid plastic " + matname+"\n0\n0\n5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}\n\n".format(matnode.inputs[0].default_value, '0', matnode.inputs[1].default_value)
+                        meshmat['RadMat'] = {'Cycles': ('plastic',  matname, "\n0\n0\n5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}\n\n".format(matnode.inputs[0].default_value, '0', matnode.inputs[1].default_value))}
                     elif matnode.bl_label == 'Glass BSDF':
-                        radfile += "# Glass material\nvoid glass " + meshmat.name.replace(" ", "_") +"\n0\n0\n4 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.3f}\n\n".format(matnode.inputs[0].default_value, matnode.inputs[2].default_value)
+                        radfile += "# Glass material\nvoid glass" + matname +"\n0\n0\n4 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.3f}\n\n".format(matnode.inputs[0].default_value, matnode.inputs[2].default_value)
+                        meshmat['RadMat'] = {'Cycles': ('glass ' + matname, matnode.inputs[0].default_value, matnode.inputs[2].default_value)}
                     elif matnode.bl_label == 'Glossy BSDF':
-                        radfile += "# Mirror material\nvoid mirror " + meshmat.name.replace(" ", "_") +"\n0\n0\n3 {0[0]} {0[1]} {0[2]}\n\n".format(meshmat.inputs[0].default_value)
+                        radfile += "# Mirror material\nvoid mirror " + matname +"\n0\n0\n3 {0[0]} {0[1]} {0[2]}\n\n".format(meshmat.inputs[0].default_value)
+                        meshmat['RadMat'] = {'Cycles': ('mirror ', matname, "\n0\n0\n3 {0[0]} {0[1]} {0[2]}\n\n".format(meshmat.inputs[0].default_value))}
                         for o in [o for o in bpy.data.objects if o.type == 'MESH']:
                             if meshmat in [om for om in o.data.materials]:
                                 o['merr'] = 1
                                 export_op.report({'INFO'}, o.name+" has a mirror material. Basic export routine used with no modifiers.")
                     elif matnode.bl_label == 'Translucent BSDF':
-                        radfile += "# Translucent material\nvoid trans " + meshmat.name.replace(" ", "_")+"\n0\n0\n7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2} {3} {4}\n\n".format(matnode.inputs[0].default_value, '0', '0', '0', '0')
+                        radfile += "# Translucent material\nvoid trans " + matname+"\n0\n0\n7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2} {3} {4}\n\n".format(matnode.inputs[0].default_value)
+                        meshmat['RadMat'] = {'Cycles': ('trans ', matname, "\n0\n0\n7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n\n".format(matnode.inputs[0].default_value))}
                     elif matnode.bl_label == 'Ambient Occlusion':
-                        radfile += ("# Antimatter material\nvoid antimatter " + meshmat.name.replace(" ", "_") +"\n1 void\n0\n0\n\n")
+                        radfile += ("# Antimatter material\nvoid antimatter " + matname +"\n1 void\n0\n0\n\n")
+                        meshmat['RadMat'] = {'Cycles': ('antimatter ', matname)}
                     elif matnode.bl_label == 'Emission':
-                        radfile += "# Light material\nvoid light " + meshmat.name.replace(" ", "_") +"\n0\n0\n3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n".format([c * matnode.inputs[1].default_value for c in matnode.inputs[0].default_value])
+                        radfile += "# Light material\nvoid light " + matname +"\n0\n0\n3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n".format([c * matnode.inputs[1].default_value for c in matnode.inputs[0].default_value])
+                        meshmat['RadMat'] = {'Cycles': ('light ', matname, "\n0\n0\n3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n".format([c * matnode.inputs[1].default_value for c in matnode.inputs[0].default_value]))}
                         for o in [o for o in bpy.data.objects if o.type == 'MESH']:
                             if meshmat in [om for om in o.data.materials]:
                                 o['merr'] = 1
@@ -73,25 +81,30 @@ def radgexport(export_op, node):
 #                        if 'Diffuse BDSF' in [i.bl_label for i in (mixmat1, mixmat2)] and 'Glossy BDSF' in [i.bl_label for i in (mixmat1, mixmat2)]:
 #                            radfile += "# Metal material\nvoid metal " + meshmat.name.replace(" ", "_") +"\n0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2}\n\n".format(diff, meshmat.specular_intensity, 1.0-meshmat.specular_hardness/511.0)
                     else:
-                        radfile += ("# Antimatter material\nvoid antimatter " + meshmat.name.replace(" ", "_") +"\n1 void\n0\n0\n\n")
+                        radfile += ("# Antimatter material\nvoid antimatter " + matname +"\n1 void\n0\n0\n\n")
+                        meshmat['RadMat'] = {'Cycles': ('antimatter ', matname)}
                 else:
-                    radfile += ("# Antimatter material\nvoid antimatter " + meshmat.name.replace(" ", "_") +"\n1 void\n0\n0\n\n")
+                    radfile += ("# Antimatter material\nvoid antimatter " + matname +"\n1 void\n0\n0\n\n")
+                    meshmat['RadMat'] = {'Cycles': ('antimatter ', matname)}
 
             elif scene.render.engine == 'BLENDER_RENDER':
                 diff = [meshmat.diffuse_color[0]*meshmat.diffuse_intensity, meshmat.diffuse_color[1]*meshmat.diffuse_intensity, meshmat.diffuse_color[2]*meshmat.diffuse_intensity]
                 meshmat.use_vertex_color_paint = 1 if meshmat.livi_sense else 0
                 if meshmat.use_shadeless == 1 or meshmat.livi_compliance:
-                    radfile += "# Antimatter material\nvoid antimatter " + meshmat.name.replace(" ", "_") +"\n1 void\n0\n0\n\n"
+                    radfile += "# Antimatter material\nvoid antimatter " + matname +"\n1 void\n0\n0\n\n"
+                    meshmat['RadMat'] = {'Internal': ('antimatter ', matname)}
 
                 elif meshmat.emit > 0:
-                    radfile += "# Light material\nvoid light " + meshmat.name.replace(" ", "_") +"\n0\n0\n3 {:.2f} {:.2f} {:.2f}\n".format(meshmat.emit * diff[0], meshmat.emit * diff[1], meshmat.emit * diff[2])
+                    radfile += "# Light material\nvoid light " + matname +"\n0\n0\n3 {:.2f} {:.2f} {:.2f}\n".format(meshmat.emit * diff[0], meshmat.emit * diff[1], meshmat.emit * diff[2])
+                    meshmat['RadMat'] = {'Internal': ('light ', matname, meshmat.emit * diff[0], meshmat.emit * diff[1], meshmat.emit * diff[2])}
                     for o in [o for o in bpy.data.objects if o.type == 'MESH']:
                         if meshmat in [om for om in o.data.materials]:
                             o['merr'] = 1
                             export_op.report({'INFO'}, o.name+" has a emission material. Basic export routine used with no modifiers.")
 
                 elif meshmat.use_transparency == False and meshmat.raytrace_mirror.use == True and meshmat.raytrace_mirror.reflect_factor >= 0.99:
-                    radfile += "# Mirror material\nvoid mirror " + meshmat.name.replace(" ", "_") +"\n0\n0\n3 {0[0]} {0[1]} {0[2]}\n\n".format(meshmat.mirror_color)
+                    radfile += "# Mirror material\nvoid mirror " + matname +"\n0\n0\n3 {0[0]} {0[1]} {0[2]}\n\n".format(meshmat.mirror_color)
+                    meshmat['RadMat'] = {'Internal': ('mirror ', matname, matnode.inputs[0].default_value)}
                     for o in [o for o in bpy.data.objects if o.type == 'MESH']:
                         if meshmat in [om for om in o.data.materials]:
                             o['merr'] = 1
@@ -99,24 +112,25 @@ def radgexport(export_op, node):
 
                 elif meshmat.use_transparency == True and meshmat.transparency_method == 'RAYTRACE' and meshmat.alpha < 1.0 and meshmat.translucency == 0:
                     if "{:.2f}".format(meshmat.raytrace_transparency.ior) == "1.52":
-                        radfile += "# Glass material\nvoid glass " + meshmat.name.replace(" ", "_") +"\n0\n0\n3 {:.3f} {:.3f} {:.3f}\n\n".format((1.0 - meshmat.alpha)*diff[0], (1.0 - meshmat.alpha)*diff[1], (1.0 - meshmat.alpha)*diff[2])
+                        radfile += "# Glass material\nvoid glass " + matname +"\n0\n0\n3 {:.3f} {:.3f} {:.3f}\n\n".format((1.0 - meshmat.alpha)*diff[0], (1.0 - meshmat.alpha)*diff[1], (1.0 - meshmat.alpha)*diff[2])
+                        meshmat['RadMat'] = {'Internal': ('glass ', matname, "\n0\n0\n3 {:.3f} {:.3f} {:.3f}\n\n".format((1.0 - meshmat.alpha)*diff[0], (1.0 - meshmat.alpha)*diff[1], (1.0 - meshmat.alpha)*diff[2]))}
                     else:
-                        radfile += "# Glass material\nvoid glass " + meshmat.name.replace(" ", "_") +"\n0\n0\n4 {0:.3f} {1:.3f} {2:.3f} {3}\n\n".format((1.0 - meshmat.alpha)*diff[0], (1.0 - meshmat.alpha)*diff[1], (1.0 - meshmat.alpha)*diff[2], meshmat.raytrace_transparency.ior)
-
+                        radfile += "# Glass material\nvoid glass " + matname +"\n0\n0\n4 {0:.3f} {1:.3f} {2:.3f} {3}\n\n".format((1.0 - meshmat.alpha)*diff[0], (1.0 - meshmat.alpha)*diff[1], (1.0 - meshmat.alpha)*diff[2], meshmat.raytrace_transparency.ior)
+                        meshmat['RadMat'] = {'Internal': ('glass ', matname, "\n0\n0\n4 {0:.3f} {1:.3f} {2:.3f} {3}\n\n".format((1.0 - meshmat.alpha)*diff[0], (1.0 - meshmat.alpha)*diff[1], (1.0 - meshmat.alpha)*diff[2], meshmat.raytrace_transparency.ior))}
                 elif meshmat.use_transparency == True and meshmat.transparency_method == 'RAYTRACE' and meshmat.alpha < 1.0 and meshmat.translucency > 0.001:
-                    radfile += "# Translucent material\nvoid trans " + meshmat.name.replace(" ", "_")+"\n0\n0\n7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2} {3} {4}\n\n".format(diff, meshmat.specular_intensity, 1.0 - meshmat.specular_hardness/511.0, 1.0 - meshmat.alpha, 1.0 - meshmat.translucency)
-
+                    radfile += "# Translucent material\nvoid trans " + matname +"\n0\n0\n7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2} {3} {4}\n\n".format(diff, meshmat.specular_intensity, 1.0 - meshmat.specular_hardness/511.0, 1.0 - meshmat.alpha, 1.0 - meshmat.translucency)
+                    meshmat['RadMat'] = {'Internal': ('trans ', matname, "\n0\n0\n7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2} {3} {4}\n\n".format(diff, meshmat.specular_intensity, 1.0 - meshmat.specular_hardness/511.0, 1.0 - meshmat.alpha, 1.0 - meshmat.translucency))}
                 elif meshmat.use_transparency == False and meshmat.raytrace_mirror.use == True and meshmat.raytrace_mirror.reflect_factor < 0.99:
-                    radfile += "# Metal material\nvoid metal " + meshmat.name.replace(" ", "_") +"\n0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2}\n\n".format(diff, meshmat.specular_intensity, 1.0-meshmat.specular_hardness/511.0)
+                    radfile += "# Metal material\nvoid metal " + matname +"\n0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2}\n\n".format(diff, meshmat.specular_intensity, 1.0-meshmat.specular_hardness/511.0)
+                    meshmat['RadMat'] = {'Internal': ('metal ', matname, "\n0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2}\n\n".format(diff, meshmat.specular_intensity, 1.0-meshmat.specular_hardness/511.0))}
                 else:
-                    radfile += "# Plastic material\nvoid plastic " + meshmat.name.replace(" ", "_") +"\n0\n0\n5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.2f} {2:.2f}\n\n".format(diff, meshmat.specular_intensity, 1.0-meshmat.specular_hardness/511.0)
-
+                    radfile += "# Plastic material\nvoid plastic " + matname +"\n0\n0\n5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.2f} {2:.2f}\n\n".format(diff, meshmat.specular_intensity, 1.0-meshmat.specular_hardness/511.0)
+                    meshmat['RadMat'] = {'Internal': ('plastic ', matname, "\n0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2}\n\n".format(diff, meshmat.specular_intensity, 1.0-meshmat.specular_hardness/511.0))}
             bpy.ops.object.select_all(action='DESELECT')
 
 # geometry export routine
 
         radfile += "# Geometry \n\n"
-
         for o in retobjs('livig'):
             o.select = True
             if node.animmenu == 'Geometry':
@@ -143,7 +157,6 @@ def radgexport(export_op, node):
                         vertices = face.vertices[:]
                         radfile += "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(o.data.materials[face.material_index].name.replace(" ", "_"), o.data.name.replace(" ", "_"), face.index, 3*len(face.vertices))
                         if o.data.shape_keys and o.data.shape_keys.key_blocks[0] and o.data.shape_keys.key_blocks[1]:
-                            print('hi')
                             for vertindex in vertices:
                                 sk0 = o.data.shape_keys.key_blocks[0]
                                 sk0co = geomatrix*sk0.data[vertindex].co
@@ -151,7 +164,6 @@ def radgexport(export_op, node):
                                 sk1co = geomatrix*sk1.data[vertindex].co
                                 radfile += " {} {} {}\n".format(sk0co[0]+(sk1co[0]-sk0co[0])*sk1.value, sk0co[1]+(sk1co[1]-sk0co[1])*sk1.value, sk0co[2]+(sk1co[2]-sk0co[2])*sk1.value)
                         else:
-
                             for vertindex in vertices:
                                 radfile += " {0[0]} {0[1]} {0[2]}\n".format(geomatrix*o.data.vertices[vertindex].co)
                         radfile += "\n"

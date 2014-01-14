@@ -260,7 +260,7 @@ def radcexport(export_op, node):
     clearscenece(scene)
     clearscened(scene)
     geonode = node.inputs[0].links[0].from_node
-
+    
     if geonode.animmenu == 'Static' and (node.animmenu == 'Static' or node.skynum > 2):
         animmenu = 'Static'
     elif geonode.animmenu != 'Static' and node.animmenu != 'Static':
@@ -289,8 +289,12 @@ def radcexport(export_op, node):
                 sunexport(scene, node, geonode, starttime, frame)
                 if node.skynum < 2 and node.analysismenu != '2':
                     if frame == 0:
-                        bpy.ops.object.lamp_add(type='SUN')
-                        sun = bpy.context.object
+                        if 'Sun' in [ob for ob in scene.objects if ob.get('VIType')]:
+                            sun = [ob for ob in scene.objects if ob.get('VIType')][0]
+                        else:
+                            bpy.ops.object.lamp_add(type='SUN')
+                            sun = bpy.context.object
+                            sun['VIType'] = 'Sun'
                     blsunexport(scene, node, starttime, frame, sun)
                 with open(geonode.filebase+"-{}.sky".format(frame), 'a') as skyfilea:
                     skyexport(node, skyfilea)
@@ -392,10 +396,9 @@ def blsunexport(scene, node, starttime, frame, sun):
                 sun.data.energy = 3
         sun.location = [x*20 for x in (-sin(phi), -cos(phi), tan(beta))]
         sun.rotation_euler = (math.pi/2) - beta, 0, -phi
-
-        if scene.render.engine == 'CYCLES' and hasattr(bpy.data.worlds['World'].node_tree, 'nodes'):
+        if scene.render.engine == 'CYCLES':# and bpy.data.worlds['World'].get('node_tree'):
             if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
-                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = sin(phi), -cos(phi), 2* beta/math.pi
+                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)#sin(phi), -cos(phi), -2* beta/math.pi
                 bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = frame)
         sun.keyframe_insert(data_path = 'location', frame = frame)
         sun.keyframe_insert(data_path = 'rotation_euler', frame = frame)
@@ -429,26 +432,95 @@ def fexport(scene, frame, export_op, node, geonode):
 
 def cyfc1(self):
     if bpy.data.scenes[0].render.engine == "CYCLES":
+        
+        scene = bpy.context.scene
         for material in bpy.data.materials:
             if material.use_nodes == 1:
                 try:
                     if material.livi_sense or material.vi_shadow:
                         nt = material.node_tree
-                        nt.nodes["Attribute"].attribute_name = str(bpy.context.scene.frame_current)
+                        nt.nodes["Attribute"].attribute_name = str(scene.frame_current)
                 except Exception as e:
                     print(e, 'Something wrong with changing the material attribute name')
-        if hasattr(bpy.data.worlds, 'World'):
+        
+        if bpy.data.worlds.get('World'):
             if bpy.data.worlds["World"].use_nodes == False:
                 bpy.data.worlds["World"].use_nodes = True
             nt = bpy.data.worlds[0].node_tree
-            if hasattr(nt.nodes, 'Environment Texture'):
-                nt.nodes['Environment Texture'].image.filepath = bpy.context.scene['newdir']+"/%sp.hdr" %(bpy.context.scene.frame_current)
+            
+            if nt.nodes.get('Environment Texture'):
+                nt.nodes['Environment Texture'].image.filepath = scene['newdir']+"/%sp.hdr" %(scene.frame_current)
                 nt.nodes['Environment Texture'].image.reload()
-            if hasattr(bpy.data.worlds[0].node_tree.nodes, 'Background'):
-                try:
-                    bpy.data.worlds[0].node_tree.nodes["Background"].inputs[1].keyframe
-                except:
-                    bpy.data.worlds[0].node_tree.nodes["Background"].inputs[1].keyframe_insert('default_value')
+            
+#            elif hasattr(nt.nodes, 'Background'):
+#                try:
+#                    bpy.data.worlds[0].node_tree.nodes["Background"].inputs[1].keyframe
+#                except:
+#                    bpy.data.worlds[0].node_tree.nodes["Background"].inputs[1].keyframe_insert('default_value')
+            
+#            beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
+#            bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
+#                bpy.data.worlds['World'].node_tree.nodes['Background'].inputs[1].default_value = sin(beta)
+        for ob in scene.objects:
+            if ob.get('VIType') == 'Sun':
+                sun = ob
+            if scene.resnode == 'VI Sun Path':
+                if ob.get('VIType') == 'SunMesh':
+                    sunob = ob
+                if ob.get('VIType') == 'SPathMesh':
+                    spathob = ob
+        if scene.resnode == 'VI Sun Path':
+            
+            beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
+            if nt.nodes.get('Sky Texture'):
+                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
+            spathob.scale = 3 * [scene.soldistance/100]
+            sunob.scale = 3*[scene.soldistance/100]
+            sunob.location.z = sun.location.z = spathob.location.z + scene.soldistance * sin(beta)
+            sunob.location.x = sun.location.x = spathob.location.x -(scene.soldistance**2 - sun.location.z**2)**0.5  * sin(phi)
+            sunob.location.y = sun.location.y = spathob.location.y -(scene.soldistance**2 - sun.location.z**2)**0.5 * cos(phi)
+            sun.rotation_euler = pi * 0.5 - beta, 0, -phi
+                
+            if sun.data.node_tree:
+                for blnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Blackbody']:
+                    blnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
+                for emnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Emission']:
+                    emnode.inputs[1].default_value = 5 * sin(beta)
+
+            if sunob.data.materials[0].node_tree:
+                for smblnode in [node for node in ob.data.materials[0].node_tree.nodes if sunob.data.materials and node.bl_label == 'Blackbody']:
+                    smblnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
+                
+#                    sun = [ob for ob in scene.objects if ob.get('VIType') == 'SPSun'][0]
+#                sunob = [ob for ob in scene.objects if ob.get('VIType') == 'SunMesh'][0]
+#                if sun.data.node_tree:
+#                    for blnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Blackbody']:
+#                        blnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
+#                    for emnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Emission']:
+#                        emnode.inputs[1].default_value = 5 * sin(beta)
+#                if sunob.data.materials[0].node_tree:
+#                    for smblnode in [node for node in sunob.data.materials[0].node_tree.nodes if sunob.data.materials and node.bl_label == 'Blackbody']:
+#                        smblnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
         bpy.data.worlds[0].use_nodes = 0
         ti.sleep(0.1)
         bpy.data.worlds[0].use_nodes = 1
+#        
+#        scene = bpy.context.scene
+#        sun = [ob for ob in scene.objects if ob.get('VIType') == 'SPSun'][0]
+#    
+#        if 0 in (sun['solhour'] == scene.solhour, sun['solday'] == scene.solday, sun['soldistance'] == scene.soldistance):
+#            sunob = [ob for ob in scene.objects if ob.get('VIType') == 'SunMesh'][0]
+#            spathob = [ob for ob in scene.objects if ob.get('VIType') == 'SPathMesh'][0]
+#            beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
+#            sunob.location.z = sun.location.z = spathob.location.z + scene.soldistance * sin(beta)
+#            sunob.location.x = sun.location.x = spathob.location.x -(scene.soldistance**2 - sun.location.z**2)**0.5  * sin(phi)
+#            sunob.location.y = sun.location.y = spathob.location.y -(scene.soldistance**2 - sun.location.z**2)**0.5 * cos(phi)
+#            sun.rotation_euler = pi * 0.5 - beta, 0, -phi
+#            spathob.scale = 3 * [scene.soldistance/100]
+#            sunob.scale = 3*[scene.soldistance/100]
+#    
+#            
+#    
+#            sun['solhour'], sun['solday'], sun['soldistance'] = scene.solhour, scene.solday, scene.soldistance
+    else:
+        return

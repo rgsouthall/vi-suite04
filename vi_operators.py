@@ -8,7 +8,7 @@ from math import cos, sin, pi, ceil, tan, modf
 from numpy import arange
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-from .livi_export import radcexport, radgexport
+from .livi_export import radcexport, radgexport, cyfc1
 from .livi_calc  import rad_prev, li_calc
 from .vi_display import li_display, ss_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend
 from .envi_export import enpolymatexport, pregeo
@@ -446,36 +446,40 @@ class NODE_OT_SunPath(bpy.types.Operator):
                fl = epwfile.readline()
                scene.latitude, scene.longitude = float(fl.split(",")[6]), float(fl.split(",")[7])
 
-        if len([ob for ob in context.scene.objects if ob.spob == 1]) == 0:
+        if 'Sun' not in [ob.get('VIType') for ob in context.scene.objects]:
             bpy.ops.object.lamp_add(type = "SUN")
             sun = context.active_object
+            sun['VIType'] = 'Sun'
         else:
-            sun = [ob for ob in context.scene.objects if ob.spob == 1][0]
-        sun.spob = 1
+            sun = [ob for ob in context.scene.objects if ob.get('VIType') == 'Sun'][0]
+            sun.animation_data_clear()
+            
+        if scene.render.engine == 'CYCLES' and 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
+            bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction.animation_data_clear()
+
         sun['solhour'], sun['solday'], sun['soldistance'] = scene.solhour, scene.solday, scene.soldistance
 
-        if len([ob for ob in context.scene.objects if ob.spob == 2]) == 0:
+        if "SunMesh" not in [ob.get('VIType') for ob in context.scene.objects]:
             bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=12, size=1)
             sunob = context.active_object
             sunob.name = "SunMesh"
+            sunob['VIType'] = 'SunMesh'
         else:
-            sunob = [ob for ob in context.scene.objects if ob.spob == 2][0]
-        sunob.spob = 2
+            sunob = [ob for ob in context.scene.objects if ob.get('VIType') == "SunMesh"][0]
 
         if len(sunob.material_slots) == 0:
              bpy.ops.object.material_slot_add()
              sunob.material_slots[0].material = bpy.data.materials['Sun']
 
-
-        if len([ob for ob in context.scene.objects if ob.spob == 3]) != 0:
-            context.scene.objects.unlink([ob for ob in context.scene.objects if ob.spob == 3][0])
-            [ob for ob in bpy.data.objects if ob.type == "MESH" and ob.name == "SPathMesh"][0].name = 'oldspathmesh'
+        for ob in context.scene.objects:
+            if ob.get('VIType') == "SPathMesh":
+                context.scene.objects.unlink(ob)
+                ob.name = 'oldspathmesh'
 
         bpy.ops.object.add(type = "MESH")
         spathob = context.active_object
         spathob.name = "SPathMesh"
-        spathob.spob = 3
-
+        spathob['VIType'] = 'SPathMesh'
         spathmesh = spathob.data
 
         for doy in range(0, 363):
@@ -580,8 +584,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
             spathob.cycles_visibility.glossy = False
             spathob.cycles_visibility.transmission = False
 
-        if sunpath2 not in bpy.app.handlers.frame_change_post:
-            bpy.app.handlers.frame_change_post.append(sunpath2)
+        if cyfc1 not in bpy.app.handlers.frame_change_pre:
+            bpy.app.handlers.frame_change_pre.append(cyfc1)
         bpy.ops.view3d.spnumdisplay('INVOKE_DEFAULT')
         return {'FINISHED'}
 

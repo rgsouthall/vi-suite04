@@ -446,7 +446,8 @@ def frameindex(scene, anim):
 def retobjs(otypes):
     scene = bpy.context.scene
     if otypes == 'livig':
-        return([geo for geo in scene.objects if geo.type == 'MESH' and not geo.children  and 'lightarray' not in geo.name and geo.hide == False and geo.layers[scene.active_layer] == True])
+        return([geo for geo in scene.objects if geo.type == 'MESH' and not geo.children  and 'lightarray' not in geo.name \
+        and geo.hide == False and geo.layers[scene.active_layer] == True and geo.get('VIType') not in ('SPathMesh', 'SunMesh')])
     elif otypes == 'livil':
         return([geo for geo in scene.objects if (geo.ies_name != "" or 'lightarray' in geo.name) and geo.hide == False and geo.layers[scene.active_layer] == True])
     elif otypes == 'livic':
@@ -483,11 +484,11 @@ def sunpath2(scene):
 
 def sunpath():
     scene = bpy.context.scene
-    sun = [ob for ob in scene.objects if ob.spob == 1][0]
+    sun = [ob for ob in scene.objects if ob.get('VIType') == 'Sun'][0]
 
     if 0 in (sun['solhour'] == scene.solhour, sun['solday'] == scene.solday, sun['soldistance'] == scene.soldistance):
-        sunob = [ob for ob in scene.objects if ob.spob == 2][0]
-        spathob = [ob for ob in scene.objects if ob.spob == 3][0]
+        sunob = [ob for ob in scene.objects if ob.get('VIType') == 'SunMesh'][0]
+        spathob = [ob for ob in scene.objects if ob.get('VIType') == 'SPathMesh'][0]
         beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
         sunob.location.z = sun.location.z = spathob.location.z + scene.soldistance * sin(beta)
         sunob.location.x = sun.location.x = spathob.location.x -(scene.soldistance**2 - sun.location.z**2)**0.5  * sin(phi)

@@ -127,8 +127,8 @@ def eupdate(self, context):
                     o.data.shape_keys.key_blocks[str(frame)].data[vn].co = o.data.shape_keys.key_blocks['Basis'].data[vn].co + context.scene.vi_disp_3dlevel * (abs(inv - (o['oreslist'][str(frame)][j]-mino)/(maxo - mino)) * o.data.vertices[vn].normal)
                 o.data.update()
 
-def spupdate(self, context):
-    context.scene.spupdate = 1
+#def spupdate(self, context):
+#    context.scene.spupdate = 1
 
 
 
@@ -156,12 +156,6 @@ def register():
     Object.lires = bprop("", "", False)
 
     Object.limerr = bprop("", "", False)
-
-    Object.spob = iprop("", "", 0, 3, 0)
-
-#    Object.spsunob = iprop("", "", 0, 3, 0)
-#
-#    Object.spsun = iprop("", "", 0, 3, 0)
 
 # EnVi zone definitions
 

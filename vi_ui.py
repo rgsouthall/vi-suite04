@@ -1,4 +1,5 @@
 import bpy
+from .vi_func import radmat
 
 def newrow(layout, s1, root, s2):
     row = layout.row()
@@ -26,10 +27,11 @@ class Vi3DPanel(bpy.types.Panel):
                 row.prop(scene, "vi_leg_display")
 
             if scene.sp_disp_panel == 1:
-                newrow(layout, "Day of year", scene, "solday")
-                newrow(layout, "Hour of day", scene, "solhour")
-                newrow(layout, "Sunpath scale", scene, "soldistance")
-                newrow(layout, "Display hours", scene, "hourdisp")
+                for i in (("Day of year", "solday"), ("Hour of year", "solhour"), ("Sunpath scale", "soldistance"), ("Display hours", "hourdisp")):
+                    newrow(layout, i[0], scene, i[1])
+#                newrow(layout, "Hour of day", scene, "solhour")
+#                newrow(layout, "Sunpath scale", scene, "soldistance")
+#                newrow(layout, "Display hours", scene, "hourdisp")
                 if scene.hourdisp:
                     newrow(layout, "Font size", scene, "vi_display_rp_fs")
                     newrow(layout, "Font colour:", scene, "vi_display_rp_fc")
@@ -94,7 +96,7 @@ class VIMatPanel(bpy.types.Panel):
         for ng in bpy.data.node_groups:
             if ng.bl_idname == 'ViN':
                 if 'LiVi Compliance' in [node.bl_label for node in ng.nodes]:
-                    node = [node for node in ng.nodes if node.bl_label == 'LiVi Compliance' and node.inputs['Geometry in'].is_linked][0]
+                    node = [node for node in ng.nodes if node.bl_label == 'LiVi Compliance'][0]
 #            row.prop(cm, "livi_compliance")
                     if cm.livi_sense:
                         if node.analysismenu == '0':
@@ -114,46 +116,48 @@ class VIMatPanel(bpy.types.Panel):
                                 row.label('Warning: Not an assessable CfSH space')
         row = layout.row()
         row.label('LiVi Radiance type:')
-
-        if cm.use_shadeless == True:
-            row.label('Anti-matter')
-        elif cm.emit > 0:
-            row.label('Emission')
-            row = layout.row()
-            row.label('RGB emission:')
-            row.label('({:.2f}, {:.2f}, {:.2f})'.format(cm.emit * cm.diffuse_color[0], cm.emit * cm.diffuse_color[1], cm.emit * cm.diffuse_color[2]))
-        elif cm.raytrace_mirror.use == True and cm.raytrace_mirror.reflect_factor > 0.99:
-            row.label('Mirror')
-            row = layout.row()
-            row.label('RGB refelectance:')
-            row.label('({:.2f}, {:.2f}, {:.2f})'.format(*cm.mirror_color))
-        elif cm.use_transparency == True and cm.transparency_method == 'RAYTRACE' and cm.alpha < 1.0 and cm.translucency == 0:
-            row.label('Glass')
-            row = layout.row()
-            row.label('RGB transparency:')
-            row.label('({:.2f}, {:.2f}, {:.2f})'.format((1.0 - cm.alpha)*cm.diffuse_color[0], (1.0 - cm.alpha)*cm.diffuse_color[1], (1.0 - cm.alpha)*cm.diffuse_color[2]))
-            row = layout.row()
-            row.label('IOR:')
-            row.label('{:.2f}'.format(cm.raytrace_transparency.ior))
-        elif cm.use_transparency == True and cm.transparency_method == 'RAYTRACE' and cm.alpha < 1.0 and cm.translucency > 0:
-            for matprop in ('Translucent', 0, 'RGB transmission:', '({:.2f}, {:.2f}, {:.2f})'.format(*cm.diffuse_color), 0, 'Specularity', '{:.2f}'.format(cm.specular_intensity), 0, 'Roughness:', '{:.2f}'.format(1.0-cm.specular_hardness/511.0), 0, 'Transmissivity', '{:.2f}'.format(1.0 - cm.alpha), 0, 'Transmitted Specular', '{:.2f}'.format(1.0 - cm.translucency)):
-                if matprop:
-                    row.label(matprop)  
-                else:
-                    row = layout.row()
-
-        elif cm.raytrace_mirror.use == True and cm.raytrace_mirror.reflect_factor <= 0.99:
-            for matprop in ('Metal', 0, 'RGB refelectance:', '({:.2f}, {:.2f}, {:.2f})'.format(*cm.diffuse_color), 0, 'Specularity', '{:.2f}'.format(cm.specular_intensity), 0, 'Roughness:', '{:.2f}'.format(1.0-cm.specular_hardness/511.0)):
-                if matprop:
-                    row.label(matprop) 
-                else:
-                    row = layout.row()
-        else:
-            for matprop in ('Plastic', 0, 'RGB refelectance:', '({:.2f}, {:.2f}, {:.2f})'.format(*cm.diffuse_color), 0, 'Specularity', '{:.2f}'.format(cm.specular_intensity), 0, 'Roughness:', '{:.2f}'.format(1.0-cm.specular_hardness/511.0)):
-                if matprop:
-                    row.label(matprop) 
-                else:
-                    row = layout.row()
+        
+        radname, matname, radnum = radmat(cm, context.scene)
+        row.label(radname.capitalize())
+#        if cm.use_shadeless == True:
+#            row.label('Anti-matter')
+#        elif cm.emit > 0:
+#            row.label('Emission')
+#            row = layout.row()
+#            row.label('RGB emission:')
+#            row.label('({:.2f}, {:.2f}, {:.2f})'.format(cm.emit * cm.diffuse_color[0], cm.emit * cm.diffuse_color[1], cm.emit * cm.diffuse_color[2]))
+#        elif cm.raytrace_mirror.use == True and cm.raytrace_mirror.reflect_factor > 0.99:
+#            row.label('Mirror')
+#            row = layout.row()
+#            row.label('RGB refelectance:')
+#            row.label('({:.2f}, {:.2f}, {:.2f})'.format(*cm.mirror_color))
+#        elif cm.use_transparency == True and cm.transparency_method == 'RAYTRACE' and cm.alpha < 1.0 and cm.translucency == 0:
+#            row.label('Glass')
+#            row = layout.row()
+#            row.label('RGB transparency:')
+#            row.label('({:.2f}, {:.2f}, {:.2f})'.format((1.0 - cm.alpha)*cm.diffuse_color[0], (1.0 - cm.alpha)*cm.diffuse_color[1], (1.0 - cm.alpha)*cm.diffuse_color[2]))
+#            row = layout.row()
+#            row.label('IOR:')
+#            row.label('{:.2f}'.format(cm.raytrace_transparency.ior))
+#        elif cm.use_transparency == True and cm.transparency_method == 'RAYTRACE' and cm.alpha < 1.0 and cm.translucency > 0:
+#            for matprop in ('Translucent', 0, 'RGB transmission:', '({:.2f}, {:.2f}, {:.2f})'.format(*cm.diffuse_color), 0, 'Specularity', '{:.2f}'.format(cm.specular_intensity), 0, 'Roughness:', '{:.2f}'.format(1.0-cm.specular_hardness/511.0), 0, 'Transmissivity', '{:.2f}'.format(1.0 - cm.alpha), 0, 'Transmitted Specular', '{:.2f}'.format(1.0 - cm.translucency)):
+#                if matprop:
+#                    row.label(matprop)  
+#                else:
+#                    row = layout.row()
+#
+#        elif cm.raytrace_mirror.use == True and cm.raytrace_mirror.reflect_factor <= 0.99:
+#            for matprop in ('Metal', 0, 'RGB refelectance:', '({:.2f}, {:.2f}, {:.2f})'.format(*cm.diffuse_color), 0, 'Specularity', '{:.2f}'.format(cm.specular_intensity), 0, 'Roughness:', '{:.2f}'.format(1.0-cm.specular_hardness/511.0)):
+#                if matprop:
+#                    row.label(matprop) 
+#                else:
+#                    row = layout.row()
+#        else:
+#            for matprop in ('Plastic', 0, 'RGB refelectance:', '({:.2f}, {:.2f}, {:.2f})'.format(*cm.diffuse_color), 0, 'Specularity', '{:.2f}'.format(cm.specular_intensity), 0, 'Roughness:', '{:.2f}'.format(1.0-cm.specular_hardness/511.0)):
+#                if matprop:
+#                    row.label(matprop) 
+#                else:
+#                    row = layout.row()
 
         layout = self.layout
         row = layout.row()

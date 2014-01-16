@@ -241,26 +241,28 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
     bl_register = True
     bl_undo = True
 
-    _handle = None
+    _handle = None    
 
     def modal(self, context, event):
         if context.scene.li_disp_panel != 2 and context.scene.ss_disp_panel != 2:
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
-            if bpy.context.scene.resnode == 'LiVi Compliance':
+            if context.scene.get('LiViContext') == 'LiVi Compliance':
                 bpy.types.SpaceView3D.draw_handler_remove(self._handle_comp, 'WINDOW')
             return {'CANCELLED'}
         return {'PASS_THROUGH'}
 
     def invoke(self, context, event):
-        scene = context.scene
-        simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]
+        scene = bpy.context.scene
+        simnode = bpy.data.node_groups[scene.restree].nodes[scene.resnode]
         connode = 0 if simnode.bl_label == 'VI Shadow Study' else simnode.inputs['Context in'].links[0].from_node
         geonode = 0 if simnode.bl_label == 'VI Shadow Study' else connode.inputs['Geometry in'].links[0].from_node
         li_display(simnode, connode, geonode)
         scene.li_disp_panel, scene.ss_disp_panel = 2, 2
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')
         self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(li3D_legend, (self, context, simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')
+        if context.scene.get('LiViContext') == 'LiVi Compliance':
+            self._handle_comp = bpy.types.SpaceView3D.draw_handler_add(li_compliance, (self, context, connode), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
@@ -455,7 +457,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
             sun.animation_data_clear()
             
         if scene.render.engine == 'CYCLES' and 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
-            bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction.animation_data_clear()
+            bpy.data.worlds['World'].node_tree.animation_data_clear()
 
         sun['solhour'], sun['solday'], sun['soldistance'] = scene.solhour, scene.solday, scene.soldistance
 
@@ -551,7 +553,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         spathob.active_material_index = 2
         
         for i in range(1, 6):
-            bpy.ops.mesh.primitive_torus_add(major_radius=i*sd*0.2, minor_radius=i*0.1*0.2, major_segments=48, minor_segments=12, location=(0.0, 0.0, 0.0), rotation=(0.0, 0.0, 0.0))
+            bpy.ops.mesh.primitive_torus_add(major_radius=i*sd*0.2, minor_radius=i*0.1*0.2, major_segments=64, minor_segments=8, location=(0.0, 0.0, 0.0), rotation=(0.0, 0.0, 0.0))
             bpy.ops.object.material_slot_assign()
         for j in range(5):
             bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=(2-j%2)*0.04, depth=2.05*sd, end_fill_type='NGON', view_align=False, location=(0.0, 0.0, 0.0), rotation=(pi/2, 0.0, j*pi/4))
@@ -627,30 +629,30 @@ class NODE_OT_WindRose(bpy.types.Operator):
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 0, 1
 
         with open(locnode.weather, "r") as epwfile:
-            wvals = [line.split(",")[20:22] for l, line in enumerate(epwfile.readlines()) if l > 7 and simnode.startmonth <= int(line.split(",")[1]) < simnode.endmonth]
-            simnode['maxres'] = max([float(w[1]) for w in wvals])
-            simnode['minres'] = min([float(w[1]) for w in wvals])
-            simnode['avres'] = sum([float(w[1]) for w in wvals])/len(wvals)
-
-        awd = [float(val[0]) for val in wvals]
-        aws = [float(val[1]) for val in wvals]
-        ax = wr_axes()
-        simnode['nbins'] = len(arange(0,int(ceil(max(aws))),2))
+            if simnode.startmonth > simnode.endmonth:
+                self.report({'ERROR'},"Start month is later than end month")
+                return
+            else:
+                wvals = [line.split(",")[20:22] for l, line in enumerate(epwfile.readlines()) if l > 7 and simnode.startmonth <= int(line.split(",")[1]) < simnode.endmonth]
+                simnode['maxres'], simnode['minres'],  simnode['avres']= max([float(w[1]) for w in wvals]), min([float(w[1]) for w in wvals]), sum([float(w[1]) for w in wvals])/len(wvals)
+            
+        awd, aws, ax, binvals = [float(val[0]) for val in wvals], [float(val[1]) for val in wvals], wr_axes(), arange(0,int(ceil(max(aws))),2)
+        simnode['nbins'] = len(binvals)
 
         if simnode.wrtype == '0':
-            ax.bar(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True, opening=0.8, edgecolor='white')
+            ax.bar(awd, aws, bins=binvals, normed=True, opening=0.8, edgecolor='white')
         if simnode.wrtype == '1':
-            ax.box(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True)
+            ax.box(awd, aws, bins=binvals, normed=True)
         if simnode.wrtype == '2':
-            ax.contourf(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True, cmap=cm.hot)
+            ax.contourf(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
         if simnode.wrtype == '3':
-            ax.contourf(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True, cmap=cm.hot)
-            ax.contour(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True, colors='black')
+            ax.contourf(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
+            ax.contour(awd, aws, bins=binvals, normed=True, colors='black')
         if simnode.wrtype == '4':
-            ax.contour(awd, aws, bins=arange(0,int(ceil(max(aws))),2), normed=True, cmap=cm.hot)
+            ax.contour(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
 #        set_legend(ax)
         if locnode.newdir:
-            plt.savefig(locnode.newdir+'/disp_wind.png', dpi = (300), transparent=True)
+            plt.savefig(locnode.newdir+'/disp_wind.png', dpi = (300), transparent=False)
             plt.savefig(locnode.newdir+'/disp_wind.svg')
         else:
             self.report({'ERROR'},"No project directory. Save the Blender file and recreate the VI Location node.")
@@ -662,8 +664,9 @@ class NODE_OT_WindRose(bpy.types.Operator):
             bpy.data.images['disp_wind.png'].filepath = locnode.newdir+'/disp_wind.png'
             bpy.data.images['disp_wind.png'].reload()
 
-        if 'Wind_Plane' not in [wp.name for wp in bpy.data.objects]:
+        if 'Wind_Plane' not in [ob.get('VIType') for ob in bpy.context.scene.objects]:
             bpy.ops.mesh.primitive_plane_add(enter_editmode=False, location=(0.0, 0.0, 0.0))
+            bpy.context.active_object['VIType'] = 'Wind_Plane'
             wind_mat = bpy.data.materials.new('Wind_Rose')
             tex = bpy.data.textures.new(type = 'IMAGE', name = 'Wind_Tex')
             tex.image = bpy.data.images['disp_wind.png']
@@ -676,7 +679,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
             bpy.context.active_object.data.uv_textures.new()
             bpy.context.active_object.data.uv_textures[0].data[0].image = bpy.data.images['disp_wind.png']
             bpy.context.active_object.scale = (100, 100, 100)
-            wind_mat.use_transparency = True
+            wind_mat.use_transparency = False
             wind_mat.transparency_method = 'Z_TRANSPARENCY'
             wind_mat.alpha = 0.0
         bpy.ops.view3d.wrlegdisplay('INVOKE_DEFAULT')
@@ -745,13 +748,12 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
         for ob in [ob for ob in scene.objects if ob.type == 'MESH' and not ob.hide]:
             obavres, shadfaces, shadcentres = [0] * (fdiff), [[] for f in range(fdiff)], [[] for f in range(fdiff)]
-            obsumarea, obmaxres, obminres = [0 for f in range(fdiff)], [0 for f in range(fdiff)], [0 for f in range(fdiff)]
+            [obsumarea, obmaxres, obminres] = [[0 for f in range(fdiff)] for x in range(3)]
             if len([mat for mat in ob.data.materials if mat.vi_shadow]) > 0:
-                ob.licalc = 1
-                scene.objects.active = ob
+                scene.objects.active, ob.licalc = ob, 1
                 obm = ob.matrix_world
-                ob['cfaces'] = [face.index for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow]
-                ob['cverts'] = []
+                ob['cfaces'], ob['cverts'] = [face.index for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow], []
+
                 for frame in framerange(scene, simnode.animmenu):
                     scene.frame_set(frame)
                     findex = frame - scene.frame_start

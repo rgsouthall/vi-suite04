@@ -29,7 +29,7 @@ except:
     np = 0
 
 def radfexport(scene, export_op, connode, geonode):
-    for frame in vi_func.framerange(scene, 'Animated'):
+    for frame in vi_func.framerange(scene, connode['Animated']):
         livi_export.fexport(scene, frame, export_op, connode, geonode)
 
 def rad_prev(prev_op, simnode, connode, geonode, simacc):
@@ -48,11 +48,9 @@ def rad_prev(prev_op, simnode, connode, geonode, simacc):
             rvucmd = "rvu -w -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0][2]:.3f} {3[1][2]:.3f} {3[2][2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct &".format(geonode.nproc, vv, cang, -1*cam.matrix_world, cam.location, params, geonode.filebase, scene.frame_current)
             rvurun = Popen(rvucmd, shell = True, stdout=PIPE, stderr=STDOUT)
             for l,line in enumerate(rvurun.stdout):
-                if 'octree stale?' in line.decode():
-                    radfexport(scene, prev_op, connode, geonode)
+                if 'octree stale?' in line.decode() or 'truncated octree' in line.decode():
+                    livi_export.radfexport(scene, prev_op, connode, geonode)
                     rad_prev(prev_op, simnode, connode, geonode, simacc)
-                    return
-                if 'truncated octree' in line.decode():
                     prev_op.report({'ERROR'},"Radiance octree is incomplete. Re-run geometry and context export")
                     return
         else:
@@ -74,7 +72,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
         vi_func.clearscened(scene)
         res, svres = [[[0 for p in range(geonode.reslen)] for x in range(scene.frame_end + 1 - scene.frame_start)] for x in range(2)]
 
-        for frame in vi_func.framerange(scene, 'Animated'):
+        for frame in vi_func.framerange(scene, connode['Animation']):
             if connode.bl_label == 'LiVi Basic':
                 if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
                     subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
@@ -203,7 +201,7 @@ def resapply(res, svres, simnode, connode, geonode):
         for geo in vi_func.retobjs('livig'):
 #            bpy.ops.object.select_all(action = 'DESELECT')
 #            scene.objects.active = None
-            if geo.licalc == 1:
+            if geo.get('licalc') == 1:
                 weightres = 0
                 bpy.ops.object.select_all(action = 'DESELECT')
                 scene.objects.active = None
@@ -571,7 +569,7 @@ def resapply(res, svres, simnode, connode, geonode):
     for frame in vi_func.framerange(scene, 'Animated'):
         scene.frame_set(frame)
         for geo in scene.objects:
-            if geo.licalc == 1:
+            if geo.get('licalc') == 1:
                 for vc in geo.data.vertex_colors:
                     if vc.name == str(frame):
                         vc.active = 1

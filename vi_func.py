@@ -7,6 +7,55 @@ from . import windrose
 #from . import windrose
 dtdf = datetime.date.fromordinal
 
+def radmat(mat, scene):    
+    matname = mat.name.replace(" ", "_")
+    if scene.render.engine == 'CYCLES' and hasattr(mat.node_tree, 'nodes'):
+        cycmattypes = ('Diffuse BSDF', 'Glass BSDF', 'Glossy BSDF', 'Translucent BSDF', 'Ambient Occlusion', 'Emission')
+        if mat.node_tree.nodes['Material Output'].inputs['Surface'].is_linked:
+            matnode = mat.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node
+            matindex = cycmattypes.index(matnode.bl_label) if matnode.bl_label in cycmattypes else 0
+            matcol, matior, matrough, matemit  = matnode.inputs[0].default_value, matnode.inputs[2].default_value if matindex == 1 else 0, \
+                matnode.inputs[1].default_value if matindex == 0 else 0,  matnode.inputs[1].default_value if matindex == 5 else 0
+            radname = ('plastic', 'glass', 'mirror', 'trans', 'antimatter', 'light')[matindex]
+            radnums = ('5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format(matcol, '0', matrough),\
+            '4 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.3f}'.format(matcol, matior), \
+            '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}'.format(matcol), \
+            '7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n\n'.format(matcol), \
+            '', \
+            '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n'.format([c * matemit for c in matcol]))[matindex]
+    
+    elif scene.render.engine == 'BLENDER_RENDER':
+        matcol = [i * mat.diffuse_intensity for i in mat.diffuse_color]
+        matior = mat.raytrace_transparency.ior
+        matrough = 1.0-mat.specular_hardness/511.0
+        matemit = mat.emit
+        
+        if mat.use_shadeless == 1 or mat.livi_compliance:
+            radname, radnums = 'antimatter', ''
+
+        elif mat.emit > 0:
+            radname, radnums = 'light', '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n'.format([c * matemit for c in matcol])
+        
+        elif mat.use_transparency == False and mat.raytrace_mirror.use == True and mat.raytrace_mirror.reflect_factor >= 0.99:
+            radname, radnums = 'mirror', '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}'.format(mat.mirror_color)
+
+        elif mat.use_transparency == True and mat.transparency_method == 'RAYTRACE' and mat.alpha < 1.0 and mat.translucency == 0:
+            radname = 'glass'
+            if "{:.2f}".format(mat.raytrace_transparency.ior) == "1.52":
+                radnums = '3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}'.format([c * (1.0 - mat.alpha) for c in matcol])
+            else:
+                radnums = '4 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f}'.format([c * (1.0 - mat.alpha) for c in matcol], matior)
+        elif mat.use_transparency == True and mat.transparency_method == 'RAYTRACE' and mat.alpha < 1.0 and mat.translucency > 0.001:
+            radname, radnums  = 'trans', '7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2} {3} {4}'.format(matcol, mat.specular_intensity, 1.0 - mat.specular_hardness/511.0, 1.0 - mat.alpha, 1.0 - mat.translucency)
+        elif mat.use_transparency == False and mat.raytrace_mirror.use == True and mat.raytrace_mirror.reflect_factor < 0.99:
+            radname, radnums  = 'metal', '5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2}'.format(matcol, mat.specular_intensity, 1.0-mat.specular_hardness/511.0)
+        else:
+            radname, radnums  = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.2f} {2:.2f}'.format(matcol, mat.specular_intensity, 1.0-mat.specular_hardness/511.0)
+   
+    return(radname, matname, radnums)
+        
+
+
 def face_centre(ob, obresnum, f):
     vsum = mathutils.Vector((0, 0, 0))
     for v in f.vertices:
@@ -447,31 +496,28 @@ def retobjs(otypes):
     scene = bpy.context.scene
     if otypes == 'livig':
         return([geo for geo in scene.objects if geo.type == 'MESH' and not geo.children  and 'lightarray' not in geo.name \
-        and geo.hide == False and geo.layers[scene.active_layer] == True and geo.get('VIType') not in ('SPathMesh', 'SunMesh')])
+        and geo.hide == False and geo.layers[scene.active_layer] == True and geo.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane')])
     elif otypes == 'livil':
         return([geo for geo in scene.objects if (geo.ies_name != "" or 'lightarray' in geo.name) and geo.hide == False and geo.layers[scene.active_layer] == True])
     elif otypes == 'livic':
-        return([geo for geo in scene.objects if geo.type == 'MESH' and geo.licalc == 1 and geo.lires == 0 and geo.hide == False and geo.layers[scene.active_layer] == True])
+        return([geo for geo in scene.objects if geo.type == 'MESH' and geo.get('licalc') and geo.lires == 0 and geo.hide == False and geo.layers[scene.active_layer] == True])
     elif otypes == 'livir':
-        return([geo for geo in bpy.data.objects if geo.type == 'MESH' and True in [m.livi_sense for m in geo.data.materials] and geo.licalc and geo.layers[scene.active_layer] == True])
+        return([geo for geo in bpy.data.objects if geo.type == 'MESH' and True in [m.livi_sense for m in geo.data.materials] and geo.get('licalc') and geo.layers[scene.active_layer] == True])
     elif otypes == 'envig':
         return([geo for geo in scene.objects if geo.type == 'MESH' and geo.hide == False and geo.layers[0] == True])
     elif otypes == 'ssc':
-        return([geo for geo in scene.objects if geo.type == 'MESH' and geo.licalc == 1 and geo.lires == 0 and geo.hide == False and geo.layers[scene.active_layer] == True])
+        return([geo for geo in scene.objects if geo.type == 'MESH' and geo.get('licalc') and geo.lires == 0 and geo.hide == False and geo.layers[scene.active_layer] == True])
 
 def viewdesc(context):
     region = context.region
-    mid_x = region.width / 2
-    mid_y = region.height / 2
-    width = region.width
-    height = region.height
+    (width, height) = [getattr(region, s) for s in ('width', 'height')] 
+    mid_x, mid_y = width/2, height/2
     return(mid_x, mid_y, width, height)
 
 
 def draw_index(context, leg, mid_x, mid_y, width, height, index, vec):
-#    vec = total_mat * center.to_4d()
     vec = mathutils.Vector((vec[0] / vec[3], vec[1] / vec[3], vec[2] / vec[3]))
-    x, y = int(mid_x + vec[0] * width / 2), int(mid_y + vec[1] * height / 2)
+    x, y = int(mid_x + vec[0] * mid_x), int(mid_y + vec[1] * mid_y)
     blf.position(0, x, y, 0)
     if (leg == 1 and (x > 120 or y < height - 530)) or leg == 0:
         blf.draw(0, str(index))

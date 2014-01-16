@@ -27,28 +27,29 @@ def ss_display():
 
 def li_display(simnode, connode, geonode):
     cp = '0' if not geonode else geonode.cpoint
-    ganimmenu = geonode.animmenu if geonode else simnode.animmenu
-    canimmenu = connode.animmenu if connode else simnode.animmenu
-    animmenu = [a for a in (ganimmenu, canimmenu) if a !='Static'][0] if (ganimmenu, canimmenu) != ('Static', 'Static') else 'Static'
     scene = bpy.context.scene
     vi_func.clearscened(scene)
     obreslist = []
     obcalclist = []
+    
+    for geo in scene.objects:
+            scene.objects.active = geo            
+            if getattr(geo, 'mode') != 'OBJECT':
+                bpy.ops.object.mode_set(mode = 'OBJECT')
+                
+    bpy.ops.object.select_all(action = 'DESELECT')
 
     if len(bpy.app.handlers.frame_change_pre) == 0:
         bpy.app.handlers.frame_change_pre.append(livi_export.cyfc1)
         o = 0
 
         for geo in scene.objects:
-            if geo.type == "MESH" and geo.licalc == 1 and geo.hide == False:
-                geo.select = True
-                if geo.mode != 'OBJECT':
-                    bpy.ops.object.mode_set(mode = 'OBJECT')
+            if geo.type == "MESH" and geo.get('licalc') == 1 and geo.hide == False:
                 bpy.ops.object.select_all(action = 'DESELECT')
                 obcalclist.append(geo)
                 o += 1
 
-        for frame in vi_func.framerange(scene, 'Animted'):
+        for frame in vi_func.framerange(scene, connode['Animation']):
             scene.frame_set(frame)
             for obcalc in obcalclist:
                 for vc in obcalc.data.vertex_colors:
@@ -57,7 +58,6 @@ def li_display(simnode, connode, geonode):
                     vc.keyframe_insert("active_render")
 
     scene.frame_set(scene.frame_start)
-    bpy.ops.object.select_all(action = 'DESELECT')
     scene.objects.active = None
 
     if scene.vi_disp_3d == 1:
@@ -93,7 +93,7 @@ def li_display(simnode, connode, geonode):
 
 
         for obres in obreslist:
-            oreslist = {str(f): 0 for f in vi_func.framerange(scene, animmenu)}
+            oreslist = {str(f): 0 for f in vi_func.framerange(scene, connode['Animation'])}
 #            (oreslist, fe) =  ({str(scene.frame_start): 0}, scene.frame_start) if animmenu == "Static" else ({str(frame): 0 for frame in range(scene.frame_end - scene.frame_start + 1)}, scene.frame_end)
             scene.objects.active = obres
             obres.select = True
@@ -117,7 +117,7 @@ def li_display(simnode, connode, geonode):
             bpy.ops.object.shape_key_add(from_mix = False)
 
 #            for frame in range(scene.frame_start, fe + 1):
-            for frame in vi_func.framerange(scene, animmenu):
+            for frame in vi_func.framerange(scene, connode['Animation']):
                 findex = frame - scene.frame_start
                 bpy.ops.object.shape_key_add(from_mix = False)
                 obres.active_shape_key.name = str(frame)
@@ -130,15 +130,15 @@ def li_display(simnode, connode, geonode):
 
             obres['oreslist'] = oreslist
             try:
-                obres['omax'] ={str(f):max(oreslist[str(f)]) for f in vi_func.framerange(scene, animmenu)}
-                obres['omin'] ={str(f):min(oreslist[str(f)]) for f in vi_func.framerange(scene, animmenu)}
-                obres['oave'] ={str(f):sum(oreslist[str(f)])/len(oreslist[str(f)]) for f in vi_func.framerange(scene, animmenu)}
+                obres['omax'] ={str(f):max(oreslist[str(f)]) for f in vi_func.framerange(scene, connode['Animation'])}
+                obres['omin'] ={str(f):min(oreslist[str(f)]) for f in vi_func.framerange(scene, connode['Animation'])}
+                obres['oave'] ={str(f):sum(oreslist[str(f)])/len(oreslist[str(f)]) for f in vi_func.framerange(scene, connode['Animation'])}
             except Exception as e:
                 print(e)
             obres['j'] = j
 
 
-    for frame in vi_func.framerange(scene, animmenu):
+    for frame in vi_func.framerange(scene, connode['Animation']):
         scene.frame_set(frame)
         for obres in obreslist:
             if scene.vi_disp_3d == 1:
@@ -171,24 +171,22 @@ def spnumdisplay(disp_op, context, simnode):
         ob_mat = ob.matrix_world
         total_mat = view_mat*ob_mat
         for np in ob['numpos']:
-            vi_func.draw_index(context, leg, mid_x, mid_y, width, height, np.split('-')[1], total_mat*mathutils.Vector(ob['numpos'][np]).to_4d())
+            if (total_mat*mathutils.Vector(ob['numpos'][np]))[2] > 0:
+                vi_func.draw_index(context, leg, mid_x, mid_y, width, height, np.split('-')[1], total_mat*mathutils.Vector(ob['numpos'][np]).to_4d())
         blf.disable(0, 4)
     else:
         return
 
 def linumdisplay(disp_op, context, simnode, connode, geonode):
     scene = context.scene
-    ganimmenu = geonode.animmenu if geonode else simnode.animmenu
-    canimmenu = connode.animmenu if connode else simnode.animmenu
-    animmenu = [a for a in (ganimmenu, canimmenu) if a !='Static'][0] if (ganimmenu, canimmenu) != ('Static', 'Static') else 'Static'
-    
     try:
         if obcalclist:
             pass
     except:
-        obreslist = [ob for ob in scene.objects if ob.type == 'MESH'  and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.licalc == 1 and ob.lires == 1]
-        obcalclist = [ob for ob in scene.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.licalc == 1 and ob.lires == 0]
-    if (scene.li_disp_panel != 2 and scene.ss_disp_panel != 2) or context.active_object.mode != 'OBJECT' or (animmenu == 'Static' and scene.frame_current != scene.frame_start) or scene.vi_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.vi_display_sel_only == True)  or scene.frame_current not in range(scene.frame_start, scene.frame_end+1):
+        obreslist = [ob for ob in scene.objects if ob.type == 'MESH'  and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.get('licalc') == 1 and ob.lires == 1]
+        obcalclist = [ob for ob in scene.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.get('licalc') == 1 and ob.lires == 0]
+    if (scene.li_disp_panel != 2 and scene.ss_disp_panel != 2) or getattr(bpy.context.active_object, ('mode')) != 'OBJECT' or (connode['Animation'] == 'Static' and scene.frame_current != scene.frame_start) \
+    or scene.vi_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.vi_display_sel_only == True)  or scene.frame_current not in vi_func.framerange(scene, connode['Animation']):
         return
     
     blf.enable(0, 4)
@@ -211,7 +209,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         obm = ob.data
         ob_mat = ob.matrix_world
         view_mat = context.space_data.region_3d.perspective_matrix
-        view_pos = (view_mat.inverted()[0][3]/6, view_mat.inverted()[1][3]/6, view_mat.inverted()[2][3]/6)
+        view_pos = (view_mat.inverted()[0][3]/5, view_mat.inverted()[1][3]/5, view_mat.inverted()[2][3]/5)
 
         if cp == "0" or not geonode:
             if scene.vi_display_vis_only:
@@ -231,8 +229,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
                     if v.index in f.vertices:
                         loops.append(f.loop_indices[list(f.vertices).index(v.index)])
                         break
-            
-            
+
         total_mat = view_mat*ob_mat
         if cp == "0" or not geonode:
             for f in faces:
@@ -243,22 +240,21 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
                 if not f.hide:
                     loop_index = f.loop_indices[0]
                     if len(set(obm.vertex_colors[fn].data[loop_index].color[:])) > 0:
-                        if geonode:
-                            vi_func.draw_index(context, 1, mid_x, mid_y, width, height, int(simnode['minres'][fn] + (1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*(simnode['maxres'][fn] - simnode['minres'][fn])), total_mat*fc.to_4d())
-                        else:
-                            vi_func.draw_index(context, 1, mid_x, mid_y, width, height, int(simnode['minres'][fn] + (obm.vertex_colors[fn].data[loop_index].color[0])*(simnode['maxres'][fn] - simnode['minres'][fn])), total_mat*fc.to_4d())
+                        if (total_mat*fc)[2] > 0:
+                            if geonode:
+                                vi_func.draw_index(context, 1, mid_x, mid_y, width, height, int(simnode['minres'][fn] + (1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*(simnode['maxres'][fn] - simnode['minres'][fn])), total_mat*fc.to_4d())
+                            else:
+                                vi_func.draw_index(context, 1, mid_x, mid_y, width, height, int(simnode['minres'][fn] + (obm.vertex_colors[fn].data[loop_index].color[0])*(simnode['maxres'][fn] - simnode['minres'][fn])), total_mat*fc.to_4d())
         elif cp == "1":
             for v, vert in enumerate(verts):
                 vpos = ob.active_shape_key.data[vert.index].co if len(obreslist) > 0 else vert.co
                 if len(set(obm.vertex_colors[fn].data[vert.index].color[:])) > 0:
-                    vi_func.draw_index(context, 1, mid_x, mid_y, width, height, int((1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loops[v]].color[0]/255, obm.vertex_colors[fn].data[loops[v]].color[1]/255, obm.vertex_colors[fn].data[loops[v]].color[2]/255)[0]))*simnode['maxres'][fn]), total_mat*vpos.to_4d())
-                    blf.disable(0, 4)
+                    if (total_mat*vpos)[2] > 0:
+                        vi_func.draw_index(context, 1, mid_x, mid_y, width, height, int((1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loops[v]].color[0]/255, obm.vertex_colors[fn].data[loops[v]].color[1]/255, obm.vertex_colors[fn].data[loops[v]].color[2]/255)[0]))*simnode['maxres'][fn]), total_mat*vpos.to_4d())
+        blf.disable(0, 4)
 
 def li3D_legend(self, context, simnode, connode, geonode):
     scene = context.scene
-    ganimmenu = geonode.animmenu if geonode else simnode.animmenu
-    canimmenu = connode.animmenu if connode else simnode.animmenu
-    animmenu = [a for a in (ganimmenu, canimmenu) if a !='Static'][0] if (ganimmenu, canimmenu) != ('Static', 'Static') else 'Static'
     
     if scene.vi_leg_display != True or scene.vi_display == 0 or (scene.wr_disp_panel != 1 and scene.li_disp_panel != 2 and scene.ss_disp_panel != 2):
         return
@@ -299,8 +295,8 @@ def li3D_legend(self, context, simnode, connode, geonode):
         bgl.glDisable(bgl.GL_BLEND)
         height = context.region.height
         font_id = 0
-        if scene.frame_current in vi_func.framerange(scene, 'Animted'):
-            findex = scene.frame_current - scene.frame_start if animmenu != 'Static' else 0
+        if scene.frame_current in vi_func.framerange(scene, connode['Animation']):
+            findex = scene.frame_current - scene.frame_start if connode['Animation'] != 'Static' else 0
             bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
             blf.size(font_id, 20, 48)
             if hasattr(context.active_object, 'lires') and context.active_object.lires:
@@ -358,12 +354,9 @@ def viwr_legend(self, context, simnode):
 def li_compliance(self, context, connode):
     height = context.region.height
     scene = context.scene
-    try:
-        if not scene.li_compliance or scene.frame_current not in range(scene.frame_start, scene.frame_end + 1) or scene.vi_display == 0:
-            return
-    except:
-        return
 
+    if not scene.get('li_compliance') or scene.frame_current not in vi_func.framerange(scene, connode['Animation']) or scene.vi_display == 0:
+        return
     if connode.analysismenu == '0':
         buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retail', 'Office & Other')[int(connode.bambuildmenu)]
     elif connode.analysismenu == '1':

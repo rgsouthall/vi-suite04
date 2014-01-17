@@ -196,19 +196,25 @@ def radcexport(export_op, node):
     scene['LiViContext'] = node.bl_label
     clearscenece(scene)
     clearscened(scene)
-    geonode = node.inputs[0].links[0].from_node
-    
-    if geonode.animmenu == 'Static' and (node.animmenu == 'Static' or node.skynum > 2):
-        node['Animation'] = 'Static'
-    elif geonode.animmenu != 'Static' and node.animmenu != 'Static':
-        export_op.report({'ERROR'},"You cannot run a geometry and time based animation at the same time")
-        return
-    elif node.animmenu == 'Time' and node.skynum < 3:
-        node['Animation'] = 'TAnimated'
-    else:
-        node['Animation'] = 'Animated'
-
+    geonode = node.inputs['Geometry in'].links[0].from_node
+        
     if node.bl_label != 'LiVi CBDM':
+        node['Animation'] = ('Static', '', 'TAnimated', 'Animated')[(geonode.animmenu == 'Static' and (node.animmenu == 'Static' or node.skynum > 2), \
+        geonode.animmenu != 'Static' and node.animmenu != 'Static', node.animmenu == 'Time' and node.skynum < 3).index(1)]
+        if not node['Animation']:
+            export_op.report({'ERROR'},"You cannot run a geometry and time based animation at the same time")
+            return
+            
+#        if geonode.animmenu == 'Static' and (node.animmenu == 'Static' or node.skynum > 2):
+#            node['Animation'] = 'Static'
+#        elif geonode.animmenu != 'Static' and node.animmenu != 'Static':
+#            export_op.report({'ERROR'},"You cannot run a geometry and time based animation at the same time")
+#            return
+#        elif node.animmenu == 'Time' and node.skynum < 3:
+#            node['Animation'] = 'TAnimated'
+#        else:
+#            node['Animation'] = 'Animated'
+        
         if node.skynum < 4:
             node.skytypeparams = ("+s", "+i", "-c", "-b 22.86 -c")[node.skynum]
             starttime = datetime.datetime(2013, 1, 1, node.shour) + datetime.timedelta(node.sdoy - 1) if node.skynum < 3 else datetime.datetime(2013, 1, 1, 12)
@@ -262,13 +268,16 @@ def radcexport(export_op, node):
             fexport(scene, frame, export_op, node, geonode)
 
     elif node.bl_label == 'LiVi CBDM':
+        node['Animation'] = 'Static' if geonode.animmenu == 'Static' else 'Animated'
+        locnode = node.inputs['Location in'].links[0].from_node
         os.chdir(geonode.newdir)
         pcombfiles = ""
         for i in range(0, 146):
             pcombfiles = pcombfiles + "ps{}.hdr ".format(i)
-        epwbase = os.path.splitext(os.path.basename(node.epwname))
+        epwbase = os.path.splitext(os.path.basename(locnode.weather))
         if epwbase[1] in (".epw", ".EPW"):
-            with open(node.epwname, "r").readlines() as epwlines:
+            with open(locnode.weather, "r") as epwfile:
+                epwlines = epwfile.readlines()
                 epwyear = epwlines[8].split(",")[0]
                 if not os.path.isfile(geonode.newdir+"/"+epwbase[0]+".wea"):
                     with open(geonode.newdir+"/"+epwbase[0]+".wea", "w") as wea:
@@ -281,7 +290,8 @@ def radcexport(export_op, node):
 #            patch = 2
 #            fwd = datetime.datetime(int(epwyear), 1, 1).weekday()
 #
-            with open(geonode.newdir+"/"+epwbase[0]+".mtx", "r").readines() as mtxlines:
+            with open(geonode.newdir+"/"+epwbase[0]+".mtx", "r") as mtxfile:
+                mtxlines = mtxfile.readlines()
                 vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), 1, 1).weekday())
 
             with open(geonode.filename+".whitesky", "w") as skyrad:
@@ -298,7 +308,9 @@ def radcexport(export_op, node):
                 node['vecvals'] = vecvals.tolist()
             else:
                 node['vecvals'] = vecvals
-
+        else:
+            export_op.report({'Error'}, "Not a valid EPW file")
+            
 def sunexport(scene, node, geonode, starttime, frame):
     if node.skynum < 3:
         simtime = starttime + frame*datetime.timedelta(seconds = 3600*node.interval)

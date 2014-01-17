@@ -92,7 +92,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                 resfile.write("{}".format(res[frame]).strip("]").strip("["))
                 resfile.close()
 
-            if connode.bl_label == 'LiVi Compliance':
+            elif connode.bl_label == 'LiVi Compliance':
                 if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
                     subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
                 rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
@@ -120,7 +120,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                     svresfile.write("{}".format(svres[frame]).strip("]").strip("["))
                     svresfile.close()
 
-            if connode.bl_label == 'LiVi CBDM':
+            elif connode.bl_label == 'LiVi CBDM':
                 vi_func.clearscened(scene)
                 res = [[0] * geonode.reslen for frame in range(0, bpy.context.scene.frame_end+1)]
                 wd = (7, 5)[int(connode.weekdays)]

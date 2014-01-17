@@ -255,6 +255,7 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
 
     def init(self, context):
         self.inputs.new('ViLiG', 'Geometry in')
+        self.inputs.new('ViLoc', 'Location in')
         self.outputs.new('ViLiC', 'Context out')
         self.outputs['Context out'].hide = True
         for ng in bpy.data.node_groups:
@@ -282,13 +283,15 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
                newrow(layout, 'Supplementry (Max):', self, 'dasupp')
                newrow(layout, 'Autonomous (Max):', self, 'daauto')
 
-        row = layout.row()
-        row.label('EPW file:')
-        row.operator('node.epwselect', text = 'Select EPW').nodeid = self['nodeid']
-        row = layout.row()
-        row.prop(self, "epwname")
-        newrow(layout, 'Animation:', self, "animmenu")
-        if self.inputs['Geometry in'].is_linked and self.inputs['Geometry in'].links[0].from_node.bl_label == 'LiVi Geometry':
+#        row = layout.row()
+#        row.label('EPW file:')
+#        row.operator('node.epwselect', text = 'Select EPW').nodeid = self['nodeid']
+#        row = layout.row()
+#        row.prop(self, "epwname")
+#        newrow(layout, 'Animation:', self, "animmenu")
+        if self.inputs['Geometry in'].is_linked and self.inputs['Geometry in'].links[0].from_node.exported and \
+        self.inputs['Geometry in'].links[0].from_node.bl_label == 'LiVi Geometry' and self.inputs['Location in'].is_linked \
+        and self.inputs['Location in'].links[0].from_node.loc == '1':
             row = layout.row()
             row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
 

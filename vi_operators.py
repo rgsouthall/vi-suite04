@@ -181,9 +181,10 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
                     bpy.ops.object.mode_set(mode = 'OBJECT')
 
             if " " not in bpy.data.filepath:
-                if node.inputs['Geometry in'].is_linked:
+                if (node.bl_label == 'LiVi CBDM' and node.inputs['Geometry in'].is_linked and node.inputs['Location in'].is_linked) \
+                or (node.bl_label != 'LiVi CBDM' and node.inputs['Geometry in'].is_linked):
                     radcexport(self, node)
-                    node.disp_leg = False
+#                    node.disp_leg = False
                     node.exported = True
                     node.outputs['Context out'].hide = False
                 else:

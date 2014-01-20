@@ -73,7 +73,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
         res, svres = [[[0 for p in range(geonode.reslen)] for x in range(scene.frame_end + 1 - scene.frame_start)] for x in range(2)]
 
         for frame in vi_func.framerange(scene, connode['Animation']):
-            if connode.bl_label == 'LiVi Basic':
+            if connode.bl_label in ('LiVi Basic', 'LiVi Compliance') or (connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) < 2):
                 if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
                     subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
                 rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
@@ -92,43 +92,42 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                 resfile.write("{}".format(res[frame]).strip("]").strip("["))
                 resfile.close()
 
-            elif connode.bl_label == 'LiVi Compliance':
-                if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
-                    subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
-                rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
-                rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
-                resfile = open(os.path.join(geonode.newdir, connode.resname+"-"+str(frame)+".res"), 'w')
-                for l,line in enumerate(rtrun.stdout):
-                    if 'octree stale?' in line.decode():
-                        resfile.close()
-                        radfexport(scene, calc_op, connode, geonode)
-                        li_calc(calc_op, simnode, connode, geonode, simacc)
-                        return
-                    if 'truncated octree' in line.decode():
-                        calc_op.report({'ERROR'},"Radiance octree is incomplete. Re-run geometry and context export")
-                        return
-                    res[frame][l] = float(line.decode())
-                resfile.write("{}".format(res[frame]).strip("]").strip("["))
-                resfile.close()
-
+            if connode.bl_label == 'LiVi Compliance' and connode.analysismenu in ('0', '1'):
                 if connode.analysismenu in ('0', '1'):
                     svcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, '-ab 1 -ad 8192 -aa 0 -ar 512 -as 1024 -lw 0.0002', geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                     svrun = Popen(svcmd, shell = True, stdout=PIPE, stderr=STDOUT)
-                    svresfile = open(os.path.join(geonode.newdir,'skyview'+"-"+str(frame)+".res"), 'w')
-                    for sv,line in enumerate(svrun.stdout):
-                        svres[frame][sv] = float(line.decode())
-                    svresfile.write("{}".format(svres[frame]).strip("]").strip("["))
-                    svresfile.close()
+                    with open(os.path.join(geonode.newdir,'skyview'+"-"+str(frame)+".res"), 'w') as svresfile:
+                        for sv,line in enumerate(svrun.stdout):
+                            svres[frame][sv] = float(line.decode())
+                        svresfile.write("{}".format(svres[frame]).strip("]").strip("["))
 
-            elif connode.bl_label == 'LiVi CBDM':
-                vi_func.clearscened(scene)
-                res = [[0] * geonode.reslen for frame in range(0, bpy.context.scene.frame_end+1)]
-                wd = (7, 5)[int(connode.weekdays)]
-                if int(connode.analysismenu) < 2:
-                    
-                
-                if connode.sourcemenu == '0':
-                   in 
+
+            if connode.bl_label == 'LiVi CBDM':
+#                vi_func.clearscened(scene)
+#                res = [[0] * geonode.reslen for frame in range(0, bpy.context.scene.frame_end+1)]
+#                wd = (7, 5)[int(connode.weekdays)]
+#                if int(connode.analysismenu) < 2:
+#                    if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
+#                        subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
+#                    rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+#                    rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
+#                    with open(os.path.join(geonode.newdir, connode.resname+"-"+str(frame)+".res"), 'w') as resfile:
+#                        for l,line in enumerate(rtrun.stdout):
+#                            if 'octree stale?' in line.decode():
+#                                resfile.close()
+#                                radfexport(scene, calc_op, connode, geonode)
+#                                li_calc(calc_op, simnode, connode, geonode, simacc)
+#                                return
+#                            if 'truncated octree' in line.decode():
+#                                calc_op.report({'ERROR'},"Radiance octree is incomplete. Re-run geometry and context export")
+#                                return
+#                            res[frame][l] = float(line.decode())
+#                        resfile.write("{}".format(res[frame]).strip("]").strip("["))
+
+                if int(connode.analysismenu) > 1:
+#                if connode.sourcemenu == '0':
+#                   in
+                    pass
                 if connode.sourcemenu == '2':
                     skyrad = open(geonode.filebase+".whitesky", "w")
                     skyrad.write("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")

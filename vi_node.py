@@ -226,14 +226,14 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         if self.sourcemenu != '0' and self.inputs['Location in'].is_linked:
             bpy.data.node_groups[self['nodeid'].split('@')[1]].links.remove(self.inputs['Location in'].links[0])
         self.inputs['Location in'].hide = False if self.sourcemenu == '0' else True
-            
-            
-            
+
+
+
 
     analysistype = [('0', "Annual Light Exposure", "LuxHours Calculation"), ('1', "Annual Radiation Exposure", "kWh/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Autonomy", "DA (%) Calculation"), ('3', "Hourly irradiance", "Irradiance for each simulation time step"), ('4', "UDI", "Useful Daylight Illuminance")]
     analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0', update = nodeexported)
     animtype = [('0', "Static", "Simple static analysis"), ('1', "Geometry", "Animated time analysis"), ('2', "Material", "Animated time analysis")]
-    
+
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = '0', update = nodeexported)
     sourcetype = [('0', "EPW", "EnergyPlus weather file"), ('1', "VEC", "Generated vector file"), ('2', "HDR", "HDR sky file")]
     sourcemenu = bpy.props.EnumProperty(name="", description="Source type", items=sourcetype, default = '0', update = nodeexported)
@@ -273,12 +273,11 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         for ng in bpy.data.node_groups:
             if self in ng.nodes[:]:
                 self['nodeid'] = self.name+'@'+ng.name
-        self.outputs.new('ViLiWResOut', 'Data out')
-        self.outputs['Data out'].hide = False
 
-    def update(self):
-        if self.outputs['Data out'].is_linked:
-            self.analysismenu = '3'
+
+#    def update(self):
+#        if self.outputs['Data out'].is_linked:
+#            self.analysismenu = '3'
 
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -313,7 +312,7 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
                 row = layout.row()
                 row.prop(self, 'vecname')
 #                exportready = 1 if self.vecname and self.hdrname else 0
-                
+
         if self.inputs['Geometry in'].is_linked and self.inputs['Geometry in'].links[0].from_node.exported and self.inputs['Geometry in'].links[0].from_node.bl_label == 'LiVi Geometry':
             if (self.inputs['Location in'].is_linked and self.inputs['Location in'].links[0].from_node.loc == '1') or self.sourcemenu != '0':
                 row = layout.row()
@@ -378,6 +377,8 @@ class ViLiSNode(bpy.types.Node, ViNodes):
 
     def init(self, context):
         self.inputs.new('ViLiC', 'Context in')
+        self.outputs.new('ViLiWResOut', 'Data out')
+        self.outputs['Data out'].hide = True
         for ng in bpy.data.node_groups:
             if self in ng.nodes[:]:
                 self['nodeid'] = self.name+'@'+ng.name

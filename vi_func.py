@@ -7,7 +7,7 @@ from . import windrose
 #from . import windrose
 dtdf = datetime.date.fromordinal
 
-def radmat(mat, scene):    
+def radmat(mat, scene):
     matname = mat.name.replace(" ", "_")
     if scene.render.engine == 'CYCLES' and hasattr(mat.node_tree, 'nodes'):
         cycmattypes = ('Diffuse BSDF', 'Glass BSDF', 'Glossy BSDF', 'Translucent BSDF', 'Ambient Occlusion', 'Emission')
@@ -23,19 +23,19 @@ def radmat(mat, scene):
             '7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n\n'.format(matcol), \
             '', \
             '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n'.format([c * matemit for c in matcol]))[matindex]
-    
+
     elif scene.render.engine == 'BLENDER_RENDER':
         matcol = [i * mat.diffuse_intensity for i in mat.diffuse_color]
         matior = mat.raytrace_transparency.ior
         matrough = 1.0-mat.specular_hardness/511.0
         matemit = mat.emit
-        
+
         if mat.use_shadeless == 1 or mat.livi_compliance:
             radname, radnums = 'antimatter', ''
 
         elif mat.emit > 0:
             radname, radnums = 'light', '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n'.format([c * matemit for c in matcol])
-        
+
         elif mat.use_transparency == False and mat.raytrace_mirror.use == True and mat.raytrace_mirror.reflect_factor >= 0.99:
             radname, radnums = 'mirror', '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}'.format(mat.mirror_color)
 
@@ -51,9 +51,9 @@ def radmat(mat, scene):
             radname, radnums  = 'metal', '5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2}'.format(matcol, mat.specular_intensity, 1.0-mat.specular_hardness/511.0)
         else:
             radname, radnums  = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.2f} {2:.2f}'.format(matcol, mat.specular_intensity, 1.0-mat.specular_hardness/511.0)
-   
+
     return(radname, matname, radnums)
-        
+
 
 
 def face_centre(ob, obresnum, f):
@@ -510,7 +510,7 @@ def retobjs(otypes):
 
 def viewdesc(context):
     region = context.region
-    (width, height) = [getattr(region, s) for s in ('width', 'height')] 
+    (width, height) = [getattr(region, s) for s in ('width', 'height')]
     mid_x, mid_y = width/2, height/2
     return(mid_x, mid_y, width, height)
 
@@ -599,3 +599,4 @@ def wr_axes():
     ax = windrose.WindroseAxes(fig, rect, axisbg='w')
     fig.add_axes(ax)
     return ax
+

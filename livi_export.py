@@ -37,12 +37,12 @@ def radgexport(export_op, node):
 
     clearscenege(scene)
     clearscened(scene)
-    
+
     for frame in framerange(scene, node.animmenu):
         scene.frame_current = frame
-        
+
         # Material export routine
-        
+
         radfile = "# Materials \n\n"
         for meshmat in bpy.data.materials:
             radname, matname, radnums = radmat(meshmat, scene)
@@ -51,10 +51,10 @@ def radgexport(export_op, node):
             if radname in ('light', 'mirror'):
                 for o in retobjs('livig'):
                     o['merr'] = 1 if meshmat in [om for om in o.data.materials] else 0
-                    export_op.report({'INFO'}, o.name+" has a emission or mirror material. Basic export routine used with no modifiers.")                                                    
+                    export_op.report({'INFO'}, o.name+" has a emission or mirror material. Basic export routine used with no modifiers.")
             meshmat['RadMat'] = {radname: (matname, radnums)}
             meshmat.use_vertex_color_paint = 1 if meshmat.livi_sense else 0
-        bpy.ops.object.select_all(action='DESELECT')  
+        bpy.ops.object.select_all(action='DESELECT')
 
         with open(node.filebase+"-{}.rad".format(frame), 'w') as radmatfile:
             radmatfile.write(radfile)
@@ -80,7 +80,7 @@ def radgexport(export_op, node):
                         print('Mesh export error: '+ line)
                         o['merr'] = 1
                         break
-                
+
             if o.get('merr') != 1:
                 radfile += "void mesh id \n1 "+retmesh(o.name, frame, node)+"\n0\n0\n\n"
             else:
@@ -103,9 +103,9 @@ def radgexport(export_op, node):
                         radfile += "\n"
                     except:
                         export_op.report({'ERROR'},"Make sure your object "+o.name+" has an associated material")
-                        
+
         # Lights export routine
-                        
+
         radfile += "# Lights \n\n"
 
         for geo in retobjs('livil'):
@@ -125,13 +125,13 @@ def radgexport(export_op, node):
                         radfile.write += "!xform -rx {:.3f} -ry {:.3f} -rz {:.3f} -t {:.3f} {:.3f} {:.3f} {}\n".format((180/pi)*rotation[0], (180/pi)*rotation[1], (180/pi)*rotation[2], fx, fy, fz, node.newdir+"/"+iesname+"-"+str(frame)+".rad")
         radfile += "# Sky \n\n"
         radfilelist.append(radfile)
-            
+
     node['radfiles'] = radfilelist
     connode = node.outputs[0].links[0].to_node if node.outputs[0].is_linked else 0
-    
+
     for frame in framerange(scene, node.animmenu):
         fexport(scene, frame, export_op, node, connode)
-    
+
 
 # rtrace export routine
 
@@ -146,9 +146,9 @@ def radgexport(export_op, node):
                     bpy.ops.object.mode_set(mode = 'OBJECT')
                     mesh = geo.to_mesh(scene, True, 'PREVIEW', calc_tessface=False)
                     mesh.transform(geo.matrix_world)
-                    
+
                     scene.objects.active = geo
-                    
+
                     for vc in geo.data.vertex_colors:
                         bpy.ops.mesh.vertex_color_remove()
 
@@ -189,7 +189,7 @@ def radgexport(export_op, node):
                 node.export = 0
                 export_op.report({'ERROR'},"Make sure your object "+geo.name+" has an associated material")
     node.export = 1
-    
+
 
 def radcexport(export_op, node):
     skyfileslist, scene, scene.li_disp_panel, scene.vi_display = [], bpy.context.scene, 0, 0
@@ -197,14 +197,14 @@ def radcexport(export_op, node):
     clearscenece(scene)
     clearscened(scene)
     geonode = node.inputs['Geometry in'].links[0].from_node
-        
+
     if node.bl_label != 'LiVi CBDM':
         node['Animation'] = ('Static', '', 'TAnimated', 'Animated')[(geonode.animmenu == 'Static' and (node.animmenu == 'Static' or node.skynum > 2), \
         geonode.animmenu != 'Static' and node.animmenu != 'Static', node.animmenu == 'Time' and node.skynum < 3).index(1)]
         if not node['Animation']:
             export_op.report({'ERROR'},"You cannot run a geometry and time based animation at the same time")
             return
-            
+
 #        if geonode.animmenu == 'Static' and (node.animmenu == 'Static' or node.skynum > 2):
 #            node['Animation'] = 'Static'
 #        elif geonode.animmenu != 'Static' and node.animmenu != 'Static':
@@ -214,7 +214,7 @@ def radcexport(export_op, node):
 #            node['Animation'] = 'TAnimated'
 #        else:
 #            node['Animation'] = 'Animated'
-        
+
         if node.skynum < 4:
             node.skytypeparams = ("+s", "+i", "-c", "-b 22.86 -c")[node.skynum]
             starttime = datetime.datetime(2013, 1, 1, node.shour) + datetime.timedelta(node.sdoy - 1) if node.skynum < 3 else datetime.datetime(2013, 1, 1, 12)
@@ -251,21 +251,21 @@ def radcexport(export_op, node):
         elif node.skynum == 4:
             if node.hdrname not in bpy.data.images:
                 bpy.data.images.load(node.hdrname)
-            with open(geonode.filebase+"-0.sky", "w") as skyfilew:
-                hdrsky(skyfilew, node.hdrname)
-            with open(geonode.filebase+"-0.sky", 'r') as skyfiler:
-                node['skyfiles'] =  skyfiler.read()
+            node['skyfiles'] = [hdrsky(node.hdrname)]
+#            with open(geonode.filebase+"-0.sky", "w") as skyfilew:
+#                hdrsky(skyfilew, node.hdrname)
+#            with open(geonode.filebase+"-0.sky", 'r') as skyfiler:
+#                node['skyfiles'] =  skyfiler.read()
 
         elif node.skynum == 5:
             subprocess.call("cp {} {}".format(node.radname, geonode.filebase+"-0.sky"), shell = True)
             with open(node.radname, 'r') as radfiler:
-                node['skyfiles'] =  radfiler.read()
+                node['skyfiles'] =  [radfiler.read()]
 
         elif node.skynum == 6:
             node['skyfiles'] = ['']
 
-        for frame in framerange(scene, node['Animation']):
-            fexport(scene, frame, export_op, node, geonode)
+
 
     elif node.bl_label == 'LiVi CBDM':
         node['Animation'] = 'Static' if geonode.animmenu == 'Static' else 'Animated'
@@ -294,18 +294,18 @@ def radcexport(export_op, node):
                 with open(geonode.newdir+"/"+epwbase[0]+".mtx", "r") as mtxfile:
                     mtxlines = mtxfile.readlines()
                     vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), 1, 1).weekday())
-    
+
                 with open(geonode.filename+".whitesky", "w") as skyrad:
                     skyrad.write("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")
                 subprocess.call("oconv {0}.whitesky > {0}-whitesky.oct".format(geonode.filename), shell=True)
                 subprocess.call("vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 1 0 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0 | rcontrib -bn 146 -fo -ab 0 -ad 512 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o p%d.hdr -m sky_glow {}-whitesky.oct".format(geonode.nproc, geonode.filename), shell = True)
-    
+
                 for j in range(0, 146):
                     subprocess.call("pcomb -s {0} p{1}.hdr > ps{1}.hdr".format(vals[j], j), shell = True)
                     subprocess.call("{0}  p{1}.hdr".format(geonode.rm, j), shell = True)
                 subprocess.call("pcomb -h  "+pcombfiles+" > "+geonode.newdir+"/"+epwbase[0]+".hdr", shell = True)
                 subprocess.call(geonode.rm+" ps*.hdr" , shell = True)
-                hdrsky(open(geonode.filebase+"-0.sky", "w"), geonode.newdir+"/"+epwbase[0]+".hdr")
+                node['skyfiles'] = [hdrsky(geonode.newdir+"/"+epwbase[0]+".hdr")]
                 if np == 1:
                     node['vecvals'] = vecvals.tolist()
                 else:
@@ -314,7 +314,10 @@ def radcexport(export_op, node):
                 export_op.report({'Error'}, "Not a valid EPW file")
         elif node.sourcemenu == '1':
             node['vexvals'] = open(node.vecname, 'r').read()
-            
+
+    for frame in framerange(scene, node['Animation']):
+        fexport(scene, frame, export_op, node, geonode)
+
 def sunexport(scene, node, geonode, starttime, frame):
     if node.skynum < 3:
         simtime = starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
@@ -364,16 +367,18 @@ def skyexport(node, rad_sky):
     rad_sky.write("4 .8 .8 1 0\n\n") if node.skynum < 3 else rad_sky.write("4 1 1 1 0\n\n")
     rad_sky.write("skyglow source sky\n0\n0\n4 0 0 1  180\n\n")
 
-def hdrsky(rad_sky, skyfile):
-    rad_sky.write("# Sky material\nvoid colorpict hdr_env\n7 red green blue {} angmap.cal sb_u sb_v\n0\n0\n\nhdr_env glow env_glow\n0\n0\n4 1 1 1 0\n\nenv_glow bubble sky\n0\n0\n4 0 0 0 500\n\n".format(skyfile))
+def hdrsky(skyfile):
+    return("# Sky material\nvoid colorpict hdr_env\n7 red green blue {} angmap.cal sb_u sb_v\n0\n0\n\nhdr_env glow env_glow\n0\n0\n4 1 1 1 0\n\nenv_glow bubble sky\n0\n0\n4 0 0 0 500\n\n".format(skyfile))
 
 def fexport(scene, frame, export_op, node, othernode):
-    (geonode, connode) = (node, othernode) if node.bl_label == 'LiVi Geometry' else (othernode, node)        
+    (geonode, connode) = (node, othernode) if node.bl_label == 'LiVi Geometry' else (othernode, node)
     if not othernode:
+        print('hi')
         radtext = geonode['radfiles'][0] if len(geonode['radfiles']) == 1 else geonode['radfiles'][frame]
-    else:   
-        radtext = geonode['radfiles'][0] + connode['skyfiles'][frame] if len(geonode['radfiles']) == 1 else geonode['radfiles'][frame] + connode['skyfiles'][0]    
-    
+    else:
+        print('hi2')
+        radtext = geonode['radfiles'][0] + connode['skyfiles'][frame] if len(geonode['radfiles']) == 1 else geonode['radfiles'][frame] + connode['skyfiles'][0]
+
     with open(geonode.filebase+"-{}.rad".format(frame), 'w') as radfile:
         radfile.write(radtext)
 
@@ -384,7 +389,7 @@ def fexport(scene, frame, export_op, node, othernode):
 #        if 'fatal' in line:
 #            export_op.report({'ERROR'},line)
 #    node.export = 1
-    
+
 #    print('out', oconvrun[0])
 #    print('err', oconvrun[1])
 #    for line in oconvrun[1]:
@@ -401,7 +406,7 @@ def fexport(scene, frame, export_op, node, othernode):
 
 def cyfc1(self):
     if bpy.data.scenes[0].render.engine == "CYCLES":
-        
+
         scene = bpy.context.scene
         for material in bpy.data.materials:
             if material.use_nodes == 1:
@@ -411,22 +416,22 @@ def cyfc1(self):
                         nt.nodes["Attribute"].attribute_name = str(scene.frame_current)
                 except Exception as e:
                     print(e, 'Something wrong with changing the material attribute name')
-        
+
         if bpy.data.worlds.get('World'):
             if bpy.data.worlds["World"].use_nodes == False:
                 bpy.data.worlds["World"].use_nodes = True
             nt = bpy.data.worlds[0].node_tree
-            
+
             if nt.nodes.get('Environment Texture'):
                 nt.nodes['Environment Texture'].image.filepath = scene['newdir']+"/%sp.hdr" %(scene.frame_current)
                 nt.nodes['Environment Texture'].image.reload()
-            
+
 #            elif hasattr(nt.nodes, 'Background'):
 #                try:
 #                    bpy.data.worlds[0].node_tree.nodes["Background"].inputs[1].keyframe
 #                except:
 #                    bpy.data.worlds[0].node_tree.nodes["Background"].inputs[1].keyframe_insert('default_value')
-            
+
 #            beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
 #            bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
 #                bpy.data.worlds['World'].node_tree.nodes['Background'].inputs[1].default_value = sin(beta)
@@ -439,7 +444,7 @@ def cyfc1(self):
                 if ob.get('VIType') == 'SPathMesh':
                     spathob = ob
         if scene.resnode == 'VI Sun Path':
-            
+
             beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
             if nt.nodes.get('Sky Texture'):
                 bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
@@ -449,7 +454,7 @@ def cyfc1(self):
             sunob.location.x = sun.location.x = spathob.location.x -(scene.soldistance**2 - sun.location.z**2)**0.5  * sin(phi)
             sunob.location.y = sun.location.y = spathob.location.y -(scene.soldistance**2 - sun.location.z**2)**0.5 * cos(phi)
             sun.rotation_euler = pi * 0.5 - beta, 0, -phi
-                
+
             if sun.data.node_tree:
                 for blnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Blackbody']:
                     blnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
@@ -459,7 +464,7 @@ def cyfc1(self):
             if sunob.data.materials[0].node_tree:
                 for smblnode in [node for node in ob.data.materials[0].node_tree.nodes if sunob.data.materials and node.bl_label == 'Blackbody']:
                     smblnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
-                
+
 #                    sun = [ob for ob in scene.objects if ob.get('VIType') == 'SPSun'][0]
 #                sunob = [ob for ob in scene.objects if ob.get('VIType') == 'SunMesh'][0]
 #                if sun.data.node_tree:
@@ -473,10 +478,10 @@ def cyfc1(self):
         bpy.data.worlds[0].use_nodes = 0
         ti.sleep(0.1)
         bpy.data.worlds[0].use_nodes = 1
-#        
+#
 #        scene = bpy.context.scene
 #        sun = [ob for ob in scene.objects if ob.get('VIType') == 'SPSun'][0]
-#    
+#
 #        if 0 in (sun['solhour'] == scene.solhour, sun['solday'] == scene.solday, sun['soldistance'] == scene.soldistance):
 #            sunob = [ob for ob in scene.objects if ob.get('VIType') == 'SunMesh'][0]
 #            spathob = [ob for ob in scene.objects if ob.get('VIType') == 'SPathMesh'][0]
@@ -487,9 +492,9 @@ def cyfc1(self):
 #            sun.rotation_euler = pi * 0.5 - beta, 0, -phi
 #            spathob.scale = 3 * [scene.soldistance/100]
 #            sunob.scale = 3*[scene.soldistance/100]
-#    
-#            
-#    
+#
+#
+#
 #            sun['solhour'], sun['solday'], sun['soldistance'] = scene.solhour, scene.solday, scene.soldistance
     else:
         return

@@ -79,10 +79,10 @@ class NODE_OT_EpwSelect(bpy.types.Operator, io_utils.ImportHelper):
 
 class NODE_OT_HdrSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
     bl_idname = "node.hdrselect"
-    bl_label = "Select EPW file"
-    bl_description = "Select the HDR image file"
+    bl_label = "Select HDR/VEC file"
+    bl_description = "Select the HDR sky image or vector file"
     filename = ""
-    filename_ext = ".HDR;.hdr;"
+    filename_ext = ".HDR;.hdr;.VEC;.vec;"
     filter_glob = bpy.props.StringProperty(default="*.HDR;*.hdr;", options={'HIDDEN'})
     bl_register = True
     bl_undo = True
@@ -96,7 +96,7 @@ class NODE_OT_HdrSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
 
     def execute(self, context):
         if self.filepath.split(".")[-1] in ("HDR", "hdr"):
-            bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodename].hdrname = self.filepath
+            bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].hdrname = self.filepath
         if " " in self.filepath:
             self.report({'ERROR'}, "There is a space either in the HDR filename or its directory location. Remove this space and retry opening the file.")
         return {'FINISHED'}
@@ -105,9 +105,37 @@ class NODE_OT_HdrSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
+class NODE_OT_VecSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
+    bl_idname = "node.vecselect"
+    bl_label = "Select VEC file"
+    bl_description = "Select the vector file"
+    filename = ""
+    filename_ext = ".VEC;.vec;"
+    filter_glob = bpy.props.StringProperty(default="*.VEC;*.vec;", options={'HIDDEN'})
+    bl_register = True
+    bl_undo = True
+    nodeid = bpy.props.StringProperty()
+
+    def draw(self,context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Import VEC file with FileBrowser", icon='WORLD_DATA')
+        row = layout.row()
+
+    def execute(self, context):
+        if self.filepath.split(".")[-1] in ("VEC", "vec"):
+            bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodename].vecname = self.filepath
+        if " " in self.filepath:
+            self.report({'ERROR'}, "There is a space either in the HDR filename or its directory location. Remove this space and retry opening the file.")
+        return {'FINISHED'}
+
+    def invoke(self,context,event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+        
 class NODE_OT_SkySelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
     bl_idname = "node.skyselect"
-    bl_label = "Select EPW file"
+    bl_label = "Select RAD file"
     bl_description = "Select the Radiance sky file"
     filename = ""
     filename_ext = ".rad;.RAD;"
@@ -174,6 +202,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
         elif node.bl_label == 'LiVi CBDM':
             node.resname = ('luxhours', 'cumwatth', 'dayauto', 'hourrad', 'udi')[int(node.analysismenu)]
             node.unit = ('LuxHours', 'Annual Wh', 'DA (%)', '', 'UDI-a (%)')[int(node.analysismenu)]
+            node.skynum = 4
 
         if bpy.data.filepath:
             if bpy.context.object:
@@ -181,7 +210,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
                     bpy.ops.object.mode_set(mode = 'OBJECT')
 
             if " " not in bpy.data.filepath:
-                if (node.bl_label == 'LiVi CBDM' and node.inputs['Geometry in'].is_linked and node.inputs['Location in'].is_linked) \
+                if (node.bl_label == 'LiVi CBDM' and node.inputs['Geometry in'].is_linked and (node.inputs['Location in'].is_linked or node.sourcemenu != '0')) \
                 or (node.bl_label != 'LiVi CBDM' and node.inputs['Geometry in'].is_linked):
                     radcexport(self, node)
 #                    node.disp_leg = False

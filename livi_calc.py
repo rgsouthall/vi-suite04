@@ -124,13 +124,19 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                 vi_func.clearscened(scene)
                 res = [[0] * geonode.reslen for frame in range(0, bpy.context.scene.frame_end+1)]
                 wd = (7, 5)[int(connode.weekdays)]
-                if os.path.splitext(os.path.basename(connode.epwname))[1] in (".hdr", ".HDR"):
+                if int(connode.analysismenu) < 2:
+                    
+                
+                if connode.sourcemenu == '0':
+                   in 
+                if connode.sourcemenu == '2':
                     skyrad = open(geonode.filebase+".whitesky", "w")
                     skyrad.write("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")
                     skyrad.close()
-                    vecvals, vals = vi_func.mtx2vals(open(os.path.splitext(os.path.basename(connode.epwname))[0]+'.mtx', "r"), datetime.datetime(2010, 1, 1).weekday())
-                else:
-                    vecvals = numpy.array(connode['vecvals']) if np == 1 else connode['vecvals']
+                    if int(connode.analysismenu) > 1:
+                        vecvals, vals = vi_func.mtx2vals(open(connode.vecname, "r"), datetime.datetime(2010, 1, 1).weekday())
+                    else:
+                        vecvals = numpy.array(connode['vecvals']) if np == 1 else connode['vecvals']
 
                 for frame in range(0, bpy.context.scene.frame_end+1):
                     hours = 0

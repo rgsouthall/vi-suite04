@@ -269,47 +269,51 @@ def radcexport(export_op, node):
 
     elif node.bl_label == 'LiVi CBDM':
         node['Animation'] = 'Static' if geonode.animmenu == 'Static' else 'Animated'
-        locnode = node.inputs['Location in'].links[0].from_node
-        os.chdir(geonode.newdir)
-        pcombfiles = ""
-        for i in range(0, 146):
-            pcombfiles = pcombfiles + "ps{}.hdr ".format(i)
-        epwbase = os.path.splitext(os.path.basename(locnode.weather))
-        if epwbase[1] in (".epw", ".EPW"):
-            with open(locnode.weather, "r") as epwfile:
-                epwlines = epwfile.readlines()
-                epwyear = epwlines[8].split(",")[0]
-                if not os.path.isfile(geonode.newdir+"/"+epwbase[0]+".wea"):
-                    with open(geonode.newdir+"/"+epwbase[0]+".wea", "w") as wea:
-                        wea.write("place {0[1]}\nlatitude {0[6]}\nlongitude {0[7]}\ntime_zone {0[8]}\nsite_elevation {0[9]}weather_data_file_units 1\n".format(epwlines[0].split(",")))
-                        for epwline in epwlines[8:]:
-                            wea.write("{0[1]} {0[2]} {0[3]} {0[14]} {0[15]} \n".format(epwline.split(",")))
-                if not os.path.isfile(geonode.newdir+"/"+epwbase[0]+".mtx"):
-                    subprocess.call("gendaymtx -m 1 {0}.wea > {0}.mtx".format(geonode.newdir+"/"+epwbase[0]), shell=True)
-#
-#            patch = 2
-#            fwd = datetime.datetime(int(epwyear), 1, 1).weekday()
-#
-            with open(geonode.newdir+"/"+epwbase[0]+".mtx", "r") as mtxfile:
-                mtxlines = mtxfile.readlines()
-                vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), 1, 1).weekday())
-
-            with open(geonode.filename+".whitesky", "w") as skyrad:
-                skyrad.write("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")
-            subprocess.call("oconv {0}.whitesky > {0}-whitesky.oct".format(geonode.filename), shell=True)
-            subprocess.call("vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 1 0 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0 | rcontrib -bn 146 -fo -ab 0 -ad 512 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o p%d.hdr -m sky_glow {}-whitesky.oct".format(geonode.nproc, geonode.filename), shell = True)
-
-            for j in range(0, 146):
-                subprocess.call("pcomb -s {0} p{1}.hdr > ps{1}.hdr".format(vals[j], j), shell = True)
-                subprocess.call("{0}  p{1}.hdr".format(geonode.rm, j), shell = True)
-            subprocess.call("pcomb -h  "+pcombfiles+" > "+geonode.newdir+"/"+epwbase[0]+".hdr", shell = True)
-            subprocess.call(geonode.rm+" ps*.hdr" , shell = True)
-            if np == 1:
-                node['vecvals'] = vecvals.tolist()
+        if node.sourcemenu == '0':
+            locnode = node.inputs['Location in'].links[0].from_node
+            os.chdir(geonode.newdir)
+            pcombfiles = ""
+            for i in range(0, 146):
+                pcombfiles = pcombfiles + "ps{}.hdr ".format(i)
+            epwbase = os.path.splitext(os.path.basename(locnode.weather))
+            if epwbase[1] in (".epw", ".EPW"):
+                with open(locnode.weather, "r") as epwfile:
+                    epwlines = epwfile.readlines()
+                    epwyear = epwlines[8].split(",")[0]
+                    if not os.path.isfile(geonode.newdir+"/"+epwbase[0]+".wea"):
+                        with open(geonode.newdir+"/"+epwbase[0]+".wea", "w") as wea:
+                            wea.write("place {0[1]}\nlatitude {0[6]}\nlongitude {0[7]}\ntime_zone {0[8]}\nsite_elevation {0[9]}weather_data_file_units 1\n".format(epwlines[0].split(",")))
+                            for epwline in epwlines[8:]:
+                                wea.write("{0[1]} {0[2]} {0[3]} {0[14]} {0[15]} \n".format(epwline.split(",")))
+                    if not os.path.isfile(geonode.newdir+"/"+epwbase[0]+".mtx"):
+                        subprocess.call("gendaymtx -m 1 {0}.wea > {0}.mtx".format(geonode.newdir+"/"+epwbase[0]), shell=True)
+    #
+    #            patch = 2
+    #            fwd = datetime.datetime(int(epwyear), 1, 1).weekday()
+    #
+                with open(geonode.newdir+"/"+epwbase[0]+".mtx", "r") as mtxfile:
+                    mtxlines = mtxfile.readlines()
+                    vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), 1, 1).weekday())
+    
+                with open(geonode.filename+".whitesky", "w") as skyrad:
+                    skyrad.write("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")
+                subprocess.call("oconv {0}.whitesky > {0}-whitesky.oct".format(geonode.filename), shell=True)
+                subprocess.call("vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 1 0 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0 | rcontrib -bn 146 -fo -ab 0 -ad 512 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o p%d.hdr -m sky_glow {}-whitesky.oct".format(geonode.nproc, geonode.filename), shell = True)
+    
+                for j in range(0, 146):
+                    subprocess.call("pcomb -s {0} p{1}.hdr > ps{1}.hdr".format(vals[j], j), shell = True)
+                    subprocess.call("{0}  p{1}.hdr".format(geonode.rm, j), shell = True)
+                subprocess.call("pcomb -h  "+pcombfiles+" > "+geonode.newdir+"/"+epwbase[0]+".hdr", shell = True)
+                subprocess.call(geonode.rm+" ps*.hdr" , shell = True)
+                hdrsky(open(geonode.filebase+"-0.sky", "w"), geonode.newdir+"/"+epwbase[0]+".hdr")
+                if np == 1:
+                    node['vecvals'] = vecvals.tolist()
+                else:
+                    node['vecvals'] = vecvals
             else:
-                node['vecvals'] = vecvals
-        else:
-            export_op.report({'Error'}, "Not a valid EPW file")
+                export_op.report({'Error'}, "Not a valid EPW file")
+        elif node.sourcemenu == '1':
+            node['vexvals'] = open(node.vecname, 'r').read()
             
 def sunexport(scene, node, geonode, starttime, frame):
     if node.skynum < 3:

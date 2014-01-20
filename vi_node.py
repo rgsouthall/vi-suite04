@@ -223,18 +223,29 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
 
     def nodeexported(self, context):
         self.exported = False
+        if self.sourcemenu != '0' and self.inputs['Location in'].is_linked:
+            bpy.data.node_groups[self['nodeid'].split('@')[1]].links.remove(self.inputs['Location in'].links[0])
+        self.inputs['Location in'].hide = False if self.sourcemenu == '0' else True
+            
+            
+            
 
     analysistype = [('0', "Annual Light Exposure", "LuxHours Calculation"), ('1', "Annual Radiation Exposure", "kWh/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Autonomy", "DA (%) Calculation"), ('3', "Hourly irradiance", "Irradiance for each simulation time step"), ('4', "UDI", "Useful Daylight Illuminance")]
     analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0', update = nodeexported)
     animtype = [('0', "Static", "Simple static analysis"), ('1', "Geometry", "Animated time analysis"), ('2', "Material", "Animated time analysis")]
+    
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = '0', update = nodeexported)
+    sourcetype = [('0', "EPW", "EnergyPlus weather file"), ('1', "VEC", "Generated vector file"), ('2', "HDR", "HDR sky file")]
+    sourcemenu = bpy.props.EnumProperty(name="", description="Source type", items=sourcetype, default = '0', update = nodeexported)
     simalg = bpy.props.StringProperty(name="", description="Algorithm to run on the radiance results", default="")
     simacc = bpy.props.EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),("3", "Custom", "Edit Radiance parameters"), ],
-            name="", description="Simulation accuracy", default="0", update = nodeexported)
+            name="", description="Simulation accurac.split('@')[1]y", default="0", update = nodeexported)
     cusacc = bpy.props.StringProperty(
             name="", description="Custom Radiance simulation parameters", default="", update = nodeexported)
-    epwname = bpy.props.StringProperty(
-            name="", description="Name of the EnergyPlus weather file", default="", update = nodeexported)
+    hdrname = bpy.props.StringProperty(
+            name="", description="Name of the composite HDR sky file", default="", update = nodeexported)
+    vecname = bpy.props.StringProperty(
+            name="", description="Name of the calculated vector sky file", default="", update = nodeexported)
     weekdays = bpy.props.BoolProperty(default = False)
     cbdm_start_hour =  bpy.props.IntProperty(name = '', default = 8, min = 1, max = 24)
     cbdm_end_hour =  bpy.props.IntProperty(name = '', default = 20, min = 1, max = 24)
@@ -242,6 +253,7 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
     damin = bpy.props.IntProperty(name = '', default = 100, min = 1, max = 2000)
     dasupp = bpy.props.IntProperty(name = '', default = 300, min = 1, max = 2000)
     daauto = bpy.props.IntProperty(name = '', default = 3000, min = 1, max = 5000)
+    skynum = bpy.props.IntProperty(name = '', default = 0, min = 0, max = 6)
     exported = bpy.props.BoolProperty(name = '', default = False)
     resname = bpy.props.StringProperty()
     unit = bpy.props.StringProperty()
@@ -262,7 +274,7 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
             if self in ng.nodes[:]:
                 self['nodeid'] = self.name+'@'+ng.name
         self.outputs.new('ViLiWResOut', 'Data out')
-        self.outputs['Data out'].hide = True
+        self.outputs['Data out'].hide = False
 
     def update(self):
         if self.outputs['Data out'].is_linked:
@@ -283,17 +295,29 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
                newrow(layout, 'Supplementry (Max):', self, 'dasupp')
                newrow(layout, 'Autonomous (Max):', self, 'daauto')
 
-#        row = layout.row()
-#        row.label('EPW file:')
-#        row.operator('node.epwselect', text = 'Select EPW').nodeid = self['nodeid']
-#        row = layout.row()
-#        row.prop(self, "epwname")
-#        newrow(layout, 'Animation:', self, "animmenu")
-        if self.inputs['Geometry in'].is_linked and self.inputs['Geometry in'].links[0].from_node.exported and \
-        self.inputs['Geometry in'].links[0].from_node.bl_label == 'LiVi Geometry' and self.inputs['Location in'].is_linked \
-        and self.inputs['Location in'].links[0].from_node.loc == '1':
+        row = layout.row()
+        row.label('Source file:')
+        row.prop(self, 'sourcemenu')
+        row = layout.row()
+        if self.sourcemenu == '1':
+            row.operator('node.vecselect', text = 'Select VEC').nodeid = self['nodeid']
             row = layout.row()
-            row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
+            row.prop(self, 'vecname')
+        elif self.sourcemenu == '2':
+            row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
+            row = layout.row()
+            row.prop(self, 'hdrname')
+            if self.analysismenu not in ('0', '1'):
+                row = layout.row()
+                row.operator('node.vecselect', text = 'Select VEC').nodeid = self['nodeid']
+                row = layout.row()
+                row.prop(self, 'vecname')
+#                exportready = 1 if self.vecname and self.hdrname else 0
+                
+        if self.inputs['Geometry in'].is_linked and self.inputs['Geometry in'].links[0].from_node.exported and self.inputs['Geometry in'].links[0].from_node.bl_label == 'LiVi Geometry':
+            if (self.inputs['Location in'].is_linked and self.inputs['Location in'].links[0].from_node.loc == '1') or self.sourcemenu != '0':
+                row = layout.row()
+                row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
 
 class ViLiCNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite lighting compliance node'''

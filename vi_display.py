@@ -31,12 +31,12 @@ def li_display(simnode, connode, geonode):
     vi_func.clearscened(scene)
     obreslist = []
     obcalclist = []
-    
+
     for geo in scene.objects:
-            scene.objects.active = geo            
+            scene.objects.active = geo
             if getattr(geo, 'mode') != 'OBJECT':
                 bpy.ops.object.mode_set(mode = 'OBJECT')
-                
+
     bpy.ops.object.select_all(action = 'DESELECT')
 
     if len(bpy.app.handlers.frame_change_pre) == 0:
@@ -188,7 +188,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
     if (scene.li_disp_panel != 2 and scene.ss_disp_panel != 2) or getattr(bpy.context.active_object, ('mode')) != 'OBJECT' or (connode['Animation'] == 'Static' and scene.frame_current != scene.frame_start) \
     or scene.vi_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.vi_display_sel_only == True)  or scene.frame_current not in vi_func.framerange(scene, connode['Animation']):
         return
-    
+
     blf.enable(0, 4)
     blf.shadow(0, 5,scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])
     bgl.glColor4f(scene.vi_display_rp_fc[0], scene.vi_display_rp_fc[1], scene.vi_display_rp_fc[2], scene.vi_display_rp_fc[3])
@@ -201,7 +201,9 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
     if scene.vi_display_sel_only == False:
         obd = obreslist if len(obreslist) > 0 else obcalclist
     else:
-        obd = [context.active_object]
+        oblist = obreslist if len(obreslist) > 0 else obcalclist
+        obd = [context.active_object] if context.active_object in oblist else []
+
 
     for ob in obd:
         if ob.active_shape_key_index != fn+1:
@@ -213,8 +215,11 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
 
         if cp == "0" or not geonode:
             if scene.vi_display_vis_only:
-                faces = [f for f in ob.data.polygons if f.select == True and not scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f)))) \
-                + 0.02*f.normal, view_pos)[0]] if ob.lires else [f for f in ob.data.polygons if not scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f)))) + 0.02*f.normal, view_pos)[0]]
+                faces = []
+                for f in  [f for f in ob.data.polygons if f.select == True]:
+                    (notvis, shadob) = scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f))))+ 0.02*f.normal, view_pos)[0:2]
+                    if not notvis or shadob.draw_type == 'WIRE':
+                        faces.append(f)
             else:
                 faces = [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons]
         else:
@@ -255,7 +260,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
 
 def li3D_legend(self, context, simnode, connode, geonode):
     scene = context.scene
-    
+
     if scene.vi_leg_display != True or scene.vi_display == 0 or (scene.wr_disp_panel != 1 and scene.li_disp_panel != 2 and scene.ss_disp_panel != 2):
         return
     else:

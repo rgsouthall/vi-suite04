@@ -47,12 +47,12 @@ def rad_prev(prev_op, simnode, connode, geonode, simacc):
             vv = 180 if 'VI Glare' == connode.bl_label else cang * scene.render.resolution_y/scene.render.resolution_x
             rvucmd = "rvu -w -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0][2]:.3f} {3[1][2]:.3f} {3[2][2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct &".format(geonode.nproc, vv, cang, -1*cam.matrix_world, cam.location, params, geonode.filebase, scene.frame_current)
             rvurun = Popen(rvucmd, shell = True, stdout=PIPE, stderr=STDOUT)
-            for l,line in enumerate(rvurun.stdout):
-                if 'octree stale?' in line.decode() or 'truncated octree' in line.decode():
-                    livi_export.radfexport(scene, prev_op, connode, geonode)
-                    rad_prev(prev_op, simnode, connode, geonode, simacc)
-                    prev_op.report({'ERROR'},"Radiance octree is incomplete. Re-run geometry and context export")
-                    return
+#            for l,line in enumerate(rvurun.stdout):
+#                if 'octree stale?' in line.decode() or 'truncated octree' in line.decode():
+#                    livi_export.radfexport(scene, prev_op, connode, geonode)
+#                    rad_prev(prev_op, simnode, connode, geonode, simacc)
+#                    prev_op.report({'ERROR'},"Radiance octree is incomplete. Re-run geometry and context export")
+#                    return
         else:
             prev_op.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
     else:
@@ -69,6 +69,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
         else:
             num = (("-ab", 2, 3, 5), ("-ad", 512, 2048, 4096), ("-ar", 128, 512, 1024), ("-as", 256, 1024, 2048), ("-aa", 0.3, 0.2, 0.18), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.001, 0.0002))
             params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simacc)+1] for n in num]))
+
         vi_func.clearscened(scene)
         res, svres = [[[0 for p in range(geonode.reslen)] for x in range(scene.frame_end + 1 - scene.frame_start)] for x in range(2)]
 
@@ -78,19 +79,18 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                     subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
                 rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                 rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
-                resfile = open(os.path.join(geonode.newdir, connode.resname+"-"+str(frame)+".res"), 'w')
-                for l,line in enumerate(rtrun.stdout):
-                    if 'octree stale?' in line.decode():
-                        resfile.close()
-                        radfexport(scene, calc_op, connode, geonode)
-                        li_calc(calc_op, simnode, connode, geonode, simacc)
-                        return
-                    if 'truncated octree' in line.decode():
-                        calc_op.report({'ERROR'},"Radiance octree is incomplete. Re-run geometry and context export")
-                        return
-                    res[frame][l] = float(line.decode())
-                resfile.write("{}".format(res[frame]).strip("]").strip("["))
-                resfile.close()
+                with open(os.path.join(geonode.newdir, connode.resname+"-"+str(frame)+".res"), 'w') as resfile:
+                    for l,line in enumerate(rtrun.stdout):
+                        if 'octree stale?' in line.decode():
+                            resfile.close()
+                            radfexport(scene, calc_op, connode, geonode)
+                            li_calc(calc_op, simnode, connode, geonode, simacc)
+                            return
+                        if 'truncated octree' in line.decode():
+                            calc_op.report({'ERROR'},"Radiance octree is incomplete. Re-run geometry and context export")
+                            return
+                        res[frame][l] = float(line.decode())
+                    resfile.write("{}".format(res[frame]).strip("]").strip("["))
 
             if connode.bl_label == 'LiVi Compliance' and connode.analysismenu in ('0', '1'):
                 if connode.analysismenu in ('0', '1'):
@@ -101,49 +101,23 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                             svres[frame][sv] = float(line.decode())
                         svresfile.write("{}".format(svres[frame]).strip("]").strip("["))
 
-
-            if connode.bl_label == 'LiVi CBDM':
-#                vi_func.clearscened(scene)
-#                res = [[0] * geonode.reslen for frame in range(0, bpy.context.scene.frame_end+1)]
-#                wd = (7, 5)[int(connode.weekdays)]
-#                if int(connode.analysismenu) < 2:
-#                    if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
-#                        subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
-#                    rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
-#                    rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
-#                    with open(os.path.join(geonode.newdir, connode.resname+"-"+str(frame)+".res"), 'w') as resfile:
-#                        for l,line in enumerate(rtrun.stdout):
-#                            if 'octree stale?' in line.decode():
-#                                resfile.close()
-#                                radfexport(scene, calc_op, connode, geonode)
-#                                li_calc(calc_op, simnode, connode, geonode, simacc)
-#                                return
-#                            if 'truncated octree' in line.decode():
-#                                calc_op.report({'ERROR'},"Radiance octree is incomplete. Re-run geometry and context export")
-#                                return
-#                            res[frame][l] = float(line.decode())
-#                        resfile.write("{}".format(res[frame]).strip("]").strip("["))
-
-                if int(connode.analysismenu) > 1:
-#                if connode.sourcemenu == '0':
-#                   in
-                    pass
+            if connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) > 1:
                 if connode.sourcemenu == '2':
-                    skyrad = open(geonode.filebase+".whitesky", "w")
-                    skyrad.write("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")
-                    skyrad.close()
-                    if int(connode.analysismenu) > 1:
-                        vecvals, vals = vi_func.mtx2vals(open(connode.vecname, "r"), datetime.datetime(2010, 1, 1).weekday())
-                    else:
-                        vecvals = numpy.array(connode['vecvals']) if np == 1 else connode['vecvals']
+#                    skyrad = open(geonode.filebase+".whitesky", "w")
+#                    skyrad.write("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")
+#                    skyrad.close()
+                    connode['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
+                    connode['vecvals'], vals = vi_func.mtx2vals(open(connode.vecname, "r"), datetime.datetime(2010, 1, 1).weekday())
 
-                for frame in range(0, bpy.context.scene.frame_end+1):
+                for frame in vi_func.framerange(scene, connode['Animation']):
                     hours = 0
                     sensarray = [[0 for x in range(geonode.reslen)] for y in range(146)] if np == 0 else numpy.zeros([146, geonode.reslen])
-                    subprocess.call("oconv -w {0}.whitesky {0}-{1}.rad > {0}-{1}ws.oct".format(geonode.filebase, frame), shell = True)
+                    oconvcmd = "oconv -w - > {0}-whitesky.oct".format(geonode.filebase, frame)
+                    Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = connode['whitesky'].encode('utf-8'))
+#                    subprocess.call("oconv -w {0}.whitesky {0}-{1}.rad > {0}-{1}ws.oct".format(geonode.filebase, frame), shell = True)
                     if not os.path.isdir(os.path.join(geonode.newdir, "s_data")):
                         os.makedirs(os.path.join(geonode.newdir, "s_data"))
-                    subprocess.call(geonode.cat+geonode.filebase+".rtrace | rcontrib -w  -h -I -fo -bn 146 -ab 4 -ad 4096 -lw 0.0003 -n "+geonode.nproc+" -f tregenza.cal -b tbin -o "+os.path.join(geonode.newdir, "s_data/"+str(frame)+"-sensor%d.dat")+" -m sky_glow "+geonode.filebase+"-"+str(frame)+"ws.oct", shell = True)
+                    subprocess.call(geonode.cat+geonode.filebase+".rtrace | rcontrib -w  -h -I -fo -bn 146 -ab 4 -ad 4096 -lw 0.0003 -n "+geonode.nproc+" -f tregenza.cal -b tbin -o "+os.path.join(geonode.newdir, "s_data/"+str(frame)+"-sensor%d.dat")+" -m sky_glow "+geonode.filebase+"-whitesky.oct", shell = True)
 
                     for i in range(0, 146):
                         sensfile = open(geonode.newdir+"/s_data/"+str(frame)+"-sensor"+str(i)+".dat", "r")
@@ -155,8 +129,9 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                                 sensarray[i][s] = 179*((sensvals[0]*0.265)+ (sensvals[1]*0.67) + (sensvals[2]*0.065))
                         sensfile.close()
 
-                    for l, readings in enumerate(vecvals):
-                        if connode.cbdm_start_hour <= readings[:][0] < connode.cbdm_end_hour and readings[:][1] < wd:
+
+                    for l, readings in enumerate(connode['vecvals']):
+                        if connode.cbdm_start_hour <= readings[:][0] < connode.cbdm_end_hour and readings[:][1] < connode['wd']:
                             finalillu = [0 for x in range(0, geonode.reslen)] if np == 0 else numpy.zeros((geonode.reslen))
                             for i in range(0, 146):
                                 for j, senreading in enumerate(sensarray[i]):
@@ -182,9 +157,9 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                         daresfile.write("{:.2f}\n".format(r))
                     daresfile.close()
 
-        simnode['maxres'] = [max(res[i]) for i in range(scene.frame_end + 1 - scene.frame_start)]
-        simnode['minres'] = [min(res[i]) for i in range(scene.frame_end + 1 - scene.frame_start)]
-        simnode['avres'] = [sum(res[i])/len(res[i]) for i in range(scene.frame_end + 1 - scene.frame_start)]
+        simnode['maxres'] = [max(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
+        simnode['minres'] = [min(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
+        simnode['avres'] = [sum(res[i])/len(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
         resapply(res, svres, simnode, connode, geonode)
         calc_op.report({'INFO'}, "Calculation is finished.")
 

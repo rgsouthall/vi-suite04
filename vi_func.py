@@ -423,7 +423,7 @@ def rgb2h(rgb):
     return colorsys.rgb_to_hsv(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0)[0]
 
 def livisimacc(simnode, connode):
-    return(simnode.csimacc if connode.bl_label == 'LiVi Compliance' else simnode.simacc)
+    return(simnode.csimacc if connode.bl_label in ('LiVi Compliance', 'LiVi CBDM') else simnode.simacc)
 
 def drawpoly(x1, y1, x2, y2):
     bgl.glEnable(bgl.GL_BLEND)
@@ -450,15 +450,14 @@ def drawfont(text, fi, lencrit, height, x1, y1):
     blf.draw(fi, text)
 
 def mtx2vals(mtxlines, fwd):
-    np = 0
     try:
         import numpy
-        vecvals = numpy.array([[x%24, (fwd+int(x/24))%7] + [0 for p in range(146)] for x in range(0,8760)])
-        vals = numpy.zeros((146))
         np = 1
     except:
-        vecvals = [[x%24, (fwd+int(x/24))%7] + [0 for p in range(146)] for x in range(0,8760)]
-        vals = [0 for x in range(146)]
+        np = 0
+
+    vecvals = numpy.array([[x%24, (fwd+int(x/24))%7] + [0 for p in range(146)] for x in range(0,8760)]) if np ==1 else [[x%24, (fwd+int(x/24))%7] + [0 for p in range(146)] for x in range(0,8760)]
+    vals = numpy.zeros((146)) if np ==1 else [0 for x in range(146)]
 
     hour = 0
     patch = 2
@@ -478,7 +477,10 @@ def mtx2vals(mtxlines, fwd):
             else:
                 patch += 1
                 hour = 0
-    return(vecvals, vals)
+    if np == 1:
+        return(vecvals.tolist(), vals)
+    else:
+        return(vecvals, vals)
 
 def framerange(scene, anim):
     if anim == 'Static':

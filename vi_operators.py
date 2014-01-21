@@ -34,8 +34,6 @@ class NODE_OT_LiGExport(bpy.types.Operator):
             bpy.data.node_groups[self.nodeid.split('@')[1]].use_fake_user = 1
             radgexport(self, node)
             node.exported = True
-            if node.bl_label[0] == '*':
-                node.bl_label = node.bl_label[1:]
             node.outputs[0].hide = False
             return {'FINISHED'}
 
@@ -132,7 +130,7 @@ class NODE_OT_VecSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
     def invoke(self,context,event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
-        
+
 class NODE_OT_SkySelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
     bl_idname = "node.skyselect"
     bl_label = "Select RAD file"
@@ -200,9 +198,11 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
                     node.resname = 'cfsh'
 
         elif node.bl_label == 'LiVi CBDM':
-            node.resname = ('luxhours', 'cumwatth', 'dayauto', 'hourrad', 'udi')[int(node.analysismenu)]
-            node.unit = ('LuxHours', 'Annual Wh', 'DA (%)', '', 'UDI-a (%)')[int(node.analysismenu)]
+            node.resname = ('kluxhours', 'cumwatth', 'dayauto', 'hourrad', 'udi')[int(node.analysismenu)]
+            node.unit = ('kLuxHours', 'Annual kWh', 'DA (%)', '', 'UDI-a (%)')[int(node.analysismenu)]
             node.skynum = 4
+            node.simalg = (" |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/1000' ", " |  rcalc  -e '$1=$1/1000' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)' ")[int(node.analysismenu)]
+            node['wd'] = (7, 5)[node.weekdays]
 
         if bpy.data.filepath:
             if bpy.context.object:
@@ -240,7 +240,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
 
     def invoke(self, context, event):
         scene = context.scene
-        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
+#        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         connode = simnode.inputs['Context in'].links[0].from_node
         geonode = connode.inputs['Geometry in'].links[0].from_node
@@ -271,7 +271,7 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
     bl_register = True
     bl_undo = True
 
-    _handle = None    
+    _handle = None
 
     def modal(self, context, event):
         if context.scene.li_disp_panel != 2 and context.scene.ss_disp_panel != 2:
@@ -485,7 +485,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         else:
             sun = [ob for ob in context.scene.objects if ob.get('VIType') == 'Sun'][0]
             sun.animation_data_clear()
-            
+
         if scene.render.engine == 'CYCLES' and 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
             bpy.data.worlds['World'].node_tree.animation_data_clear()
 
@@ -572,7 +572,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
         for vert in spathob.data.vertices[0:16 * (solringnum + 3)]:
             vert.select = True
-        
+
         bpy.ops.object.material_slot_add()
         spathob.material_slots[-1].material = bpy.data.materials['SolEquoRings']
         spathob.active_material_index = 1
@@ -581,7 +581,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         bpy.ops.object.material_slot_add()
         spathob.material_slots[-1].material = bpy.data.materials['SPBase']
         spathob.active_material_index = 2
-        
+
         for i in range(1, 6):
             bpy.ops.mesh.primitive_torus_add(major_radius=i*sd*0.2, minor_radius=i*0.1*0.2, major_segments=64, minor_segments=8, location=(0.0, 0.0, 0.0), rotation=(0.0, 0.0, 0.0))
             bpy.ops.object.material_slot_assign()
@@ -665,7 +665,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
             else:
                 wvals = [line.split(",")[20:22] for l, line in enumerate(epwfile.readlines()) if l > 7 and simnode.startmonth <= int(line.split(",")[1]) < simnode.endmonth]
                 simnode['maxres'], simnode['minres'],  simnode['avres']= max([float(w[1]) for w in wvals]), min([float(w[1]) for w in wvals]), sum([float(w[1]) for w in wvals])/len(wvals)
-            
+
         awd, aws, ax, binvals = [float(val[0]) for val in wvals], [float(val[1]) for val in wvals], wr_axes(), arange(0,int(ceil(max(aws))),2)
         simnode['nbins'] = len(binvals)
 

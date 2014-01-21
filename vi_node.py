@@ -235,13 +235,15 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
     animtype = [('0', "Static", "Simple static analysis"), ('1', "Geometry", "Animated time analysis"), ('2', "Material", "Animated time analysis")]
 
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = '0', update = nodeexported)
-    sourcetype = [('0', "EPW", "EnergyPlus weather file"), ('1', "VEC", "Generated vector file"), ('2', "HDR", "HDR sky file")]
+    sourcetype = [('0', "EPW", "EnergyPlus weather file"), ('1', "VEC", "Generated vector file")]
+    sourcetype2 = [('0', "EPW", "EnergyPlus weather file"), ('2', "HDR", "HDR sky file")]
     sourcemenu = bpy.props.EnumProperty(name="", description="Source type", items=sourcetype, default = '0', update = nodeexported)
+    sourcemenu2 = bpy.props.EnumProperty(name="", description="Source type", items=sourcetype2, default = '0', update = nodeexported)
     simalg = bpy.props.StringProperty(name="", description="Algorithm to run on the radiance results", default="")
-    simacc = bpy.props.EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),("3", "Custom", "Edit Radiance parameters"), ],
-            name="", description="Simulation accurac.split('@')[1]y", default="0", update = nodeexported)
-    cusacc = bpy.props.StringProperty(
-            name="", description="Custom Radiance simulation parameters", default="", update = nodeexported)
+#    simacc = bpy.props.EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),("3", "Custom", "Edit Radiance parameters"), ],
+#            name="", description="Simulation accurac.split('@')[1]y", default="0", update = nodeexported)
+#    cusacc = bpy.props.StringProperty(
+#            name="", description="Custom Radiance simulation parameters", default="", update = nodeexported)
     hdrname = bpy.props.StringProperty(
             name="", description="Name of the composite HDR sky file", default="", update = nodeexported)
     vecname = bpy.props.StringProperty(
@@ -296,7 +298,10 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
 
         row = layout.row()
         row.label('Source file:')
-        row.prop(self, 'sourcemenu')
+        if int(self.analysismenu) < 2:
+            row.prop(self, 'sourcemenu2')
+        else:
+            row.prop(self, 'sourcemenu')
         row = layout.row()
         if self.sourcemenu == '1':
             row.operator('node.vecselect', text = 'Select VEC').nodeid = self['nodeid']

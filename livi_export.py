@@ -129,6 +129,8 @@ def radgexport(export_op, node):
     node['radfiles'] = radfilelist
     connode = node.outputs[0].links[0].to_node if node.outputs[0].is_linked else 0
 
+    node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
+
     for frame in framerange(scene, node.animmenu):
         fexport(scene, frame, export_op, node, connode)
 
@@ -287,33 +289,40 @@ def radcexport(export_op, node):
                                 wea.write("{0[1]} {0[2]} {0[3]} {0[14]} {0[15]} \n".format(epwline.split(",")))
                     if not os.path.isfile(geonode.newdir+"/"+epwbase[0]+".mtx"):
                         subprocess.call("gendaymtx -m 1 {0}.wea > {0}.mtx".format(geonode.newdir+"/"+epwbase[0]), shell=True)
-    #
-    #            patch = 2
-    #            fwd = datetime.datetime(int(epwyear), 1, 1).weekday()
-    #
-                with open(geonode.newdir+"/"+epwbase[0]+".mtx", "r") as mtxfile:
-                    mtxlines = mtxfile.readlines()
-                    vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), 1, 1).weekday())
-
-                with open(geonode.filename+".whitesky", "w") as skyrad:
-                    skyrad.write("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")
-                subprocess.call("oconv {0}.whitesky > {0}-whitesky.oct".format(geonode.filename), shell=True)
-                subprocess.call("vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 1 0 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0 | rcontrib -bn 146 -fo -ab 0 -ad 512 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o p%d.hdr -m sky_glow {}-whitesky.oct".format(geonode.nproc, geonode.filename), shell = True)
-
-                for j in range(0, 146):
-                    subprocess.call("pcomb -s {0} p{1}.hdr > ps{1}.hdr".format(vals[j], j), shell = True)
-                    subprocess.call("{0}  p{1}.hdr".format(geonode.rm, j), shell = True)
-                subprocess.call("pcomb -h  "+pcombfiles+" > "+geonode.newdir+"/"+epwbase[0]+".hdr", shell = True)
-                subprocess.call(geonode.rm+" ps*.hdr" , shell = True)
-                node['skyfiles'] = [hdrsky(geonode.newdir+"/"+epwbase[0]+".hdr")]
-                if np == 1:
-                    node['vecvals'] = vecvals.tolist()
-                else:
-                    node['vecvals'] = vecvals
             else:
                 export_op.report({'Error'}, "Not a valid EPW file")
-        elif node.sourcemenu == '1':
-            node['vexvals'] = open(node.vecname, 'r').read()
+                return
+
+        if node.sourcemenu in ('0', '1'):
+            mtxfile = open(geonode.newdir+"/"+epwbase[0]+".mtx", "r") if node.sourcemenu == '0' else open(node.vecname, "r")
+            mtxlines = mtxfile.readlines()
+            vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), 1, 1).weekday())
+            mtxfile.close()
+
+#            with open(geonode.filename+".whitesky", "w") as skyrad:
+            node['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
+            oconvcmd = "oconv -w - > {0}-whitesky.oct".format(geonode.filebase)
+            Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = node['whitesky'].encode('utf-8'))
+#            subprocess.call("oconv {0}.whitesky > {0}-whitesky.oct".format(geonode.filename), shell=True)
+            subprocess.call("vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0 | rcontrib -bn 146 -fo -ab 0 -ad 512 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o p%d.hdr -m sky_glow {}-whitesky.oct".format(geonode.nproc, geonode.filename), shell = True)
+
+            for j in range(0, 146):
+                subprocess.call("pcomb -s {0} p{1}.hdr > ps{1}.hdr".format(vals[j], j), shell = True)
+                subprocess.call("{0}  p{1}.hdr".format(geonode.rm, j), shell = True)
+            subprocess.call("pcomb -h  "+pcombfiles+" > "+geonode.newdir+"/"+epwbase[0]+".hdr", shell = True)
+            subprocess.call(geonode.rm+" ps*.hdr" , shell = True)
+
+
+        if node.sourcemenu == '2':
+            node['skyfiles'] = [hdrsky(geonode.newdir+"/"+epwbase[0]+".hdr")]
+            if int(node.anaysismenu) > 1:
+                with open(node.vecname, "r") as mtxfile:
+                    mtxlines = mtxfile.readlines()
+                    vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), 1, 1).weekday())
+            else:
+                vecvals = []
+
+        node['vecvals'] = vecvals
 
     for frame in framerange(scene, node['Animation']):
         fexport(scene, frame, export_op, node, geonode)
@@ -372,34 +381,19 @@ def hdrsky(skyfile):
 
 def fexport(scene, frame, export_op, node, othernode):
     (geonode, connode) = (node, othernode) if node.bl_label == 'LiVi Geometry' else (othernode, node)
+#    subprocess.call(geonode.rm +" {0}-{1}.oct".format(geonode.filebase, frame), shell = True)
     if not othernode:
-        print('hi')
         radtext = geonode['radfiles'][0] if len(geonode['radfiles']) == 1 else geonode['radfiles'][frame]
     else:
-        print('hi2')
         radtext = geonode['radfiles'][0] + connode['skyfiles'][frame] if len(geonode['radfiles']) == 1 else geonode['radfiles'][frame] + connode['skyfiles'][0]
 
     with open(geonode.filebase+"-{}.rad".format(frame), 'w') as radfile:
         radfile.write(radtext)
 
     oconvcmd = "oconv -w {0}-{1}.rad > {0}-{1}.oct".format(geonode.filebase, frame)
-#    oconvcmd = "oconv -w - > {0}-{1}.oct".format(geonode.filebase, frame)
-    oconvrun = Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT)#.communicate(input = radtext.encode('utf-8'))
-#    for l,line in enumerate(oconvrun.stdout):
-#        if 'fatal' in line:
-#            export_op.report({'ERROR'},line)
-#    node.export = 1
-
-#    print('out', oconvrun[0])
-#    print('err', oconvrun[1])
-#    for line in oconvrun[1]:
-#        if 'fatal' in line:
-#            export_op.report({'ERROR'},line)
-#            node.export = 0
-#            return
-
-#        export_op.report({'ERROR'},"There is a problem with geometry/context export. If created in another package simplify the geometry, and turn off smooth shading")
-#        node.export = 0
+#    This next line allows the radiance scene description to be piped into the oconv command.
+#   oconvcmd = "oconv -w - > {0}-{1}.oct".format(geonode.filebase, frame).communicate(input = radtext.encode('utf-8'))
+    Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT)#.communicate(input = radtext.encode('utf-8'))
     node.export = 1
     export_op.report({'INFO'},"Export is finished")
     scene.frame_set(scene.frame_start)
@@ -426,15 +420,6 @@ def cyfc1(self):
                 nt.nodes['Environment Texture'].image.filepath = scene['newdir']+"/%sp.hdr" %(scene.frame_current)
                 nt.nodes['Environment Texture'].image.reload()
 
-#            elif hasattr(nt.nodes, 'Background'):
-#                try:
-#                    bpy.data.worlds[0].node_tree.nodes["Background"].inputs[1].keyframe
-#                except:
-#                    bpy.data.worlds[0].node_tree.nodes["Background"].inputs[1].keyframe_insert('default_value')
-
-#            beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
-#            bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
-#                bpy.data.worlds['World'].node_tree.nodes['Background'].inputs[1].default_value = sin(beta)
         for ob in scene.objects:
             if ob.get('VIType') == 'Sun':
                 sun = ob
@@ -465,36 +450,8 @@ def cyfc1(self):
                 for smblnode in [node for node in ob.data.materials[0].node_tree.nodes if sunob.data.materials and node.bl_label == 'Blackbody']:
                     smblnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
 
-#                    sun = [ob for ob in scene.objects if ob.get('VIType') == 'SPSun'][0]
-#                sunob = [ob for ob in scene.objects if ob.get('VIType') == 'SunMesh'][0]
-#                if sun.data.node_tree:
-#                    for blnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Blackbody']:
-#                        blnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
-#                    for emnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Emission']:
-#                        emnode.inputs[1].default_value = 5 * sin(beta)
-#                if sunob.data.materials[0].node_tree:
-#                    for smblnode in [node for node in sunob.data.materials[0].node_tree.nodes if sunob.data.materials and node.bl_label == 'Blackbody']:
-#                        smblnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
         bpy.data.worlds[0].use_nodes = 0
         ti.sleep(0.1)
         bpy.data.worlds[0].use_nodes = 1
-#
-#        scene = bpy.context.scene
-#        sun = [ob for ob in scene.objects if ob.get('VIType') == 'SPSun'][0]
-#
-#        if 0 in (sun['solhour'] == scene.solhour, sun['solday'] == scene.solday, sun['soldistance'] == scene.soldistance):
-#            sunob = [ob for ob in scene.objects if ob.get('VIType') == 'SunMesh'][0]
-#            spathob = [ob for ob in scene.objects if ob.get('VIType') == 'SPathMesh'][0]
-#            beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
-#            sunob.location.z = sun.location.z = spathob.location.z + scene.soldistance * sin(beta)
-#            sunob.location.x = sun.location.x = spathob.location.x -(scene.soldistance**2 - sun.location.z**2)**0.5  * sin(phi)
-#            sunob.location.y = sun.location.y = spathob.location.y -(scene.soldistance**2 - sun.location.z**2)**0.5 * cos(phi)
-#            sun.rotation_euler = pi * 0.5 - beta, 0, -phi
-#            spathob.scale = 3 * [scene.soldistance/100]
-#            sunob.scale = 3*[scene.soldistance/100]
-#
-#
-#
-#            sun['solhour'], sun['solday'], sun['soldistance'] = scene.solhour, scene.solday, scene.soldistance
     else:
         return

@@ -80,7 +80,7 @@ class NODE_OT_HdrSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
     bl_label = "Select HDR/VEC file"
     bl_description = "Select the HDR sky image or vector file"
     filename = ""
-    filename_ext = ".HDR;.hdr;.VEC;.vec;"
+    filename_ext = ".HDR;.hdr;"
     filter_glob = bpy.props.StringProperty(default="*.HDR;*.hdr;", options={'HIDDEN'})
     bl_register = True
     bl_undo = True
@@ -103,13 +103,13 @@ class NODE_OT_HdrSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
-class NODE_OT_VecSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
-    bl_idname = "node.vecselect"
-    bl_label = "Select VEC file"
-    bl_description = "Select the vector file"
+class NODE_OT_MtxSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
+    bl_idname = "node.mtxselect"
+    bl_label = "Select MTX file"
+    bl_description = "Select the matrix file"
     filename = ""
-    filename_ext = ".VEC;.vec;"
-    filter_glob = bpy.props.StringProperty(default="*.VEC;*.vec;", options={'HIDDEN'})
+    filename_ext = ".MTX;.mtx;"
+    filter_glob = bpy.props.StringProperty(default="*.MTX;*.mtx;", options={'HIDDEN'})
     bl_register = True
     bl_undo = True
     nodeid = bpy.props.StringProperty()
@@ -117,14 +117,14 @@ class NODE_OT_VecSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
     def draw(self,context):
         layout = self.layout
         row = layout.row()
-        row.label(text="Import VEC file with FileBrowser", icon='WORLD_DATA')
+        row.label(text="Import MTX file with FileBrowser", icon='WORLD_DATA')
         row = layout.row()
 
     def execute(self, context):
-        if self.filepath.split(".")[-1] in ("VEC", "vec"):
+        if self.filepath.split(".")[-1] in ("MTX", "mtx"):
             bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodename].vecname = self.filepath
         if " " in self.filepath:
-            self.report({'ERROR'}, "There is a space either in the HDR filename or its directory location. Remove this space and retry opening the file.")
+            self.report({'ERROR'}, "There is a space either in the matrix filename or its directory location. Remove this space and retry opening the file.")
         return {'FINISHED'}
 
     def invoke(self,context,event):
@@ -174,8 +174,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
         if node.bl_label == 'LiVi Basic':
-            node.resname = ("illumout", "irradout", "dfout")[int(node.analysismenu)]
-            node.unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(node.analysismenu)]
+
             node.skynum = int(node.skymenu) if node.analysismenu != "2" else 3
             if str(sys.platform) != 'win32':
                 node.simalg = (" |  rcalc  -e '$1=47.4*$1+120*$2+11.6*$3' ", " |  rcalc  -e '$1=$1' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' ")[int(node.analysismenu)]
@@ -185,21 +184,17 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
 
         elif node.bl_label == 'LiVi Compliance':
             if node.analysismenu in ('0', '1'):
-                node.unit = "DF %"
+
                 if str(sys.platform) != 'win32':
                     node.simalg = " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' "
                 else:
                     node.simalg = ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" '
 
-                if node.analysismenu == '0':
-                    node.resname = 'breaamout'
 
-                elif node.analysismenu == '1':
-                    node.resname = 'cfsh'
 
         elif node.bl_label == 'LiVi CBDM':
-            node.resname = ('kluxhours', 'cumwatth', 'dayauto', 'hourrad', 'udi')[int(node.analysismenu)]
-            node.unit = ('kLuxHours', 'Annual kWh', 'DA (%)', '', 'UDI-a (%)')[int(node.analysismenu)]
+
+
             node.skynum = 4
             node.simalg = (" |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/1000' ", " |  rcalc  -e '$1=$1/1000' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)' ")[int(node.analysismenu)]
             node['wd'] = (7, 5)[node.weekdays]

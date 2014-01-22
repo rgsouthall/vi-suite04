@@ -271,7 +271,7 @@ def radcexport(export_op, node):
 
     elif node.bl_label == 'LiVi CBDM':
         node['Animation'] = 'Static' if geonode.animmenu == 'Static' else 'Animated'
-        if node.sourcemenu == '0':
+        if node.sourcemenu == '0' and node.inputs['Location in'].is_linked:
             locnode = node.inputs['Location in'].links[0].from_node
             os.chdir(geonode.newdir)
             pcombfiles = ""
@@ -293,36 +293,39 @@ def radcexport(export_op, node):
                 export_op.report({'Error'}, "Not a valid EPW file")
                 return
 
-        if node.sourcemenu in ('0', '1'):
-            mtxfile = open(geonode.newdir+"/"+epwbase[0]+".mtx", "r") if node.sourcemenu == '0' else open(node.vecname, "r")
-            mtxlines = mtxfile.readlines()
-            vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), 1, 1).weekday())
-            mtxfile.close()
+            mtxfile = open(geonode.newdir+"/"+epwbase[0]+".mtx", "r")
 
-#            with open(geonode.filename+".whitesky", "w") as skyrad:
-            node['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
-            oconvcmd = "oconv -w - > {0}-whitesky.oct".format(geonode.filebase)
-            Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = node['whitesky'].encode('utf-8'))
-#            subprocess.call("oconv {0}.whitesky > {0}-whitesky.oct".format(geonode.filename), shell=True)
-            subprocess.call("vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0 | rcontrib -bn 146 -fo -ab 0 -ad 512 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o p%d.hdr -m sky_glow {}-whitesky.oct".format(geonode.nproc, geonode.filename), shell = True)
+        elif node.sourcemenu == '1':
+            mtxfile = open(node.mtxname, "r")
 
-            for j in range(0, 146):
-                subprocess.call("pcomb -s {0} p{1}.hdr > ps{1}.hdr".format(vals[j], j), shell = True)
-                subprocess.call("{0}  p{1}.hdr".format(geonode.rm, j), shell = True)
-            subprocess.call("pcomb -h  "+pcombfiles+" > "+geonode.newdir+"/"+epwbase[0]+".hdr", shell = True)
-            subprocess.call(geonode.rm+" ps*.hdr" , shell = True)
+        elif node.sourcemenu == '1' and int(node.analysismenu) > 1:
+            mtxfile = open(node.mtxname, "r")
+
+        if node.sourcemenu != '2' or int(node.analysismenu) > 1:
+            if node.inputs['Location in'].is_linked:
+                mtxlines = mtxfile.readlines()
+                vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), 1, 1).weekday())
+                mtxfile.close()
 
 
-        if node.sourcemenu == '2':
-            node['skyfiles'] = [hdrsky(geonode.newdir+"/"+epwbase[0]+".hdr")]
-            if int(node.anaysismenu) > 1:
-                with open(node.vecname, "r") as mtxfile:
-                    mtxlines = mtxfile.readlines()
-                    vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), 1, 1).weekday())
-            else:
-                vecvals = []
+        #            with open(geonode.filename+".whitesky", "w") as skyrad:
+                node['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
+                oconvcmd = "oconv -w - > {0}-whitesky.oct".format(geonode.filebase)
+                Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = node['whitesky'].encode('utf-8'))
+        #            subprocess.call("oconv {0}.whitesky > {0}-whitesky.oct".format(geonode.filename), shell=True)
+                subprocess.call("vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0 | rcontrib -bn 146 -fo -ab 0 -ad 512 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o p%d.hdr -m sky_glow {}-whitesky.oct".format(geonode.nproc, geonode.filename), shell = True)
 
-        node['vecvals'] = vecvals
+                for j in range(0, 146):
+                    subprocess.call("pcomb -s {0} p{1}.hdr > ps{1}.hdr".format(vals[j], j), shell = True)
+                    subprocess.call("{0}  p{1}.hdr".format(geonode.rm, j), shell = True)
+                subprocess.call("pcomb -h  "+pcombfiles+" > "+geonode.newdir+"/"+epwbase[0]+".hdr", shell = True)
+                subprocess.call(geonode.rm+" ps*.hdr" , shell = True)
+                node.hdrname = geonode.newdir+"/"+epwbase[0]+".hdr"
+                node['vecvals'] = vecvals
+
+        if node.hdrname not in bpy.data.images:
+            bpy.data.images.load(node.hdrname)
+        node['skyfiles'] = [hdrsky(node.hdrname)]
 
     for frame in framerange(scene, node['Animation']):
         fexport(scene, frame, export_op, node, geonode)

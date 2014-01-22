@@ -293,7 +293,14 @@ def li3D_legend(self, context, simnode, connode, geonode):
             blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
 
         blf.size(font_id, 20, 56)
-        cu = connode.unit if connode else '% Sunlit'
+        if connode.bl_label == 'LiVi CBDM':
+            unit = ('kLuxHours', 'Annual kWh', 'DA (%)', '', 'UDI-a (%)')[int(connode.analysismenu)]
+        elif connode.bl_label == 'LiVi Basic':
+            unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(node.analysismenu)]
+        elif connode.bl_label == 'LiVi Compliance':
+            unit = "DF %"
+
+        cu = unit if connode else '% Sunlit'
 
         vi_func.drawfont(cu, font_id, 0, height, 25, 57)
         bgl.glLineWidth(1)

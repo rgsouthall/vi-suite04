@@ -231,10 +231,10 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
 
 
     analysistype = [('0', "Annual Light Exposure", "LuxHours Calculation"), ('1', "Annual Radiation Exposure", "kWh/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Autonomy", "DA (%) Calculation"), ('3', "Hourly irradiance", "Irradiance for each simulation time step"), ('4', "UDI", "Useful Daylight Illuminance")]
-    analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0', update = nodeexported)
+    analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0')
     animtype = [('0', "Static", "Simple static analysis"), ('1', "Geometry", "Animated time analysis"), ('2', "Material", "Animated time analysis")]
 
-    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = '0', update = nodeexported)
+    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = '0')
     sourcetype = [('0', "EPW", "EnergyPlus weather file"), ('1', "VEC", "Generated vector file")]
     sourcetype2 = [('0', "EPW", "EnergyPlus weather file"), ('2', "HDR", "HDR sky file")]
     sourcemenu = bpy.props.EnumProperty(name="", description="Source type", items=sourcetype, default = '0', update = nodeexported)
@@ -246,7 +246,7 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
 #            name="", description="Custom Radiance simulation parameters", default="", update = nodeexported)
     hdrname = bpy.props.StringProperty(
             name="", description="Name of the composite HDR sky file", default="", update = nodeexported)
-    vecname = bpy.props.StringProperty(
+    mtxname = bpy.props.StringProperty(
             name="", description="Name of the calculated vector sky file", default="", update = nodeexported)
     weekdays = bpy.props.BoolProperty(default = False)
     cbdm_start_hour =  bpy.props.IntProperty(name = '', default = 8, min = 1, max = 24)
@@ -268,8 +268,8 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
 ##        vals = numpy.zeros((146))
 
     def init(self, context):
-        self.inputs.new('ViLiG', 'Geometry in')
         self.inputs.new('ViLoc', 'Location in')
+        self.inputs.new('ViLiG', 'Geometry in')
         self.outputs.new('ViLiC', 'Context out')
         self.outputs['Context out'].hide = True
         for ng in bpy.data.node_groups:
@@ -300,28 +300,43 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         row.label('Source file:')
         if int(self.analysismenu) < 2:
             row.prop(self, 'sourcemenu2')
+            sm = self.sourcemenu2
         else:
             row.prop(self, 'sourcemenu')
+            sm = self.sourcemenu
+
         row = layout.row()
-        if self.sourcemenu == '1':
-            row.operator('node.vecselect', text = 'Select VEC').nodeid = self['nodeid']
+        if sm == '1':
+            row.operator('node.mtxselect', text = 'Select MTX').nodeid = self['nodeid']
             row = layout.row()
-            row.prop(self, 'vecname')
-        elif self.sourcemenu == '2':
+            row.prop(self, 'mtxname')
+        elif sm == '2':
             row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
             row = layout.row()
             row.prop(self, 'hdrname')
             if self.analysismenu not in ('0', '1'):
                 row = layout.row()
-                row.operator('node.vecselect', text = 'Select VEC').nodeid = self['nodeid']
+                row.operator('node.vecselect', text = 'Select MTX').nodeid = self['nodeid']
                 row = layout.row()
                 row.prop(self, 'vecname')
 #                exportready = 1 if self.vecname and self.hdrname else 0
 
         if self.inputs['Geometry in'].is_linked and self.inputs['Geometry in'].links[0].from_node.exported and self.inputs['Geometry in'].links[0].from_node.bl_label == 'LiVi Geometry':
-            if (self.inputs['Location in'].is_linked and self.inputs['Location in'].links[0].from_node.loc == '1') or self.sourcemenu != '0':
-                row = layout.row()
-                row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
+            if self.inputs['Location in'].is_linked:
+                if self.inputs['Location in'].links[0].from_node.loc == '1':
+                    export = 1
+                else:
+                    export = 0
+            elif self.sourcemenu != '0' or self.get('vecvals'):
+                export = 1
+            else:
+                export = 0
+        else:
+            export = 0
+
+        if export == 1:
+            row = layout.row()
+            row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
 
 class ViLiCNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite lighting compliance node'''

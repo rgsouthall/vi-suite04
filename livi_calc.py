@@ -34,7 +34,7 @@ def radfexport(scene, export_op, connode, geonode):
 
 def rad_prev(prev_op, simnode, connode, geonode, simacc):
     scene = bpy.context.scene
-    if simnode.simacc == ("1", "3")[connode.bl_label == 'LiVi Basic']:
+    if simnode.simacc == ("0", "3")[connode.bl_label == 'LiVi Basic']:
         params = simnode.cusacc
     else:
         num = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-ar", 128, 512, 1024), ("-as", 128, 512, 1024), ("-aa", 0.3, 0.15, 0.08), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
@@ -61,6 +61,14 @@ def rad_prev(prev_op, simnode, connode, geonode, simacc):
 def li_calc(calc_op, simnode, connode, geonode, simacc):
     os.chdir(geonode.newdir)
     scene = bpy.context.scene
+
+    if connode.bl_label == 'LiVi CBDM':
+        resname = ('kluxhours', 'cumwatth', 'dayauto', 'hourrad', 'udi')[int(connode.analysismenu)]
+    elif connode.bl_label == 'LiVi Basic':
+        resname = ("illumout", "irradout", "dfout")[int(connode.analysismenu)]
+    elif connode.bl_label == 'LiVi Compliance':
+        resname = 'breaamout' if connode.analysismenu == '0' else 'cfsh'
+
     if os.lstat(geonode.filebase+".rtrace").st_size == 0:
         calc_op.report({'ERROR'},"There are no materials with the livi sensor option enabled")
     else:
@@ -71,7 +79,11 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
             params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simacc)+1] for n in num]))
 
         vi_func.clearscened(scene)
-        res, svres = [[[0 for p in range(geonode.reslen)] for x in range(scene.frame_end + 1 - scene.frame_start)] for x in range(2)]
+        if np == 1:
+            res, svres = numpy.zeros([len(vi_func.frameindex(scene, connode['Animation'])), geonode.reslen]), numpy.zeros([len(vi_func.frameindex(scene, connode['Animation'])), geonode.reslen])
+
+        else:
+            res, svres = [[[0 for p in range(geonode.reslen)] for x in range(len(vi_func.frameindex(scene, connode['Animation'])))] for x in range(2)]
 
         for frame in vi_func.framerange(scene, connode['Animation']):
             if connode.bl_label in ('LiVi Basic', 'LiVi Compliance') or (connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) < 2):
@@ -79,7 +91,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                     subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
                 rtcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                 rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
-                with open(os.path.join(geonode.newdir, connode.resname+"-"+str(frame)+".res"), 'w') as resfile:
+                with open(os.path.join(geonode.newdir, resname+"-"+str(frame)+".res"), 'w') as resfile:
                     for l,line in enumerate(rtrun.stdout):
                         if 'octree stale?' in line.decode():
                             resfile.close()
@@ -103,45 +115,52 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
 
             if connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) > 1:
                 if connode.sourcemenu == '2':
-#                    skyrad = open(geonode.filebase+".whitesky", "w")
-#                    skyrad.write("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")
-#                    skyrad.close()
-                    connode['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
+                    if not os.path.isfile(geonode.filebase+".whitesky"):
+                        with open(geonode.filebase+".whitesky", "w") as skyrad:
+                            skyrad.write("void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n")
+                    subprocess.call
+                    if not connode.get('whitesky'):
+                        connode['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
+#                    if not os.path.isfile(geonode.filebase+'-whitesky.oct'):
+#                        oconvcmd = "oconv -w - > {0}-whitesky.oct".format(geonode.filebase)
+#                        Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = connode['whitesky'].encode('utf-8'))
                     connode['vecvals'], vals = vi_func.mtx2vals(open(connode.vecname, "r"), datetime.datetime(2010, 1, 1).weekday())
+                    if not os.path.isdir(os.path.join(geonode.newdir, "s_data")):
+                        os.makedirs(os.path.join(geonode.newdir, "s_data"))
 
                 for frame in vi_func.framerange(scene, connode['Animation']):
                     hours = 0
-                    sensarray = [[0 for x in range(geonode.reslen)] for y in range(146)] if np == 0 else numpy.zeros([146, geonode.reslen])
-                    oconvcmd = "oconv -w - > {0}-whitesky.oct".format(geonode.filebase, frame)
-                    Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = connode['whitesky'].encode('utf-8'))
+                    sensarray = [[0 for x in range(146)] for y in range(geonode.reslen)] if np == 0 else numpy.zeros([geonode.reslen, 146])
 #                    subprocess.call("oconv -w {0}.whitesky {0}-{1}.rad > {0}-{1}ws.oct".format(geonode.filebase, frame), shell = True)
-                    if not os.path.isdir(os.path.join(geonode.newdir, "s_data")):
-                        os.makedirs(os.path.join(geonode.newdir, "s_data"))
-                    subprocess.call(geonode.cat+geonode.filebase+".rtrace | rcontrib -w  -h -I -fo -bn 146 -ab 4 -ad 4096 -lw 0.0003 -n "+geonode.nproc+" -f tregenza.cal -b tbin -o "+os.path.join(geonode.newdir, "s_data/"+str(frame)+"-sensor%d.dat")+" -m sky_glow "+geonode.filebase+"-whitesky.oct", shell = True)
-
-                    for i in range(0, 146):
-                        sensfile = open(geonode.newdir+"/s_data/"+str(frame)+"-sensor"+str(i)+".dat", "r")
-                        for s,sens in enumerate(sensfile.readlines()):
-                            sensvals = [float(x) for x in (sens.split("\t")[0:-1])]
-                            if np == 1:
-                                sensarray[i,s] =  179*((sensvals[0]*0.265)+ (sensvals[1]*0.67) + (sensvals[2]*0.065))
-                            elif np == 0:
-                                sensarray[i][s] = 179*((sensvals[0]*0.265)+ (sensvals[1]*0.67) + (sensvals[2]*0.065))
-                        sensfile.close()
+                    oconvcmd = "oconv -w - > {0}-ws.oct".format(geonode.filebase)
+                    Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = (connode['whitesky']+geonode['radfiles'][frame]).encode('utf-8'))
+#                    subprocess.call(geonode.cat+geonode.filebase+".rtrace | rcontrib -w  -h -I -fo -bn 146 -ab 4 -ad 4096 -lw 0.0003 -n "+geonode.nproc+" -f tregenza.cal -b tbin -o "+os.path.join(geonode.newdir, "s_data/"+str(frame)+"-sensor%d.dat")+" -m sky_glow "+geonode.filebase+"-whitesky.oct", shell = True)
+                    senscmd = geonode.cat+geonode.filebase+".rtrace | rcontrib -w  -h -I -fo -bn 146 "+params+" -n "+geonode.nproc+" -f tregenza.cal -b tbin -m sky_glow "+geonode.filebase+"-ws.oct"
+                    sensrun = Popen(senscmd, shell = True, stdout=PIPE)
+                    for l, line in enumerate(sensrun.stdout):
+                        decline = [float(ld) for ld in line.decode().split('\t') if ld != '\n']
+                        for v in range(0, 438, 3):
+                           sensarray[l][v/3] = 179*((decline[v]*0.265)+ (decline[v+1]*0.67) + (decline[v+2]*0.065))
 
 
                     for l, readings in enumerate(connode['vecvals']):
                         if connode.cbdm_start_hour <= readings[:][0] < connode.cbdm_end_hour and readings[:][1] < connode['wd']:
                             finalillu = [0 for x in range(0, geonode.reslen)] if np == 0 else numpy.zeros((geonode.reslen))
-                            for i in range(0, 146):
-                                for j, senreading in enumerate(sensarray[i]):
-                                    finalillu[j] += senreading*readings[:][i+2]
+                            for f, fi in enumerate(finalillu):
+                                if np == 1:
+                                    finalillu[f] = numpy.sum([numpy.multiply(sensarray[f], readings[2:])])
+                                else:
+                                    finalillu[f] = sum([a*b for a,b in zip(sensarray[f],readings[2:])])
                             hours += 1
 
                             if connode.analysismenu == '2':
-                                for k, reading in enumerate(finalillu):
-                                    if reading >= connode.dalux:
-                                        res[frame][k] += 1
+                                if np == 1:
+                                    target = [reading >= connode.dalux for reading in finalillu]
+                                    res[frame] = numpy.sum([res[frame], target], axis = 0)
+                                else:
+                                    for k, reading in enumerate(finalillu):
+                                        if reading >= connode.dalux:
+                                            res[frame][k] += 1
 
                             elif connode.analysismenu == '4':
                                 for k, reading in enumerate(finalillu):
@@ -150,25 +169,29 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
 
                     for r in range(0, len(res[frame])):
                         if hours != 0:
-                            res[frame][r] = res[frame][r]*100/hours
+                            res[frame][r] = res[frame, r]*100/hours
 
-                    daresfile = open(os.path.join(geonode.newdir, connode.resname+"-"+str(frame)+".res"), "w")
-                    for r in res[frame]:
-                        daresfile.write("{:.2f}\n".format(r))
-                    daresfile.close()
+                    with open(os.path.join(geonode.newdir, resname+"-"+str(frame)+".res"), "w") as daresfile:
+                        for r in res[frame]:
+                            daresfile.write("{:.2f}\n".format(r))
 
-        simnode['maxres'] = [max(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
-        simnode['minres'] = [min(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
-        simnode['avres'] = [sum(res[i])/len(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
+        if np == 1:
+            simnode['maxres'] = [numpy.amax(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
+            simnode['minres'] = [numpy.amin(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
+            simnode['avres'] = [numpy.average(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
+        else:
+            simnode['maxres'] = [max(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
+            simnode['minres'] = [min(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
+            simnode['avres'] = [sum(res[i])/len(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
         resapply(res, svres, simnode, connode, geonode)
         calc_op.report({'INFO'}, "Calculation is finished.")
 
 def resapply(res, svres, simnode, connode, geonode):
     crits = []
     scene = bpy.context.scene
-    dfpass = [0 for f in vi_func.framerange(scene, 'Animated')]
+    dfpass = [0 for f in vi_func.framerange(scene, connode['Animation'])]
 
-    for frame in vi_func.framerange(scene, 'Animated'):
+    for frame in vi_func.frameindex(scene, connode['Animation']):
         dftotarea, dfpassarea, edftotarea, mcol_i, f, fstart, fsv = 0, 0, 0, 0, 0, 0, 0
         rgb, lcol_i = [], []
         for i in range(0, len(res[frame])):

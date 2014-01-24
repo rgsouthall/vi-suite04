@@ -34,27 +34,28 @@ addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
 if str(sys.platform) == 'darwin':
     if not hasattr(os.environ, 'RAYPATH'):
         if platform.architecture() == "64bit":
-            os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/io_visuite/osx/64:/Applications/EnergyPlus-{}/bin".format(addonpath, epversion)
+            os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/vi_suite/osx/64:/Applications/EnergyPlus-{}/bin".format(addonpath, epversion)
         else:
-             os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/io_visuite/osx:/Applications/EnergyPlus-{}/bin".format(addonpath, epversion)
-        os.environ["RAYPATH"] = "/usr/local/radiance/lib:{}/io_visuite/lib".format(addonpath)
+             os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/vi_suite/osx:/Applications/EnergyPlus-{}/bin".format(addonpath, epversion)
+        os.environ["RAYPATH"] = "/usr/local/radiance/lib:{}/vi_suite/lib".format(addonpath)
 
 if str(sys.platform) == 'linux':
     if not hasattr(os.environ, 'RAYPATH'):
-        os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/io_visuite/osx:/usr/local/EnergyPlus-{}/bin".format(addonpath, epversion)
-        os.environ["RAYPATH"] = "/usr/local/radiance/lib:{}/io_visuite/lib".format(addonpath)
+        os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/vi_suite/osx:/usr/local/EnergyPlus-{}/bin".format(addonpath, epversion)
+        os.environ["RAYPATH"] = "/usr/local/radiance/lib:{}/lib".format(addonpath)
+        print("/usr/local/radiance/lib:{}/lib".format(addonpath))
 
 elif str(sys.platform) == 'win32':
     if not hasattr(os.environ, 'RAYPATH'):
         if os.path.isdir(r"C:\Program Files (x86)\Radiance"):
 #        if r"C:\Program Files (x86)\Radiance\lib;"+sys.path[0]+"\io_visuite\lib" not in os.environ["RAYPATH"]:
             os.environ["PATH"] = os.environ["PATH"] + r";C:\Program Files (x86)\Radiance\bin;"+sys.path[0]+"\io_visuite\windows;C:\EnergyPlusV{}".format(epversion)
-            os.environ["RAYPATH"] = r"C:\Program Files (x86)\Radiance\lib;"+sys.path[0]+"\io_visuite\lib"
+            os.environ["RAYPATH"] = r"C:\Program Files (x86)\Radiance\lib;"+sys.path[0]+"\vi_suite\lib"
 
         elif os.path.isdir(r"C:\Program Files\Radiance"):
 #        if r"C:\Program Files\Radiance\lib;"+sys.path[0]+"\io_visuite\lib" not in os.environ["RAYPATH"]:
             os.environ["PATH"] = os.environ["PATH"] + r";C:\Program Files\Radiance\bin;"+sys.path[0]+"\io_visuite\windows;C:\EnergyPlusV{}".format(epversion)
-            os.environ["RAYPATH"] = "C:\Program Files\Radiance\lib;"+sys.path[0]+"\io_visuite\lib"
+            os.environ["RAYPATH"] = "C:\Program Files\Radiance\lib;"+sys.path[0]+"\vi_suite\lib"
         else:
             print("Cannot find a valid Radiance directory. Please check that you have Radiance installed in either C:\Program Files(x86) (64bit windows) \
 or C:\Program Files (32bit windows)")

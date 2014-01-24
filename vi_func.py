@@ -10,11 +10,11 @@ dtdf = datetime.date.fromordinal
 def radmat(mat, scene):
     matname = mat.name.replace(" ", "_")
     if scene.render.engine == 'CYCLES' and hasattr(mat.node_tree, 'nodes'):
-        cycmattypes = ('Diffuse BSDF', 'Glass BSDF', 'Glossy BSDF', 'Translucent BSDF', 'Ambient Occlusion', 'Emission')
+        cycmattypes = ('Diffuse BSDF', 'Glass BSDF', 'Glossy BSDF', 'Translucent BSDF', 'Ambient Occlusion', 'Emission', 'Transparent BSDF')
         if mat.node_tree.nodes['Material Output'].inputs['Surface'].is_linked:
             matnode = mat.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node
             matindex = cycmattypes.index(matnode.bl_label) if matnode.bl_label in cycmattypes else 0
-            matcol, matior, matrough, matemit  = matnode.inputs[0].default_value, matnode.inputs[2].default_value if matindex == 1 else 0, \
+            matcol, matior, matrough, matemit  = matnode.inputs[0].default_value, matnode.inputs[2].default_value if matindex == 1 else 1.52, \
                 matnode.inputs[1].default_value if matindex == 0 else 0,  matnode.inputs[1].default_value if matindex == 5 else 0
             radname = ('plastic', 'glass', 'mirror', 'trans', 'antimatter', 'light')[matindex]
             radnums = ('5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format(matcol, '0', matrough),\
@@ -22,9 +22,10 @@ def radmat(mat, scene):
             '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}'.format(matcol), \
             '7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n\n'.format(matcol), \
             '', \
-            '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n'.format([c * matemit for c in matcol]))[matindex]
+            '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n'.format([c * matemit for c in matcol]), \
+            '4 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.3f}'.format(matcol, matior))[matindex]
 
-    elif scene.render.engine == 'BLENDER_RENDER':
+    else:# scene.render.engine == 'BLENDER_RENDER':
         matcol = [i * mat.diffuse_intensity for i in mat.diffuse_color]
         matior = mat.raytrace_transparency.ior
         matrough = 1.0-mat.specular_hardness/511.0

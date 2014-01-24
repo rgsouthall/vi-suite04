@@ -207,16 +207,6 @@ def radcexport(export_op, node):
             export_op.report({'ERROR'},"You cannot run a geometry and time based animation at the same time")
             return
 
-#        if geonode.animmenu == 'Static' and (node.animmenu == 'Static' or node.skynum > 2):
-#            node['Animation'] = 'Static'
-#        elif geonode.animmenu != 'Static' and node.animmenu != 'Static':
-#            export_op.report({'ERROR'},"You cannot run a geometry and time based animation at the same time")
-#            return
-#        elif node.animmenu == 'Time' and node.skynum < 3:
-#            node['Animation'] = 'TAnimated'
-#        else:
-#            node['Animation'] = 'Animated'
-
         if node.skynum < 4:
             node.skytypeparams = ("+s", "+i", "-c", "-b 22.86 -c")[node.skynum]
             starttime = datetime.datetime(2013, 1, 1, node.shour) + datetime.timedelta(node.sdoy - 1) if node.skynum < 3 else datetime.datetime(2013, 1, 1, 12)
@@ -224,11 +214,6 @@ def radcexport(export_op, node):
                 endtime = datetime.datetime(2013, 1, 1, node.ehour) + datetime.timedelta(node.edoy - 1)
                 hours = (endtime-starttime).days*24 + (endtime-starttime).seconds/3600
                 scene.frame_end = int(hours/node.interval)
-#                scene.frame_end = fe = int(hours/node.interval)
-#            else:
-#                fe = scene.frame_start
-#                if geonode.animmenu == 'Static':
-#                    scene.frame_end = fe
 
             for frame in framerange(scene, ('Static', 'Animated')[node['Animation'] == 'TAnimated']):
                 sunexport(scene, node, geonode, starttime, frame)
@@ -254,10 +239,6 @@ def radcexport(export_op, node):
             if node.hdrname not in bpy.data.images:
                 bpy.data.images.load(node.hdrname)
             node['skyfiles'] = [hdrsky(node.hdrname)]
-#            with open(geonode.filebase+"-0.sky", "w") as skyfilew:
-#                hdrsky(skyfilew, node.hdrname)
-#            with open(geonode.filebase+"-0.sky", 'r') as skyfiler:
-#                node['skyfiles'] =  skyfiler.read()
 
         elif node.skynum == 5:
             subprocess.call("cp {} {}".format(node.radname, geonode.filebase+"-0.sky"), shell = True)
@@ -266,8 +247,6 @@ def radcexport(export_op, node):
 
         elif node.skynum == 6:
             node['skyfiles'] = ['']
-
-
 
     elif node.bl_label == 'LiVi CBDM':
         node['Animation'] = 'Static' if geonode.animmenu == 'Static' else 'Animated'
@@ -306,18 +285,15 @@ def radcexport(export_op, node):
                 mtxlines = mtxfile.readlines()
                 vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), 1, 1).weekday())
                 mtxfile.close()
-
-
-        #            with open(geonode.filename+".whitesky", "w") as skyrad:
                 node['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
                 oconvcmd = "oconv -w - > {0}-whitesky.oct".format(geonode.filebase)
                 Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = node['whitesky'].encode('utf-8'))
-        #            subprocess.call("oconv {0}.whitesky > {0}-whitesky.oct".format(geonode.filename), shell=True)
                 subprocess.call("vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0 | rcontrib -bn 146 -fo -ab 0 -ad 512 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o p%d.hdr -m sky_glow {}-whitesky.oct".format(geonode.nproc, geonode.filename), shell = True)
 
                 for j in range(0, 146):
                     subprocess.call("pcomb -s {0} p{1}.hdr > ps{1}.hdr".format(vals[j], j), shell = True)
                     subprocess.call("{0}  p{1}.hdr".format(geonode.rm, j), shell = True)
+
                 subprocess.call("pcomb -h  "+pcombfiles+" > "+geonode.newdir+"/"+epwbase[0]+".hdr", shell = True)
                 subprocess.call(geonode.rm+" ps*.hdr" , shell = True)
                 node.hdrname = geonode.newdir+"/"+epwbase[0]+".hdr"

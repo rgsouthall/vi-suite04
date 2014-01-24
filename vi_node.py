@@ -227,9 +227,6 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
             bpy.data.node_groups[self['nodeid'].split('@')[1]].links.remove(self.inputs['Location in'].links[0])
         self.inputs['Location in'].hide = False if self.sourcemenu == '0' else True
 
-
-
-
     analysistype = [('0', "Annual Light Exposure", "LuxHours Calculation"), ('1', "Annual Radiation Exposure", "kWh/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Autonomy", "DA (%) Calculation"), ('3', "Hourly irradiance", "Irradiance for each simulation time step"), ('4', "UDI", "Useful Daylight Illuminance")]
     analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0')
     animtype = [('0', "Static", "Simple static analysis"), ('1', "Geometry", "Animated time analysis"), ('2', "Material", "Animated time analysis")]
@@ -240,10 +237,6 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
     sourcemenu = bpy.props.EnumProperty(name="", description="Source type", items=sourcetype, default = '0', update = nodeexported)
     sourcemenu2 = bpy.props.EnumProperty(name="", description="Source type", items=sourcetype2, default = '0', update = nodeexported)
     simalg = bpy.props.StringProperty(name="", description="Algorithm to run on the radiance results", default="")
-#    simacc = bpy.props.EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),("3", "Custom", "Edit Radiance parameters"), ],
-#            name="", description="Simulation accurac.split('@')[1]y", default="0", update = nodeexported)
-#    cusacc = bpy.props.StringProperty(
-#            name="", description="Custom Radiance simulation parameters", default="", update = nodeexported)
     hdrname = bpy.props.StringProperty(
             name="", description="Name of the composite HDR sky file", default="", update = nodeexported)
     mtxname = bpy.props.StringProperty(
@@ -259,13 +252,6 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
     exported = bpy.props.BoolProperty(name = '', default = False)
     resname = bpy.props.StringProperty()
     unit = bpy.props.StringProperty()
-#    fwd = datetime.datetime(int(epwyear), 1, 1).weekday()
-#    if np == 0:
-#        vecvals = [[x%24, (fwd+x)%7] + [0 for p in range(146)] for x in range(0,8760)]
-##        vals = [0 for x in range(146)]
-#    else:
-#        vecvals = numpy.array([[x%24, (fwd+x)%7] + [0 for p in range(146)] for x in range(0,8760)])
-##        vals = numpy.zeros((146))
 
     def init(self, context):
         self.inputs.new('ViLoc', 'Location in')
@@ -397,7 +383,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
 
     def init(self, context):
         self.inputs.new('ViLiC', 'Context in')
-        self.outputs.new('ViLiWResOut', 'Data out')
+        self.outputs.new('LiViWOut', 'Data out')
         self.outputs['Data out'].hide = True
         for ng in bpy.data.node_groups:
             if self in ng.nodes[:]:

@@ -296,7 +296,7 @@ def li3D_legend(self, context, simnode, connode, geonode):
         if connode.bl_label == 'LiVi CBDM':
             unit = ('kLuxHours', 'Annual kWh', 'DA (%)', '', 'UDI-a (%)')[int(connode.analysismenu)]
         elif connode.bl_label == 'LiVi Basic':
-            unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(node.analysismenu)]
+            unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(connode.analysismenu)]
         elif connode.bl_label == 'LiVi Compliance':
             unit = "DF %"
 

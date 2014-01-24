@@ -138,7 +138,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                                 sensarray[l][v/3] = 179*((decline[v]*0.265)+ (decline[v+1]*0.67) + (decline[v+2]*0.065))
                             elif connode.analysismenu == '3':
                                 sensarray[l][v/3] = sum(decline[v:v+3])
-                                
+
                     for l, readings in enumerate(connode['vecvals']):
                         if connode.analysismenu == '3' or (connode.cbdm_start_hour <= readings[:][0] < connode.cbdm_end_hour and readings[:][1] < connode['wd']):
                             finalillu = [0 for x in range(geonode.reslen)] if np == 0 else numpy.zeros((geonode.reslen))
@@ -155,20 +155,20 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                                     res[frame] = numpy.sum([res[frame], target], axis = 0)
                                 else:
                                     res[frame] = [res[frame][k] + (0, 1)[finalillu[k] >= connode.dalux] for k in range(len(finalillu))]
-                            
+
                             elif connode.analysismenu == '3':
                                 wattres[frame][l] = finalillu
-                                
+
                             elif connode.analysismenu == '4':
                                 res[frame] = [res[frame][k] + (0, 1)[connode.daauto >= finalillu[k] >= connode.dasupp] for k in range(len(finalillu))]
-                    
+
                     if connode.analysismenu in ('2', '4'):
                         res[frame] = [rf*100/hours for rf in res[frame] if hours != 0]
 
                         with open(os.path.join(geonode.newdir, resname+"-"+str(frame)+".res"), "w") as daresfile:
                             [daresfile.write("{:.2f}\n".format(r)) for r in res[frame]]
-        
-        if connode.analysismenu in ('2', '4'): 
+
+        if connode.analysismenu in ('2', '4'):
             if np == 1:
                 simnode['maxres'] = [numpy.amax(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
                 simnode['minres'] = [numpy.amin(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
@@ -178,10 +178,10 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                 simnode['minres'] = [min(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
                 simnode['avres'] = [sum(res[i])/len(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
             resapply(res, svres, simnode, connode, geonode)
-        
+
         elif connode.analysismenu == '3':
             resapply(wattres, svres, simnode, connode, geonode)
-        
+
         calc_op.report({'INFO'}, "Calculation is finished.")
 
 def resapply(res, svres, simnode, connode, geonode):
@@ -206,7 +206,7 @@ def resapply(res, svres, simnode, connode, geonode):
                 bpy.ops.object.select_all(action = 'DESELECT')
                 scene.objects.active = None
                 geofaces = [face for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense]
-                
+
                 if connode.bl_label == 'LiVi CBDM' and connode.analysismenu == '3':
                     if not geo.get('wattres'):
                         geo['wattres'] = {}
@@ -216,7 +216,7 @@ def resapply(res, svres, simnode, connode, geonode):
                 else:
                     if geo.get('wattres'):
                         del geo['wattres']
-                        
+
                     geoarea = sum([vi_func.triarea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
                     fend = f + len(geofaces)
                     passarea = 0
@@ -227,14 +227,14 @@ def resapply(res, svres, simnode, connode, geonode):
                             bpy.ops.mesh.vertex_color_remove()
                         while geo.data.shape_keys:
                             bpy.ops.mesh.shape_keys_remove()
-    
+
                     bpy.ops.mesh.vertex_color_add()
                     geo.data.vertex_colors[frame].name = str(frame)
                     vertexColour = geo.data.vertex_colors[frame]
-    
+
                     mat = [matslot.material for matslot in geo.material_slots if matslot.material.livi_sense][0]
                     mcol_i = len(tuple(set(lcol_i)))
-    
+
                     for face in geofaces:
                         if geonode.cpoint == '1':
                             cvtup = tuple(geo['cverts'])
@@ -244,15 +244,14 @@ def resapply(res, svres, simnode, connode, geonode):
                                     col_i = cvtup.index(v)
                                 lcol_i.append(col_i)
                                 vertexColour.data[loop_index].color = rgb[col_i+mcol_i]
-    #                            weigthres += face.area*res[col_i+mcol_i]/geoarea
-    
+
                         if geonode.cpoint == '0':
                             for loop_index in face.loop_indices:
                                 vertexColour.data[loop_index].color = rgb[f]
                             weightres += vi_func.triarea(geo, face) * res[frame][f]/geoarea
                             f += 1
                     geo['avres'] = weightres
-    
+
                     if connode.bl_label == 'LiVi Compliance':
                         if connode.analysismenu == '1':
                             bpy.ops.mesh.vertex_color_add()
@@ -268,18 +267,17 @@ def resapply(res, svres, simnode, connode, geonode):
                                                 col_i = cvtup.index(v)
                                             lcol_i.append(col_i)
                                             vertexColour.data[loop_index].color = rgb[col_i+mcol_i]
-    
-                                    if geonode.cpoint == '0':
+
+                                    elif geonode.cpoint == '0':
                                         for loop_index in face.loop_indices:
                                             vertexColour.data[loop_index].color = (0, 1, 0) if svres[frame][fsv] > 0 else (1, 0, 0)
                                         fsv += 1
-    
+
                         if frame == 0:
-                            crit = []
-                            ecrit = []
-                            comps =  [[] * f for f in range(scene.frame_start, scene.frame_end+1)]
-                            ecomps = [[] * f for f in range(scene.frame_start, scene.frame_end+1)]
-    #                        crit = ['foo']
+                            crit, ecrit = [], []
+                            comps, ecomps =  [[[] * f for f in range(scene.frame_start, scene.frame_end+1)] for x in range(2)]
+#                            ecomps = [[] * f for f in range(scene.frame_start, scene.frame_end+1)]
+
                             if connode.analysismenu == '0':
                                 ecrit = []
                                 if connode.bambuildmenu in ('0', '5'):
@@ -288,11 +286,11 @@ def resapply(res, svres, simnode, connode, geonode):
                                         crit.append(['Ratio', 100, 'Uni', 0.4, '0.5'])
                                         crit.append(['Min', 100, 'PDF', 0.8, '0.5'])
                                         crit.append(['Percent', 80, 'Skyview', 1, '0.75'])
-    
+
                                         if geonode.buildstorey == '0':
                                             ecrit.append(['Percent', 80, 'DF', 4, '1'])
                                             ecrit.append(['Min', 100, 'PDF', 1.6, '0.75'])
-    
+
                                         elif geonode.buildstorey == '1':
                                             ecrit.append(['Percent', 80, 'DF', 3, '1'])
                                             ecrit.append(['Min', 100, 'PDF', 1.2, '0.75'])
@@ -301,15 +299,15 @@ def resapply(res, svres, simnode, connode, geonode):
                                         crit.append(['Ratio', 100, 'Uni', 0.7, '0.5'])
                                         crit.append(['Min', 100, 'PDF', 1.4, '0.5'])
                                         crit.append(['Percent', 100, 'Skyview', 1, '0.75'])
-    
+
                                         if geonode.buildstorey == '0':
                                             ecrit.append(['Percent', 80, 'DF', 4, '1'])
                                             ecrit.append(['Min', 100, 'PDF', 2.8, '0.75'])
-    
+
                                         elif geonode.buildstorey == '1':
                                             ecrit.append(['Percent', 80, 'DF', 3, '1'])
                                             ecrit.append(['Min', 100, 'PDF', 2.1, '0.75'])
-    
+
                                 elif connode.bambuildmenu == '1':
                                     if not mat.gl_roof:
                                         crit.append(['Percent', 60, 'DF', 2, '1'])
@@ -317,11 +315,11 @@ def resapply(res, svres, simnode, connode, geonode):
                                         crit.append(['Ratio', 100, 'Uni', 0.4, '0.5'])
                                         crit.append(['Min', 100, 'PDF', 0.8, '0.5'])
                                         crit.append(['Percent', 80, 'Skyview', 1, '0.75'])
-    
+
                                         if geonode.buildstorey == '0':
                                             ecrit.append(['Percent', 80, 'DF', 4, '1'])
                                             ecrit.append(['Min', 100, 'PDF', 1.6, '0.75'])
-    
+
                                         elif geonode.buildstorey == '1':
                                             ecrit.append(['Percent', 80, 'DF', 3, '1'])
                                             ecrit.append(['Min', 100, 'PDF', 1.2, '0.75'])
@@ -331,66 +329,66 @@ def resapply(res, svres, simnode, connode, geonode):
                                         crit.append(['Ratio', 100, 'Uni', 0.7, '0.5'])
                                         crit.append(['Min', 100, 'PDF', 1.4, '0.5'])
                                         crit.append(['Percent', 100, 'Skyview', 1, '0.75'])
-    
+
                                         if geonode.buildstorey == '0':
                                             ecrit.append(['Percent', 80, 'DF', 4, '1'])
                                             ecrit.append(['Min', 100, 'PDF', 2.8, '0.75'])
-    
+
                                         elif geonode.buildstorey == '1':
                                             ecrit.append(['Percent', 80, 'DF', 3, '1'])
                                             ecrit.append(['Min', 100, 'PDF', 2.1, '0.75'])
-    
+
                                 elif connode.bambuildmenu == '2':
                                     if mat.hspacemenu == '0':
                                         crit.append(['Percent', 60, 'DF', 2, '1'])
                                         crit.append(['Percent', 80, 'DF', 2, '1'])
                                     else:
                                         crit.append(['Percent', 80, 'DF', 3, '2'])
-    
+
                                     if geonode.buildstorey == '0':
                                         ecrit.append(['Percent', 80, 'DF', 4, '1'])
                                         ecrit.append(['Min', 100, 'PDF', 1.6, '0.75'])
-    
+
                                     elif geonode.buildstorey == '1':
                                         ecrit.append(['Percent', 80, 'DF', 3, '1'])
                                         ecrit.append(['Min', 100, 'PDF', 1.2, '0.75'])
-    
+
                                 elif connode.bambuildmenu == '3':
                                     if mat.rspacemenu == '0':
                                         crit.append(['Percent', 80, 'DF', 2, '1'])
                                         crit.append(['Percent', 100, 'Skyview', 1, '0.75'])
-    
+
                                         if geonode.buildstorey == '0':
                                             ecrit.append(['Percent', 80, 'DF', 4, '1'])
                                             ecrit.append(['Min', 100, 'PDF', 1.6, '0.75'])
-    
+
                                         elif geonode.buildstorey == '1':
                                             ecrit.append(['Percent', 80, 'DF', 3, '1'])
                                             ecrit.append(['Min', 100, 'PDF', 1.2, '0.75'])
-    
+
                                     elif mat.rspacemenu == '1':
                                         crit.append(['Percent', 80, 'DF', 1.5, '1'])
                                         crit.append(['Percent', 100, 'Skyview', 1, '0.75'])
-    
+
                                         if geonode.buildstorey == '0':
                                             ecrit.append(['Percent', 80, 'DF', 4, '1'])
                                             ecrit.append(['Min', 100, 'PDF', 1.6, '0.75'])
-    
+
                                         elif geonode.buildstorey == '1':
                                             ecrit.append(['Percent', 80, 'DF', 3, '1'])
                                             ecrit.append(['Min', 100, 'PDF', 1.2, '0.75'])
-    
+
                                     elif mat.rspacemenu == '2':
                                         if not mat.gl_roof:
                                             crit.append(['Percent', 80, 'DF', 2, '1'])
                                             crit.append(['Ratio', 100, 'Uni', 0.4, '0.5'])
                                             crit.append(['Min', 100, 'PDF', 0.8, '0.5'])
                                             crit.append(['Percent', 80, 'Skyview', 1, '0.75'])
-    
+
                                             if geonode.buildstorey == '0':
                                                 ecrit.append(['Percent', 80, 'DF', 4, '1'])
                                                 ecrit.append(['Min', 100, 'PDF', 1.6, '0.75'])
-    
+
                                             elif geonode.buildstorey == '1':
                                                 ecrit.append(['Percent', 80, 'DF', 3, '1'])
                                                 ecrit.append(['Min', 100, 'PDF', 1.2, '0.75'])
@@ -399,31 +397,31 @@ def resapply(res, svres, simnode, connode, geonode):
                                             crit.append(['Ratio', 100, 'Uni', 0.7, '0.5'])
                                             crit.append(['Min', 100, 'PDF', 1.4, '0.5'])
                                             crit.append(['Percent', 100, 'Skyview', 1, '0.75'])
-    
+
                                             if geonode.buildstorey == '0':
                                                 ecrit.append(['Percent', 80, 'DF', 4, '1'])
                                                 ecrit.append(['Min', 100, 'PDF', 2.8, '0.75'])
-    
+
                                             elif geonode.buildstorey == '1':
                                                 ecrit.append(['Percent', 80, 'DF', 3, '1'])
                                                 ecrit.append(['Min', 100, 'PDF', 2.1, '0.75'])
-    
+
                                 elif connode.bambuildmenu == '4':
                                     if mat.respacemenu == '0':
                                         crit.append(['Percent', 35, 'PDF', 2, '1'])
                                         ecrit.append(['Percent', 50, 'PDF', 2, '1'])
-    
+
                                     if mat.respacemenu == '1':
                                         if not mat.gl_roof:
                                             crit.append(['Percent', 80, 'DF', 2, '1'])
                                             crit.append(['Ratio', 100, 'Uni', 0.4, '0.5'])
                                             crit.append(['Min', 100, 'PDF', 0.8, '0.5'])
                                             crit.append(['Percent', 80, 'Skyview', 1, '0.75'])
-    
+
                                             if geonode.buildstorey == '0':
                                                 ecrit.append(['Percent', 80, 'DF', 4, '1'])
                                                 ecrit.append(['Min', 100, 'PDF', 1.6, '0.75'])
-    
+
                                             elif geonode.buildstorey == '1':
                                                 ecrit.append(['Percent', 80, 'DF', 3, '1'])
                                                 ecrit.append(['Min', 100, 'PDF', 1.2, '0.75'])
@@ -432,15 +430,15 @@ def resapply(res, svres, simnode, connode, geonode):
                                             crit.append(['Ratio', 100, 'Uni', 0.7, '0.5'])
                                             crit.append(['Min', 100, 'PDF', 1.4, '0.5'])
                                             crit.append(['Percent', 100, 'Skyview', 1, '0.75'])
-    
+
                                             if geonode.buildstorey == '0':
                                                 ecrit.append(['Percent', 80, 'DF', 4, '1'])
                                                 ecrit.append(['Min', 100, 'PDF', 2.8, '0.75'])
-    
+
                                             elif geonode.buildstorey == '1':
                                                 ecrit.append(['Percent', 80, 'DF', 3, '1'])
                                                 ecrit.append(['Min', 100, 'PDF', 2.1, '0.75'])
-    
+
                             elif connode.analysismenu == '1':
                                 if mat.rspacemenu == '0':
                                     crit.append(['Average', 100, 'DF', 2, '1'])
@@ -448,13 +446,13 @@ def resapply(res, svres, simnode, connode, geonode):
                                 elif mat.rspacemenu == '1':
                                     crit.append(['Average', 100, 'DF', 1.5, '1'])
                                     crit.append(['Percent', 80, 'Skyview', 1, '0.75'])
-    
+
                             elif connode.analysismenu == '2':
                                 crit.append(['Percent', 75, 'FC', 108, '1'])
                                 crit.append(['Percent', 75, 'FC', 5400, '1'])
                                 crit.append(['Percent', 90, 'FC', 108, '1'])
                                 crit.append(['Percent', 90, 'FC', 5400, '1'])
-    
+
                             for c in crit:
                                 if c[0] == 'Percent':
                                     if c[2] == 'DF':
@@ -466,7 +464,7 @@ def resapply(res, svres, simnode, connode, geonode):
                                             comps[frame].append(0)
                                         comps[frame].append(sum(res[frame][fstart:fend])/(fend - fstart))
                                         dftotarea += geoarea
-    
+
                                     elif c[2] == 'PDF':
                                         dfpass[frame] = 1
                                         if sum(svres[frame][fstart:fend])/(fend - fstart) > c[3]:
@@ -476,7 +474,7 @@ def resapply(res, svres, simnode, connode, geonode):
                                             comps[frame].append(0)
                                         comps[frame].append(sum(svres[frame][fstart:fend])/(fend -fstart))
                                         dftotarea += geoarea
-    
+
                                     elif c[2] == 'Skyview':
                                         for fa, face in enumerate(geofaces):
                                            if svres[frame][fa + fstart] > 0:
@@ -487,85 +485,87 @@ def resapply(res, svres, simnode, connode, geonode):
                                             comps[frame].append(0)
                                         comps[frame].append(100*passarea/geoarea)
                                         passarea = 0
-    
+
                                 elif c[0] == 'Min':
                                     if min(svres[frame][fstart:fend]) > c[3]:
                                         comps[frame].append(1)
                                     else:
                                         comps[frame].append(0)
                                     comps[frame].append(min(svres[frame][fstart:fend]))
-    
+
                                 elif c[0] == 'Ratio':
                                     if min(res[frame])/(sum(res[frame][fstart:fend])/len(res[frame])) >= c[3]:
                                         comps[frame].append(1)
                                     else:
                                         comps[frame].append(0)
                                     comps[frame].append(min(res[frame][fstart:fend])/(sum(res[frame])/(fend - fstart)))
-    
+
                                 elif c[0] == 'Average':
                                     if sum([vi_func.triarea(geo, face) * res[frame][fa+fstart] for fa, face in enumerate(geofaces)])/geoarea > c[3]:
                                         comps[frame].append(1)
                                     else:
                                         comps[frame].append(0)
                                     comps[frame].append(sum([vi_func.triarea(geo, face) * res[frame][fa+fstart] for fa, face in enumerate(geofaces)])/geoarea)
-    
+
                             for e in ecrit:
                                 if e[0] == 'Percent':
-                                    if e[2] == 'DF':
+                                    if e[2] in ('DF', 'PDF'):
+                                        r = res if e[2] == 'DF' else svres
                                         dfpass[frame] = 1
                                         if sum(res[frame][fstart:fend])/(fend - fstart) > e[3]:
                                             dfpassarea += geoarea
-                                            ecomps[frame].append(1)
-                                        else:
-                                            ecomps[frame].append(0)
-                                        ecomps[frame].append(sum(res[frame][fstart:fend])/(fend - fstart))
+#                                            ecomps[frame].append(1)
+#                                        else:
+#                                            ecomps[frame].append(0)
+                                        ecomps[frame].append((0, 1)[sum(r[frame][fstart:fend])/(fend - fstart) > e[3]])
+                                        ecomps[frame].append(sum(r[frame][fstart:fend])/(fend - fstart))
                                         edftotarea += geoarea
-    #                                    dfpassarea = 0
-    
-                                    elif e[2] == 'PDF':
-                                        dfpass[frame] = 1
-                                        if sum(svres[frame][fstart:fend])/(fend - fstart) > e[3]:
-                                            dfpassarea += geoarea
-                                            ecomps[frame].append(1)
-                                        else:
-                                            ecomps[frame].append(0)
-                                        ecomps[frame].append(sum(svres[frame][fstart:fend])/(fend - fstart))
-                                        edftotarea += geoarea
-    #                                    dfpassarea = 0
-    
+
+
+#                                    elif e[2] == 'PDF':
+#                                        dfpass[frame] = 1
+#                                        if sum(svres[frame][fstart:fend])/(fend - fstart) > e[3]:
+#                                            dfpassarea += geoarea
+#                                            ecomps[frame].append(1)
+#                                        else:
+#                                            ecomps[frame].append(0)
+#                                        ecomps[frame].append(sum(svres[frame][fstart:fend])/(fend - fstart))
+#                                        edftotarea += geoarea
+
+
                                     elif e[2] == 'Skyview':
                                         for fa, face in enumerate(geofaces):
                                             if svres[frame][fa] > 0:
                                                 passarea += vi_func.triarea(geo, face)
-    
+
                                         if passarea >= e[1] * geoarea /100:
                                             ecomps[frame].append(1)
                                         else:
                                             ecomps[frame].append(0)
                                         ecomps[frame].append(100*passarea/geoarea)
                                         passarea = 0
-    
+
                                 elif e[0] == 'Min':
                                     if min(svres[frame][fstart:fend]) > e[3]:
                                         ecomps[frame].append(1)
                                     else:
                                         ecomps[frame].append(0)
                                     ecomps[frame].append(min(svres[frame][fstart:fend]))
-    
+
                                 elif e[0] == 'Ratio':
                                     if min(res[frame][fstart:fend])/(sum(res[frame][fstart:fend])/(fend - fstart)) >= e[3]:
                                         ecomps[frame].append(1)
                                     else:
                                         ecomps[frame].append(0)
                                     ecomps[frame].append(min(res[frame][fstart:fend])/(sum(res[frame][fstart:fend])/(fend - fstart)))
-    
+
                                 elif e[0] == 'Average':
                                     if sum(res[frame][fstart:fend])/(fend - fstart) > e[3]:
                                         ecomps[frame].append(1)
                                     else:
                                         ecomps[frame].append(0)
                                     ecomps[frame].append(sum(res[frame][fstart:fend])/(fend - fstart))
-    
+
                         geo['crit'] = [[c[0], str(c[1]), c[2], str(c[3]), c[4]] for c in crit[:]]
                         geo['ecrit'] = [[c[0], str(c[1]), c[2], str(c[3]), c[4]] for c in ecrit[:]]
                         geo['comps'] = comps
@@ -599,6 +599,6 @@ def resapply(res, svres, simnode, connode, geonode):
 #        scene['dfpass'] = 2 if dfpassarea/dftotarea >= 0.8 else scene['dfpass']
     if connode.bl_label == 'LiVi CBDM' and connode.analysismenu == '3':
         simnode.outputs['Data out'].hide = False
-    
+
     bpy.ops.wm.save_mainfile(check_existing = False)
 

@@ -185,9 +185,13 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
     except:
         obreslist = [ob for ob in scene.objects if ob.type == 'MESH'  and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.get('licalc') == 1 and ob.lires == 1]
         obcalclist = [ob for ob in scene.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.get('licalc') == 1 and ob.lires == 0]
-    if (scene.li_disp_panel != 2 and scene.ss_disp_panel != 2) or getattr(bpy.context.active_object, ('mode')) != 'OBJECT' or (connode['Animation'] == 'Static' and scene.frame_current != scene.frame_start) \
+    if (scene.li_disp_panel != 2 and scene.ss_disp_panel != 2)  or (connode['Animation'] == 'Static' and scene.frame_current != scene.frame_start) \
     or scene.vi_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.vi_display_sel_only == True)  or scene.frame_current not in vi_func.framerange(scene, connode['Animation']):
         return
+
+    if bpy.context.active_object:
+        if bpy.context.active_object.get('mode') and getattr(bpy.context.active_object, ('mode')) != 'OBJECT':
+             bpy.context.active_object.mode = 'OBJECT'
 
     blf.enable(0, 4)
     blf.shadow(0, 5,scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])

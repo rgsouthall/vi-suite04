@@ -394,8 +394,7 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
         if not node.outputs:
             node.outputs.new('ViEnROut', 'Results out')
         if node.outputs[0].is_linked:
-            socket1 = node.outputs[0]
-            socket2 = node.outputs[0].links[0].to_socket
+            socket1, socket2  = node.outputs[0], node.outputs[0].links[0].to_socket
             bpy.data.node_groups['VI Network'].links.remove(node.outputs[0].links[0])
             bpy.data.node_groups['VI Network'].links.new(socket1, socket2)
         scene = context.scene
@@ -414,7 +413,6 @@ class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
         node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
         Sdate = dt.fromordinal(dt(dt.now().year, 1, 1).toordinal() + node['Start'] -1) + datetime.timedelta(hours = node.dsh - 1)
         Edate = dt.fromordinal(dt(dt.now().year, 1, 1).toordinal() + node['End'] -1 ) + datetime.timedelta(hours = node.deh - 1)
-
         innodes = list(OrderedDict.fromkeys([inputs.links[0].from_node for inputs in node.inputs if inputs.is_linked]))
         chart_disp(self, node, innodes, Sdate, Edate)
         return {'FINISHED'}
@@ -585,7 +583,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
             txt = bpy.context.active_object
             txt.scale = (10, 10, 10)
             txt.data.extrude = 0.1
-            txt = bpy.context.active_object
             txt.data.body = ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')[c]
             bpy.ops.object.convert(target='MESH')
             bpy.ops.object.material_slot_add()
@@ -656,7 +653,8 @@ class NODE_OT_WindRose(bpy.types.Operator):
                 wvals = [line.split(",")[20:22] for l, line in enumerate(epwfile.readlines()) if l > 7 and simnode.startmonth <= int(line.split(",")[1]) < simnode.endmonth]
                 simnode['maxres'], simnode['minres'],  simnode['avres']= max([float(w[1]) for w in wvals]), min([float(w[1]) for w in wvals]), sum([float(w[1]) for w in wvals])/len(wvals)
 
-        awd, aws, ax, binvals = [float(val[0]) for val in wvals], [float(val[1]) for val in wvals], wr_axes(), arange(0,int(ceil(max(aws))),2)
+        awd, aws, ax = [float(val[0]) for val in wvals], [float(val[1]) for val in wvals], wr_axes()
+        binvals = arange(0,int(ceil(max(aws))),2)
         simnode['nbins'] = len(binvals)
 
         if simnode.wrtype == '0':
@@ -670,7 +668,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
             ax.contour(awd, aws, bins=binvals, normed=True, colors='black')
         if simnode.wrtype == '4':
             ax.contour(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
-#        set_legend(ax)
+
         if locnode.newdir:
             plt.savefig(locnode.newdir+'/disp_wind.png', dpi = (300), transparent=False)
             plt.savefig(locnode.newdir+'/disp_wind.svg')
@@ -737,19 +735,18 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
     def invoke(self, context, event):
         scene = context.scene
-        scene.restree = self.nodeid.split('@')[1]
+        simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        scene.restree, scene.resnode = self.nodeid.split('@')[1], simnode.name
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 1, 0
         clearscened(scene)
-        simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        scene.resnode = simnode.name
         direcs = []
+        
         if simnode.animmenu == 'Static':
             scmaxres, scminres, scavres, scene.frame_end = [100], [0], [0], scene.frame_start
         else:
             scmaxres = [100 for f in range(scene.frame_end - scene.frame_start + 1)]
-            scminres = [0 for f in range(scene.frame_end - scene.frame_start + 1)]
-            scavres = [0 for f in range(scene.frame_end - scene.frame_start + 1)]
-#            fe = scene.frame_end
+            scminres, scavres = [[0 for f in range(scene.frame_end - scene.frame_start + 1)] for x in range (2)]
+
         fdiff = scene.frame_end - scene.frame_start + 1
         locnode = simnode.inputs[0].links[0].from_node
         if locnode.loc == "1":
@@ -804,7 +801,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 ob['omax'] = {str(f):obmaxres[f] for f in range(fdiff)}
                 ob['omin'] = {str(f):obminres[f] for f in range(fdiff)}
                 ob['oave'] = {str(f):obavres[f] for f in range(fdiff)}
-
             else:
                ob.licalc = 0
         try:

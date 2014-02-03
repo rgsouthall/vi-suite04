@@ -17,8 +17,8 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, glob, os, inspect, datetime
-from math import pi, sin, cos
+import bpy, glob, os, inspect#, datetime
+#from math import pi, sin, cos
 from nodeitems_utils import NodeCategory, NodeItem
 from .vi_func import nodeinit, objvol, triarea, socklink, newrow
 
@@ -390,7 +390,16 @@ class ViLiSNode(bpy.types.Node, ViNodes):
                 self['nodeid'] = self.name+'@'+ng.name
 
     def draw_buttons(self, context, layout):
-        if self.inputs['Context in'].is_linked and self.inputs['Context in'].links[0].from_node.exported and self.inputs['Context in'].links[0].from_node.inputs[0].is_linked and self.inputs['Context in'].links[0].from_node.inputs['Geometry in'].links[0].from_node.exported:
+        if self.inputs['Context in'].is_linked:
+            connode = self.inputs['Context in'].links[0].from_node
+            cexported = connode.exported
+            if connode.inputs['Geometry in'].is_linked:
+                geonode = connode.inputs['Geometry in'].links[0].from_node
+                gexported = geonode.exported
+        else:
+            connode, geonode, cexported, gexported = 0, 0, 0, 0
+        
+        if geonode and gexported and connode and cexported:
             row = layout.row()
             row.label("Accuracy:")
             if self.inputs['Context in'].links[0].from_node.bl_label == 'LiVi Basic':
@@ -443,8 +452,6 @@ class ViSSNode(bpy.types.Node, ViNodes):
 
     animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis")]
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
-    startday = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 365, description = 'Start day')
-    endday = bpy.props.IntProperty(name = '', default = 365, min = 1, max = 365, description = 'End day')
     starthour = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 24, description = 'Start hour')
     endhour = bpy.props.IntProperty(name = '', default = 24, min = 1, max = 24, description = 'End hour')
     interval = bpy.props.FloatProperty(name = '', default = 1, min = 0.1, max = 24, description = 'Interval')
@@ -459,8 +466,6 @@ class ViSSNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Animation:', self, "animmenu")
-        newrow(layout, 'Start day:', self, "startday")
-        newrow(layout, 'End day:', self, "endday")
         newrow(layout, 'Start hour:', self, "starthour")
         newrow(layout, 'End hour:', self, "endhour")
         newrow(layout, 'Interval:', self, "interval")
@@ -473,8 +478,6 @@ class ViWRNode(bpy.types.Node, ViNodes):
     bl_label = 'VI Wind Rose'
     bl_icon = 'LAMP'
 
-    startmonth = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 12, description = 'Start Month')
-    endmonth = bpy.props.IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month')
     wrtype = bpy.props.EnumProperty(items = [("0", "Hist 1", "Stacked histogram"), ("1", "Hist 2", "Stacked Histogram 2"), ("2", "Cont 1", "Filled contour"), ("3", "Cont 2", "Edged contour"), ("4", "Cont 3", "Lined contour")], name = "", default = '0')
 
     def init(self, context):
@@ -486,8 +489,6 @@ class ViWRNode(bpy.types.Node, ViNodes):
     def draw_buttons(self, context, layout):
         if self.inputs[0].is_linked and self.inputs[0].links[0].from_node.bl_label == 'VI Location' and self.inputs[0].links[0].from_node.loc == '1':
             newrow(layout, 'Type', self, "wrtype")
-            newrow(layout, 'Start Month', self, "startmonth")
-            newrow(layout, 'End Month', self, "endmonth")
             row = layout.row()
             row.operator("node.windrose", text="Create Wind Rose").nodeid = self['nodeid']
         else:
@@ -520,6 +521,8 @@ class ViLoc(bpy.types.Node, ViNodes):
     maxws = bpy.props.FloatProperty(name="", description="Max wind speed", min=0, max=90, default=0)
     minws = bpy.props.FloatProperty(name="", description="Min wind speed", min=0, max=90, default=0)
     avws = bpy.props.FloatProperty(name="", description="Average wind speed", min=0, max=90, default=0)
+    startmonth = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 12, description = 'Start Month')
+    endmonth = bpy.props.IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month')
 
     def init(self, context):
         for ng in bpy.data.node_groups:
@@ -548,6 +551,8 @@ class ViLoc(bpy.types.Node, ViNodes):
             row = layout.row()
             row.label('Longitude')
             row.prop(scene, "longitude")
+        newrow(layout, 'Start Month', self, "startmonth")
+        newrow(layout, 'End Month', self, "endmonth")
 
 class ViGExEnNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite export type'''

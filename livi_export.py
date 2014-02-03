@@ -134,9 +134,7 @@ def radgexport(export_op, node):
     for frame in framerange(scene, node.animmenu):
         fexport(scene, frame, export_op, node, connode)
 
-
 # rtrace export routine
-
     with open(node.filebase+".rtrace", "w") as rtrace:
         calcsurfverts, calcsurffaces = [], []
         for o, geo in enumerate(retobjs('livig')):
@@ -274,13 +272,10 @@ def radcexport(export_op, node):
 
             mtxfile = open(geonode.newdir+"/"+epwbase[0]+".mtx", "r")
 
-        elif node.sourcemenu == '1':
-            mtxfile = open(node.mtxname, "r")
-
         elif node.sourcemenu == '1' and int(node.analysismenu) > 1:
             mtxfile = open(node.mtxname, "r")
 
-        if node.sourcemenu != '2' or int(node.analysismenu) > 1:
+        if node.sourcemenu != '1' or int(node.analysismenu) > 1:
             if node.inputs['Location in'].is_linked:
                 mtxlines = mtxfile.readlines()
                 vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), 1, 1).weekday())

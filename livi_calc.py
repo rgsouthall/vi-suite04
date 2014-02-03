@@ -59,6 +59,7 @@ def rad_prev(prev_op, simnode, connode, geonode, simacc):
         prev_op.report({'ERROR'},"Missing export file. Make sure you have exported the scene.")
 
 def li_calc(calc_op, simnode, connode, geonode, simacc):
+    simnode['Animation'] = connode['Animation']
     os.chdir(geonode.newdir)
     scene = bpy.context.scene
     if bpy.context.active_object and bpy.context.active_object.mode != 'OBJECT':
@@ -168,7 +169,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                         with open(os.path.join(geonode.newdir, resname+"-"+str(frame)+".res"), "w") as daresfile:
                             [daresfile.write("{:.2f}\n".format(r)) for r in res[frame]]
 
-        if connode.analysismenu in ('2', '4'):
+        if connode.analysismenu != '3' or connode.bl_label != 'LiVi CBDM':
             if np == 1:
                 simnode['maxres'] = [numpy.amax(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
                 simnode['minres'] = [numpy.amin(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
@@ -179,7 +180,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                 simnode['avres'] = [sum(res[i])/len(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
             resapply(res, svres, simnode, connode, geonode)
 
-        elif connode.analysismenu == '3':
+        else:
             resapply(wattres, svres, simnode, connode, geonode)
 
         calc_op.report({'INFO'}, "Calculation is finished.")

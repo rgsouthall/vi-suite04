@@ -32,6 +32,7 @@ def li_display(simnode, connode, geonode):
     obreslist = []
     obcalclist = []
 
+
     for geo in scene.objects:
             scene.objects.active = geo
             if getattr(geo, 'mode') != 'OBJECT':
@@ -49,7 +50,7 @@ def li_display(simnode, connode, geonode):
                 obcalclist.append(geo)
                 o += 1
 
-        for frame in vi_func.framerange(scene, connode['Animation']):
+        for frame in vi_func.framerange(scene, simnode['Animation']):
             scene.frame_set(frame)
             for obcalc in obcalclist:
                 for vc in obcalc.data.vertex_colors:
@@ -93,8 +94,7 @@ def li_display(simnode, connode, geonode):
 
 
         for obres in obreslist:
-            oreslist = {str(f): 0 for f in vi_func.framerange(scene, connode['Animation'])}
-#            (oreslist, fe) =  ({str(scene.frame_start): 0}, scene.frame_start) if animmenu == "Static" else ({str(frame): 0 for frame in range(scene.frame_end - scene.frame_start + 1)}, scene.frame_end)
+            oreslist = {str(frame): 0 for frame in vi_func.framerange(scene, simnode['Animation'])}
             scene.objects.active = obres
             obres.select = True
             j = []
@@ -116,8 +116,7 @@ def li_display(simnode, connode, geonode):
 
             bpy.ops.object.shape_key_add(from_mix = False)
 
-#            for frame in range(scene.frame_start, fe + 1):
-            for frame in vi_func.framerange(scene, connode['Animation']):
+            for frame in vi_func.framerange(scene, simnode['Animation']):
                 findex = frame - scene.frame_start
                 bpy.ops.object.shape_key_add(from_mix = False)
                 obres.active_shape_key.name = str(frame)
@@ -130,15 +129,14 @@ def li_display(simnode, connode, geonode):
 
             obres['oreslist'] = oreslist
             try:
-                obres['omax'] ={str(f):max(oreslist[str(f)]) for f in vi_func.framerange(scene, connode['Animation'])}
-                obres['omin'] ={str(f):min(oreslist[str(f)]) for f in vi_func.framerange(scene, connode['Animation'])}
-                obres['oave'] ={str(f):sum(oreslist[str(f)])/len(oreslist[str(f)]) for f in vi_func.framerange(scene, connode['Animation'])}
+                obres['omax'] ={str(f):max(oreslist[str(f)]) for f in vi_func.framerange(scene, simnode['Animation'])}
+                obres['omin'] ={str(f):min(oreslist[str(f)]) for f in vi_func.framerange(scene, simnode['Animation'])}
+                obres['oave'] ={str(f):sum(oreslist[str(f)])/len(oreslist[str(f)]) for f in vi_func.framerange(scene, simnode['Animation'])}
             except Exception as e:
                 print(e)
             obres['j'] = j
 
-
-    for frame in vi_func.framerange(scene, connode['Animation']):
+    for frame in vi_func.framerange(scene, simnode['Animation']):
         scene.frame_set(frame)
         for obres in obreslist:
             if scene.vi_disp_3d == 1:
@@ -185,8 +183,8 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
     except:
         obreslist = [ob for ob in scene.objects if ob.type == 'MESH'  and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.get('licalc') == 1 and ob.lires == 1]
         obcalclist = [ob for ob in scene.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.get('licalc') == 1 and ob.lires == 0]
-    if (scene.li_disp_panel != 2 and scene.ss_disp_panel != 2)  or (connode['Animation'] == 'Static' and scene.frame_current != scene.frame_start) \
-    or scene.vi_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.vi_display_sel_only == True)  or scene.frame_current not in vi_func.framerange(scene, connode['Animation']):
+    if (scene.li_disp_panel != 2 and scene.ss_disp_panel != 2)  or (simnode['Animation'] == 'Static' and scene.frame_current != scene.frame_start) \
+    or scene.vi_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.vi_display_sel_only == True)  or scene.frame_current not in vi_func.framerange(scene, simnode['Animation']):
         return
 
     if bpy.context.active_object:
@@ -218,14 +216,9 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         view_pos = (view_mat.inverted()[0][3]/5, view_mat.inverted()[1][3]/5, view_mat.inverted()[2][3]/5)
 
         if cp == "0" or not geonode:
+            faces = [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons if ob.data.materials[f.material_index].vi_shadow] if simnode.bl_label == 'VI Shadow Study' else [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons if ob.data.materials[f.material_index].livi_sense]
             if scene.vi_display_vis_only:
-                faces = []
-                for f in  [f for f in ob.data.polygons if f.select == True]:
-                    (notvis, shadob) = scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f))))+ 0.02*f.normal, view_pos)[0:2]
-                    if not notvis or shadob.draw_type == 'WIRE':
-                        faces.append(f)
-            else:
-                faces = [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons]
+                faces = [f for f in faces if not scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f))))+ 0.02*f.normal, view_pos)[0]]
         else:
             fverts = set(sum([list(f.vertices[:]) for f in ob.data.polygons if f.select], []))
             if scene.vi_display_vis_only:
@@ -297,12 +290,13 @@ def li3D_legend(self, context, simnode, connode, geonode):
             blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
 
         blf.size(font_id, 20, 56)
-        if connode.bl_label == 'LiVi CBDM':
-            unit = ('kLuxHours', 'Annual kWh', 'DA (%)', '', 'UDI-a (%)')[int(connode.analysismenu)]
-        elif connode.bl_label == 'LiVi Basic':
-            unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(connode.analysismenu)]
-        elif connode.bl_label == 'LiVi Compliance':
-            unit = "DF %"
+        if connode:
+            if connode.bl_label == 'LiVi CBDM':
+                unit = ('kLuxHours', 'Annual kWh', 'DA (%)', '', 'UDI-a (%)')[int(connode.analysismenu)]
+            elif connode.bl_label == 'LiVi Basic':
+                unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(connode.analysismenu)]
+            elif connode.bl_label == 'LiVi Compliance':
+                unit = "DF %"
 
         cu = unit if connode else '% Sunlit'
 
@@ -311,11 +305,11 @@ def li3D_legend(self, context, simnode, connode, geonode):
         bgl.glDisable(bgl.GL_BLEND)
         height = context.region.height
         font_id = 0
-        if scene.frame_current in vi_func.framerange(scene, connode['Animation']):
-            findex = scene.frame_current - scene.frame_start if connode['Animation'] != 'Static' else 0
+        if scene.frame_current in vi_func.framerange(scene, simnode['Animation']):
+            findex = scene.frame_current - scene.frame_start if simnode['Animation'] != 'Static' else 0
             bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
             blf.size(font_id, 20, 48)
-            if hasattr(context.active_object, 'lires') and context.active_object.lires:
+            if (hasattr(context.active_object, 'lires') and context.active_object.lires) or (hasattr(context.active_object, 'licalc') and context.active_object.licalc):
                 vi_func.drawfont("Ave: {:.1f}".format(context.active_object['oave'][str(scene.frame_current)]), font_id, 0, height, 22, 480)
                 vi_func.drawfont("Max: {:.1f}".format(context.active_object['omax'][str(scene.frame_current)]), font_id, 0, height, 22, 495)
                 vi_func.drawfont("Min: {:.1f}".format(context.active_object['omin'][str(scene.frame_current)]), font_id, 0, height, 22, 510)

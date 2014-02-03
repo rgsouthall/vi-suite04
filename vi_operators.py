@@ -191,7 +191,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
 
         elif node.bl_label == 'LiVi CBDM':
             node.skynum = 4
-            node.simalg = (" |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/1000' ", " |  rcalc  -e '$1=$1+$2+$3' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)' ")[int(node.analysismenu)]
+            node.simalg = (" |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/1000' ", " |  rcalc  -e '$1=($1+$2+$3)/1000' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)' ")[int(node.analysismenu)]
             node['wd'] = (7, 5)[node.weekdays]
 
         if bpy.data.filepath:
@@ -735,27 +735,30 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
     def invoke(self, context, event):
         scene = context.scene
-        simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        scene.restree, scene.resnode = self.nodeid.split('@')[1], simnode.name
+        scene.restree = self.nodeid.split('@')[1]
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 1, 0
         clearscened(scene)
+        simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        scene.resnode = simnode.name
         direcs = []
-        
-        if simnode.animmenu == 'Static':
-            scmaxres, scminres, scavres, scene.frame_end = [100], [0], [0], scene.frame_start
+        simnode['Animation'] = simnode.animmenu
+        if simnode['Animation'] == 'Static':
+            scmaxres, scminres, scavres, scene.frame_end = [0], [100], [0], scene.frame_start
         else:
-            scmaxres = [100 for f in range(scene.frame_end - scene.frame_start + 1)]
-            scminres, scavres = [[0 for f in range(scene.frame_end - scene.frame_start + 1)] for x in range (2)]
-
-        fdiff = scene.frame_end - scene.frame_start + 1
+            scmaxres = [0 for f in range(scene.frame_end - scene.frame_start + 1)]
+            scminres = [100 for f in range(scene.frame_end - scene.frame_start + 1)]
+            scavres = [0 for f in range(scene.frame_end - scene.frame_start + 1)]
+#            fe = scene.frame_end
+        fdiff =  1 if simnode['Animation'] == 'Static' else scene.frame_end - scene.frame_start + 1
         locnode = simnode.inputs[0].links[0].from_node
         if locnode.loc == "1":
             with open(locnode.weather, "r") as epwfile:
                fl = epwfile.readline()
                scene.latitude, scene.longitude = float(fl.split(",")[6]), float(fl.split(",")[7])
 
-        time = datetime.datetime.combine(datetime.date.fromordinal(simnode.startday), datetime.time(simnode.starthour - 1))
-        endtime = datetime.datetime.combine(datetime.date.fromordinal(simnode.endday), datetime.time(simnode.endhour - 1))
+        time = datetime.datetime(datetime.datetime.now().year, locnode.startmonth, 1, simnode.starthour - 1)
+        y =  datetime.datetime.now().year if locnode.endmonth >= locnode.startmonth else datetime.datetime.now().year + 1
+        endtime = datetime.datetime(y, locnode.endmonth, (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)[locnode.endmonth - 1], simnode.endhour - 1)
         interval = datetime.timedelta(hours = modf(simnode.interval)[0], minutes = 60 * modf(simnode.interval)[1])
         while time <= endtime:
             beta, phi = solarPosition(time.timetuple().tm_yday, time.hour+time.minute/60, scene.latitude, scene.longitude)[2:]
@@ -794,13 +797,15 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
                         obavres[findex] += face.area * 100 * (shadcentres[findex][-1][2])/obsumarea[findex]
                         obmaxres[findex] = 100* (max([sh[2] for sh in shadcentres[findex]]))
-                        scmaxres[findex] = obmaxres[frame] if obmaxres[findex] > scmaxres[findex] else scmaxres[findex]
                         obminres[findex] = 100* (min([sh[2] for sh in shadcentres[findex]]))
-                        scminres[findex] = obminres[findex] if obminres[findex] < scminres[findex] else scminres[findex]
-                        scavres[findex] += obavres[findex]
-                ob['omax'] = {str(f):obmaxres[f] for f in range(fdiff)}
-                ob['omin'] = {str(f):obminres[f] for f in range(fdiff)}
-                ob['oave'] = {str(f):obavres[f] for f in range(fdiff)}
+
+                    scmaxres[findex] = obmaxres[findex] if obmaxres[findex] > scmaxres[findex] else scmaxres[findex]
+                    scminres[findex] = obminres[findex] if obminres[findex] < scminres[findex] else scminres[findex]
+                    scavres[findex] += obavres[findex]
+                ob['omax'] = {str(f):obmaxres[f - scene.frame_start] for f in framerange(scene, simnode.animmenu)}
+                ob['omin'] = {str(f):obminres[f - scene.frame_start] for f in framerange(scene, simnode.animmenu)}
+                ob['oave'] = {str(f):obavres[f - scene.frame_start] for f in framerange(scene, simnode.animmenu)}
+
             else:
                ob.licalc = 0
         try:

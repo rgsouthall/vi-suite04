@@ -176,9 +176,9 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
         if node.bl_label == 'LiVi Basic':
             node.skynum = int(node.skymenu) if node.analysismenu != "2" else 3
             if str(sys.platform) != 'win32':
-                node.simalg = (" |  rcalc  -e '$1=47.4*$1+120*$2+11.6*$3' ", " |  rcalc  -e '$1=$1+$2+$3' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' ")[int(node.analysismenu)]
+                node.simalg = (" |  rcalc  -e '$1=47.4*$1+120*$2+11.6*$3' ", " |  rcalc  -e '$1=$1' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' ")[int(node.analysismenu)]
             else:
-                node.simalg = (' |  rcalc  -e "$1=47.4*$1+120*$2+11.6*$3" ', ' |  rcalc  -e "$1=$1+$2+$3" ', ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ')[int(node.analysismenu)]
+                node.simalg = (' |  rcalc  -e "$1=47.4*$1+120*$2+11.6*$3" ', ' |  rcalc  -e "$1=$1" ', ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ')[int(node.analysismenu)]
             node.TZ = node.summer if node.daysav == True else node.stamer
 
         elif node.bl_label == 'LiVi Compliance':
@@ -191,7 +191,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
 
         elif node.bl_label == 'LiVi CBDM':
             node.skynum = 4
-            node.simalg = (" |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/1000' ", " |  rcalc  -e '$1=($1+$2+$3)/1000' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)' ")[int(node.analysismenu)]
+            node.simalg = (" |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/1000' ", " |  rcalc  -e '$1=$1/1000' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)' ")[int(node.analysismenu)]
             node['wd'] = (7, 5)[node.weekdays]
 
         if bpy.data.filepath:

@@ -55,8 +55,6 @@ def radmat(mat, scene):
 
     return(radname, matname, radnums)
 
-
-
 def face_centre(ob, obresnum, f):
     vsum = mathutils.Vector((0, 0, 0))
     for v in f.vertices:
@@ -75,25 +73,25 @@ def retobj(name, fr, node):
     if node.animmenu == "Geometry":
         return(node.objfilebase+"-{}-{}.obj".format(name.replace(" ", "_"), fr))
     else:
-        return(node.objfilebase+"-{}-0.obj".format(name.replace(" ", "_")))
+        return(node.objfilebase+"-{}-{}.obj".format(name.replace(" ", "_"), bpy.context.scene.frame_start))
 
 def retmesh(name, fr, node):
     if node.animmenu in ("Geometry", "Material"):
         return(node.objfilebase+"-{}-{}.mesh".format(name.replace(" ", "_"), fr))
     else:
-        return(node.objfilebase+"-{}-0.mesh".format(name.replace(" ", "_")))
+        return(node.objfilebase+"-{}-{}.mesh".format(name.replace(" ", "_"), bpy.context.scene.frame_start))
 
 def retmat(fr, node):
     if node.animmenu == "Material":
         return(node.filebase+"-"+str(fr)+".rad")
     else:
-        return(node.filebase+"-0.rad")
+        return("{}-{}.rad".format(node.filebase, bpy.context.scene.frame_start))
 
 def retsky(fr, node, geonode):
     if node.animmenu == "Time":
         return(geonode.filebase+"-"+str(fr)+".sky")
     else:
-        return(geonode.filebase+"-0.sky")
+        return("{}-{}.sky".format(geonode.filebase, bpy.context.scene.frame_start))
 
 def nodeinit(node):
     if str(sys.platform) != 'win32':

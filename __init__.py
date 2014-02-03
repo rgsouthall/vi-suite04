@@ -43,7 +43,6 @@ if str(sys.platform) == 'linux':
     if not hasattr(os.environ, 'RAYPATH'):
         os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/vi_suite/osx:/usr/local/EnergyPlus-{}/bin".format(addonpath, epversion)
         os.environ["RAYPATH"] = "/usr/local/radiance/lib:{}/lib".format(addonpath)
-        print("/usr/local/radiance/lib:{}/lib".format(addonpath))
 
 elif str(sys.platform) == 'win32':
     if not hasattr(os.environ, 'RAYPATH'):

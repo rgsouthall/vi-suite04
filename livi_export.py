@@ -21,7 +21,7 @@ import time as ti
 from math import sin, cos, tan, pi
 from mathutils import Vector
 from subprocess import PIPE, Popen, STDOUT
-from .vi_func import retsky, retmat, retobj, retmesh, clearscenege, clearscenece, clearscened, solarPosition, mtx2vals, framerange, retobjs, radmat
+from .vi_func import retsky, retmat, retobj, retmesh, clearscenege, clearscenece, clearscened, solarPosition, mtx2vals, framerange, frameindex, retobjs, radmat
 
 try:
     import numpy
@@ -66,20 +66,21 @@ def radgexport(export_op, node):
             o.select = True
             if o.get('merr') != 1:
                 if node.animmenu == 'Geometry':
-                    bpy.ops.export_scene.obj(filepath=retobj(o.name, frame, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=False, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
+                    bpy.ops.export_scene.obj(filepath=retobj(o.name, frame, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
                     objcmd = "obj2mesh -a {} {} {}".format(retmat(frame, node), retobj(o.name, frame, node), retmesh(o.name, frame, node))
+                    objrun = Popen(objcmd, shell = True, stdout = PIPE)
                 else:
-                    if frame == 0:
-                        bpy.ops.export_scene.obj(filepath=retobj(o.name, frame, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=False, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
+                    if frame == scene.frame_start:
+                        bpy.ops.export_scene.obj(filepath=retobj(o.name, frame, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
                         objcmd = "obj2mesh -a {} {} {}".format(retmat(frame, node), retobj(o.name, frame, node), retmesh(o.name, frame, node))
-                objrun = Popen(objcmd, shell = True, stdout = PIPE)
-                o.select = False
+                        objrun = Popen(objcmd, shell = True, stdout = PIPE)
 
                 for line in objrun.stdout:
                     if 'fatal' in str(line):
                         print('Mesh export error: '+ line)
                         o['merr'] = 1
                         break
+                o.select = False
 
             if o.get('merr') != 1:
                 radfile += "void mesh id \n1 "+retmesh(o.name, frame, node)+"\n0\n0\n\n"
@@ -131,7 +132,7 @@ def radgexport(export_op, node):
 
     node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
 
-    for frame in framerange(scene, node.animmenu):
+    for frame in frameindex(scene, node.animmenu):
         fexport(scene, frame, export_op, node, connode)
 
 # rtrace export routine
@@ -216,7 +217,7 @@ def radcexport(export_op, node):
             for frame in framerange(scene, ('Static', 'Animated')[node['Animation'] == 'TAnimated']):
                 sunexport(scene, node, geonode, starttime, frame)
                 if node.skynum < 2 and node.analysismenu != '2':
-                    if frame == 0:
+                    if frame == scene.frame_start:
                         if 'Sun' in [ob for ob in scene.objects if ob.get('VIType')]:
                             sun = [ob for ob in scene.objects if ob.get('VIType')][0]
                         else:
@@ -248,8 +249,12 @@ def radcexport(export_op, node):
 
     elif node.bl_label == 'LiVi CBDM':
         node['Animation'] = 'Static' if geonode.animmenu == 'Static' else 'Animated'
+        node['source'] = node.sourcemenu if int(node.analysismenu) > 1 else node.sourcemenu2
         if node.sourcemenu == '0' and node.inputs['Location in'].is_linked:
             locnode = node.inputs['Location in'].links[0].from_node
+            if locnode.endmonth < locnode.startmonth:
+                export_op.report({'ERROR'}, "End month is earlier than start month")
+                return
             os.chdir(geonode.newdir)
             pcombfiles = ""
             for i in range(0, 146):
@@ -265,17 +270,17 @@ def radcexport(export_op, node):
                             for epwline in epwlines[8:]:
                                 wea.write("{0[1]} {0[2]} {0[3]} {0[14]} {0[15]} \n".format(epwline.split(",")))
                     if not os.path.isfile(geonode.newdir+"/"+epwbase[0]+".mtx"):
-                        subprocess.call("gendaymtx -m 1 {0}.wea > {0}.mtx".format(geonode.newdir+"/"+epwbase[0]), shell=True)
+                        subprocess.call("gendaymtx -O1 {0}.wea > {0}.mtx".format(geonode.newdir+"/"+epwbase[0]), shell=True)
             else:
-                export_op.report({'Error'}, "Not a valid EPW file")
+                export_op.report({'ERROR'}, "Not a valid EPW file")
                 return
 
             mtxfile = open(geonode.newdir+"/"+epwbase[0]+".mtx", "r")
-
-        elif node.sourcemenu == '1' and int(node.analysismenu) > 1:
+        
+        elif node['source'] == '1' and int(node.analysismenu) > 1:
             mtxfile = open(node.mtxname, "r")
 
-        if node.sourcemenu != '1' or int(node.analysismenu) > 1:
+        if node['source'] != '2' or int(node.analysismenu) > 1:
             if node.inputs['Location in'].is_linked:
                 mtxlines = mtxfile.readlines()
                 vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), 1, 1).weekday())
@@ -283,7 +288,7 @@ def radcexport(export_op, node):
                 node['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
                 oconvcmd = "oconv -w - > {0}-whitesky.oct".format(geonode.filebase)
                 Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = node['whitesky'].encode('utf-8'))
-                subprocess.call("vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0 | rcontrib -bn 146 -fo -ab 0 -ad 512 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o p%d.hdr -m sky_glow {}-whitesky.oct".format(geonode.nproc, geonode.filename), shell = True)
+                subprocess.call("vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0 | rcontrib -bn 146 -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o p%d.hdr -m sky_glow {}-whitesky.oct".format(geonode.nproc, geonode.filename), shell = True)
 
                 for j in range(0, 146):
                     subprocess.call("pcomb -s {0} p{1}.hdr > ps{1}.hdr".format(vals[j], j), shell = True)
@@ -298,7 +303,7 @@ def radcexport(export_op, node):
             bpy.data.images.load(node.hdrname)
         node['skyfiles'] = [hdrsky(node.hdrname)]
 
-    for frame in framerange(scene, node['Animation']):
+    for frame in frameindex(scene, node['Animation']):
         fexport(scene, frame, export_op, node, geonode)
 
 def sunexport(scene, node, geonode, starttime, frame):
@@ -351,7 +356,7 @@ def skyexport(node, rad_sky):
     rad_sky.write("skyglow source sky\n0\n0\n4 0 0 1  180\n\n")
 
 def hdrsky(skyfile):
-    return("# Sky material\nvoid colorpict hdr_env\n7 red green blue {} angmap.cal sb_u sb_v\n0\n0\n\nhdr_env glow env_glow\n0\n0\n4 1 1 1 0\n\nenv_glow bubble sky\n0\n0\n4 0 0 0 500\n\n".format(skyfile))
+    return("# Sky material\nvoid colorpict hdr_env\n7 red green blue {} angmap.cal sb_u sb_v\n0\n0\n\nhdr_env glow env_glow\n0\n0\n4 1 1 1 0\n\nenv_glow bubble sky\n0\n0\n4 0 0 0 5000\n\n".format(skyfile))
 
 def fexport(scene, frame, export_op, node, othernode):
     (geonode, connode) = (node, othernode) if node.bl_label == 'LiVi Geometry' else (othernode, node)
@@ -361,10 +366,10 @@ def fexport(scene, frame, export_op, node, othernode):
     else:
         radtext = geonode['radfiles'][0] + connode['skyfiles'][frame] if len(geonode['radfiles']) == 1 else geonode['radfiles'][frame] + connode['skyfiles'][0]
 
-    with open(geonode.filebase+"-{}.rad".format(frame), 'w') as radfile:
+    with open(geonode.filebase+"-{}.rad".format(frame + scene.frame_start), 'w') as radfile:
         radfile.write(radtext)
 
-    oconvcmd = "oconv -w {0}-{1}.rad > {0}-{1}.oct".format(geonode.filebase, frame)
+    oconvcmd = "oconv -w {0}-{1}.rad > {0}-{1}.oct".format(geonode.filebase, frame + scene.frame_start)
 #    This next line allows the radiance scene description to be piped into the oconv command.
 #   oconvcmd = "oconv -w - > {0}-{1}.oct".format(geonode.filebase, frame).communicate(input = radtext.encode('utf-8'))
     Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT)#.communicate(input = radtext.encode('utf-8'))

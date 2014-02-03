@@ -29,30 +29,31 @@ except:
     np = 0
 
 def radfexport(scene, export_op, connode, geonode):
-    for frame in vi_func.framerange(scene, connode['Animated']):
+    for frame in vi_func.frameindex(scene, connode['Animation']):
         livi_export.fexport(scene, frame, export_op, connode, geonode)
 
 def rad_prev(prev_op, simnode, connode, geonode, simacc):
     scene = bpy.context.scene
-    if simnode.simacc == ("0", "3")[connode.bl_label == 'LiVi Basic']:
+    simacc = simnode.simacc if connode.bl_label == 'LiVi Basic' else simnode.csimacc
+    if simacc == ("0", "3")[connode.bl_label == 'LiVi Basic']:
         params = simnode.cusacc
     else:
         num = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-ar", 128, 512, 1024), ("-as", 128, 512, 1024), ("-aa", 0.3, 0.15, 0.08), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
         params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simnode.simacc)+1] for n in num]))
 
-    if os.path.isfile(geonode.filebase+"-0.rad"):
+    if os.path.isfile("{}-{}.rad".format(geonode.filebase, scene.frame_current)):
         cam = scene.camera
         if cam != None:
             cang = 180 if 'VI Glare' == connode.bl_label else cam.data.angle*180/pi
             vv = 180 if 'VI Glare' == connode.bl_label else cang * scene.render.resolution_y/scene.render.resolution_x
             rvucmd = "rvu -w -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0][2]:.3f} {3[1][2]:.3f} {3[2][2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct &".format(geonode.nproc, vv, cang, -1*cam.matrix_world, cam.location, params, geonode.filebase, scene.frame_current)
             rvurun = Popen(rvucmd, shell = True, stdout=PIPE, stderr=STDOUT)
-#            for l,line in enumerate(rvurun.stdout):
-#                if 'octree stale?' in line.decode() or 'truncated octree' in line.decode():
-#                    livi_export.radfexport(scene, prev_op, connode, geonode)
-#                    rad_prev(prev_op, simnode, connode, geonode, simacc)
+            for l,line in enumerate(rvurun.stdout):
+                if 'octree stale?' in line.decode() or 'truncated octree' in line.decode():
+                    radfexport(scene, prev_op, connode, geonode)
+                    rad_prev(prev_op, simnode, connode, geonode, simacc)
 #                    prev_op.report({'ERROR'},"Radiance octree is incomplete. Re-run geometry and context export")
-#                    return
+                    return
         else:
             prev_op.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
     else:
@@ -89,6 +90,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
             res, svres = [[[0 for p in range(geonode.reslen)] for x in range(len(vi_func.frameindex(scene, connode['Animation'])))] for x in range(2)]
 
         for frame in vi_func.framerange(scene, connode['Animation']):
+            findex = frame - scene.frame_start
             if connode.bl_label in ('LiVi Basic', 'LiVi Compliance') or (connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) < 2):
                 if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
                     subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
@@ -96,16 +98,16 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                 rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
                 with open(os.path.join(geonode.newdir, resname+"-"+str(frame)+".res"), 'w') as resfile:
                     for l,line in enumerate(rtrun.stdout):
-                        if 'octree stale?' in line.decode():
+                        if 'octree stale?' in line.decode() or 'truncated octree' in line.decode():
                             resfile.close()
                             radfexport(scene, calc_op, connode, geonode)
                             li_calc(calc_op, simnode, connode, geonode, simacc)
                             return
-                        if 'truncated octree' in line.decode():
-                            calc_op.report({'ERROR'},"Radiance octree is incomplete. Re-run geometry and context export")
-                            return
-                        res[frame][l] = float(line.decode())
-                    resfile.write("{}".format(res[frame]).strip("]").strip("["))
+#                        if 'truncated octree' in line.decode():
+#                            calc_op.report({'ERROR'},"Radiance octree is incomplete. Re-run geometry and context export")
+#                            return
+                        res[findex][l] = float(line.decode())
+                    resfile.write("{}".format(res[findex]).strip("]").strip("["))
 
             if connode.bl_label == 'LiVi Compliance' and connode.analysismenu in ('0', '1'):
                 if connode.analysismenu in ('0', '1'):
@@ -113,8 +115,8 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                     svrun = Popen(svcmd, shell = True, stdout=PIPE, stderr=STDOUT)
                     with open(os.path.join(geonode.newdir,'skyview'+"-"+str(frame)+".res"), 'w') as svresfile:
                         for sv,line in enumerate(svrun.stdout):
-                            svres[frame][sv] = float(line.decode())
-                        svresfile.write("{}".format(svres[frame]).strip("]").strip("["))
+                            svres[findex][sv] = float(line.decode())
+                        svresfile.write("{}".format(svres[findex]).strip("]").strip("["))
 
             if connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) > 1:
                 if connode.sourcemenu == '2':
@@ -171,13 +173,13 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
 
         if connode.analysismenu != '3' or connode.bl_label != 'LiVi CBDM':
             if np == 1:
-                simnode['maxres'] = [numpy.amax(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
-                simnode['minres'] = [numpy.amin(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
-                simnode['avres'] = [numpy.average(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
+                simnode['maxres'] = [numpy.amax(res[i]) for i in vi_func.frameindex(scene, connode['Animation'])]
+                simnode['minres'] = [numpy.amin(res[i]) for i in vi_func.frameindex(scene, connode['Animation'])]
+                simnode['avres'] = [numpy.average(res[i]) for i in vi_func.frameindex(scene, connode['Animation'])]
             else:
-                simnode['maxres'] = [max(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
-                simnode['minres'] = [min(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
-                simnode['avres'] = [sum(res[i])/len(res[i]) for i in vi_func.framerange(scene, connode['Animation'])]
+                simnode['maxres'] = [max(res[i]) for i in vi_func.frameindex(scene, connode['Animation'])]
+                simnode['minres'] = [min(res[i]) for i in vi_func.frameindex(scene, connode['Animation'])]
+                simnode['avres'] = [sum(res[i])/len(res[i]) for i in vi_func.frameindex(scene, connode['Animation'])]
             resapply(res, svres, simnode, connode, geonode)
 
         else:
@@ -230,7 +232,7 @@ def resapply(res, svres, simnode, connode, geonode):
                             bpy.ops.mesh.shape_keys_remove()
 
                     bpy.ops.mesh.vertex_color_add()
-                    geo.data.vertex_colors[frame].name = str(frame)
+                    geo.data.vertex_colors[frame].name = str(frame + scene.frame_start)
                     vertexColour = geo.data.vertex_colors[frame]
 
                     mat = [matslot.material for matslot in geo.material_slots if matslot.material.livi_sense][0]
@@ -577,7 +579,7 @@ def resapply(res, svres, simnode, connode, geonode):
         if connode.bl_label == 'LiVi Compliance' and dfpass[frame] == 1:
             dfpass[frame] = 2 if dfpassarea/dftotarea >= 0.8 else dfpass[frame]
 
-    for frame in vi_func.framerange(scene, 'Animated'):
+    for frame in vi_func.framerange(scene, simnode['Animation']):
         scene.frame_set(frame)
         for geo in scene.objects:
             if geo.get('licalc') == 1:

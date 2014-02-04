@@ -250,6 +250,7 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
     daauto = bpy.props.IntProperty(name = '', default = 3000, min = 1, max = 5000)
     skynum = bpy.props.IntProperty(name = '', default = 0, min = 0, max = 6)
     exported = bpy.props.BoolProperty(name = '', default = False)
+    hdr = bpy.props.BoolProperty(name = '', default = False)
     resname = bpy.props.StringProperty()
     unit = bpy.props.StringProperty()
 
@@ -281,6 +282,7 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
                newrow(layout, 'Fell short (Max):', self, 'damin')
                newrow(layout, 'Supplementry (Max):', self, 'dasupp')
                newrow(layout, 'Autonomous (Max):', self, 'daauto')
+        
 
         row = layout.row()
         row.label('Source file:')
@@ -290,6 +292,11 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         else:
             row.prop(self, 'sourcemenu')
             sm = self.sourcemenu
+            
+        if sm == '0':
+            row = layout.row()
+            row.label('Export HDR:')
+            row.prop(self, 'hdr')
 
         row = layout.row()
         if sm == '1':

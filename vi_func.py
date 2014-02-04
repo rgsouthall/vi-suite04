@@ -456,19 +456,20 @@ def mtx2vals(mtxlines, fwd):
         np = 0
 
     vecvals = numpy.array([[x%24, (fwd+int(x/24))%7] + [0 for p in range(146)] for x in range(0,8760)]) if np ==1 else [[x%24, (fwd+int(x/24))%7] + [0 for p in range(146)] for x in range(0,8760)]
-    vals = numpy.zeros((146)) if np ==1 else [0 for x in range(146)]
+#    vals = numpy.zeros((146)) if np ==1 else [0 for x in range(146)]
+    vals =  numpy.array([[0,1,2] for x in range(146)]) if np ==1 else [[0,1,2] for x in range(146)]
 
     hour = 0
     patch = 2
     for fvals in mtxlines:
         try:
             sumvals = sum([float(lv) for lv in fvals.split(" ")])
+            indvals = [float(lv) for lv in fvals.split(" ")]
             if sumvals > 0:
-                vals[patch - 2] += sumvals
-                if np == 1:
-                    vecvals[hour,patch] = sumvals
-                else:
-                    vecvals[hour][patch] = sumvals
+                for i, v in enumerate(vals[patch - 2]):
+                    vals[patch - 2][i] += indvals[i]
+
+                vecvals[hour][patch] = sumvals
             hour += 1
         except:
             if fvals != "\n":

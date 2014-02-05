@@ -42,21 +42,21 @@ def li_display(simnode, connode, geonode):
 
     if len(bpy.app.handlers.frame_change_pre) == 0:
         bpy.app.handlers.frame_change_pre.append(livi_export.cyfc1)
-        o = 0
+        
+#    o = 0
+    for geo in scene.objects:
+        if geo.type == "MESH" and geo.get('licalc') and geo.hide == False:
+            bpy.ops.object.select_all(action = 'DESELECT')
+            obcalclist.append(geo)
+#            o += 1
 
-        for geo in scene.objects:
-            if geo.type == "MESH" and geo.get('licalc') == 1 and geo.hide == False:
-                bpy.ops.object.select_all(action = 'DESELECT')
-                obcalclist.append(geo)
-                o += 1
-
-        for frame in vi_func.framerange(scene, simnode['Animation']):
-            scene.frame_set(frame)
-            for obcalc in obcalclist:
-                for vc in obcalc.data.vertex_colors:
-                    (vc.active, vc.active_render) = (1, 1) if vc.name == str(frame) else (0, 0)
-                    vc.keyframe_insert("active")
-                    vc.keyframe_insert("active_render")
+    for frame in vi_func.framerange(scene, simnode['Animation']):
+        scene.frame_set(frame)
+        for obcalc in obcalclist:
+            for vc in obcalc.data.vertex_colors:
+                (vc.active, vc.active_render) = (1, 1) if vc.name == str(frame) else (0, 0)
+                vc.keyframe_insert("active")
+                vc.keyframe_insert("active_render")
 
     scene.frame_set(scene.frame_start)
     scene.objects.active = None
@@ -92,65 +92,63 @@ def li_display(simnode, connode, geonode):
             bpy.ops.object.select_all(action = 'DESELECT')
             scene.objects.active = None
             
-            for obres in obreslist:
-                
-                scene.objects.active = obres
-                obres.select = True
-                j = []
-    
-                if cp == '0' or not geonode:
-                    if len(obres.data.polygons) > 1:
-                        bpy.ops.object.mode_set(mode = 'EDIT')
-                        bpy.ops.mesh.select_all(action = 'SELECT')
-                        bpy.ops.mesh.extrude_faces_move()
-                        bpy.ops.object.mode_set(mode = 'OBJECT')
-                        bpy.ops.object.select_all(action = 'DESELECT')
-    
-                        for fli in [face.loop_indices for face in obres.data.polygons if face.select == True]:
-                            for li in fli:
-                                j.append(obres.data.loops[li].vertex_index)
-                else:
-                    for vn in obres['cverts']:
-                        j.append([j for j,x in enumerate(obres.data.loops) if vn == x.vertex_index][0])
-    
+        for obres in obreslist:
+            scene.objects.active = obres
+            obres.select = True
+            j = []
+
+            if cp == '0' or not geonode:
+                if len(obres.data.polygons) > 1:
+                    bpy.ops.object.mode_set(mode = 'EDIT')
+                    bpy.ops.mesh.select_all(action = 'SELECT')
+                    bpy.ops.mesh.extrude_faces_move()
+                    bpy.ops.object.mode_set(mode = 'OBJECT')
+                    bpy.ops.object.select_all(action = 'DESELECT')
+
+                    for fli in [face.loop_indices for face in obres.data.polygons if face.select == True]:
+                        for li in fli:
+                            j.append(obres.data.loops[li].vertex_index)
+            else:
+                for vn in obres['cverts']:
+                    j.append([j for j,x in enumerate(obres.data.loops) if vn == x.vertex_index][0])
+
+            bpy.ops.object.shape_key_add(from_mix = False)
+
+            for frame in vi_func.framerange(scene, simnode['Animation']):
+#                findex = frame - scene.frame_start
                 bpy.ops.object.shape_key_add(from_mix = False)
-    
-                for frame in vi_func.framerange(scene, simnode['Animation']):
-                    findex = frame - scene.frame_start
-                    bpy.ops.object.shape_key_add(from_mix = False)
-                    obres.active_shape_key.name = str(frame)
-                obres['j'] = j
+                obres.active_shape_key.name = str(frame)
+#            obres['j'] = j
                     
-    oreslist = {str(frame): 0 for frame in vi_func.framerange(scene, simnode['Animation'])}        
-    olist = obcalclist if not scene.vi_disp_3d == 1 else obreslist
-    for obres in olist: 
-        ofaces = [face for face in obres.data.polygons if face.index in obres['cfaces']] if not scene.vi_disp_3d else [face for face in obres.data.polygons if face.select]
-        for frame in vi_func.framerange(scene, simnode['Animation']):  
-            findex = frame - scene.frame_start
-            if cp == '0' and geonode:
-                oreslist[str(frame)] = [simnode['minres'][findex] + (simnode['maxres'][findex] - simnode['minres'][findex]) * 1/0.75 * vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[li].color) for li in [face.loop_indices[0] for face in ofaces]]
-            elif not geonode:
-                oreslist[str(frame)] = [simnode['minres'][findex] + (simnode['maxres'][findex] - simnode['minres'][findex]) * obres.data.vertex_colors['{}'.format(frame)].data[li].color[0] for li in [face.loop_indices[0] for face in ofaces]]
-            elif cp == '1':
-                oreslist[str(frame)] = [simnode['minres'][findex] + (simnode['maxres'][findex] - simnode['minres'][findex]) * 1/0.75 * vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[j].color) for j in range(len(obres.data.vertex_colors[str(frame)].data))]
+#    oreslist = {str(frame): 0 for frame in vi_func.framerange(scene, simnode['Animation'])}        
+#    olist = obreslist + obcalclist if scene.vi_disp_3d == 1 else obcalclist
+#    for obres in olist: 
+#        ofaces = [face for face in obres.data.polygons if face.index in obres['cfaces']] if not scene.vi_disp_3d else [face for face in obres.data.polygons if face.select]
+#        for frame in vi_func.framerange(scene, simnode['Animation']):  
+#            findex = frame - scene.frame_start
+#            if cp == '0' and geonode:
+#                oreslist[str(frame)] = [simnode['minres'][findex] + (simnode['maxres'][findex] - simnode['minres'][findex]) * 1/0.75 * vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[li].color) for li in [face.loop_indices[0] for face in ofaces]]
+#            elif not geonode:
+#                oreslist[str(frame)] = [simnode['minres'][findex] + (simnode['maxres'][findex] - simnode['minres'][findex]) * obres.data.vertex_colors['{}'.format(frame)].data[li].color[0] for li in [face.loop_indices[0] for face in ofaces]]
+#            elif cp == '1':
+#                oreslist[str(frame)] = [simnode['minres'][findex] + (simnode['maxres'][findex] - simnode['minres'][findex]) * 1/0.75 * vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[j].color) for j in range(len(obres.data.vertex_colors[str(frame)].data))]
 
-        obres['oreslist'] = oreslist
-        try:
-            obres['omax'] ={str(f):max(oreslist[str(f)]) for f in vi_func.framerange(scene, simnode['Animation'])}
-            obres['omin'] ={str(f):min(oreslist[str(f)]) for f in vi_func.framerange(scene, simnode['Animation'])}
-            obres['oave'] ={str(f):sum(oreslist[str(f)])/len(oreslist[str(f)]) for f in vi_func.framerange(scene, simnode['Animation'])}
-        except Exception as e:
-            print(e)
+#        obres['oreslist'] = oreslist
+#        try:
+#            obres['omax'] ={str(f):max(oreslist[str(f)]) for f in vi_func.framerange(scene, simnode['Animation'])}
+#            obres['omin'] ={str(f):min(oreslist[str(f)]) for f in vi_func.framerange(scene, simnode['Animation'])}
+#            obres['oave'] ={str(f):sum(oreslist[str(f)])/len(oreslist[str(f)]) for f in vi_func.framerange(scene, simnode['Animation'])}
+#        except Exception as e:
+#            print(e)
         
-
     for frame in vi_func.framerange(scene, simnode['Animation']):
         scene.frame_set(frame)
         for obres in obreslist:
             if scene.vi_disp_3d == 1:
                 for shape in obres.data.shape_keys.key_blocks:
-                        if "Basis" not in shape.name:
-                            shape.value = 1 if int(shape.name) == frame else 0
-                            shape.keyframe_insert("value")
+                    if "Basis" not in shape.name:
+                        shape.value = 1 if int(shape.name) == frame else 0
+                        shape.keyframe_insert("value")
 
             for vc in obres.data.vertex_colors:
                 (vc.active, vc.active_render) = (1, 1) if vc.name == str(frame) else (0, 0)
@@ -190,8 +188,10 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
     except:
         obreslist = [ob for ob in scene.objects if ob.type == 'MESH'  and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.get('licalc') == 1 and ob.lires == 1]
         obcalclist = [ob for ob in scene.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.get('licalc') == 1 and ob.lires == 0]
+    
     if (scene.li_disp_panel != 2 and scene.ss_disp_panel != 2)  or (simnode['Animation'] == 'Static' and scene.frame_current != scene.frame_start) \
-    or scene.vi_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.vi_display_sel_only == True)  or scene.frame_current not in vi_func.framerange(scene, simnode['Animation']):
+    or scene.vi_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.vi_display_sel_only == True)  \
+    or scene.frame_current not in vi_func.framerange(scene, simnode['Animation']) or bpy.context.active_object.mode == 'EDIT':
         return
 
     if bpy.context.active_object:
@@ -225,11 +225,11 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         if cp == "0" or not geonode:
             faces = [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons if ob.data.materials[f.material_index].vi_shadow] if simnode.bl_label == 'VI Shadow Study' else [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons if ob.data.materials[f.material_index].livi_sense]
             if scene.vi_display_vis_only:
-                faces = [f for f in faces if not scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f))))+ 0.02*f.normal, view_pos)[0]]
+                faces = [f for f in faces if not scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f))))+ 0.05*f.normal, view_pos)[0]]
         else:
             fverts = set(sum([list(f.vertices[:]) for f in ob.data.polygons if f.select], []))
             if scene.vi_display_vis_only:
-                verts = [ob.data.vertices[v] for v in fverts if not scene.ray_cast(ob_mat*vi_func.v_pos(ob, v) + 0.02*ob.data.vertices[v].normal,view_pos)[0]]
+                verts = [ob.data.vertices[v] for v in fverts if not scene.ray_cast(ob_mat*vi_func.v_pos(ob, v) + 0.05*ob.data.vertices[v].normal,view_pos)[0]]
             else:
                 verts = [ob.data.vertices[v] for v in fverts]
             loops = []

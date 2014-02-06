@@ -79,7 +79,10 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
         if simacc == ("0", "3")[connode.bl_label == 'LiVi Basic']:
             params = simnode.cusacc
         else:
-            num = (("-ab", 2, 3, 5), ("-ad", 512, 2048, 4096), ("-ar", 128, 512, 1024), ("-as", 256, 1024, 2048), ("-aa", 0.3, 0.2, 0.18), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.001, 0.0002))
+            if connode.bl_label == 'LiVi CBDM':
+                num = (("-ab", 2, 3, 5), ("-ad", 512, 2048, 4096), ("-ar", 128, 512, 1024), ("-as", 256, 1024, 2048), ("-aa", 0.0, 0.0, 0.0), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.001, 0.0002))
+            else:
+                num = (("-ab", 2, 3, 5), ("-ad", 512, 2048, 4096), ("-ar", 128, 512, 1024), ("-as", 256, 1024, 2048), ("-aa", 0.3, 0.2, 0.18), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.001, 0.0002))
             params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simacc)+1] for n in num]))
 
         vi_func.clearscened(scene)
@@ -94,7 +97,9 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
             if connode.bl_label in ('LiVi Basic', 'LiVi Compliance') or (connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) < 2):
                 if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
                     subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
-                rtcmd = "rtrace -n {0} -w {1} -faa -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+#                rtcmd = "rtrace -n {0} -w {1} -faa -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+                rtcmd = "rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+                print(rtcmd)
                 rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
                 with open(os.path.join(geonode.newdir, resname+"-"+str(frame)+".res"), 'w') as resfile:
                     for l,line in enumerate(rtrun.stdout):
@@ -103,9 +108,6 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                             radfexport(scene, calc_op, connode, geonode)
                             li_calc(calc_op, simnode, connode, geonode, simacc)
                             return
-#                        if 'truncated octree' in line.decode():
-#                            calc_op.report({'ERROR'},"Radiance octree is incomplete. Re-run geometry and context export")
-#                            return
                         res[findex][l] = float(line.decode())
                     resfile.write("{}".format(res[findex]).strip("]").strip("["))
 
@@ -146,10 +148,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                         if connode.analysismenu == '3' or (connode.cbdm_start_hour <= readings[:][0] < connode.cbdm_end_hour and readings[:][1] < connode['wd']):
                             finalillu = [0 for x in range(geonode.reslen)] if np == 0 else numpy.zeros((geonode.reslen))
                             for f, fi in enumerate(finalillu):
-                                if np == 1:
-                                    finalillu[f] = numpy.sum([numpy.multiply(sensarray[f], readings[2:])])
-                                else:
-                                    finalillu[f] = sum([a*b for a,b in zip(sensarray[f],readings[2:])])
+                                finalillu[f] = numpy.sum([numpy.multiply(sensarray[f], readings[2:])]) if np == 1 else sum([a*b for a,b in zip(sensarray[f],readings[2:])])
                             hours += 1
 
                             if connode.analysismenu == '2':
@@ -205,6 +204,7 @@ def resapply(res, svres, simnode, connode, geonode):
 
         for geo in vi_func.retobjs('livig'):
             if geo.get('licalc') == 1:
+                geo['oave'], geo['omax'], geo['omin'], geo['oreslist'] = {}, {}, {}, {}
                 weightres = 0
                 bpy.ops.object.select_all(action = 'DESELECT')
                 scene.objects.active = None
@@ -253,7 +253,10 @@ def resapply(res, svres, simnode, connode, geonode):
                                 vertexColour.data[loop_index].color = rgb[f]
                             weightres += vi_func.triarea(geo, face) * res[frame][f]/geoarea
                             f += 1
-                    geo['avres'] = weightres
+                    geo['oave'][str(frame+scene.frame_start)] = weightres
+                    geo['omax'][str(frame+scene.frame_start)] = max(res[frame])
+                    geo['omin'][str(frame+scene.frame_start)] = min(res[frame])
+                    geo['oreslist'][str(frame+scene.frame_start)] = res[frame]
 
                     if connode.bl_label == 'LiVi Compliance':
                         if connode.analysismenu == '1':

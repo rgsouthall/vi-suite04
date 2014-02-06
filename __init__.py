@@ -112,7 +112,7 @@ def confunc(i):
 
 
 def eupdate(self, context):
-    inv = 0 if context.scene.resnode == 'VI Shadow Study' else 1        
+    inv = 0# if context.scene.resnode == 'VI Shadow Study' else 1        
     for frame in range(context.scene.frame_start, context.scene.frame_end + 1):
         for o in [obj for obj in bpy.data.objects if obj.lires == 1]:
             if str(frame) in o['omax'].keys():

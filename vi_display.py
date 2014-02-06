@@ -225,7 +225,9 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         if cp == "0" or not geonode:
             faces = [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons if ob.data.materials[f.material_index].vi_shadow] if simnode.bl_label == 'VI Shadow Study' else [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons if ob.data.materials[f.material_index].livi_sense]
             if scene.vi_display_vis_only:
-                faces = [f for f in faces if not scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f))))+ 0.05*f.normal, view_pos)[0]]
+                faces = [f for f in faces if not scene.ray_cast(ob_mat*((vi_func.face_centre(ob, len(obreslist), f)))+ 0.05*f.normal, view_pos)[0]]
+
+#                faces = [f for f in faces if not scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f))))+ 0.05*f.normal, [x[0] + 0.2*(x[0] - x[1]) for x in zip(view_pos, (ob_mat*vi_func.face_centre(ob, len(obreslist), f)))])[0]]
         else:
             fverts = set(sum([list(f.vertices[:]) for f in ob.data.polygons if f.select], []))
             if scene.vi_display_vis_only:

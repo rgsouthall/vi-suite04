@@ -448,26 +448,28 @@ def drawfont(text, fi, lencrit, height, x1, y1):
     blf.position(fi, x1, height - y1 - lencrit*26, 0)
     blf.draw(fi, text)
 
-def mtx2vals(mtxlines, fwd):
+def mtx2vals(mtxlines, fwd, locnode):
+    records = (datetime.datetime(datetime.datetime.now().year, locnode.endmonth, 1) - datetime.datetime(datetime.datetime.now().year, locnode.startmonth, 1)).days*24
     try:
         import numpy
         np = 1
     except:
         np = 0
 
-    vecvals = numpy.array([[x%24, (fwd+int(x/24))%7] + [0 for p in range(146)] for x in range(0,8760)]) if np ==1 else [[x%24, (fwd+int(x/24))%7] + [0 for p in range(146)] for x in range(0,8760)]
-#    vals = numpy.zeros((146)) if np ==1 else [0 for x in range(146)]
-    vals =  numpy.array([[0,1,2] for x in range(146)]) if np ==1 else [[0,1,2] for x in range(146)]
+    vecvals = numpy.array([[x%24, (fwd+int(x/24))%7] + [0 for p in range(146)] for x in range(0,records)]) if np ==1 else [[x%24, (fwd+int(x/24))%7] + [0 for p in range(146)] for x in range(0,records)]
+    vals = numpy.zeros((146)) if np ==1 else [0 for x in range(146)]
+#    vals =  numpy.array([[0,1,2] for x in range(146)]) if np ==1 else [[0,1,2] for x in range(146)]
 
     hour = 0
     patch = 2
     for fvals in mtxlines:
         try:
-            sumvals = sum([float(lv) for lv in fvals.split(" ")])
-            indvals = [float(lv) for lv in fvals.split(" ")]
+            sumvals = sum([float(lv) for lv in fvals.split(" ")])/3
+#            indvals = [float(lv) for lv in fvals.split(" ")]
             if sumvals > 0:
-                for i, v in enumerate(vals[patch - 2]):
-                    vals[patch - 2][i] += indvals[i]
+                vals[patch - 2] += sumvals
+#                for i, v in enumerate(vals[patch - 2]):
+#                    vals[patch - 2][i] += indvals[i]
 
                 vecvals[hour][patch] = sumvals
             hour += 1

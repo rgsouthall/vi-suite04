@@ -191,7 +191,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
 
         elif node.bl_label == 'LiVi CBDM':
             node.skynum = 4
-            node.simalg = (" |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/1000' ", " |  rcalc  -e '$1=$1/1000' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)' ")[int(node.analysismenu)]
+            node.simalg = (" |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/1000' ", " |  rcalc  -e '$1=($1+$2+$3)/3000' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)' ")[int(node.analysismenu)]
             node['wd'] = (7, 5)[node.weekdays]
 
         if bpy.data.filepath:
@@ -785,7 +785,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     vertexColor = ob.data.vertex_colors[-1]
                     obsumarea[findex] = sum([face.area for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow])
                     for face in [face for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow]:
-                        shadcentres[findex].append([obm*mathutils.Vector((face.center)) + 0.2*face.normal, obm*mathutils.Vector((face.center)), 1])
+                        shadcentres[findex].append([obm*mathutils.Vector((face.center)) + 0.05*face.normal, obm*mathutils.Vector((face.center)), 1])
                         for li in face.loop_indices:
                             vertexColor.data[li].color = (1, 1, 1)
                         for direc in direcs:
@@ -805,7 +805,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 ob['omax'] = {str(f):obmaxres[f - scene.frame_start] for f in framerange(scene, simnode.animmenu)}
                 ob['omin'] = {str(f):obminres[f - scene.frame_start] for f in framerange(scene, simnode.animmenu)}
                 ob['oave'] = {str(f):obavres[f - scene.frame_start] for f in framerange(scene, simnode.animmenu)}
-
+                ob['oreslist'] = {str(f):[sh[2] for sh in shadcentres[f - scene.frame_start]] for f in framerange(scene, simnode.animmenu)}
             else:
                ob.licalc = 0
         try:

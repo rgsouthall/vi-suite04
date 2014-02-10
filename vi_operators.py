@@ -14,7 +14,7 @@ from .vi_display import li_display, ss_display, li_compliance, linumdisplay, spn
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .envi_calc import envi_sim
-from .vi_func import processf, livisimacc, solarPosition, sunpath2, wr_axes, set_legend, clearscened, frameindex, framerange
+from .vi_func import processf, livisimacc, solarPosition, sunpath2, wr_axes, set_legend, clearscened, frameindex, framerange, vcframe
 from .vi_chart import chart_disp
 
 envi_mats = envi_materials()
@@ -740,7 +740,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         clearscened(scene)
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         scene.resnode = simnode.name
-        direcs = []
+        direcs, obcalclist = [], []
         simnode['Animation'] = simnode.animmenu
         if simnode['Animation'] == 'Static':
             scmaxres, scminres, scavres, scene.frame_end = [0], [100], [0], scene.frame_start
@@ -770,17 +770,19 @@ class NODE_OT_Shadow(bpy.types.Operator):
             obavres, shadfaces, shadcentres = [0] * (fdiff), [[] for f in range(fdiff)], [[] for f in range(fdiff)]
             [obsumarea, obmaxres, obminres] = [[0 for f in range(fdiff)] for x in range(3)]
             if len([mat for mat in ob.data.materials if mat.vi_shadow]) > 0:
+                obcalclist.append(ob)
                 scene.objects.active, ob.licalc = ob, 1
                 obm = ob.matrix_world
                 ob['cfaces'], ob['cverts'] = [face.index for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow], []
 
+                while ob.data.vertex_colors:
+                    bpy.ops.mesh.vertex_color_remove()
                 for frame in framerange(scene, simnode.animmenu):
                     scene.frame_set(frame)
                     findex = frame - scene.frame_start
-                    for vc in ob.data.vertex_colors:
-                        bpy.ops.mesh.vertex_color_remove()
-                    if '{}'.format(frame) not in [vc.name for vc in ob.data.vertex_colors]:
-                        bpy.ops.mesh.vertex_color_add()
+#                    if '{}'.format(frame) not in [vc.name for vc in ob.data.vertex_colors]:
+                    bpy.ops.mesh.vertex_color_add()
+                    print(frame)
                     ob.data.vertex_colors[-1].name = '{}'.format(frame)
                     vertexColor = ob.data.vertex_colors[-1]
                     obsumarea[findex] = sum([face.area for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow])
@@ -802,12 +804,14 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     scmaxres[findex] = obmaxres[findex] if obmaxres[findex] > scmaxres[findex] else scmaxres[findex]
                     scminres[findex] = obminres[findex] if obminres[findex] < scminres[findex] else scminres[findex]
                     scavres[findex] += obavres[findex]
+
                 ob['omax'] = {str(f):obmaxres[f - scene.frame_start] for f in framerange(scene, simnode.animmenu)}
                 ob['omin'] = {str(f):obminres[f - scene.frame_start] for f in framerange(scene, simnode.animmenu)}
                 ob['oave'] = {str(f):obavres[f - scene.frame_start] for f in framerange(scene, simnode.animmenu)}
                 ob['oreslist'] = {str(f):[sh[2] for sh in shadcentres[f - scene.frame_start]] for f in framerange(scene, simnode.animmenu)}
             else:
                ob.licalc = 0
+        vcframe(scene, obcalclist, simnode.animmenu)
         try:
             simnode['maxres'], simnode['minres'], simnode['avres'] = scmaxres, scminres, [scavres[f]/len([ob for ob in scene.objects if ob.licalc]) for f in range(fdiff)]
         except ZeroDivisionError:

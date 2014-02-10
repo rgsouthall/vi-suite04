@@ -226,7 +226,7 @@ def resapply(res, svres, simnode, connode, geonode):
                     scene.objects.active = geo
                     geo.select = True
                     if frame == 0:
-                        while len(geo.data.vertex_colors) > 0:
+                        while geo.data.vertex_colors:
                             bpy.ops.mesh.vertex_color_remove()
                         while geo.data.shape_keys:
                             bpy.ops.mesh.shape_keys_remove()

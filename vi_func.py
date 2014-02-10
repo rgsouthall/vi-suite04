@@ -603,4 +603,13 @@ def wr_axes():
     ax = windrose.WindroseAxes(fig, rect, axisbg='w')
     fig.add_axes(ax)
     return ax
+    
+def vcframe(scene, obcalclist, anim):
+    for frame in framerange(scene, anim):
+        scene.frame_set(frame)
+        for obcalc in obcalclist:
+            for vc in obcalc.data.vertex_colors:
+                (vc.active, vc.active_render) = (1, 1) if vc.name == str(frame) else (0, 0)
+                vc.keyframe_insert("active")
+                vc.keyframe_insert("active_render")
 

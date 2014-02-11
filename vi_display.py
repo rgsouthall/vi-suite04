@@ -191,7 +191,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
     
     if (scene.li_disp_panel != 2 and scene.ss_disp_panel != 2)  or (simnode['Animation'] == 'Static' and scene.frame_current != scene.frame_start) \
     or scene.vi_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.vi_display_sel_only == True)  \
-    or scene.frame_current not in vi_func.framerange(scene, simnode['Animation']) or bpy.context.active_object.mode == 'EDIT':
+    or scene.frame_current not in vi_func.framerange(scene, simnode['Animation']) or (bpy.context.active_object and bpy.context.active_object.mode == 'EDIT'):
         return
 
     if bpy.context.active_object:
@@ -267,7 +267,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
 def li3D_legend(self, context, simnode, connode, geonode):
     scene = context.scene
 
-    if scene.vi_leg_display != True or scene.vi_display == 0 or (scene.wr_disp_panel != 1 and scene.li_disp_panel != 2 and scene.ss_disp_panel != 2):
+    if scene.vi_leg_display != True or scene.vi_display == 0 or (scene.wr_disp_panel != 1 and scene.li_disp_panel != 2 and scene.ss_disp_panel != 2) or scene.frame_current not in vi_func.framerange(scene, simnode['Animation']):
         return
     else:
         if not connode or (connode and connode.bl_label == 'LiVi CBDM'):

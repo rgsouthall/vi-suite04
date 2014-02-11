@@ -581,22 +581,22 @@ def resapply(res, svres, simnode, connode, geonode):
 
         if connode.bl_label == 'LiVi Compliance' and dfpass[frame] == 1:
             dfpass[frame] = 2 if dfpassarea/dftotarea >= 0.8 else dfpass[frame]
-
-    for frame in vi_func.framerange(scene, simnode['Animation']):
-        scene.frame_set(frame)
-        for geo in scene.objects:
-            if geo.get('licalc') == 1:
-                for vc in geo.data.vertex_colors:
-                    if vc.name == str(frame):
-                        vc.active = 1
-                        vc.active_render = 1
-                        vc.keyframe_insert("active")
-                        vc.keyframe_insert("active_render")
-                    else:
-                        vc.active = 0
-                        vc.active_render = 0
-                        vc.keyframe_insert("active")
-                        vc.keyframe_insert("active_render")
+    vi_func.vcframe(scene, [ob for ob in scene.objects is ob.get('licalc')] , simnode['Animation'])
+#    for frame in vi_func.framerange(scene, simnode['Animation']):
+#        scene.frame_set(frame)
+#        for geo in scene.objects:
+#            if geo.get('licalc') == 1:
+#                for vc in geo.data.vertex_colors:
+#                    if vc.name == str(frame):
+#                        vc.active = 1
+#                        vc.active_render = 1
+#                        vc.keyframe_insert("active")
+#                        vc.keyframe_insert("active_render")
+#                    else:
+#                        vc.active = 0
+#                        vc.active_render = 0
+#                        vc.keyframe_insert("active")
+#                        vc.keyframe_insert("active_render")
 
 
     if connode.bl_label == 'LiVi Compliance':

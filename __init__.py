@@ -552,7 +552,7 @@ def register():
 
     Scene.vi_disp_3d = bprop("VI 3D display", "Boolean for 3D results display",  False)
 
-    Scene.vi_disp_3dlevel = bpy.props.FloatProperty(name = "", description = "Level of 3D result plane extrusion", min = 0, max = 50, default = 0, update = eupdate)
+    Scene.vi_disp_3dlevel = bpy.props.FloatProperty(name = "", description = "Level of 3D result plane extrusion", min = 0, max = 500, default = 0, update = eupdate)
 
     Scene.vi_display = bprop("", "",False)
 

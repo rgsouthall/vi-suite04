@@ -1,6 +1,8 @@
 import bpy, bpy_extras, sys, datetime, mathutils, bmesh
 import bpy_extras.io_utils as io_utils
 import numpy as np
+#from multiprocessing.pool import ThreadPool as Pool
+from multiprocessing import Pool
 from collections import OrderedDict
 from datetime import date
 from datetime import datetime as dt
@@ -732,6 +734,8 @@ class NODE_OT_Shadow(bpy.types.Operator):
     bl_undo = True
 
     nodeid = bpy.props.StringProperty()
+    
+    
 
     def invoke(self, context, event):
         scene = context.scene
@@ -739,6 +743,9 @@ class NODE_OT_Shadow(bpy.types.Operator):
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 1, 0
         clearscened(scene)
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        if simnode.starthour > simnode.endhour:
+            self.report({'ERROR'},"End hour is before start hour.")
+            return{'FINISHED'}
         scene.resnode = simnode.name
         direcs, obcalclist = [], []
         simnode['Animation'] = simnode.animmenu
@@ -761,11 +768,12 @@ class NODE_OT_Shadow(bpy.types.Operator):
         endtime = datetime.datetime(y, locnode.endmonth, (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)[locnode.endmonth - 1], simnode.endhour - 1)
         interval = datetime.timedelta(hours = modf(simnode.interval)[0], minutes = 60 * modf(simnode.interval)[1])
         while time <= endtime:
-            beta, phi = solarPosition(time.timetuple().tm_yday, time.hour+time.minute/60, scene.latitude, scene.longitude)[2:]
-            if beta > 0 and simnode.starthour <= time.hour < simnode.endhour:
-                direcs.append(mathutils.Vector((-sin(phi), -cos(phi), tan(beta))))
+            if simnode.starthour <= time.hour <= simnode.endhour:
+                beta, phi = solarPosition(time.timetuple().tm_yday, time.hour+time.minute/60, scene.latitude, scene.longitude)[2:]
+                if beta > 0:
+                    direcs.append(mathutils.Vector((-sin(phi), -cos(phi), tan(beta))))                            
             time += interval
-
+                
         for ob in [ob for ob in scene.objects if ob.type == 'MESH' and not ob.hide]:
             obavres, shadfaces, shadcentres = [0] * (fdiff), [[] for f in range(fdiff)], [[] for f in range(fdiff)]
             [obsumarea, obmaxres, obminres] = [[0 for f in range(fdiff)] for x in range(3)]
@@ -782,17 +790,25 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     findex = frame - scene.frame_start
 #                    if '{}'.format(frame) not in [vc.name for vc in ob.data.vertex_colors]:
                     bpy.ops.mesh.vertex_color_add()
-                    print(frame)
                     ob.data.vertex_colors[-1].name = '{}'.format(frame)
                     vertexColor = ob.data.vertex_colors[-1]
                     obsumarea[findex] = sum([face.area for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow])
+
                     for face in [face for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow]:
                         shadcentres[findex].append([obm*mathutils.Vector((face.center)) + 0.05*face.normal, obm*mathutils.Vector((face.center)), 1])
+                        
+                        
+#                    @classmethod
+                    
                         for li in face.loop_indices:
                             vertexColor.data[li].color = (1, 1, 1)
+                        pool_size = int(locnode.nproc)  # your "parallelness"
+                        pool = Pool(pool_size)
                         for direc in direcs:
-                            if bpy.data.scenes[0].ray_cast(shadcentres[findex][-1][0], shadcentres[findex][-1][1] + 10000*direc)[0]:
-                                shadcentres[frame - scene.frame_start][-1][2] -= 1/(len(direcs))
+                            pool.apply_async(worker, (direc, frame, shadcentres, findex, scene, direcs,))
+                        pool.close()
+                        pool.join()
+                        
                         if shadcentres[frame - scene.frame_start][-1][2] < 1:
                             for li in face.loop_indices:
                                 vertexColor.data[li].color = [shadcentres[frame - scene.frame_start][-1][2]]*3
@@ -800,6 +816,28 @@ class NODE_OT_Shadow(bpy.types.Operator):
                         obavres[findex] += face.area * 100 * (shadcentres[findex][-1][2])/obsumarea[findex]
                         obmaxres[findex] = 100* (max([sh[2] for sh in shadcentres[findex]]))
                         obminres[findex] = 100* (min([sh[2] for sh in shadcentres[findex]]))
+
+                    
+
+
+                    
+                        
+                    
+                    
+#                    for face in [face for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow]:
+#                        shadcentres[findex].append([obm*mathutils.Vector((face.center)) + 0.05*face.normal, obm*mathutils.Vector((face.center)), 1])
+#                        for li in face.loop_indices:
+#                            vertexColor.data[li].color = (1, 1, 1)
+#                        for direc in direcs:
+#                            if bpy.data.scenes[0].ray_cast(shadcentres[findex][-1][0], shadcentres[findex][-1][1] + 10000*direc)[0]:
+#                                shadcentres[frame - scene.frame_start][-1][2] -= 1/(len(direcs))
+#                        if shadcentres[frame - scene.frame_start][-1][2] < 1:
+#                            for li in face.loop_indices:
+#                                vertexColor.data[li].color = [shadcentres[frame - scene.frame_start][-1][2]]*3
+#
+#                        obavres[findex] += face.area * 100 * (shadcentres[findex][-1][2])/obsumarea[findex]
+#                        obmaxres[findex] = 100* (max([sh[2] for sh in shadcentres[findex]]))
+#                        obminres[findex] = 100* (min([sh[2] for sh in shadcentres[findex]]))
 
                     scmaxres[findex] = obmaxres[findex] if obmaxres[findex] > scmaxres[findex] else scmaxres[findex]
                     scminres[findex] = obminres[findex] if obminres[findex] < scminres[findex] else scminres[findex]
@@ -822,4 +860,22 @@ class NODE_OT_Shadow(bpy.types.Operator):
             simnode.bl_label = simnode.bl_label[1:]
         return {'FINISHED'}
 
+def worker(direc, frame, shadcentres, findex, scene, direcs):
+    if bpy.data.scenes[0].ray_cast(shadcentres[findex][-1][0], shadcentres[findex][-1][1] + 10000*direc)[0]:
+        shadcentres[frame - scene.frame_start][-1][2] -= 1/(len(direcs))
 
+
+#def worker(face, findex, obm, shadcentres, vertexColor, frame, scene, obavres, obmaxres, obminres, direcs, obsumarea):
+#    shadcentres[findex].append([obm*mathutils.Vector((face.center)) + 0.05*face.normal, obm*mathutils.Vector((face.center)), 1])
+#    for li in face.loop_indices:
+#        vertexColor.data[li].color = (1, 1, 1)
+#    for direc in direcs:
+#        if bpy.data.scenes[0].ray_cast(shadcentres[findex][-1][0], shadcentres[findex][-1][1] + 10000*direc)[0]:
+#            shadcentres[frame - scene.frame_start][-1][2] -= 1/(len(direcs))
+#    if shadcentres[frame - scene.frame_start][-1][2] < 1:
+#        for li in face.loop_indices:
+#            vertexColor.data[li].color = [shadcentres[frame - scene.frame_start][-1][2]]*3
+
+    obavres[findex] += face.area * 100 * (shadcentres[findex][-1][2])/obsumarea[findex]
+    obmaxres[findex] = 100* (max([sh[2] for sh in shadcentres[findex]]))
+    obminres[findex] = 100* (min([sh[2] for sh in shadcentres[findex]]))

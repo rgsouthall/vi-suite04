@@ -34,14 +34,14 @@ addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
 if str(sys.platform) == 'darwin':
     if not hasattr(os.environ, 'RAYPATH'):
         if platform.architecture() == "64bit":
-            os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/vi_suite/osx/64:/Applications/EnergyPlus-{}/bin".format(addonpath, epversion)
+            os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/osx/64:/Applications/EnergyPlus-{}/bin".format(addonpath, epversion)
         else:
-             os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/vi_suite/osx:/Applications/EnergyPlus-{}/bin".format(addonpath, epversion)
+             os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/osx:/Applications/EnergyPlus-{}/bin".format(addonpath, epversion)
         os.environ["RAYPATH"] = "/usr/local/radiance/lib:{}/vi_suite/lib".format(addonpath)
 
 if str(sys.platform) == 'linux':
     if not hasattr(os.environ, 'RAYPATH'):
-        os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/vi_suite/osx:/usr/local/EnergyPlus-{}/bin".format(addonpath, epversion)
+        os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/linux:/usr/local/EnergyPlus-{}/bin".format(addonpath, epversion)
         os.environ["RAYPATH"] = "/usr/local/radiance/lib:{}/lib".format(addonpath)
 
 elif str(sys.platform) == 'win32':

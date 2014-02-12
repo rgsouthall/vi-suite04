@@ -375,7 +375,7 @@ def fexport(scene, frame, export_op, node, othernode):
     with open(geonode.filebase+"-{}.rad".format(frame + scene.frame_start), 'w') as radfile:
         radfile.write(radtext)
         
-    if not bpy.data.texts.get['Radiance input-{}'.format(frame)]:
+    if not bpy.data.texts.get('Radiance input-{}'.format(frame)):
         bpy.data.texts.new('Radiance input-{}'.format(frame))
     bpy.data.texts['Radiance input-{}'.format(frame)].clear()
     bpy.data.texts['Radiance input-{}'.format(frame)].write(radtext)

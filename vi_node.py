@@ -98,7 +98,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
     bl_label = 'LiVi Basic'
     bl_icon = 'LAMP'
 
-    analysistype = [('0', "Illuminance", "Lux Calculation"), ('1', "Irradiance", "W/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Factor", "DF (%) Calculation"),]
+    analysistype = [('0', "Illuminance", "Lux Calculation"), ('1', "Irradiance", "W/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Factor", "DF (%) Calculation"), ('3', "Glare", "Glare Calculation")]
     unit = bpy.props.StringProperty()
     animtype = [('Static', "Static", "Simple static analysis"), ('Time', "Time", "Animated time analysis")]
     skylist = [    ("0", "Sunny", "CIE Sunny Sky description"),
@@ -153,7 +153,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
 
     interval = bpy.props.FloatProperty(name="", description="Site Latitude", min=0.25, max=24, default=1, update = nodeexported)
     exported = bpy.props.BoolProperty(default=False)
-    hdr = bpy.props.BoolProperty(name="HDR", description="Export HDR panoramas", default=False, update = nodeexported)
+    hdr = bpy.props.BoolProperty(name="", description="Export HDR panoramas", default=False, update = nodeexported)
     hdrname = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="", update = nodeexported)
     skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="", update = nodeexported)
     skynum = bpy.props.IntProperty()
@@ -175,7 +175,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
         row.label("Analysis type:")
         row.prop(self, 'analysismenu')
         row = layout.row()
-        if self.analysismenu in ('0', '1'):
+        if self.analysismenu in ('0', '1', '3'):
             row.label("Sky type:")
             row.prop(self, 'skymenu')
             if self.skymenu in ('0', '1', '2'):
@@ -210,7 +210,8 @@ class ViLiNode(bpy.types.Node, ViNodes):
                 row.prop(self, 'skyname')
         row = layout.row()
         if self.skymenu != '6':
-            row.prop(self, 'hdr')
+            newrow(layout, 'HDR:', self, 'hdr')
+        
         if self.inputs['Geometry in'].is_linked and self.inputs['Geometry in'].links[0].from_node.bl_label == 'LiVi Geometry':
             row = layout.row()
             row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
@@ -406,6 +407,8 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             if connode.inputs['Geometry in'].is_linked:
                 geonode = connode.inputs['Geometry in'].links[0].from_node
                 gexported = geonode.exported
+            else:
+                connode, geonode, cexported, gexported = 0, 0, 0, 0
         else:
             connode, geonode, cexported, gexported = 0, 0, 0, 0
 

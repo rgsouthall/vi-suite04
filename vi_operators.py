@@ -16,7 +16,7 @@ try:
 except:
     mp = 0
 from .livi_export import radcexport, radgexport, cyfc1
-from .livi_calc  import rad_prev, li_calc
+from .livi_calc  import rad_prev, li_calc, li_glare
 from .vi_display import li_display, ss_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
@@ -183,9 +183,9 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
         if node.bl_label == 'LiVi Basic':
             node.skynum = int(node.skymenu) if node.analysismenu != "2" else 3
             if str(sys.platform) != 'win32':
-                node.simalg = (" |  rcalc  -e '$1=47.4*$1+120*$2+11.6*$3' ", " |  rcalc  -e '$1=$1' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' ")[int(node.analysismenu)]
+                node.simalg = (" |  rcalc  -e '$1=47.4*$1+120*$2+11.6*$3' ", " |  rcalc  -e '$1=$1' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' ", '')[int(node.analysismenu)]
             else:
-                node.simalg = (' |  rcalc  -e "$1=47.4*$1+120*$2+11.6*$3" ', ' |  rcalc  -e "$1=$1" ', ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ')[int(node.analysismenu)]
+                node.simalg = (' |  rcalc  -e "$1=47.4*$1+120*$2+11.6*$3" ', ' |  rcalc  -e "$1=$1" ', ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ', '')[int(node.analysismenu)]
             node.TZ = node.summer if node.daysav == True else node.stamer
 
         elif node.bl_label == 'LiVi Compliance':
@@ -255,8 +255,13 @@ class NODE_OT_Calculate(bpy.types.Operator):
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         connode = simnode.inputs['Context in'].links[0].from_node
         geonode = connode.inputs['Geometry in'].links[0].from_node
-        li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
-        (scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel) = (1, 0, 1, 1, 0, 0, 0) if connode.bl_label == 'LiVi Compliance'  else (1, 0, 1, 0, 0, 0, 0)
+        if connode.analysismenu != '3':
+            li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
+            scene.vi_display = 1
+        else:
+            li_glare(self, simnode, geonode)
+            scene.vi_display = 0
+        (scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel) = (0, 1, 1, 0, 0, 0) if connode.bl_label == 'LiVi Compliance'  else (0, 1, 0, 0, 0, 0)
         context.scene.resnode = simnode.name
         context.scene.restree = self.nodeid.split('@')[1]
         return {'FINISHED'}

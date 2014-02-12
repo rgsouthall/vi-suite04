@@ -40,13 +40,16 @@ def rad_prev(prev_op, simnode, connode, geonode, simacc):
     else:
         num = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-ar", 128, 512, 1024), ("-as", 128, 512, 1024), ("-aa", 0.3, 0.15, 0.08), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
         params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simnode.simacc)+1] for n in num]))
-
+    
+#    cparams = '-vth -vh 180 -vv 180' if connode.analysismenu == 'Glare' else ' -vv {0:.3f} -vh {1:.3f}'.format()
+    
     if os.path.isfile("{}-{}.rad".format(geonode.filebase, scene.frame_current)):
         cam = scene.camera
         if cam != None:
-            cang = 180 if 'VI Glare' == connode.bl_label else cam.data.angle*180/pi
-            vv = 180 if 'VI Glare' == connode.bl_label else cang * scene.render.resolution_y/scene.render.resolution_x
-            rvucmd = "rvu -w -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0][2]:.3f} {3[1][2]:.3f} {3[2][2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct &".format(geonode.nproc, vv, cang, -1*cam.matrix_world, cam.location, params, geonode.filebase, scene.frame_current)
+            cang = '180 -vth' if connode.analysismenu == '3' else cam.data.angle*180/pi
+            vv = 180 if connode.analysismenu == '3' else cang * scene.render.resolution_y/scene.render.resolution_x
+            rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0][2]:.3f} {3[1][2]:.3f} {3[2][2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct &".format(geonode.nproc, vv, cang, -1*cam.matrix_world, cam.location, params, geonode.filebase, scene.frame_current)
+            print(rvucmd)
             rvurun = Popen(rvucmd, shell = True, stdout=PIPE, stderr=STDOUT)
             for l,line in enumerate(rvurun.stdout):
                 if 'octree stale?' in line.decode() or 'truncated octree' in line.decode():
@@ -69,7 +72,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
     if connode.bl_label == 'LiVi CBDM':
         resname = ('kluxhours', 'cumwatth', 'dayauto', 'hourrad', 'udi')[int(connode.analysismenu)]
     elif connode.bl_label == 'LiVi Basic':
-        resname = ("illumout", "irradout", "dfout")[int(connode.analysismenu)]
+        resname = ("illumout", "irradout", "dfout", '')[int(connode.analysismenu)]
     elif connode.bl_label == 'LiVi Compliance':
         resname = 'breaamout' if connode.analysismenu == '0' else 'cfsh'
 
@@ -184,6 +187,42 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
             resapply(wattres, svres, simnode, connode, geonode)
 
         calc_op.report({'INFO'}, "Calculation is finished.")
+        
+def li_glare(calc_op, simnode, geonode):
+    scene = bpy.context.scene
+    cam = scene.camera
+    if cam:
+        gfiles=[]
+        num = (("-ab", 2, 3, 5), ("-ad", 512, 2048, 4096), ("-ar", 128, 512, 1024), ("-as", 256, 1024, 2048), ("-aa", 0.3, 0.2, 0.18), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.001, 0.0002))
+        params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simnode.simacc)+1] for n in num]))
+        for frame in vi_func.framerange(scene, simnode['Animation']):
+            glarecmd = "rpict -w -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct | evalglare -c glare{4}.hdr".format(-1*cam.matrix_world, cam.location, params, geonode.filename, frame)               
+            glarerun = Popen(glarecmd, shell = True, stdout = PIPE)
+            for line in glarerun.stdout:
+                if line.decode().split(",")[0] == 'dgp':
+                    glaretext = line.decode().replace(',', ' ').replace("#INF", "").split(' ')
+                    glaretf = open(geonode.filebase+".glare", "w")
+                    glaretf.write("{0:0>2d}/{1:0>2d} {2:0>2d}:{3:0>2d}\ndgp: {4:.3f}\ndgi: {5:.3f}\nugr: {6:.3f}\nvcp: {7:.3f}\ncgi: {8:.3f}\nLveil: {9:.3f}\n".format(1, 1, 1, 1, *[float(x) for x in glaretext[6:12]]))
+                    glaretf.close()
+            subprocess.call("pcond -u 300 glare{0}.hdr > glaretm{0}.hdr".format(frame), shell=True)
+            subprocess.call("{0} {1}.glare | psign -h 32 -cb 0 0 0 -cf 40 40 40 | pcompos glaretm{2}.hdr 0 0 - 800 550 > glare{2}.hdr" .format(geonode.cat, geonode.filename, frame), shell=True)
+            subprocess.call("{} glaretm{}.hdr".format(geonode.rm, frame), shell=True)                    
+                 
+            gfile={"name":"glare"+str(frame)+".hdr"}
+            gfiles.append(gfile)
+        try:
+            scene.sequence_editor.sequences_all["glare{}.hdr".format(vi_func.framerange(scene, simnode['Animation'])[0])]
+            bpy.ops.sequencer.refresh_all()
+        except:
+            bpy.ops.sequencer.image_strip_add( directory = geonode.newdir, \
+                files = gfiles, \
+                frame_start=0, \
+                channel=2, \
+                filemode=9)
+    else:
+        calc_op.report({'ERROR'}, "There is no camera in the scene. Create one for glare analysis")
+    
+#    lexport.scene.livi_display_panel = 0
 
 def resapply(res, svres, simnode, connode, geonode):
     crits = []

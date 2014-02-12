@@ -508,15 +508,15 @@ class ViWRNode(bpy.types.Node, ViNodes):
             row = layout.row()
             row.label('Location node error')
 
-class ViGNode(bpy.types.Node, ViNodes):
-    '''Node describing a glare analysis'''
-    bl_idname = 'ViGNode'
-    bl_label = 'VI Glare'
-    bl_icon = 'LAMP'
-
-    def draw_buttons(self, context, layout):
-        row = layout.row()
-        row.operator("node.calculate", text = 'Calculate')
+#class ViGNode(bpy.types.Node, ViNodes):
+#    '''Node describing a glare analysis'''
+#    bl_idname = 'ViGNode'
+#    bl_label = 'VI Glare'
+#    bl_icon = 'LAMP'
+#
+#    def draw_buttons(self, context, layout):
+#        row = layout.row()
+#        row.operator("node.calculate", text = 'Calculate')
 
 class ViLoc(bpy.types.Node, ViNodes):
     '''Node describing a geographical location manually or with an EPW file'''
@@ -1317,7 +1317,7 @@ class ViTarNode(bpy.types.Node, ViNodes):
 viexnodecat = [NodeItem("ViGExLiNode", label="LiVi Geometry"), NodeItem("ViLiNode", label="LiVi Basic"), NodeItem("ViLiCNode", label="LiVi Compliance"), NodeItem("ViLiCBNode", label="LiVi Climate Based"), NodeItem("ViGExEnNode", label="EnVi Export"), NodeItem("ViLoc", label="VI Location")]
 
 vinodecat = [NodeItem("ViLiSNode", label="LiVi Simulation"),\
-             NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), NodeItem("ViGNode", label="VI-Suite glare"), NodeItem("ViExEnNode", label="EnVi Simulation")]
+             NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), NodeItem("ViExEnNode", label="EnVi Simulation")]
 
 vigennodecat = [NodeItem("ViGenNode", label="VI-Suite Generative"), NodeItem("ViTarNode", label="VI-Suite Target")]
 

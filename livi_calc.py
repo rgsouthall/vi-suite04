@@ -188,25 +188,29 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
 
         calc_op.report({'INFO'}, "Calculation is finished.")
         
-def li_glare(calc_op, simnode, geonode):
+def li_glare(calc_op, simnode, connode, geonode):
     scene = bpy.context.scene
     cam = scene.camera
     if cam:
         gfiles=[]
         num = (("-ab", 2, 3, 5), ("-ad", 512, 2048, 4096), ("-ar", 128, 512, 1024), ("-as", 256, 1024, 2048), ("-aa", 0.3, 0.2, 0.18), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.001, 0.0002))
         params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simnode.simacc)+1] for n in num]))
+        
+        
         for frame in vi_func.framerange(scene, simnode['Animation']):
-            glarecmd = "rpict -w -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct | evalglare -c glare{4}.hdr".format(-1*cam.matrix_world, cam.location, params, geonode.filename, frame)               
+            time = datetime.datetime(2014, 1, 1, connode.shour, 0) + datetime.timedelta(connode.sdoy - 1) if connode.animmenu == '0' else \
+            datetime.datetime(2014, 1, 1, connode.shour, 0) + datetime.timedelta(connode.sdoy - 1) + datetime.timedelta(hours = connode.interval*(frame-scene.frame_start))
+            glarecmd = "rpict -w -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{5}.oct | evalglare -c {4}.hdr".format(-1*cam.matrix_world, cam.location, params, geonode.filebase, os.path.join(geonode.newdir, 'glare'+str(frame)), frame)               
             glarerun = Popen(glarecmd, shell = True, stdout = PIPE)
+            glaretf = open(geonode.filebase+".glare", "w")
             for line in glarerun.stdout:
                 if line.decode().split(",")[0] == 'dgp':
-                    glaretext = line.decode().replace(',', ' ').replace("#INF", "").split(' ')
-                    glaretf = open(geonode.filebase+".glare", "w")
-                    glaretf.write("{0:0>2d}/{1:0>2d} {2:0>2d}:{3:0>2d}\ndgp: {4:.3f}\ndgi: {5:.3f}\nugr: {6:.3f}\nvcp: {7:.3f}\ncgi: {8:.3f}\nLveil: {9:.3f}\n".format(1, 1, 1, 1, *[float(x) for x in glaretext[6:12]]))
+                    glaretext = line.decode().replace(',', ' ').replace("#INF", "").split(' ')                    
+                    glaretf.write("{0:0>2d}/{1:0>2d} {2:0>2d}:{3:0>2d}\ndgp: {4:.3f}\ndgi: {5:.3f}\nugr: {6:.3f}\nvcp: {7:.3f}\ncgi: {8:.3f}\nLveil: {9:.3f}\n".format(time.day, time.month, time.hour, time.minute, *[float(x) for x in glaretext[6:12]]))
                     glaretf.close()
-            subprocess.call("pcond -u 300 glare{0}.hdr > glaretm{0}.hdr".format(frame), shell=True)
-            subprocess.call("{0} {1}.glare | psign -h 32 -cb 0 0 0 -cf 40 40 40 | pcompos glaretm{2}.hdr 0 0 - 800 550 > glare{2}.hdr" .format(geonode.cat, geonode.filename, frame), shell=True)
-            subprocess.call("{} glaretm{}.hdr".format(geonode.rm, frame), shell=True)                    
+            subprocess.call("pcond -u 300 {0}.hdr > {0}.temphdr".format(os.path.join(geonode.newdir, 'glare'+str(frame))), shell=True)
+            subprocess.call("{0} {1}.glare | psign -h 32 -cb 0 0 0 -cf 40 40 40 | pcompos {3}.temphdr 0 0 - 800 550 > {3}.hdr" .format(geonode.cat, geonode.filebase, frame, os.path.join(geonode.newdir, 'glare'+str(frame))), shell=True)
+            subprocess.call("{} {}.temphdr".format(geonode.rm, os.path.join(geonode.newdir, 'glare'+str(frame))), shell=True)                    
                  
             gfile={"name":"glare"+str(frame)+".hdr"}
             gfiles.append(gfile)

@@ -259,7 +259,7 @@ class NODE_OT_Calculate(bpy.types.Operator):
             li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
             scene.vi_display = 1
         else:
-            li_glare(self, simnode, geonode)
+            li_glare(self, simnode, connode, geonode)
             scene.vi_display = 0
         (scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel) = (0, 1, 1, 0, 0, 0) if connode.bl_label == 'LiVi Compliance'  else (0, 1, 0, 0, 0, 0)
         context.scene.resnode = simnode.name

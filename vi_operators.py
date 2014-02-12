@@ -2,14 +2,19 @@ import bpy, bpy_extras, sys, datetime, mathutils, bmesh
 import bpy_extras.io_utils as io_utils
 import numpy as np
 #from multiprocessing.pool import ThreadPool as Pool
-from multiprocessing import Pool
+#from multiprocessing import Pool
+import multiprocessing
 from collections import OrderedDict
 from datetime import date
 from datetime import datetime as dt
 from math import cos, sin, pi, ceil, tan, modf
 from numpy import arange
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
+try:
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
+    mp = 1
+except:
+    mp = 0
 from .livi_export import radcexport, radgexport, cyfc1
 from .livi_calc  import rad_prev, li_calc
 from .vi_display import li_display, ss_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend
@@ -734,8 +739,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
     bl_undo = True
 
     nodeid = bpy.props.StringProperty()
-    
-    
 
     def invoke(self, context, event):
         scene = context.scene
@@ -771,9 +774,9 @@ class NODE_OT_Shadow(bpy.types.Operator):
             if simnode.starthour <= time.hour <= simnode.endhour:
                 beta, phi = solarPosition(time.timetuple().tm_yday, time.hour+time.minute/60, scene.latitude, scene.longitude)[2:]
                 if beta > 0:
-                    direcs.append(mathutils.Vector((-sin(phi), -cos(phi), tan(beta))))                            
+                    direcs.append(mathutils.Vector((-sin(phi), -cos(phi), tan(beta))))
             time += interval
-                
+
         for ob in [ob for ob in scene.objects if ob.type == 'MESH' and not ob.hide]:
             obavres, shadfaces, shadcentres = [0] * (fdiff), [[] for f in range(fdiff)], [[] for f in range(fdiff)]
             [obsumarea, obmaxres, obminres] = [[0 for f in range(fdiff)] for x in range(3)]
@@ -796,19 +799,11 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
                     for face in [face for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow]:
                         shadcentres[findex].append([obm*mathutils.Vector((face.center)) + 0.05*face.normal, obm*mathutils.Vector((face.center)), 1])
-                        
-                        
-#                    @classmethod
-                    
                         for li in face.loop_indices:
                             vertexColor.data[li].color = (1, 1, 1)
-                        pool_size = int(locnode.nproc)  # your "parallelness"
-                        pool = Pool(pool_size)
                         for direc in direcs:
-                            pool.apply_async(worker, (direc, frame, shadcentres, findex, scene, direcs,))
-                        pool.close()
-                        pool.join()
-                        
+                            if bpy.data.scenes[0].ray_cast(shadcentres[findex][-1][0], shadcentres[findex][-1][1] + 10000*direc)[0]:
+                                shadcentres[frame - scene.frame_start][-1][2] -= 1/(len(direcs))
                         if shadcentres[frame - scene.frame_start][-1][2] < 1:
                             for li in face.loop_indices:
                                 vertexColor.data[li].color = [shadcentres[frame - scene.frame_start][-1][2]]*3
@@ -816,28 +811,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
                         obavres[findex] += face.area * 100 * (shadcentres[findex][-1][2])/obsumarea[findex]
                         obmaxres[findex] = 100* (max([sh[2] for sh in shadcentres[findex]]))
                         obminres[findex] = 100* (min([sh[2] for sh in shadcentres[findex]]))
-
-                    
-
-
-                    
-                        
-                    
-                    
-#                    for face in [face for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow]:
-#                        shadcentres[findex].append([obm*mathutils.Vector((face.center)) + 0.05*face.normal, obm*mathutils.Vector((face.center)), 1])
-#                        for li in face.loop_indices:
-#                            vertexColor.data[li].color = (1, 1, 1)
-#                        for direc in direcs:
-#                            if bpy.data.scenes[0].ray_cast(shadcentres[findex][-1][0], shadcentres[findex][-1][1] + 10000*direc)[0]:
-#                                shadcentres[frame - scene.frame_start][-1][2] -= 1/(len(direcs))
-#                        if shadcentres[frame - scene.frame_start][-1][2] < 1:
-#                            for li in face.loop_indices:
-#                                vertexColor.data[li].color = [shadcentres[frame - scene.frame_start][-1][2]]*3
-#
-#                        obavres[findex] += face.area * 100 * (shadcentres[findex][-1][2])/obsumarea[findex]
-#                        obmaxres[findex] = 100* (max([sh[2] for sh in shadcentres[findex]]))
-#                        obminres[findex] = 100* (min([sh[2] for sh in shadcentres[findex]]))
 
                     scmaxres[findex] = obmaxres[findex] if obmaxres[findex] > scmaxres[findex] else scmaxres[findex]
                     scminres[findex] = obminres[findex] if obminres[findex] < scminres[findex] else scminres[findex]
@@ -860,22 +833,22 @@ class NODE_OT_Shadow(bpy.types.Operator):
             simnode.bl_label = simnode.bl_label[1:]
         return {'FINISHED'}
 
-def worker(direc, frame, shadcentres, findex, scene, direcs):
-    if bpy.data.scenes[0].ray_cast(shadcentres[findex][-1][0], shadcentres[findex][-1][1] + 10000*direc)[0]:
-        shadcentres[frame - scene.frame_start][-1][2] -= 1/(len(direcs))
-
-
-#def worker(face, findex, obm, shadcentres, vertexColor, frame, scene, obavres, obmaxres, obminres, direcs, obsumarea):
-#    shadcentres[findex].append([obm*mathutils.Vector((face.center)) + 0.05*face.normal, obm*mathutils.Vector((face.center)), 1])
-#    for li in face.loop_indices:
-#        vertexColor.data[li].color = (1, 1, 1)
-#    for direc in direcs:
-#        if bpy.data.scenes[0].ray_cast(shadcentres[findex][-1][0], shadcentres[findex][-1][1] + 10000*direc)[0]:
-#            shadcentres[frame - scene.frame_start][-1][2] -= 1/(len(direcs))
-#    if shadcentres[frame - scene.frame_start][-1][2] < 1:
-#        for li in face.loop_indices:
-#            vertexColor.data[li].color = [shadcentres[frame - scene.frame_start][-1][2]]*3
-
-    obavres[findex] += face.area * 100 * (shadcentres[findex][-1][2])/obsumarea[findex]
-    obmaxres[findex] = 100* (max([sh[2] for sh in shadcentres[findex]]))
-    obminres[findex] = 100* (min([sh[2] for sh in shadcentres[findex]]))
+#def worker(direc, frame, shadcentres, findex, scene, direcs):
+#    if bpy.data.scenes[0].ray_cast(shadcentres[findex][-1][0], shadcentres[findex][-1][1] + 10000*direc)[0]:
+#        shadcentres[frame - scene.frame_start][-1][2] -= 1/(len(direcs))
+#
+#
+##def worker(face, findex, obm, shadcentres, vertexColor, frame, scene, obavres, obmaxres, obminres, direcs, obsumarea):
+##    shadcentres[findex].append([obm*mathutils.Vector((face.center)) + 0.05*face.normal, obm*mathutils.Vector((face.center)), 1])
+##    for li in face.loop_indices:
+##        vertexColor.data[li].color = (1, 1, 1)
+##    for direc in direcs:
+##        if bpy.data.scenes[0].ray_cast(shadcentres[findex][-1][0], shadcentres[findex][-1][1] + 10000*direc)[0]:
+##            shadcentres[frame - scene.frame_start][-1][2] -= 1/(len(direcs))
+##    if shadcentres[frame - scene.frame_start][-1][2] < 1:
+##        for li in face.loop_indices:
+##            vertexColor.data[li].color = [shadcentres[frame - scene.frame_start][-1][2]]*3
+#
+#    obavres[findex] += face.area * 100 * (shadcentres[findex][-1][2])/obsumarea[findex]
+#    obmaxres[findex] = 100* (max([sh[2] for sh in shadcentres[findex]]))
+#    obminres[findex] = 100* (min([sh[2] for sh in shadcentres[findex]]))

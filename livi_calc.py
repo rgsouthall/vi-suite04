@@ -99,7 +99,6 @@ def li_calc(calc_op, simnode, connode, geonode, simacc):
                     subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
 #                rtcmd = "rtrace -n {0} -w {1} -faa -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                 rtcmd = "rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
-                print(rtcmd)
                 rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
                 with open(os.path.join(geonode.newdir, resname+"-"+str(frame)+".res"), 'w') as resfile:
                     for l,line in enumerate(rtrun.stdout):

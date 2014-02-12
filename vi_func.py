@@ -1,8 +1,13 @@
 import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf
 from math import sin, cos, asin, acos, pi
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
-import matplotlib.pyplot as plt
-from . import windrose
+try:
+    import matplotlib.pyplot as plt
+    from . import windrose
+    mp = 1
+except:
+    mp = 0
+
 
 #from . import windrose
 dtdf = datetime.date.fromordinal
@@ -603,7 +608,7 @@ def wr_axes():
     ax = windrose.WindroseAxes(fig, rect, axisbg='w')
     fig.add_axes(ax)
     return ax
-    
+
 def vcframe(scene, obcalclist, anim):
     for frame in framerange(scene, anim):
         scene.frame_set(frame)

@@ -283,7 +283,7 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
                newrow(layout, 'Fell short (Max):', self, 'damin')
                newrow(layout, 'Supplementry (Max):', self, 'dasupp')
                newrow(layout, 'Autonomous (Max):', self, 'daauto')
-        
+
         row = layout.row()
         row.label('Source file:')
         if int(self.analysismenu) < 2:
@@ -292,7 +292,7 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         else:
             row.prop(self, 'sourcemenu')
             sm = self.sourcemenu
-            
+
         if sm == '0':
             row = layout.row()
             row.label('Export HDR:')
@@ -408,7 +408,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
                 gexported = geonode.exported
         else:
             connode, geonode, cexported, gexported = 0, 0, 0, 0
-        
+
         if geonode and gexported and connode and cexported:
             row = layout.row()
             row.label("Accuracy:")
@@ -1228,14 +1228,99 @@ class EnViDataIn(bpy.types.NodeSocket):
     def draw_color(self, context, node):
         return (0.0, 1.0, 0.0, 0.75)
 
+
+# Generative nodes
+class ViGenNode(bpy.types.Node, ViNodes):
+    '''Generative geometry manipulation node'''
+    bl_idname = 'ViGenNode'
+    bl_label = 'VI Generative'
+    bl_icon = 'LAMP'
+
+    geotype = [('Object', "Object", "Object level manipulation"), ('Mesh', "Mesh", "Mesh level manipulation")]
+    geomenu = bpy.props.EnumProperty(name="", description="Geometry type", items=geotype, default = 'Mesh')
+    seltype = [('Selected', "Selected", "Only selected geometry"), ('Not selected', "Not selected", "Only unselected geometry")]
+    selmenu = bpy.props.EnumProperty(name="", description="Geometry type", items=seltype, default = 'Selected')
+    omantype = [('0', "Move", "Move geometry"), ('1', "Rotate", "Only unselected geometry"), ('2', "Scale", "Scale geometry")]
+    omanmenu = bpy.props.EnumProperty(name="", description="Manipulation type", items=omantype, default = '0')
+    mmantype = [('0', "Move", "Move geometry"), ('1', "Rotate", "Only unselected geometry"), ('2', "Scale", "Scale geometry"), ('3', "Extrude", "Extrude geometry")]
+    mmanmenu = bpy.props.EnumProperty(name="", description="Manipulation type", items=mmantype, default = '0')
+    x = bpy.props.FloatProperty(name = '', min = 0, max = 1, default = 1)
+    y = bpy.props.FloatProperty(name = '', min = 0, max = 1, default = 0)
+    z = bpy.props.FloatProperty(name = '', min = 0, max = 1, default = 0)
+    normal = bpy.props.BoolProperty(name = '', default = False)
+    direction = bpy.props.EnumProperty(items=[("0", "Positive", "Increase/positive direction"),("1", "Negative", "Decrease/negative direction")],  name="", description="Manipulation direction", default="0")
+    extent = bpy.props.FloatProperty(name = '', min = 0, max = 360, default = 0)
+    increment = bpy.props.IntProperty(name = '', min = 1, max = 16, default = 1)
+
+    #    buildstorey = bpy.props.EnumProperty(items=[("0", "Single", "Single storey building"),("1", "Multi", "Multi-storey building")], name="", description="Building storeys", default="0", update = nodeexported)
+
+
+    def init(self, context):
+        self.inputs.new('ViLiC', 'Context in')
+        self.outputs.new('ViLiC', 'Context out')
+        for ng in bpy.data.node_groups:
+            if self in ng.nodes[:]:
+                self['nodeid'] = self.name+'@'+ng.name
+
+    def draw_buttons(self, context, layout):
+        newrow(layout, 'Geometry:', self, 'geomenu')
+        newrow(layout, 'Selection:', self, 'selmenu')
+        if self.geomenu == 'Object':
+           newrow(layout, 'Manipulation:', self, 'omanmenu')
+           row = layout.row()
+           row.label('Axis (X, Y, Z)')
+           col = row.column()
+           subrow = col.row(align=True)
+           subrow.prop(self, 'x')
+           subrow.prop(self, 'y')
+           subrow.prop(self, 'z')
+        else:
+           newrow(layout, 'Manipulation:', self, 'mmanmenu')
+           newrow(layout, 'Normal:', self, 'normal')
+           if not self.normal:
+               row = layout.row()
+               row.label('Axis (X,Y,Z):')
+               col = row.column()
+               subrow = col.row(align=True)
+               subrow.prop(self, 'x')
+               subrow.prop(self, 'y')
+               subrow.prop(self, 'z')
+        newrow(layout, 'Extent:', self, 'extent')
+        newrow(layout, 'Increment:', self, 'increment')
+
+
+class ViTarNode(bpy.types.Node, ViNodes):
+    '''Target Node'''
+    bl_idname = 'ViTarNode'
+    bl_label = 'VI Target'
+    bl_icon = 'LAMP'
+
+    ab = bpy.props.EnumProperty(items=[("0", "Above", "Target is above level"),("1", "Below", "Target is below level")],  name="", description="Whether target is to go above or below a specified level", default="0")
+    stat = bpy.props.EnumProperty(items=[("0", "Average", "Average of data points"),("1", "Max", "Maximum of data points"),("2", "Min", "Minimum of data points"),("3", "Tot", "Total of data points")],  name="", description="Metric statistic", default="0")
+    value = bpy.props.FloatProperty(name = '', min = 0, max = 100000, default = 0, description="Desired value")
+
+    def init(self, context):
+        self.inputs.new('ViLiC', 'Context in')
+        self.outputs.new('ViLiC', 'Context out')
+        for ng in bpy.data.node_groups:
+            if self in ng.nodes[:]:
+                self['nodeid'] = self.name+'@'+ng.name
+
+    def draw_buttons(self, context, layout):
+        newrow(layout, 'Above/Below:', self, 'ab')
+        newrow(layout, 'Statistic:', self, 'stat')
+        newrow(layout, 'Value:', self, 'value')
+
 viexnodecat = [NodeItem("ViGExLiNode", label="LiVi Geometry"), NodeItem("ViLiNode", label="LiVi Basic"), NodeItem("ViLiCNode", label="LiVi Compliance"), NodeItem("ViLiCBNode", label="LiVi Climate Based"), NodeItem("ViGExEnNode", label="EnVi Export"), NodeItem("ViLoc", label="VI Location")]
 
 vinodecat = [NodeItem("ViLiSNode", label="LiVi Simulation"),\
              NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), NodeItem("ViGNode", label="VI-Suite glare"), NodeItem("ViExEnNode", label="EnVi Simulation")]
 
-vidisnodecat = [NodeItem("ViEnRNode", label="VI-Suite chart display"), NodeItem("ViEnRFNode", label="EnergyPlus result file")]
+vigennodecat = [NodeItem("ViGenNode", label="VI-Suite Generative"), NodeItem("ViTarNode", label="VI-Suite Target")]
 
-vinode_categories = [ViNodeCategory("Display", "Display Nodes", items=vidisnodecat), ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat), ViNodeCategory("Export", "Export Nodes", items=viexnodecat)]
+vidisnodecat = [NodeItem("ViEnRNode", label="VI-Suite Chart"), NodeItem("ViEnRFNode", label="EnergyPlus result file")]
+
+vinode_categories = [ViNodeCategory("Display", "Display Nodes", items=vidisnodecat), ViNodeCategory("Generative", "Generative Nodes", items=vigennodecat), ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat), ViNodeCategory("Export", "Export Nodes", items=viexnodecat)]
 
 
 ####################### EnVi ventilation network ##############################
@@ -2050,3 +2135,6 @@ envinode_categories = [
             NodeItem("EnViSched", label="Schedule")]),
         EnViNodeCategory("PlantNodes", "Plant Nodes", items=[
             NodeItem("EnViFan", label="EnVi fan node")])]
+
+
+

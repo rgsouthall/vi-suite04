@@ -253,15 +253,16 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
                     if len(set(obm.vertex_colors[fn].data[loop_index].color[:])) > 0:
                         if (total_mat*fc)[2] > 0:
                             if geonode:
-                                vi_func.draw_index(context, 1, mid_x, mid_y, width, height, int(simnode['minres'][fn] + (1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loop_index].color[0]/255, obm.vertex_colors[fn].data[loop_index].color[1]/255, obm.vertex_colors[fn].data[loop_index].color[2]/255)[0]))*(simnode['maxres'][fn] - simnode['minres'][fn])), total_mat*fc.to_4d())
+                                val = min(simnode['minres']) + (1 - (1.333333*colorsys.rgb_to_hsv(*[obm.vertex_colors[fn].data[loop_index].color[i]/255 for i in range(3)])[0]))*(max(simnode['maxres']) - min(simnode['minres']))
+                                vi_func.draw_index(context, 1, mid_x, mid_y, width, height, ('{:.1f}', '{:.0f}')[val > 100].format(val), total_mat*fc.to_4d())
                             else:
-                                vi_func.draw_index(context, 1, mid_x, mid_y, width, height, int(simnode['minres'][fn] + (obm.vertex_colors[fn].data[loop_index].color[0])*(simnode['maxres'][fn] - simnode['minres'][fn])), total_mat*fc.to_4d())
+                                vi_func.draw_index(context, 1, mid_x, mid_y, width, height, min(simnode['minres']) + (obm.vertex_colors[fn].data[loop_index].color[0])*(max(simnode['maxres']) - min(simnode['minres'])), total_mat*fc.to_4d())
         elif cp == "1":
             for v, vert in enumerate(verts):
                 vpos = ob.active_shape_key.data[vert.index].co if len(obreslist) > 0 else vert.co
                 if len(set(obm.vertex_colors[fn].data[vert.index].color[:])) > 0:
                     if (total_mat*vpos)[2] > 0:
-                        vi_func.draw_index(context, 1, mid_x, mid_y, width, height, int((1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loops[v]].color[0]/255, obm.vertex_colors[fn].data[loops[v]].color[1]/255, obm.vertex_colors[fn].data[loops[v]].color[2]/255)[0]))*simnode['maxres'][fn]), total_mat*vpos.to_4d())
+                        vi_func.draw_index(context, 1, mid_x, mid_y, width, height, int((1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loops[v]].color[0]/255, obm.vertex_colors[fn].data[loops[v]].color[1]/255, obm.vertex_colors[fn].data[loops[v]].color[2]/255)[0]))*max(simnode['maxres'])), total_mat*vpos.to_4d())
         blf.disable(0, 4)
 
 def li3D_legend(self, context, simnode, connode, geonode):

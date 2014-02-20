@@ -136,14 +136,22 @@ def clearscenece(scene):
 
     for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
         scene.objects.active = ob
-        for vcol in ob.data.vertex_colors:
+        while ob.data.vertex_colors:
             bpy.ops.mesh.vertex_color_remove()
 
 def clearscenege(scene):
+    print('hi therre')
     for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
         scene.objects.active = ob
-        for vcol in ob.data.vertex_colors:
+        while ob.data.vertex_colors:
             bpy.ops.mesh.vertex_color_remove()
+            
+    for sk in bpy.data.shape_keys:
+        if sk.users == 0:
+            for keys in sk.keys():
+                keys.animation_data_clear()
+            
+    
 
 def clearscened(scene):
     for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
@@ -491,7 +499,7 @@ def mtx2vals(mtxlines, fwd, locnode):
 
 def framerange(scene, anim):
     if anim == 'Static':
-        return(range(scene.frame_start, scene.frame_start +1))
+        return(range(scene.frame_current, scene.frame_current +1))
     else:
         return(range(scene.frame_start, scene.frame_end +1))
 
@@ -609,12 +617,29 @@ def wr_axes():
     fig.add_axes(ax)
     return ax
 
-def vcframe(scene, obcalclist, anim):
+def vcframe(pp, scene, obcalclist, anim):
     for frame in framerange(scene, anim):
         scene.frame_set(frame)
         for obcalc in obcalclist:
             for vc in obcalc.data.vertex_colors:
-                (vc.active, vc.active_render) = (1, 1) if vc.name == str(frame) else (0, 0)
+                (vc.active, vc.active_render) = (1, 1) if vc.name == pp+str(frame) else (0, 0)
                 vc.keyframe_insert("active")
                 vc.keyframe_insert("active_render")
 
+def gentarget(tarnode, result):
+    if tarnode.stat == '0':
+        res = sum(result)/len(result)
+    elif tarnode.stat == '1':
+        res = max(result)
+    elif tarnode.stat == '2':
+        res = min(result)  
+    elif tarnode.stat == '3':
+        res = sum(result)
+    print(res, tarnode.value)
+    
+    if tarnode.value > res and tarnode.ab == '0':
+        return(1)
+    elif tarnode.value < res and tarnode.ab == '1':
+        return(1)
+    else:
+        return(0)

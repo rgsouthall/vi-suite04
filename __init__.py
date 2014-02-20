@@ -513,7 +513,7 @@ def register():
     Material.envi_export_l4_bie = fprop("BIE", "Back Side Infrared Hemispherical Emissivity", 0, 1, 0.84)
     Material.envi_shad_att = bprop("Attached", "Flag to specify shading attached to the building",False)
 
-
+    Scene.fs = iprop("Frame start", "Starting frame",0, 1000, 0)
     Scene.vipath = sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
     Scene.solday = bpy.props.IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
     Scene.solhour = bpy.props.FloatProperty(name = "", description = "Time of day", min = 0, max = 24, default = 12, update=sunpath1)

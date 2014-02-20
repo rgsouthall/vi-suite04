@@ -67,8 +67,9 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     radfiles = []
 
     def init(self, context):
+        self.outputs.new('ViGen', 'Generative out')
         self.outputs.new('ViLiG', 'Geometry out')
-        self.outputs[0].hide = True
+        self.outputs[1].hide = True
         if bpy.data.filepath:
             nodeinit(self)
         for ng in bpy.data.node_groups:
@@ -88,6 +89,7 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
 #                link = self.outputs[0].links[0]
 #                bpy.data.node_groups[self['nodeid'].split('@')[1]].links.remove(link)
 #        else:
+        self.outputs[0].hide = True if self.animmenu != 'Static' else False            
         socklink(self.outputs[0], self['nodeid'].split('@')[1])
         if self.outputs[0].is_linked and self.outputs[0].links[0].to_node.name == 'LiVi Compliance' and self.cpoint == '1':
             self.cpoint = '0'
@@ -113,6 +115,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
         self.exported = False
         self.outputs['Context out'].hide = True
         self.bl_label = '*LiVi Basic'
+        self.outputs['Target out'].hide = True if self.animmenu != 'Static' else False
 
     def edupdate(self, context):
         if self.edoy < self.sdoy:
@@ -164,7 +167,8 @@ class ViLiNode(bpy.types.Node, ViNodes):
 
     def init(self, context):
         self.inputs.new('ViLiG', 'Geometry in')
-        self.outputs.new('ViLiC', 'Context out')
+        self.outputs.new('ViTar', 'Target out')
+        self.outputs.new('ViLiC', 'Context out')        
         self.outputs['Context out'].hide = True
         for ng in bpy.data.node_groups:
             if self in ng.nodes[:]:
@@ -1116,7 +1120,6 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 def color(self):
                     return (0.0, 1.0, 0.0, 0.75)
 
-
         bpy.utils.register_class(ViEnRXIn)
         bpy.utils.register_class(ViEnRY1In)
         bpy.utils.register_class(ViEnRY2In)
@@ -1176,7 +1179,34 @@ class ViLiC(bpy.types.NodeSocket):
 
     def color(self):
         return (1.0, 1.0, 0.0, 0.75)
+        
+class ViGen(bpy.types.NodeSocket):
+    '''VI Generative geometry socket'''
+    bl_idname = 'ViGen'
+    bl_label = 'Generative geometry'
 
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+
+    def draw_color(self, context, node):
+        return (0.0, 1.0, 1.0, 0.75)
+
+    def color(self):
+        return (0.0, 1.0, 1.0, 0.75)
+        
+class ViTar(bpy.types.NodeSocket):
+    '''VI Generative target socket'''
+    bl_idname = 'ViTar'
+    bl_label = 'Generative target'
+
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+
+    def draw_color(self, context, node):
+        return (1.0, 0.0, 1.0, 0.75)
+
+    def color(self):
+        return (1.0, 0.0, 1.0, 0.75)
 
 class ViEnGOut(bpy.types.NodeSocket):
     '''Energy geometry out socket'''
@@ -1253,14 +1283,14 @@ class ViGenNode(bpy.types.Node, ViNodes):
     normal = bpy.props.BoolProperty(name = '', default = False)
     direction = bpy.props.EnumProperty(items=[("0", "Positive", "Increase/positive direction"),("1", "Negative", "Decrease/negative direction")],  name="", description="Manipulation direction", default="0")
     extent = bpy.props.FloatProperty(name = '', min = 0, max = 360, default = 0)
-    increment = bpy.props.IntProperty(name = '', min = 1, max = 16, default = 1)
+    steps = bpy.props.IntProperty(name = '', min = 1, max = 100, default = 1)
 
     #    buildstorey = bpy.props.EnumProperty(items=[("0", "Single", "Single storey building"),("1", "Multi", "Multi-storey building")], name="", description="Building storeys", default="0", update = nodeexported)
 
 
     def init(self, context):
-        self.inputs.new('ViLiC', 'Context in')
-        self.outputs.new('ViLiC', 'Context out')
+        self.inputs.new('ViGen', 'Generative in')
+#        self.outputs.new('ViLiC', 'Context out')
         for ng in bpy.data.node_groups:
             if self in ng.nodes[:]:
                 self['nodeid'] = self.name+'@'+ng.name
@@ -1288,8 +1318,9 @@ class ViGenNode(bpy.types.Node, ViNodes):
                subrow.prop(self, 'x')
                subrow.prop(self, 'y')
                subrow.prop(self, 'z')
+        newrow(layout, 'Direction:', self, 'direction')
         newrow(layout, 'Extent:', self, 'extent')
-        newrow(layout, 'Increment:', self, 'increment')
+        newrow(layout, 'Increment:', self, 'steps')
 
 
 class ViTarNode(bpy.types.Node, ViNodes):
@@ -1303,8 +1334,8 @@ class ViTarNode(bpy.types.Node, ViNodes):
     value = bpy.props.FloatProperty(name = '', min = 0, max = 100000, default = 0, description="Desired value")
 
     def init(self, context):
-        self.inputs.new('ViLiC', 'Context in')
-        self.outputs.new('ViLiC', 'Context out')
+        self.inputs.new('ViTar', 'Target in')
+#        self.outputs.new('ViLiC', 'Context out')
         for ng in bpy.data.node_groups:
             if self in ng.nodes[:]:
                 self['nodeid'] = self.name+'@'+ng.name

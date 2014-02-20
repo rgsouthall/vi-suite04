@@ -16,13 +16,14 @@ try:
 except:
     mp = 0
 from .livi_export import radcexport, radgexport, cyfc1
-from .livi_calc  import rad_prev, li_calc, li_glare
+from .livi_calc  import rad_prev, li_calc, li_glare, resapply
 from .vi_display import li_display, ss_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .envi_calc import envi_sim
-from .vi_func import processf, livisimacc, solarPosition, sunpath2, wr_axes, set_legend, clearscened, frameindex, framerange, vcframe
+from .vi_func import processf, livisimacc, solarPosition, retobjs, wr_axes, set_legend, clearscened, frameindex, framerange, vcframe
 from .vi_chart import chart_disp
+from .vi_gen import vigen
 
 envi_mats = envi_materials()
 envi_cons = envi_constructions()
@@ -32,7 +33,7 @@ class NODE_OT_LiGExport(bpy.types.Operator):
     bl_label = "VI-Suite export"
     nodeid = bpy.props.StringProperty()
 
-    def execute(self, context):
+    def invoke(self, context, event):
         scene = context.scene
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         if bpy.data.filepath and " " not in bpy.data.filepath:
@@ -41,7 +42,7 @@ class NODE_OT_LiGExport(bpy.types.Operator):
             bpy.data.node_groups[self.nodeid.split('@')[1]].use_fake_user = 1
             radgexport(self, node)
             node.exported = True
-            node.outputs[0].hide = False
+            node.outputs[1].hide = False
             return {'FINISHED'}
 
         elif " "  in bpy.data.filepath:
@@ -255,7 +256,20 @@ class NODE_OT_Calculate(bpy.types.Operator):
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         connode = simnode.inputs['Context in'].links[0].from_node
         geonode = connode.inputs['Geometry in'].links[0].from_node
-        if connode.analysismenu != '3':
+        
+        for geo in retobjs('livig'):
+            geo.licalc = any([m.livi_sense for m in geo.data.materials])
+        geogennode = geonode.outputs['Generative out'].links[0].to_node if geonode.outputs['Generative out'].is_linked else 0                    
+        tarnode = connode.outputs['Target out'].links[0].to_node if connode.outputs['Target out'].is_linked else 0
+        
+        if geogennode and tarnode: 
+            simnode['Animation'] = 'Animated'
+            scene.fs = scene.frame_start
+            vigen(self, li_calc, resapply, geonode, connode, simnode, geogennode, tarnode)     
+            scene.vi_display = 1
+        elif connode.analysismenu != '3':
+            simnode['Animation'] = connode['Animation']
+            scene.fs = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
             li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
             scene.vi_display = 1
         else:

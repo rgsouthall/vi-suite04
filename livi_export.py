@@ -29,17 +29,30 @@ try:
 except:
     np = 0
 
-def radgexport(export_op, node):
+def radgexport(export_op, node, **kwargs):
     scene = bpy.context.scene
+    
     if bpy.context.active_object and bpy.context.active_object.type == 'MESH' and bpy.context.active_object.hide == 0:
         bpy.ops.object.mode_set()
     radfilelist = []
 
-    clearscenege(scene)
-    clearscened(scene)
-
-    for frame in framerange(scene, node.animmenu):
-        scene.frame_current = frame
+    if export_op.nodeid.split('@')[0] == 'LiVi Geometry':
+        clearscenege(scene)
+        clearscened(scene)
+    else:
+        genframe = kwargs['genframe'] if kwargs.get('genframe') else 0
+    
+        
+    
+    frames = framerange(scene, node.animmenu) if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else range(genframe, genframe + 1)
+    frameis = frameindex(scene, node.animmenu) if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else frameindex(scene, 'Static')
+#    frameisg = frameis if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else rangescene.frame_current
+    
+    for frame in frames:
+        if export_op.nodeid.split('@')[0] == 'LiVi Geometry':
+            scene.frame_current = frame
+        else:
+            frame = kwargs.get('genframe')
 
         # Material export routine
 
@@ -66,14 +79,19 @@ def radgexport(export_op, node):
         for o in retobjs('livig'):
             o.select = True
             if o.get('merr') != 1:
-                if node.animmenu == 'Geometry':
-                    bpy.ops.export_scene.obj(filepath=retobj(o.name, frame, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
-                    objcmd = "obj2mesh -a {} {} {}".format(retmat(frame, node), retobj(o.name, frame, node), retmesh(o.name, frame, node))
+                if node.animmenu == 'Geometry':# or export_op.nodeid.split('@')[0] == 'LiVi Simulation':
+                    bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_current, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
+                    objcmd = "obj2mesh -w -a {} {} {}".format(retmat(frame, node), retobj(o.name, scene.frame_current, node), retmesh(o.name, scene.frame_current, node))
+                    objrun = Popen(objcmd, shell = True, stdout = PIPE)                
+                elif export_op.nodeid.split('@')[0] == 'LiVi Simulation':
+                    bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_start, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
+                    objcmd = "obj2mesh -w -a {} {} {}".format(retmat(scene.frame_start, node), retobj(o.name, scene.frame_start, node), retmesh(o.name, scene.frame_start, node))
                     objrun = Popen(objcmd, shell = True, stdout = PIPE)
+
                 else:
-                    if frame == scene.frame_start:
-                        bpy.ops.export_scene.obj(filepath=retobj(o.name, frame, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
-                        objcmd = "obj2mesh -a {} {} {}".format(retmat(frame, node), retobj(o.name, frame, node), retmesh(o.name, frame, node))
+                    if frame == frames[0]:
+                        bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_current, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
+                        objcmd = "obj2mesh -w -a {} {} {}".format(retmat(frame, node), retobj(o.name, scene.frame_current, node), retmesh(o.name, scene.frame_current, node))
                         objrun = Popen(objcmd, shell = True, stdout = PIPE)
 
                 for line in objrun.stdout:
@@ -129,42 +147,41 @@ def radgexport(export_op, node):
         radfilelist.append(radfile)
 
     node['radfiles'] = radfilelist
-    connode = node.outputs[0].links[0].to_node if node.outputs[0].is_linked else 0
+    connode = node.outputs['Geometry out'].links[0].to_node if node.outputs[0].is_linked else 0
 
     node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
 
-    for frame in frameindex(scene, node.animmenu):
+    for frame in frameis:
         fexport(scene, frame, export_op, node, connode)
 
 # rtrace export routine
     with open(node.filebase+".rtrace", "w") as rtrace:
-        calcsurfverts, calcsurffaces = [], []
-        for o, geo in enumerate(retobjs('livig')):
+#        reslen, calcsurfverts, calcsurffaces,  = 0, [], []
+        reslen = 0
+        geos = retobjs('livig') if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else retobjs('livic')
+        for o, geo in enumerate(geos):
+            print('geoname', geo.name)
             if len(geo.data.materials) > 0:
                 if len([mat for mat in geo.material_slots if mat.material.livi_sense]) > 0:
-                    geo['licalc'], csf, csv, cverts, obcalcverts, scene.objects.active = 1, [], [], [], [], geo
+                    geo['licalc'], cverts, obcalcverts, csv, csf, scene.objects.active = 1, [], [], [], [], geo
                     bpy.ops.object.mode_set(mode = 'EDIT')
-                    bpy.ops.mesh.select_all(action='SELECT')
+                    bpy.ops.mesh.select_all(action='DESELECT')
                     bpy.ops.object.mode_set(mode = 'OBJECT')
                     mesh = geo.to_mesh(scene, True, 'PREVIEW', calc_tessface=False)
                     mesh.transform(geo.matrix_world)
-
                     scene.objects.active = geo
-
-                    for vc in geo.data.vertex_colors:
-                        bpy.ops.mesh.vertex_color_remove()
-
                     for face in mesh.polygons:
                         if mesh.materials[face.material_index].livi_sense:
                             face.select, vsum,  = True, Vector((0, 0, 0))
                             csf.append(face.index)
+                            reslen += 1
 
                             if node.cpoint == '0':
                                 for v in face.vertices:
                                     vsum += mesh.vertices[v].co
                                 fc = vsum/len(face.vertices)
                                 rtrace.write('{0[0]} {0[1]} {0[2]} {1[0]} {1[1]} {1[2]} \n'.format(fc, face.normal.normalized()[:]))
-                                calcsurffaces.append((o, face))
+#                                calcsurffaces.append((o, face))
 
                             else:
                                 for v,vert in enumerate(face.vertices):
@@ -172,15 +189,15 @@ def radgexport(export_op, node):
                                         vcentx, vcenty, vcentz = mesh.vertices[vert].co[:]
                                         vnormx, vnormy, vnormz = (mesh.vertices[vert].normal*geo.matrix_world.inverted())[:]
                                         csv.append(vert)
+                                        reslen += 1
                                         rtrace.write('{0[0]} {0[1]} {0[2]} {1[0]} {1[1]} {1[2]} \n'.format(mesh.vertices[vert].co[:], (mesh.vertices[vert].normal*geo.matrix_world.inverted()).normalized()[:]))
-                                        obcalcverts.append(mesh.vertices[vert])
-                                        cverts.append(vert)
-                                calcsurfverts += obcalcverts
-                        else:
-                            face.select = False
+#                                        obcalcverts.append(mesh.vertices[vert])
+#                                        cverts.append(vert)
+#                                calcsurfverts += obcalcverts
+#                        else:
+#                            face.select = False
 
-                    (geo['cverts'], geo['cfaces']) = (cverts, []) if node.cpoint == '1' else ([], csf)
-                    node.reslen += len(csv) if node.cpoint == '1' else len(csf)
+                    (geo['cverts'], geo['cfaces']) = (csv, []) if node.cpoint == '1' else ([], csf)                    
                     bpy.data.meshes.remove(mesh)
                 else:
                     if geo.get('licalc'):
@@ -190,6 +207,7 @@ def radgexport(export_op, node):
             else:
                 node.export = 0
                 export_op.report({'ERROR'},"Make sure your object "+geo.name+" has an associated material")
+        node.reslen = reslen
     node.export = 1
 
 
@@ -269,7 +287,6 @@ def radcexport(export_op, node):
                     with open(geonode.newdir+"/"+epwbase[0]+".wea", "w") as wea:
                         wea.write("place {0[1]}\nlatitude {0[6]}\nlongitude {0[7]}\ntime_zone {0[8]}\nsite_elevation {0[9]}weather_data_file_units 1\n".format(epwlines[0].split(",")))
                         for epwline in epwlines[8:]:
-                            print(int(epwline.split(",")[1]), print(range(locnode.startmonth, locnode.endmonth + 1)))
                             if int(epwline.split(",")[1]) in range(locnode.startmonth, locnode.endmonth + 1):
                                 wea.write("{0[1]} {0[2]} {0[3]} {0[14]} {0[15]} \n".format(epwline.split(",")))
 #                    if not os.path.isfile(geonode.newdir+"/"+epwbase[0]+".mtx"):
@@ -366,27 +383,31 @@ def hdrsky(skyfile):
 
 def fexport(scene, frame, export_op, node, othernode):
     (geonode, connode) = (node, othernode) if node.bl_label == 'LiVi Geometry' else (othernode, node)
+    
+    skyframe = frame if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else 0
 #    subprocess.call(geonode.rm +" {0}-{1}.oct".format(geonode.filebase, frame), shell = True)
     if not othernode:
         radtext = geonode['radfiles'][0] if len(geonode['radfiles']) == 1 else geonode['radfiles'][frame]
     else:
-        radtext = geonode['radfiles'][0] + connode['skyfiles'][frame] if len(geonode['radfiles']) == 1 else geonode['radfiles'][frame] + connode['skyfiles'][0]
+        radtext = geonode['radfiles'][0] + connode['skyfiles'][skyframe] if len(geonode['radfiles']) == 1 else geonode['radfiles'][frame] + connode['skyfiles'][0]
 
-    with open(geonode.filebase+"-{}.rad".format(frame + scene.frame_start), 'w') as radfile:
+    with open(geonode.filebase+"-{}.rad".format(scene.frame_current), 'w') as radfile:
         radfile.write(radtext)
         
-    if not bpy.data.texts.get('Radiance input-{}'.format(frame)):
-        bpy.data.texts.new('Radiance input-{}'.format(frame))
-    bpy.data.texts['Radiance input-{}'.format(frame)].clear()
-    bpy.data.texts['Radiance input-{}'.format(frame)].write(radtext)
+    if not bpy.data.texts.get('Radiance input-{}'.format(scene.frame_current)):
+        bpy.data.texts.new('Radiance input-{}'.format(scene.frame_current))
+    bpy.data.texts['Radiance input-{}'.format(scene.frame_current)].clear()
+    bpy.data.texts['Radiance input-{}'.format(scene.frame_current)].write(radtext)
     
-    oconvcmd = "oconv -w {0}-{1}.rad > {0}-{1}.oct".format(geonode.filebase, frame + scene.frame_start)
+    oconvcmd = "oconv -w {0}-{1}.rad > {0}-{1}.oct".format(geonode.filebase, scene.frame_current)
 #    This next line allows the radiance scene description to be piped into the oconv command.
 #   oconvcmd = "oconv -w - > {0}-{1}.oct".format(geonode.filebase, frame).communicate(input = radtext.encode('utf-8'))
     Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT)#.communicate(input = radtext.encode('utf-8'))
     node.export = 1
     export_op.report({'INFO'},"Export is finished")
-    scene.frame_set(scene.frame_start)
+    
+    if export_op.nodeid.split('@')[0] == 'LiVi Geometry':
+        scene.frame_set(scene.frame_start)
 
 def cyfc1(self):
     if bpy.data.scenes[0].render.engine == "CYCLES":

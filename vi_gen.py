@@ -1,8 +1,6 @@
 import bpy, mathutils
 from . import vi_func
 from .livi_export import radgexport
-#from .livi_calc  import li_calc
-#from .vi_operators import NODE_OT_LiGExport, NODE_OT_Calculate
 
 try:
     import numpy
@@ -16,47 +14,47 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
     simnode['Animation'] = 'Animated'
     
     for geo in vi_func.retobjs('livig'):
-        print(geo.name)
         if any([m.livi_sense for m in geo.data.materials]):
-            print(geo.name)
-#    for geo in vi_func.retobjs('livig'):any([m.livi_sense for m in [geo.data.materials for geo in bpy.scene.objects]])
-            scene.objects.active = geo
+            vi_func.selobj(scene, geo)
             bpy.ops.anim.keyframe_clear_v3d()
             geo['licalc'] = 1
-        
-    for geo in vi_func.retobjs('livic'):        
-        scene.objects.active = geo
+                    
+    for geo in vi_func.retobjs('livic'):  
+        vi_func.selobj(scene, geo)
+        geo.data.animation_data_clear()
         while geo.data.vertex_colors:
-            bpy.ops.mesh.vertex_color_remove()
+            bpy.ops.mesh.vertex_color_remove()        
         while geo.data.shape_keys:
-            bpy.ops.object.shape_key_remove()
+            bpy.context.object.active_shape_key_index = 0
+            bpy.ops.object.shape_key_remove(all=True)
         bpy.ops.object.mode_set(mode = 'EDIT')
-        bpy.ops.mesh.select_all(action='SELECT')
-        bpy.ops.mesh.remove_doubles()
-        bpy.ops.mesh.select_all(action='DESELECT')
+        if geo.vertex_groups.get('genfaces'):            
+            bpy.ops.mesh.select_all(action='SELECT')
+            bpy.ops.mesh.remove_doubles()
+            bpy.ops.mesh.select_all(action='DESELECT')
+        else:
+            geo.vertex_groups.new('genfaces')
+            geo.vertex_groups.active = geo.vertex_groups['genfaces']
+            bpy.ops.object.vertex_group_assign()
         bpy.ops.object.mode_set(mode = 'OBJECT')
-        
-    
-    print('geo export')
+                    
     radgexport(calc_op, geonode, genframe = scene.frame_current)
-    print('geo calc')
     res = [li_calc(calc_op, simnode, connode, geonode, vi_func.livisimacc(simnode, connode), genframe = scene.frame_current)]
 
     for geo in vi_func.retobjs('livic'):        
         geo['licalc'] = vi_func.gentarget(tarnode, geo['oreslist']['{}'.format(scene.frame_current)]) 
         livicgeos = vi_func.retobjs('livic')
         if geo.get('licalc') == 1:
-            scene.objects.active = geo
+            vi_func.selobj(scene, geo)
             bpy.ops.object.shape_key_add(from_mix = False)
-    print('loop')
+            geo.keyframe_insert(data_path='["licalc"]')
+            geo.keyframe_insert(data_path='["licalc"]', frame = scene.frame_current + 1)
             
     while scene.frame_current < scene.frame_start + geogennode.steps and vi_func.retobjs('livic'):
-        print('looping', scene.frame_current)
-        if scene.frame_current > scene.frame_start:  
-            
+        if scene.frame_current > scene.frame_start:              
             for geo in vi_func.retobjs('livic'):
                 geo.keyframe_insert(data_path='["licalc"]')
-                scene.objects.active = geo        
+                vi_func.selobj(scene, geo)        
                 bpy.ops.object.shape_key_add(from_mix = False)
                 geo.active_shape_key.name = 'gen-' + str(scene.frame_current)
                 modgeo(geo, geogennode, scene)   
@@ -67,35 +65,18 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
                         shape.keyframe_insert("value")
     
             radgexport(calc_op, geonode, genframe = scene.frame_current)
-    #
-    #        if li_calc(calc_op, simnode, connode, geonode, vi_func.livisimacc(simnode, connode), genframe = scene.frame_current):
             res.append(li_calc(calc_op, simnode, connode, geonode, vi_func.livisimacc(simnode, connode), genframe = scene.frame_current))
             
             for geo in vi_func.retobjs('livic'):
                 geo['licalc'] = vi_func.gentarget(tarnode, geo['oreslist']['{}'.format(scene.frame_current)]) 
-                print('kfinsert', geo.name, geo.get('licalc'))
-                geo.keyframe_insert(data_path='["licalc"]')
-                
+                geo.keyframe_insert(data_path='["licalc"]', frame = scene.frame_current + 1)
+                                
         scene.frame_set(scene.frame_current + 1)
         scene.frame_end = scene.frame_current
-        print(scene.frame_current < scene.frame_start + geogennode.steps, vi_func.retobjs('livic'))
     
-    scene.frame_end = scene.frame_end - 1
-#            geo.licalc = vi_func.gentarget(tarnode, geo['oreslist']['{}'.format(scene.frame_current)])
-#        f += 1
-        
-#    if np == 1:
-#        simnode['maxres'] = [numpy.amax(res[i]) for i in vi_func.frameindex(scene, simnode['Animation'])]
-#        simnode['minres'] = [numpy.amin(res[i]) for i in vi_func.frameindex(scene, simnode['Animation'])]
-#        simnode['avres'] = [numpy.average(res[i]) for i in vi_func.frameindex(scene, simnode['Animation'])]
-#    else:
-#        simnode['maxres'] = [max(res[i]) for i in vi_func.frameindex(scene, simnode['Animation'])]
-#        simnode['minres'] = [min(res[i]) for i in vi_func.frameindex(scene, simnode['Animation'])]
-#        simnode['avres'] = [sum(res[i])/len(res[i]) for i in vi_func.frameindex(scene, simnode['Animation'])]    
-    
+    scene.frame_end = scene.frame_end - 1       
     resapply(calc_op, res, 0, simnode, connode, geonode)
         
-
     for frame in vi_func.framerange(scene, 'Animation'):
         scene.frame_set(frame)
         for geo in livicgeos:
@@ -106,16 +87,13 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
                         shape.value = 1
                     shape.keyframe_insert("value")
                     
-    vi_func.vcframe('gen-', scene, livicgeos , simnode['Animation'])
-            
+    vi_func.vcframe('', scene, livicgeos, simnode['Animation'])            
     scene.frame_current = scene.frame_start       
         
 def modgeo(geo, geogennode, scene):
     fc, fs = scene.frame_current, scene.frame_start
-    if not geo.vertex_groups.get('genfaces'):
-        geo.vertex_groups.new('genfaces')
-        geo.vertex_groups.active = geo.vertex_group['genfaces']
-        bpy.ops.object.vertex_group_assign()
+#    if not geo.vertex_groups.get('genfaces'):        
+        
 
 
     

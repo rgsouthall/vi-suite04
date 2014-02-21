@@ -643,3 +643,8 @@ def gentarget(tarnode, result):
         return(1)
     else:
         return(0)
+        
+def selobj(scene, geo):
+    for ob in scene.objects:
+        ob.select = True if ob == geo else False
+    scene.objects.active = geo

@@ -89,8 +89,8 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                 num = (("-ab", 2, 3, 5), ("-ad", 512, 2048, 4096), ("-ar", 128, 512, 1024), ("-as", 256, 1024, 2048), ("-aa", 0.3, 0.2, 0.18), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.001, 0.0002))
             simnode['params'] = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simacc)+1] for n in num]))
 
-        if not kwargs.get('genframe'):
-            vi_func.clearscened(scene)
+#        if not kwargs.get('genframe'):
+#            vi_func.clearscened(scene)
 
         if np == 1:
             res, svres = numpy.zeros([len(frames), geonode.reslen]), numpy.zeros([len(frames), geonode.reslen])
@@ -99,7 +99,6 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
 
         for frame in frames:
             findex = frame - scene.fs if not kwargs.get('genframe') else 0
-            print('findex', findex)
             if connode.bl_label in ('LiVi Basic', 'LiVi Compliance') or (connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) < 2):
                 if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
                     subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
@@ -183,7 +182,6 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
 #                resapply(calc_op, frame, res, svres, simnode, connode, geonode, kwargs.get('genframe'))
         fi, vi = 0, 0       
         for geo in vi_func.retobjs('livic'):
-            print('frame:', frame, 'geo', geo.name)
             obcalcverts, obres = [], []
             weightres = 0
             geoarea = sum([vi_func.triarea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
@@ -236,18 +234,9 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
             vi_func.vcframe('', scene, [ob for ob in scene.objects if ob.get('licalc')] , simnode['Animation'])
         else:
             return(res[0])
-
-
-#        else:
-#            resapply(calc_op, wattres, svres, simnode, connode, geonode, kwargs.get('genframe'))
-
-        
-        
-
-    
+   
 def resapply(calc_op, res, svres, simnode, connode, geonode):
     scene = bpy.context.scene
-    print(res)
     
     if connode.analysismenu != '3' or connode.bl_label != 'LiVi CBDM':
         if np == 1:
@@ -279,10 +268,6 @@ def resapply(calc_op, res, svres, simnode, connode, geonode):
             bpy.ops.object.mode_set()
     
         for geo in vi_func.retobjs('livic'):
-#            print(geo.name)
-#            if geo.get('licalc') == 1:
-                
-
             bpy.ops.object.select_all(action = 'DESELECT')
             scene.objects.active = None
             geoarea = sum([vi_func.triarea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
@@ -301,8 +286,7 @@ def resapply(calc_op, res, svres, simnode, connode, geonode):
                 
                 fend = f + len(geofaces)
                 passarea = 0
-                scene.objects.active = geo
-                geo.select = True
+                vi_func.selobj(scene, geo)
                 bpy.ops.mesh.vertex_color_add()
                 geo.data.vertex_colors[-1].name = str(frame)
                 vertexColour = geo.data.vertex_colors[-1]

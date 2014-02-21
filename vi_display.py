@@ -49,14 +49,14 @@ def li_display(simnode, connode, geonode):
             bpy.ops.object.select_all(action = 'DESELECT')
             obcalclist.append(geo)
 #            o += 1
-
-    for frame in vi_func.framerange(scene, simnode['Animation']):
-        scene.frame_set(frame)
-        for obcalc in obcalclist:
-            for vc in obcalc.data.vertex_colors:
-                (vc.active, vc.active_render) = (1, 1) if vc.name == str(frame) else (0, 0)
-                vc.keyframe_insert("active")
-                vc.keyframe_insert("active_render")
+    vi_func.vcframe('', scene, obcalclist, simnode['Animation'])
+#    for frame in vi_func.framerange(scene, simnode['Animation']):
+#        scene.frame_set(frame)
+#        for obcalc in obcalclist:
+#            for vc in obcalc.data.vertex_colors:
+#                (vc.active, vc.active_render) = (1, 1) if vc.name == str(frame) else (0, 0)
+#                vc.keyframe_insert("active")
+#                vc.keyframe_insert("active_render")
 
     scene.frame_set(scene.frame_start)
     scene.objects.active = None
@@ -182,6 +182,8 @@ def spnumdisplay(disp_op, context, simnode):
 
 def linumdisplay(disp_op, context, simnode, connode, geonode):
     scene = context.scene
+    if not scene.vi_display:
+        return
     try:
         if obcalclist:
             pass
@@ -189,7 +191,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         obreslist = [ob for ob in scene.objects if ob.type == 'MESH'  and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.get('licalc') == 1 and ob.lires == 1]
         obcalclist = [ob for ob in scene.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.get('licalc') == 1 and ob.lires == 0]
     
-    if (scene.li_disp_panel != 2 and scene.ss_disp_panel != 2)  or (simnode['Animation'] == 'Static' and scene.frame_current != scene.frame_start) \
+    if (scene.li_disp_panel != 2 and scene.ss_disp_panel != 2)  or (simnode['Animation'] == 'Static' and scene.frame_current != scene.fs) \
     or scene.vi_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.vi_display_sel_only == True)  \
     or scene.frame_current not in vi_func.framerange(scene, simnode['Animation']) or (bpy.context.active_object and bpy.context.active_object.mode == 'EDIT'):
         return
@@ -199,8 +201,8 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
              bpy.context.active_object.mode = 'OBJECT'
 
     blf.enable(0, 4)
-    blf.shadow(0, 5,scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])
-    bgl.glColor4f(scene.vi_display_rp_fc[0], scene.vi_display_rp_fc[1], scene.vi_display_rp_fc[2], scene.vi_display_rp_fc[3])
+    blf.shadow(0, 5, scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])
+    bgl.glColor4f(*scene.vi_display_rp_fc[:])
     blf.size(0, scene.vi_display_rp_fs, 72)
     bgl.glColor3f = scene.vi_display_rp_fc
     cp = geonode.cpoint if geonode else simnode.cpoint
@@ -212,7 +214,6 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
     else:
         oblist = obreslist if len(obreslist) > 0 else obcalclist
         obd = [context.active_object] if context.active_object in oblist else []
-
 
     for ob in obd:
         if ob.active_shape_key_index != fn+1:
@@ -226,14 +227,9 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
             faces = [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons if ob.data.materials[f.material_index].vi_shadow] if simnode.bl_label == 'VI Shadow Study' else [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons if ob.data.materials[f.material_index].livi_sense]
             if scene.vi_display_vis_only:
                 faces = [f for f in faces if not scene.ray_cast(ob_mat*((vi_func.face_centre(ob, len(obreslist), f)))+ 0.05*f.normal, view_pos)[0]]
-
-#                faces = [f for f in faces if not scene.ray_cast(ob_mat*(mathutils.Vector((vi_func.face_centre(ob, len(obreslist), f))))+ 0.05*f.normal, [x[0] + 0.2*(x[0] - x[1]) for x in zip(view_pos, (ob_mat*vi_func.face_centre(ob, len(obreslist), f)))])[0]]
         else:
             fverts = set(sum([list(f.vertices[:]) for f in ob.data.polygons if f.select], []))
-            if scene.vi_display_vis_only:
-                verts = [ob.data.vertices[v] for v in fverts if not scene.ray_cast(ob_mat*vi_func.v_pos(ob, v) + 0.05*ob.data.vertices[v].normal,view_pos)[0]]
-            else:
-                verts = [ob.data.vertices[v] for v in fverts]
+            verts = [ob.data.vertices[v] for v in fverts if not scene.ray_cast(ob_mat*vi_func.v_pos(ob, v) + 0.05*ob.data.vertices[v].normal,view_pos)[0]] if scene.vi_display_vis_only else [ob.data.vertices[v] for v in fverts] 
             loops = []
             for v in verts:
                 for f in [f for f in ob.data.polygons if f.select == True]:
@@ -263,71 +259,77 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
                 if len(set(obm.vertex_colors[fn].data[vert.index].color[:])) > 0:
                     if (total_mat*vpos)[2] > 0:
                         vi_func.draw_index(context, 1, mid_x, mid_y, width, height, int((1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loops[v]].color[0]/255, obm.vertex_colors[fn].data[loops[v]].color[1]/255, obm.vertex_colors[fn].data[loops[v]].color[2]/255)[0]))*max(simnode['maxres'])), total_mat*vpos.to_4d())
-        blf.disable(0, 4)
+    blf.disable(0, 4)
 
 def li3D_legend(self, context, simnode, connode, geonode):
     scene = context.scene
-
-    if scene.vi_leg_display != True or scene.vi_display == 0 or (scene.wr_disp_panel != 1 and scene.li_disp_panel != 2 and scene.ss_disp_panel != 2) or scene.frame_current not in vi_func.framerange(scene, simnode['Animation']):
-        return
-    else:
-        if not connode or (connode and connode.bl_label == 'LiVi CBDM'):
-            resvals = ['{:.1f}'.format(min(simnode['minres'])+i*(max(simnode['maxres'])-min(simnode['minres']))/19) for i in range(20)]
+    try:
+        if scene.vi_leg_display != True or scene.vi_display == 0 or (scene.wr_disp_panel != 1 and scene.li_disp_panel != 2 and scene.ss_disp_panel != 2) or scene.frame_current not in vi_func.framerange(scene, simnode['Animation']):
+            return
         else:
-            resvals = [('{:.0f}', '{:.0f}', '{:.1f}')[int(connode.analysismenu)].format(min(simnode['minres'])+i*(max(simnode['maxres'])-min(simnode['minres']))/19) for i in range(20)]
-
-        height = context.region.height
-        lenres = len(resvals[-1])
-        font_id = 0
-        vi_func.drawpoly(20, height - 40, 70 + lenres*8, height - 520)
-        vi_func.drawloop(19, height - 40, 70 + lenres*8, height - 520)
-
-        for i in range(20):
-            h = 0.75 - 0.75*(i/19)
+            if not connode or (connode and connode.bl_label == 'LiVi CBDM'):
+                resvals = ['{:.1f}'.format(min(simnode['minres'])+i*(max(simnode['maxres'])-min(simnode['minres']))/19) for i in range(20)]
+            else:
+                resvals = [('{:.0f}', '{:.0f}', '{:.1f}')[int(connode.analysismenu)].format(min(simnode['minres'])+i*(max(simnode['maxres'])-min(simnode['minres']))/19) for i in range(20)]
+    
+            height = context.region.height
+            lenres = len(resvals[-1])
+            font_id = 0
+            vi_func.drawpoly(20, height - 40, 70 + lenres*8, height - 520)
+            vi_func.drawloop(19, height - 40, 70 + lenres*8, height - 520)
+    
+            for i in range(20):
+                h = 0.75 - 0.75*(i/19)
+                if connode:
+                    bgl.glColor4f(colorsys.hsv_to_rgb(h, 1.0, 1.0)[0], colorsys.hsv_to_rgb(h, 1.0, 1.0)[1], colorsys.hsv_to_rgb(h, 1.0, 1.0)[2], 1.0)
+                else:
+                    bgl.glColor4f(i/19, i/19, i/19, 1)
+                bgl.glBegin(bgl.GL_POLYGON)
+                bgl.glVertex2i(20, (i*20)+height - 460)
+                bgl.glVertex2i(60, (i*20)+height - 460)
+                bgl.glVertex2i(60, (i*20)+height - 440)
+                bgl.glVertex2i(20, (i*20)+height - 440)
+                bgl.glEnd()
+                blf.size(font_id, 20, 48)
+                bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+                blf.position(font_id, 65, (i*20)+height - 455, 0)
+                blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
+    
+            blf.size(font_id, 20, 56)
             if connode:
-                bgl.glColor4f(colorsys.hsv_to_rgb(h, 1.0, 1.0)[0], colorsys.hsv_to_rgb(h, 1.0, 1.0)[1], colorsys.hsv_to_rgb(h, 1.0, 1.0)[2], 1.0)
-            else:
-                bgl.glColor4f(i/19, i/19, i/19, 1)
-            bgl.glBegin(bgl.GL_POLYGON)
-            bgl.glVertex2i(20, (i*20)+height - 460)
-            bgl.glVertex2i(60, (i*20)+height - 460)
-            bgl.glVertex2i(60, (i*20)+height - 440)
-            bgl.glVertex2i(20, (i*20)+height - 440)
-            bgl.glEnd()
-            blf.size(font_id, 20, 48)
-            bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-            blf.position(font_id, 65, (i*20)+height - 455, 0)
-            blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
-
-        blf.size(font_id, 20, 56)
-        if connode:
-            if connode.bl_label == 'LiVi CBDM':
-                unit = ('kLuxHours', 'Annual kWh', 'DA (%)', '', 'UDI-a (%)')[int(connode.analysismenu)]
-            elif connode.bl_label == 'LiVi Basic':
-                unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(connode.analysismenu)]
-            elif connode.bl_label == 'LiVi Compliance':
-                unit = "DF %"
-
-        cu = unit if connode else '% Sunlit'
-
-        vi_func.drawfont(cu, font_id, 0, height, 25, 57)
-        bgl.glLineWidth(1)
-        bgl.glDisable(bgl.GL_BLEND)
-        height = context.region.height
-        font_id = 0
-        if scene.frame_current in vi_func.framerange(scene, simnode['Animation']):
-            findex = scene.frame_current - scene.frame_start if simnode['Animation'] != 'Static' else 0
-            bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
-            blf.size(font_id, 20, 48)
-            if (hasattr(context.active_object, 'lires') and context.active_object.lires) or (hasattr(context.active_object, 'licalc') and context.active_object.licalc):
-                vi_func.drawfont("Ave: {:.1f}".format(context.active_object['oave'][str(scene.frame_current)]), font_id, 0, height, 22, 480)
-                vi_func.drawfont("Max: {:.1f}".format(context.active_object['omax'][str(scene.frame_current)]), font_id, 0, height, 22, 495)
-                vi_func.drawfont("Min: {:.1f}".format(context.active_object['omin'][str(scene.frame_current)]), font_id, 0, height, 22, 510)
-            else:
-                vi_func.drawfont("Ave: {:.1f}".format(simnode['avres'][findex]), font_id, 0, height, 22, 480)
-                vi_func.drawfont("Max: {:.1f}".format(simnode['maxres'][findex]), font_id, 0, height, 22, 495)
-                vi_func.drawfont("Min: {:.1f}".format(simnode['minres'][findex]), font_id, 0, height, 22, 510)
-
+                if connode.bl_label == 'LiVi CBDM':
+                    unit = ('kLuxHours', 'Annual kWh', 'DA (%)', '', 'UDI-a (%)')[int(connode.analysismenu)]
+                elif connode.bl_label == 'LiVi Basic':
+                    unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(connode.analysismenu)]
+                elif connode.bl_label == 'LiVi Compliance':
+                    unit = "DF %"
+    
+            cu = unit if connode else '% Sunlit'
+    
+            vi_func.drawfont(cu, font_id, 0, height, 25, 57)
+            bgl.glLineWidth(1)
+            bgl.glDisable(bgl.GL_BLEND)
+            height = context.region.height
+            font_id = 0
+            if scene.frame_current in vi_func.framerange(scene, simnode['Animation']):
+                findex = scene.frame_current - scene.frame_start if simnode['Animation'] != 'Static' else 0
+                bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
+                blf.size(font_id, 20, 48)
+                if (hasattr(context.active_object, 'lires') and context.active_object.lires) or (hasattr(context.active_object, 'licalc') and context.active_object.licalc):
+                    vi_func.drawfont("Ave: {:.1f}".format(context.active_object['oave'][str(scene.frame_current)]), font_id, 0, height, 22, 480)
+                    vi_func.drawfont("Max: {:.1f}".format(context.active_object['omax'][str(scene.frame_current)]), font_id, 0, height, 22, 495)
+                    vi_func.drawfont("Min: {:.1f}".format(context.active_object['omin'][str(scene.frame_current)]), font_id, 0, height, 22, 510)
+                else:
+                    vi_func.drawfont("Ave: {:.1f}".format(simnode['avres'][findex]), font_id, 0, height, 22, 480)
+                    vi_func.drawfont("Max: {:.1f}".format(simnode['maxres'][findex]), font_id, 0, height, 22, 495)
+                    vi_func.drawfont("Min: {:.1f}".format(simnode['minres'][findex]), font_id, 0, height, 22, 510)
+    except Exception as e:
+        print(e, 'Turning off VI Display')
+        scene.vi_display = 0
+        scene.vi_display_rp = 0
+        scene.vi_leg_display = 0
+        scene.update()
+        
 def viwr_legend(self, context, simnode):
     scene = context.scene
     if scene.vi_leg_display != True or scene.vi_display == 0:

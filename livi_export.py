@@ -160,7 +160,6 @@ def radgexport(export_op, node, **kwargs):
         reslen = 0
         geos = retobjs('livig') if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else retobjs('livic')
         for o, geo in enumerate(geos):
-            print('geoname', geo.name)
             if len(geo.data.materials) > 0:
                 if len([mat for mat in geo.material_slots if mat.material.livi_sense]) > 0:
                     geo['licalc'], cverts, obcalcverts, csv, csf, scene.objects.active = 1, [], [], [], [], geo

@@ -533,13 +533,13 @@ class ViLoc(bpy.types.Node, ViNodes):
     weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]
     weather = bpy.props.EnumProperty(items = weatherlist, name="", description="Weather for this project")
     loc = bpy.props.EnumProperty(items = [("0", "Manual", "Manual location"), ("1", "EPW ", "Get location from EPW file")], name = "", description = "Location", default = "0")
-    latitude = bpy.props.FloatProperty(name="", description="Site Latitude", min=-90, max=90, default=52)
-    longitude = bpy.props.FloatProperty(name="", description="Site Longitude (East is positive, West is negative)", min=-180, max=180, default=0)
+    latitude = bpy.props.FloatProperty(name="Latitude", description="Site Latitude", min=-90, max=90, default=52)
+    longitude = bpy.props.FloatProperty(name="Longitude", description="Site Longitude (East is positive, West is negative)", min=-180, max=180, default=0)
     maxws = bpy.props.FloatProperty(name="", description="Max wind speed", min=0, max=90, default=0)
     minws = bpy.props.FloatProperty(name="", description="Min wind speed", min=0, max=90, default=0)
     avws = bpy.props.FloatProperty(name="", description="Average wind speed", min=0, max=90, default=0)
-    startmonth = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 12, description = 'Start Month')
-    endmonth = bpy.props.IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month')
+    startmonth = bpy.props.IntProperty(name = 'Start Month', default = 1, min = 1, max = 12, description = 'Start Month')
+    endmonth = bpy.props.IntProperty(name = 'End Month', default = 12, min = 1, max = 12, description = 'End Month')
 
     def init(self, context):
         for ng in bpy.data.node_groups:
@@ -563,13 +563,13 @@ class ViLoc(bpy.types.Node, ViNodes):
             row.prop(self, "weather")
         else:
             row = layout.row()
-            row.label('Latitude')
             row.prop(scene, "latitude")
             row = layout.row()
-            row.label('Longitude')
             row.prop(scene, "longitude")
-        newrow(layout, 'Start Month', self, "startmonth")
-        newrow(layout, 'End Month', self, "endmonth")
+        row = layout.row()
+        row.prop(self, "startmonth")
+        row = layout.row()
+        row.prop(self, "endmonth")
 
 class ViGExEnNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite export type'''
@@ -1271,15 +1271,15 @@ class ViGenNode(bpy.types.Node, ViNodes):
 
     geotype = [('Object', "Object", "Object level manipulation"), ('Mesh', "Mesh", "Mesh level manipulation")]
     geomenu = bpy.props.EnumProperty(name="", description="Geometry type", items=geotype, default = 'Mesh')
-    seltype = [('Selected', "Selected", "Only selected geometry"), ('Not selected', "Not selected", "Only unselected geometry")]
-    selmenu = bpy.props.EnumProperty(name="", description="Geometry type", items=seltype, default = 'Selected')
+    seltype = [('All', "All", "All geometry"), ('Selected', "Selected", "Only selected geometry"), ('Not selected', "Not selected", "Only unselected geometry")]
+    selmenu = bpy.props.EnumProperty(name="", description="Geometry selection", items=seltype, default = 'Selected')
     omantype = [('0', "Move", "Move geometry"), ('1', "Rotate", "Only unselected geometry"), ('2', "Scale", "Scale geometry")]
     omanmenu = bpy.props.EnumProperty(name="", description="Manipulation type", items=omantype, default = '0')
     mmantype = [('0', "Move", "Move geometry"), ('1', "Rotate", "Only unselected geometry"), ('2', "Scale", "Scale geometry"), ('3', "Extrude", "Extrude geometry")]
     mmanmenu = bpy.props.EnumProperty(name="", description="Manipulation type", items=mmantype, default = '0')
-    x = bpy.props.FloatProperty(name = '', min = 0, max = 1, default = 1)
-    y = bpy.props.FloatProperty(name = '', min = 0, max = 1, default = 0)
-    z = bpy.props.FloatProperty(name = '', min = 0, max = 1, default = 0)
+    x = bpy.props.FloatProperty(name = 'X', min = 0, max = 1, default = 1)
+    y = bpy.props.FloatProperty(name = 'Y', min = 0, max = 1, default = 0)
+    z = bpy.props.FloatProperty(name = 'Z', min = 0, max = 1, default = 0)
     normal = bpy.props.BoolProperty(name = '', default = False)
     direction = bpy.props.EnumProperty(items=[("0", "Positive", "Increase/positive direction"),("1", "Negative", "Decrease/negative direction")],  name="", description="Manipulation direction", default="0")
     extent = bpy.props.FloatProperty(name = '', min = 0, max = 360, default = 0)
@@ -1301,7 +1301,6 @@ class ViGenNode(bpy.types.Node, ViNodes):
         if self.geomenu == 'Object':
            newrow(layout, 'Manipulation:', self, 'omanmenu')
            row = layout.row()
-           row.label('Axis (X, Y, Z)')
            col = row.column()
            subrow = col.row(align=True)
            subrow.prop(self, 'x')
@@ -1312,7 +1311,6 @@ class ViGenNode(bpy.types.Node, ViNodes):
            newrow(layout, 'Normal:', self, 'normal')
            if not self.normal:
                row = layout.row()
-               row.label('Axis (X,Y,Z):')
                col = row.column()
                subrow = col.row(align=True)
                subrow.prop(self, 'x')

@@ -492,8 +492,11 @@ class NODE_OT_SunPath(bpy.types.Operator):
             with open(locnode.weather, "r") as epwfile:
                fl = epwfile.readline()
                scene.latitude, scene.longitude = float(fl.split(",")[6]), float(fl.split(",")[7])
-
-        if 'Sun' not in [ob.get('VIType') for ob in context.scene.objects]:
+        
+        if 'SUN' in [ob.data.type for ob in context.scene.objects if ob.data == 'LAMP' and ob.hide == False]:
+            [ob.data.type for ob in context.scene.objects if ob.data == 'LAMP' and ob.data.type == 'SUN'][0]['VIType'] = 'Sun'
+            
+        elif 'Sun' not in [ob.get('VIType') for ob in context.scene.objects]:
             bpy.ops.object.lamp_add(type = "SUN")
             sun = context.active_object
             sun['VIType'] = 'Sun'
@@ -501,7 +504,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
             sun = [ob for ob in context.scene.objects if ob.get('VIType') == 'Sun'][0]
             sun.animation_data_clear()
 
-        if scene.render.engine == 'CYCLES' and 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
+        if scene.render.engine == 'CYCLES' and bpy.data.worlds['World'].get('node_tree') and 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
             bpy.data.worlds['World'].node_tree.animation_data_clear()
 
         sun['solhour'], sun['solday'], sun['soldistance'] = scene.solhour, scene.solday, scene.soldistance
@@ -673,11 +676,11 @@ class NODE_OT_WindRose(bpy.types.Operator):
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 0, 1
 
         with open(locnode.weather, "r") as epwfile:
-            if simnode.startmonth > simnode.endmonth:
+            if locnode.startmonth > locnode.endmonth:
                 self.report({'ERROR'},"Start month is later than end month")
                 return
             else:
-                wvals = [line.split(",")[20:22] for l, line in enumerate(epwfile.readlines()) if l > 7 and simnode.startmonth <= int(line.split(",")[1]) < simnode.endmonth]
+                wvals = [line.split(",")[20:22] for l, line in enumerate(epwfile.readlines()) if l > 7 and locnode.startmonth <= int(line.split(",")[1]) < locnode.endmonth]
                 simnode['maxres'], simnode['minres'],  simnode['avres']= max([float(w[1]) for w in wvals]), min([float(w[1]) for w in wvals]), sum([float(w[1]) for w in wvals])/len(wvals)
 
         awd, aws, ax = [float(val[0]) for val in wvals], [float(val[1]) for val in wvals], wr_axes()

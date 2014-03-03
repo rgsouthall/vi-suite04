@@ -524,8 +524,8 @@ def register():
 
 #    Scene.vi_weather = eprop(items = weatherlist, name="Weather location", description="Weather for this project")
 
-    Scene.latitude = bpy.props.FloatProperty(name="", description="Site Latitude", min=-90, max=90, default=52)
-    Scene.longitude = bpy.props.FloatProperty(name="", description="Site Longitude", min=-180, max=180, default=0)
+    Scene.latitude = bpy.props.FloatProperty(name="Latitude", description="Site Latitude", min=-90, max=90, default=52)
+    Scene.longitude = bpy.props.FloatProperty(name="Longitude", description="Site Longitude", min=-180, max=180, default=0)
 
 #    Scene.vi_meridian = eprop(
 #            [("-9", "YST", ""),

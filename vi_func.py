@@ -21,7 +21,7 @@ def radmat(mat, scene):
             matindex = cycmattypes.index(matnode.bl_label) if matnode.bl_label in cycmattypes else 0
             matcol, matior, matrough, matemit  = matnode.inputs[0].default_value, matnode.inputs[2].default_value if matindex == 1 else 1.52, \
                 matnode.inputs[1].default_value if matindex == 0 else 0,  matnode.inputs[1].default_value if matindex == 5 else 0
-            radname = ('plastic', 'glass', 'mirror', 'trans', 'antimatter', 'light')[matindex]
+            radname = ('plastic', 'glass', 'mirror', 'trans', 'antimatter', 'light', 'glass')[matindex]
             radnums = ('5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format(matcol, '0', matrough),\
             '4 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.3f}'.format(matcol, matior), \
             '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}'.format(matcol), \
@@ -514,6 +514,10 @@ def retobjs(otypes):
     if otypes == 'livig':
         return([geo for geo in scene.objects if geo.type == 'MESH' and not geo.children  and 'lightarray' not in geo.name \
         and geo.hide == False and geo.layers[scene.active_layer] == True and geo.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane')])
+    elif otypes == 'livigengeo':
+        return([geo for geo in scene.objects if geo.type == 'MESH' and not any([m.livi_sense for m in geo.data.materials])])
+    elif otypes == 'livigengeosel':
+        return([geo for geo in scene.objects if geo.type == 'MESH' and geo.select == True and not any([m.livi_sense for m in geo.data.materials])])
     elif otypes == 'livil':
         return([geo for geo in scene.objects if (geo.ies_name != "" or 'lightarray' in geo.name) and geo.hide == False and geo.layers[scene.active_layer] == True])
     elif otypes == 'livic':

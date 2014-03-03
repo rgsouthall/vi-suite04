@@ -114,6 +114,7 @@ class VIMatPanel(bpy.types.Panel):
                             if cm.rspacemenu == '2':
                                 row = layout.row()
                                 row.label('Warning: Not an assessable CfSH space')
+        
         row = layout.row()
         row.label('LiVi Radiance type:')
         

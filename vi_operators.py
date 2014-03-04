@@ -670,68 +670,71 @@ class NODE_OT_WindRose(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        locnode = simnode.inputs[0].links[0].from_node
-        scene, scene.resnode, scene.restree = context.scene, simnode.name, self.nodeid.split('@')[1]
-        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 0, 1
-
-        with open(locnode.weather, "r") as epwfile:
-            if locnode.startmonth > locnode.endmonth:
-                self.report({'ERROR'},"Start month is later than end month")
-                return
+        if mp = 1:
+            simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+            locnode = simnode.inputs[0].links[0].from_node
+            scene, scene.resnode, scene.restree = context.scene, simnode.name, self.nodeid.split('@')[1]
+            scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 0, 1
+    
+            with open(locnode.weather, "r") as epwfile:
+                if locnode.startmonth > locnode.endmonth:
+                    self.report({'ERROR'},"Start month is later than end month")
+                    return
+                else:
+                    wvals = [line.split(",")[20:22] for l, line in enumerate(epwfile.readlines()) if l > 7 and locnode.startmonth <= int(line.split(",")[1]) < locnode.endmonth]
+                    simnode['maxres'], simnode['minres'],  simnode['avres']= max([float(w[1]) for w in wvals]), min([float(w[1]) for w in wvals]), sum([float(w[1]) for w in wvals])/len(wvals)
+    
+            awd, aws, ax = [float(val[0]) for val in wvals], [float(val[1]) for val in wvals], wr_axes()
+            binvals = arange(0,int(ceil(max(aws))),2)
+            simnode['nbins'] = len(binvals)
+    
+            if simnode.wrtype == '0':
+                ax.bar(awd, aws, bins=binvals, normed=True, opening=0.8, edgecolor='white')
+            if simnode.wrtype == '1':
+                ax.box(awd, aws, bins=binvals, normed=True)
+            if simnode.wrtype == '2':
+                ax.contourf(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
+            if simnode.wrtype == '3':
+                ax.contourf(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
+                ax.contour(awd, aws, bins=binvals, normed=True, colors='black')
+            if simnode.wrtype == '4':
+                ax.contour(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
+    
+            if locnode.newdir:
+                plt.savefig(locnode.newdir+'/disp_wind.png', dpi = (300), transparent=False)
+                plt.savefig(locnode.newdir+'/disp_wind.svg')
             else:
-                wvals = [line.split(",")[20:22] for l, line in enumerate(epwfile.readlines()) if l > 7 and locnode.startmonth <= int(line.split(",")[1]) < locnode.endmonth]
-                simnode['maxres'], simnode['minres'],  simnode['avres']= max([float(w[1]) for w in wvals]), min([float(w[1]) for w in wvals]), sum([float(w[1]) for w in wvals])/len(wvals)
-
-        awd, aws, ax = [float(val[0]) for val in wvals], [float(val[1]) for val in wvals], wr_axes()
-        binvals = arange(0,int(ceil(max(aws))),2)
-        simnode['nbins'] = len(binvals)
-
-        if simnode.wrtype == '0':
-            ax.bar(awd, aws, bins=binvals, normed=True, opening=0.8, edgecolor='white')
-        if simnode.wrtype == '1':
-            ax.box(awd, aws, bins=binvals, normed=True)
-        if simnode.wrtype == '2':
-            ax.contourf(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
-        if simnode.wrtype == '3':
-            ax.contourf(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
-            ax.contour(awd, aws, bins=binvals, normed=True, colors='black')
-        if simnode.wrtype == '4':
-            ax.contour(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
-
-        if locnode.newdir:
-            plt.savefig(locnode.newdir+'/disp_wind.png', dpi = (300), transparent=False)
-            plt.savefig(locnode.newdir+'/disp_wind.svg')
+                self.report({'ERROR'},"No project directory. Save the Blender file and recreate the VI Location node.")
+                return {'CANCELLED'}
+    
+            if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
+                bpy.data.images.load(locnode.newdir+'/disp_wind.png')
+            else:
+                bpy.data.images['disp_wind.png'].filepath = locnode.newdir+'/disp_wind.png'
+                bpy.data.images['disp_wind.png'].reload()
+    
+            if 'Wind_Plane' not in [ob.get('VIType') for ob in bpy.context.scene.objects]:
+                bpy.ops.mesh.primitive_plane_add(enter_editmode=False, location=(0.0, 0.0, 0.0))
+                bpy.context.active_object['VIType'] = 'Wind_Plane'
+                wind_mat = bpy.data.materials.new('Wind_Rose')
+                tex = bpy.data.textures.new(type = 'IMAGE', name = 'Wind_Tex')
+                tex.image = bpy.data.images['disp_wind.png']
+                wind_mat.texture_slots.add()
+                wind_mat.texture_slots[0].texture = tex
+                wind_mat.texture_slots[0].use_map_alpha = True
+                bpy.context.active_object.name = "Wind_Plane"
+                bpy.ops.object.material_slot_add()
+                bpy.context.active_object.material_slots[0].material = wind_mat
+                bpy.context.active_object.data.uv_textures.new()
+                bpy.context.active_object.data.uv_textures[0].data[0].image = bpy.data.images['disp_wind.png']
+                bpy.context.active_object.scale = (100, 100, 100)
+                wind_mat.use_transparency = False
+                wind_mat.transparency_method = 'Z_TRANSPARENCY'
+                wind_mat.alpha = 0.0
+            bpy.ops.view3d.wrlegdisplay('INVOKE_DEFAULT')
+            return {'FINISHED'}
         else:
-            self.report({'ERROR'},"No project directory. Save the Blender file and recreate the VI Location node.")
-            return {'CANCELLED'}
-
-        if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
-            bpy.data.images.load(locnode.newdir+'/disp_wind.png')
-        else:
-            bpy.data.images['disp_wind.png'].filepath = locnode.newdir+'/disp_wind.png'
-            bpy.data.images['disp_wind.png'].reload()
-
-        if 'Wind_Plane' not in [ob.get('VIType') for ob in bpy.context.scene.objects]:
-            bpy.ops.mesh.primitive_plane_add(enter_editmode=False, location=(0.0, 0.0, 0.0))
-            bpy.context.active_object['VIType'] = 'Wind_Plane'
-            wind_mat = bpy.data.materials.new('Wind_Rose')
-            tex = bpy.data.textures.new(type = 'IMAGE', name = 'Wind_Tex')
-            tex.image = bpy.data.images['disp_wind.png']
-            wind_mat.texture_slots.add()
-            wind_mat.texture_slots[0].texture = tex
-            wind_mat.texture_slots[0].use_map_alpha = True
-            bpy.context.active_object.name = "Wind_Plane"
-            bpy.ops.object.material_slot_add()
-            bpy.context.active_object.material_slots[0].material = wind_mat
-            bpy.context.active_object.data.uv_textures.new()
-            bpy.context.active_object.data.uv_textures[0].data[0].image = bpy.data.images['disp_wind.png']
-            bpy.context.active_object.scale = (100, 100, 100)
-            wind_mat.use_transparency = False
-            wind_mat.transparency_method = 'Z_TRANSPARENCY'
-            wind_mat.alpha = 0.0
-        bpy.ops.view3d.wrlegdisplay('INVOKE_DEFAULT')
-        return {'FINISHED'}
+            return {'FINISHED'}
 
 class VIEW3D_OT_WRLegDisplay(bpy.types.Operator):
     '''Display results legend and stats in the 3D View'''

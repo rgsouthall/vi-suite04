@@ -1,6 +1,10 @@
 import sys
 if str(sys.platform) == 'linux':
-    import matplotlib.pyplot as plt
+    try:
+        import matplotlib.pyplot as plt
+        mp = 1
+    except:
+        mp = 0
 
 def statdata(res, stat):
     if stat == 'Average':

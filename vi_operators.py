@@ -779,12 +779,12 @@ class NODE_OT_Shadow(bpy.types.Operator):
         direcs, obcalclist = [], []
         simnode['Animation'] = simnode.animmenu
         if simnode['Animation'] == 'Static':
-            print('cur', scene.frame_current)
-            scmaxres, scminres, scavres, scene.frame_end, scene.fs = [0], [100], [0], scene.frame_start, scene.frame_current
+            scmaxres, scminres, scavres, scene.fs = [0], [100], [0], scene.frame_current
         else:
             scmaxres = [0 for f in range(scene.frame_end - scene.frame_start + 1)]
             scminres = [100 for f in range(scene.frame_end - scene.frame_start + 1)]
             scavres = [0 for f in range(scene.frame_end - scene.frame_start + 1)]
+            scene.fs = scene.frame_start
 #            fe = scene.frame_end
         fdiff =  1 if simnode['Animation'] == 'Static' else scene.frame_end - scene.frame_start + 1
         locnode = simnode.inputs[0].links[0].from_node
@@ -817,7 +817,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     bpy.ops.mesh.vertex_color_remove()
                 for frame in framerange(scene, simnode.animmenu):
                     scene.frame_set(frame)
-                    findex = frame - scene.frame_start
+                    findex = frame - scene.fs
 #                    if '{}'.format(frame) not in [vc.name for vc in ob.data.vertex_colors]:
                     bpy.ops.mesh.vertex_color_add()
                     ob.data.vertex_colors[-1].name = '{}'.format(frame)
@@ -830,10 +830,10 @@ class NODE_OT_Shadow(bpy.types.Operator):
                             vertexColor.data[li].color = (1, 1, 1)
                         for direc in direcs:
                             if bpy.data.scenes[0].ray_cast(shadcentres[findex][-1][0], shadcentres[findex][-1][1] + 10000*direc)[0]:
-                                shadcentres[frame - scene.frame_start][-1][2] -= 1/(len(direcs))
-                        if shadcentres[frame - scene.frame_start][-1][2] < 1:
+                                shadcentres[findex][-1][2] -= 1/(len(direcs))
+                        if shadcentres[findex][-1][2] < 1:
                             for li in face.loop_indices:
-                                vertexColor.data[li].color = [shadcentres[frame - scene.frame_start][-1][2]]*3
+                                vertexColor.data[li].color = [shadcentres[findex][-1][2]]*3
 
                         obavres[findex] += face.area * 100 * (shadcentres[findex][-1][2])/obsumarea[findex]
                         obmaxres[findex] = 100* (max([sh[2] for sh in shadcentres[findex]]))
@@ -843,10 +843,11 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     scminres[findex] = obminres[findex] if obminres[findex] < scminres[findex] else scminres[findex]
                     scavres[findex] += obavres[findex]
 
-                ob['omax'] = {str(f):obmaxres[f - scene.frame_start] for f in framerange(scene, simnode.animmenu)}
-                ob['omin'] = {str(f):obminres[f - scene.frame_start] for f in framerange(scene, simnode.animmenu)}
-                ob['oave'] = {str(f):obavres[f - scene.frame_start] for f in framerange(scene, simnode.animmenu)}
-                ob['oreslist'] = {str(f):[sh[2] for sh in shadcentres[f - scene.frame_start]] for f in framerange(scene, simnode.animmenu)}
+                ob['omax'] = {str(f):obmaxres[f - scene.fs] for f in framerange(scene, simnode.animmenu)}
+                ob['omin'] = {str(f):obminres[f - scene.fs] for f in framerange(scene, simnode.animmenu)}
+                ob['oave'] = {str(f):obavres[f - scene.fs] for f in framerange(scene, simnode.animmenu)}
+                ob['oreslist'] = {str(f):[sh[2] for sh in shadcentres[f - scene.fs]] for f in framerange(scene, simnode.animmenu)}
+            
             else:
                ob.licalc = 0
         vcframe('', scene, obcalclist, simnode.animmenu)
@@ -855,7 +856,8 @@ class NODE_OT_Shadow(bpy.types.Operator):
         except ZeroDivisionError:
             self.report({'ERROR'},"No objects have a VI Shadow material attached.")
 
-        scene.frame_set(scene.frame_start)
+        if simnode.animmenu != 'Static':
+            scene.frame_set(scene.frame_start)
         if simnode.bl_label[0] == '*':
             simnode.bl_label = simnode.bl_label[1:]
         return {'FINISHED'}

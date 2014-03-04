@@ -670,7 +670,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        if mp = 1:
+        if mp == 1:
             simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
             locnode = simnode.inputs[0].links[0].from_node
             scene, scene.resnode, scene.restree = context.scene, simnode.name, self.nodeid.split('@')[1]

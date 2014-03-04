@@ -856,8 +856,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         except ZeroDivisionError:
             self.report({'ERROR'},"No objects have a VI Shadow material attached.")
 
-        if simnode.animmenu != 'Static':
-            scene.frame_set(scene.frame_start)
+        scene.frame_set(scene.fs)
         if simnode.bl_label[0] == '*':
             simnode.bl_label = simnode.bl_label[1:]
         return {'FINISHED'}

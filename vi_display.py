@@ -53,7 +53,7 @@ def li_display(simnode, connode, geonode):
             obcalclist.append(geo)
 
     vi_func.vcframe('', scene, obcalclist, simnode['Animation'])
-    scene.frame_set(scene.frame_start)
+    scene.frame_set(scene.fs)
     scene.objects.active = None
 
     if scene.vi_disp_3d == 1:
@@ -128,7 +128,7 @@ def li_display(simnode, connode, geonode):
                 vc.keyframe_insert("active_render")
 
     bpy.ops.wm.save_mainfile(check_existing = False)
-    scene.frame_set(scene.frame_start)
+    scene.frame_set(scene.fs)
     rendview(1)
 
 def spnumdisplay(disp_op, context, simnode):
@@ -154,7 +154,6 @@ def spnumdisplay(disp_op, context, simnode):
 
 def linumdisplay(disp_op, context, simnode, connode, geonode):
     scene = context.scene
-    print('hi')
     if not scene.vi_display:
         return
     try:
@@ -167,7 +166,6 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
     if (scene.li_disp_panel != 2 and scene.ss_disp_panel != 2)  or (simnode['Animation'] == 'Static' and scene.frame_current != scene.fs) \
     or scene.vi_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.vi_display_sel_only == True)  \
     or scene.frame_current not in vi_func.framerange(scene, simnode['Animation']) or (bpy.context.active_object and bpy.context.active_object.mode == 'EDIT'):
-        print('returned')
         return
         
 
@@ -181,7 +179,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
     blf.size(0, scene.vi_display_rp_fs, 72)
     bgl.glColor3f = scene.vi_display_rp_fc
     cp = geonode.cpoint if geonode else simnode.cpoint
-    fn = context.scene.frame_current - context.scene.frame_start
+    fn = context.scene.frame_current - scene.fs
     mid_x, mid_y, width, height = vi_func.viewdesc(context)
 
     if scene.vi_display_sel_only == False:

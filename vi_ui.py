@@ -29,9 +29,6 @@ class Vi3DPanel(bpy.types.Panel):
             if scene.sp_disp_panel == 1:
                 for i in (("Day of year", "solday"), ("Hour of year", "solhour"), ("Sunpath scale", "soldistance"), ("Display hours", "hourdisp")):
                     newrow(layout, i[0], scene, i[1])
-#                newrow(layout, "Hour of day", scene, "solhour")
-#                newrow(layout, "Sunpath scale", scene, "soldistance")
-#                newrow(layout, "Display hours", scene, "hourdisp")
                 if scene.hourdisp:
                     newrow(layout, "Font size", scene, "vi_display_rp_fs")
                     newrow(layout, "Font colour:", scene, "vi_display_rp_fc")
@@ -51,7 +48,10 @@ class Vi3DPanel(bpy.types.Panel):
                     row.prop(view, "show_only_render")
                     row = layout.row()
                     row.prop(scene, "vi_leg_display")
-
+                    if scene.render.engine == 'BLENDER_RENDER' and context.active_object and context.active_object.type == 'MESH':
+                        row = layout.row()
+                        row.prop(context.active_object, "show_wire")
+                    
                     if int(context.scene.vi_disp_3d) == 1:
                         newrow(layout, "3D Level", scene, "vi_disp_3dlevel")
 

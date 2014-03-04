@@ -32,7 +32,6 @@ def li_display(simnode, connode, geonode):
     obreslist = []
     obcalclist = []
 
-
     for geo in scene.objects:
             scene.objects.active = geo
             if getattr(geo, 'mode') != 'OBJECT':
@@ -43,21 +42,12 @@ def li_display(simnode, connode, geonode):
     if len(bpy.app.handlers.frame_change_pre) == 0:
         bpy.app.handlers.frame_change_pre.append(livi_export.cyfc1)
         
-#    o = 0
     for geo in scene.objects:
         if geo.type == "MESH" and geo.get('licalc') and geo.hide == False:
             bpy.ops.object.select_all(action = 'DESELECT')
             obcalclist.append(geo)
-#            o += 1
-    vi_func.vcframe('', scene, obcalclist, simnode['Animation'])
-#    for frame in vi_func.framerange(scene, simnode['Animation']):
-#        scene.frame_set(frame)
-#        for obcalc in obcalclist:
-#            for vc in obcalc.data.vertex_colors:
-#                (vc.active, vc.active_render) = (1, 1) if vc.name == str(frame) else (0, 0)
-#                vc.keyframe_insert("active")
-#                vc.keyframe_insert("active_render")
 
+    vi_func.vcframe('', scene, obcalclist, simnode['Animation'])
     scene.frame_set(scene.frame_start)
     scene.objects.active = None
 
@@ -115,31 +105,8 @@ def li_display(simnode, connode, geonode):
             bpy.ops.object.shape_key_add(from_mix = False)
 
             for frame in vi_func.framerange(scene, simnode['Animation']):
-#                findex = frame - scene.frame_start
                 bpy.ops.object.shape_key_add(from_mix = False)
                 obres.active_shape_key.name = str(frame)
-#            obres['j'] = j
-                    
-#    oreslist = {str(frame): 0 for frame in vi_func.framerange(scene, simnode['Animation'])}        
-#    olist = obreslist + obcalclist if scene.vi_disp_3d == 1 else obcalclist
-#    for obres in olist: 
-#        ofaces = [face for face in obres.data.polygons if face.index in obres['cfaces']] if not scene.vi_disp_3d else [face for face in obres.data.polygons if face.select]
-#        for frame in vi_func.framerange(scene, simnode['Animation']):  
-#            findex = frame - scene.frame_start
-#            if cp == '0' and geonode:
-#                oreslist[str(frame)] = [simnode['minres'][findex] + (simnode['maxres'][findex] - simnode['minres'][findex]) * 1/0.75 * vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[li].color) for li in [face.loop_indices[0] for face in ofaces]]
-#            elif not geonode:
-#                oreslist[str(frame)] = [simnode['minres'][findex] + (simnode['maxres'][findex] - simnode['minres'][findex]) * obres.data.vertex_colors['{}'.format(frame)].data[li].color[0] for li in [face.loop_indices[0] for face in ofaces]]
-#            elif cp == '1':
-#                oreslist[str(frame)] = [simnode['minres'][findex] + (simnode['maxres'][findex] - simnode['minres'][findex]) * 1/0.75 * vi_func.rgb2h(obres.data.vertex_colors[str(frame)].data[j].color) for j in range(len(obres.data.vertex_colors[str(frame)].data))]
-
-#        obres['oreslist'] = oreslist
-#        try:
-#            obres['omax'] ={str(f):max(oreslist[str(f)]) for f in vi_func.framerange(scene, simnode['Animation'])}
-#            obres['omin'] ={str(f):min(oreslist[str(f)]) for f in vi_func.framerange(scene, simnode['Animation'])}
-#            obres['oave'] ={str(f):sum(oreslist[str(f)])/len(oreslist[str(f)]) for f in vi_func.framerange(scene, simnode['Animation'])}
-#        except Exception as e:
-#            print(e)
         
     for frame in vi_func.framerange(scene, simnode['Animation']):
         scene.frame_set(frame)
@@ -182,6 +149,7 @@ def spnumdisplay(disp_op, context, simnode):
 
 def linumdisplay(disp_op, context, simnode, connode, geonode):
     scene = context.scene
+    print('hi')
     if not scene.vi_display:
         return
     try:
@@ -194,7 +162,9 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
     if (scene.li_disp_panel != 2 and scene.ss_disp_panel != 2)  or (simnode['Animation'] == 'Static' and scene.frame_current != scene.fs) \
     or scene.vi_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.vi_display_sel_only == True)  \
     or scene.frame_current not in vi_func.framerange(scene, simnode['Animation']) or (bpy.context.active_object and bpy.context.active_object.mode == 'EDIT'):
+        print('returned')
         return
+        
 
     if bpy.context.active_object:
         if bpy.context.active_object.get('mode') and getattr(bpy.context.active_object, ('mode')) != 'OBJECT':
@@ -250,15 +220,15 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
                         if (total_mat*fc)[2] > 0:
                             if geonode:
                                 val = min(simnode['minres']) + (1 - (1.333333*colorsys.rgb_to_hsv(*[obm.vertex_colors[fn].data[loop_index].color[i]/255 for i in range(3)])[0]))*(max(simnode['maxres']) - min(simnode['minres']))
-                                vi_func.draw_index(context, 1, mid_x, mid_y, width, height, ('{:.1f}', '{:.0f}')[val > 100].format(val), total_mat*fc.to_4d())
+                                vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, ('{:.1f}', '{:.0f}')[val > 100].format(val), total_mat*fc.to_4d())
                             else:
-                                vi_func.draw_index(context, 1, mid_x, mid_y, width, height, min(simnode['minres']) + (obm.vertex_colors[fn].data[loop_index].color[0])*(max(simnode['maxres']) - min(simnode['minres'])), total_mat*fc.to_4d())
+                                vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, '{:.0f}'.format(min(simnode['minres']) + (obm.vertex_colors[fn].data[loop_index].color[0])*(max(simnode['maxres']) - min(simnode['minres']))), total_mat*fc.to_4d())
         elif cp == "1":
             for v, vert in enumerate(verts):
                 vpos = ob.active_shape_key.data[vert.index].co if len(obreslist) > 0 else vert.co
                 if len(set(obm.vertex_colors[fn].data[vert.index].color[:])) > 0:
                     if (total_mat*vpos)[2] > 0:
-                        vi_func.draw_index(context, 1, mid_x, mid_y, width, height, int((1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loops[v]].color[0]/255, obm.vertex_colors[fn].data[loops[v]].color[1]/255, obm.vertex_colors[fn].data[loops[v]].color[2]/255)[0]))*max(simnode['maxres'])), total_mat*vpos.to_4d())
+                        vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, int((1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loops[v]].color[0]/255, obm.vertex_colors[fn].data[loops[v]].color[1]/255, obm.vertex_colors[fn].data[loops[v]].color[2]/255)[0]))*max(simnode['maxres'])), total_mat*vpos.to_4d())
     blf.disable(0, 4)
 
 def li3D_legend(self, context, simnode, connode, geonode):

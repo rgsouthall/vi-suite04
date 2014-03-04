@@ -776,7 +776,8 @@ class NODE_OT_Shadow(bpy.types.Operator):
         direcs, obcalclist = [], []
         simnode['Animation'] = simnode.animmenu
         if simnode['Animation'] == 'Static':
-            scmaxres, scminres, scavres, scene.frame_end = [0], [100], [0], scene.frame_start
+            print('cur', scene.frame_current)
+            scmaxres, scminres, scavres, scene.frame_end, scene.fs = [0], [100], [0], scene.frame_start, scene.frame_current
         else:
             scmaxres = [0 for f in range(scene.frame_end - scene.frame_start + 1)]
             scminres = [100 for f in range(scene.frame_end - scene.frame_start + 1)]
@@ -845,7 +846,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 ob['oreslist'] = {str(f):[sh[2] for sh in shadcentres[f - scene.frame_start]] for f in framerange(scene, simnode.animmenu)}
             else:
                ob.licalc = 0
-        vcframe(scene, obcalclist, simnode.animmenu)
+        vcframe('', scene, obcalclist, simnode.animmenu)
         try:
             simnode['maxres'], simnode['minres'], simnode['avres'] = scmaxres, scminres, [scavres[f]/len([ob for ob in scene.objects if ob.licalc]) for f in range(fdiff)]
         except ZeroDivisionError:

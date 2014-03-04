@@ -17,7 +17,12 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, blf, colorsys, bgl, mathutils, matplotlib
+import bpy, blf, colorsys, bgl, mathutils
+try:
+    import matplotlib
+    mp = 1
+except:
+    mp = 0
 from math import cos, sin
 from . import livi_export
 from . import vi_func

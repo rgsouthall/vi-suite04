@@ -21,12 +21,12 @@ if "bpy" in locals():
 else:
     from .vi_node import vinode_categories, envinode_categories
     from .envi_mat import envi_materials, envi_constructions
-    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, solarPosition, sunpath1
+    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1
     from .vi_operators import *
     from .vi_ui import *
 
 
-import sys, os, platform, inspect, bpy, nodeitems_utils, mathutils, colorsys
+import sys, os, platform, inspect, bpy, nodeitems_utils
 
 epversion = "8-0-0"
 addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))

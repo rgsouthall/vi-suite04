@@ -512,16 +512,6 @@ class ViWRNode(bpy.types.Node, ViNodes):
             row = layout.row()
             row.label('Location node error')
 
-#class ViGNode(bpy.types.Node, ViNodes):
-#    '''Node describing a glare analysis'''
-#    bl_idname = 'ViGNode'
-#    bl_label = 'VI Glare'
-#    bl_icon = 'LAMP'
-#
-#    def draw_buttons(self, context, layout):
-#        row = layout.row()
-#        row.operator("node.calculate", text = 'Calculate')
-
 class ViLoc(bpy.types.Node, ViNodes):
     '''Node describing a geographical location manually or with an EPW file'''
     bl_idname = 'ViLoc'

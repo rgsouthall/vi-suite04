@@ -23,7 +23,7 @@ try:
     mp = 1
 except:
     mp = 0
-from math import cos, sin
+
 from . import livi_export
 from . import vi_func
 
@@ -221,11 +221,12 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
                     loop_index = f.loop_indices[0]
                     if len(set(obm.vertex_colors[fn].data[loop_index].color[:])) > 0:
                         if (total_mat*fc)[2] > 0:
+                            col, maxval, minval = obm.vertex_colors[fn].data[loop_index].color, max(simnode['maxres']), min(simnode['minres'])
                             if geonode:
-                                val = min(simnode['minres']) + (1 - (1.333333*colorsys.rgb_to_hsv(*[obm.vertex_colors[fn].data[loop_index].color[i]/255 for i in range(3)])[0]))*(max(simnode['maxres']) - min(simnode['minres']))
+                                val = abs(min(simnode['minres']) + (1 - (1.333333*colorsys.rgb_to_hsv(*[col[i]/255 for i in range(3)])[0]))*(maxval - minval))
                                 vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, ('{:.1f}', '{:.0f}')[val > 100].format(val), total_mat*fc.to_4d())
                             else:
-                                vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, '{:.0f}'.format(min(simnode['minres']) + (obm.vertex_colors[fn].data[loop_index].color[0])*(max(simnode['maxres']) - min(simnode['minres']))), total_mat*fc.to_4d())
+                                vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, '{:.0f}'.format(abs(minval + (col[0])*(maxval - minval))), total_mat*fc.to_4d())
         elif cp == "1":
             for v, vert in enumerate(verts):
                 vpos = ob.active_shape_key.data[vert.index].co if len(obreslist) > 0 else vert.co

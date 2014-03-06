@@ -143,10 +143,11 @@ def spnumdisplay(disp_op, context, simnode):
         blf.size(0, scene.vi_display_rp_fs, 72)
         mid_x, mid_y, width, height = vi_func.viewdesc(context)
         view_mat = context.space_data.region_3d.perspective_matrix
+        view_pos = (view_mat.inverted()[0][3]/5, view_mat.inverted()[1][3]/5, view_mat.inverted()[2][3]/5)
         ob_mat = ob.matrix_world
         total_mat = view_mat*ob_mat
         for np in ob['numpos']:
-            if (total_mat*mathutils.Vector(ob['numpos'][np]))[2] > 0:
+            if (total_mat*mathutils.Vector(ob['numpos'][np]))[2] > 0 and not scene.ray_cast(0.95*ob_mat*mathutils.Vector(ob['numpos'][np]) ,view_pos)[0]:
                 vi_func.draw_index(context, leg, mid_x, mid_y, width, height, np.split('-')[1], total_mat*mathutils.Vector(ob['numpos'][np]).to_4d())
         blf.disable(0, 4)
     else:

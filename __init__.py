@@ -41,8 +41,9 @@ if str(sys.platform) == 'darwin':
 
 if str(sys.platform) == 'linux':
     if not hasattr(os.environ, 'RAYPATH'):
-        os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/linux:/usr/local/EnergyPlus-{}/bin".format(addonpath, epversion)
-        os.environ["RAYPATH"] = "/usr/local/radiance/lib:{}/lib".format(addonpath)
+        raddir =  '/usr/share/radiance' if os.path.isdir('/usr/share/radiance') else '/usr/local/radiance'
+        os.environ["PATH"] = os.environ["PATH"] + ":{}/bin:{}/linux:/usr/local/EnergyPlus-{}/bin".format(raddir, addonpath, epversion)
+        os.environ["RAYPATH"] = "{}/lib:{}/lib".format(raddir, addonpath)
 
 elif str(sys.platform) == 'win32':
     if not hasattr(os.environ, 'RAYPATH'):

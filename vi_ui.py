@@ -27,12 +27,11 @@ class Vi3DPanel(bpy.types.Panel):
                 row.prop(scene, "vi_leg_display")
 
             if scene.sp_disp_panel == 1:
-                for i in (("Day of year", "solday"), ("Hour of year", "solhour"), ("Sunpath scale", "soldistance"), ("Display hours", "hourdisp")):
+                for i in (("Day of year:", "solday"), ("Hour of year:", "solhour"), ("Sunpath scale:", "soldistance"), ("Display hours:", "hourdisp")):
                     newrow(layout, i[0], scene, i[1])
                 if scene.hourdisp:
-                    newrow(layout, "Font size", scene, "vi_display_rp_fs")
-                    newrow(layout, "Font colour:", scene, "vi_display_rp_fc")
-                    newrow(layout, "Font shadow:", scene, "vi_display_rp_fsh")
+                    for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_fsh")):
+                        newrow(layout, i[0], scene, i[1])
 
             if scene.ss_disp_panel in (1,2) or scene.li_disp_panel in (1,2):
                 row = layout.row()

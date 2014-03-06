@@ -595,6 +595,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         spathob.material_slots[-1].material = bpy.data.materials['SolEquoRings']
         spathob.active_material_index = 1
         bpy.ops.object.mode_set(mode='EDIT')
+        bpy.context.tool_settings.mesh_select_mode = [True, False, False]
         bpy.ops.object.material_slot_assign()
         bpy.ops.object.material_slot_add()
         spathob.material_slots[-1].material = bpy.data.materials['SPBase']

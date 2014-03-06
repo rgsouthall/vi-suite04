@@ -438,16 +438,16 @@ def cyfc1(self):
                     sunob = ob
                 if ob.get('VIType') == 'SPathMesh':
                     spathob = ob
+        
         if scene.resnode == 'VI Sun Path':
-
             beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
             if nt.nodes.get('Sky Texture'):
                 bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
             spathob.scale = 3 * [scene.soldistance/100]
             sunob.scale = 3*[scene.soldistance/100]
             sunob.location.z = sun.location.z = spathob.location.z + scene.soldistance * sin(beta)
-            sunob.location.x = sun.location.x = spathob.location.x -(scene.soldistance**2 - sun.location.z**2)**0.5  * sin(phi)
-            sunob.location.y = sun.location.y = spathob.location.y -(scene.soldistance**2 - sun.location.z**2)**0.5 * cos(phi)
+            sunob.location.x = sun.location.x = spathob.location.x -(scene.soldistance**2 - (sun.location.z-spathob.location.z)**2)**0.5  * sin(phi)
+            sunob.location.y = sun.location.y = spathob.location.y -(scene.soldistance**2 - (sun.location.z-spathob.location.z)**2)**0.5 * cos(phi)
             sun.rotation_euler = pi * 0.5 - beta, 0, -phi
 
             if sun.data.node_tree:
@@ -457,7 +457,7 @@ def cyfc1(self):
                     emnode.inputs[1].default_value = 5 * sin(beta)
 
             if sunob.data.materials[0].node_tree:
-                for smblnode in [node for node in ob.data.materials[0].node_tree.nodes if sunob.data.materials and node.bl_label == 'Blackbody']:
+                for smblnode in [node for node in sunob.data.materials[0].node_tree.nodes if sunob.data.materials and node.bl_label == 'Blackbody']:
                     smblnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
 
         bpy.data.worlds[0].use_nodes = 0

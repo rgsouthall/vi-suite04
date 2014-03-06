@@ -560,7 +560,6 @@ def sunpath():
         beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
         sunob.location.z = sun.location.z = spathob.location.z + scene.soldistance * sin(beta)
         sunob.location.x = sun.location.x = spathob.location.x -(scene.soldistance**2 - (sun.location.z-spathob.location.z)**2)**0.5  * sin(phi)
-        print(spathob.location.x -(scene.soldistance**2 - sun.location.z**2)**0.5  * sin(phi))
         sunob.location.y = sun.location.y = spathob.location.y -(scene.soldistance**2 - (sun.location.z-spathob.location.z)**2)**0.5 * cos(phi)
         sun.rotation_euler = pi * 0.5 - beta, 0, -phi
         spathob.scale = 3 * [scene.soldistance/100]

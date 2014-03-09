@@ -118,22 +118,15 @@ def eupdate(self, context):
         for o in [obj for obj in bpy.data.objects if obj.lires == 1]:
             if str(frame) in o['omax'].keys():
                 maxo, mino = max(o['omax'].values()), min(o['omin'].values())
-                if len(o['cfaces']) > 0:
+                if len(o['cverts']) == 0:
                     for i, fli in enumerate([(face, face.loop_indices) for face in o.data.polygons if face.select == True]):
                         for li in fli[1]:
                             vi = o.data.loops[li].vertex_index
                             o.data.shape_keys.key_blocks[str(frame)].data[vi].co = o.data.shape_keys.key_blocks['Basis'].data[vi].co + context.scene.vi_disp_3dlevel * (abs(inv - (o['oreslist'][str(frame)][i]-mino)/(maxo - mino)) * fli[0].normal)
-                for v, vn in enumerate(o['cverts']):
-                    j = o['j'][v]
-                    o.data.shape_keys.key_blocks[str(frame)].data[vn].co = o.data.shape_keys.key_blocks['Basis'].data[vn].co + context.scene.vi_disp_3dlevel * (abs(inv - (o['oreslist'][str(frame)][j]-mino)/(maxo - mino)) * o.data.vertices[vn].normal)
+                for vn, v in enumerate(o['cverts']):
+                    o.data.shape_keys.key_blocks[str(frame)].data[v].co = o.data.shape_keys.key_blocks['Basis'].data[v].co + context.scene.vi_disp_3dlevel * (abs(inv - (o['oreslist'][str(frame)][vn]-mino)/(maxo - mino)) * o.data.vertices[v].normal)
                 o.data.update()
 
-#def spupdate(self, context):
-#    context.scene.spupdate = 1
-
-
-
-#sin((solazi)*deg2rad), -cos((solazi)*deg2rad), solalt/90
 def register():
     bpy.utils.register_module(__name__)
     Object = bpy.types.Object
@@ -143,19 +136,12 @@ def register():
 # LiVi object properties
 
     Object.livi_merr = bprop("LiVi simple mesh export", "Boolean for simple mesh export", False)
-
     Object.ies_name = sprop("", "IES File", 1024, "")
-
     Object.ies_strength = fprop("", "Strength of IES lamp", 0, 1, 1)
-
     Object.ies_unit = eprop([("m", "Meters", ""), ("c", "Centimeters", ""), ("f", "Feet", ""), ("i", "Inches", "")], "", "Specify the IES file measurement unit", "m")
-
     Object.ies_colour = fvprop(3, "IES Colour",'IES Colour', [1.0, 1.0, 1.0], 'COLOR', 0, 1)
-
     Object.licalc = bprop("", "", False)
-
     Object.lires = bprop("", "", False)
-
     Object.limerr = bprop("", "", False)
 
 # EnVi zone definitions
@@ -515,6 +501,7 @@ def register():
     Material.envi_shad_att = bprop("Attached", "Flag to specify shading attached to the building",False)
 
     Scene.fs = iprop("Frame start", "Starting frame",0, 1000, 0)
+    Scene.fe = iprop("Frame start", "End frame",0, 50000, 0)
     Scene.vipath = sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
     Scene.solday = bpy.props.IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
     Scene.solhour = bpy.props.FloatProperty(name = "", description = "Time of day", min = 0, max = 24, default = 12, update=sunpath1)

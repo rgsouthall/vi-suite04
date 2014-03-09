@@ -581,7 +581,14 @@ def sunpath():
         sun['solhour'], sun['solday'], sun['soldistance'] = scene.solhour, scene.solday, scene.soldistance
     else:
         return
-
+        
+def latilongi(scene, locnode):
+    if locnode and locnode.loc == '1':        
+        with open(locnode.weather, "r") as epwfile:
+            fl = epwfile.readline()
+            scene.latitude, scene.longitude = float(fl.split(",")[6]), float(fl.split(",")[7])
+    return(scene.latitude, scene.longitude)   
+    
 #Compute solar position (altitude and azimuth in degrees) based on day of year (doy; integer), local solar time (lst; decimal hours), latitude (lat; decimal degrees), and longitude (lon; decimal degrees).
 def solarPosition(doy, lst, lat, lon):
     #Set the local standard time meridian (lsm) (integer degrees of arc)

@@ -21,7 +21,8 @@ import time as ti
 from math import sin, cos, tan, pi
 from mathutils import Vector
 from subprocess import PIPE, Popen, STDOUT
-from .vi_func import retsky, retmat, retobj, retmesh, clearscenege, clearscenece, clearscened, solarPosition, mtx2vals, framerange, frameindex, retobjs, radmat
+from .vi_func import retsky, retmat, retobj, retmesh, clearscenege, clearscenece, \
+clearscened, solarPosition, mtx2vals, framerange, frameindex, retobjs, radmat, latilongi
 
 try:
     import numpy
@@ -46,6 +47,7 @@ def radgexport(export_op, node, **kwargs):
     
     frames = framerange(scene, node.animmenu) if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else range(genframe, genframe + 1)
     frameis = frameindex(scene, node.animmenu) if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else frameindex(scene, 'Static')
+    print(frameis)
 #    frameisg = frameis if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else rangescene.frame_current
     
     for frame in frames:
@@ -87,7 +89,6 @@ def radgexport(export_op, node, **kwargs):
                     bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_start, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
                     objcmd = "obj2mesh -w -a {} {} {}".format(retmat(scene.frame_start, node), retobj(o.name, scene.frame_start, node), retmesh(o.name, scene.frame_start, node))
                     objrun = Popen(objcmd, shell = True, stdout = PIPE)
-
                 else:
                     if frame == frames[0]:
                         bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_current, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
@@ -147,16 +148,15 @@ def radgexport(export_op, node, **kwargs):
         radfilelist.append(radfile)
 
     node['radfiles'] = radfilelist
-    connode = node.outputs['Geometry out'].links[0].to_node if node.outputs[0].is_linked else 0
+    connode = node.outputs['Geometry out'].links[0].to_node if node.outputs['Geometry out'].is_linked else 0
 
     node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
 
-    for frame in frameis:
+    for frame in frames:
         fexport(scene, frame, export_op, node, connode)
 
 # rtrace export routine
     with open(node.filebase+".rtrace", "w") as rtrace:
-#        reslen, calcsurfverts, calcsurffaces,  = 0, [], []
         reslen = 0
         geos = retobjs('livig') if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else retobjs('livic')
         for o, geo in enumerate(geos):
@@ -180,23 +180,15 @@ def radgexport(export_op, node, **kwargs):
                                     vsum += mesh.vertices[v].co
                                 fc = vsum/len(face.vertices)
                                 rtrace.write('{0[0]} {0[1]} {0[2]} {1[0]} {1[1]} {1[2]} \n'.format(fc, face.normal.normalized()[:]))
-#                                calcsurffaces.append((o, face))
-
                             else:
                                 for v,vert in enumerate(face.vertices):
-                                    if (mesh.vertices[vert]) not in obcalcverts:
+                                    if vert not in cverts:
                                         vcentx, vcenty, vcentz = mesh.vertices[vert].co[:]
                                         vnormx, vnormy, vnormz = (mesh.vertices[vert].normal*geo.matrix_world.inverted())[:]
-                                        csv.append(vert)
                                         reslen += 1
                                         rtrace.write('{0[0]} {0[1]} {0[2]} {1[0]} {1[1]} {1[2]} \n'.format(mesh.vertices[vert].co[:], (mesh.vertices[vert].normal*geo.matrix_world.inverted()).normalized()[:]))
-#                                        obcalcverts.append(mesh.vertices[vert])
-#                                        cverts.append(vert)
-#                                calcsurfverts += obcalcverts
-#                        else:
-#                            face.select = False
-
-                    (geo['cverts'], geo['cfaces']) = (csv, []) if node.cpoint == '1' else ([], csf)                    
+                                        cverts.append(vert)
+                    (geo['cverts'], geo['cfaces']) = (cverts, csf) if node.cpoint == '1' else ([], csf)                    
                     bpy.data.meshes.remove(mesh)
                 else:
                     if geo.get('licalc'):
@@ -218,22 +210,22 @@ def radcexport(export_op, node):
     geonode = node.inputs['Geometry in'].links[0].from_node
 
     if node.bl_label != 'LiVi CBDM':
-        node['Animation'] = ('Static', '', 'TAnimated', 'Animated')[(geonode.animmenu == 'Static' and (node.animmenu == 'Static' or node.skynum > 2), \
-        geonode.animmenu != 'Static' and node.animmenu != 'Static', node.animmenu == 'Time' and node.skynum < 3).index(1)]
+        node['Animation'] = ('Static', '', 'TAnimated', 'Animated', 'GAnimated')[(geonode.animmenu == 'Static' and (node.animmenu == 'Static' or node.skynum > 2), \
+        geonode.animmenu != 'Static' and node.animmenu != 'Static', node.animmenu == 'Time' and node.skynum < 3, geonode.animmenu != 'Static').index(1)]
         if not node['Animation']:
             export_op.report({'ERROR'},"You cannot run a geometry and time based animation at the same time")
             return
 
         if node.skynum < 4:
             node.skytypeparams = ("+s", "+i", "-c", "-b 22.86 -c")[node.skynum]
-            starttime = datetime.datetime(2013, 1, 1, node.shour) + datetime.timedelta(node.sdoy - 1) if node.skynum < 3 else datetime.datetime(2013, 1, 1, 12)
+            starttime = datetime.datetime(2013, 1, 1, int(node.shour), int((node.shour - int(node.shour))*60)) + datetime.timedelta(node.sdoy - 1) if node.skynum < 3 else datetime.datetime(2013, 1, 1, 12)
             if node.animmenu == 'Time' and node.skynum < 3:
                 endtime = datetime.datetime(2013, 1, 1, node.ehour) + datetime.timedelta(node.edoy - 1)
                 hours = (endtime-starttime).days*24 + (endtime-starttime).seconds/3600
-                scene.frame_end = int(hours/node.interval)
+                scene.frame_end = scene.fs + int(hours/node.interval)
 
             for frame in framerange(scene, ('Static', 'Animated')[node['Animation'] == 'TAnimated']):
-                sunexport(scene, node, geonode, starttime, frame)
+                sunexport(scene, node, geonode, starttime, frame - scene.fs)
                 if node.skynum < 2 and node.analysismenu != '2':
                     if frame == scene.frame_start:
                         if 'Sun' in [ob for ob in scene.objects if ob.get('VIType')]:
@@ -242,7 +234,7 @@ def radcexport(export_op, node):
                             bpy.ops.object.lamp_add(type='SUN')
                             sun = bpy.context.object
                             sun['VIType'] = 'Sun'
-                    blsunexport(scene, node, starttime, frame, sun)
+                    blsunexport(scene, node, starttime, frame - scene.fs, sun)
                 with open(geonode.filebase+"-{}.sky".format(frame), 'a') as skyfilea:
                     skyexport(node, skyfilea)
                 with open(geonode.filebase+"-{}.sky".format(frame), 'r') as skyfiler:
@@ -327,13 +319,18 @@ def radcexport(export_op, node):
 
     for frame in frameindex(scene, node['Animation']):
         fexport(scene, frame, export_op, node, geonode)
+    scene.frame_set(0)
+    node.export = 1
 
 def sunexport(scene, node, geonode, starttime, frame):
-    if node.skynum < 3:
+    if node.skynum < 3:        
         simtime = starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
-        subprocess.call("gensky {} {} {}:{:0>2d}{} -a {} -o {} {} > {}".format(simtime.month, simtime.day, simtime.hour, simtime.minute, node.TZ, node.lati, node.longi, node.skytypeparams, retsky(frame, node, geonode)), shell = True)
+        solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour + (simtime.minute)*0.016666, scene.latitude, scene.longitude)
+        subprocess.call("gensky -ang {} {} {} > {}".format(solalt, solazi, node.skytypeparams, retsky(frame, node, geonode)), shell = True)
+
+#        subprocess.call("gensky {} {} {}:{:0>2d}{} -a {} -o {} {} > {}".format(simtime.month, simtime.day, simtime.hour, simtime.minute, node.TZ, scene.latitude, scene.longitude, node.skytypeparams, retsky(frame, node, geonode)), shell = True)
     elif node.skynum == 3:
-        subprocess.call("gensky {} {} {}:{:0>2d}{} -a {} -o {} {} > {}".format(1, 1, 12, 0, node.TZ, 50, 0, node.skytypeparams, retsky(frame, node, geonode)), shell = True)
+        subprocess.call("gensky -ang {} {} {} > {}".format(45, 0, node.skytypeparams, retsky(frame, node, geonode)), shell = True)
 
 def hdrexport(scene, frame, node, geonode):
     subprocess.call("oconv {} > {}-{}sky.oct".format(retsky(frame, node, geonode), geonode.filebase, frame), shell=True)
@@ -347,8 +344,8 @@ def hdrexport(scene, frame, node, geonode):
 def blsunexport(scene, node, starttime, frame, sun):
     simtime = starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
 #    deg2rad = 2*math.pi/360
-    DS = 1 if node.daysav else 0
-    solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour - DS + (simtime.minute)*0.016666, node.lati, node.longi)
+#    DS = 1 if node.daysav else 0
+    solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour + (simtime.minute)*0.016666, scene.latitude, scene.longitude)
     if node.skynum < 2:
         if frame == 0:
             sun.data.shadow_method = 'RAY_SHADOW'
@@ -381,32 +378,32 @@ def hdrsky(skyfile):
     return("# Sky material\nvoid colorpict hdr_env\n7 red green blue {} angmap.cal sb_u sb_v\n0\n0\n\nhdr_env glow env_glow\n0\n0\n4 1 1 1 0\n\nenv_glow bubble sky\n0\n0\n4 0 0 0 5000\n\n".format(skyfile))
 
 def fexport(scene, frame, export_op, node, othernode):
-    (geonode, connode) = (node, othernode) if node.bl_label == 'LiVi Geometry' else (othernode, node)
-    
-    skyframe = frame if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else 0
+    (geonode, connode) = (node, othernode) if 'LiVi Geometry' in node.bl_label else (othernode, node)
+    skyframe = frame if connode and connode['Animation'] == 'TAnimated' else 0
+#    skyframe = frame if 'LiVi Basic' in export_op.nodeid.split('@')[0] else 0
 #    subprocess.call(geonode.rm +" {0}-{1}.oct".format(geonode.filebase, frame), shell = True)
     if not othernode:
         radtext = geonode['radfiles'][0] if len(geonode['radfiles']) == 1 else geonode['radfiles'][frame]
     else:
         radtext = geonode['radfiles'][0] + connode['skyfiles'][skyframe] if len(geonode['radfiles']) == 1 else geonode['radfiles'][frame] + connode['skyfiles'][0]
 
-    with open(geonode.filebase+"-{}.rad".format(scene.frame_current), 'w') as radfile:
+    with open(geonode.filebase+"-{}.rad".format(frame), 'w') as radfile:
         radfile.write(radtext)
         
-    if not bpy.data.texts.get('Radiance input-{}'.format(scene.frame_current)):
-        bpy.data.texts.new('Radiance input-{}'.format(scene.frame_current))
-    bpy.data.texts['Radiance input-{}'.format(scene.frame_current)].clear()
-    bpy.data.texts['Radiance input-{}'.format(scene.frame_current)].write(radtext)
+    if not bpy.data.texts.get('Radiance input-{}'.format(frame)):
+        bpy.data.texts.new('Radiance input-{}'.format(frame))
+    bpy.data.texts['Radiance input-{}'.format(frame)].clear()
+    bpy.data.texts['Radiance input-{}'.format(frame)].write(radtext)
     
-    oconvcmd = "oconv -w {0}-{1}.rad > {0}-{1}.oct".format(geonode.filebase, scene.frame_current)
+    oconvcmd = "oconv -w {0}-{1}.rad > {0}-{1}.oct".format(geonode.filebase, frame)
 #    This next line allows the radiance scene description to be piped into the oconv command.
 #   oconvcmd = "oconv -w - > {0}-{1}.oct".format(geonode.filebase, frame).communicate(input = radtext.encode('utf-8'))
     Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT)#.communicate(input = radtext.encode('utf-8'))
-    node.export = 1
+    
     export_op.report({'INFO'},"Export is finished")
     
-    if export_op.nodeid.split('@')[0] == 'LiVi Geometry':
-        scene.frame_set(scene.frame_start)
+#    if export_op.nodeid.split('@')[0] == 'LiVi Geometry':
+#    scene.frame_set(0)
 
 def cyfc1(self):
     if bpy.data.scenes[0].render.engine == "CYCLES":

@@ -134,100 +134,77 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                         connode['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
                     connode['vecvals'], vals = vi_func.mtx2vals(open(connode.vecname, "r"), datetime.datetime(2010, 1, 1).weekday())
 
-                for framei in frameis:
-                    hours = 0
-                    sensarray = [[0 for x in range(146)] for y in range(geonode.reslen)] if np == 0 else numpy.zeros([geonode.reslen, 146])
+#                for framei in frameis:
+                hours = 0
+                sensarray = [[0 for x in range(146)] for y in range(geonode.reslen)] if np == 0 else numpy.zeros([geonode.reslen, 146])
 #                    if connode.analysismenu == '3':
 #                        wattres = [[0 for p in range(len(connode['vecvals']))] for x in range(len(frameis))] if np == 0 else numpy.zeros([len(frameis), len(connode['vecvals']), geonode.reslen])
-                    oconvcmd = "oconv -w - > {0}-ws.oct".format(geonode.filebase)
-                    Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = (connode['whitesky']+geonode['radfiles'][framei]).encode('utf-8'))
-                    senscmd = geonode.cat+geonode.filebase+".rtrace | rcontrib -w  -h -I -fo -bn 146 "+simnode['params']+" -n "+geonode.nproc+" -f tregenza.cal -b tbin -m sky_glow "+geonode.filebase+"-ws.oct"
-                    sensrun = Popen(senscmd, shell = True, stdout=PIPE)
+                oconvcmd = "oconv -w - > {0}-ws.oct".format(geonode.filebase)
+                Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = (connode['whitesky']+geonode['radfiles'][frame]).encode('utf-8'))
+                senscmd = geonode.cat+geonode.filebase+".rtrace | rcontrib -w  -h -I -fo -bn 146 "+simnode['params']+" -n "+geonode.nproc+" -f tregenza.cal -b tbin -m sky_glow "+geonode.filebase+"-ws.oct"
+                sensrun = Popen(senscmd, shell = True, stdout=PIPE)
 
-                    for l, line in enumerate(sensrun.stdout):
-                        decline = [float(ld) for ld in line.decode().split('\t') if ld != '\n']
-                        for v in range(0, 438, 3):
-                            if connode.analysismenu in ('2', '4'):
-                                sensarray[l][v/3] = 179*((decline[v]*0.265)+ (decline[v+1]*0.67) + (decline[v+2]*0.065))
-                            elif connode.analysismenu == '3':
-                                sensarray[l][v/3] = sum(decline[v:v+3])
+                for l, line in enumerate(sensrun.stdout):
+                    decline = [float(ld) for ld in line.decode().split('\t') if ld != '\n']
+                    for v in range(0, 438, 3):
+                        if connode.analysismenu in ('2', '4'):
+                            sensarray[l][v/3] = 179*((decline[v]*0.265)+ (decline[v+1]*0.67) + (decline[v+2]*0.065))
+                        elif connode.analysismenu == '3':
+                            sensarray[l][v/3] = sum(decline[v:v+3])
 
-                    for l, readings in enumerate(connode['vecvals']):
-                        if connode.analysismenu == '3' or (connode.cbdm_start_hour <= readings[:][0] < connode.cbdm_end_hour and readings[:][1] < connode['wd']):
-                            finalillu = [0 for x in range(geonode.reslen)] if np == 0 else numpy.zeros((geonode.reslen))
-                            for f, fi in enumerate(finalillu):
-                                finalillu[f] = numpy.sum([numpy.multiply(sensarray[f], readings[2:])]) if np == 1 else sum([a*b for a,b in zip(sensarray[f],readings[2:])])
-                            hours += 1
+                for l, readings in enumerate(connode['vecvals']):
+                    if connode.analysismenu == '3' or (connode.cbdm_start_hour <= readings[:][0] < connode.cbdm_end_hour and readings[:][1] < connode['wd']):
+                        finalillu = [0 for x in range(geonode.reslen)] if np == 0 else numpy.zeros((geonode.reslen))
+                        for f, fi in enumerate(finalillu):
+                            finalillu[f] = numpy.sum([numpy.multiply(sensarray[f], readings[2:])]) if np == 1 else sum([a*b for a,b in zip(sensarray[f],readings[2:])])
+                        hours += 1
 
-                            if connode.analysismenu == '2':
-                                if np == 1:
-                                    target = [reading >= connode.dalux for reading in finalillu]
-                                    res = numpy.sum([res, target], axis = 0)
-                                else:
-                                    res = [res[framei][k] + (0, 1)[finalillu[k] >= connode.dalux] for k in range(len(finalillu))]
+                        if connode.analysismenu == '2':
+                            if np == 1:
+                                target = [reading >= connode.dalux for reading in finalillu]
+                                res = numpy.sum([res, target], axis = 0)
+                            else:
+                                res = [res[frame][k] + (0, 1)[finalillu[k] >= connode.dalux] for k in range(len(finalillu))]
 
-                            elif connode.analysismenu == '3':
-                                res[l] = finalillu
+                        elif connode.analysismenu == '3':
+                            res[l] = finalillu
 
-                            elif connode.analysismenu == '4':
-                                res = [res[k] + (0, 1)[connode.daauto >= finalillu[k] >= connode.dasupp] for k in range(len(finalillu))]
+                        elif connode.analysismenu == '4':
+                            res = [res[k] + (0, 1)[connode.daauto >= finalillu[k] >= connode.dasupp] for k in range(len(finalillu))]
 
-                    if connode.analysismenu in ('2', '4'):
-                        res = [rf*100/hours for rf in res if hours != 0]
+                if connode.analysismenu in ('2', '4'):
+                    res = [rf*100/hours for rf in res if hours != 0]
 
-                        with open(os.path.join(geonode.newdir, resname+"-"+str(framei)+".res"), "w") as daresfile:
-                            [daresfile.write("{:.2f}\n".format(r)) for r in res]
+                    with open(os.path.join(geonode.newdir, resname+"-"+str(frame)+".res"), "w") as daresfile:
+                        [daresfile.write("{:.2f}\n".format(r)) for r in res]
             
 #            if not kwargs.get('genframe'):        
 #                resapply(calc_op, frame, res, svres, simnode, connode, geonode, kwargs.get('genframe'))
-        fi, vi = 0, 0       
-        for geo in vi_func.retobjs('livic'):
-            obcalcverts, obres = [], []
-            weightres = 0
-            geoarea = sum([vi_func.triarea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
-            for face in [face for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense]:
-                if geonode.cpoint == '1':
-                    for v,vert in enumerate(face.vertices):
-                        if (geo.data.vertices[vert]) not in obcalcverts:
-                            weightres += res[frame][vi] 
-                            obres.append(res[frame][vi])
-                            obcalcverts.append(geo.data.vertices[vert])
-                            vi += 1
-                else:
-                    weightres += vi_func.triarea(geo, face) * res[findex][fi]/geoarea
-                    obres.append(res[findex][fi])
-                    fi += 1
-
-            if frame == scene.fs:
-                geo['oave'], geo['omax'], geo['omin'], geo['oreslist'] = {}, {}, {}, {}
-            geo['oave'][str(frame)] = weightres
-            geo['omax'][str(frame)] = max(obres)
-            geo['omin'][str(frame)] = min(obres)
-            geo['oreslist'][str(frame)] = obres
-            
-            
-#            for face in [face for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense]:
-#                if geonode.cpoint == '1':
-#                    cvtup = tuple(geo['cverts'])
-#                    for loop_index in face.loop_indices:
-#                        v = geo.data.loops[loop_index].vertex_index
-#                        if v in cvtup:
-#                            col_i = cvtup.index(v)
-#                        lcol_i.append(col_i)
-#                        vertexColour.data[loop_index].color = rgb[col_i+mcol_i]
-#                    weightres = res
-#    
-#                if geonode.cpoint == '0':
-#                    for loop_index in face.loop_indices:
-#                        vertexColour.data[loop_index].color = rgb[fi]
-#                    weightres += vi_func.triarea(geo, face) * res[frame][fi]/geoarea
-#                    fi += 1
-
-        
-        
-        
-        
-        
+            fi, vi = 0, 0       
+            for geo in vi_func.retobjs('livic'):
+                obcalcverts, obres = [], []
+                weightres = 0
+                geoarea = sum([vi_func.triarea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
+                for face in [face for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense]:
+                    if geonode.cpoint == '1':
+                        for v,vert in enumerate(face.vertices):
+                            if geo.data.vertices[vert] not in obcalcverts:
+                                weightres += res[findex][vi] 
+                                obres.append(res[findex][vi])
+                                obcalcverts.append(geo.data.vertices[vert])
+                                vi += 1
+                    else:
+                        weightres += vi_func.triarea(geo, face) * res[frame][fi]/geoarea
+                        obres.append(res[frame][fi])
+                        fi += 1
+    
+                if frame == scene.fs:
+                    geo['oave'], geo['omax'], geo['omin'], geo['oreslist'] = {}, {}, {}, {}
+                
+                geo['oave'][str(frame)] = weightres
+                geo['omax'][str(frame)] = max(obres)
+                geo['omin'][str(frame)] = min(obres)
+                geo['oreslist'][str(frame)] = obres        
                 
         if not kwargs.get('genframe'):
             resapply(calc_op, res, svres, simnode, connode, geonode)
@@ -282,7 +259,6 @@ def resapply(calc_op, res, svres, simnode, connode, geonode):
             else:
                 if geo.get('wattres'):
                     del geo['wattres']
-
                 
                 fend = f + len(geofaces)
                 passarea = 0

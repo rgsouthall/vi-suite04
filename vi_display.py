@@ -58,10 +58,7 @@ def li_display(simnode, connode, geonode):
 
     if scene.vi_disp_3d == 1:
         for i, geo in enumerate(vi_func.retobjs('livic')):
-            scene.objects.active = None
-            bpy.ops.object.select_all(action = 'DESELECT')
-            scene.objects.active = geo
-            geo.select = True
+            vi_func.selobj(scene, geo)
             bpy.ops.object.mode_set(mode = 'EDIT')
             bpy.context.tool_settings.mesh_select_mode = [False, False, True]
             bpy.ops.mesh.select_all(action = 'DESELECT')
@@ -70,28 +67,28 @@ def li_display(simnode, connode, geonode):
             for cf in geo["cfaces"]:
                 geo.data.polygons[int(cf)].select = True
 
-            if len(geo["cverts"]) > 0:
-                bpy.context.tool_settings.mesh_select_mode = [True, False, False]
-                for cv in geo["cverts"]:
-                    geo.data.vertices[int(cv)].select = True
+#            if len(geo["cverts"]) > 0:
+#                bpy.context.tool_settings.mesh_select_mode = [True, False, False]
+#                for cv in geo["cverts"]:
+#                    geo.data.vertices[int(cv)].select = True
 
             bpy.ops.object.mode_set(mode = 'EDIT')
             bpy.ops.mesh.duplicate()
             bpy.ops.mesh.separate()
             bpy.ops.object.mode_set(mode = 'OBJECT')
+            if cp == '1':
+                for v, vin in enumerate(geo['cverts']):
+                    for resv in scene.objects[0].data.vertices:
+                        if resv.co == geo.data.vertices[vin].co:
+                            scene.objects[0]['cverts'][v] = resv.index
             for f in scene.objects[0].data.polygons:
                 f.select = True
             scene.objects[0].name = geo.name+"res"
             obreslist.append(scene.objects[0])
             scene.objects[0].lires = 1
-            bpy.ops.object.select_all(action = 'DESELECT')
-            scene.objects.active = None
             
         for obres in obreslist:
-            scene.objects.active = obres
-            obres.select = True
-            j = []
-
+            vi_func.selobj(scene, obres)
             if cp == '0' or not geonode:
                 if len(obres.data.polygons) > 1:
                     bpy.ops.object.mode_set(mode = 'EDIT')
@@ -99,13 +96,6 @@ def li_display(simnode, connode, geonode):
                     bpy.ops.mesh.extrude_faces_move()
                     bpy.ops.object.mode_set(mode = 'OBJECT')
                     bpy.ops.object.select_all(action = 'DESELECT')
-
-                    for fli in [face.loop_indices for face in obres.data.polygons if face.select == True]:
-                        for li in fli:
-                            j.append(obres.data.loops[li].vertex_index)
-            else:
-                for vn in obres['cverts']:
-                    j.append([j for j,x in enumerate(obres.data.loops) if vn == x.vertex_index][0])
 
             bpy.ops.object.shape_key_add(from_mix = False)
 
@@ -126,7 +116,7 @@ def li_display(simnode, connode, geonode):
                 (vc.active, vc.active_render) = (1, 1) if vc.name == str(frame) else (0, 0)
                 vc.keyframe_insert("active")
                 vc.keyframe_insert("active_render")
-
+                                
     bpy.ops.wm.save_mainfile(check_existing = False)
     scene.frame_set(scene.fs)
     rendview(1)

@@ -1,11 +1,13 @@
-import bpy, bpy_extras, sys, datetime, mathutils, bmesh
+import bpy, bpy_extras, sys, datetime, mathutils
 import bpy_extras.io_utils as io_utils
-import numpy as np
+try:
+    import numpy
+    np = 1
+except:
+    np = 0
 #from multiprocessing.pool import ThreadPool as Pool
 #from multiprocessing import Pool
-import multiprocessing
 from collections import OrderedDict
-from datetime import date
 from datetime import datetime as dt
 from math import cos, sin, pi, ceil, tan, modf
 from numpy import arange
@@ -17,11 +19,11 @@ except:
     mp = 0
 from .livi_export import radcexport, radgexport, cyfc1
 from .livi_calc  import rad_prev, li_calc, li_glare, resapply
-from .vi_display import li_display, ss_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend
+from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .envi_calc import envi_sim
-from .vi_func import processf, livisimacc, solarPosition, retobjs, wr_axes, set_legend, clearscened, frameindex, framerange, vcframe
+from .vi_func import processf, livisimacc, solarPosition, retobjs, wr_axes, clearscened, framerange, vcframe, latilongi
 from .vi_chart import chart_disp
 from .vi_gen import vigen
 
@@ -39,10 +41,10 @@ class NODE_OT_LiGExport(bpy.types.Operator):
         if bpy.data.filepath and " " not in bpy.data.filepath:
             node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
             node.reslen = 0
-            bpy.data.node_groups[self.nodeid.split('@')[1]].use_fake_user = 1
+            scene.frame_start, bpy.data.node_groups[self.nodeid.split('@')[1]].use_fake_user = 0, 1
+            scene.frame_set(0)
             radgexport(self, node)
-            node.exported = True
-            node.outputs[1].hide = False
+            node.exported, node.outputs[1].hide = True, False
             return {'FINISHED'}
 
         elif " "  in bpy.data.filepath:
@@ -178,8 +180,12 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
 
     def invoke(self, context, event):
         scene = context.scene
+        scene.frame_start = 0
+        scene.frame_set(0)
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        if node.inputs['Location in'].is_linked and node.inputs['Location in'].links[0].from_node.bl_label == 'VI Location':
+            latilongi(scene, node.inputs['Location in'].links[0].from_node)
         node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
         if node.bl_label == 'LiVi Basic':
             node.skynum = int(node.skymenu) if node.analysismenu != "2" else 3
@@ -187,11 +193,10 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
                 node.simalg = (" |  rcalc  -e '$1=47.4*$1+120*$2+11.6*$3' ", " |  rcalc  -e '$1=$1' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' ", '')[int(node.analysismenu)]
             else:
                 node.simalg = (' |  rcalc  -e "$1=47.4*$1+120*$2+11.6*$3" ', ' |  rcalc  -e "$1=$1" ', ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ', '')[int(node.analysismenu)]
-            node.TZ = node.summer if node.daysav == True else node.stamer
+#            node.TZ = node.summer if node.daysav == True else node.stamer
 
         elif node.bl_label == 'LiVi Compliance':
             if node.analysismenu in ('0', '1'):
-
                 if str(sys.platform) != 'win32':
                     node.simalg = " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' "
                 else:
@@ -237,7 +242,6 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        scene = context.scene
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         connode = simnode.inputs['Context in'].links[0].from_node
         geonode = connode.inputs['Geometry in'].links[0].from_node
@@ -265,15 +269,19 @@ class NODE_OT_Calculate(bpy.types.Operator):
         
         if geogennode and tarnode: 
             simnode['Animation'] = 'Animated'
-            scene.fs = scene.frame_start
+            scene.fs, scene.fe = scene.frame_start, scene.frame_end
             vigen(self, li_calc, resapply, geonode, connode, simnode, geogennode, tarnode)     
             scene.vi_display = 1
         elif connode.analysismenu != '3':
             simnode['Animation'] = connode['Animation']
             scene.fs = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
+            scene.fe = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
             li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
             scene.vi_display = 1
         else:
+            simnode['Animation'] = connode['Animation']
+            scene.fs = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
+            scene.fe = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
             li_glare(self, simnode, connode, geonode)
             scene.vi_display = 0
         (scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel) = (0, 1, 1, 0, 0, 0) if connode.bl_label == 'LiVi Compliance'  else (0, 1, 0, 0, 0, 0)
@@ -789,10 +797,9 @@ class NODE_OT_Shadow(bpy.types.Operator):
 #            fe = scene.frame_end
         fdiff =  1 if simnode['Animation'] == 'Static' else scene.frame_end - scene.frame_start + 1
         locnode = simnode.inputs[0].links[0].from_node
-        if locnode.loc == "1":
-            with open(locnode.weather, "r") as epwfile:
-               fl = epwfile.readline()
-               scene.latitude, scene.longitude = float(fl.split(",")[6]), float(fl.split(",")[7])
+        latilongi(scene, locnode)
+#        if locnode.loc == "1":
+            
 
         time = datetime.datetime(datetime.datetime.now().year, locnode.startmonth, 1, simnode.starthour - 1)
         y =  datetime.datetime.now().year if locnode.endmonth >= locnode.startmonth else datetime.datetime.now().year + 1

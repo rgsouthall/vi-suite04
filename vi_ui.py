@@ -12,7 +12,7 @@ envi_cons = envi_constructions()
 
 class Vi3DPanel(bpy.types.Panel):
     '''VI-Suite 3D view panel'''
-    bl_label = "VI-Suite"
+    bl_label = "VI-Suite Display"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
 
@@ -75,7 +75,7 @@ class Vi3DPanel(bpy.types.Panel):
 
 
 class VIMatPanel(bpy.types.Panel):
-    bl_label = "VI-Suite Material Panel"
+    bl_label = "VI-Suite Material"
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "material"
@@ -92,23 +92,24 @@ class VIMatPanel(bpy.types.Panel):
         row = layout.row()
         row.prop(cm, "livi_sense")
         row = layout.row()
-        for ng in bpy.data.node_groups:
-            if ng.bl_idname == 'ViN':
-                if 'LiVi Compliance' in [node.bl_label for node in ng.nodes]:
-                    node = [node for node in ng.nodes if node.bl_label == 'LiVi Compliance'][0]
-#            row.prop(cm, "livi_compliance")
+        if context.scene.restree:
+            ng = bpy.data.node_groups[context.scene.restree]            
+            node = ng.nodes[context.scene.resnode]
+            if node.inputs['Context in'].is_linked:
+                connode = node.inputs['Context in'].links[0].from_node        
+                if 'LiVi Compliance' in connode.bl_label:
                     if cm.livi_sense:
-                        if node.analysismenu == '0':
-                            if node.bambuildmenu == '2':
+                        if connode.analysismenu == '0':
+                            if connode.bambuildmenu == '2':
                                 newrow(layout, "Space type:", cm, 'hspacemenu')
-                            elif node.bambuildmenu == '3':
+                            elif connode.bambuildmenu == '3':
                                 newrow(layout, "Space type:", cm, 'rspacemenu')
                                 if cm.rspacemenu == '2':
                                     row = layout.row()
                                     row.prop(cm, 'gl_roof')
-                            elif node.bambuildmenu == '4':
+                            elif connode.bambuildmenu == '4':
                                 newrow(layout, "Space type:", cm, 'respacemenu')
-                        elif node.analysismenu == '1':
+                        elif connode.analysismenu == '1':
                             newrow(layout, "Space type:", cm, 'rspacemenu')
                             if cm.rspacemenu == '2':
                                 row = layout.row()

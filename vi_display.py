@@ -33,7 +33,7 @@ def ss_display():
 def li_display(simnode, connode, geonode):
     cp = '0' if not geonode else geonode.cpoint
     scene = bpy.context.scene
-    vi_func.clearscened(scene)
+    vi_func.clearscene(scene, '@')
     obreslist = []
     obcalclist = []
 
@@ -102,20 +102,21 @@ def li_display(simnode, connode, geonode):
             for frame in vi_func.framerange(scene, simnode['Animation']):
                 bpy.ops.object.shape_key_add(from_mix = False)
                 obres.active_shape_key.name = str(frame)
-        
-    for frame in vi_func.framerange(scene, simnode['Animation']):
-        scene.frame_set(frame)
-        for obres in obreslist:
-            if scene.vi_disp_3d == 1:
-                for shape in obres.data.shape_keys.key_blocks:
-                    if "Basis" not in shape.name:
-                        shape.value = 1 if int(shape.name) == frame else 0
-                        shape.keyframe_insert("value")
-
-            for vc in obres.data.vertex_colors:
-                (vc.active, vc.active_render) = (1, 1) if vc.name == str(frame) else (0, 0)
-                vc.keyframe_insert("active")
-                vc.keyframe_insert("active_render")
+    
+    vi_func.vcframe('', scene, obreslist, simnode['Animation'])   
+#    for frame in vi_func.framerangeene, simnode['Animation']):
+#     def vcframe(pp, scene, oblist, anim):   scene.frame_set(frame)
+#        for obres in obreslist:
+#            if scene.vi_disp_3d == 1:
+#                for shape in obres.data.shape_keys.key_blocks:
+#                    if "Basis" not in shape.name:
+#                        shape.value = 1 if int(shape.name) == frame else 0
+#                        shape.keyframe_insert("value")
+#
+#            for vc in obres.data.vertex_colors:
+#                (vc.active, vc.active_render) = (1, 1) if vc.name == str(frame) else (0, 0)
+#                vc.keyframe_insert("active")
+#                vc.keyframe_insert("active_render")
                                 
     bpy.ops.wm.save_mainfile(check_existing = False)
     scene.frame_set(scene.fs)
@@ -229,7 +230,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
 def li3D_legend(self, context, simnode, connode, geonode):
     scene = context.scene
     try:
-        if scene.vi_leg_display != True or scene.vi_display == 0 or (scene.wr_disp_panel != 1 and scene.li_disp_panel != 2 and scene.ss_disp_panel != 2) or scene.frame_current not in vi_func.framerange(scene, simnode['Animation']):
+        if scene.vi_leg_display != True or scene.vi_display == 0 or (scene.wr_disp_panel != 1 and scene.li_disp_panel != 2 and scene.ss_disp_panel != 2) or scene.frame_current not in range(scene.fs, scene.fe + 1):
             return
         else:
             if not connode or (connode and connode.bl_label == 'LiVi CBDM'):
@@ -290,9 +291,7 @@ def li3D_legend(self, context, simnode, connode, geonode):
                     vi_func.drawfont("Min: {:.1f}".format(simnode['minres'][findex]), font_id, 0, height, 22, 510)
     except Exception as e:
         print(e, 'Turning off VI Display')
-        scene.vi_display = 0
-        scene.vi_display_rp = 0
-        scene.vi_leg_display = 0
+        scene.vi_display, scene.vi_display_rp, scene.vi_leg_display = 0, 0, 0
         scene.update()
         
 def viwr_legend(self, context, simnode):
@@ -302,9 +301,7 @@ def viwr_legend(self, context, simnode):
     else:
         resvals = ['{0:.0f} to {1:.0f}'.format(2*i, 2*(i+1)) for i in range(simnode['nbins'])]
         resvals[-1] = resvals[-1][:-int(len('{:.0f}'.format(simnode['maxres'])))] + u"\u221E"
-        height = context.region.height
-        lenres = len(resvals[-1])
-        font_id = 0
+        height, lenres, font_id = context.region.height, len(resvals[-1]), 0
         vi_func.drawpoly(20, height - 40, 70 + lenres*8, height - (simnode['nbins']+6)*20)
         vi_func.drawloop(19, height - 40, 70 + lenres*8, height - (simnode['nbins']+6)*20)
         cm = matplotlib.cm.jet if simnode.wrtype in ('0', '1') else matplotlib.cm.hot
@@ -337,12 +334,9 @@ def viwr_legend(self, context, simnode):
             vi_func.drawfont("Max: {:.1f}".format(simnode['maxres']), font_id, 0, height, 22, simnode['nbins']*20 + 100)
             vi_func.drawfont("Min: {:.1f}".format(simnode['minres']), font_id, 0, height, 22, simnode['nbins']*20 + 115)
 
-
 def li_compliance(self, context, connode):
-    height = context.region.height
-    scene = context.scene
-
-    if not scene.get('li_compliance') or scene.frame_current not in vi_func.framerange(scene, connode['Animation']) or scene.vi_display == 0:
+    height, scene = context.region.height, context.scene
+    if not scene.get('li_compliance') or scene.frame_current not in range(scene.fs, scene.fe + 1) or scene.vi_display == 0:
         return
     if connode.analysismenu == '0':
         buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retail', 'Office & Other')[int(connode.bambuildmenu)]
@@ -352,8 +346,7 @@ def li_compliance(self, context, connode):
 
     vi_func.drawpoly(100, height - 40, 900, height - 65)
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-    horpos = (100, 317, 633, 900)
-    widths = (100, 450, 600, 750, 900)
+    horpos, widths = (100, 317, 633, 900), (100, 450, 600, 750, 900)
 
     for p in range(3):
         vi_func.drawloop(horpos[p], height - 40, horpos[p+1], height - 65)
@@ -365,11 +358,7 @@ def li_compliance(self, context, connode):
     blf.size(font_id, 20, 40)
 
     def space_compliance(geos):
-        frame = scene.frame_current
-        buildspace =''
-        pfs = []
-        epfs = []
-        lencrit = 0
+        frame, buildspace, pfs, epfs, lencrit = scene.frame_current, '', [], [], 0
         for geo in geos:
             mat = [m for m in geo.data.materials if m.livi_sense][0]
             geo['cr4'] = [('fail', 'pass')[int(com)] for com in geo['comps'][frame][:][::2]]
@@ -415,15 +404,8 @@ def li_compliance(self, context, connode):
             mat = [m for m in bpy.context.active_object.data.materials if m.livi_sense][0]
             if connode.analysismenu == '0':
                 buildspace = ('', '', (' - Public/Staff', ' - Patient')[int(mat.hspacemenu)], (' - Kitchen', ' - Living/Dining/Study', ' - Communal')[int(mat.rspacemenu)], (' - Sales', ' - Office')[int(mat.respacemenu)])[int(connode.bambuildmenu)]
-#                if connode.bambuildmenu == '2':
-#                    buildspace = (' - Public/Staff', ' - Patient')[int(mat.hspacemenu)]
-#                elif connode.bambuildmenu == '3':
-#                    buildspace = (' - Kitchen', ' - Living/Dining/Study', ' - Communal')[int(mat.rspacemenu)]
-#                elif connode.bambuildmenu == '4':
-#                    buildspace = (' - Sales', ' - Office')[int(mat.respacemenu)]
             elif connode.analysismenu == '1':
                 buildspace = (' - Kitchen', ' - Living/Dining/Study')[int(mat.rspacemenu)]
-
 
             titles = ('Zone Metric', 'Target', 'Achieved', 'PASS/FAIL')
             tables = [[] for c in range(lencrit -1)]
@@ -468,10 +450,10 @@ def li_compliance(self, context, connode):
 
         tpf = 'FAIL' if 'FAIL' in pfs or 'FAIL*' in pfs else 'PASS'
         if connode.analysismenu == '0':
-            (tpf, lencrit) = ('EXEMPLARY', lencrit + len(geo['ecrit'])) if tpf == 'PASS' and ('FAIL' not in epfs or 'FAIL*' not in epfs) else (tpf, lencrit)
+            (tpf, lencrit) = ('EXEMPLARY', lencrit + len(geo['ecrit'])) if tpf == 'PASS' and ('FAIL' not in epfs and 'FAIL*' not in epfs) else (tpf, lencrit)
 
         return(tpf, lencrit, buildspace, etables)
-
+    
     build_compliance, lencrit, bs, etables = space_compliance(vi_func.retobjs('livir'))
 
     if build_compliance == 'EXEMPLARY':
@@ -479,7 +461,6 @@ def li_compliance(self, context, connode):
             if t == 0:
                 vi_func.drawpoly(100, height - 70 - (lencrit * 25), 900, height - 70 - ((lencrit - len(etables)) * 25))
                 vi_func.drawloop(100, height - 70 - (lencrit * 25), 900, height - 70 - ((lencrit - len(etables)) * 25))
-
             for j in range(4):
                 bgl.glEnable(bgl.GL_LINE_STIPPLE)
                 vi_func.drawloop(widths[j], height - 95 - (lencrit - len(etables) + t - 1) * 25, widths[j+1], height - 120 - (lencrit - len(etables) + t - 1) * 25)
@@ -489,7 +470,6 @@ def li_compliance(self, context, connode):
                     bgl.glColor4f(0.0, 1.0, 0.0, 1.0)
                 blf.size(font_id, 20, 44)
                 blf.position(font_id, widths[j]+(25, 50)[j != 0]+(0, 10)[j in (1, 3)], height - 113 - (lencrit - len(etables) + t - 1) * 25, 0)
-                bgl.glColor4f(0.0, 0.7, 0.0, 1.0)
                 blf.draw(font_id, tab[j])
                 bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
                 bgl.glDisable(bgl.GL_LINE_STIPPLE)

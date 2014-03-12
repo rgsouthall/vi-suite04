@@ -21,8 +21,8 @@ import time as ti
 from math import sin, cos, tan, pi
 from mathutils import Vector
 from subprocess import PIPE, Popen, STDOUT
-from .vi_func import retsky, retmat, retobj, retmesh, clearscenege, clearscenece, \
-clearscened, solarPosition, mtx2vals, framerange, frameindex, retobjs, radmat, latilongi
+from .vi_func import retsky, retmat, retobj, retmesh, clearscene, \
+solarPosition, mtx2vals, retobjs, radmat, latilongi
 
 try:
     import numpy
@@ -38,19 +38,18 @@ def radgexport(export_op, node, **kwargs):
     radfilelist = []
 
     if export_op.nodeid.split('@')[0] == 'LiVi Geometry':
-        clearscenege(scene)
-        clearscened(scene)
+        clearscene(scene, export_op)
     else:
         genframe = kwargs['genframe'] if kwargs.get('genframe') else 0
     
-        
+    (scene.fs, scene.gfe, scene.cfe) = (scene.frame_start, scene.frame_end, scene.frame_start) if node.animmenu != 'Static' else (0, 0, 0)    
     
-    frames = framerange(scene, node.animmenu) if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else range(genframe, genframe + 1)
-    frameis = frameindex(scene, node.animmenu) if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else frameindex(scene, 'Static')
-    print(frameis)
+#    frames = framerange(scene, node.animmenu) if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else range(genframe, genframe + 1)
+#    frameis = frameindex(scene, node.animmenu) if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else frameindex(scene, 'Static')
+
 #    frameisg = frameis if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else rangescene.frame_current
     
-    for frame in frames:
+    for frame in range(scene.fs, scene.gfe + 1):
         if export_op.nodeid.split('@')[0] == 'LiVi Geometry':
             scene.frame_current = frame
         else:
@@ -90,7 +89,7 @@ def radgexport(export_op, node, **kwargs):
                     objcmd = "obj2mesh -w -a {} {} {}".format(retmat(scene.frame_start, node), retobj(o.name, scene.frame_start, node), retmesh(o.name, scene.frame_start, node))
                     objrun = Popen(objcmd, shell = True, stdout = PIPE)
                 else:
-                    if frame == frames[0]:
+                    if frame == scene.fs:
                         bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_current, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
                         objcmd = "obj2mesh -w -a {} {} {}".format(retmat(frame, node), retobj(o.name, scene.frame_current, node), retmesh(o.name, scene.frame_current, node))
                         objrun = Popen(objcmd, shell = True, stdout = PIPE)
@@ -136,14 +135,14 @@ def radgexport(export_op, node, **kwargs):
                 if geo.type == 'LAMP':
                     if geo.parent:
                         geo = geo.parent
-                    radfile.write += "!xform -rx {0} -ry {1} -rz {2} -t {3[0]} {3[1]} {3[2]} {4}.rad\n\n".format((180/pi)*geo.rotation_euler[0] - 180, (180/pi)*geo.rotation_euler[1], (180/pi)*geo.rotation_euler[2], geo.location, node.newdir+"/"+iesname+"-"+str(frame))
+                    radfile.write += "!xform -rx {0} -ry {1} -rz {2} -t {3[0]} {3[1]} {3[2]} {4}.rad\n\n".format((180/pi)*geo.rotation_euler[0] - 180, (180/pi)*geo.rotation_euler[1], (180/pi)*geo.rotation_euler[2], geo.location, node.newdir+os.path.sep+iesname+"-"+str(frame))
                 if 'lightarray' in geo.name:
                     spotmatrix, rotation = geo.matrix_world, geo.rotation_euler
                     for face in geo.data.polygons:
                         fx = sum([(spotmatrix*v.co)[0] for v in geo.data.vertices if v.index in face.vertices])/len(face.vertices)
                         fy = sum([(spotmatrix*v.co)[1] for v in geo.data.vertices if v.index in face.vertices])/len(face.vertices)
                         fz = sum([(spotmatrix*v.co)[2] for v in geo.data.vertices if v.index in face.vertices])/len(face.vertices)
-                        radfile.write += "!xform -rx {:.3f} -ry {:.3f} -rz {:.3f} -t {:.3f} {:.3f} {:.3f} {}\n".format((180/pi)*rotation[0], (180/pi)*rotation[1], (180/pi)*rotation[2], fx, fy, fz, node.newdir+"/"+iesname+"-"+str(frame)+".rad")
+                        radfile.write += "!xform -rx {:.3f} -ry {:.3f} -rz {:.3f} -t {:.3f} {:.3f} {:.3f} {}\n".format((180/pi)*rotation[0], (180/pi)*rotation[1], (180/pi)*rotation[2], fx, fy, fz, node.newdir+os.path.sep+iesname+"-"+str(frame)+".rad")
         radfile += "# Sky \n\n"
         radfilelist.append(radfile)
 
@@ -152,7 +151,7 @@ def radgexport(export_op, node, **kwargs):
 
     node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
 
-    for frame in frames:
+    for frame in range(scene.fs, scene.gfe + 1):
         fexport(scene, frame, export_op, node, connode)
 
 # rtrace export routine
@@ -199,14 +198,14 @@ def radgexport(export_op, node, **kwargs):
                 node.export = 0
                 export_op.report({'ERROR'},"Make sure your object "+geo.name+" has an associated material")
         node.reslen = reslen
+    scene.fe = max(scene.cfe, scene.gfe)
     node.export = 1
 
 
 def radcexport(export_op, node):
     skyfileslist, scene, scene.li_disp_panel, scene.vi_display = [], bpy.context.scene, 0, 0
     scene['LiViContext'] = node.bl_label
-    clearscenece(scene)
-    clearscened(scene)
+    clearscene(scene, export_op)
     geonode = node.inputs['Geometry in'].links[0].from_node
 
     if node.bl_label != 'LiVi CBDM':
@@ -222,9 +221,9 @@ def radcexport(export_op, node):
             if node.animmenu == 'Time' and node.skynum < 3:
                 endtime = datetime.datetime(2013, 1, 1, node.ehour) + datetime.timedelta(node.edoy - 1)
                 hours = (endtime-starttime).days*24 + (endtime-starttime).seconds/3600
-                scene.frame_end = scene.fs + int(hours/node.interval)
+                scene.cfe = scene.frame_end = scene.fs + int(hours/node.interval) 
 
-            for frame in framerange(scene, ('Static', 'Animated')[node['Animation'] == 'TAnimated']):
+            for frame in range(scene.fs, scene.cfe + 1):
                 sunexport(scene, node, geonode, starttime, frame - scene.fs)
                 if node.skynum < 2 and node.analysismenu != '2':
                     if frame == scene.frame_start:
@@ -259,67 +258,70 @@ def radcexport(export_op, node):
 
     elif node.bl_label == 'LiVi CBDM':
         node['Animation'] = 'Static' if geonode.animmenu == 'Static' else 'Animated'
-        node['source'] = node.sourcemenu if int(node.analysismenu) > 1 else node.sourcemenu2
-        if node.sourcemenu == '0' and node.inputs['Location in'].is_linked:
-            locnode = node.inputs['Location in'].links[0].from_node
-            if locnode.endmonth < locnode.startmonth:
-                export_op.report({'ERROR'}, "End month is earlier than start month")
-                return
-            os.chdir(geonode.newdir)
-            pcombfiles = ""
-            for i in range(0, 146):
-                pcombfiles = pcombfiles + "ps{}.hdr ".format(i)
-            epwbase = os.path.splitext(os.path.basename(locnode.weather))
-            if epwbase[1] in (".epw", ".EPW"):
-                with open(locnode.weather, "r") as epwfile:
-                    epwlines = epwfile.readlines()
-                    epwyear = epwlines[8].split(",")[0]
-#                    if not os.path.isfile(geonode.newdir+"/"+epwbase[0]+".wea"):
-                    with open(geonode.newdir+"/"+epwbase[0]+".wea", "w") as wea:
-                        wea.write("place {0[1]}\nlatitude {0[6]}\nlongitude {0[7]}\ntime_zone {0[8]}\nsite_elevation {0[9]}weather_data_file_units 1\n".format(epwlines[0].split(",")))
-                        for epwline in epwlines[8:]:
-                            if int(epwline.split(",")[1]) in range(locnode.startmonth, locnode.endmonth + 1):
-                                wea.write("{0[1]} {0[2]} {0[3]} {0[14]} {0[15]} \n".format(epwline.split(",")))
-#                    if not os.path.isfile(geonode.newdir+"/"+epwbase[0]+".mtx"):
-                    subprocess.call("gendaymtx -m 1 {0} {1}.wea > {1}.mtx".format(('', '-O1')[node.analysismenu in ('1', '3')], geonode.newdir+"/"+epwbase[0]), shell=True)                       
-            else:
-                export_op.report({'ERROR'}, "Not a valid EPW file")
-                return
-
-            mtxfile = open(geonode.newdir+"/"+epwbase[0]+".mtx", "r")
-        
-        elif node['source'] == '1' and int(node.analysismenu) > 1:
-            mtxfile = open(node.mtxname, "r")
-
-        if node['source'] != '2' or int(node.analysismenu) > 1:
-            if node.inputs['Location in'].is_linked:
-                mtxlines = mtxfile.readlines()
-                vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), 1, 1).weekday(), locnode)
-                mtxfile.close()
-                node['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
-                oconvcmd = "oconv -w - > {0}-whitesky.oct".format(geonode.filebase)
-                Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = node['whitesky'].encode('utf-8'))
-                subprocess.call("vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0 | rcontrib -bn 146 -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o p%d.hdr -m sky_glow {}-whitesky.oct".format(geonode.nproc, geonode.filename), shell = True)
-
-                for j in range(0, 146):
-                    subprocess.call("pcomb -s {0} p{1}.hdr > ps{1}.hdr".format(vals[j], j), shell = True)
-                    subprocess.call("{0}  p{1}.hdr".format(geonode.rm, j), shell = True)
-
-                subprocess.call("pcomb -h  "+pcombfiles+" > "+geonode.newdir+"/"+epwbase[0]+".hdr", shell = True)
-                subprocess.call(geonode.rm+" ps*.hdr" , shell = True)
-                node.hdrname = geonode.newdir+"/"+epwbase[0]+".hdr"
-                node['vecvals'] = vecvals
-                if node.sourcemenu == '0' and node.hdr:
-                    Popen("oconv -w - > {0}/{1}.oct".format(geonode.newdir, epwbase[0]), shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = hdrsky(geonode.newdir+"/"+epwbase[0]+".hdr").encode('utf-8'))
-                    subprocess.call('cnt 750 1500 | rcalc -f "'+os.path.join(scene.vipath, 'lib', 'latlong.cal"')+' -e "XD=1500;YD=750;inXD=0.000666;inYD=0.001333" | rtrace -af pan.af -n {0} -x 1500 -y 750 -fac "{1}/{2}.oct" > '.format(geonode.nproc, geonode.newdir, epwbase[0]) + '"'+os.path.join(geonode.newdir, epwbase[0]+'p.hdr')+'"', shell=True)
-
-        if node.hdrname not in bpy.data.images:
-            bpy.data.images.load(node.hdrname)
-        node['skyfiles'] = [hdrsky(node.hdrname)]
-
-    for frame in frameindex(scene, node['Animation']):
+        if not node.fromnode:            
+            node['source'] = node.sourcemenu if int(node.analysismenu) > 1 else node.sourcemenu2
+            if node['source'] == '0' and node.inputs['Location in'].is_linked:
+                locnode = node.inputs['Location in'].links[0].from_node
+                if locnode.endmonth < locnode.startmonth:
+                    export_op.report({'ERROR'}, "End month is earlier than start month")
+                    return
+                os.chdir(geonode.newdir)
+                pcombfiles = ""
+                for i in range(0, 146):
+                    pcombfiles = pcombfiles + "ps{}.hdr ".format(i)
+                epwbase = os.path.splitext(os.path.basename(locnode.weather))
+                if epwbase[1] in (".epw", ".EPW"):
+                    with open(locnode.weather, "r") as epwfile:
+                        epwlines = epwfile.readlines()
+                        epwyear = epwlines[8].split(",")[0]
+    #                    if not os.path.isfile(geonode.newdir+"/"+epwbase[0]+".wea"):
+                        with open(geonode.newdir+os.path.sep+epwbase[0]+".wea", "w") as wea:
+                            wea.write("place {0[1]}\nlatitude {0[6]}\nlongitude {0[7]}\ntime_zone {0[8]}\nsite_elevation {0[9]}weather_data_file_units 1\n".format(epwlines[0].split(",")))
+                            for epwline in epwlines[8:]:
+                                if int(epwline.split(",")[1]) in range(locnode.startmonth, locnode.endmonth + 1):
+                                    wea.write("{0[1]} {0[2]} {0[3]} {0[14]} {0[15]} \n".format(epwline.split(",")))
+    #                    if not os.path.isfile(geonode.newdir+"/"+epwbase[0]+".mtx"):
+                        subprocess.call("gendaymtx -m 1 {0} {1}.wea > {1}.mtx".format(('', '-O1')[node.analysismenu in ('1', '3')], geonode.newdir+os.path.sep+epwbase[0]), shell=True)                       
+                else:
+                    export_op.report({'ERROR'}, "Not a valid EPW file")
+                    return
+    
+                mtxfile = open(geonode.newdir+os.path.sep+epwbase[0]+".mtx", "r")
+            
+            elif node['source'] == '1' and int(node.analysismenu) > 1:
+                mtxfile = open(node.mtxname, "r")
+    
+            if node['source'] != '2' or int(node.analysismenu) > 1:
+                if node.inputs['Location in'].is_linked:
+                    mtxlines = mtxfile.readlines()
+                    vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), 1, 1).weekday(), locnode)
+                    mtxfile.close()
+                    node['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
+                    oconvcmd = "oconv -w - > {0}-whitesky.oct".format(geonode.filebase)
+                    Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = node['whitesky'].encode('utf-8'))
+                    subprocess.call("vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0 | rcontrib -bn 146 -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o p%d.hdr -m sky_glow {}-whitesky.oct".format(geonode.nproc, geonode.filename), shell = True)
+    
+                    for j in range(0, 146):
+                        subprocess.call("pcomb -s {0} p{1}.hdr > ps{1}.hdr".format(vals[j], j), shell = True)
+                        subprocess.call("{0}  p{1}.hdr".format(geonode.rm, j), shell = True)
+    
+                    subprocess.call("pcomb -h  "+pcombfiles+" > "+geonode.newdir+os.path.sep+epwbase[0]+".hdr", shell = True)
+                    subprocess.call(geonode.rm+" ps*.hdr" , shell = True)
+                    node.hdrname = geonode.newdir+os.path.sep+epwbase[0]+".hdr"
+                    node['vecvals'] = vecvals
+                    if node.sourcemenu == '0' and node.hdr:
+                        Popen("oconv -w - > {}{}{}.oct".format(geonode.newdir, os.path.sep, epwbase[0]), shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = hdrsky(geonode.newdir+os.path.sep+epwbase[0]+".hdr").encode('utf-8'))
+                        subprocess.call('cnt 750 1500 | rcalc -f "'+os.path.join(scene.vipath, 'lib', 'latlong.cal"')+' -e "XD=1500;YD=750;inXD=0.000666;inYD=0.001333" | rtrace -af pan.af -n {} -x 1500 -y 750 -fac "{}{}{}.oct" > '.format(geonode.nproc, geonode.newdir, os.path.sep, epwbase[0]) + '"'+os.path.join(geonode.newdir, epwbase[0]+'p.hdr')+'"', shell=True)
+                else:
+                    export_op.report({'ERROR'}, "No location node connected")
+                    return
+            if node.hdrname not in bpy.data.images:
+                bpy.data.images.load(node.hdrname)
+            node['skyfiles'] = [hdrsky(node.hdrname)]
+    scene.fe = max(scene.cfe, scene.gfe)
+    for frame in range(scene.fs, scene.fe + 1):
         fexport(scene, frame, export_op, node, geonode)
-    scene.frame_set(0)
+    scene.frame_set(scene.fs)
     node.export = 1
 
 def sunexport(scene, node, geonode, starttime, frame):
@@ -379,12 +381,13 @@ def hdrsky(skyfile):
 
 def fexport(scene, frame, export_op, node, othernode):
     (geonode, connode) = (node, othernode) if 'LiVi Geometry' in node.bl_label else (othernode, node)
-    skyframe = frame if connode and connode['Animation'] == 'TAnimated' else 0
+    
 #    skyframe = frame if 'LiVi Basic' in export_op.nodeid.split('@')[0] else 0
 #    subprocess.call(geonode.rm +" {0}-{1}.oct".format(geonode.filebase, frame), shell = True)
-    if not othernode:
+    if not connode or not connode.get('Animation'):
         radtext = geonode['radfiles'][0] if len(geonode['radfiles']) == 1 else geonode['radfiles'][frame]
     else:
+        skyframe = frame if connode and connode['Animation'] == 'TAnimated' else 0
         radtext = geonode['radfiles'][0] + connode['skyfiles'][skyframe] if len(geonode['radfiles']) == 1 else geonode['radfiles'][frame] + connode['skyfiles'][0]
 
     with open(geonode.filebase+"-{}.rad".format(frame), 'w') as radfile:
@@ -424,7 +427,7 @@ def cyfc1(self):
             nt = bpy.data.worlds[0].node_tree
 
             if nt.nodes.get('Environment Texture'):
-                nt.nodes['Environment Texture'].image.filepath = scene['newdir']+"/%sp.hdr" %(scene.frame_current)
+                nt.nodes['Environment Texture'].image.filepath = scene['newdir']+"{}sp.hdr".fprmat(os.path.sep+scene.frame_current)
                 nt.nodes['Environment Texture'].image.reload()
 
         for ob in scene.objects:

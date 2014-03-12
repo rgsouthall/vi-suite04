@@ -23,7 +23,7 @@ from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, l
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .envi_calc import envi_sim
-from .vi_func import processf, livisimacc, solarPosition, retobjs, wr_axes, clearscened, framerange, vcframe, latilongi
+from .vi_func import processf, livisimacc, solarPosition, retobjs, wr_axes, clearscene, framerange, vcframe, latilongi, nodeinit
 from .vi_chart import chart_disp
 from .vi_gen import vigen
 
@@ -40,6 +40,8 @@ class NODE_OT_LiGExport(bpy.types.Operator):
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         if bpy.data.filepath and " " not in bpy.data.filepath:
             node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+            if node.filepath != bpy.data.filepath:
+                nodeinit(node)
             node.reslen = 0
             scene.frame_start, bpy.data.node_groups[self.nodeid.split('@')[1]].use_fake_user = 0, 1
             scene.frame_set(0)
@@ -184,7 +186,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
         scene.frame_set(0)
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        if node.inputs['Location in'].is_linked and node.inputs['Location in'].links[0].from_node.bl_label == 'VI Location':
+        if node.bl_label == 'LiVi Basic' and node.inputs['Location in'].is_linked and node.inputs['Location in'].links[0].from_node.bl_label == 'VI Location':
             latilongi(scene, node.inputs['Location in'].links[0].from_node)
         node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
         if node.bl_label == 'LiVi Basic':
@@ -204,7 +206,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
 
         elif node.bl_label == 'LiVi CBDM':
             node.skynum = 4
-            node.simalg = (" |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/1000' ", " |  rcalc  -e '$1=($1+$2+$3)/3000' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)' ")[int(node.analysismenu)]
+            node.simalg = (" |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/1000' ", " |  rcalc  -e '$1=($1+$2+$3)/3000' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)' ", " |  rcalc  -e '$1=($1+$2+$3)/3' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)' ")[int(node.analysismenu)]
             node['wd'] = (7, 5)[node.weekdays]
 
         if bpy.data.filepath:
@@ -213,14 +215,14 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
                     bpy.ops.object.mode_set(mode = 'OBJECT')
 
             if " " not in bpy.data.filepath:
-                if (node.bl_label == 'LiVi CBDM' and node.inputs['Geometry in'].is_linked and (node.inputs['Location in'].is_linked or node.sourcemenu != '0')) \
+                if (node.bl_label == 'LiVi CBDM' and node.inputs['Geometry in'].is_linked and (node.inputs['Location in'].is_linked or node.sm != '0')) \
                 or (node.bl_label != 'LiVi CBDM' and node.inputs['Geometry in'].is_linked):
                     radcexport(self, node)
 #                    node.disp_leg = False
                     node.exported = True
                     node.outputs['Context out'].hide = False
                 else:
-                    self.report({'ERROR'},"No geometry node is linked")
+                    self.report({'ERROR'},"Required input nodes are not linked")
                     node.outputs['Context out'].hide = True
             else:
                 node.outputs['Context out'].hide = True
@@ -257,33 +259,42 @@ class NODE_OT_Calculate(bpy.types.Operator):
     def invoke(self, context, event):
         scene = context.scene
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
-        clearscened(scene)
+        clearscene(scene, self)
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         connode = simnode.inputs['Context in'].links[0].from_node
         geonode = connode.inputs['Geometry in'].links[0].from_node
         
         for geo in retobjs('livig'):
             geo.licalc = any([m.livi_sense for m in geo.data.materials])
-        geogennode = geonode.outputs['Generative out'].links[0].to_node if geonode.outputs['Generative out'].is_linked else 0                    
-        tarnode = connode.outputs['Target out'].links[0].to_node if connode.outputs['Target out'].is_linked else 0
+        geogennode = geonode.outputs['Generative out'].links[0].to_node if geonode.outputs['Generative out'].is_linked else 0  
         
-        if geogennode and tarnode: 
-            simnode['Animation'] = 'Animated'
-            scene.fs, scene.fe = scene.frame_start, scene.frame_end
-            vigen(self, li_calc, resapply, geonode, connode, simnode, geogennode, tarnode)     
-            scene.vi_display = 1
-        elif connode.analysismenu != '3':
+        if connode.bl_label == 'LiVi Basic':                  
+            tarnode = connode.outputs['Target out'].links[0].to_node if connode.outputs['Target out'].is_linked else 0
+#        if connode.bl_label == 'LiVi Basic':
+            if geogennode and tarnode: 
+                simnode['Animation'] = 'Animated'
+                scene.fs, scene.fe = scene.frame_start, scene.frame_end
+                vigen(self, li_calc, resapply, geonode, connode, simnode, geogennode, tarnode)     
+                scene.vi_display = 1
+            elif connode.analysismenu != '3':
+                simnode['Animation'] = connode['Animation']
+                scene.fs = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
+                scene.fe = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
+                li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
+                scene.vi_display = 1
+            else:
+                simnode['Animation'] = connode['Animation']
+                scene.fs = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
+                scene.fe = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
+                li_glare(self, simnode, connode, geonode)
+                scene.vi_display = 0
+        else:
             simnode['Animation'] = connode['Animation']
             scene.fs = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
             scene.fe = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
             li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
             scene.vi_display = 1
-        else:
-            simnode['Animation'] = connode['Animation']
-            scene.fs = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
-            scene.fe = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
-            li_glare(self, simnode, connode, geonode)
-            scene.vi_display = 0
+        context.scene.fe = framerange(context.scene, simnode['Animation'])[-1]
         (scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel) = (0, 1, 1, 0, 0, 0) if connode.bl_label == 'LiVi Compliance'  else (0, 1, 0, 0, 0, 0)
         context.scene.resnode = simnode.name
         context.scene.restree = self.nodeid.split('@')[1]
@@ -779,7 +790,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         scene = context.scene
         scene.restree = self.nodeid.split('@')[1]
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 1, 0
-        clearscened(scene)
+        clearscene(scene, self)
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         if simnode.starthour > simnode.endhour:
             self.report({'ERROR'},"End hour is before start hour.")

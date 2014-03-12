@@ -130,30 +130,18 @@ def negneg(x):
         x = 0
     return float(x)
 
-def clearscenece(scene):
-    for sunob in [ob for ob in scene.objects if ob.type == 'LAMP' and ob.data.type == 'SUN']:
-        scene.objects.unlink(sunob)
-
-    for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
-        scene.objects.active = ob
-        while ob.data.vertex_colors:
-            bpy.ops.mesh.vertex_color_remove()
-
-def clearscenege(scene):
-    print('hi therre')
-    for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
-        scene.objects.active = ob
-        while ob.data.vertex_colors:
-            bpy.ops.mesh.vertex_color_remove()
-            
-    for sk in bpy.data.shape_keys:
-        if sk.users == 0:
-            for keys in sk.keys():
-                keys.animation_data_clear()
-            
-    
-
-def clearscened(scene):
+def clearscene(scene, op):
+    if type(op) != str:
+        if op.nodeid.split('@')[0] in ('LiVi Geometry', 'LiVi Simulation', 'LiVi Basic', 'LiVi Compliance', 'LiVi CBDM', 'LiVi Shadow'):            
+            for ob in [ob for ob in scene.objects if ob.type == 'MESH' and ob.get('licalc')]:
+                scene.objects.active = ob
+                while ob.data.vertex_colors:
+                    bpy.ops.mesh.vertex_color_remove()
+        
+        if op.nodeid.split('@')[0] != 'LiVi Simulation':   
+            for sunob in [ob for ob in scene.objects if ob.type == 'LAMP' and ob.data.type == 'SUN']:
+                scene.objects.unlink(sunob)
+        
     for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
         if ob.lires == 1:
             scene.objects.unlink(ob)
@@ -174,6 +162,21 @@ def clearscened(scene):
         if sk.users == 0:
             for keys in sk.keys():
                 keys.animation_data_clear()
+    
+
+#def clearscenege(scene):
+#    for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
+#        scene.objects.active = ob
+#        while ob.data.vertex_colors:
+#            bpy.ops.mesh.vertex_color_remove()
+#            
+#    for sk in bpy.data.shape_keys:
+#        if sk.users == 0:
+#            for keys in sk.keys():
+#                keys.animation_data_clear()
+#              
+#def clearscened(scene):
+    
 
 def processf(pro_op, node):
     rtypes, ctypes, ztypes, zrtypes, ltypes, lrtypes = [], [], [], [], [], []
@@ -629,14 +632,20 @@ def wr_axes():
     fig.add_axes(ax)
     return ax
 
-def vcframe(pp, scene, obcalclist, anim):
-    for frame in framerange(scene, anim):
+def vcframe(pp, scene, oblist, anim):
+    for frame in range(scene.fs, scene.fe + 1):
         scene.frame_set(frame)
-        for obcalc in obcalclist:
-            for vc in obcalc.data.vertex_colors:
-                (vc.active, vc.active_render) = (1, 1) if vc.name == pp+str(frame) else (0, 0)
-                vc.keyframe_insert("active")
-                vc.keyframe_insert("active_render")
+        for ob in oblist:
+            if not ob.get('lires'):
+                for vc in ob.data.vertex_colors:
+                    vc.active = vc.active_render = vc.name == pp+str(frame)
+                    vc.keyframe_insert("active")
+                    vc.keyframe_insert("active_render")   
+            elif scene.vi_disp_3d == 1:
+                for shape in ob.data.shape_keys.key_blocks:
+                    if "Basis" not in shape.name:
+                        shape.value = 1 if int(shape.name) == frame else 0
+                        shape.keyframe_insert("value")
 
 def gentarget(tarnode, result):
     if tarnode.stat == '0':

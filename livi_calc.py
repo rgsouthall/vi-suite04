@@ -16,12 +16,11 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, subprocess, colorsys, sys, datetime
+import bpy, os, subprocess, colorsys, datetime
 from math import pi
 from subprocess import PIPE, Popen, STDOUT
 from . import vi_func
 from . import livi_export
-#from . import vi_gen
 
 try:
     import numpy
@@ -41,8 +40,6 @@ def rad_prev(prev_op, simnode, connode, geonode, simacc):
     else:
         num = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-ar", 128, 512, 1024), ("-as", 128, 512, 1024), ("-aa", 0.3, 0.15, 0.08), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
         params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simnode.simacc)+1] for n in num]))
-    
-#    cparams = '-vth -vh 180 -vv 180' if connode.analysismenu == 'Glare' else ' -vv {0:.3f} -vh {1:.3f}'.format()
     
     if os.path.isfile("{}-{}.rad".format(geonode.filebase, scene.frame_current)):
         cam = scene.camera
@@ -64,8 +61,7 @@ def rad_prev(prev_op, simnode, connode, geonode, simacc):
 def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):    
     scene = bpy.context.scene
     frames = range(scene.fs, scene.fe + 1) if not kwargs.get('genframe') else range(kwargs['genframe'], kwargs['genframe'] + 1)
-    frameis = vi_func.frameindex(scene, simnode['Animation']) if not kwargs.get('genframe') else range(kwargs['genframe'] - scene.frame_start, kwargs['genframe'] - scene.frame_start + 1)
-    
+#    frameis = vi_func.frameindex(scene, simnode['Animation']) if not kwargs.get('genframe') else range(kwargs['genframe'] - scene.frame_start, kwargs['genframe'] - scene.frame_start + 1)    
     os.chdir(geonode.newdir)
     if bpy.context.active_object and bpy.context.active_object.mode != 'OBJECT':
         bpy.ops.object.mode_set(mode = 'OBJECT')
@@ -89,9 +85,6 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                 num = (("-ab", 2, 3, 5), ("-ad", 512, 2048, 4096), ("-ar", 128, 512, 1024), ("-as", 256, 1024, 2048), ("-aa", 0.3, 0.2, 0.18), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.001, 0.0002))
             simnode['params'] = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simacc)+1] for n in num]))
 
-#        if not kwargs.get('genframe'):
-#            vi_func.clearscened(scene)
-
         if np == 1:
             res, svres = numpy.zeros([len(frames), geonode.reslen]), numpy.zeros([len(frames), geonode.reslen])
         else:
@@ -102,7 +95,6 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
             if connode.bl_label in ('LiVi Basic', 'LiVi Compliance') or (connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) < 2):
                 if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
                     subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
-#                rtcmd = "rtrace -n {0} -w {1} -faa -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, params, geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                 rtcmd = "rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, simnode['params'], geonode.filebase, frame, connode.simalg) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                 rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
                 with open(os.path.join(geonode.newdir, resname+"-"+str(frame)+".res"), 'w') as resfile:
@@ -135,20 +127,18 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                     connode['vecvals'], vals = vi_func.mtx2vals(open(connode.vecname, "r"), datetime.datetime(2010, 1, 1).weekday())
                 hours = 0
                 sensarray = [[0 for x in range(146)] for y in range(geonode.reslen)] if np == 0 else numpy.zeros([geonode.reslen, 146])
-#                    if connode.analysismenu == '3':
-#                        wattres = [[0 for p in range(len(connode['vecvals']))] for x in range(len(frameis))] if np == 0 else numpy.zeros([len(frameis), len(connode['vecvals']), geonode.reslen])
                 oconvcmd = "oconv -w - > {0}-ws.oct".format(geonode.filebase)
                 Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = (connode['whitesky']+geonode['radfiles'][frame]).encode('utf-8'))
                 senscmd = geonode.cat+geonode.filebase+".rtrace | rcontrib -w  -h -I -fo -bn 146 "+simnode['params']+" -n "+geonode.nproc+" -f tregenza.cal -b tbin -m sky_glow "+geonode.filebase+"-ws.oct"
                 sensrun = Popen(senscmd, shell = True, stdout=PIPE)
 
-                for l, line in enumerate(sensrun.stdout):
+                for li, line in enumerate(sensrun.stdout):
                     decline = [float(ld) for ld in line.decode().split('\t') if ld != '\n']
                     for v in range(0, 438, 3):
                         if connode.analysismenu in ('2', '4'):
-                            sensarray[l][v/3] = 179*((decline[v]*0.265)+ (decline[v+1]*0.67) + (decline[v+2]*0.065))
+                            sensarray[li][v/3] = 179*((decline[v]*0.265)+ (decline[v+1]*0.67) + (decline[v+2]*0.065))
                         elif connode.analysismenu == '3':
-                            sensarray[l][v/3] = sum(decline[v:v+3])
+                            sensarray[li][v/3] = sum(decline[v:v+3])
 
                 for l, readings in enumerate(connode['vecvals']):
                     if connode.analysismenu == '3' or (connode.cbdm_start_hour <= readings[:][0] < connode.cbdm_end_hour and readings[:][1] < connode['wd']):
@@ -165,8 +155,15 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                                 res[findex] = [res[findex][k] + (0, 1)[finalillu[k] >= connode.dalux] for k in range(len(finalillu))]
 
                         elif connode.analysismenu == '3':
-                            res[findex][l] = finalillu
-
+                            if np ==1:
+                                if hours == 1:
+                                    reswatt = numpy.zeros((len(frames), len(connode['vecvals']), geonode.reslen)) 
+                                reswatt[findex][l] = finalillu
+                                for i in range(len(finalillu)):
+                                    numpy.append(res[findex][i], finalillu[i])                                
+                            else:
+                                res[findex].append(finalillu)
+                            
                         elif connode.analysismenu == '4':
                             if np == 1:
                                 target = [connode.daauto >= reading >= connode.dasupp for reading in finalillu]
@@ -180,34 +177,38 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                         res[findex] = [rf*100/hours for rf in res[findex][0]]
                     with open(os.path.join(geonode.newdir, resname+"-"+str(frame)+".res"), "w") as daresfile:
                         [daresfile.write("{:.2f}\n".format(r)) for r in res[findex]]
-            
+                
+                if connode.analysismenu == '3':
+                    res = reswatt
+                            
 #            if not kwargs.get('genframe'):        
 #                resapply(calc_op, frame, res, svres, simnode, connode, geonode, kwargs.get('genframe'))
-            fi, vi = 0, 0       
-            for geo in vi_func.retobjs('livic'):
-                obcalcverts, obres = [], []
-                weightres = 0
-                geoarea = sum([vi_func.triarea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
-                for face in [face for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense]:
-                    if geonode.cpoint == '1':
-                        for v,vert in enumerate(face.vertices):
-                            if geo.data.vertices[vert] not in obcalcverts:
-                                weightres += res[findex][vi] 
-                                obres.append(res[findex][vi])
-                                obcalcverts.append(geo.data.vertices[vert])
-                                vi += 1
-                    else:
-                        weightres += vi_func.triarea(geo, face) * res[frame][fi]/geoarea
-                        obres.append(res[frame][fi])
-                        fi += 1
-    
-                if frame == scene.fs:
-                    geo['oave'], geo['omax'], geo['omin'], geo['oreslist'] = {}, {}, {}, {}
-                
-                geo['oave'][str(frame)] = weightres
-                geo['omax'][str(frame)] = max(obres)
-                geo['omin'][str(frame)] = min(obres)
-                geo['oreslist'][str(frame)] = obres        
+            if connode.analysismenu != '3' or connode.bl_label != 'LiVi CBDM':
+                fi, vi = 0, 0       
+                for geo in vi_func.retobjs('livic'):
+                    obcalcverts, obres = [], []
+                    weightres = 0
+                    geoarea = sum([vi_func.triarea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
+                    for face in [face for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense]:
+                        if geonode.cpoint == '1':
+                            for v,vert in enumerate(face.vertices):
+                                if geo.data.vertices[vert] not in obcalcverts:
+                                    weightres += res[findex][vi] 
+                                    obres.append(res[findex][vi])
+                                    obcalcverts.append(geo.data.vertices[vert])
+                                    vi += 1
+                        else:
+                            weightres += vi_func.triarea(geo, face) * res[frame][fi]/geoarea
+                            obres.append(res[frame][fi])
+                            fi += 1
+        
+                    if frame == scene.fs:
+                        geo['oave'], geo['omax'], geo['omin'], geo['oreslist'] = {}, {}, {}, {}
+                    
+                    geo['oave'][str(frame)] = weightres
+                    geo['omax'][str(frame)] = max(obres)
+                    geo['omin'][str(frame)] = min(obres)
+                    geo['oreslist'][str(frame)] = obres        
                 
         if not kwargs.get('genframe'):
             resapply(calc_op, res, svres, simnode, connode, geonode)
@@ -219,46 +220,39 @@ def resapply(calc_op, res, svres, simnode, connode, geonode):
     scene = bpy.context.scene    
     if connode.analysismenu != '3' or connode.bl_label != 'LiVi CBDM':
         if np == 1:
-            simnode['maxres'] = [numpy.amax(res[i]) for i in vi_func.frameindex(scene, simnode['Animation'])]
-            simnode['minres'] = [numpy.amin(res[i]) for i in vi_func.frameindex(scene, simnode['Animation'])]
-            simnode['avres'] = [numpy.average(res[i]) for i in vi_func.frameindex(scene, simnode['Animation'])]
+            simnode['maxres'] = [numpy.amax(res[i]) for i in range(scene.fs, scene.fe + 1)]
+            simnode['minres'] = [numpy.amin(res[i]) for i in range(scene.fs, scene.fe + 1)]
+            simnode['avres'] = [numpy.average(res[i]) for i in range(scene.fs, scene.fe + 1)]
         else:
-            simnode['maxres'] = [max(res[i]) for i in vi_func.frameindex(scene, simnode['Animation'])]
-            simnode['minres'] = [min(res[i]) for i in vi_func.frameindex(scene, simnode['Animation'])]
-            simnode['avres'] = [sum(res[i])/len(res[i]) for i in vi_func.frameindex(scene, simnode['Animation'])]
+            simnode['maxres'] = [max(res[i]) for i in range(scene.fs, scene.fe + 1)]
+            simnode['minres'] = [min(res[i]) for i in range(scene.fs, scene.fe + 1)]
+            simnode['avres'] = [sum(res[i])/len(res[i]) for i in range(scene.fs, scene.fe + 1)]
     
-    crits = []
-#    fs, fc = scene.frame_start, scene.frame_current
-    dfpass = [0 for f in vi_func.framerange(scene, simnode['Animation'])]
-#    frames = vi_func.framerange(scene, simnode['Animation'])
-#    frameisg = frameis if not gen else range(gen, gen + 1)
-#    
-    for fr, frame in enumerate(range(scene.fs, scene.fe + 1)):
-        scene.frame_set(frame)
-        fi = 0
-        dftotarea, dfpassarea, edftotarea, mcol_i, f, fstart, fsv, sof, eof = 0, 0, 0, 0, 0, 0, 0, 0, 0
-        rgb, lcol_i = [], []
-        if connode.bl_label != 'LiVi CBDM' or connode.analysismenu != '3':
-            for i in range(len(res[fr])):
-                h = 0.75*(1-(res[fr][i]-min(simnode['minres']))/(max(simnode['maxres']) + 0.01 - min(simnode['minres'])))
-                rgb.append(colorsys.hsv_to_rgb(h, 1.0, 1.0))
-    
-        if bpy.context.active_object and bpy.context.active_object.hide == 'False':
-            bpy.ops.object.mode_set()
-    
-        for geo in vi_func.retobjs('livic'):
-            bpy.ops.object.select_all(action = 'DESELECT')
-            scene.objects.active = None
-            geoarea = sum([vi_func.triarea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
-            geofaces = [face for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense]
+        crits = []
+    #    fs, fc = scene.frame_start, scene.frame_current
+        dfpass = [0 for f in range(scene.fs, scene.fe + 1)]
+    #    frames = vi_func.framerange(scene, simnode['Animation'])
+    #    frameisg = frameis if not gen else range(gen, gen + 1)
+    #    
+        for fr, frame in enumerate(range(scene.fs, scene.fe + 1)):
+            scene.frame_set(frame)
+            fi = 0
+            dftotarea, dfpassarea, edftotarea, mcol_i, f, fstart, fsv, sof, eof = 0, 0, 0, 0, 0, 0, 0, 0, 0
+            rgb, lcol_i = [], []
+            if connode.bl_label != 'LiVi CBDM' or connode.analysismenu != '3':
+                for i in range(len(res[fr])):
+                    h = 0.75*(1-(res[fr][i]-min(simnode['minres']))/(max(simnode['maxres']) + 0.01 - min(simnode['minres'])))
+                    rgb.append(colorsys.hsv_to_rgb(h, 1.0, 1.0))
+        
+            if bpy.context.active_object and bpy.context.active_object.hide == 'False':
+                bpy.ops.object.mode_set()
+        
+            for geo in vi_func.retobjs('livic'):
+                bpy.ops.object.select_all(action = 'DESELECT')
+                scene.objects.active = None
+                geoarea = sum([vi_func.triarea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
+                geofaces = [face for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense]
 
-            if connode.bl_label == 'LiVi CBDM' and connode.analysismenu == '3':
-                if not geo.get('wattres'):
-                    geo['wattres'] = {}
-                geo['wattres'][str(frame)] = [sum(res[i][sof:eof+len(geofaces)]*[vi_func.triarea(geo, fa) for fa in geofaces[sof:eof+len(geofaces)]]) for i in range(len(res))]
-                sof = len(geofaces)
-                eof += len(geofaces)
-            else:
                 if geo.get('wattres'):
                     del geo['wattres']
                 
@@ -608,25 +602,33 @@ def resapply(calc_op, res, svres, simnode, connode, geonode):
                     geo['ecomps'] = ecomps
                     crits.append(geo['crit'])
                     fstart = fend
-
-    if connode.bl_label == 'LiVi Compliance' and dfpass[frame] == 1:
-        dfpass[frame] = 2 if dfpassarea/dftotarea >= 0.8 else dfpass[frame]
     
-
-
-
-
-    if connode.bl_label == 'LiVi Compliance':
-        scene['crits'] = crits
-        scene['dfpass'] = dfpass
+        if connode.bl_label == 'LiVi Compliance': 
+            if dfpass[frame] == 1:
+                dfpass[frame] = 2 if dfpassarea/dftotarea >= 0.8 else dfpass[frame]
+            scene['crits'] = crits
+            scene['dfpass'] = dfpass
 #        scene['dfpass'] = 2 if dfpassarea/dftotarea >= 0.8 else scene['dfpass']
-    if connode.bl_label == 'LiVi CBDM' and connode.analysismenu == '3':
+        simnode.outputs['Data out'].hide = True
+    else:
+        for fr, frame in enumerate(range(scene.fs, scene.fe + 1)):
+            scene.frame_set(frame)
+            sof, eof = 0, 0
+            for geo in vi_func.retobjs('livic'):
+                bpy.ops.object.select_all(action = 'DESELECT')
+                scene.objects.active = None
+                geoarea = sum([vi_func.triarea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
+                geofaces = [face for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense]
+                geo['wattres'] = {str(frame):[0 for x in range(len(res[0]))]}
+                faceareas = [vi_func.triarea(geo, fa) for fa in geofaces[sof:eof+len(geofaces)]]
+                for i in range(len(res[0])):
+                    geo['wattres'][str(frame)][i] = sum([res[fr][i][sof:eof+len(geofaces)][j] * faceareas[j] for j in range(sof, eof+len(geofaces))])
+                sof = len(geofaces)
+                eof += len(geofaces)
         simnode.outputs['Data out'].hide = False
-        
-    
+            
     calc_op.report({'INFO'}, "Calculation is finished.")
-
-#    bpy.ops.wm.save_mainfile(check_existing = False)
+    bpy.ops.wm.save_mainfile(check_existing = False)
 
 def li_glare(calc_op, simnode, connode, geonode):
     scene = bpy.context.scene
@@ -636,7 +638,7 @@ def li_glare(calc_op, simnode, connode, geonode):
         num = (("-ab", 2, 3, 5), ("-ad", 512, 2048, 4096), ("-ar", 128, 512, 1024), ("-as", 256, 1024, 2048), ("-aa", 0.3, 0.2, 0.18), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.001, 0.0002))
         params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simnode.simacc)+1] for n in num]))
         
-        for frame in vi_func.framerange(scene, simnode['Animation']):
+        for frame in range(scene.fs, scene.fe + 1):
             time = datetime.datetime(2014, 1, 1, connode.shour, 0) + datetime.timedelta(connode.sdoy - 1) if connode.animmenu == '0' else \
             datetime.datetime(2014, 1, 1, connode.shour, 0) + datetime.timedelta(connode.sdoy - 1) + datetime.timedelta(hours = connode.interval*(frame-scene.frame_start))
             glarecmd = "rpict -w -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{5}.oct | evalglare -c {4}.hdr".format(-1*cam.matrix_world, cam.location, params, geonode.filebase, os.path.join(geonode.newdir, 'glare'+str(frame)), frame)               
@@ -654,7 +656,7 @@ def li_glare(calc_op, simnode, connode, geonode):
             gfile={"name":"glare"+str(frame)+".hdr"}
             gfiles.append(gfile)
         try:
-            scene.sequence_editor.sequences_all["glare{}.hdr".format(vi_func.framerange(scene, simnode['Animation'])[0])]
+            scene.sequence_editor.sequences_all["glare{}.hdr".format(scene.fs)]
             bpy.ops.sequencer.refresh_all()
         except:
             bpy.ops.sequencer.image_strip_add( directory = geonode.newdir, \

@@ -273,19 +273,19 @@ class NODE_OT_Calculate(bpy.types.Operator):
 #        if connode.bl_label == 'LiVi Basic':
             if geogennode and tarnode: 
                 simnode['Animation'] = 'Animated'
-                scene.fs, scene.fe = scene.frame_start, scene.frame_end
+#                scene.fs, scene.fe = scene.frame_start, scene.frame_end
                 vigen(self, li_calc, resapply, geonode, connode, simnode, geogennode, tarnode)     
                 scene.vi_display = 1
             elif connode.analysismenu != '3':
                 simnode['Animation'] = connode['Animation']
-                scene.fs = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
-                scene.fe = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
+#                scene.fs = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
+#                scene.fe = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
                 li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
                 scene.vi_display = 1
             else:
                 simnode['Animation'] = connode['Animation']
-                scene.fs = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
-                scene.fe = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
+#                scene.fs = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
+#                scene.fe = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
                 li_glare(self, simnode, connode, geonode)
                 scene.vi_display = 0
         else:
@@ -792,6 +792,8 @@ class NODE_OT_Shadow(bpy.types.Operator):
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 1, 0
         clearscene(scene, self)
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        (scene.fs, scene.fe) = (scene.frame_current, scene.frame_current) if simnode.animmenu == 'Static' else (scene.frame_start, scene.frame_end)
+
         if simnode.starthour > simnode.endhour:
             self.report({'ERROR'},"End hour is before start hour.")
             return{'FINISHED'}
@@ -804,7 +806,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             scmaxres = [0 for f in range(scene.frame_end - scene.frame_start + 1)]
             scminres = [100 for f in range(scene.frame_end - scene.frame_start + 1)]
             scavres = [0 for f in range(scene.frame_end - scene.frame_start + 1)]
-            scene.fs = scene.frame_start
+#            scene.fs = scene.frame_start
 #            fe = scene.frame_end
         fdiff =  1 if simnode['Animation'] == 'Static' else scene.frame_end - scene.frame_start + 1
         locnode = simnode.inputs[0].links[0].from_node

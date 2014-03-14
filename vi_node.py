@@ -368,7 +368,7 @@ class ViLiCNode(bpy.types.Node, ViNodes):
     resname = bpy.props.StringProperty()
     unit = bpy.props.StringProperty()
     hdr = bpy.props.BoolProperty(name="HDR", description="Export HDR panoramas", default=False, update = nodeexported)
-    analysistype = [('0', "BREEAM", "BREEAM HEA1 calculation"), ('1', "CfSH", "Code for Sustainable Homes calculation"), ('2', "LEED", "LEED EQ8.1 calculation"), ('3', "Green Star", "Green Star Calculation")]
+    analysistype = [('0', "BREEAM", "BREEAM HEA1 calculation"), ('1', "CfSH", "Code for Sustainable Homes calculation")] #, ('2', "LEED", "LEED EQ8.1 calculation"), ('3', "Green Star", "Green Star Calculation")]
     bambuildtype = [('0', "School", "School lighting standard"), ('1', "Higher Education", "Higher education lighting standard"), ('2', "Healthcare", "Healthcare lighting standard"), ('3', "Residential", "Residential lighting standard"), ('4', "Retail", "Retail lighting standard"), ('5', "Office & other", "Office and other space lighting standard")]
     animtype = [('Static', "Static", "Simple static analysis")]
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
@@ -638,11 +638,11 @@ class ViExEnNode(bpy.types.Node, ViNodes):
 
     addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
     matpath = addonpath+'/EPFiles/Materials/Materials.data'
-    epwpath = addonpath+'/EPFiles/Weather/'
-    weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]
-    weather = bpy.props.EnumProperty(items = weatherlist, name="", description="Weather for this project")
-    sdoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeexported)
-    edoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeexported)
+#    epwpath = addonpath+'/EPFiles/Weather/'
+#    weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]
+#    weather = bpy.props.EnumProperty(items = weatherlist, name="", description="Weather for this project")
+#    sdoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeexported)
+#    edoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeexported)
     timesteps = bpy.props.IntProperty(name = "", description = "Time steps per hour", min = 1, max = 4, default = 1, update = nodeexported)
     resfilename = bpy.props.StringProperty(name = "", default = 'results')
     restype= bpy.props.EnumProperty(items = [("0", "Ambient", "Ambient Conditions"), ("1", "Zone Thermal", "Thermal Results"), ("2", "Comfort", "Comfort Results"), ("3", "Zone Ventilation", "Zone Ventilation Results"), ("4", "Ventilation Link", "ZoneVentilation Results")],
@@ -674,6 +674,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
 #u'\u00b0C)'
     def init(self, context):
         self.inputs.new('ViEnGIn', 'Geometry in')
+        self.inputs.new('ViLoc', 'Location in')
         nodeinit(self)
         self['xtypes']
 
@@ -681,21 +682,21 @@ class ViExEnNode(bpy.types.Node, ViNodes):
         row = layout.row()
         row.label("Project name/location")
         row.prop(self, "loc")
-        row = layout.row()
-        row.label("Weather file:")
-        row.prop(self, "weather")
+#        row = layout.row()
+#        row.label("Weather file:")
+#        row.prop(self, "weather")
         row = layout.row()
         row.label(text = 'Terrain:')
         col = row.column()
         col.prop(self, "terrain")
-        row = layout.row()
-        row.label(text = 'Start day:')
-        col = row.column()
-        col.prop(self, "sdoy")
-        row = layout.row()
-        row.label(text = 'End day:')
-        col = row.column()
-        col.prop(self, "edoy")
+#        row = layout.row()
+#        row.label(text = 'Start day:')
+#        col = row.column()
+#        col.prop(self, "sdoy")
+#        row = layout.row()
+#        row.label(text = 'End day:')
+#        col = row.column()
+#        col.prop(self, "edoy")
         row = layout.row()
         row.label(text = 'Time-steps/hour)')
         row.prop(self, "timesteps")
@@ -1273,7 +1274,8 @@ class ViGenNode(bpy.types.Node, ViNodes):
     geotype = [('Object', "Object", "Object level manipulation"), ('Mesh', "Mesh", "Mesh level manipulation")]
     geomenu = bpy.props.EnumProperty(name="", description="Geometry type", items=geotype, default = 'Mesh')
     seltype = [('All', "All", "All geometry"), ('Selected', "Selected", "Only selected geometry"), ('Not selected', "Not selected", "Only unselected geometry")]
-    selmenu = bpy.props.EnumProperty(name="", description="Geometry selection", items=seltype, default = 'Selected')
+    oselmenu = bpy.props.EnumProperty(name="", description="Object selection", items=seltype, default = 'Selected')
+    mselmenu = bpy.props.EnumProperty(name="", description="Mesh selection", items=seltype, default = 'Selected')
     omantype = [('0', "Move", "Move geometry"), ('1', "Rotate", "Only unselected geometry"), ('2', "Scale", "Scale geometry")]
     omanmenu = bpy.props.EnumProperty(name="", description="Manipulation type", items=omantype, default = '0')
     mmantype = [('0', "Move", "Move geometry"), ('1', "Rotate", "Only unselected geometry"), ('2', "Scale", "Scale geometry"), ('3', "Extrude", "Extrude geometry")]
@@ -1298,7 +1300,7 @@ class ViGenNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Geometry:', self, 'geomenu')
-        newrow(layout, 'Selection:', self, 'selmenu')
+        newrow(layout, 'Object Selection:', self, 'oselmenu')
         if self.geomenu == 'Object':
            newrow(layout, 'Manipulation:', self, 'omanmenu')
            row = layout.row()
@@ -1308,6 +1310,7 @@ class ViGenNode(bpy.types.Node, ViNodes):
            subrow.prop(self, 'y')
            subrow.prop(self, 'z')
         else:
+           newrow(layout, 'Mesh Selection:', self, 'mselmenu') 
            newrow(layout, 'Manipulation:', self, 'mmanmenu')
            newrow(layout, 'Normal:', self, 'normal')
            if not self.normal:

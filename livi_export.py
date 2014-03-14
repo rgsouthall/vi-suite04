@@ -381,9 +381,6 @@ def hdrsky(skyfile):
 
 def fexport(scene, frame, export_op, node, othernode):
     (geonode, connode) = (node, othernode) if 'LiVi Geometry' in node.bl_label else (othernode, node)
-    
-#    skyframe = frame if 'LiVi Basic' in export_op.nodeid.split('@')[0] else 0
-#    subprocess.call(geonode.rm +" {0}-{1}.oct".format(geonode.filebase, frame), shell = True)
     if not connode or not connode.get('Animation'):
         radtext = geonode['radfiles'][0] if len(geonode['radfiles']) == 1 else geonode['radfiles'][frame]
     else:
@@ -404,13 +401,9 @@ def fexport(scene, frame, export_op, node, othernode):
     Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT)#.communicate(input = radtext.encode('utf-8'))
     
     export_op.report({'INFO'},"Export is finished")
-    
-#    if export_op.nodeid.split('@')[0] == 'LiVi Geometry':
-#    scene.frame_set(0)
 
 def cyfc1(self):
     if bpy.data.scenes[0].render.engine == "CYCLES":
-
         scene = bpy.context.scene
         for material in bpy.data.materials:
             if material.use_nodes == 1:

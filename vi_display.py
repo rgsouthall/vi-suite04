@@ -103,21 +103,7 @@ def li_display(simnode, connode, geonode):
                 bpy.ops.object.shape_key_add(from_mix = False)
                 obres.active_shape_key.name = str(frame)
     
-    vi_func.vcframe('', scene, obreslist, simnode['Animation'])   
-#    for frame in vi_func.framerangeene, simnode['Animation']):
-#     def vcframe(pp, scene, oblist, anim):   scene.frame_set(frame)
-#        for obres in obreslist:
-#            if scene.vi_disp_3d == 1:
-#                for shape in obres.data.shape_keys.key_blocks:
-#                    if "Basis" not in shape.name:
-#                        shape.value = 1 if int(shape.name) == frame else 0
-#                        shape.keyframe_insert("value")
-#
-#            for vc in obres.data.vertex_colors:
-#                (vc.active, vc.active_render) = (1, 1) if vc.name == str(frame) else (0, 0)
-#                vc.keyframe_insert("active")
-#                vc.keyframe_insert("active_render")
-                                
+    vi_func.vcframe('', scene, obreslist, simnode['Animation'])                                   
     bpy.ops.wm.save_mainfile(check_existing = False)
     scene.frame_set(scene.fs)
     rendview(1)

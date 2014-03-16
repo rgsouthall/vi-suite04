@@ -385,12 +385,13 @@ class NODE_OT_EnGExport(bpy.types.Operator):
     bl_idname = "node.engexport"
     bl_label = "VI-Suite export"
     bl_context = "scene"
-    nodename = bpy.props.StringProperty()
+    
+    nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
         scene = context.scene
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
-        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
+        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         pregeo()
         node.exported = True
         node.outputs[0].hide = False
@@ -845,16 +846,17 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     vertexColor = ob.data.vertex_colors[-1]
                     obsumarea[findex] = sum([face.area for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow])
 
-                    for face in [face for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow]:
-                        shadcentres[findex].append([obm*mathutils.Vector((face.center)) + 0.05*face.normal, obm*mathutils.Vector((face.center)), 1])
+                    shadfaces = [face for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow]
+                    shadcentres[findex] = [[obm*mathutils.Vector((face.center)) + 0.05*face.normal, obm*mathutils.Vector((face.center)), 1] for face in shadfaces]
+                    for fa, face in enumerate(shadfaces):
                         for li in face.loop_indices:
                             vertexColor.data[li].color = (1, 1, 1)
                         for direc in direcs:
-                            if bpy.data.scenes[0].ray_cast(shadcentres[findex][-1][0], shadcentres[findex][-1][1] + 10000*direc)[0]:
-                                shadcentres[findex][-1][2] -= 1/(len(direcs))
+                            if bpy.data.scenes[0].ray_cast(shadcentres[findex][fa][0], shadcentres[findex][fa][1] + 10000*direc)[0]:
+                                shadcentres[findex][fa][2] -= 1/(len(direcs))
                         if shadcentres[findex][-1][2] < 1:
                             for li in face.loop_indices:
-                                vertexColor.data[li].color = [shadcentres[findex][-1][2]]*3
+                                vertexColor.data[li].color = [shadcentres[findex][fa][2]]*3
 
                         obavres[findex] += face.area * 100 * (shadcentres[findex][-1][2])/obsumarea[findex]
                         obmaxres[findex] = 100* (max([sh[2] for sh in shadcentres[findex]]))

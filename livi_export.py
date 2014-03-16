@@ -39,10 +39,11 @@ def radgexport(export_op, node, **kwargs):
 
     if export_op.nodeid.split('@')[0] == 'LiVi Geometry':
         clearscene(scene, export_op)
+        (scene.fs, scene.gfe, scene.cfe) = (scene.frame_start, scene.frame_end, scene.frame_start) if node.animmenu != 'Static' else (0, 0, 0)
     else:
-        genframe = kwargs['genframe'] if kwargs.get('genframe') else 0
+        (scene.fs, scene.gfe, scene.cfe) = [kwargs['genframe']] * 3 if kwargs.get('genframe') else (0, 0, 0)
     
-    (scene.fs, scene.gfe, scene.cfe) = (scene.frame_start, scene.frame_end, scene.frame_start) if node.animmenu != 'Static' else (0, 0, 0)    
+        
     
 #    frames = framerange(scene, node.animmenu) if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else range(genframe, genframe + 1)
 #    frameis = frameindex(scene, node.animmenu) if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else frameindex(scene, 'Static')
@@ -216,7 +217,6 @@ def radcexport(export_op, node):
             return
 
         if node.skynum < 4:
-            node.skytypeparams = ("+s", "+i", "-c", "-b 22.86 -c")[node.skynum]
             starttime = datetime.datetime(2013, 1, 1, int(node.shour), int((node.shour - int(node.shour))*60)) + datetime.timedelta(node.sdoy - 1) if node.skynum < 3 else datetime.datetime(2013, 1, 1, 12)
             if node.animmenu == 'Time' and node.skynum < 3:
                 endtime = datetime.datetime(2013, 1, 1, node.ehour) + datetime.timedelta(node.edoy - 1)

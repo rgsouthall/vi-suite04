@@ -143,6 +143,7 @@ def register():
     Object.licalc = bprop("", "", False)
     Object.lires = bprop("", "", False)
     Object.limerr = bprop("", "", False)
+    Object.manip = bprop("", "", False)
 
 # EnVi zone definitions
 

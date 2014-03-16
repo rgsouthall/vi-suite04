@@ -108,6 +108,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
                    ("4", "HDR Sky", "HDR file sky"),
                    ("5", "Radiance Sky", "Radiance file sky"),
                    ("6", "None", "No Sky")]
+    skytypeparams = bpy.props.StringProperty(default = "+s")
 
     def nodeexported(self, context):
         self.exported = False
@@ -119,9 +120,11 @@ class ViLiNode(bpy.types.Node, ViNodes):
             if self.inputs['Location in'].is_linked:
                 bpy.data.node_groups[self['nodeid'].split('@')[1]].links.remove(self.inputs['Location in'].links[0])
                 self.inputs['Location in'].hide = True
-        if self.analysismenu in ('0', '1', '3') and self.skymenu in ('0', '1', '2'):
+        else:
             self.inputs['Location in'].hide = False
             self.needloc = 1
+        if int(self.skymenu) < 4:
+            self.skytypeparams = ("+s", "+i", "-c", "-b 22.86 -c")[int(self.skymenu)]
                     
     def edupdate(self, context):
         if self.edoy < self.sdoy:
@@ -138,10 +141,10 @@ class ViLiNode(bpy.types.Node, ViNodes):
         self.exported = False
         self.outputs['Context out'].hide = True
 
-    analysismenu = bpy.props.EnumProperty(name="Metric type", description="Type of lighting analysis", items = analysistype, default = '0', update = nodeexported)
+    analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0', update = nodeexported)
     simalg = bpy.props.StringProperty(name="", description="Algorithm to run on the radiance results", default="")
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
-    skymenu = bpy.props.EnumProperty(name="Sky type", items=skylist, description="Specify the type of sky for the simulation", default="0", update = nodeexported)
+    skymenu = bpy.props.EnumProperty(name="", items=skylist, description="Specify the type of sky for the simulation", default="0", update = nodeexported)
     shour = bpy.props.FloatProperty(name="", description="Hour of simulation", min=1, max=24, default=12, update = ehupdate)
     sdoy = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=365, default=1, update = edupdate)
     ehour = bpy.props.IntProperty(name="", description="Hour of simulation", min=1, max=24, default=12, update = ehupdate)
@@ -150,15 +153,15 @@ class ViLiNode(bpy.types.Node, ViNodes):
 #    lati = bpy.props.FloatProperty(name="", description="Site Latitude", min=-90, max=90, default=52, update = nodeexported)
 #    longi = bpy.props.FloatProperty(name="", description="Site Longitude relative to local meridian", min=-15, max=15, default=0, update = nodeexported)
 
-    stamer = bpy.props.EnumProperty(
-            items=[("0", "YST", ""),("1", "PST", ""),("2", "MST", ""),("3", "CST", ""),("4", "EST", ""),("GMT", "GMT", ""),("6", "CET", ""),("7", "EET", ""),
-                   ("8", "AST", ""),("9", "GST", ""),("10", "IST", ""),("11", "JST", ""),("12", "NZST", ""), ],
-            name="", description="Specify the local meridian", default="GMT")
-
-    summer = bpy.props.EnumProperty(
-            items=[("0", "YDT", ""),("1", "PDT", ""),("2", "MDT", ""),("3", "CDT", ""),("4", "EDT", ""),("BST", "BST", ""),("6", "CEST", ""),
-                   ("7", "EEST", ""),("8", "ADT", ""),("9", "GDT", ""),("10", "IDT", ""),("11", "JDT", ""),("12", "NZDT", ""),],
-            name="", description="Specify the local Summertime meridian", default="BST")
+#    stamer = bpy.props.EnumProperty(
+#            items=[("0", "YST", ""),("1", "PST", ""),("2", "MST", ""),("3", "CST", ""),("4", "EST", ""),("GMT", "GMT", ""),("6", "CET", ""),("7", "EET", ""),
+#                   ("8", "AST", ""),("9", "GST", ""),("10", "IST", ""),("11", "JST", ""),("12", "NZST", ""), ],
+#            name="", description="Specify the local meridian", default="GMT")
+#
+#    summer = bpy.props.EnumProperty(
+#            items=[("0", "YDT", ""),("1", "PDT", ""),("2", "MDT", ""),("3", "CDT", ""),("4", "EDT", ""),("BST", "BST", ""),("6", "CEST", ""),
+#                   ("7", "EEST", ""),("8", "ADT", ""),("9", "GDT", ""),("10", "IDT", ""),("11", "JDT", ""),("12", "NZDT", ""),],
+#            name="", description="Specify the local Summertime meridian", default="BST")
 
     interval = bpy.props.FloatProperty(name="", description="Site Latitude", min=0.25, max=24, default=1, update = nodeexported)
     exported = bpy.props.BoolProperty(default=False)
@@ -166,11 +169,11 @@ class ViLiNode(bpy.types.Node, ViNodes):
     hdrname = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="", update = nodeexported)
     skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="", update = nodeexported)
     skynum = bpy.props.IntProperty()
-    timetype = bpy.props.StringProperty()
-    TZ = bpy.props.StringProperty()
+#    timetype = bpy.props.StringProperty()
+#    TZ = bpy.props.StringProperty()
     resname = bpy.props.StringProperty()
     rp_display = bpy.props.BoolProperty(default = False)
-    needloc = bpy.props.BoolProperty(default = False)
+    needloc = bpy.props.BoolProperty(default = True)
 
     def init(self, context):
         self.inputs.new('ViLiG', 'Geometry in')
@@ -193,7 +196,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
             if self.skymenu in ('0', '1', '2'):                
                 newrow(layout, "", self, 'animmenu')
                 newrow(layout, "Start hour:", self, 'shour')
-                newrow(layout, "Start day of year:", self, 'sdoy')
+                newrow(layout, "Start day:", self, 'sdoy')
                 if self.animmenu == 'Time':
                     newrow(layout, "End hour:", self, 'ehour')
                     newrow(layout, "End day of year:", self, 'edoy')
@@ -219,8 +222,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
         if self.skymenu != '6':
             newrow(layout, 'HDR:', self, 'hdr')
         
-        if self.inputs['Geometry in'].is_linked and self.inputs['Geometry in'].links[0].from_node.bl_label == 'LiVi Geometry' and \
-        ((self.needloc and self.inputs['Location in'].is_linked and self.inputs['Location in'].links[0].from_node.bl_label == 'VI Location') or not self.needloc):
+        if self.inputs['Geometry in'].is_linked and ((self.needloc and self.inputs['Location in'].is_linked) or not self.needloc):
             row = layout.row()
             row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
 
@@ -589,13 +591,16 @@ class ViGExEnNode(bpy.types.Node, ViNodes):
     def init(self, context):
         self.outputs.new('ViEnGOut', 'Geometry out')
         self.outputs[0].hide = True
+        for ng in bpy.data.node_groups:
+            if self in ng.nodes[:]:
+                self['nodeid'] = self.name+'@'+ng.name
 
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.label('Animation:')
         row.prop(self, 'animmenu')
         row = layout.row()
-        row.operator("node.engexport", text = "Export").nodename = self.name
+        row.operator("node.engexport", text = "Export").nodeid = self['nodeid']
 
     def update(self):
         if self.outputs[0].is_linked:

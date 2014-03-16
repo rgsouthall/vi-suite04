@@ -58,9 +58,10 @@ def rad_prev(prev_op, simnode, connode, geonode, simacc):
     else:
         prev_op.report({'ERROR'},"Missing export file. Make sure you have exported the scene.")
 
-def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):    
+def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs): 
+    print(kwargs)
     scene = bpy.context.scene
-    frames = range(scene.fs, scene.fe + 1) if not kwargs.get('genframe') else range(kwargs['genframe'], kwargs['genframe'] + 1)
+    frames = range(scene.fs, scene.fe + 1)
 #    frameis = vi_func.frameindex(scene, simnode['Animation']) if not kwargs.get('genframe') else range(kwargs['genframe'] - scene.frame_start, kwargs['genframe'] - scene.frame_start + 1)    
     os.chdir(geonode.newdir)
     if bpy.context.active_object and bpy.context.active_object.mode != 'OBJECT':
@@ -91,7 +92,8 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
             res, svres = [[[0 for p in range(geonode.reslen)] for x in range(len(frames))] for x in range(2)]
 
         for frame in frames:
-            findex = frame - scene.fs if not kwargs.get('genframe') else 0
+            
+            findex = frame - scene.fs
             if connode.bl_label in ('LiVi Basic', 'LiVi Compliance') or (connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) < 2):
                 if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
                     subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
@@ -104,7 +106,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                             radfexport(scene, calc_op, connode, geonode, frames)
                             if kwargs.get('genframe'):
                                 res = li_calc(calc_op, simnode, connode, geonode, simacc, genframe = kwargs.get('genframe'))
-                                return(res)
+                                return(res[0])
                             else:
                                 li_calc(calc_op, simnode, connode, geonode, simacc)
                                 return
@@ -202,15 +204,16 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                             obres.append(res[frame][fi])
                             fi += 1
         
-                    if frame == scene.fs:
+                    if (frame == scene.fs and not kwargs.get('genframe')) or (kwargs.get('genframe') and frame == scene.frame_start):
                         geo['oave'], geo['omax'], geo['omin'], geo['oreslist'] = {}, {}, {}, {}
                     
                     geo['oave'][str(frame)] = weightres
                     geo['omax'][str(frame)] = max(obres)
                     geo['omin'][str(frame)] = min(obres)
-                    geo['oreslist'][str(frame)] = obres        
+                    geo['oreslist'][str(frame)] = obres 
+                    
                 
-        if not kwargs.get('genframe'):
+        if not kwargs:
             resapply(calc_op, res, svres, simnode, connode, geonode)
             vi_func.vcframe('', scene, [ob for ob in scene.objects if ob.get('licalc')] , simnode['Animation'])
         else:
@@ -305,7 +308,7 @@ def resapply(calc_op, res, svres, simnode, connode, geonode):
 
                     if fr == 0:
                         crit, ecrit = [], []
-                        comps, ecomps =  [[[] * f for f in range(scene.frame_start, scene.frame_end+1)] for x in range(2)]
+                        comps, ecomps =  [[[] * f for f in range(scene.fs, scene.fe + 1)] for x in range(2)]
 #                            ecomps = [[] * f for f in range(scene.frame_start, scene.frame_end+1)]
 
                         if connode.analysismenu == '0':

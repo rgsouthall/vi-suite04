@@ -406,7 +406,7 @@ class EnZonePanel(bpy.types.Panel):
             row = layout.row()
             row.prop(object, "envi_heats1")
             if object.envi_heats1 == True:
-                for end in ('s1d', 0, 'p1st', 'p1et', 'sp1', 0, 'p2st', 'p2et', 'sp2', 0, 'p3st', 'p3et', 'sp3'):
+                for end in ('d', 0, 'p1st', 'p1et', 'sp1', 0, 'p2st', 'p2et', 'sp2', 0, 'p3st', 'p3et', 'sp3'):
                     if end:
                         row.prop(object, '{}{}'.format("envi_heats1", end))  
                     else:

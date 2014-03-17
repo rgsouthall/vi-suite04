@@ -1522,7 +1522,7 @@ class EnViZone(bpy.types.Node, EnViNodes):
         odm = obj.data.materials
         omw = obj.matrix_world
         self.location = (50 * (omw*obj.location)[0], ((omw*obj.location)[2] + (omw*obj.location)[1])*25)
-        self.zonevolume = objvol(obj)
+        self.zonevolume = objvol('', obj)
         for oname in [outputs for outputs in self.outputs if outputs.name not in [mat.name for mat in odm if mat.envi_boundary == True] and outputs.bl_idname == 'EnViBoundSocket']:
             self.outputs.remove(oname)
         for oname in [outputs for outputs in self.outputs if outputs.name not in [mat.name for mat in odm if mat.afsurface == True] and outputs.bl_idname == 'EnViCAirSocket']:

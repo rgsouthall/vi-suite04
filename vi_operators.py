@@ -392,7 +392,7 @@ class NODE_OT_EnGExport(bpy.types.Operator):
         scene = context.scene
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        pregeo()
+        pregeo(self)
         node.exported = True
         node.outputs[0].hide = False
         return {'FINISHED'}

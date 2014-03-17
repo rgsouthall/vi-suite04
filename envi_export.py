@@ -587,7 +587,7 @@ Construction,\n\
         subprocess.call(node.cp+node.weather+" "+node.newdir+node.fold+"in.epw", shell = True)
         subprocess.call(node.cp+os.path.dirname( os.path.realpath( __file__ ) )+node.fold+"EPFiles"+node.fold+"Energy+.idd "+node.newdir+node.fold, shell = True)
 
-def pregeo():
+def pregeo(op):
     for obj in [obj for obj in bpy.context.scene.objects if obj.layers[1] == True]:
         bpy.context.scene.objects.unlink(obj)
         bpy.data.objects.remove(obj)
@@ -603,7 +603,7 @@ def pregeo():
             bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network")
             bpy.data.node_groups['EnVi Network'].use_fake_user = 1
 
-        obj["volume"] = vi_func.objvol(obj)
+        obj["volume"] = vi_func.objvol(op, obj)
         bpy.data.scenes[0].layers[0:2] = (True, False)
 
         for mats in obj.data.materials:

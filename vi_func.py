@@ -306,7 +306,7 @@ def boundpoly(obj, mat, poly):
         return(("Outdoors", "", "SunExposed", "WindExposed"))
 
 
-def objvol(obj):
+def objvol(op, obj):
     bm = bmesh.new()
     bm.from_object(obj, bpy.context.scene)
 
@@ -318,11 +318,15 @@ def objvol(obj):
         elif obj.data.materials[f.material_index].envi_con_type == 'Roof':
             roof.append((triarea(obj, f), (obj.matrix_world*mathutils.Vector(f.center))[2]))
     zfloor = list(zip(*floor))
-    taf = sum(zfloor[0])
-    avhf = sum([(zfloor[0][i]*zfloor[1][i])/taf for i in range(len(zfloor[0]))])
-    zroof = list(zip(*roof))
-    tar = sum(zroof[0])
-    avhr = sum([(zroof[0][i]*zroof[1][i])/tar for i in range(len(zroof[0]))])
+    if not zfloor:
+        if op:
+            op.report({'INFO'},"Zone has no floor area")
+#    else:
+#        taf = sum(zfloor[0])
+#    avhf = sum([(zfloor[0][i]*zfloor[1][i])/taf for i in range(len(zfloor[0]))])
+#    zroof = list(zip(*roof))
+#    tar = sum(zroof[0])
+#    avhr = sum([(zroof[0][i]*zroof[1][i])/tar for i in range(len(zroof[0]))])
 
     return(bm.calc_volume()*obj.scale[0]*obj.scale[1]*obj.scale[2])
 #    return((avhr - avhf)*(taf+tar)*obj.scale[0]*obj.scale[1]*obj.scale[2]/2)

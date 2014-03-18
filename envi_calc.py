@@ -23,7 +23,7 @@ def envi_sim(calc_op, node):
             rename(fname, fname.replace("eplusout", node.resfilename.split(".")[0]))
 #    scene.envi_sim = True
     processf(calc_op, node)
-    node.dsdoy = node.sdoy
+    node.dsdoy = node.sdoy # (locnode.startmonthnode.sdoy
     node.dedoy = node.edoy
     if node.resname+".err" not in [im.name for im in bpy.data.texts]:
         bpy.data.texts.load(node.newdir+"/"+node.resname+".err")

@@ -403,18 +403,20 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
     bl_description = "Export the scene to the EnergyPlus file format"
     bl_register = True
     bl_undo = True
-    nodename = bpy.props.StringProperty()
+    
+    nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
         scene = context.scene
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
-        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
+        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        locnode = node.inputs['Location in'].links[0].from_node
         if bpy.data.filepath:
             if bpy.context.object:
                 if bpy.context.object.type == 'MESH':
                     bpy.ops.object.mode_set(mode = 'OBJECT')
             if " " not in str(node.filedir) and " " not in str(node.filename):
-                enpolymatexport(self, node, envi_mats, envi_cons)
+                enpolymatexport(self, node, locnode, envi_mats, envi_cons)
                 node.exported = True
             elif " " in str(node.filedir):
                 self.report({'ERROR'},"The directory path containing the Blender file has a space in it.")
@@ -433,17 +435,18 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
     bl_description = "Run EnergyPlus"
     bl_register = True
     bl_undo = True
-    nodename = bpy.props.StringProperty()
+    
+    nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
+        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         envi_sim(self, node)
         if not node.outputs:
             node.outputs.new('ViEnROut', 'Results out')
         if node.outputs[0].is_linked:
             socket1, socket2  = node.outputs[0], node.outputs[0].links[0].to_socket
-            bpy.data.node_groups['VI Network'].links.remove(node.outputs[0].links[0])
-            bpy.data.node_groups['VI Network'].links.new(socket1, socket2)
+            bpy.data.node_groups[self.nodeid.split('@')[1]].links.remove(node.outputs[0].links[0])
+            bpy.data.node_groups[self.nodeid.split('@')[1]].links.new(socket1, socket2)
         scene = context.scene
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 2, 0, 0, 0, 0
         return {'FINISHED'}
@@ -454,10 +457,11 @@ class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
     bl_description = "Create a 2D graph from the results file"
     bl_register = True
     bl_undo = True
-    nodename = bpy.props.StringProperty()
+    
+    nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
+        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         Sdate = dt.fromordinal(dt(dt.now().year, 1, 1).toordinal() + node['Start'] -1) + datetime.timedelta(hours = node.dsh - 1)
         Edate = dt.fromordinal(dt(dt.now().year, 1, 1).toordinal() + node['End'] -1 ) + datetime.timedelta(hours = node.deh - 1)
         innodes = list(OrderedDict.fromkeys([inputs.links[0].from_node for inputs in node.inputs if inputs.is_linked]))

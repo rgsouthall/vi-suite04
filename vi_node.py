@@ -646,8 +646,8 @@ class ViExEnNode(bpy.types.Node, ViNodes):
 #    epwpath = addonpath+'/EPFiles/Weather/'
 #    weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]
 #    weather = bpy.props.EnumProperty(items = weatherlist, name="", description="Weather for this project")
-#    sdoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeexported)
-#    edoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeexported)
+    sdoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeexported)
+    edoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeexported)
     timesteps = bpy.props.IntProperty(name = "", description = "Time steps per hour", min = 1, max = 4, default = 1, update = nodeexported)
     resfilename = bpy.props.StringProperty(name = "", default = 'results')
     restype= bpy.props.EnumProperty(items = [("0", "Ambient", "Ambient Conditions"), ("1", "Zone Thermal", "Thermal Results"), ("2", "Comfort", "Comfort Results"), ("3", "Zone Ventilation", "Zone Ventilation Results"), ("4", "Ventilation Link", "ZoneVentilation Results")],
@@ -676,32 +676,24 @@ class ViExEnNode(bpy.types.Node, ViNodes):
     resihl = bpy.props.BoolProperty(name = "Heat loss (W)", description = "Ventilation Heat Loss (W)", default = False, update = nodeexported)
     resl12ms = bpy.props.BoolProperty(name = u'Flow (m\u00b3/s)', description = u'Linkage flow (m\u00b3/s)', default = False, update = nodeexported)
     reslof = bpy.props.BoolProperty(name = 'Opening factor', description = 'Linkage Opening Factor', default = False, update = nodeexported)
-#u'\u00b0C)'
+
+    
     def init(self, context):
         self.inputs.new('ViEnGIn', 'Geometry in')
         self.inputs.new('ViLoc', 'Location in')
         nodeinit(self)
-        self['xtypes']
+        for ng in bpy.data.node_groups:
+            if self in ng.nodes[:]:
+                self['nodeid'] = self.name+'@'+ng.name        
 
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.label("Project name/location")
         row.prop(self, "loc")
-#        row = layout.row()
-#        row.label("Weather file:")
-#        row.prop(self, "weather")
         row = layout.row()
         row.label(text = 'Terrain:')
         col = row.column()
         col.prop(self, "terrain")
-#        row = layout.row()
-#        row.label(text = 'Start day:')
-#        col = row.column()
-#        col.prop(self, "sdoy")
-#        row = layout.row()
-#        row.label(text = 'End day:')
-#        col = row.column()
-#        col.prop(self, "edoy")
         row = layout.row()
         row.label(text = 'Time-steps/hour)')
         row.prop(self, "timesteps")
@@ -709,49 +701,25 @@ class ViExEnNode(bpy.types.Node, ViNodes):
         row.label(text = 'Results Catagory:')
         col = row.column()
         col.prop(self, "restype")
-        if self.restype == "0":
-            row = layout.row()
-            row.prop(self, "resat")
-            row.prop(self, "resaws")
-            row = layout.row()
-            row.prop(self, "resawd")
-            row.prop(self, "resah")
-            row = layout.row()
-            row.prop(self, "resasb")
-            row.prop(self, "resasd")
-        elif self.restype == "1":
-            row = layout.row()
-            row.prop(self, "restt")
-            row.prop(self, "restwh")
-            row = layout.row()
-            row.prop(self, "restwc")
-            row.prop(self, "reswsg")
-        elif self.restype == "2":
-            row = layout.row()
-            row.prop(self, "rescpp")
-            row.prop(self, "rescpm")
-        elif self.restype == "3":
-            row = layout.row()
-            row.prop(self, "resim")
-            row.prop(self, "resiach")
-            row = layout.row()
-            row.prop(self, "resco2")
-            row.prop(self, "resihl")
-        elif self.restype == "4":
-            row = layout.row()
-            row.prop(self, "resl12ms")
-            row.prop(self, "reslof")
+        resdict = {'0': (0, "resat", "resaws", 0, "resawd", "resah", 0, "resasb", "resasd"), '1': (0, "restt", "restwh", 0, "restwc", "reswsg"),\
+        '2': (0, "rescpp", "rescpm"), '3': (0, "resim", "resiach", 0, "resco2", "resihl"), '4': (0, "resl12ms", "reslof")}
+        
+        for rprop in resdict[self.restype]:        
+            if not rprop:
+                row = layout.row()
+            else:
+                row.prop(self, rprop)
 
-        if self.inputs[0].is_linked == True:
+        if all([s.is_linked for s in self.inputs]) and self.inputs['Location in'].links[0].from_node.loc == '1':
             row = layout.row()
-            row.operator("node.enexport", text = 'Export').nodename = self.name
+            row.operator("node.enexport", text = 'Export').nodeid = self['nodeid']
 
-        if self.inputs[0].is_linked == True and self.exported == True and self.inputs[0].links[0].from_node.exported == True:
-            row = layout.row()
-            row.label(text = 'Results name:')
-            row.prop(self, 'resname')
-            row = layout.row()
-            row.operator("node.ensim", text = 'Calculate').nodename = self.name
+            if self.exported == True and self.inputs['Geometry in'].links[0].from_node.exported == True:
+                row = layout.row()
+                row.label(text = 'Results name:')
+                row.prop(self, 'resname')
+                row = layout.row()
+                row.operator("node.ensim", text = 'Calculate').nodeid = self['nodeid']
 
 class ViEnRFNode(bpy.types.Node, ViNodes):
     '''Node for EnergyPlus results file selection'''
@@ -806,7 +774,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
     bl_idname = 'ViEnRNode'
     bl_label = 'VI EnergyPLus results'
 
-    ctypes = [("0", "Line", "Line Chart"), ("1", "Bar", "Bar Chart")]
+    ctypes = [("0", "Line/Scatter", "Line/Scatter Plot"), ("1", "Bar", "Bar Chart")]
     dsh = bpy.props.IntProperty(name = "Start", description = "", min = 1, max = 24, default = 1)
     deh = bpy.props.IntProperty(name = "End", description = "", min = 1, max = 24, default = 24)
     charttype = bpy.props.EnumProperty(items = ctypes, name = "Chart Type", default = "0")
@@ -814,15 +782,18 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                                                       name="", description="Results frequency", default="0")
 
     def init(self, context):
+        for ng in bpy.data.node_groups:
+            if self in ng.nodes[:]:
+                self['nodeid'] = self.name+'@'+ng.name
         self.inputs.new("ViEnRXIn", "X-axis")
         self['Start'] = 1
         self['End'] = 365
         self.inputs.new("ViEnRY1In", "Y-axis 1")
-        self.inputs[1].hide = True
+        self.inputs["Y-axis 1"].hide = True
         self.inputs.new("ViEnRY2In", "Y-axis 2")
-        self.inputs[2].hide = True
+        self.inputs["Y-axis 2"].hide = True
         self.inputs.new("ViEnRY3In", "Y-axis 3")
-        self.inputs[3].hide = True
+        self.inputs["Y-axis 3"].hide = True
 
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -838,7 +809,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
         row.prop(self, "timemenu")
 
         if self.inputs['X-axis'].is_linked and self.inputs['Y-axis 1'].is_linked:
-            layout.operator("node.chart", text = 'Create plot').nodename = self.name
+            layout.operator("node.chart", text = 'Create plot').nodeid = self['nodeid']
 
     def update(self):
         if self.inputs['X-axis'].is_linked == False:
@@ -891,29 +862,15 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                         linkrmenu = bpy.props.EnumProperty(items=xlrtype, name="", description="Flow linkage result", default = xlrtype[0][0])
                     statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Result statistic", default = 'Average')
 
-
                 def draw(self, context, layout, node, text):
-                    row = layout.row()
-                    row.label('--')
                     row = layout.row()
                     row.prop(self, "rtypemenu", text = text)
                     if self.is_linked == True:
-                        row = layout.row()
-                        if self.rtypemenu == "Climate":
-                            row.prop(self, "climmenu")
-                        elif self.rtypemenu == "Zone":
-                            row.prop(self, "zonemenu")
-                            row = layout.row()
-                            row.prop(self, "zonermenu")
-                        elif self.rtypemenu == "Linkage":
-                            row.prop(self, "linkmenu")
-                            row = layout.row()
-                            row.prop(self, "linkrmenu")
+                        typedict = {"Time": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"), "Linkage":("linkmenu", "linkrmenu")}
+                        for rtype in typedict[self.rtypemenu]:
+                            row.prop(self, rtype)
                         if self.node.timemenu in ('1', '2') and self.rtypemenu !='Time':
                             row.prop(self, "statmenu")
-                    row = layout.row()
-                    row.label('--')
-                    row = layout.row()
 
                 def draw_color(self, context, node):
                     return (0.0, 1.0, 0.0, 0.75)
@@ -949,7 +906,6 @@ class ViEnRNode(bpy.types.Node, ViNodes):
             for linkr in innode['lrtypes']:
                 y1lrtype.append((linkr, linkr, "Plot "+linkr))
 
-
             class ViEnRY1In(bpy.types.NodeSocket):
                 '''Energy geometry out socket'''
                 bl_idname = 'ViEnRY1In'
@@ -971,22 +927,11 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     row = layout.row()
                     row.prop(self, "rtypemenu", text = text)
                     if self.is_linked:
-                        row = layout.row()
-                        if self.rtypemenu == "Climate":
-                            row.prop(self, "climmenu")
-                        elif self.rtypemenu == "Zone":
-                            row.prop(self, "zonemenu")
-                            row = layout.row()
-                            row.prop(self, "zonermenu")
-                        elif self.rtypemenu == "Linkage":
-                            row.prop(self, "linkmenu")
-                            row = layout.row()
-                            row.prop(self, "linkrmenu")
+                        typedict = {"Time": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"), "Linkage":("linkmenu", "linkrmenu")}
+                        for rtype in typedict[self.rtypemenu]:
+                            row.prop(self, rtype)
                         if self.node.timemenu in ('1', '2') and self.rtypemenu != 'Time':
                             row.prop(self, "statmenu")
-                    row = layout.row()
-                    row.label('--')
-                    row = layout.row()
 
                 def draw_color(self, context, node):
                     return (0.0, 1.0, 0.0, 0.75)
@@ -1044,18 +989,11 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     row = layout.row()
                     row.prop(self, "rtypemenu", text = text)
                     if self.is_linked:
-                        row = layout.row()
-                        if self.rtypemenu == "Climate":
-                            row.prop(self, "climmenu")
-                        elif self.rtypemenu == "Zone":
-                            row.prop(self, "zonemenu")
-                            row = layout.row()
-                            row.prop(self, "zonermenu")
+                        typedict = {"Time": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"), "Linkage":("linkmenu", "linkrmenu")}
+                        for rtype in typedict[self.rtypemenu]:
+                            row.prop(self, rtype)
                         if self.node.timemenu in ('1', '2') and self.rtypemenu != 'Time':
                             row.prop(self, "statmenu")
-                    row = layout.row()
-                    row.label('--')
-                    row = layout.row()
 
                 def draw_color(self, context, node):
                     return (0.0, 1.0, 0.0, 0.75)
@@ -1111,13 +1049,9 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     row = layout.row()
                     row.prop(self, "rtypemenu", text = text)
                     if self.is_linked:
-                        row = layout.row()
-                        if self.rtypemenu == "Climate":
-                            row.prop(self, "climmenu")
-                        elif self.rtypemenu == "Zone":
-                            row.prop(self, "zonemenu")
-                            row = layout.row()
-                            row.prop(self, "zonermenu")
+                        typedict = {"Time": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"), "Linkage":("linkmenu", "linkrmenu")}
+                        for rtype in typedict[self.rtypemenu]:
+                            row.prop(self, rtype)
                         if self.node.timemenu in ('1', '2') and self.rtypemenu != 'Time':
                             row.prop(self, "statmenu")
 
@@ -1268,7 +1202,6 @@ class EnViDataIn(bpy.types.NodeSocket):
     def draw_color(self, context, node):
         return (0.0, 1.0, 0.0, 0.75)
 
-
 # Generative nodes
 class ViGenNode(bpy.types.Node, ViNodes):
     '''Generative geometry manipulation node'''
@@ -1295,10 +1228,8 @@ class ViGenNode(bpy.types.Node, ViNodes):
 
     #    buildstorey = bpy.props.EnumProperty(items=[("0", "Single", "Single storey building"),("1", "Multi", "Multi-storey building")], name="", description="Building storeys", default="0", update = nodeexported)
 
-
     def init(self, context):
         self.inputs.new('ViGen', 'Generative in')
-#        self.outputs.new('ViLiC', 'Context out')
         for ng in bpy.data.node_groups:
             if self in ng.nodes[:]:
                 self['nodeid'] = self.name+'@'+ng.name
@@ -1329,7 +1260,6 @@ class ViGenNode(bpy.types.Node, ViNodes):
         newrow(layout, 'Extent:', self, 'extent')
         newrow(layout, 'Increment:', self, 'steps')
 
-
 class ViTarNode(bpy.types.Node, ViNodes):
     '''Target Node'''
     bl_idname = 'ViTarNode'
@@ -1342,7 +1272,6 @@ class ViTarNode(bpy.types.Node, ViNodes):
 
     def init(self, context):
         self.inputs.new('ViTar', 'Target in')
-#        self.outputs.new('ViLiC', 'Context out')
         for ng in bpy.data.node_groups:
             if self in ng.nodes[:]:
                 self['nodeid'] = self.name+'@'+ng.name
@@ -1430,6 +1359,7 @@ class EnViCrRefSocket(bpy.types.NodeSocket):
     bl_idname = 'EnViCrRefSocket'
     bl_label = 'Plain zone airflow component socket'
     sn = bpy.props.StringProperty()
+    
     def draw(self, context, layout, node, text):
         layout.label(text)
 
@@ -1560,7 +1490,6 @@ class EnViZone(bpy.types.Node, EnViNodes):
         self.outputs.new('EnViSchedSocket', 'TSPSchedule')
         self.outputs['TSPSchedule'].hide = True
         self.outputs.new('EnViSchedSocket', 'VASchedule')
-#        self.outputs['VASchedule'].hide = True
 
     def update(self):
         try:
@@ -1574,22 +1503,12 @@ class EnViZone(bpy.types.Node, EnViNodes):
     def draw_buttons(self, context, layout):
         row=layout.row()
         row.prop(self, "zone")
-        row=layout.row()
-        row.label("Volume:")
-        row.prop(self, "zonevolume")
-        row=layout.row()
-        row.label("Control type:")
-        row.prop(self, "control")
+        newrow(layout, "Volume:", self, "zonevolume")
+        newrow(layout, "Control type:", self, "control")
         if self.control == 'Temperature':
-            row = layout.row()
-            row.label('Minimum OF')
-            row.prop(self, 'mvof')
-            row = layout.row()
-            row.label('Lower')
-            row.prop(self, 'lowerlim')
-            row = layout.row()
-            row.label('Upper')
-            row.prop(self, 'upperlim')
+            newrow(layout, "Minimum OF:", self, "mvof")
+            newrow(layout, "Lower:", self, "lowerlim")
+            newrow(layout, "Upper:", self, "upperlim")
 
 class EnViSLinkNode(bpy.types.Node, EnViNodes):
     '''Node describing an surface airflow component'''
@@ -1690,8 +1609,6 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
         for sock in [sock for sock in self.inputs]+[sock for sock in self.outputs]:
             socklink(sock)
         try:
-
-
             lsockids = [('Node1_s', 'Node2_s'), ('Node1_c', 'Node2_c')][self.linkmenu not in ('SO', 'DO', 'HO')]
             for ins in [ins for ins in self.inputs if ins.identifier in lsockids]:
                 if ins.is_linked == True and ins.bl_idname == ins.links[0].from_socket.bl_idname:
@@ -1724,9 +1641,7 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
 
     def draw_buttons(self, context, layout):
         layout.prop(self, 'linkmenu')
-        row = layout.row()
-        row.label("Opening factor:")
-        row.prop(self, 'wdof')
+        newrow(layout, 'Opening factor:', self, 'wdof')
         row = layout.row()
         row.label("Control type:")
         if self.linkmenu in ('SO', 'DO', 'HO'):
@@ -1734,25 +1649,15 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
         else:
             row.prop(self, 'controlc')
         if self.linkmenu == "SO":
-            row = layout.row()
-            row.label('Closed FC:')
-            row.prop(self, 'amfcc')
-            row = layout.row()
-            row.label('Closed FE:')
-            row.prop(self, 'amfec')
-            row = layout.row()
-            row.label('Density diff:')
-            row.prop(self, 'ddtw')
-            row = layout.row()
-            row.label('DC')
-            row.prop(self, 'dcof')
+            newrow(layout, 'Closed FC:', self, 'amfcc')
+            newrow(layout, 'Closed FE:', self, 'amfec')
+            newrow(layout, 'Density diff:', self, 'ddtw')
+            newrow(layout, 'DC:', self, 'dcof')
+            
         elif self.linkmenu == "DO":
-            row = layout.row()
-            row.label("OF Number:")
-            row.prop(self, 'noof')
-            row = layout.row()
-            row.label('DC1')
-            row.prop(self, 'dcof1')
+            newrow(layout, 'OF Number:', self, 'noof')
+            newrow(layout, 'DC1:', self, 'dcof1')
+            
             row = layout.row()
             row.prop(self, 'wfof1')
             row = layout.row()
@@ -1795,85 +1700,30 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
                     row = layout.row()
                     row.prop(self, 'sfof4')
         elif self.linkmenu == 'HO':
-            row = layout.row()
-            row.label('Closed FC')
-            row.prop(self, 'amfcc')
-            row = layout.row()
-            row.label('Closed FE')
-            row.prop(self, 'amfec')
-            row = layout.row()
-            row.label('Slope')
-            row.prop(self, 'spa')
-            row = layout.row()
-            row.label('Discharge Coeff')
-            row.prop(self, 'dcof')
+            newrow(layout, "Closed FC:", self, 'amfcc')
+            newrow(layout, "Closed FE:", self, 'amfec')
+            newrow(layout, "Slope:", self, 'spa')
+            newrow(layout, "Discharge Coeff:", self, 'dcof')
 
-        if self.linkmenu in ('SO', 'DO', 'HO') and self.controls == 'Temperature':
-            row = layout.row()
-            row.label('Minimum OF')
-            row.prop(self, 'mvof')
-            row = layout.row()
-            row.label('Lower OF')
-            row.prop(self, 'lvof')
-            row = layout.row()
-            row.label('Upper OF')
-            row.prop(self, 'uvof')
+            if self.linkmenu in ('SO', 'DO') and self.controls == 'Temperature':
+                newrow(layout, "Minimum OF:", self, 'mvof')
+                newrow(layout, "Lower OF:", self, 'lvof')
+                newrow(layout, "Lower OF:", self, 'lvof')
 
-        if self.linkmenu == "Crack":
-            row = layout.row()
-            row.label("Coefficient:")
-            row.prop(self, 'amfc')
-            row = layout.row()
-            row.label("Exponent:")
-            row.prop(self, 'amfe')
-            row = layout.row()
-            row.label("Crack factor:")
-            row.prop(self, 'cf')
+        elif self.linkmenu == "Crack":
+            newrow(layout, "Coefficient:", self, 'amfc')
+            newrow(layout, "Exponent:", self, 'amfe')
+            newrow(layout, "Crack factor:", self, 'cf')
 
-#        if self.linkmenu == "Duct":
-#            row = layout.row()
-#            row.label("Length:")
-#            row.prop(self, 'dlen')
-#            row = layout.row()
-#            row.label("Hydraulic diameter:")
-#            row.prop(self, 'dhyd')
-#            row = layout.row()
-#            row.label("Cross Section:")
-#            row.prop(self, 'dcs')
-#            row = layout.row()
-#            row.label("Surface Roughness:")
-#            row.prop(self, 'dsr')
-#            row = layout.row()
-#            row.label("Loss coefficient:")
-#            row.prop(self, 'dlc')
-#            row = layout.row()
-#            row.label("U-Factor:")
-#            row.prop(self, 'dhtc')
-#            row = layout.row()
-#            row.label("Moisture coefficient:")
-#            row.prop(self, 'dmtc')
+        elif self.linkmenu == "ELA":
+            newrow(layout, "ELA:", self, 'ela')
+            newrow(layout, "Discharge Coeff:", self, 'dcof')
+            newrow(layout, "PA diff:", self, 'rpd')
+            newrow(layout, "FE:", self, 'amfe')
 
-        if self.linkmenu == "ELA":
-            row = layout.row()
-            row.label("ELA:")
-            row.prop(self, 'ela')
-            row = layout.row()
-            row.label("Discharge Coeff:")
-            row.prop(self, 'dcof')
-            row = layout.row()
-            row.label("PA diff:")
-            row.prop(self, 'rpd')
-            row = layout.row()
-            row.label("FE:")
-            row.prop(self, 'amfe')
-
-        if self.linkmenu == "EF":
-            row = layout.row()
-            row.label("Off FC:")
-            row.prop(self, 'amfc')
-            row = layout.row()
-            row.label("Off FE:")
-            row.prop(self, 'amfe')
+        elif self.linkmenu == "EF":
+            newrow(layout, "Off FC:", self, 'amfc')
+            newrow(layout, "Off FE:", self, 'amfe')
 
 class EnViCLinkNode(bpy.types.Node, EnViNodes):
     '''Node describing an airflow component'''
@@ -1933,62 +1783,19 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
     def draw_buttons(self, context, layout):
         layout.prop(self, 'linkmenu')
         if self.linkmenu == "Crack":
-            row = layout.row()
-            row.label("Coefficient:")
-            row.prop(self, 'amfc')
-            row = layout.row()
-            row.label("Exponent:")
-            row.prop(self, 'amfe')
-            row = layout.row()
-            row.label("Crack factor:")
-            row.prop(self, 'cf')
+            newrow(layout, "Coefficient:", self, 'amfc')
+            newrow(layout, "Exponent:", self, 'amfe')
+            newrow(layout, "Crack factor:", self, 'cf')
 
-#        if self.linkmenu == "Duct":
-#            row = layout.row()
-#            row.label("Length:")
-#            row.prop(self, 'dlen')
-#            row = layout.row()
-#            row.label("Hydraulic diameter:")
-#            row.prop(self, 'dhyd')
-#            row = layout.row()
-#            row.label("Cross Section:")
-#            row.prop(self, 'dcs')
-#            row = layout.row()
-#            row.label("Surface Roughness:")
-#            row.prop(self, 'dsr')
-#            row = layout.row()
-#            row.label("Loss coefficient:")
-#            row.prop(self, 'dlc')
-#            row = layout.row()
-#            row.label("U-Factor:")
-#            row.prop(self, 'dhtc')
-#            row = layout.row()
-#            row.label("Moisture coefficient:")
-#            row.prop(self, 'dmtc')
+        elif self.linkmenu == "ELA":
+            newrow(layout, "ELA:", self, 'ela')
+            newrow(layout, "Discharge Coeff:", self, 'dcof')
+            newrow(layout, "PA diff:", self, 'rpd')
+            newrow(layout, "FE:", self, 'amfe')
 
-        if self.linkmenu == "ELA":
-            row = layout.row()
-            row.label("ELA:")
-            row.prop(self, 'ela')
-            row = layout.row()
-            row.label("Discharge Coeff:")
-            row.prop(self, 'dcof')
-            row = layout.row()
-            row.label("PA diff:")
-            row.prop(self, 'rpd')
-            row = layout.row()
-            row.label("FE:")
-            row.prop(self, 'amfe')
-
-        if self.linkmenu == "EF":
-            row = layout.row()
-            row.label("Off FC:")
-            row.prop(self, 'amfc')
-            row = layout.row()
-            row.label("Off FE:")
-            row.prop(self, 'amfe')
-
-
+        elif self.linkmenu == "EF":
+            newrow(layout, "Off FC:", self, 'amfc')
+            newrow(layout, "Off FE:", self, 'amfe')
 
 class EnViCrRef(bpy.types.Node, EnViNodes):
     '''Node describing reference crack conditions'''
@@ -2004,15 +1811,9 @@ class EnViCrRef(bpy.types.Node, EnViNodes):
         self.inputs.new('EnViCrRefSocket', 'Reference', type = 'CUSTOM')
 
     def draw_buttons(self, context, layout):
-        row = layout.row()
-        row.label('Temperature:')
-        row.prop(self, 'reft')
-        row = layout.row()
-        row.label('Pressure:')
-        row.prop(self, 'refp')
-        row = layout.row()
-        row.label('Humidity:')
-        row.prop(self, 'refh')
+        newrow(layout, 'Temperature:', self, 'reft')
+        newrow(layout, 'Pressure:', self, 'refp')
+        newrow(layout, 'Humidity', self, 'refh')
 
 class EnViFanNode(bpy.types.Node, EnViNodes):
     '''Node describing a fan component'''
@@ -2049,24 +1850,12 @@ class EnViFanNode(bpy.types.Node, EnViNodes):
     def draw_buttons(self, context, layout):
         layout.prop(self, 'fantypeprop')
         if self.fantypeprop == "Volume":
-            row = layout.row()
-            row.label("Name:")
-            row.prop(self, 'fname')
-            row = layout.row()
-            row.label("Efficiency:")
-            row.prop(self, 'feff')
-            row = layout.row()
-            row.label("Pressure Rise (Pa):")
-            row.prop(self, 'fpr')
-            row = layout.row()
-            row.label("Max flow rate:")
-            row.prop(self, 'fmfr')
-            row = layout.row()
-            row.label("Motor efficiency:")
-            row.prop(self, 'fmeff')
-            row = layout.row()
-            row.label("Airstream fraction:")
-            row.prop(self, 'fmaf')
+            newrow(layout, "Name:", self, 'fname')
+            newrow(layout, "Efficiency:", self, 'feff')
+            newrow(layout, "Pressure Rise (Pa):", self, 'fpr')
+            newrow(layout, "Max flow rate:", self, 'fmfr')
+            newrow(layout, "Motor efficiency:", self, 'fmeff')
+            newrow(layout, "Airstream fraction:", self, 'fmaf')
 
 class EnViExtNode(bpy.types.Node, EnViNodes):
     '''Node describing a linkage component'''
@@ -2087,19 +1876,12 @@ class EnViExtNode(bpy.types.Node, EnViNodes):
             layout.prop(self, 'amfc')
             layout.prop(self, 'amfe')
 
-
-
 class EnViSched(bpy.types.Node, EnViNodes):
     '''Node describing a schedule'''
     bl_idname = 'EnViSched'
     bl_label = 'Schedule'
     bl_icon = 'SOUND'
 
-#    def supdate(self):
-#        self.inputs.new['Fraction'].hide = False if self.typemenu == 'Fraction' else True
-#        self.inputs.new['Any Number'].hide = False if self.typemenu == 'Any Number' else True
-
-#    typemenu = bpy.props.enumProperty(name = "", default = 'Fraction', items=[('Fraction', 'Fraction', 'Fraction'), ('Any Number', 'Any Number', 'Any Number')])
     t1 = bpy.props.IntProperty(name = "", default = 365)
     f1 = bpy.props.StringProperty(name = "Fors", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")
     u1 = bpy.props.StringProperty(name = "Untils", description = "Valid entries (; separated for each 'For', comma separated for each day)")
@@ -2115,49 +1897,23 @@ class EnViSched(bpy.types.Node, EnViNodes):
 
     def init(self, context):
         self.inputs.new('EnViSchedSocket', 'Schedule')
-#        self.inputs.new('ANSchSocket', 'Any Number')
-#        self.inputs['Any Number'].hide = True
 
     def draw_buttons(self, context, layout):
-#        layout.prop(self, 'typemenu')
-        row = layout.row()
-        row.label('End day 1:')
-        row.prop(self, 't1')
-        row = layout.row()
-        row.prop(self, 'f1')
-        row = layout.row()
-        row.prop(self, 'u1')
+        newrow(layout, 'End day 1:', self, 't1')
+        newrow(layout, '', self, 'f1')
+        newrow(layout, '', self, 'u1')
         if self.u1 != '':
-            row = layout.row()
-            row.label('End day 2:')
-            row.prop(self, 't2')
-            row = layout.row()
-            row.prop(self, 'f2')
-            row = layout.row()
-            row.prop(self, 'u2')
+            newrow(layout, 'End day 2:', self, 't2')
+            newrow(layout, '', self, 'f2')
+            newrow(layout, '', self, 'u2')
             if self.u2 != '':
-                row = layout.row()
-                row.label('End day 3:')
-                row.prop(self, 't3')
-                row = layout.row()
-                row.prop(self, 'f3')
-                row = layout.row()
-                row.prop(self, 'u3')
+                newrow(layout, 'End day 3:', self, 't3')
+                newrow(layout, '', self, 'f3')
+                newrow(layout, '', self, 'u3')
                 if self.u3 != '':
-                    row = layout.row()
-                    row.label('End day 4:')
-                    row.prop(self, 't4')
-                    row = layout.row()
-                    row.prop(self, 'f4')
-                    row = layout.row()
-                    row.prop(self, 'u4')
-
-
-#    def draw_buttons(self, context, layout):
-#        layout.prop(self, 'linktypeprop')
-#        if self.linktypeprop == "Crack":
-#            layout.prop(self, 'amfc')
-#            layout.prop(self, 'amfe')
+                    newrow(layout, 'End day 4:', self, 't4')
+                    newrow(layout, '', self, 'f4')
+                    newrow(layout, '', self, 'u4')
 
 class EnViNodeCategory(NodeCategory):
     @classmethod

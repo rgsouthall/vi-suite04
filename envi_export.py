@@ -7,14 +7,16 @@ dtdf = datetime.date.fromordinal
 #from math import pi, sin, cos, acos, asin
 s = 70
 
-def enpolymatexport(exp_op, node, em, ec):
+def enpolymatexport(exp_op, node, locnode, em, ec):
 #    daytypes = ("AllDays", "Weekdays", "Weekends")
 #    lineends = (",\n", ";\n\n", ",\n", ";\n\n")
     scene = bpy.context.scene
     for scene in bpy.data.scenes:
         scene.update()
-    en_epw = open(node.weather, "r")
+    en_epw = open(locnode.weather, "r")
     en_idf = open(node.idf_file, 'w')
+    node.sdoy = datetime.datetime(datetime.datetime.now().year, locnode.startmonth, 1).timetuple().tm_yday
+    node.edoy = (datetime.date(datetime.datetime.now().year, locnode.endmonth + (1, -11)[locnode.endmonth == 12], 1) - datetime.timedelta(days = 1)).timetuple().tm_yday
 
     en_idf.write("!- Blender -> EnergyPlus\n\
 !- Using the EnVi export scripts\n\
@@ -50,8 +52,8 @@ datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), "VERSION,8.0.0;", "    "+nod
     {7:{width}}!- Apply Weekend Holiday Rule\n\
     {6:{width}}!- Use Weather File Rain Indicators\n\
     {6:{width}}!- Use Weather File Snow Indicators\n\
-    {8:{width}}!- Number of Times Runperiod to be Repeated\n\n".format(",", str(dtdf(node.sdoy).month)+',', str(dtdf(node.sdoy).day)+',', \
-    str(dtdf(node.edoy).month)+',', str(dtdf(node.edoy).day)+',', "UseWeatherFile,", "Yes,", "No,", "1;","", width = s-4))
+    {8:{width}}!- Number of Times Runperiod to be Repeated\n\n".format(node.loc+',', str(locnode.startmonth)+',', '1,', \
+    str(locnode.endmonth)+',', str((datetime.date(datetime.datetime.now().year, locnode.endmonth + (1, -11)[locnode.endmonth == 12], 1) - datetime.timedelta (days = 1)).day)+',', "UseWeatherFile,", "Yes,", "No,", "1;","", width = s-4))
 
 #    en_idf.write("Site:Location,\n")
 #    en_idf.write(es.wea.split("/")[-1].strip('.epw')+",   !- LocationName\n")
@@ -248,7 +250,7 @@ Construction,\n\
             "    1,                                                                !- Type\n" +
             "    1,                                                                !- Multiplier\n" +
             "    {0:{width}}!- Ceiling Height (m)\n".format("{:.3f}".format(vi_func.ceilheight(obj, [])) + ",", width = s - 4) +
-            "    {0:{width}}!- Volume (m3)\n".format("{:.2f}".format(vi_func.objvol(obj)) + ",", width = s - 4) +
+            "    {0:{width}}!- Volume (m3)\n".format("{:.2f}".format(vi_func.objvol('', obj)) + ",", width = s - 4) +
             "    autocalculate,                                                    !- Floor Area (m2)\n" +
             "    TARP,                                                             !- Zone Inside Convection Algorithm\n"+
             "    TARP,                                                             !- Zone Outside Convection Algorithm\n"+
@@ -581,10 +583,10 @@ Construction,\n\
         bpy.data.texts.load(node.idf_file)
 
     if sys.platform == "win32":
-        subprocess.call(node.cp+'"'+node.weather+'" '+node.newdir+node.fold+"in.epw", shell = True)
+        subprocess.call(node.cp+'"'+locnode.weather+'" '+os.path.join(node.newdir, "in.epw"), shell = True)
         subprocess.call(node.cp+'"'+os.path.dirname( os.path.realpath( __file__ ) )+node.fold+"EPFiles"+node.fold+"Energy+.idd"+'" '+node.newdir+node.fold, shell = True)
     else:
-        subprocess.call(node.cp+node.weather+" "+node.newdir+node.fold+"in.epw", shell = True)
+        subprocess.call(node.cp+locnode.weather+" "+os.path.join(node.newdir, "in.epw"), shell = True)
         subprocess.call(node.cp+os.path.dirname( os.path.realpath( __file__ ) )+node.fold+"EPFiles"+node.fold+"Energy+.idd "+node.newdir+node.fold, shell = True)
 
 def pregeo(op):

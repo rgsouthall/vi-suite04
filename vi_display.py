@@ -138,15 +138,14 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         if obcalclist:
             pass
     except:
-        obreslist = [ob for ob in scene.objects if ob.type == 'MESH'  and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.get('licalc') == 1 and ob.lires == 1]
-        obcalclist = [ob for ob in scene.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[0] == True and ob.get('licalc') == 1 and ob.lires == 0]
-    
-    if (scene.li_disp_panel != 2 and scene.ss_disp_panel != 2)  or (simnode['Animation'] == 'Static' and scene.frame_current != scene.fs) \
-    or scene.vi_display_rp != True or (bpy.context.active_object not in (obcalclist+obreslist) and scene.vi_display_sel_only == True)  \
-    or scene.frame_current not in vi_func.framerange(scene, simnode['Animation']) or (bpy.context.active_object and bpy.context.active_object.mode == 'EDIT'):
+        obreslist = [ob for ob in scene.objects if ob.type == 'MESH'  and 'lightarray' not in ob.name and ob.hide == False and ob.layers[scene.active_layer] == True and ob.get('licalc') == 1 and ob.lires == 1]
+        obcalclist = [ob for ob in scene.objects if ob.type == 'MESH' and 'lightarray' not in ob.name and ob.hide == False and ob.layers[scene.active_layer] == True and ob.get('licalc') == 1 and ob.lires == 0]
+
+    if (scene.li_disp_panel != 2 and scene.ss_disp_panel != 2) or scene.vi_display_rp != True \
+         or (bpy.context.active_object not in (obcalclist+obreslist) and scene.vi_display_sel_only == True)  \
+         or scene.frame_current not in range(scene.fs, scene.fe + 1) or (bpy.context.active_object and bpy.context.active_object.mode == 'EDIT'):
         return
         
-
     if bpy.context.active_object:
         if bpy.context.active_object.get('mode') and getattr(bpy.context.active_object, ('mode')) != 'OBJECT':
              bpy.context.active_object.mode = 'OBJECT'

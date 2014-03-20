@@ -366,15 +366,15 @@ class NODE_OT_ESOSelect(bpy.types.Operator, io_utils.ImportHelper):
     bl_register = True
     bl_undo = True
 
-    nodename = bpy.props.StringProperty()
-
+    nodeid = bpy.props.StringProperty()
+    
     def draw(self,context):
         layout = self.layout
         row = layout.row()
         row.label(text="Open an eso results file with the file browser", icon='WORLD_DATA')
 
     def execute(self, context):
-        bpy.data.node_groups['VI Network'].nodes[self.nodename].resfilename = self.filepath
+        bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].resfilename = self.filepath
         return {'FINISHED'}
 
     def invoke(self,context,event):
@@ -476,13 +476,14 @@ class NODE_OT_FileProcess(bpy.types.Operator, io_utils.ExportHelper):
     bl_description = "Process EnergyPlus results file"
     bl_register = True
     bl_undo = True
-    nodename = bpy.props.StringProperty()
+    
+    nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        node = bpy.data.node_groups['VI Network'].nodes[self.nodename]
+        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         processf(self, node)
-        if not node.outputs:
-            node.outputs.new('ViEnROut', 'Results out')
+        node.outputs['Results out'].hide = False
+        node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
         return {'FINISHED'}
 
 class NODE_OT_SunPath(bpy.types.Operator):

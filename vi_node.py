@@ -570,7 +570,7 @@ class ViLoc(bpy.types.Node, ViNodes):
             row.prop(scene, "latitude")
             row = layout.row()
             row.prop(scene, "longitude")
-        if not self.outputs['Location out'].is_linked or (self.outputs['Location out'].is_linked and 'LiVi Basic' not in self.outputs['Location out'].links[0].to_node.bl_label):
+        if not self.outputs['Location out'].is_linked or (self.outputs['Location out'].is_linked and self.outputs['Location out'].links[0].to_node.bl_label not in ('LiVi Basic', 'VI Sun Path')):
             row = layout.row()
             row.prop(self, "startmonth")
             row = layout.row()
@@ -751,19 +751,30 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
 class ViEnRFNode(bpy.types.Node, ViNodes):
     '''Node for EnergyPlus results file selection'''
     bl_idname = 'ViEnRFNode'
-    bl_label = 'VI EnergyPLus results file selection'
+    bl_label = 'EnVi Results File'
+    
+    def nodeexported(self, context):
+        self.bl_label = '*EnVi Results File'
+        self.outputs['Results out'].hide = True
 
-    resfilename = bpy.props.StringProperty(name="", description="Name of the EnVi results file", default="")
+    resfilename = bpy.props.StringProperty(name="", description="Name of the EnVi results file", default="", update = nodeexported)
     dsdoy = bpy.props.IntProperty()
     dedoy = bpy.props.IntProperty()
-
+    
+    def init(self, context):
+        self.outputs.new('ViEnR', 'Results out')
+        self.outputs['Results out'].hide = True
+        for ng in bpy.data.node_groups:
+            if self in ng.nodes[:]:
+                self['nodeid'] = self.name+'@'+ng.name
+    
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.label('ESO file:')
-        row.operator('node.esoselect', text = 'Select ESO file').nodename = self.name
+        row.operator('node.esoselect', text = 'Select ESO file').nodeid = self['nodeid']
         row = layout.row()
         row.prop(self, 'resfilename')
-        row.operator("node.fileprocess", text = 'Process file').nodename = self.name
+        row.operator("node.fileprocess", text = 'Process file').nodeid = self['nodeid']
 
 
 #class ViEnRNode(bpy.types.Node, ViNodes):
@@ -797,9 +808,9 @@ class ViEnRFNode(bpy.types.Node, ViNodes):
 
 
 class ViEnRNode(bpy.types.Node, ViNodes):
-    '''Node for EnergyPlus 2D results analysis'''
-    bl_idname = 'ViEnRNode'
-    bl_label = 'VI EnergyPLus results'
+    '''Node for 2D results plotting'''
+    bl_idname = 'ViChNode'
+    bl_label = 'VI Chart'
 
     ctypes = [("0", "Line/Scatter", "Line/Scatter Plot"), ("1", "Bar", "Bar Chart")]
     dsh = bpy.props.IntProperty(name = "Start", description = "", min = 1, max = 24, default = 1)
@@ -1329,7 +1340,7 @@ vinodecat = [NodeItem("ViLiSNode", label="LiVi Simulation"),\
 
 vigennodecat = [NodeItem("ViGenNode", label="VI-Suite Generative"), NodeItem("ViTarNode", label="VI-Suite Target")]
 
-vidisnodecat = [NodeItem("ViEnRNode", label="VI-Suite Chart"), NodeItem("ViEnRFNode", label="EnergyPlus result file")]
+vidisnodecat = [NodeItem("ViChNode", label="VI-Suite Chart"), NodeItem("ViEnRFNode", label="EnergyPlus result file")]
 
 vinode_categories = [ViNodeCategory("Display", "Display Nodes", items=vidisnodecat), ViNodeCategory("Generative", "Generative Nodes", items=vigennodecat), ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat), ViNodeCategory("Export", "Export Nodes", items=viexnodecat)]
 

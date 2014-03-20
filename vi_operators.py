@@ -417,7 +417,9 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
                     bpy.ops.object.mode_set(mode = 'OBJECT')
             if " " not in str(node.filedir) and " " not in str(node.filename):
                 enpolymatexport(self, node, locnode, envi_mats, envi_cons)
+                node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
                 node.exported = True
+                node.outputs['Context out'].hide = False
             elif " " in str(node.filedir):
                 self.report({'ERROR'},"The directory path containing the Blender file has a space in it.")
                 return {'FINISHED'}
@@ -440,9 +442,9 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
 
     def invoke(self, context, event):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        envi_sim(self, node)
-        if not node.outputs:
-            node.outputs.new('ViEnROut', 'Results out')
+        connode = node.inputs['Context in'].links[0].from_node
+        envi_sim(self, node, connode)
+        node.outputs['Results out'].hide = False
         if node.outputs[0].is_linked:
             socket1, socket2  = node.outputs[0], node.outputs[0].links[0].to_socket
             bpy.data.node_groups[self.nodeid.split('@')[1]].links.remove(node.outputs[0].links[0])

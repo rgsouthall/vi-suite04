@@ -377,7 +377,8 @@ class ViLiCNode(bpy.types.Node, ViNodes):
     analysismenu = bpy.props.EnumProperty(name="", description="Type of analysis", items = analysistype, default = '0', update = nodeexported)
     bambuildmenu = bpy.props.EnumProperty(name="", description="Type of building", items=bambuildtype, default = '0', update = nodeexported)
     cusacc = bpy.props.StringProperty(name="", description="Custom Radiance simulation parameters", default="", update = nodeexported)
-
+    skytypeparams = "-b 22.86 -c"
+    
     def init(self, context):
         self.inputs.new('ViLiG', 'Geometry in')
         self.outputs.new('ViLiC', 'Context out')
@@ -494,12 +495,13 @@ class ViSSNode(bpy.types.Node, ViNodes):
                 self['nodeid'] = self.name+'@'+ng.name
 
     def draw_buttons(self, context, layout):
-        newrow(layout, 'Animation:', self, "animmenu")
-        newrow(layout, 'Start hour:', self, "starthour")
-        newrow(layout, 'End hour:', self, "endhour")
-        newrow(layout, 'Interval:', self, "interval")
-        row = layout.row()
-        row.operator("node.shad", text = 'Calculate').nodeid = self['nodeid']
+        if self.inputs['Location in'].is_linked:
+            newrow(layout, 'Animation:', self, "animmenu")
+            newrow(layout, 'Start hour:', self, "starthour")
+            newrow(layout, 'End hour:', self, "endhour")
+            newrow(layout, 'Interval:', self, "interval")
+            row = layout.row()
+            row.operator("node.shad", text = 'Calculate').nodeid = self['nodeid']
 
 class ViWRNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite wind rose generator'''
@@ -575,22 +577,23 @@ class ViLoc(bpy.types.Node, ViNodes):
             row.prop(self, "endmonth")
 
 class ViGExEnNode(bpy.types.Node, ViNodes):
-    '''Node describing a VI-Suite export type'''
+    '''Node describing an EnVi Geometry Export'''
     bl_idname = 'ViGExEnNode'
-    bl_label = 'VI EP geometry conversion'
+    bl_label = 'EnVi Geometry'
 
     exported = bpy.props.BoolProperty()
 
     def nodeexported(self, context):
         self.exported = False
+        self.outputs['Geometry out'].hide = True
 
     animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis"), ('Material', "Material", "Animated material analysis"), ('Lights', "Lights", "Animated artificial lighting analysis")]
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
     epfiles = []
 
     def init(self, context):
-        self.outputs.new('ViEnGOut', 'Geometry out')
-        self.outputs[0].hide = True
+        self.outputs.new('ViEnG', 'Geometry out')
+        self.outputs['Geometry out'].hide = True
         for ng in bpy.data.node_groups:
             if self in ng.nodes[:]:
                 self['nodeid'] = self.name+'@'+ng.name
@@ -611,7 +614,7 @@ class ViGExEnNode(bpy.types.Node, ViNodes):
 class ViExEnNode(bpy.types.Node, ViNodes):
     '''Node describing an EnergyPlus export'''
     bl_idname = 'ViExEnNode'
-    bl_label = 'VI EnergyPLus analysis'
+    bl_label = 'EnVi Export'
     bl_icon = 'LAMP'
 
     nproc = bpy.props.StringProperty()
@@ -626,14 +629,11 @@ class ViExEnNode(bpy.types.Node, ViNodes):
     filebase = bpy.props.StringProperty()
     idf_file = bpy.props.StringProperty()
     exported = bpy.props.BoolProperty()
-    resname = bpy.props.StringProperty(name="Results Name", description="Base name for the results files", default="results")
-    dsdoy = bpy.props.IntProperty()
-    dedoy = bpy.props.IntProperty()
-
+    
     def nodeexported(self, context):
         self.exported = False
-        self.bl_label = '*VI EnergyPLus analysis'
-
+        self.bl_label = '*EnVi Export'
+        self.outputs['Context out'].hide = True
 
     loc = bpy.props.StringProperty(name="", description="Identifier for this project", default="", update = nodeexported)
     terrain = bpy.props.EnumProperty(items=[("0", "City", "Towns, city outskirts, centre of large cities"),
@@ -643,13 +643,10 @@ class ViExEnNode(bpy.types.Node, ViNodes):
 
     addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
     matpath = addonpath+'/EPFiles/Materials/Materials.data'
-#    epwpath = addonpath+'/EPFiles/Weather/'
-#    weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]
-#    weather = bpy.props.EnumProperty(items = weatherlist, name="", description="Weather for this project")
     sdoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeexported)
     edoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeexported)
     timesteps = bpy.props.IntProperty(name = "", description = "Time steps per hour", min = 1, max = 4, default = 1, update = nodeexported)
-    resfilename = bpy.props.StringProperty(name = "", default = 'results')
+    
     restype= bpy.props.EnumProperty(items = [("0", "Ambient", "Ambient Conditions"), ("1", "Zone Thermal", "Thermal Results"), ("2", "Comfort", "Comfort Results"), ("3", "Zone Ventilation", "Zone Ventilation Results"), ("4", "Ventilation Link", "ZoneVentilation Results")],
                                    name="", description="Specify the EnVi results catagory", default="0", update = nodeexported)
 
@@ -679,8 +676,10 @@ class ViExEnNode(bpy.types.Node, ViNodes):
 
     
     def init(self, context):
-        self.inputs.new('ViEnGIn', 'Geometry in')
+        self.inputs.new('ViEnG', 'Geometry in')
         self.inputs.new('ViLoc', 'Location in')
+        self.outputs.new('ViEnC', 'Context out')
+        self.outputs['Context out'].hide = True
         nodeinit(self)
         for ng in bpy.data.node_groups:
             if self in ng.nodes[:]:
@@ -714,12 +713,40 @@ class ViExEnNode(bpy.types.Node, ViNodes):
             row = layout.row()
             row.operator("node.enexport", text = 'Export').nodeid = self['nodeid']
 
-            if self.exported == True and self.inputs['Geometry in'].links[0].from_node.exported == True:
-                row = layout.row()
-                row.label(text = 'Results name:')
-                row.prop(self, 'resname')
-                row = layout.row()
-                row.operator("node.ensim", text = 'Calculate').nodeid = self['nodeid']
+#            if self.exported == True and self.inputs['Geometry in'].links[0].from_node.exported == True:
+#                self.outputs['Context out'].hide = False
+                
+class ViEnSimNode(bpy.types.Node, ViNodes):
+    '''Node describing an EnergyPlus simulation'''
+    bl_idname = 'ViEnSimNode'
+    bl_label = 'EnVi Simulation'
+    bl_icon = 'LAMP' 
+
+    def init(self, context):
+        self.inputs.new('ViEnC', 'Context in') 
+        self.outputs.new('ViEnR', 'Results out')
+        self.outputs['Results out'].hide = True
+        for ng in bpy.data.node_groups:
+            if self in ng.nodes[:]:
+                self['nodeid'] = self.name+'@'+ng.name 
+                
+    def nodeexported(self, context):
+        self.exported = False
+        self.bl_label = '*EnVi Simulation'
+        self.outputs['Results out'].hide = True
+        
+    resname = bpy.props.StringProperty(name="", description="Base name for the results files", default="results", update = nodeexported)
+    resfilename = bpy.props.StringProperty(name = "", default = 'results')
+    dsdoy = bpy.props.IntProperty()
+    dedoy = bpy.props.IntProperty()
+    
+    def draw_buttons(self, context, layout):
+         if self.inputs['Context in'].is_linked:       
+            row = layout.row()
+            row.label(text = 'Results name:')
+            row.prop(self, 'resname')
+            row = layout.row()
+            row.operator("node.ensim", text = 'Calculate').nodeid = self['nodeid']
 
 class ViEnRFNode(bpy.types.Node, ViNodes):
     '''Node for EnergyPlus results file selection'''
@@ -1149,10 +1176,10 @@ class ViTar(bpy.types.NodeSocket):
     def color(self):
         return (1.0, 0.0, 1.0, 0.75)
 
-class ViEnGOut(bpy.types.NodeSocket):
+class ViEnG(bpy.types.NodeSocket):
     '''Energy geometry out socket'''
-    bl_idname = 'ViEnGOut'
-    bl_label = 'Geometry out'
+    bl_idname = 'ViEnG'
+    bl_label = 'EnVi Geometry'
 
     def draw(self, context, layout, node, text):
         layout.label(text)
@@ -1163,10 +1190,10 @@ class ViEnGOut(bpy.types.NodeSocket):
     def color(self):
         return (0.0, 0.0, 1.0, 0.75)
 
-class ViEnROut(bpy.types.NodeSocket):
-    '''Energy geometry out socket'''
-    bl_idname = 'ViEnROut'
-    bl_label = 'results out'
+class ViEnR(bpy.types.NodeSocket):
+    '''Energy results out socket'''
+    bl_idname = 'ViEnR'
+    bl_label = 'EnVi results'
 
     def draw(self, context, layout, node, text):
         layout.label(text)
@@ -1176,20 +1203,34 @@ class ViEnROut(bpy.types.NodeSocket):
 
     def color(self):
         return (0.0, 1.0, 0.0, 0.75)
-
-class ViEnGIn(bpy.types.NodeSocket):
-    '''Energy geometry out socket'''
-    bl_idname = 'ViEnGIn'
-    bl_label = 'Geometry in'
+        
+class ViEnC(bpy.types.NodeSocket):
+    '''EnVi context socket'''
+    bl_idname = 'ViEnC'
+    bl_label = 'EnVi context'
 
     def draw(self, context, layout, node, text):
         layout.label(text)
 
     def draw_color(self, context, node):
-        return (0.0, 0.0, 1.0, 0.75)
+        return (0.0, 1.0, 1.0, 0.75)
 
     def color(self):
-        return (0.0, 0.0, 1.0, 0.75)
+        return (0.0, 1.0, 1.0, 0.75)
+
+#class ViEnGIn(bpy.types.NodeSocket):
+#    '''Energy geometry out socket'''
+#    bl_idname = 'ViEnGIn'
+#    bl_label = 'Geometry in'
+#
+#    def draw(self, context, layout, node, text):
+#        layout.label(text)
+#
+#    def draw_color(self, context, node):
+#        return (0.0, 0.0, 1.0, 0.75)
+#
+#    def color(self):
+#        return (0.0, 0.0, 1.0, 0.75)
 
 class EnViDataIn(bpy.types.NodeSocket):
     '''EnVi data in socket'''
@@ -1281,10 +1322,10 @@ class ViTarNode(bpy.types.Node, ViNodes):
         newrow(layout, 'Statistic:', self, 'stat')
         newrow(layout, 'Value:', self, 'value')
 
-viexnodecat = [NodeItem("ViGExLiNode", label="LiVi Geometry"), NodeItem("ViLiNode", label="LiVi Basic"), NodeItem("ViLiCNode", label="LiVi Compliance"), NodeItem("ViLiCBNode", label="LiVi Climate Based"), NodeItem("ViGExEnNode", label="EnVi Export"), NodeItem("ViLoc", label="VI Location")]
+viexnodecat = [NodeItem("ViLoc", label="VI Location"), NodeItem("ViGExLiNode", label="LiVi Geometry"), NodeItem("ViLiNode", label="LiVi Basic"), NodeItem("ViLiCNode", label="LiVi Compliance"), NodeItem("ViLiCBNode", label="LiVi Climate Based"), NodeItem("ViGExEnNode", label="EnVi Geometry"), NodeItem("ViExEnNode", label="EnVi Export")]
 
 vinodecat = [NodeItem("ViLiSNode", label="LiVi Simulation"),\
-             NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), NodeItem("ViExEnNode", label="EnVi Simulation")]
+             NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), NodeItem("ViEnSimNode", label="EnVi Simulation")]
 
 vigennodecat = [NodeItem("ViGenNode", label="VI-Suite Generative"), NodeItem("ViTarNode", label="VI-Suite Target")]
 

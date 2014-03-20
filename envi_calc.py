@@ -8,9 +8,9 @@ from bpy.props import EnumProperty, IntProperty
 from .vi_func import iprop, eprop, processf
 from . import vi_node
 
-def envi_sim(calc_op, node):
-    node.resfilename = node.newdir+node.fold+node.resname+'.eso'
-    os.chdir(node.newdir)
+def envi_sim(calc_op, node, connode):
+    node.resfilename = connode.newdir+connode.fold+node.resname+'.eso'
+    os.chdir(connode.newdir)
     esimcmd = "EnergyPlus in.idf in.epw" 
     esimrun = Popen(esimcmd, shell = True, stdout = PIPE)
     for line in esimrun.stdout:
@@ -23,13 +23,13 @@ def envi_sim(calc_op, node):
             rename(fname, fname.replace("eplusout", node.resfilename.split(".")[0]))
 #    scene.envi_sim = True
     processf(calc_op, node)
-    node.dsdoy = node.sdoy # (locnode.startmonthnode.sdoy
-    node.dedoy = node.edoy
+    node.dsdoy = connode.sdoy # (locnode.startmonthnode.sdoy
+    node.dedoy = connode.edoy
     if node.resname+".err" not in [im.name for im in bpy.data.texts]:
-        bpy.data.texts.load(node.newdir+"/"+node.resname+".err")
+        bpy.data.texts.load(connode.newdir+"/"+node.resname+".err")
     calc_op.report({'INFO'}, "Calculation is finished.")  
             
     if node.resname+".err" not in [im.name for im in bpy.data.texts]:
-        bpy.data.texts.load(node.newdir+"/"+node.resname+".err")
+        bpy.data.texts.load(connode.newdir+"/"+node.resname+".err")
 
 #def envi_reslist    

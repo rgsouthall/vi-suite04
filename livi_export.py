@@ -219,7 +219,7 @@ def radcexport(export_op, node):
         if node.skynum < 4:
             starttime = datetime.datetime(2013, 1, 1, int(node.shour), int((node.shour - int(node.shour))*60)) + datetime.timedelta(node.sdoy - 1) if node.skynum < 3 else datetime.datetime(2013, 1, 1, 12)
             if node.animmenu == 'Time' and node.skynum < 3:
-                endtime = datetime.datetime(2013, 1, 1, node.ehour) + datetime.timedelta(node.edoy - 1)
+                endtime = datetime.datetime(2013, 1, 1, int(node.ehour), int((node.ehour - int(node.ehour))*60)) + datetime.timedelta(node.edoy - 1)
                 hours = (endtime-starttime).days*24 + (endtime-starttime).seconds/3600
                 scene.cfe = scene.frame_end = scene.fs + int(hours/node.interval) 
 

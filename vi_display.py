@@ -254,6 +254,8 @@ def li3D_legend(self, context, simnode, connode, geonode):
                     unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(connode.analysismenu)]
                 elif connode.bl_label == 'LiVi Compliance':
                     unit = "DF %"
+                else:
+                    unit = 'unit'
     
             cu = unit if connode else '% Sunlit'
     

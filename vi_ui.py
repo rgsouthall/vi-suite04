@@ -54,7 +54,7 @@ class Vi3DPanel(bpy.types.Panel):
                     if int(context.scene.vi_disp_3d) == 1:
                         newrow(layout, "3D Level", scene, "vi_disp_3dlevel")
 
-                    if context.mode == "OBJECT":
+                    if context.mode != "EDIT":
                         row = layout.row()
                         row.label(text="{:-<48}".format("Point visualisation "))
                         newrow(layout, "Enable:", scene, "vi_display_rp")

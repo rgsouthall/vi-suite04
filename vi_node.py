@@ -1910,7 +1910,7 @@ class EnViFanNode(bpy.types.Node, EnViNodes):
             newrow(layout, "Airstream fraction:", self, 'fmaf')
 
 class EnViExtNode(bpy.types.Node, EnViNodes):
-    '''Node describing a linkage component'''
+    '''Node describing an EnVi external node'''
     bl_idname = 'EnViExt'
     bl_label = 'Envi External Node'
     bl_icon = 'SOUND'

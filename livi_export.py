@@ -136,14 +136,14 @@ def radgexport(export_op, node, **kwargs):
                 if geo.type == 'LAMP':
                     if geo.parent:
                         geo = geo.parent
-                    radfile.write += "!xform -rx {0} -ry {1} -rz {2} -t {3[0]} {3[1]} {3[2]} {4}.rad\n\n".format((180/pi)*geo.rotation_euler[0] - 180, (180/pi)*geo.rotation_euler[1], (180/pi)*geo.rotation_euler[2], geo.location, node.newdir+os.path.sep+iesname+"-"+str(frame))
+                    radfile += "!xform -rx {0} -ry {1} -rz {2} -t {3[0]} {3[1]} {3[2]} {4}.rad\n\n".format((180/pi)*geo.rotation_euler[0] - 180, (180/pi)*geo.rotation_euler[1], (180/pi)*geo.rotation_euler[2], geo.location, node.newdir+os.path.sep+iesname+"-"+str(frame))
                 if 'lightarray' in geo.name:
                     spotmatrix, rotation = geo.matrix_world, geo.rotation_euler
                     for face in geo.data.polygons:
                         fx = sum([(spotmatrix*v.co)[0] for v in geo.data.vertices if v.index in face.vertices])/len(face.vertices)
                         fy = sum([(spotmatrix*v.co)[1] for v in geo.data.vertices if v.index in face.vertices])/len(face.vertices)
                         fz = sum([(spotmatrix*v.co)[2] for v in geo.data.vertices if v.index in face.vertices])/len(face.vertices)
-                        radfile.write += "!xform -rx {:.3f} -ry {:.3f} -rz {:.3f} -t {:.3f} {:.3f} {:.3f} {}\n".format((180/pi)*rotation[0], (180/pi)*rotation[1], (180/pi)*rotation[2], fx, fy, fz, node.newdir+os.path.sep+iesname+"-"+str(frame)+".rad")
+                        radfile += "!xform -rx {:.3f} -ry {:.3f} -rz {:.3f} -t {:.3f} {:.3f} {:.3f} {}\n".format((180/pi)*rotation[0], (180/pi)*rotation[1], (180/pi)*rotation[2], fx, fy, fz, node.newdir+os.path.sep+iesname+"-"+str(frame)+".rad")
         radfile += "# Sky \n\n"
         radfilelist.append(radfile)
 
@@ -290,25 +290,27 @@ def radcexport(export_op, node):
             
             elif node['source'] == '1' and int(node.analysismenu) > 1:
                 mtxfile = open(node.mtxname, "r")
+#                if not node.get('epwyear'):
+#                    node['epwyear'] = datetime.datetime.now().year
     
-            if node['source'] != '2' or int(node.analysismenu) > 1:
+            if node['source'] == '0':
                 if node.inputs['Location in'].is_linked:
                     mtxlines = mtxfile.readlines()
-                    vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), 1, 1).weekday(), locnode)
+                    vecvals, vals = mtx2vals(mtxlines, datetime.datetime(epwyear, 1, 1).weekday(), locnode)
                     mtxfile.close()
+                    node['vecvals'] = vecvals
                     node['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
                     oconvcmd = "oconv -w - > {0}-whitesky.oct".format(geonode.filebase)
                     Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = node['whitesky'].encode('utf-8'))
                     subprocess.call("vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0 | rcontrib -bn 146 -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o p%d.hdr -m sky_glow {}-whitesky.oct".format(geonode.nproc, geonode.filename), shell = True)
-    
-                    for j in range(0, 146):
-                        subprocess.call("pcomb -s {0} p{1}.hdr > ps{1}.hdr".format(vals[j], j), shell = True)
-                        subprocess.call("{0}  p{1}.hdr".format(geonode.rm, j), shell = True)
-    
-                    subprocess.call("pcomb -h  "+pcombfiles+" > "+geonode.newdir+os.path.sep+epwbase[0]+".hdr", shell = True)
-                    subprocess.call(geonode.rm+" ps*.hdr" , shell = True)
-                    node.hdrname = geonode.newdir+os.path.sep+epwbase[0]+".hdr"
-                    node['vecvals'] = vecvals
+                    if int(node.analysismenu) < 2:
+                        for j in range(0, 146):
+                            subprocess.call("pcomb -s {0} p{1}.hdr > ps{1}.hdr".format(vals[j], j), shell = True)
+                            subprocess.call("{0}  p{1}.hdr".format(geonode.rm, j), shell = True)        
+                        subprocess.call("pcomb -h  "+pcombfiles+" > "+geonode.newdir+os.path.sep+epwbase[0]+".hdr", shell = True)
+                        subprocess.call(geonode.rm+" ps*.hdr" , shell = True)
+                        node.hdrname = geonode.newdir+os.path.sep+epwbase[0]+".hdr"
+                    
                     if node.sourcemenu == '0' and node.hdr:
                         Popen("oconv -w - > {}{}{}.oct".format(geonode.newdir, os.path.sep, epwbase[0]), shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = hdrsky(geonode.newdir+os.path.sep+epwbase[0]+".hdr").encode('utf-8'))
                         subprocess.call('cnt 750 1500 | rcalc -f "'+os.path.join(scene.vipath, 'lib', 'latlong.cal"')+' -e "XD=1500;YD=750;inXD=0.000666;inYD=0.001333" | rtrace -af pan.af -n {} -x 1500 -y 750 -fac "{}{}{}.oct" > '.format(geonode.nproc, geonode.newdir, os.path.sep, epwbase[0]) + '"'+os.path.join(geonode.newdir, epwbase[0]+'p.hdr')+'"', shell=True)
@@ -408,8 +410,9 @@ def cyfc1(self):
         for material in bpy.data.materials:
             if material.use_nodes == 1:
                 try:
-                    if material.livi_sense or material.vi_shadow:
-                        nt = material.node_tree
+                    if material.livi_sense or material.vi_shadow and material.node_tree.nodes.get('Attribute'):
+#                        nt = material.node_tree
+#                        if nt.nodes.get('Attribute'):
                         nt.nodes["Attribute"].attribute_name = str(scene.frame_current)
                 except Exception as e:
                     print(e, 'Something wrong with changing the material attribute name')

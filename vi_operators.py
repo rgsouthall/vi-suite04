@@ -134,7 +134,7 @@ class NODE_OT_MtxSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
 
     def execute(self, context):
         if self.filepath.split(".")[-1] in ("MTX", "mtx"):
-            bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodename].vecname = self.filepath
+            bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].mtxname = self.filepath
         if " " in self.filepath:
             self.report({'ERROR'}, "There is a space either in the matrix filename or its directory location. Remove this space and retry opening the file.")
         return {'FINISHED'}
@@ -162,7 +162,7 @@ class NODE_OT_SkySelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
 
     def execute(self, context):
         if self.filepath.split(".")[-1] in ("RAD", "rad"):
-            bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodename].skyname = self.filepath
+            bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].skyname = self.filepath
         if " " in self.filepath:
             self.report({'ERROR'}, "There is a space either in the Radiance sky filename or its directory location. Remove this space and retry opening the file.")
         return {'FINISHED'}

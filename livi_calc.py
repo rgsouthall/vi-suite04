@@ -59,10 +59,8 @@ def rad_prev(prev_op, simnode, connode, geonode, simacc):
         prev_op.report({'ERROR'},"Missing export file. Make sure you have exported the scene.")
 
 def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs): 
-    print(kwargs)
     scene = bpy.context.scene
     frames = range(scene.fs, scene.fe + 1)
-#    frameis = vi_func.frameindex(scene, simnode['Animation']) if not kwargs.get('genframe') else range(kwargs['genframe'] - scene.frame_start, kwargs['genframe'] - scene.frame_start + 1)    
     os.chdir(geonode.newdir)
     if bpy.context.active_object and bpy.context.active_object.mode != 'OBJECT':
         bpy.ops.object.mode_set(mode = 'OBJECT')
@@ -520,7 +518,7 @@ def resapply(calc_op, res, svres, simnode, connode, geonode):
                                 passarea = 0
 
                         elif c[0] == 'Min':
-                            if min(svres[frame][fstart:fend]) > c[3]:
+                            if min(res[frame][fstart:fend]) > c[3]:
                                 comps[frame].append(1)
                             else:
                                 comps[frame].append(0)

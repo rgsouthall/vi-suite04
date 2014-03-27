@@ -49,8 +49,8 @@ def rad_prev(prev_op, simnode, connode, geonode, simacc):
             rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0][2]:.3f} {3[1][2]:.3f} {3[2][2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct &".format(geonode.nproc, vv, cang, -1*cam.matrix_world, cam.location, params, geonode.filebase, scene.frame_current)
             rvurun = Popen(rvucmd, shell = True, stdout=PIPE, stderr=STDOUT)
             for l,line in enumerate(rvurun.stdout):
-                if 'octree stale?' in line.decode() or 'truncated octree' in line.decode():
-                    radfexport(scene, prev_op, connode, geonode)
+                if 'octree' in line.decode() or 'mesh' in line.decode():
+                    radfexport(scene, prev_op, connode, geonode, [scene.frame_current])
                     rad_prev(prev_op, simnode, connode, geonode, simacc)
                     return
         else:
@@ -60,7 +60,7 @@ def rad_prev(prev_op, simnode, connode, geonode, simacc):
 
 def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs): 
     scene = bpy.context.scene
-    frames = range(scene.fs, scene.fe + 1)
+    frames = range(scene.fs, scene.fe + 1) if not kwargs.get('genframe') else [kwargs['genframe']]
     os.chdir(geonode.newdir)
     if bpy.context.active_object and bpy.context.active_object.mode != 'OBJECT':
         bpy.ops.object.mode_set(mode = 'OBJECT')
@@ -89,9 +89,8 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
         else:
             res, svres = [[[0 for p in range(geonode.reslen)] for x in range(len(frames))] for x in range(2)]
 
-        for frame in frames:
-            
-            findex = frame - scene.fs
+        for frame in frames:            
+            findex = frame - scene.fs if not kwargs.get('genframe') else 0
             if connode.bl_label in ('LiVi Basic', 'LiVi Compliance') or (connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) < 2):
                 if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
                     subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
@@ -99,12 +98,12 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                 rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
                 with open(os.path.join(geonode.newdir, resname+"-"+str(frame)+".res"), 'w') as resfile:
                     for l,line in enumerate(rtrun.stdout):
-                        if 'octree stale?' in line.decode() or 'truncated octree' in line.decode():
+                        if 'octree' in line.decode() or 'mesh' in line.decode():
                             resfile.close()
                             radfexport(scene, calc_op, connode, geonode, frames)
                             if kwargs.get('genframe'):
                                 res = li_calc(calc_op, simnode, connode, geonode, simacc, genframe = kwargs.get('genframe'))
-                                return(res[0])
+                                return(res)                                
                             else:
                                 li_calc(calc_op, simnode, connode, geonode, simacc)
                                 return
@@ -180,9 +179,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                 
                 if connode.analysismenu == '3':
                     res = reswatt
-                            
-#            if not kwargs.get('genframe'):        
-#                resapply(calc_op, frame, res, svres, simnode, connode, geonode, kwargs.get('genframe'))
+
             if connode.analysismenu != '3' or connode.bl_label != 'LiVi CBDM':
                 fi, vi = 0, 0       
                 for geo in vi_func.retobjs('livic'):
@@ -198,11 +195,11 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                                     obcalcverts.append(geo.data.vertices[vert])
                                     vi += 1
                         else:
-                            weightres += vi_func.triarea(geo, face) * res[frame][fi]/geoarea
-                            obres.append(res[frame][fi])
+                            weightres += vi_func.triarea(geo, face) * res[findex][fi]/geoarea
+                            obres.append(res[findex][fi])
                             fi += 1
         
-                    if (frame == scene.fs and not kwargs.get('genframe')) or (kwargs.get('genframe') and frame == scene.frame_start):
+                    if (frame == scene.fs and not kwargs.get('genframe')) or (kwargs.get('genframe') and kwargs['genframe'] == scene.frame_start):
                         geo['oave'], geo['omax'], geo['omin'], geo['oreslist'] = {}, {}, {}, {}
                     
                     geo['oave'][str(frame)] = weightres

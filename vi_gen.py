@@ -11,7 +11,6 @@ except:
 def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tarnode):
     scene = bpy.context.scene 
     simnode['Animation'] = 'Animated'
-    manipfaces = []
     if geogennode.geomenu == 'Object':
         if geogennode.oselmenu == 'All':
             manipobs = [ob for ob in vi_func.retobjs('livig') if ob not in vi_func.retobjs('livic')]
@@ -19,8 +18,8 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
             manipobs = [ob for ob in vi_func.retobjs('livig') if ob.select == True and ob not in vi_func.retobjs('livic')]
         else:
             manipobs = [ob for ob in vi_func.retobjs('livig') if ob.select == False and ob not in vi_func.retobjs('livic')]
-        for ob in manipobs:
-            ob.manip = 1
+#        for ob in vi_func.retobjs('livig'):
+            
     
     elif geogennode.geomenu == 'Mesh':  
         if geogennode.oselmenu == 'All':
@@ -31,7 +30,7 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
             manipobs = [ob for ob in vi_func.retobjs('livig') if ob.select == False] 
        
         for ob in manipobs:
-            ob.manip = 1
+#            ob.manip = 1
             vi_func.selobj(scene, ob)
 
             bpy.ops.object.mode_set(mode = 'EDIT')
@@ -51,6 +50,7 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
             ob['vgi'] = ob.vertex_groups['genfaces'].index
             
     for ob in vi_func.retobjs('livig'):
+        ob.manip = 1 if ob in manipobs else 0
         vi_func.selobj(scene, ob)
         ob.animation_data_clear()
         ob.data.animation_data_clear()
@@ -83,18 +83,21 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
     
     while scene.frame_current < scene.frame_start + geogennode.steps + 1 and vi_func.retobjs('livic'):        
         if scene.frame_current == scene.frame_start + 1 and geogennode.geomenu == 'Mesh':            
-            for ob in manipobs:              
+            for ob in manipobs:  
+                vi_func.selobj(scene, ob)
                 for face in ob.data.polygons:
-                    face.select = True if face in manipfaces else False
-                    if geogennode.mmanmenu == '3':
-                        if face.select == True:
-                            manipfaces.remove(face)
+                    try:
+                        face.select = True if all([ob.data.vertices[v].groups[ob['vgi']] for v in face.vertices]) else False
+                    except:
+                        face.select = False
+
                 if geogennode.mmanmenu == '3': 
                     bpy.ops.object.mode_set(mode = 'EDIT')                    
                     bpy.ops.mesh.extrude_faces_move(MESH_OT_extrude_faces_indiv={"mirror":False}, TRANSFORM_OT_shrink_fatten={"value":0})
                     if ob.vertex_groups.get('genexfaces'):
-                        bpy.context.object.vertex_groups.active_index  = 1
-                        bpy.ops.object.vertex_group_remove()
+                        while len(ob.vertex_groups) > 1:
+                            ob.vertex_groups.active_index = 1
+                            bpy.ops.object.vertex_group_remove()
                     ob.vertex_groups.new('genexfaces')
                     bpy.context.object.vertex_groups.active_index  = 1
                     bpy.ops.object.vertex_group_assign()
@@ -106,13 +109,14 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
             for ob in manipobs:
                 ob.keyframe_insert(data_path='["licalc"]')
                 vi_func.selobj(scene, ob)  
-                if ob.manip == 1 and geogennode.geomenu == 'Mesh':
+                if ob['licalc'] == 1 and ob.manip == 1 and geogennode.geomenu == 'Mesh':
                     bpy.ops.object.shape_key_add(from_mix = False)
                     ob.active_shape_key.name = 'gen-' + str(scene.frame_current)
                 
-                modgeo(ob, geogennode, scene, scene.frame_current, scene.frame_start, mf = manipfaces)   
+                
+                    modgeo(ob, geogennode, scene, scene.frame_current, scene.frame_start)   
         
-                if ob.manip == 1 and geogennode.geomenu == 'Mesh':
+#                    if ob.manip == 1 and geogennode.geomenu == 'Mesh':
                     for shape in ob.data.shape_keys.key_blocks:
                         if "Basis" not in shape.name:
                             shape.value = 1 if shape.name == 'gen-{}'.format(scene.frame_current) else 0
@@ -127,8 +131,7 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
         
         scene.frame_end = scene.frame_current + 1                        
         scene.frame_set(scene.frame_current + 1)
-        
-    
+            
     scene.frame_end = scene.frame_end - 1  
     scene.fs = scene.frame_start    
     resapply(calc_op, res, 0, simnode, connode, geonode)
@@ -147,7 +150,7 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
     vi_func.vcframe('', scene, livicgeos, simnode['Animation'])            
     scene.frame_current = scene.frame_start       
         
-def modgeo(ob, geogennode, scene, fc, fs, **kwargs):            
+def modgeo(ob, geogennode, scene, fc, fs):            
     if geogennode.geomenu == 'Object':
         direc = [(-1, 1)[geogennode.direction == '0'] * xyz for xyz in (geogennode.x, geogennode.y, geogennode.z)]
         if geogennode.omanmenu == '0':
@@ -185,4 +188,4 @@ def modgeo(ob, geogennode, scene, fc, fs, **kwargs):
                                 ob.data.shape_keys.key_blocks['gen-{}'.format(fc)].data[v].co = (mat_scl * (ob.data.shape_keys.key_blocks['Basis'].data[v].co - mathutils.Vector(fcent))) + mathutils.Vector(fcent)
                 
                 except Exception as e:
-                    print(e)        
+                    pass        

@@ -49,12 +49,13 @@ def radgexport(export_op, node, **kwargs):
 #    frameis = frameindex(scene, node.animmenu) if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else frameindex(scene, 'Static')
 
 #    frameisg = frameis if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else rangescene.frame_current
-    
+#    print('frame', scene.fs, scene.gfe + 1, scene.frame_current)
     for frame in range(scene.fs, scene.gfe + 1):
+        
         if export_op.nodeid.split('@')[0] == 'LiVi Geometry':
-            scene.frame_current = frame
-        else:
-            frame = kwargs.get('genframe')
+            scene.frame_set(frame)
+#        else:
+#            frame = kwargs.get('genframe')
 
         # Material export routine
 
@@ -90,7 +91,7 @@ def radgexport(export_op, node, **kwargs):
                     objcmd = "obj2mesh -w -a {} {} {}".format(retmat(scene.frame_start, node), retobj(o.name, scene.frame_start, node), retmesh(o.name, scene.frame_start, node))
                     objrun = Popen(objcmd, shell = True, stdout = PIPE)
                 else:
-                    if frame == scene.fs:
+                    if frame == scene.fs:                        
                         bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_current, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=True, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
                         objcmd = "obj2mesh -w -a {} {} {}".format(retmat(frame, node), retobj(o.name, scene.frame_current, node), retmesh(o.name, scene.frame_current, node))
                         objrun = Popen(objcmd, shell = True, stdout = PIPE)
@@ -202,7 +203,6 @@ def radgexport(export_op, node, **kwargs):
     scene.fe = max(scene.cfe, scene.gfe)
     node.export = 1
 
-
 def radcexport(export_op, node):
     skyfileslist, scene, scene.li_disp_panel, scene.vi_display = [], bpy.context.scene, 0, 0
     scene['LiViContext'] = node.bl_label
@@ -215,6 +215,7 @@ def radcexport(export_op, node):
         if not node['Animation']:
             export_op.report({'ERROR'},"You cannot run a geometry and time based animation at the same time")
             return
+        scene.cfe = 0
 
         if node.skynum < 4:
             starttime = datetime.datetime(2013, 1, 1, int(node.shour), int((node.shour - int(node.shour))*60)) + datetime.timedelta(node.sdoy - 1) if node.skynum < 3 else datetime.datetime(2013, 1, 1, 12)
@@ -296,7 +297,7 @@ def radcexport(export_op, node):
             if node['source'] == '0':
                 if node.inputs['Location in'].is_linked:
                     mtxlines = mtxfile.readlines()
-                    vecvals, vals = mtx2vals(mtxlines, datetime.datetime(epwyear, 1, 1).weekday(), locnode)
+                    vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), 1, 1).weekday(), locnode)
                     mtxfile.close()
                     node['vecvals'] = vecvals
                     node['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"

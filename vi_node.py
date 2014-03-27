@@ -17,10 +17,10 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, glob, os, inspect#, datetime
+import bpy, glob, os, inspect, sys#, datetime
 #from math import pi, sin, cos
 from nodeitems_utils import NodeCategory, NodeItem
-from .vi_func import nodeinit, objvol, triarea, socklink, newrow
+from .vi_func import nodeinit, objvol, triarea, socklink, newrow, latilongi
 
 try:
     import numpy
@@ -54,10 +54,11 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
         if self.bl_label[0] != '*':
             self.bl_label = '*'+self.bl_label
         self.outputs['Generative out'].hide = True if self.animmenu != 'Static' else False
-#        if self.outputs[0].is_linked:
-#            link = self.outputs[0].links[0]
-#            bpy.data.node_groups[self['nodeid'].split('@')[1]].links.remove(link)
-#        self.outputs[0].hide = True
+#        self.outputs['Geometry out'].hide = True
+        if self.outputs['Geometry out'].is_linked:
+            link = self.outputs['Geometry out'].links[0]
+            bpy.data.node_groups[self['nodeid'].split('@')[1]].links.remove(link)
+        self.outputs['Geometry out'].hide = True
 
     animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis"), ('Material', "Material", "Animated material analysis"), ('Lights', "Lights", "Animated artificial lighting analysis")]
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
@@ -125,7 +126,12 @@ class ViLiNode(bpy.types.Node, ViNodes):
             self.needloc = 1
         if int(self.skymenu) < 4:
             self.skytypeparams = ("+s", "+i", "-c", "-b 22.86 -c")[int(self.skymenu)]
-                    
+        self.skynum = int(self.skymenu) if self.analysismenu != "2" else 3
+        self.simalg = (" |  rcalc  -e '$1=47.4*$1+120*$2+11.6*$3' ", " |  rcalc  -e '$1=$1' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' ", '')[int(self.analysismenu)] \
+            if str(sys.platform) != 'win32' else (' |  rcalc  -e "$1=47.4*$1+120*$2+11.6*$3" ', ' |  rcalc  -e "$1=$1" ', ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ', '')[int(self.analysismenu)]
+        if self.inputs['Location in'].is_linked and self.inputs['Location in'].links[0].from_node.bl_label == 'VI Location':
+            latilongi(context.scene, self.inputs['Location in'].links[0].from_node)
+    
     def edupdate(self, context):
         if self.edoy < self.sdoy:
             self.edoy = self.sdoy
@@ -142,35 +148,19 @@ class ViLiNode(bpy.types.Node, ViNodes):
         self.outputs['Context out'].hide = True
 
     analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0', update = nodeexported)
-    simalg = bpy.props.StringProperty(name="", description="Algorithm to run on the radiance results", default="")
+    simalg = bpy.props.StringProperty(name="", description="Algorithm to run on the radiance results", default=" |  rcalc  -e '$1=47.4*$1+120*$2+11.6*$3' " if str(sys.platform) != 'win32' else ' |  rcalc  -e "$1=47.4*$1+120*$2+11.6*$3" ')
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeexported)
     skymenu = bpy.props.EnumProperty(name="", items=skylist, description="Specify the type of sky for the simulation", default="0", update = nodeexported)
     shour = bpy.props.FloatProperty(name="", description="Hour of simulation", min=1, max=24, default=12, update = ehupdate)
     sdoy = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=365, default=1, update = edupdate)
     ehour = bpy.props.FloatProperty(name="", description="Hour of simulation", min=1, max=24, default=12, update = ehupdate)
     edoy = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=365, default=1, update = edupdate)
-#    daysav = bpy.props.BoolProperty(name="", description="Enable daylight saving clock", default=False, update = nodeexported)
-#    lati = bpy.props.FloatProperty(name="", description="Site Latitude", min=-90, max=90, default=52, update = nodeexported)
-#    longi = bpy.props.FloatProperty(name="", description="Site Longitude relative to local meridian", min=-15, max=15, default=0, update = nodeexported)
-
-#    stamer = bpy.props.EnumProperty(
-#            items=[("0", "YST", ""),("1", "PST", ""),("2", "MST", ""),("3", "CST", ""),("4", "EST", ""),("GMT", "GMT", ""),("6", "CET", ""),("7", "EET", ""),
-#                   ("8", "AST", ""),("9", "GST", ""),("10", "IST", ""),("11", "JST", ""),("12", "NZST", ""), ],
-#            name="", description="Specify the local meridian", default="GMT")
-#
-#    summer = bpy.props.EnumProperty(
-#            items=[("0", "YDT", ""),("1", "PDT", ""),("2", "MDT", ""),("3", "CDT", ""),("4", "EDT", ""),("BST", "BST", ""),("6", "CEST", ""),
-#                   ("7", "EEST", ""),("8", "ADT", ""),("9", "GDT", ""),("10", "IDT", ""),("11", "JDT", ""),("12", "NZDT", ""),],
-#            name="", description="Specify the local Summertime meridian", default="BST")
-
     interval = bpy.props.FloatProperty(name="", description="Site Latitude", min=0.25, max=24, default=1, update = nodeexported)
     exported = bpy.props.BoolProperty(default=False)
     hdr = bpy.props.BoolProperty(name="", description="Export HDR panoramas", default=False, update = nodeexported)
     hdrname = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="", update = nodeexported)
     skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="", update = nodeexported)
     skynum = bpy.props.IntProperty()
-#    timetype = bpy.props.StringProperty()
-#    TZ = bpy.props.StringProperty()
     resname = bpy.props.StringProperty()
     rp_display = bpy.props.BoolProperty(default = False)
     needloc = bpy.props.BoolProperty(default = True)
@@ -241,6 +231,9 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         if self.sourcemenu != '0' and self.inputs['Location in'].is_linked:
             bpy.data.node_groups[self['nodeid'].split('@')[1]].links.remove(self.inputs['Location in'].links[0])
         self.inputs['Location in'].hide = False if self.sourcemenu == '0' else True
+        self.skynum = 4
+        self.simalg = (" |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/1000' ", " |  rcalc  -e '$1=($1+$2+$3)/3000' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)' ", " |  rcalc  -e '$1=($1+$2+$3)/3' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)' ")[int(self.analysismenu)]
+        self['wd'] = (7, 5)[self.weekdays]
 
     analysistype = [('0', "Light Exposure", "LuxHours Calculation"), ('1', "Radiation Exposure", "kWh/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Autonomy", "DA (%) Calculation"), ('3', "Hourly irradiance", "Irradiance for each simulation time step"), ('4', "UDI", "Useful Daylight Illuminance")]
     analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0', update = nodeexported)
@@ -251,12 +244,12 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
     sourcetype2 = [('0', "EPW", "EnergyPlus weather file"), ('2', "HDR", "HDR sky file")]
     sourcemenu = bpy.props.EnumProperty(name="", description="Source type", items=sourcetype, default = '0', update = nodeexported)
     sourcemenu2 = bpy.props.EnumProperty(name="", description="Source type", items=sourcetype2, default = '0', update = nodeexported)
-    simalg = bpy.props.StringProperty(name="", description="Algorithm to run on the radiance results", default="")
+    simalg = bpy.props.StringProperty(name="", description="Algorithm to run on the radiance results", default=" |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/1000' ")
     hdrname = bpy.props.StringProperty(
             name="", description="Name of the composite HDR sky file", default="", update = nodeexported)
     mtxname = bpy.props.StringProperty(
             name="", description="Name of the calculated vector sky file", default="", update = nodeexported)
-    weekdays = bpy.props.BoolProperty(name = '', default = False)
+    weekdays = bpy.props.BoolProperty(name = '', default = False, update = nodeexported)
     cbdm_start_hour =  bpy.props.IntProperty(name = '', default = 8, min = 1, max = 24)
     cbdm_end_hour =  bpy.props.IntProperty(name = '', default = 20, min = 1, max = 24)
     dalux =  bpy.props.IntProperty(name = '', default = 300, min = 1, max = 2000)
@@ -361,12 +354,14 @@ class ViLiCNode(bpy.types.Node, ViNodes):
         self.exported = False
         self.bl_label = '*LiVi Compliance'
         self.skynum = 3
+        if self.analysismenu in ('0', '1'):
+            self.simalg = " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' " if str(sys.platform) != 'win32' else ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" '
 
     interval = 0
     exported = bpy.props.BoolProperty(default=False)
     TZ = bpy.props.StringProperty(default = 'GMT')
     skynum = bpy.props.IntProperty(default = 3)
-    simalg = bpy.props.StringProperty(name="", description="Calculation algorithm", default="")
+    simalg = bpy.props.StringProperty(name="", description="Calculation algorithm", default=" |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' " if str(sys.platform) != 'win32' else ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ')
     resname = bpy.props.StringProperty()
     unit = bpy.props.StringProperty()
     hdr = bpy.props.BoolProperty(name="HDR", description="Export HDR panoramas", default=False, update = nodeexported)
@@ -1333,7 +1328,7 @@ class ViTarNode(bpy.types.Node, ViNodes):
         newrow(layout, 'Statistic:', self, 'stat')
         newrow(layout, 'Value:', self, 'value')
 
-viexnodecat = [NodeItem("ViLoc", label="VI Location"), NodeItem("ViGExLiNode", label="LiVi Geometry"), NodeItem("ViLiNode", label="LiVi Basic"), NodeItem("ViLiCNode", label="LiVi Compliance"), NodeItem("ViLiCBNode", label="LiVi Climate Based"), NodeItem("ViGExEnNode", label="EnVi Geometry"), NodeItem("ViExEnNode", label="EnVi Export")]
+viexnodecat = [NodeItem("ViLoc", label="VI Location"), NodeItem("ViGExLiNode", label="LiVi Geometry"), NodeItem("ViLiNode", label="LiVi Basic"), NodeItem("ViLiCNode", label="LiVi Compliance"), NodeItem("ViLiCBNode", label="LiVi CBDM"), NodeItem("ViGExEnNode", label="EnVi Geometry"), NodeItem("ViExEnNode", label="EnVi Export")]
 
 vinodecat = [NodeItem("ViLiSNode", label="LiVi Simulation"),\
              NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), NodeItem("ViEnSimNode", label="EnVi Simulation")]

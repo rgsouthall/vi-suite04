@@ -176,10 +176,10 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         if cp == "0" or not geonode:
             faces = [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons if ob.data.materials[f.material_index].vi_shadow] if simnode.bl_label == 'VI Shadow Study' else [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons if ob.data.materials[f.material_index].livi_sense]
             if scene.vi_display_vis_only:
-                faces = [f for f in faces if not scene.ray_cast(ob_mat*((vi_func.face_centre(ob, len(obreslist), f)))+ 0.05*f.normal, view_pos)[0]]
+                faces = [f for f in faces if not scene.ray_cast(ob_mat*((vi_func.face_centre(ob, len(obreslist), f)))+ 0.01*ob_mat*f.normal, view_pos)[0]]
         else:
             fverts = set(sum([list(f.vertices[:]) for f in ob.data.polygons if f.select], []))
-            verts = [ob.data.vertices[v] for v in fverts if not scene.ray_cast(ob_mat*vi_func.v_pos(ob, v) + 0.05*ob.data.vertices[v].normal,view_pos)[0]] if scene.vi_display_vis_only else [ob.data.vertices[v] for v in fverts] 
+            verts = [ob.data.vertices[v] for v in fverts if not scene.ray_cast(ob_mat*vi_func.v_pos(ob, v) + 0.01*ob.data.vertices[v].normal,view_pos)[0]] if scene.vi_display_vis_only else [ob.data.vertices[v] for v in fverts] 
             loops = []
             for v in verts:
                 for f in [f for f in ob.data.polygons if f.select == True]:
@@ -249,7 +249,7 @@ def li3D_legend(self, context, simnode, connode, geonode):
             blf.size(font_id, 20, 56)
             if connode:
                 if connode.bl_label == 'LiVi CBDM':
-                    unit = ('kLuxHours', 'Annual kWh', 'DA (%)', '', 'UDI-a (%)')[int(connode.analysismenu)]
+                    unit = ('kLuxHours', 'kWh', 'DA (%)', '', 'UDI-a (%)')[int(connode.analysismenu)]
                 elif connode.bl_label == 'LiVi Basic':
                     unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(connode.analysismenu)]
                 elif connode.bl_label == 'LiVi Compliance':
@@ -268,7 +268,7 @@ def li3D_legend(self, context, simnode, connode, geonode):
                 findex = scene.frame_current - scene.frame_start if simnode['Animation'] != 'Static' else 0
                 bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
                 blf.size(font_id, 20, 48)
-                if (hasattr(context.active_object, 'lires') and context.active_object.lires) or (hasattr(context.active_object, 'licalc') and context.active_object.licalc):
+                if context.active_object.get('lires') == 1 or context.active_object.get('licalc'):
                     vi_func.drawfont("Ave: {:.1f}".format(context.active_object['oave'][str(scene.frame_current)]), font_id, 0, height, 22, 480)
                     vi_func.drawfont("Max: {:.1f}".format(context.active_object['omax'][str(scene.frame_current)]), font_id, 0, height, 22, 495)
                     vi_func.drawfont("Min: {:.1f}".format(context.active_object['omin'][str(scene.frame_current)]), font_id, 0, height, 22, 510)
@@ -277,8 +277,8 @@ def li3D_legend(self, context, simnode, connode, geonode):
                     vi_func.drawfont("Max: {:.1f}".format(simnode['maxres'][findex]), font_id, 0, height, 22, 495)
                     vi_func.drawfont("Min: {:.1f}".format(simnode['minres'][findex]), font_id, 0, height, 22, 510)
     except Exception as e:
-        print(e, 'Turning off VI Display')
-        scene.vi_display, scene.vi_display_rp, scene.vi_leg_display = 0, 0, 0
+        print(e, 'Turning off legend display')
+        scene.vi_leg_display = 0
         scene.update()
         
 def viwr_legend(self, context, simnode):

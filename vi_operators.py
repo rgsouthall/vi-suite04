@@ -186,28 +186,22 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
         scene.frame_set(0)
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        if node.bl_label == 'LiVi Basic' and node.inputs['Location in'].is_linked and node.inputs['Location in'].links[0].from_node.bl_label == 'VI Location':
-            latilongi(scene, node.inputs['Location in'].links[0].from_node)
+ #       if node.bl_label == 'LiVi Basic' and node.inputs['Location in'].is_linked and node.inputs['Location in'].links[0].from_node.bl_label == 'VI Location':
+ #           latilongi(scene, node.inputs['Location in'].links[0].from_node)
         node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
-        if node.bl_label == 'LiVi Basic':
-            node.skynum = int(node.skymenu) if node.analysismenu != "2" else 3
-            if str(sys.platform) != 'win32':
-                node.simalg = (" |  rcalc  -e '$1=47.4*$1+120*$2+11.6*$3' ", " |  rcalc  -e '$1=$1' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' ", '')[int(node.analysismenu)]
-            else:
-                node.simalg = (' |  rcalc  -e "$1=47.4*$1+120*$2+11.6*$3" ', ' |  rcalc  -e "$1=$1" ', ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ', '')[int(node.analysismenu)]
-#            node.TZ = node.summer if node.daysav == True else node.stamer
+ #       if node.bl_label == 'LiVi Basic':
+ #           node.skynum = int(node.skymenu) if node.analysismenu != "2" else 3
+ #           node.simalg = (" |  rcalc  -e '$1=47.4*$1+120*$2+11.6*$3' ", " |  rcalc  -e '$1=$1' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' ", '')[int(node.analysismenu)] \
+ #           if str(sys.platform) != 'win32' else (' |  rcalc  -e "$1=47.4*$1+120*$2+11.6*$3" ', ' |  rcalc  -e "$1=$1" ', ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ', '')[int(node.analysismenu)]
 
-        elif node.bl_label == 'LiVi Compliance':
-            if node.analysismenu in ('0', '1'):
-                if str(sys.platform) != 'win32':
-                    node.simalg = " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' "
-                else:
-                    node.simalg = ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" '
+ #       elif node.bl_label == 'LiVi Compliance':
+ #           if node.analysismenu in ('0', '1'):
+ #               node.simalg = " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' " if str(sys.platform) != 'win32' else ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" '
 
-        elif node.bl_label == 'LiVi CBDM':
-            node.skynum = 4
-            node.simalg = (" |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/1000' ", " |  rcalc  -e '$1=($1+$2+$3)/3000' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)' ", " |  rcalc  -e '$1=($1+$2+$3)/3' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)' ")[int(node.analysismenu)]
-            node['wd'] = (7, 5)[node.weekdays]
+#        elif node.bl_label == 'LiVi CBDM':
+#            node.skynum = 4
+#            node.simalg = (" |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/1000' ", " |  rcalc  -e '$1=($1+$2+$3)/3000' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)' ", " |  rcalc  -e '$1=($1+$2+$3)/3' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)' ")[int(node.analysismenu)]
+#            node['wd'] = (7, 5)[node.weekdays]
 
         if bpy.data.filepath:
             if bpy.context.object:

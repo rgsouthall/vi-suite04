@@ -630,7 +630,7 @@ def set_legend(ax):
     plt.setp(l.get_texts(), fontsize=8)
 
 def wr_axes():
-    fig = plt.figure(figsize=(8, 8), dpi=80, facecolor='w', edgecolor='w')
+    fig = plt.figure(figsize=(8, 8), dpi=150, facecolor='w', edgecolor='w')
     rect = [0.1, 0.1, 0.8, 0.8]
     ax = WindroseAxes(fig, rect, axisbg='w')
     fig.add_axes(ax)

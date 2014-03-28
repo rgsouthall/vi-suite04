@@ -1,4 +1,4 @@
-import bpy, bpy_extras, sys, datetime, mathutils
+import bpy, bpy_extras, sys, datetime, mathutils, os
 import bpy_extras.io_utils as io_utils
 try:
     import numpy
@@ -12,8 +12,10 @@ from datetime import datetime as dt
 from math import cos, sin, pi, ceil, tan, modf
 from numpy import arange
 try:
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
     import matplotlib.pyplot as plt
     import matplotlib.cm as cm
+#    import pylab
     mp = 1
 except:
     mp = 0
@@ -186,22 +188,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
         scene.frame_set(0)
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
- #       if node.bl_label == 'LiVi Basic' and node.inputs['Location in'].is_linked and node.inputs['Location in'].links[0].from_node.bl_label == 'VI Location':
- #           latilongi(scene, node.inputs['Location in'].links[0].from_node)
         node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
- #       if node.bl_label == 'LiVi Basic':
- #           node.skynum = int(node.skymenu) if node.analysismenu != "2" else 3
- #           node.simalg = (" |  rcalc  -e '$1=47.4*$1+120*$2+11.6*$3' ", " |  rcalc  -e '$1=$1' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' ", '')[int(node.analysismenu)] \
- #           if str(sys.platform) != 'win32' else (' |  rcalc  -e "$1=47.4*$1+120*$2+11.6*$3" ', ' |  rcalc  -e "$1=$1" ', ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ', '')[int(node.analysismenu)]
-
- #       elif node.bl_label == 'LiVi Compliance':
- #           if node.analysismenu in ('0', '1'):
- #               node.simalg = " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' " if str(sys.platform) != 'win32' else ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" '
-
-#        elif node.bl_label == 'LiVi CBDM':
-#            node.skynum = 4
-#            node.simalg = (" |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/1000' ", " |  rcalc  -e '$1=($1+$2+$3)/3000' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)' ", " |  rcalc  -e '$1=($1+$2+$3)/3' ", " |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)' ")[int(node.analysismenu)]
-#            node['wd'] = (7, 5)[node.weekdays]
 
         if bpy.data.filepath:
             if bpy.context.object:
@@ -212,7 +199,6 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
                 if (node.bl_label == 'LiVi CBDM' and node.inputs['Geometry in'].is_linked and (node.inputs['Location in'].is_linked or node.sm != '0')) \
                 or (node.bl_label != 'LiVi CBDM' and node.inputs['Geometry in'].is_linked):
                     radcexport(self, node)
-#                    node.disp_leg = False
                     node.exported = True
                     node.outputs['Context out'].hide = False
                 else:
@@ -724,7 +710,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
     
             if locnode.newdir:
                 if str(sys.platform) != 'win32':
-                    plt.savefig(locnode.newdir+'/disp_wind.png', dpi = (300), transparent=False)
+                    plt.savefig(locnode.newdir+'/disp_wind.png', dpi = (150), transparent=False)
                     if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
                         bpy.data.images.load(locnode.newdir+'/disp_wind.png')
                     else:
@@ -734,17 +720,25 @@ class NODE_OT_WindRose(bpy.types.Operator):
                 else:
                     canvas = FigureCanvasAgg(fig)
                     canvas.draw()
-                    pixstring, pixels = canvas.tostring_rgb(), []
+                    pixbuffer, pixels = canvas.buffer_rgba(), []
                     [w, h] = [int(d) for d in fig.bbox.bounds[2:]]
-                    pixarray = numpy.fromstring(pixstring, numpy.uint8)
-                    pixarray.shape = h*w, 3
-                    for pi, p in enumerate(pixarray):
-                        pixels += [p[0], p[1], p[2], 255]
+                    pixarray = numpy.frombuffer(pixbuffer, numpy.uint8)
+                    pixarray.shape = h, w, 4
+                    for hi in reversed(pixarray):
+                        for wi in hi:
+                            pixels += [p/255 for p in wi]
+
                     if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
                         wrim = bpy.data.images.new('disp_wind.png', height = h, width = w)
+                        wrim.file_format = 'PNG'
+                        wrim.filepath = locnode.newdir+os.sep+wrim.name
+                        wrim.save()
                     else:
                         wrim = bpy.data.images['disp_wind.png']
                     wrim.pixels = pixels
+                    wrim.update()
+                    wrim.save()
+                    wrim.reload()
                                            
                 plt.savefig(locnode.newdir+'/disp_wind.svg')
             

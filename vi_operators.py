@@ -706,7 +706,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
                     wvals = [line.split(",")[20:22] for l, line in enumerate(epwfile.readlines()) if l > 7 and locnode.startmonth <= int(line.split(",")[1]) < locnode.endmonth]
                     simnode['maxres'], simnode['minres'],  simnode['avres']= max([float(w[1]) for w in wvals]), min([float(w[1]) for w in wvals]), sum([float(w[1]) for w in wvals])/len(wvals)
     
-            awd, aws, ax = [float(val[0]) for val in wvals], [float(val[1]) for val in wvals], wr_axes()
+            awd, aws, (fig, ax) = [float(val[0]) for val in wvals], [float(val[1]) for val in wvals], wr_axes()
             binvals = arange(0,int(ceil(max(aws))),2)
             simnode['nbins'] = len(binvals)
     
@@ -723,17 +723,34 @@ class NODE_OT_WindRose(bpy.types.Operator):
                 ax.contour(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
     
             if locnode.newdir:
-                plt.savefig(locnode.newdir+'/disp_wind.png', dpi = (300), transparent=False)
+                if str(sys.platform) != 'win32':
+                    plt.savefig(locnode.newdir+'/disp_wind.png', dpi = (300), transparent=False)
+                    if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
+                        bpy.data.images.load(locnode.newdir+'/disp_wind.png')
+                    else:
+                        bpy.data.images['disp_wind.png'].filepath = locnode.newdir+'/disp_wind.png'
+                        bpy.data.images['disp_wind.png'].reload()
+                # Below is a workaround for the matplotlib/blender png bug
+                else:
+                    canvas = FigureCanvasAgg(fig)
+                    canvas.draw()
+                    pixstring, pixels = canvas.tostring_rgb(), []
+                    [w, h] = [int(d) for d in fig.bbox.bounds[2:]]
+                    pixarray = numpy.fromstring(pixstring, numpy.uint8)
+                    pixarray.shape = h*w, 3
+                    for pi, p in enumerate(pixarray):
+                        pixels += [p[0], p[1], p[2], 255]
+                    if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
+                        wrim = bpy.data.images.new('disp_wind.png', height = h, width = w)
+                    else:
+                        wrim = bpy.data.images['disp_wind.png']
+                    wrim.pixels = pixels
+                                           
                 plt.savefig(locnode.newdir+'/disp_wind.svg')
+            
             else:
                 self.report({'ERROR'},"No project directory. Save the Blender file and recreate the VI Location node.")
-                return {'CANCELLED'}
-    
-            if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
-                bpy.data.images.load(locnode.newdir+'/disp_wind.png')
-            else:
-                bpy.data.images['disp_wind.png'].filepath = locnode.newdir+'/disp_wind.png'
-                bpy.data.images['disp_wind.png'].reload()
+                return {'CANCELLED'}          
     
             if 'Wind_Plane' not in [ob.get('VIType') for ob in bpy.context.scene.objects]:
                 bpy.ops.mesh.primitive_plane_add(enter_editmode=False, location=(0.0, 0.0, 0.0))
@@ -756,6 +773,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
             bpy.ops.view3d.wrlegdisplay('INVOKE_DEFAULT')
             return {'FINISHED'}
         else:
+            self.report({'ERROR'},"There is something wrong with your matplotlib installation")
             return {'FINISHED'}
 
 class VIEW3D_OT_WRLegDisplay(bpy.types.Operator):

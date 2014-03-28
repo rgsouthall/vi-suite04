@@ -2,7 +2,7 @@ bl_info = {
     "name": "VI-Suite",
     "author": "Ryan Southall",
     "version": (0, 1, 0),
-    "blender": (2, 6, 9),
+    "blender": (2, 7, 0),
     "api":"",
     "location": "Node Editor & 3D View > Properties Panel",
     "description": "Radiance/EnergyPlus exporter and results visualiser",
@@ -28,7 +28,7 @@ else:
 
 import sys, os, platform, inspect, bpy, nodeitems_utils
 
-epversion = "8-0-0"
+epversion = "8-1-0"
 addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
 
 if str(sys.platform) == 'darwin':
@@ -37,7 +37,7 @@ if str(sys.platform) == 'darwin':
             os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/osx/64:/Applications/EnergyPlus-{}/bin".format(addonpath, epversion)
         else:
              os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/osx:/Applications/EnergyPlus-{}/bin".format(addonpath, epversion)
-        os.environ["RAYPATH"] = "/usr/local/radiance/lib:{}/vi_suite/lib".format(addonpath)
+        os.environ["RAYPATH"] = "/usr/local/radiance/lib:{}/lib".format(addonpath)
 
 if str(sys.platform) == 'linux':
     if not hasattr(os.environ, 'RAYPATH'):
@@ -48,14 +48,11 @@ if str(sys.platform) == 'linux':
 elif str(sys.platform) == 'win32':
     if not hasattr(os.environ, 'RAYPATH'):
         if os.path.isdir(r"C:\Program Files (x86)\Radiance"):
-#        if r"C:\Program Files (x86)\Radiance\lib;"+sys.path[0]+"\io_visuite\lib" not in os.environ["RAYPATH"]:
-            os.environ["PATH"] = os.environ["PATH"] + r";C:\Program Files (x86)\Radiance\bin;"+sys.path[0]+"\io_visuite\windows;C:\EnergyPlusV{}".format(epversion)
-            os.environ["RAYPATH"] = r"C:\Program Files (x86)\Radiance\lib;"+sys.path[0]+"\vi_suite\lib"
-
+            os.environ["PATH"] = os.environ["PATH"] + r";C:\Program Files (x86)\Radiance\bin;{}\windows;C:\EnergyPlusV{}".format(addonpath,epversion)
+            os.environ["RAYPATH"] = r"C:\Program Files (x86)\Radiance\lib;{}\lib".format(addonpath)
         elif os.path.isdir(r"C:\Program Files\Radiance"):
-#        if r"C:\Program Files\Radiance\lib;"+sys.path[0]+"\io_visuite\lib" not in os.environ["RAYPATH"]:
-            os.environ["PATH"] = os.environ["PATH"] + r";C:\Program Files\Radiance\bin;"+sys.path[0]+"\io_visuite\windows;C:\EnergyPlusV{}".format(epversion)
-            os.environ["RAYPATH"] = "C:\Program Files\Radiance\lib;"+sys.path[0]+"\vi_suite\lib"
+            os.environ["PATH"] = os.environ["PATH"] + r";C:\Program Files\Radiance\bin;{}\windows;C:\EnergyPlusV{}".format(addonpath, epversion)
+            os.environ["RAYPATH"] = "C:\Program Files\Radiance\lib;{}\lib".format(addonpath)
         else:
             print("Cannot find a valid Radiance directory. Please check that you have Radiance installed in either C:\Program Files(x86) (64bit windows) \
 or C:\Program Files (32bit windows)")
@@ -64,10 +61,6 @@ matpath = addonpath+'/EPFiles/Materials/Materials.data'
 epwpath = addonpath+'/EPFiles/Weather/'
 envi_mats = envi_materials()
 envi_cons = envi_constructions()
-
-#bpy.ops.node.new_node_tree(type='ViN', name ="VI-Suite Node Tree")
-
-
 
 def matfunc(i):
     if i == 0:

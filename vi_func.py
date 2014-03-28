@@ -3,7 +3,7 @@ from math import sin, cos, asin, acos, pi
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
 try:
     import matplotlib.pyplot as plt
-    from . import windrose
+    from .windrose import WindroseAxes
     mp = 1
 except:
     mp = 0
@@ -632,9 +632,9 @@ def set_legend(ax):
 def wr_axes():
     fig = plt.figure(figsize=(8, 8), dpi=80, facecolor='w', edgecolor='w')
     rect = [0.1, 0.1, 0.8, 0.8]
-    ax = windrose.WindroseAxes(fig, rect, axisbg='w')
+    ax = WindroseAxes(fig, rect, axisbg='w')
     fig.add_axes(ax)
-    return ax
+    return(fig, ax)
 
 def vcframe(pp, scene, oblist, anim):
     for frame in range(scene.fs, scene.fe + 1):

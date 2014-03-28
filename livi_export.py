@@ -423,9 +423,9 @@ def cyfc1(self):
                 bpy.data.worlds["World"].use_nodes = True
             nt = bpy.data.worlds[0].node_tree
 
-            if nt.nodes.get('Environment Texture'):
-                nt.nodes['Environment Texture'].image.filepath = scene['newdir']+"{}sp.hdr".fprmat(os.path.sep+scene.frame_current)
-                nt.nodes['Environment Texture'].image.reload()
+#            if nt.nodes.get('Environment Texture'):
+#                nt.nodes['Environment Texture'].image.filepath = scene['newdir']+"{}sp.hdr".format(os.path.sep+scene.frame_current)
+#                nt.nodes['Environment Texture'].image.reload()
 
         for ob in scene.objects:
             if ob.get('VIType') == 'Sun':

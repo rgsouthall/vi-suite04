@@ -2,6 +2,7 @@ import bpy, bpy_extras, sys, datetime, mathutils, os
 import bpy_extras.io_utils as io_utils
 try:
     import numpy
+    from numpy import arange
     np = 1
 except:
     np = 0
@@ -10,7 +11,7 @@ except:
 from collections import OrderedDict
 from datetime import datetime as dt
 from math import cos, sin, pi, ceil, tan, modf
-from numpy import arange
+
 try:
     from matplotlib.backends.backend_agg import FigureCanvasAgg
     import matplotlib.pyplot as plt
@@ -19,6 +20,7 @@ try:
     mp = 1
 except:
     mp = 0
+    
 from .livi_export import radcexport, radgexport, cyfc1
 from .livi_calc  import rad_prev, li_calc, li_glare, resapply
 from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend

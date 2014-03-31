@@ -147,7 +147,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         return
         
     if bpy.context.active_object:
-        if bpy.context.active_object.get('mode') and getattr(bpy.context.active_object, ('mode')) != 'OBJECT':
+        if bpy.context.active_object.type == 'MESH' and bpy.context.active_object.mode != 'OBJECT':
              bpy.context.active_object.mode = 'OBJECT'
 
     blf.enable(0, 4)
@@ -179,7 +179,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
                 faces = [f for f in faces if not scene.ray_cast(ob_mat*((vi_func.face_centre(ob, len(obreslist), f)))+ 0.01*ob_mat*f.normal, view_pos)[0]]
         else:
             fverts = set(sum([list(f.vertices[:]) for f in ob.data.polygons if f.select], []))
-            verts = [ob.data.vertices[v] for v in fverts if not scene.ray_cast(ob_mat*vi_func.v_pos(ob, v) + 0.01*ob.data.vertices[v].normal,view_pos)[0]] if scene.vi_display_vis_only else [ob.data.vertices[v] for v in fverts] 
+            verts = [ob.data.vertices[v] for v in fverts if not scene.ray_cast(ob_mat*vi_func.v_pos(ob, v) + 0.01*ob_mat*ob.data.vertices[v].normal,view_pos)[0]] if scene.vi_display_vis_only else [ob.data.vertices[v] for v in fverts] 
             loops = []
             for v in verts:
                 for f in [f for f in ob.data.polygons if f.select == True]:
@@ -264,14 +264,15 @@ def li3D_legend(self, context, simnode, connode, geonode):
             bgl.glDisable(bgl.GL_BLEND)
             height = context.region.height
             font_id = 0
-            if scene.frame_current in vi_func.framerange(scene, simnode['Animation']):
+            if scene.frame_current in range(scene.fs, scene.fe + 1):
                 findex = scene.frame_current - scene.frame_start if simnode['Animation'] != 'Static' else 0
                 bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
                 blf.size(font_id, 20, 48)
-                if context.active_object.get('lires') == 1 or context.active_object.get('licalc'):
-                    vi_func.drawfont("Ave: {:.1f}".format(context.active_object['oave'][str(scene.frame_current)]), font_id, 0, height, 22, 480)
-                    vi_func.drawfont("Max: {:.1f}".format(context.active_object['omax'][str(scene.frame_current)]), font_id, 0, height, 22, 495)
-                    vi_func.drawfont("Min: {:.1f}".format(context.active_object['omin'][str(scene.frame_current)]), font_id, 0, height, 22, 510)
+                if context.active_object:
+                    if context.active_object.get('lires') == 1 or context.active_object.get('licalc'):
+                        vi_func.drawfont("Ave: {:.1f}".format(context.active_object['oave'][str(scene.frame_current)]), font_id, 0, height, 22, 480)
+                        vi_func.drawfont("Max: {:.1f}".format(context.active_object['omax'][str(scene.frame_current)]), font_id, 0, height, 22, 495)
+                        vi_func.drawfont("Min: {:.1f}".format(context.active_object['omin'][str(scene.frame_current)]), font_id, 0, height, 22, 510)
                 else:
                     vi_func.drawfont("Ave: {:.1f}".format(simnode['avres'][findex]), font_id, 0, height, 22, 480)
                     vi_func.drawfont("Max: {:.1f}".format(simnode['maxres'][findex]), font_id, 0, height, 22, 495)
@@ -314,7 +315,7 @@ def viwr_legend(self, context, simnode):
         height = context.region.height
         font_id = 0
 
-        if context.scene.frame_current in vi_func.framerange(context.scene, 'Animted'):
+        if context.scene.frame_current in range(scene.fs, scene.fe + 1):
             bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
             blf.size(font_id, 20, 48)
             vi_func.drawfont("Ave: {:.1f}".format(simnode['avres']), font_id, 0, height, 22, simnode['nbins']*20 + 85)

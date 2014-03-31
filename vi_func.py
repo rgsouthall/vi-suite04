@@ -519,7 +519,7 @@ def frameindex(scene, anim):
 def retobjs(otypes):
     scene = bpy.context.scene
     if otypes == 'livig':
-        return([geo for geo in scene.objects if geo.type == 'MESH' and not geo.children  and 'lightarray' not in geo.name \
+        return([geo for geo in scene.objects if geo.type == 'MESH' and len(geo.data.materials) > 0 and not geo.children  and 'lightarray' not in geo.name \
         and geo.hide == False and geo.layers[scene.active_layer] == True and geo.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane')])
     elif otypes == 'livigengeo':
         return([geo for geo in scene.objects if geo.type == 'MESH' and not any([m.livi_sense for m in geo.data.materials])])
@@ -660,7 +660,6 @@ def gentarget(tarnode, result):
         res = min(result)  
     elif tarnode.stat == '3':
         res = sum(result)
-    print(res, tarnode.value)
     
     if tarnode.value > res and tarnode.ab == '0':
         return(1)

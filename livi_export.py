@@ -22,7 +22,7 @@ from math import sin, cos, tan, pi
 from mathutils import Vector
 from subprocess import PIPE, Popen, STDOUT
 from .vi_func import retsky, retmat, retobj, retmesh, clearscene, \
-solarPosition, mtx2vals, retobjs, radmat, latilongi
+solarPosition, mtx2vals, retobjs, radmat
 
 try:
     import numpy
@@ -42,22 +42,10 @@ def radgexport(export_op, node, **kwargs):
         (scene.fs, scene.gfe, scene.cfe) = (scene.frame_start, scene.frame_end, scene.frame_start) if node.animmenu != 'Static' else (0, 0, 0)
     else:
         (scene.fs, scene.gfe, scene.cfe) = [kwargs['genframe']] * 3 if kwargs.get('genframe') else (0, 0, 0)
-    
-        
-    
-#    frames = framerange(scene, node.animmenu) if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else range(genframe, genframe + 1)
-#    frameis = frameindex(scene, node.animmenu) if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else frameindex(scene, 'Static')
 
-#    frameisg = frameis if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else rangescene.frame_current
-#    print('frame', scene.fs, scene.gfe + 1, scene.frame_current)
-    for frame in range(scene.fs, scene.gfe + 1):
-        
+    for frame in range(scene.fs, scene.gfe + 1):        
         if export_op.nodeid.split('@')[0] == 'LiVi Geometry':
             scene.frame_set(frame)
-#        else:
-#            frame = kwargs.get('genframe')
-
-        # Material export routine
 
         radfile = "# Materials \n\n"
         for meshmat in bpy.data.materials:

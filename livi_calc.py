@@ -50,6 +50,7 @@ def rad_prev(prev_op, simnode, connode, geonode, simacc):
             rvurun = Popen(rvucmd, shell = True, stdout=PIPE, stderr=STDOUT)
             for l,line in enumerate(rvurun.stdout):
                 if 'octree' in line.decode() or 'mesh' in line.decode():
+                    print(line.decode())
                     radfexport(scene, prev_op, connode, geonode, [scene.frame_current])
                     rad_prev(prev_op, simnode, connode, geonode, simacc)
                     return

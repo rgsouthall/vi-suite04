@@ -17,18 +17,21 @@ def radmat(mat, scene):
     if scene.render.engine == 'CYCLES' and hasattr(mat.node_tree, 'nodes'):
         cycmattypes = ('Diffuse BSDF', 'Glass BSDF', 'Glossy BSDF', 'Translucent BSDF', 'Ambient Occlusion', 'Emission', 'Transparent BSDF')
         if mat.node_tree.nodes['Material Output'].inputs['Surface'].is_linked:
-            matnode = mat.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node
-            matindex = cycmattypes.index(matnode.bl_label) if matnode.bl_label in cycmattypes else 0
-            matcol, matior, matrough, matemit  = matnode.inputs[0].default_value, matnode.inputs[2].default_value if matindex == 1 else 1.52, \
-                matnode.inputs[1].default_value if matindex == 0 else 0,  matnode.inputs[1].default_value if matindex == 5 else 0
-            radname = ('plastic', 'glass', 'mirror', 'trans', 'antimatter', 'light', 'glass')[matindex]
-            radnums = ('5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format(matcol, '0', matrough),\
-            '4 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.3f}'.format(matcol, matior), \
-            '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}'.format(matcol), \
-            '7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n\n'.format(matcol), \
-            '', \
-            '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n'.format([c * matemit for c in matcol]), \
-            '4 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.3f}'.format(matcol, matior))[matindex]
+            try:
+                matnode = mat.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node
+                matindex = cycmattypes.index(matnode.bl_label) if matnode.bl_label in cycmattypes else 0
+                matcol, matior, matrough, matemit  = matnode.inputs[0].default_value, matnode.inputs[2].default_value if matindex == 1 else 1.52, \
+                    matnode.inputs[1].default_value if matindex == 0 else 0,  matnode.inputs[1].default_value if matindex == 5 else 0
+                radname = ('plastic', 'glass', 'mirror', 'trans', 'antimatter', 'light', 'glass')[matindex]
+                radnums = ('5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format(matcol, '0', matrough),\
+                '4 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.3f}'.format(matcol, matior), \
+                '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}'.format(matcol), \
+                '7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n\n'.format(matcol), \
+                '', \
+                '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n'.format([c * matemit for c in matcol]), \
+                '4 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.3f}'.format(matcol, matior))[matindex]
+            except:
+                radname, radnums = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format((0.8, 0.8, 0.8), 0, 0)
 
     else:# scene.render.engine == 'BLENDER_RENDER':
         matcol = [i * mat.diffuse_intensity for i in mat.diffuse_color]
@@ -557,25 +560,27 @@ def sunpath2(scene):
     sunpath()
 
 def sunpath():
+    # For future reference I can also project an emmisve sky texture on a sphere using the normal texture coordinate.
     scene = bpy.context.scene
     sun = [ob for ob in scene.objects if ob.get('VIType') == 'Sun'][0]
+    skysphere = [ob for ob in scene.objects if ob.get('VIType') == 'SkyMesh'][0]
 
     if 0 in (sun['solhour'] == scene.solhour, sun['solday'] == scene.solday, sun['soldistance'] == scene.soldistance):
         sunob = [ob for ob in scene.objects if ob.get('VIType') == 'SunMesh'][0]
         spathob = [ob for ob in scene.objects if ob.get('VIType') == 'SPathMesh'][0]
-#        spomw = spathob.matrix_world
         beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
         sunob.location.z = sun.location.z = spathob.location.z + scene.soldistance * sin(beta)
         sunob.location.x = sun.location.x = spathob.location.x -(scene.soldistance**2 - (sun.location.z-spathob.location.z)**2)**0.5  * sin(phi)
         sunob.location.y = sun.location.y = spathob.location.y -(scene.soldistance**2 - (sun.location.z-spathob.location.z)**2)**0.5 * cos(phi)
         sun.rotation_euler = pi * 0.5 - beta, 0, -phi
         spathob.scale = 3 * [scene.soldistance/100]
+        skysphere.scale = 3 * [1.05 * scene.soldistance/100]
         sunob.scale = 3*[scene.soldistance/100]
 
-        if scene.render.engine == 'CYCLES' and bpy.data.worlds['World'].node_tree:
-            if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
-                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
-#                bpy.data.worlds['World'].node_tree.nodes['Background'].inputs[1].default_value = sin(beta)
+        if scene.render.engine == 'CYCLES':
+            if bpy.data.worlds['World'].node_tree:
+                if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
+                    bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
             if sun.data.node_tree:
                 for blnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Blackbody']:
                     blnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
@@ -584,7 +589,10 @@ def sunpath():
             if sunob.data.materials[0].node_tree:
                 for smblnode in [node for node in sunob.data.materials[0].node_tree.nodes if sunob.data.materials and node.bl_label == 'Blackbody']:
                     smblnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
-
+            if skysphere and not skysphere.hide and skysphere.data.materials[0].node_tree:
+                if 'Sky Texture' in [no.bl_label for no in skysphere.data.materials[0].node_tree.nodes]:
+                    skysphere.data.materials[0].node_tree.nodes['Sky Texture'].sun_direction = sin(phi), -cos(phi), sin(beta)
+            
         sun['solhour'], sun['solday'], sun['soldistance'] = scene.solhour, scene.solday, scene.soldistance
     else:
         return

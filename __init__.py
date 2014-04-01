@@ -198,7 +198,7 @@ def register():
     Object.envi_occs1 = bprop("Period 1", "Enable zone occupation for period 1", False)
     Object.envi_occs2 = bprop("Period 2", "Enable zone occupation for period 1", False)
     Object.envi_occtype = eprop([("0", "None", "No occupancy"),("1", "Occupants", "Actual number of people"), ("2", "Person/m"+ u'\u00b2', "Number of people per squared metre floor area"),
-                                              ("3", "m"+ u'\u00b02'+"/Person", "Floor area per person")], "", "The type of zone occupancy specification", "0")
+                                              ("3", "m"+ u'\u00b2'+"/Person", "Floor area per person")], "", "The type of zone occupancy specification", "0")
     Object.envi_occsmax = fprop("Max", "Maximum level of occupancy that will occur in this schedule", 1, 500, 1)
     Object.envi_occs1d = eprop([("0", "Every Day", "Daily Occupancy"), ("1", "Weekdays", "Weekday Occupancy"), ("2", "Weekend", "Weekend Occupancy")], "", "Occupancy", "0")
     Object.envi_occs2dwd = eprop([("1", "Weekdays", "Weekday occupancy")], "", "Occupancy", "1")

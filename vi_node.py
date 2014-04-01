@@ -17,8 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, glob, os, inspect, sys#, datetime
-#from math import pi, sin, cos
+import bpy, glob, os, inspect, sys
 from nodeitems_utils import NodeCategory, NodeItem
 from .vi_func import nodeinit, objvol, triarea, socklink, newrow, latilongi
 
@@ -48,13 +47,13 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     (filepath, filename, filedir, newdir, filebase, objfilebase, nodetree, nproc, rm, cp, cat, fold) = (bpy.props.StringProperty() for x in range(12))
     reslen = bpy.props.IntProperty(default = 0)
     exported = bpy.props.BoolProperty()
+    radfiles = []
 
     def nodeexported(self, context):
         self.exported = False
         if self.bl_label[0] != '*':
             self.bl_label = '*'+self.bl_label
         self.outputs['Generative out'].hide = True if self.animmenu != 'Static' else False
-#        self.outputs['Geometry out'].hide = True
         if self.outputs['Geometry out'].is_linked:
             link = self.outputs['Geometry out'].links[0]
             bpy.data.node_groups[self['nodeid'].split('@')[1]].links.remove(link)
@@ -65,8 +64,6 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
             name="", description="Specify the calculation point geometry", default="1", update = nodeexported)
     buildstorey = bpy.props.EnumProperty(items=[("0", "Single", "Single storey building"),("1", "Multi", "Multi-storey building")], name="", description="Building storeys", default="0", update = nodeexported)
-
-    radfiles = []
 
     def init(self, context):
         self.outputs.new('ViGen', 'Generative out')
@@ -271,13 +268,7 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         self.outputs['Context out'].hide = True
         for ng in bpy.data.node_groups:
             if self in ng.nodes[:]:
-                self['nodeid'] = self.name+'@'+ng.name
-
-
-#    def nodeupdate(self):
-#        if self.outputs['Data out'].is_linked:
-#            self.analysismenu = '3'
-        
+                self['nodeid'] = self.name+'@'+ng.name     
 
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -447,8 +438,6 @@ class ViSPNode(bpy.types.Node, ViNodes):
     bl_label = 'VI Sun Path'
     bl_icon = 'LAMP'
 
-#    modal = bpy.props.BoolProperty()
-
     def init(self, context):
         self.inputs.new('ViLoc', 'Location in')
         for ng in bpy.data.node_groups:
@@ -457,8 +446,6 @@ class ViSPNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         if self.inputs[0].is_linked and self.inputs[0].links[0].from_node.bl_label == 'VI Location':
-#            row = layout.row()
-#            row.prop(self, 'modal')
             row = layout.row()
             row.operator("node.sunpath", text="Create Sun Path").nodeid = self['nodeid']
 

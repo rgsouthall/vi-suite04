@@ -517,7 +517,20 @@ class NODE_OT_SunPath(bpy.types.Operator):
             bpy.data.worlds['World'].node_tree.animation_data_clear()
 
         sun['solhour'], sun['solday'], sun['soldistance'] = scene.solhour, scene.solday, scene.soldistance
-
+        
+        if "SkyMesh" not in [ob.get('VIType') for ob in context.scene.objects]:
+            bpy.data.materials.new('SkyMesh')
+            bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=16, size=105)
+            smesh = context.active_object
+            smesh.rotation_euler[0] = pi
+            smesh.cycles_visibility.shadow = False
+            smesh.name = "SkyMesh"
+            smesh['VIType'] = 'SkyMesh'            
+            bpy.ops.object.material_slot_add()
+            smesh.material_slots[0].material = bpy.data.materials['SkyMesh']
+            bpy.ops.object.shade_smooth()
+            smesh.hide = True
+            
         if "SunMesh" not in [ob.get('VIType') for ob in context.scene.objects]:
             bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=12, size=1)
             sunob = context.active_object
@@ -856,7 +869,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     ob.data.vertex_colors[-1].name = '{}'.format(frame)
                     vertexColor = ob.data.vertex_colors[-1]
                     obsumarea[findex] = sum([face.area for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow])
-
                     shadfaces = [face for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow]
                     shadcentres[findex] = [[obm*mathutils.Vector((face.center)) + 0.05*face.normal, obm*mathutils.Vector((face.center)), 1] for face in shadfaces]
                     for fa, face in enumerate(shadfaces):

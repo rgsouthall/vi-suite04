@@ -402,7 +402,7 @@ def cyfc1(self):
                     if material.livi_sense or material.vi_shadow and material.node_tree.nodes.get('Attribute'):
 #                        nt = material.node_tree
 #                        if nt.nodes.get('Attribute'):
-                        nt.nodes["Attribute"].attribute_name = str(scene.frame_current)
+                        material.node_tree.nodes["Attribute"].attribute_name = str(scene.frame_current)
                 except Exception as e:
                     print(e, 'Something wrong with changing the material attribute name')
 

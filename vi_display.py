@@ -111,22 +111,22 @@ def li_display(simnode, connode, geonode):
 def spnumdisplay(disp_op, context, simnode):
     scene = context.scene
     leg = 0 if simnode.bl_label == 'VI Sun Path' else 1
-    ob = bpy.data.objects['SPathMesh']
-
-    if scene.hourdisp == True:
-        blf.enable(0, 4)
-        blf.shadow(0, 5,scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])
-        bgl.glColor4f(scene.vi_display_rp_fc[0], scene.vi_display_rp_fc[1], scene.vi_display_rp_fc[2], scene.vi_display_rp_fc[3])
-        blf.size(0, scene.vi_display_rp_fs, 72)
-        mid_x, mid_y, width, height = vi_func.viewdesc(context)
-        view_mat = context.space_data.region_3d.perspective_matrix
-        view_pos = (view_mat.inverted()[0][3]/5, view_mat.inverted()[1][3]/5, view_mat.inverted()[2][3]/5)
-        ob_mat = ob.matrix_world
-        total_mat = view_mat*ob_mat
-        for np in ob['numpos']:
-            if (total_mat*mathutils.Vector(ob['numpos'][np]))[2] > 0 and not scene.ray_cast(0.95*ob_mat*mathutils.Vector(ob['numpos'][np]) ,view_pos)[0]:
-                vi_func.draw_index(context, leg, mid_x, mid_y, width, height, np.split('-')[1], total_mat*mathutils.Vector(ob['numpos'][np]).to_4d())
-        blf.disable(0, 4)
+    if bpy.data.objects.get('SPathMesh'):
+        ob = bpy.data.objects['SPathMesh']    
+        if scene.hourdisp == True:
+            blf.enable(0, 4)
+            blf.shadow(0, 5,scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])
+            bgl.glColor4f(scene.vi_display_rp_fc[0], scene.vi_display_rp_fc[1], scene.vi_display_rp_fc[2], scene.vi_display_rp_fc[3])
+            blf.size(0, scene.vi_display_rp_fs, 72)
+            mid_x, mid_y, width, height = vi_func.viewdesc(context)
+            view_mat = context.space_data.region_3d.perspective_matrix
+            view_pos = (view_mat.inverted()[0][3]/5, view_mat.inverted()[1][3]/5, view_mat.inverted()[2][3]/5)
+            ob_mat = ob.matrix_world
+            total_mat = view_mat*ob_mat
+            for np in ob['numpos']:
+                if (total_mat*mathutils.Vector(ob['numpos'][np]))[2] > 0 and not scene.ray_cast(0.95*ob_mat*mathutils.Vector(ob['numpos'][np]) ,view_pos)[0]:
+                    vi_func.draw_index(context, leg, mid_x, mid_y, width, height, np.split('-')[1], total_mat*mathutils.Vector(ob['numpos'][np]).to_4d())
+            blf.disable(0, 4)
     else:
         return
 
@@ -244,9 +244,9 @@ def li3D_legend(self, context, simnode, connode, geonode):
                 blf.size(font_id, 20, 48)
                 bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
                 blf.position(font_id, 65, (i*20)+height - 455, 0)
-                blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
-    
+                blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])    
             blf.size(font_id, 20, 56)
+
             if connode:
                 if connode.bl_label == 'LiVi CBDM':
                     unit = ('kLuxHours', 'kWh', 'DA (%)', '', 'UDI-a (%)')[int(connode.analysismenu)]
@@ -257,8 +257,7 @@ def li3D_legend(self, context, simnode, connode, geonode):
                 else:
                     unit = 'unit'
     
-            cu = unit if connode else '% Sunlit'
-    
+            cu = unit if connode else '% Sunlit'    
             vi_func.drawfont(cu, font_id, 0, height, 25, 57)
             bgl.glLineWidth(1)
             bgl.glDisable(bgl.GL_BLEND)
@@ -268,15 +267,15 @@ def li3D_legend(self, context, simnode, connode, geonode):
                 findex = scene.frame_current - scene.frame_start if simnode['Animation'] != 'Static' else 0
                 bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
                 blf.size(font_id, 20, 48)
-                if context.active_object:
-                    if context.active_object.get('lires') == 1 or context.active_object.get('licalc'):
-                        vi_func.drawfont("Ave: {:.1f}".format(context.active_object['oave'][str(scene.frame_current)]), font_id, 0, height, 22, 480)
-                        vi_func.drawfont("Max: {:.1f}".format(context.active_object['omax'][str(scene.frame_current)]), font_id, 0, height, 22, 495)
-                        vi_func.drawfont("Min: {:.1f}".format(context.active_object['omin'][str(scene.frame_current)]), font_id, 0, height, 22, 510)
+                if context.active_object and context.active_object.get('lires') == 1 or context.active_object.get('licalc'):
+                    vi_func.drawfont("Ave: {:.1f}".format(context.active_object['oave'][str(scene.frame_current)]), font_id, 0, height, 22, 480)
+                    vi_func.drawfont("Max: {:.1f}".format(context.active_object['omax'][str(scene.frame_current)]), font_id, 0, height, 22, 495)
+                    vi_func.drawfont("Min: {:.1f}".format(context.active_object['omin'][str(scene.frame_current)]), font_id, 0, height, 22, 510)
                 else:
                     vi_func.drawfont("Ave: {:.1f}".format(simnode['avres'][findex]), font_id, 0, height, 22, 480)
                     vi_func.drawfont("Max: {:.1f}".format(simnode['maxres'][findex]), font_id, 0, height, 22, 495)
                     vi_func.drawfont("Min: {:.1f}".format(simnode['minres'][findex]), font_id, 0, height, 22, 510)
+    
     except Exception as e:
         print(e, 'Turning off legend display')
         scene.vi_leg_display = 0
@@ -308,19 +307,17 @@ def viwr_legend(self, context, simnode):
 
         blf.size(font_id, 20, 56)
         cu = 'Speed (m/s)'
-
         vi_func.drawfont(cu, font_id, 0, height, 25, 57)
         bgl.glLineWidth(1)
         bgl.glDisable(bgl.GL_BLEND)
         height = context.region.height
         font_id = 0
-
-        if context.scene.frame_current in range(scene.fs, scene.fe + 1):
-            bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
-            blf.size(font_id, 20, 48)
-            vi_func.drawfont("Ave: {:.1f}".format(simnode['avres']), font_id, 0, height, 22, simnode['nbins']*20 + 85)
-            vi_func.drawfont("Max: {:.1f}".format(simnode['maxres']), font_id, 0, height, 22, simnode['nbins']*20 + 100)
-            vi_func.drawfont("Min: {:.1f}".format(simnode['minres']), font_id, 0, height, 22, simnode['nbins']*20 + 115)
+#        if context.scene.frame_current in range(scene.fs, scene.fe + 1):
+        bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
+        blf.size(font_id, 20, 48)
+        vi_func.drawfont("Ave: {:.1f}".format(simnode['avres']), font_id, 0, height, 22, simnode['nbins']*20 + 85)
+        vi_func.drawfont("Max: {:.1f}".format(simnode['maxres']), font_id, 0, height, 22, simnode['nbins']*20 + 100)
+        vi_func.drawfont("Min: {:.1f}".format(simnode['minres']), font_id, 0, height, 22, simnode['nbins']*20 + 115)
 
 def li_compliance(self, context, connode):
     height, scene = context.region.height, context.scene

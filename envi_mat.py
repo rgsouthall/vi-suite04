@@ -1,20 +1,10 @@
 # EnVi materials database
 s = 70
 from collections import OrderedDict
+
 class envi_materials(object):
     def __init__(self):
         # Define materials with a comma separated dictionary, with material name as key, giving (Roughness, Conductivity {W/m-K}, Density {kg/m3}, Specific Heat {J/kg-K}, Thermal Absorbtance, Solar Absorbtance, Visible Absorbtance, Default thickness)    
-        self.wall_datd = {'Brick': ('Rough,', '0.8,', '1800,', '900.00,', '0.900000,', '0.600000,', '0.600000', '100'), 
-                        'Thermawall TW50': ('MediumSmooth,', '0.022,', '32.000,', '1500,', '0.900000,', '0.600000,', '0.600000', '200'), 
-                        'Inner Brick': ('Rough,', '0.62,', '1800,', '840.00,', '0.93,', '0.700000,', '0.700000', '100'),
-                        'Outer Brick': ('Rough,', '0.96,', '2000,', '650.00,', '0.90,', '0.930000,', '0.930000', '100'),
-                        'Vermiculite Insulating Brick': ('Rough,', '0.27,', '700,', '840.00,', '0.90,', '0.650000,', '0.650000', '100'),
-                        'Honeycomb Brick': ('Rough,', '0.27,', '1700,', '1000.00,', '0.90,', '0.7,', '0.7', '102'),
-                        'Light Mix Concrete': ('MediumRough,', '0.38,', '1200.0,', '653,', '0.9,', '0.65,', '0.65', '100'),
-                        'Aerated Concrete Block': ('Rough,', '0.24,', '750.0,', '1000,', '0.9,', '0.65,', '0.65', '100'),
-                        'Inner Concrete Block': ('Rough,', '0.51,', '1400.0,', '1000,', '0.9,', '0.65,', '0.65', '100'),}
-        self.wall_dat = OrderedDict(sorted(self.wall_datd.items()))
-        
         self.metal_datd = {'Copper': ('Smooth', '200', '8900.0', '418.00', '0.72', '0.65', '0.65', '5'), 
                         'Steel': ('Smooth', '50', '7800.0', '502.0', '0.12', '0.2', '0.2', '5'), 
                         'Aluminium': ('Smooth', '210', '2700', '880.00', '0.22', '0.2', '0.2', '5')}
@@ -76,24 +66,6 @@ class envi_materials(object):
                         'Wilton wool carpet': ('Rough', '0.06', '186.0', '1360.0', '0.90', '0.60', '0.60', '5'),
                         'Thermawall TW50': ('MediumSmooth', '0.022', '32.000', '1500', '0.900000', '0.600000', '0.600000', '200')}
         self.insulation_dat = OrderedDict(sorted(self.insulation_datd.items()))
-        
-        self.roof_dat = {'Wood flooring': ('MediumSmooth', '0.14', '600.0', '1210.0', '0.91', '0.65', '0.65', '25'),
-                        'Parquet flooring': ('MediumSmooth', '0.17', '740.0', '2000.0', '0.90', '0.65', '0.65', '12'),
-                        'Standard Earth': ('Rough', '1.28', '1460.0', '879.0', '0.90', '0.85', '0.85', '200'),
-                        'Gravel': ('Rough,', '0.52', '2050.0', '184.0', '0.90', '0.85', '0.85', '200'),
-                        'Heavy Mix Concrete': ('Rough', '1.,', '2100.0', '653.0', '0.90', '0.65', '0.65', '100'),
-                        'Chipboard': ('Rough', '1.4', '2100.0', '653.0', '0.90', '0.65', '0.65', '100'),
-                        'Horizontal Air Gap': ('Gas', 'Air', '0.21'),
-                        'Wilton Wool Carpet': ('Rough', '0.06', '186.0', '1360.0', '0.90', '0.60', '0.60', '5')}
-        
-        self.floor_dat = {'Wood flooring': ('MediumSmooth', '0.14', '600.0', '1210.0', '0.91', '0.65', '0.65', '25'),
-                        'Parquet flooring': ('MediumSmooth', '0.17', '740.0', '2000.0', '0.90', '0.65', '0.65', '12'),
-                        'Standard Earth': ('Rough', '1.28', '1460.0', '879.0', '0.90', '0.85', '0.85', '200'),
-                        'Gravel': ('Rough,', '0.52', '2050.0', '184.0', '0.90', '0.85', '0.85', '200'),
-                        'Heavy Mix Concrete': ('Rough', '1.,', '2100.0', '653.0', '0.90', '0.65', '0.65', '100'),
-                        'Chipboard': ('Rough', '1.4', '2100.0', '653.0', '0.90', '0.65', '0.65', '100'),
-                        'Horizontal Air Gap': ('Gas', 'Air', '0.21'),
-                        'Wilton Wool Carpet': ('Rough', '0.06', '186.0', '1360.0', '0.90', '0.60', '0.60', '5')}
         
         self.namedict = OrderedDict()
         self.thickdict = OrderedDict()

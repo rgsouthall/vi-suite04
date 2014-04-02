@@ -17,7 +17,7 @@ def envi_sim(calc_op, node, connode):
         print(line) 
     for fname in os.listdir('.'):
         if fname.split(".")[0] == node.resname:
-            os.remove(os.path.join(node.newdir, fname))
+            os.remove(os.path.join(connode.newdir, fname))
     for fname in os.listdir('.'):
         if fname.split(".")[0] == "eplusout":
             rename(os.path.join(connode.newdir, fname), os.path.join(connode.newdir,fname.replace("eplusout", node.resname)))

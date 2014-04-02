@@ -37,7 +37,7 @@ SurfaceConvectionAlgorithm:Outside, TARP;                             !- Algorit
 HeatBalanceAlgorithm, ConductionTransferFunction; \n\
 ShadowCalculation, AverageOverDaysInFrequency, 10;                    !- (default frequency of calculation)\n\
 SimulationControl, No,No,No,No,Yes;                                   !- no zone sizing, system sizing, plant sizing, no design day, use weather file\n\n".format(',',
-datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), "VERSION,8.0.0;", "    "+node.loc+",", "    0.000,", ("    City,", "    Urban,", "    Suburbs,", "    Country,", "    Ocean,")[int(node.terrain)],
+datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), "VERSION,8.1.0;", "    "+node.loc+",", "    0.000,", ("    City,", "    Urban,", "    Suburbs,", "    Country,", "    Ocean,")[int(node.terrain)],
 '    0.004,', '    0.4,', '    FullExteriorWithReflections,', '    15;', 'Timestep,  '+str(node.timesteps)+';', width = s))
 
     en_idf.write("RunPeriod,\n\
@@ -183,14 +183,16 @@ Construction,\n\
         elif mat.envi_con_makeup == '1' and mat.envi_con_type not in ('None', 'Shading', 'Aperture'):
             thicklist = (mat.envi_export_lo_thi, mat.envi_export_l1_thi, mat.envi_export_l2_thi, mat.envi_export_l3_thi, mat.envi_export_l4_thi)
             conname = mat.name
+            print('hi0', mats, conname)
             for l, layer in enumerate([i for i in itertools.takewhile(lambda x: x != "0", (mat.envi_layero, mat.envi_layer1, mat.envi_layer2, mat.envi_layer3, mat.envi_layer4))]):
-                if layer == "1" and mat.envi_con_type in ("Wall", "Foor", "Roof"):
+                if layer == "1" and mat.envi_con_type in ("Wall", "Floor", "Roof"):
                     mats = ((mat.envi_export_bricklist_lo, mat.envi_export_claddinglist_lo, mat.envi_export_concretelist_lo, mat.envi_export_metallist_lo, mat.envi_export_stonelist_lo, mat.envi_export_woodlist_lo, mat.envi_export_gaslist_lo, mat.envi_export_insulationlist_lo), \
                     (mat.envi_export_bricklist_l1, mat.envi_export_claddinglist_l1, mat.envi_export_concretelist_l1, mat.envi_export_metallist_l1, mat.envi_export_stonelist_l1, mat.envi_export_woodlist_l1, mat.envi_export_gaslist_l1, mat.envi_export_insulationlist_l1), \
                     (mat.envi_export_bricklist_l2, mat.envi_export_claddinglist_l2, mat.envi_export_concretelist_l2, mat.envi_export_metallist_l2, mat.envi_export_stonelist_l2, mat.envi_export_woodlist_l2, mat.envi_export_gaslist_l2, mat.envi_export_insulationlist_l2), \
                     (mat.envi_export_bricklist_l3, mat.envi_export_claddinglist_l3, mat.envi_export_concretelist_l3, mat.envi_export_metallist_l3, mat.envi_export_stonelist_l3, mat.envi_export_woodlist_l3, mat.envi_export_gaslist_l3, mat.envi_export_insulationlist_l3), \
                     (mat.envi_export_bricklist_l4, mat.envi_export_claddinglist_l4, mat.envi_export_concretelist_l4, mat.envi_export_metallist_l4, mat.envi_export_stonelist_l4, mat.envi_export_woodlist_l4, mat.envi_export_gaslist_l4, mat.envi_export_insulationlist_l4))\
                     [l][int((mat.envi_layeroto, mat.envi_layer1to, mat.envi_layer2to, mat.envi_layer3to, mat.envi_layer4to)[l])]
+                    
                     if mats not in em.gas_dat:
                         params = [str(mat)+(",", ",", ",", ",", ",", ",", ";", ",")[x] for x, mat in enumerate(em.matdat[mats])]
                         em.omat_write(en_idf, mats+"-"+str(matcount.count(mats)), params, str(thicklist[l]/1000))
@@ -226,6 +228,7 @@ Construction,\n\
                     else:
                         params = [str(mat)+( ",", ",", ",")[x] for x, mat in enumerate(("", ("Gas", mat.envi_export_wgaslist_l1), "", ("Gas", mat.envi_export_wgaslist_l1))[l])]
                         em.gmat_write(en_idf, mats+"-"+str(matcount.count(mats)), params, str(thicklist[l]/1000))
+
                 conlist.append((mats)+'-'+str(matcount.count(mats)))
                 matname.append((mats)+'-'+str(matcount.count(mats)))
                 matcount.append(mats)
@@ -977,12 +980,12 @@ AirflowNetwork:SimulationControl,\n\
             for sock in ([inp for inp in enode.inputs]+[outp for outp in enode.outputs]):
                 if sock.is_linked and 'EnViSAirSocket' in sock.bl_idname:
                     
-                    sn = (sock.links[0].from_socket.sn, sock.links[0].to_socket.sn)[sock.in_out == 'OUT']
-                    znode = (sock.links[0].from_node, sock.links[0].to_node)[sock.in_out == 'OUT']
+                    sn = (sock.links[0].from_socket.sn, sock.links[0].to_socket.sn)[sock.is_output]
+                    znode = (sock.links[0].from_node, sock.links[0].to_node)[sock.is_output]
                     zn = znode.zone
-                    tsched = ('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-2], sock.links[0].to_socket.name[:-2])[sock.in_out == 'OUT']].envi_con_type == 'Door']+zn+'_'+sn+'_tsps,' if enode.outputs['TSPSchedule'].is_linked else ','
-                    vasched = ('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-2], sock.links[0].to_socket.name[:-2])[sock.in_out == 'OUT']].envi_con_type == 'Door']+zn+'_'+sn+'_vas' if enode.outputs['TSPSchedule'].is_linked else ';'
-                    sname.append(('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-2],  sock.links[0].to_socket.name[:-2])[sock.in_out == 'OUT']].envi_con_type == 'Door']+zn+'_'+sn)
+                    tsched = ('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-2], sock.links[0].to_socket.name[:-2])[sock.is_output]].envi_con_type == 'Door']+zn+'_'+sn+'_tsps,' if enode.outputs['TSPSchedule'].is_linked else ','
+                    vasched = ('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-2], sock.links[0].to_socket.name[:-2])[sock.is_output]].envi_con_type == 'Door']+zn+'_'+sn+'_vas' if enode.outputs['TSPSchedule'].is_linked else ';'
+                    sname.append(('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-2],  sock.links[0].to_socket.name[:-2])[sock.is_output]].envi_con_type == 'Door']+zn+'_'+sn)
                     en_idf.write('AirflowNetwork:MultiZone:Surface,\n\
     {:{width}}! - Surface Name\n\
     {:{width}}! - Leakage Component Name\n\
@@ -993,8 +996,8 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}! - Limit multiplier\n\
     {:{width}}! - Lower multiplier\n\
     {:{width}}! - Upper multiplier\n\
-    {:{width}}! - Venting Availability Schedule Name\n\n'.format(('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-2], sock.links[0].to_socket.name[:-2])[sock.in_out == 'OUT']].envi_con_type == 'Door']+zn+'_'+sn+',',
-    'ComponentFlow_'+str(cf)+',', ',', str(enode.wdof)+',', enode.control+',', tsched, str(enode.mvof)+',', str(enode.lvof)+',', str(enode.uvof)+',', vasched, width = s))
+    {:{width}}! - Venting Availability Schedule Name\n\n'.format(('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-2], sock.links[0].to_socket.name[:-2])[sock.is_output]].envi_con_type == 'Door']+zn+'_'+sn+',',
+    'ComponentFlow_'+str(cf)+',', ',', str(enode.wdof)+',', enode.controls+',', tsched, str(enode.mvof)+',', str(enode.lvof)+',', str(enode.uvof)+',', vasched, width = s))
   
                 enode['sname'] = sname
 
@@ -1002,8 +1005,8 @@ AirflowNetwork:SimulationControl,\n\
             for sock in ([inp for inp in enode.inputs]+[outp for outp in enode.outputs]):
                 if sock.is_linked and 'EnViCAirSocket' in sock.bl_idname:
                     sname = []
-                    sn = (sock.links[0].from_socket.sn, sock.links[0].to_socket.sn)[sock.in_out == 'OUT']
-                    znode = (sock.links[0].from_node, sock.links[0].to_node)[sock.in_out == 'OUT']
+                    sn = (sock.links[0].from_socket.sn, sock.links[0].to_socket.sn)[sock.is_output]
+                    znode = (sock.links[0].from_node, sock.links[0].to_node)[sock.is_output]
                     zn = znode.zone
                     sname.append(zn+'_'+sn)
                     en_idf.write('AirflowNetwork:Multizone:Surface,\n\
@@ -1012,7 +1015,7 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}! - External Node Name\n\
     {:{width}}!- Crack Opening Factor\n\n'.format(zn+'_'+sn+',',
     'ComponentFlow_'+str(cf)+',', ',', str(enode.cf)+';', width = s))
-                enode['sname'] = sname
+                    enode['sname'] = sname
                 
 # Component defintions
         

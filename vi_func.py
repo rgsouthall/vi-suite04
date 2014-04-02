@@ -680,3 +680,8 @@ def selobj(scene, geo):
     for ob in scene.objects:
         ob.select = True if ob == geo else False
     scene.objects.active = geo
+    
+def nodeid(node, ngs):
+    for ng in ngs:
+        if node in ng.nodes[:]:
+            return node.name+'@'+ng.name

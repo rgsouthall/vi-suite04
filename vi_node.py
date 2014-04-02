@@ -19,7 +19,7 @@
 
 import bpy, glob, os, inspect, sys
 from nodeitems_utils import NodeCategory, NodeItem
-from .vi_func import nodeinit, objvol, triarea, socklink, newrow, latilongi
+from .vi_func import nodeinit, objvol, triarea, socklink, newrow, latilongi, nodeid
 
 try:
     import numpy
@@ -72,9 +72,7 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
         self.outputs['Geometry out'].hide = True
         if bpy.data.filepath:
             nodeinit(self)
-        for ng in bpy.data.node_groups:
-            if self in ng.nodes[:]:
-                self['nodeid'] = self.name+'@'+ng.name
+        self['nodeid'] = nodeid(self, bpy.data.node_groups)
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Storeys:', self, 'buildstorey')
@@ -168,9 +166,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
         self.outputs.new('ViTar', 'Target out')
         self.outputs.new('ViLiC', 'Context out')        
         self.outputs['Context out'].hide = True
-        for ng in bpy.data.node_groups:
-            if self in ng.nodes[:]:
-                self['nodeid'] = self.name+'@'+ng.name
+        self['nodeid'] = nodeid(self, bpy.data.node_groups)
 
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -266,9 +262,7 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         self.inputs.new('ViLiG', 'Geometry in')
         self.outputs.new('ViLiC', 'Context out')
         self.outputs['Context out'].hide = True
-        for ng in bpy.data.node_groups:
-            if self in ng.nodes[:]:
-                self['nodeid'] = self.name+'@'+ng.name     
+        self['nodeid'] = nodeid(self, bpy.data.node_groups)     
 
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -369,9 +363,7 @@ class ViLiCNode(bpy.types.Node, ViNodes):
         self.inputs.new('ViLiG', 'Geometry in')
         self.outputs.new('ViLiC', 'Context out')
         self.outputs['Context out'].hide = True
-        for ng in bpy.data.node_groups:
-            if self in ng.nodes[:]:
-                self['nodeid'] = self.name+'@'+ng.name
+        self['nodeid'] = nodeid(self, bpy.data.node_groups)
 
     def draw_buttons(self, context, layout):
         newrow(layout, "Compliance standard:", self, 'analysismenu')
@@ -399,9 +391,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
         self.inputs.new('ViLiC', 'Context in')
         self.outputs.new('LiViWOut', 'Data out')
         self.outputs['Data out'].hide = True
-        for ng in bpy.data.node_groups:
-            if self in ng.nodes[:]:
-                self['nodeid'] = self.name+'@'+ng.name
+        self['nodeid'] = nodeid(self, bpy.data.node_groups)
 
     def draw_buttons(self, context, layout):
         if self.inputs['Context in'].is_linked:
@@ -440,9 +430,7 @@ class ViSPNode(bpy.types.Node, ViNodes):
 
     def init(self, context):
         self.inputs.new('ViLoc', 'Location in')
-        for ng in bpy.data.node_groups:
-            if self in ng.nodes[:]:
-                self['nodeid'] = self.name+'@'+ng.name
+        self['nodeid'] = nodeid(self, bpy.data.node_groups)
 
     def draw_buttons(self, context, layout):
         if self.inputs[0].is_linked and self.inputs[0].links[0].from_node.bl_label == 'VI Location':
@@ -472,9 +460,7 @@ class ViSSNode(bpy.types.Node, ViNodes):
 
     def init(self, context):
         self.inputs.new('ViLoc', 'Location in')
-        for ng in bpy.data.node_groups:
-            if self in ng.nodes[:]:
-                self['nodeid'] = self.name+'@'+ng.name
+        self['nodeid'] = nodeid(self, bpy.data.node_groups)
 
     def draw_buttons(self, context, layout):
         if self.inputs['Location in'].is_linked:
@@ -495,9 +481,7 @@ class ViWRNode(bpy.types.Node, ViNodes):
 
     def init(self, context):
         self.inputs.new('ViLoc', 'Location in')
-        for ng in bpy.data.node_groups:
-            if self in ng.nodes[:]:
-                self['nodeid'] = self.name+'@'+ng.name
+        self['nodeid'] = nodeid(self, bpy.data.node_groups)
 
     def draw_buttons(self, context, layout):
         if self.inputs[0].is_linked and self.inputs[0].links[0].from_node.bl_label == 'VI Location' and self.inputs[0].links[0].from_node.loc == '1':
@@ -528,10 +512,8 @@ class ViLoc(bpy.types.Node, ViNodes):
     endmonth = bpy.props.IntProperty(name = 'End Month', default = 12, min = 1, max = 12, description = 'End Month')
 
     def init(self, context):
-        for ng in bpy.data.node_groups:
-            if self in ng.nodes[:]:
-                self['nodeid'] = self.name+'@'+ng.name
-                ng.use_fake_user = True
+        self['nodeid'] = nodeid(self, bpy.data.node_groups)
+        bpy.data.node_groups[self['nodeid'].split('@')[1]].use_fake_user = True
         if bpy.data.filepath:
             nodeinit(self)
         self.outputs.new('ViLoc', 'Location out')
@@ -576,9 +558,7 @@ class ViGExEnNode(bpy.types.Node, ViNodes):
     def init(self, context):
         self.outputs.new('ViEnG', 'Geometry out')
         self.outputs['Geometry out'].hide = True
-        for ng in bpy.data.node_groups:
-            if self in ng.nodes[:]:
-                self['nodeid'] = self.name+'@'+ng.name
+        self['nodeid'] = nodeid(self, bpy.data.node_groups)
 
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -663,9 +643,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
         self.outputs.new('ViEnC', 'Context out')
         self.outputs['Context out'].hide = True
         nodeinit(self)
-        for ng in bpy.data.node_groups:
-            if self in ng.nodes[:]:
-                self['nodeid'] = self.name+'@'+ng.name        
+        self['nodeid'] = nodeid(self, bpy.data.node_groups)        
 
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -708,19 +686,23 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
         self.inputs.new('ViEnC', 'Context in') 
         self.outputs.new('ViEnR', 'Results out')
         self.outputs['Results out'].hide = True
-        for ng in bpy.data.node_groups:
-            if self in ng.nodes[:]:
-                self['nodeid'] = self.name+'@'+ng.name 
+        self['nodeid'] = nodeid(self, bpy.data.node_groups) 
                 
     def nodeexported(self, context):
         self.exported = False
         self.bl_label = '*EnVi Simulation'
         self.outputs['Results out'].hide = True
+        if self.inputs['Context in'].is_linked:
+            self.resfilename = os.path.join(self.inputs['Context in'].links[0].from_node.newdir, self.resname+'.eso')
         
     resname = bpy.props.StringProperty(name="", description="Base name for the results files", default="results", update = nodeexported)
     resfilename = bpy.props.StringProperty(name = "", default = 'results')
     dsdoy = bpy.props.IntProperty()
     dedoy = bpy.props.IntProperty()
+    
+    def update(self):
+        if self.inputs['Context in'].is_linked:
+            self.resfilename = os.path.join(self.inputs['Context in'].links[0].from_node.newdir, self.resname+'.eso')
     
     def draw_buttons(self, context, layout):
          if self.inputs['Context in'].is_linked:       
@@ -746,9 +728,7 @@ class ViEnRFNode(bpy.types.Node, ViNodes):
     def init(self, context):
         self.outputs.new('ViEnR', 'Results out')
         self.outputs['Results out'].hide = True
-        for ng in bpy.data.node_groups:
-            if self in ng.nodes[:]:
-                self['nodeid'] = self.name+'@'+ng.name
+        self['nodeid'] = nodeid(self, bpy.data.node_groups)
     
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -802,9 +782,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                                                       name="", description="Results frequency", default="0")
 
     def init(self, context):
-        for ng in bpy.data.node_groups:
-            if self in ng.nodes[:]:
-                self['nodeid'] = self.name+'@'+ng.name
+        self['nodeid'] = nodeid(self, bpy.data.node_groups)
         self.inputs.new("ViEnRXIn", "X-axis")
         self['Start'] = 1
         self['End'] = 365
@@ -1264,9 +1242,7 @@ class ViGenNode(bpy.types.Node, ViNodes):
 
     def init(self, context):
         self.inputs.new('ViGen', 'Generative in')
-        for ng in bpy.data.node_groups:
-            if self in ng.nodes[:]:
-                self['nodeid'] = self.name+'@'+ng.name
+        self['nodeid'] = nodeid(self, bpy.data.node_groups)
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Geometry:', self, 'geomenu')
@@ -1306,10 +1282,8 @@ class ViTarNode(bpy.types.Node, ViNodes):
 
     def init(self, context):
         self.inputs.new('ViTar', 'Target in')
-        for ng in bpy.data.node_groups:
-            if self in ng.nodes[:]:
-                self['nodeid'] = self.name+'@'+ng.name
-
+        self['nodeid'] = nodeid(self, bpy.data.node_groups)
+        
     def draw_buttons(self, context, layout):
         newrow(layout, 'Above/Below:', self, 'ab')
         newrow(layout, 'Statistic:', self, 'stat')
@@ -1506,8 +1480,10 @@ class EnViZone(bpy.types.Node, EnViNodes):
             self.inputs.new('EnViCAirSocket', sock[0]+'_c').sn = str(sock[1])
         socklist = [(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].afsurface == 1 and odm[face.material_index].envi_con_type in ('Window', 'Door') and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViSAirSocket']]
         for sock in sorted(set(socklist)):
-            self.outputs.new('EnViSAirSocket', sock[0]+'_s').sn = str(sock[1])
-            self.inputs.new('EnViSAirSocket', sock[0]+'_s').sn = str(sock[1])
+            if not self.outputs.get(sock[0]+'_s'):
+                self.outputs.new('EnViSAirSocket', sock[0]+'_s').sn = str(sock[1])
+            if not self.inputs.get(sock[0]+'_s'):
+                self.inputs.new('EnViSAirSocket', sock[0]+'_s').sn = str(sock[1])
 
     def supdate(self, context):
         self.outputs['TSPSchedule'].hide = False if self.control == 'Temperature' else True
@@ -1624,6 +1600,7 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
     dcof = bpy.props.FloatProperty(default = 0.2, min = 0, max = 1, name = '', description = 'Discharge Coefficient')
 
     def init(self, context):
+        self['nodeid'] = nodeid(self, bpy.data.node_groups)
         self.inputs.new('EnViSAirSocket', 'Node 1', identifier = 'Node1_s')
         self.inputs.new('EnViSAirSocket', 'Node 2', identifier = 'Node2_s')
         self.outputs.new('EnViSAirSocket', 'Node 1', identifier = 'Node1_s')
@@ -1641,7 +1618,7 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
 
     def update(self):
         for sock in [sock for sock in self.inputs]+[sock for sock in self.outputs]:
-            socklink(sock)
+            socklink(sock, self['nodeid'].split('@')[1])
         try:
             lsockids = [('Node1_s', 'Node2_s'), ('Node1_c', 'Node2_c')][self.linkmenu not in ('SO', 'DO', 'HO')]
             for ins in [ins for ins in self.inputs if ins.identifier in lsockids]:

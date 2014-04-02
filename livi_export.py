@@ -263,13 +263,11 @@ def radcexport(export_op, node):
                     with open(locnode.weather, "r") as epwfile:
                         epwlines = epwfile.readlines()
                         epwyear = epwlines[8].split(",")[0]
-    #                    if not os.path.isfile(geonode.newdir+"/"+epwbase[0]+".wea"):
                         with open(geonode.newdir+os.path.sep+epwbase[0]+".wea", "w") as wea:
                             wea.write("place {0[1]}\nlatitude {0[6]}\nlongitude {0[7]}\ntime_zone {0[8]}\nsite_elevation {0[9]}weather_data_file_units 1\n".format(epwlines[0].split(",")))
                             for epwline in epwlines[8:]:
                                 if int(epwline.split(",")[1]) in range(locnode.startmonth, locnode.endmonth + 1):
                                     wea.write("{0[1]} {0[2]} {0[3]} {0[14]} {0[15]} \n".format(epwline.split(",")))
-    #                    if not os.path.isfile(geonode.newdir+"/"+epwbase[0]+".mtx"):
                         subprocess.call("gendaymtx -m 1 {0} {1}.wea > {1}.mtx".format(('', '-O1')[node.analysismenu in ('1', '3')], geonode.newdir+os.path.sep+epwbase[0]), shell=True)                       
                 else:
                     export_op.report({'ERROR'}, "Not a valid EPW file")
@@ -279,8 +277,6 @@ def radcexport(export_op, node):
             
             elif node['source'] == '1' and int(node.analysismenu) > 1:
                 mtxfile = open(node.mtxname, "r")
-#                if not node.get('epwyear'):
-#                    node['epwyear'] = datetime.datetime.now().year
     
             if node['source'] == '0':
                 if node.inputs['Location in'].is_linked:
@@ -320,8 +316,6 @@ def sunexport(scene, node, geonode, starttime, frame):
         simtime = starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
         solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour + (simtime.minute)*0.016666, scene.latitude, scene.longitude)
         subprocess.call("gensky -ang {} {} {} > {}".format(solalt, solazi, node.skytypeparams, retsky(frame, node, geonode)), shell = True)
-
-#        subprocess.call("gensky {} {} {}:{:0>2d}{} -a {} -o {} {} > {}".format(simtime.month, simtime.day, simtime.hour, simtime.minute, node.TZ, scene.latitude, scene.longitude, node.skytypeparams, retsky(frame, node, geonode)), shell = True)
     elif node.skynum == 3:
         subprocess.call("gensky -ang {} {} {} > {}".format(45, 0, node.skytypeparams, retsky(frame, node, geonode)), shell = True)
 
@@ -336,8 +330,6 @@ def hdrexport(scene, frame, node, geonode):
 
 def blsunexport(scene, node, starttime, frame, sun):
     simtime = starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
-#    deg2rad = 2*math.pi/360
-#    DS = 1 if node.daysav else 0
     solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour + (simtime.minute)*0.016666, scene.latitude, scene.longitude)
     if node.skynum < 2:
         if frame == 0:
@@ -400,8 +392,6 @@ def cyfc1(self):
             if material.use_nodes == 1:
                 try:
                     if material.livi_sense or material.vi_shadow and material.node_tree.nodes.get('Attribute'):
-#                        nt = material.node_tree
-#                        if nt.nodes.get('Attribute'):
                         material.node_tree.nodes["Attribute"].attribute_name = str(scene.frame_current)
                 except Exception as e:
                     print(e, 'Something wrong with changing the material attribute name')
@@ -410,10 +400,6 @@ def cyfc1(self):
             if bpy.data.worlds["World"].use_nodes == False:
                 bpy.data.worlds["World"].use_nodes = True
             nt = bpy.data.worlds[0].node_tree
-
-#            if nt.nodes.get('Environment Texture'):
-#                nt.nodes['Environment Texture'].image.filepath = scene['newdir']+"{}sp.hdr".format(os.path.sep+scene.frame_current)
-#                nt.nodes['Environment Texture'].image.reload()
 
         for ob in scene.objects:
             if ob.get('VIType') == 'Sun':

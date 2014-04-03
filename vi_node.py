@@ -841,7 +841,8 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 xltype.append((link, link, "Plot "+link))
             for linkr in innode['lrtypes']:
                 xlrtype.append((linkr, linkr, "Plot "+linkr))
-            self.inputs['Y-axis 1'].hide = False
+            if self.inputs.get('Y-axis 1'):
+                self.inputs['Y-axis 1'].hide = False
 
             class ViEnRXIn(bpy.types.NodeSocket):
                 '''Energy geometry out socket'''
@@ -875,6 +876,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
 
                 def color(self):
                     return (0.0, 1.0, 0.0, 0.75)
+            bpy.utils.register_class(ViEnRXIn)
 
         if self.inputs.get('Y-axis 1'):
             if self.inputs['Y-axis 1'].is_linked == False:
@@ -887,11 +889,14 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                         return (0.0, 1.0, 0.0, 0.75)
                     def draw(self, context, layout, node, text):
                         layout.label('Y-axis 1')
-                self.inputs['Y-axis 2'].hide = True
+               
+                bpy.utils.register_class(ViEnRY1In)
+                if self.inputs.get('Y-axis 2'):
+                    self.inputs['Y-axis 2'].hide = True
 
             else:
                 y1rtype, y1ctype, y1ztype, y1zrtype, y1ltype, y1lrtype = [], [], [], [], [], []
-                innode = self.inputs[1].links[0].from_node
+                innode = self.inputs['Y-axis 1'].links[0].from_node
                 for restype in innode['rtypes']:
                     y1rtype.append((restype, restype, "Plot "+restype))
                 for clim in innode['ctypes']:
@@ -937,7 +942,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
     
                     def color(self):
                         return (0.0, 1.0, 0.0, 0.75)
-    
+                bpy.utils.register_class(ViEnRY1In)
                 self.inputs['Y-axis 2'].hide = False
 
         if self.inputs.get('Y-axis 2'):
@@ -951,7 +956,10 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                         return (0.0, 1.0, 0.0, 0.75)
                     def draw(self, context, layout, node, text):
                         layout.label('Y-axis 2')
-                self.inputs['Y-axis 3'].hide = True
+                
+                bpy.utils.register_class(ViEnRY2In)
+                if self.inputs.get('Y-axis 3'):
+                    self.inputs['Y-axis 3'].hide = True
     
             else:
                 y2rtype, y2ctype, y2ztype, y2zrtype, y2ltype, y2lrtype = [], [], [], [], [], []
@@ -1002,6 +1010,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                         return (0.0, 1.0, 0.0, 0.75)
     
                     self.inputs['Y-axis 3'].hide = False
+                bpy.utils.register_class(ViEnRY2In)
 
         if self.inputs.get('Y-axis 3'):
             if self.inputs['Y-axis 3'].is_linked == False:
@@ -1014,6 +1023,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                         return (0.0, 1.0, 0.0, 0.75)
                     def draw(self, context, layout, node, text):
                         layout.label('Y-axis 3')
+                bpy.utils.register_class(ViEnRY3In)
             else:
                 y3rtype, y3ctype, y3ztype, y3zrtype, y3ltype, y3lrtype = [], [], [], [], [], []
                 innode = self.inputs[3].links[0].from_node
@@ -1061,11 +1071,13 @@ class ViEnRNode(bpy.types.Node, ViNodes):
     
                     def color(self):
                         return (0.0, 1.0, 0.0, 0.75)
+                
+                bpy.utils.register_class(ViEnRY3In)
 
-        bpy.utils.register_class(ViEnRXIn)
-        bpy.utils.register_class(ViEnRY1In)
-        bpy.utils.register_class(ViEnRY2In)
-        bpy.utils.register_class(ViEnRY3In)
+        
+        
+        
+        
 
 class ViNodeCategory(NodeCategory):
     @classmethod

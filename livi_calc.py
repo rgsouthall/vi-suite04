@@ -633,13 +633,12 @@ def li_glare(calc_op, simnode, connode, geonode):
     scene = bpy.context.scene
     cam = scene.camera
     if cam:
-        gfiles=[]
         num = (("-ab", 2, 3, 5), ("-ad", 512, 2048, 4096), ("-ar", 128, 512, 1024), ("-as", 256, 1024, 2048), ("-aa", 0.3, 0.2, 0.18), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.001, 0.0002))
         params = (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in num], [n[int(simnode.simacc)+1] for n in num]))
         
         for frame in range(scene.fs, scene.fe + 1):
             time = datetime.datetime(2014, 1, 1, connode.shour, 0) + datetime.timedelta(connode.sdoy - 1) if connode.animmenu == '0' else \
-            datetime.datetime(2014, 1, 1, connode.shour, 0) + datetime.timedelta(connode.sdoy - 1) + datetime.timedelta(hours = connode.interval*(frame-scene.frame_start))
+            datetime.datetime(2014, 1, 1, int(connode.shour), int(3600*(connode.shour - int(connode.shour)))) + datetime.timedelta(connode.sdoy - 1) + datetime.timedelta(hours = int(connode.interval*(frame-scene.frame_start)), seconds = int(3600*(connode.interval*(frame-scene.frame_start) - int(connode.interval*(frame-scene.frame_start)))))
             glarecmd = "rpict -w -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{5}.oct | evalglare -c {4}.hdr".format(-1*cam.matrix_world, cam.location, params, geonode.filebase, os.path.join(geonode.newdir, 'glare'+str(frame)), frame)               
             glarerun = Popen(glarecmd, shell = True, stdout = PIPE)
             glaretf = open(geonode.filebase+".glare", "w")
@@ -651,17 +650,10 @@ def li_glare(calc_op, simnode, connode, geonode):
             subprocess.call("pcond -u 300 {0}.hdr > {0}.temphdr".format(os.path.join(geonode.newdir, 'glare'+str(frame))), shell=True)
             subprocess.call("{0} {1}.glare | psign -h 32 -cb 0 0 0 -cf 40 40 40 | pcompos {3}.temphdr 0 0 - 800 550 > {3}.hdr" .format(geonode.cat, geonode.filebase, frame, os.path.join(geonode.newdir, 'glare'+str(frame))), shell=True)
             subprocess.call("{} {}.temphdr".format(geonode.rm, os.path.join(geonode.newdir, 'glare'+str(frame))), shell=True)                    
-                 
-            gfile={"name":"glare"+str(frame)+".hdr"}
-            gfiles.append(gfile)
-        try:
-            scene.sequence_editor.sequences_all["glare{}.hdr".format(scene.fs)]
-            bpy.ops.sequencer.refresh_all()
-        except:
-            bpy.ops.sequencer.image_strip_add( directory = geonode.newdir, \
-                files = gfiles, \
-                frame_start=0, \
-                channel=2, \
-                filemode=9)
+            if  'glare{}.hdr'.format(frame) in bpy.data.images:
+                bpy.data.images['glare{}.hdr'.format(frame)].reload()
+            else:
+                bpy.data.images.load(os.path.join(geonode.newdir, 'glare{}.hdr'.format(frame)))
+                
     else:
         calc_op.report({'ERROR'}, "There is no camera in the scene. Create one for glare analysis")

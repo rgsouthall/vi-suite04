@@ -638,7 +638,7 @@ def li_glare(calc_op, simnode, connode, geonode):
         
         for frame in range(scene.fs, scene.fe + 1):
             time = datetime.datetime(2014, 1, 1, connode.shour, 0) + datetime.timedelta(connode.sdoy - 1) if connode.animmenu == '0' else \
-            datetime.datetime(2014, 1, 1, int(connode.shour), int(3600*(connode.shour - int(connode.shour)))) + datetime.timedelta(connode.sdoy - 1) + datetime.timedelta(hours = int(connode.interval*(frame-scene.frame_start)), seconds = int(3600*(connode.interval*(frame-scene.frame_start) - int(connode.interval*(frame-scene.frame_start)))))
+            datetime.datetime(2014, 1, 1, int(connode.shour), int(60*(connode.shour - int(connode.shour)))) + datetime.timedelta(connode.sdoy - 1) + datetime.timedelta(hours = int(connode.interval*(frame-scene.frame_start)), seconds = int(60*(connode.interval*(frame-scene.frame_start) - int(connode.interval*(frame-scene.frame_start)))))
             glarecmd = "rpict -w -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{5}.oct | evalglare -c {4}.hdr".format(-1*cam.matrix_world, cam.location, params, geonode.filebase, os.path.join(geonode.newdir, 'glare'+str(frame)), frame)               
             glarerun = Popen(glarecmd, shell = True, stdout = PIPE)
             glaretf = open(geonode.filebase+".glare", "w")

@@ -7,7 +7,8 @@ class envi_materials(object):
         # Define materials with a comma separated dictionary, with material name as key, giving (Roughness, Conductivity {W/m-K}, Density {kg/m3}, Specific Heat {J/kg-K}, Thermal Absorbtance, Solar Absorbtance, Visible Absorbtance, Default thickness)    
         self.metal_datd = {'Copper': ('Smooth', '200', '8900.0', '418.00', '0.72', '0.65', '0.65', '5'), 
                         'Steel': ('Smooth', '50', '7800.0', '502.0', '0.12', '0.2', '0.2', '5'), 
-                        'Aluminium': ('Smooth', '210', '2700', '880.00', '0.22', '0.2', '0.2', '5')}
+                        'Aluminium': ('Smooth', '210', '2700', '880.00', '0.22', '0.2', '0.2', '5'),
+                        'Lead': ('Smooth', '35.3', '11340', '128.00', '0.05', '0.05', '0.05', '5')}
         self.metal_dat = OrderedDict(sorted(self.metal_datd.items()))
         
         self.brick_datd = {'Standard Brick': ('Rough', '0.8', '1800', '900.00', '0.900000', '0.600000', '0.600000', '100'), 

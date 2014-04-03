@@ -1,10 +1,10 @@
 import sys
-if str(sys.platform) == 'linux':
-    try:
-        import matplotlib.pyplot as plt
-        mp = 1
-    except:
-        mp = 0
+
+try:
+    import matplotlib.pyplot as plt
+    mp = 1
+except:
+    mp = 0
         
 def label(cat, stat, time, metric):
     if cat == 'Climate':

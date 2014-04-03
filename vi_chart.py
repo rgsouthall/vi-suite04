@@ -13,7 +13,6 @@ def label(cat, stat, time, metric):
         catstring = 'Zone'
     elif cat == 'Linkage':
         catstring = 'Linkage'
-    print('{} {} {} {}'.format(stat, catstring, time, metric))
     return('{} {} {} {}'.format(stat, catstring, ('Hourly', 'Daily', 'Monthly')[int(time)], metric))
     
 def statdata(res, stat):
@@ -56,7 +55,6 @@ def chart_disp(chart_op, dnode, rnodes, Sdate, Edate):
             xlabel = 'Time (hours)'
         if dnode.timemenu == '1':
             xdata = range(dnode['Start'], dnode['End'] + 1)
-            print(len(xdata), 'time')
             xlabel = 'Time (day of year)'
         if dnode.timemenu == '2':
             xdata = range(Sdate.month, Edate.month + 1)

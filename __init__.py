@@ -495,6 +495,8 @@ def register():
     Material.envi_export_l4_bie = fprop("BIE", "Back Side Infrared Hemispherical Emissivity", 0, 1, 0.84)
     Material.envi_shad_att = bprop("Attached", "Flag to specify shading attached to the building",False)
 
+    # Scene parameters
+
     Scene.fs = iprop("Frame start", "Starting frame",0, 1000, 0)
     Scene.fe = iprop("Frame start", "End frame",0, 50000, 0)
     Scene.gfe = iprop("Frame start", "End frame",0, 50000, 0)
@@ -505,78 +507,31 @@ def register():
     Scene.soldistance = bpy.props.IntProperty(name = "", description = "Sun path scale", min = 1, max = 5000, default = 100, update=sunpath1)
     Scene.hourdisp = bprop("", "",0)
     Scene.spupdate = bprop("", "",0)
-#    Scene.vi_loc = eprop([("0", "Manual", "Manual location"), ("1", "From EPW file", "EPW location")], "Location", "Location", "0")
-
-#    Scene.vi_weather = eprop(items = weatherlist, name="Weather location", description="Weather for this project")
-
     Scene.latitude = bpy.props.FloatProperty(name="Latitude", description="Site Latitude", min=-90, max=90, default=52)
     Scene.longitude = bpy.props.FloatProperty(name="Longitude", description="Site Longitude", min=-180, max=180, default=0)
-
-#    Scene.vi_meridian = eprop(
-#            [("-9", "YST", ""),
-#                   ("-8", "PST", ""),
-#                   ("-7", "MST", ""),
-#                   ("-6", "CST", ""),
-#                   ("-5", "EST", ""),
-#                   ("0", "GMT", ""),
-#                   ("1", "CET", ""),
-#                   ("2", "EET", ""),
-#                   ("3", "AST", ""),
-#                   ("4", "GST", ""),
-#                   ("5.5", "IST", ""),
-#                   ("9", "JST", ""),
-#                   ("12", "NZST", ""),
-#                    ],
-#            "",
-#            "Specify the local meridian",
-#            "0")
-
     Scene.li_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
-
     Scene.lic_disp_panel = bprop("", "",False)
-
     Scene.vi_disp_3d = bprop("VI 3D display", "Boolean for 3D results display",  False)
-
     Scene.vi_disp_3dlevel = bpy.props.FloatProperty(name = "", description = "Level of 3D result plane extrusion", min = 0, max = 500, default = 0, update = eupdate)
-
     Scene.vi_display = bprop("", "",False)
-
     Scene.sp_disp_panel = bprop("", "",False)
-
     Scene.wr_disp_panel = bprop("", "",False)
-
     Scene.ss_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
-
     Scene.ss_leg_display = bprop("", "",False)
-
     Scene.en_disp_panel = bprop("", "",False)
-
     Scene.li_compliance = bprop("", "", False)
-
     Scene.vi_display_rp = bprop("", "", False)
-
     Scene.vi_leg_display = bprop("Legend", "", False)
-
     Scene.vi_display_sel_only = bprop("", "", False)
-
     Scene.vi_display_vis_only = bprop("", "", False)
-
     Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 48, 9)
-
     Scene.vi_display_rp_fc = fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
-
     Scene.vi_display_rp_fsh = fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
-
     Scene.li_projname = sprop("", "Name of the building project", 1024, '')
-
     Scene.li_assorg = sprop("", "Name of the assessing organisation", 1024, '')
-
     Scene.li_assind = sprop("", "Name of the assessing individual", 1024, '')
-
     Scene.li_jobno = sprop("", "Project job number", 1024, '')
-
     Scene.resnode = sprop("", "", 0, "")
-
     Scene.restree = sprop("", "", 0, "")
 
     nodeitems_utils.register_node_categories("Vi Nodes", vinode_categories)

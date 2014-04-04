@@ -589,8 +589,8 @@ Construction,\n\
         subprocess.call(node.cp+'"'+locnode.weather+'" '+os.path.join(node.newdir, "in.epw"), shell = True)
         subprocess.call(node.cp+'"'+os.path.dirname( os.path.realpath( __file__ ) )+node.fold+"EPFiles"+node.fold+"Energy+.idd"+'" '+node.newdir+node.fold, shell = True)
     else:
-        subprocess.call(node.cp+locnode.weather+" "+os.path.join(node.newdir, "in.epw"), shell = True)
-        subprocess.call(node.cp+scene.vipath+os.sep+"EPFiles"+os.sep+"Energy+.idd "+node.newdir+os.sep, shell = True)
+        subprocess.call(node.cp+locnode.weather.replace(' ', '\ ')+" "+os.path.join(node.newdir, "in.epw"), shell = True)
+        subprocess.call(node.cp+scene.vipath.replace(' ', '\ ')+os.sep+"EPFiles"+os.sep+"Energy+.idd "+node.newdir+os.sep, shell = True)
 
 def pregeo(op):
     scene = bpy.context.scene

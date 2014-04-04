@@ -14,7 +14,8 @@ def envi_sim(calc_op, node, connode):
     esimcmd = "EnergyPlus in.idf in.epw" 
     esimrun = Popen(esimcmd, shell = True, stdout = PIPE)
     for line in esimrun.stdout:
-        print(line) 
+        if 'FATAL' in line.decode():
+            print(line) 
     for fname in os.listdir('.'):
         if fname.split(".")[0] == node.resname:
             os.remove(os.path.join(connode.newdir, fname))

@@ -83,8 +83,8 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
 
     def update(self):
         self.outputs[0].hide = True if self.animmenu != 'Static' else False            
-        socklink(self.outputs[0], self['nodeid'].split('@')[1])
-        socklink(self.outputs[1], self['nodeid'].split('@')[1])
+        socklink(self.outputs['Generative out'], self['nodeid'].split('@')[1])
+        socklink(self.outputs['Geometry out'], self['nodeid'].split('@')[1])
         if self.outputs[0].is_linked and self.outputs[0].links[0].to_node.name == 'LiVi Compliance' and self.cpoint == '1':
             self.cpoint = '0'
 
@@ -1894,13 +1894,11 @@ class EnViExtNode(bpy.types.Node, EnViNodes):
 
     def init(self, context):
         self.inputs.new('EnViSAirSocket', 'External')
+#        self.inputs.new('WPCSocket', 'WPC values')
         self.outputs.new('EnViSAirSocket', 'External')
 
     def draw_buttons(self, context, layout):
-        layout.prop(self, 'linktypeprop')
-        if self.linktypeprop == "Crack":
-            layout.prop(self, 'amfc')
-            layout.prop(self, 'amfe')
+        layout.prop(self, 'height')
 
 class EnViSched(bpy.types.Node, EnViNodes):
     '''Node describing a schedule'''

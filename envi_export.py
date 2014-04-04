@@ -590,11 +590,12 @@ Construction,\n\
         subprocess.call(node.cp+'"'+os.path.dirname( os.path.realpath( __file__ ) )+node.fold+"EPFiles"+node.fold+"Energy+.idd"+'" '+node.newdir+node.fold, shell = True)
     else:
         subprocess.call(node.cp+locnode.weather+" "+os.path.join(node.newdir, "in.epw"), shell = True)
-        subprocess.call(node.cp+os.path.dirname( os.path.realpath( __file__ ) )+node.fold+"EPFiles"+node.fold+"Energy+.idd "+node.newdir+node.fold, shell = True)
+        subprocess.call(node.cp+scene.vipath+os.sep+"EPFiles"+os.sep+"Energy+.idd "+node.newdir+os.sep, shell = True)
 
 def pregeo(op):
-    for obj in [obj for obj in bpy.context.scene.objects if obj.layers[1] == True]:
-        bpy.context.scene.objects.unlink(obj)
+    scene = bpy.context.scene
+    for obj in [obj for obj in scene.objects if obj.layers[1] == True]:
+        scene.objects.unlink(obj)
         bpy.data.objects.remove(obj)
     for mesh in bpy.data.meshes:
         if mesh.users == 0:
@@ -603,7 +604,7 @@ def pregeo(op):
         if materials.users == 0:
             bpy.data.materials.remove(materials)
 
-    for obj in [obj for obj in bpy.context.scene.objects if obj.envi_type in ('1', '2') and obj.layers[0] == True]:
+    for obj in [obj for obj in scene.objects if obj.envi_type in ('1', '2') and obj.layers[0] == True and obj.hide == False]:
         if 'EnVi Network' not in bpy.data.node_groups.keys():
             bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network")
             bpy.data.node_groups['EnVi Network'].use_fake_user = 1
@@ -615,16 +616,16 @@ def pregeo(op):
             if 'en_'+mats.name not in [mat.name for mat in bpy.data.materials]:
                 mats.copy().name = 'en_'+mats.name
 
-        bpy.context.scene.objects.active = obj
-        bpy.ops.object.select_all(action='DESELECT')
+#        scene.objects.active = obj
+#        bpy.ops.object.select_all(action='DESELECT')
 
-        obj.select = True
+        vi_func.selobj(scene, obj)
         bpy.ops.object.mode_set(mode = "EDIT")
         bpy.ops.mesh.select_all(action='DESELECT')
         bpy.ops.object.mode_set(mode = 'OBJECT')
         bpy.ops.object.duplicate()
 
-        en_obj = bpy.context.scene.objects.active
+        en_obj = scene.objects.active
 #        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
         obj.select = False
         en_obj.select = True

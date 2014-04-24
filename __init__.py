@@ -1,5 +1,5 @@
 bl_info = {
-    "name": "VI-Suite Development Version",
+    "name": "VI-Suite",
     "author": "Ryan Southall",
     "version": (0, 1, 0),
     "blender": (2, 7, 0),
@@ -24,7 +24,6 @@ else:
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1
     from .vi_operators import *
     from .vi_ui import *
-
 
 import sys, os, platform, inspect, bpy, nodeitems_utils
 
@@ -63,13 +62,6 @@ envi_mats = envi_materials()
 envi_cons = envi_constructions()
 
 def matfunc(i):
-#    if i == 0:
-#        return [((wall, wall, 'Contruction type')) for wall in list(envi_mats.wall_dat.keys())]
-#    elif i == 1:
-#        return [((floor, floor, 'Contruction type')) for floor in list(envi_mats.floor_dat.keys())]
-#    elif i == 2:
-#        return [((roof, roof, 'Contruction type')) for roof in list(envi_mats.roof_dat.keys())]
-
     if i == 0:
         return [((brick, brick, 'Contruction type')) for brick in list(envi_mats.brick_dat.keys())]
     elif i == 1:
@@ -105,9 +97,8 @@ def confunc(i):
 (bricklist, stonelist, metallist, woodlist, gaslist, glasslist, concretelist, insullist, wgaslist, claddinglist) = [matfunc(i) for i in range(10)]
 (wallconlist, floorconlist, roofconlist, doorconlist, glazeconlist) = [confunc(i) for i in range(5)]
 
-
 def eupdate(self, context):
-    inv = 0# if context.scene.resnode == 'VI Shadow Study' else 1        
+    inv = 0        
     for frame in range(context.scene.frame_start, context.scene.frame_end + 1):
         for o in [obj for obj in bpy.data.objects if obj.lires == 1]:
             if str(frame) in o['omax'].keys():
@@ -487,8 +478,8 @@ def register():
     Scene.soldistance = bpy.props.IntProperty(name = "", description = "Sun path scale", min = 1, max = 5000, default = 100, update=sunpath1)
     Scene.hourdisp = bprop("", "",0)
     Scene.spupdate = bprop("", "",0)
-    Scene.latitude = bpy.props.FloatProperty(name="Latitude", description="Site Latitude", min=-90, max=90, default=52)
-    Scene.longitude = bpy.props.FloatProperty(name="Longitude", description="Site Longitude", min=-180, max=180, default=0)
+#    Scene.latitude = bpy.props.FloatProperty(name="Latitude", description="Site Latitude", min=-90, max=90, default=52)
+#    Scene.longitude = bpy.props.FloatProperty(name="Longitude", description="Site Longitude", min=-180, max=180, default=0)
     Scene.li_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
     Scene.lic_disp_panel = bprop("", "",False)
     Scene.vi_disp_3d = bprop("VI 3D display", "Boolean for 3D results display",  False)
@@ -501,7 +492,7 @@ def register():
     Scene.en_disp_panel = bprop("", "",False)
     Scene.li_compliance = bprop("", "", False)
     Scene.vi_display_rp = bprop("", "", False)
-    Scene.vi_leg_display = bprop("Legend", "", False)
+    Scene.vi_leg_display = bprop("", "", False)
     Scene.vi_display_sel_only = bprop("", "", False)
     Scene.vi_display_vis_only = bprop("", "", False)
     Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 48, 9)

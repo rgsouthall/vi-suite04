@@ -1,15 +1,9 @@
-#import bpy, 
-import os, glob, bpy, datetime, time
-#, subprocess
+import os, bpy
 from subprocess import PIPE, Popen
-from os import rename, sep
-from os.path import basename
-from bpy.props import EnumProperty, IntProperty
-from .vi_func import iprop, eprop, processf
-from . import vi_node
+from os import rename
+from .vi_func import processf
 
 def envi_sim(calc_op, node, connode):
-#    node.resfilename = connode.newdir+connode.fold+node.resname+'.eso'
     os.chdir(connode.newdir)
     esimcmd = "EnergyPlus in.idf in.epw" 
     esimrun = Popen(esimcmd, shell = True, stdout = PIPE)
@@ -22,7 +16,7 @@ def envi_sim(calc_op, node, connode):
     for fname in os.listdir('.'):
         if fname.split(".")[0] == "eplusout":
             rename(os.path.join(connode.newdir, fname), os.path.join(connode.newdir,fname.replace("eplusout", node.resname)))
-#    scene.envi_sim = True
+
     processf(calc_op, node)
     node.dsdoy = connode.sdoy # (locnode.startmonthnode.sdoy
     node.dedoy = connode.edoy
@@ -33,4 +27,4 @@ def envi_sim(calc_op, node, connode):
     if node.resname+".err" not in [im.name for im in bpy.data.texts]:
         bpy.data.texts.load(os.path.join(connode.newdir, node.resname+".err"))
 
-#def envi_reslist    
+   

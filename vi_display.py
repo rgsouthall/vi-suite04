@@ -17,7 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, blf, colorsys, bgl, mathutils
+import bpy, blf, colorsys, bgl, mathutils, math
 try:
     import matplotlib
     mp = 1
@@ -143,9 +143,16 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
 
     if (scene.li_disp_panel != 2 and scene.ss_disp_panel != 2) or scene.vi_display_rp != True \
          or (bpy.context.active_object not in (obcalclist+obreslist) and scene.vi_display_sel_only == True)  \
-         or scene.frame_current not in range(scene.fs, scene.fe + 1) or (bpy.context.active_object and bpy.context.active_object.mode == 'EDIT'):
+         or (bpy.context.active_object and bpy.context.active_object.mode == 'EDIT'):
         return
-        
+    
+    if not context.space_data.region_3d.is_perspective:
+        disp_op.report({'ERROR'},"Switch to prespective vie wmode for number display")
+        return
+    if scene.frame_current not in range(scene.fs, scene.fe + 1) and scene.vi_display:
+        disp_op.report({'ERROR'},"Outside result frame range")
+        return
+    
     if bpy.context.active_object:
         if bpy.context.active_object.type == 'MESH' and bpy.context.active_object.mode != 'OBJECT':
              bpy.context.active_object.mode = 'OBJECT'
@@ -171,12 +178,11 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         obm = ob.data
         ob_mat = ob.matrix_world
         view_mat = context.space_data.region_3d.perspective_matrix
-        view_pos = (view_mat.inverted()[0][3]/5, view_mat.inverted()[1][3]/5, view_mat.inverted()[2][3]/5)
-
+        view_pos = [vmi*scene['cs']*2 for vmi in (view_mat.inverted()[0][3], view_mat.inverted()[1][3], view_mat.inverted()[2][3])]
         if cp == "0" or not geonode:
             faces = [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons if ob.data.materials[f.material_index].vi_shadow] if simnode.bl_label == 'VI Shadow Study' else [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons if ob.data.materials[f.material_index].livi_sense]
             if scene.vi_display_vis_only:
-                faces = [f for f in faces if not scene.ray_cast(ob_mat*((vi_func.face_centre(ob, len(obreslist), f)))+ 0.01*ob_mat*f.normal, view_pos)[0]]
+                faces = [f for f in faces if not scene.ray_cast(ob_mat*((vi_func.face_centre(ob, len(obreslist), f)))+ 0.01*(ob_mat*f.normal-ob.location), view_pos)[0]]
         else:
             fverts = set(sum([list(f.vertices[:]) for f in ob.data.polygons if f.select], []))
             verts = [ob.data.vertices[v] for v in fverts if not scene.ray_cast(ob_mat*vi_func.v_pos(ob, v) + 0.01*ob_mat*ob.data.vertices[v].normal,view_pos)[0]] if scene.vi_display_vis_only else [ob.data.vertices[v] for v in fverts] 
@@ -188,7 +194,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
                         break
 
         total_mat = view_mat*ob_mat
-        if cp == "0" or not geonode:
+        if cp == "0" or not geonode:            
             for f in faces:
                 vsum = mathutils.Vector((0, 0, 0))
                 for v in f.vertices:
@@ -203,13 +209,13 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
                                 val = abs(min(simnode['minres']) + (1 - (1.333333*colorsys.rgb_to_hsv(*[col[i]/255 for i in range(3)])[0]))*(maxval - minval))
                                 vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, ('{:.1f}', '{:.0f}')[val > 100].format(val), total_mat*fc.to_4d())
                             else:
-                                vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, '{:.0f}'.format(abs(minval + (col[0])*(maxval - minval))), total_mat*fc.to_4d())
+                                vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, '{:.0f}'.format(abs(col[0]*100)), total_mat*fc.to_4d())
         elif cp == "1":
             for v, vert in enumerate(verts):
                 vpos = ob.active_shape_key.data[vert.index].co if len(obreslist) > 0 else vert.co
                 if len(set(obm.vertex_colors[fn].data[vert.index].color[:])) > 0:
                     if (total_mat*vpos)[2] > 0:
-                        vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, int((1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loops[v]].color[0]/255, obm.vertex_colors[fn].data[loops[v]].color[1]/255, obm.vertex_colors[fn].data[loops[v]].color[2]/255)[0]))*max(simnode['maxres'])), total_mat*vpos.to_4d())
+                        vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, ('{:.1f}', '{:.0f}')[max(simnode['maxres']) > 100].format(abs(min(simnode['minres']) + int((1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loops[v]].color[0]/255, obm.vertex_colors[fn].data[loops[v]].color[1]/255, obm.vertex_colors[fn].data[loops[v]].color[2]/255)[0]))*(max(simnode['maxres']) - min(simnode['minres']))))), total_mat*vpos.to_4d())
     blf.disable(0, 4)
 
 def li3D_legend(self, context, simnode, connode, geonode):
@@ -218,10 +224,10 @@ def li3D_legend(self, context, simnode, connode, geonode):
         if scene.vi_leg_display != True or scene.vi_display == 0 or (scene.wr_disp_panel != 1 and scene.li_disp_panel != 2 and scene.ss_disp_panel != 2) or scene.frame_current not in range(scene.fs, scene.fe + 1):
             return
         else:
-            if not connode or (connode and connode.bl_label == 'LiVi CBDM'):
-                resvals = ['{:.1f}'.format(min(simnode['minres'])+i*(max(simnode['maxres'])-min(simnode['minres']))/19) for i in range(20)]
+            if max(simnode['maxres']) > 100:
+                resvals = ['{:.0f}'.format(min(simnode['minres'])+i*(max(simnode['maxres'])-min(simnode['minres']))/19) for i in range(20)]
             else:
-                resvals = [('{:.0f}', '{:.0f}', '{:.1f}')[int(connode.analysismenu)].format(min(simnode['minres'])+i*(max(simnode['maxres'])-min(simnode['minres']))/19) for i in range(20)]
+                resvals = ['{:.1f}'.format(min(simnode['minres'])+i*(max(simnode['maxres'])-min(simnode['minres']))/19) for i in range(20)]
     
             height = context.region.height
             lenres = len(resvals[-1])
@@ -246,18 +252,8 @@ def li3D_legend(self, context, simnode, connode, geonode):
                 blf.position(font_id, 65, (i*20)+height - 455, 0)
                 blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])    
             blf.size(font_id, 20, 56)
-
-            if connode:
-                if connode.bl_label == 'LiVi CBDM':
-                    unit = ('kLuxHours', 'kWh', 'DA (%)', '', 'UDI-a (%)')[int(connode.analysismenu)]
-                elif connode.bl_label == 'LiVi Basic':
-                    unit = ("Lux", "W/m"+ u'\u00b2', "DF %")[int(connode.analysismenu)]
-                elif connode.bl_label == 'LiVi Compliance':
-                    unit = "DF %"
-                else:
-                    unit = 'unit'
     
-            cu = unit if connode else '% Sunlit'    
+            cu = connode['unit'] if connode else '% Sunlit'    
             vi_func.drawfont(cu, font_id, 0, height, 25, 57)
             bgl.glLineWidth(1)
             bgl.glDisable(bgl.GL_BLEND)
@@ -267,7 +263,7 @@ def li3D_legend(self, context, simnode, connode, geonode):
                 findex = scene.frame_current - scene.frame_start if simnode['Animation'] != 'Static' else 0
                 bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
                 blf.size(font_id, 20, 48)
-                if context.active_object and context.active_object.get('lires') == 1 or context.active_object.get('licalc'):
+                if context.active_object and (context.active_object.get('lires') or context.active_object.get('licalc')):
                     vi_func.drawfont("Ave: {:.1f}".format(context.active_object['oave'][str(scene.frame_current)]), font_id, 0, height, 22, 480)
                     vi_func.drawfont("Max: {:.1f}".format(context.active_object['omax'][str(scene.frame_current)]), font_id, 0, height, 22, 495)
                     vi_func.drawfont("Min: {:.1f}".format(context.active_object['omin'][str(scene.frame_current)]), font_id, 0, height, 22, 510)
@@ -312,7 +308,6 @@ def viwr_legend(self, context, simnode):
         bgl.glDisable(bgl.GL_BLEND)
         height = context.region.height
         font_id = 0
-#        if context.scene.frame_current in range(scene.fs, scene.fe + 1):
         bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
         blf.size(font_id, 20, 48)
         vi_func.drawfont("Ave: {:.1f}".format(simnode['avres']), font_id, 0, height, 22, simnode['nbins']*20 + 85)
@@ -534,6 +529,8 @@ def rendview(i):
                                 space.show_textured_solid = 1
                             else:
                                 space.show_textured_solid = 0
+                            space.clip_start = 0.1
+                            bpy.context.scene['cs'] = space.clip_start
 
 
 

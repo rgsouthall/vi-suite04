@@ -17,9 +17,7 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
         elif geogennode.oselmenu == 'Selected':   
             manipobs = [ob for ob in vi_func.retobjs('livig') if ob.select == True and ob not in vi_func.retobjs('livic')]
         else:
-            manipobs = [ob for ob in vi_func.retobjs('livig') if ob.select == False and ob not in vi_func.retobjs('livic')]
-#        for ob in vi_func.retobjs('livig'):
-            
+            manipobs = [ob for ob in vi_func.retobjs('livig') if ob.select == False and ob not in vi_func.retobjs('livic')]   
     
     elif geogennode.geomenu == 'Mesh':  
         if geogennode.oselmenu == 'All':
@@ -30,9 +28,7 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
             manipobs = [ob for ob in vi_func.retobjs('livig') if ob.select == False] 
        
         for ob in manipobs:
-#            ob.manip = 1
             vi_func.selobj(scene, ob)
-
             bpy.ops.object.mode_set(mode = 'EDIT')
             if ob.vertex_groups.get('genfaces'):            
                 bpy.ops.mesh.select_all(action='SELECT')
@@ -66,8 +62,7 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
     radgexport(calc_op, geonode, genframe = scene.frame_current)
     res = [li_calc(calc_op, simnode, connode, geonode, vi_func.livisimacc(simnode, connode), genframe = scene.frame_current)]
 
-    for ob in vi_func.retobjs('livic'):        
-        ob['licalc'] = vi_func.gentarget(tarnode, ob['oreslist']['{}'.format(scene.frame_current)]) 
+    for ob in vi_func.retobjs('livic'):                 
         livicgeos = vi_func.retobjs('livic')
         if ob.get('licalc') == 1:
             vi_func.selobj(scene, ob)
@@ -75,6 +70,7 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
             ob.keyframe_insert(data_path='["licalc"]', frame = scene.frame_current + 1)
         else:
             ob.manip = 0
+        ob['licalc'] = vi_func.gentarget(tarnode, ob['oreslist']['{}'.format(scene.frame_current)])
     
     for ob in manipobs:
         if ob.manip == 1 and geogennode.geomenu == 'Mesh':  
@@ -103,31 +99,30 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
                     bpy.ops.object.vertex_group_assign()
                     bpy.ops.object.mode_set(mode = 'OBJECT')                            
                     ob['vgi'] = ob.vertex_groups['genexfaces'].index
-                    
-        
+                            
         if scene.frame_current > scene.frame_start:              
             for ob in manipobs:
                 ob.keyframe_insert(data_path='["licalc"]')
                 vi_func.selobj(scene, ob)  
-                if ob['licalc'] == 1 and ob.manip == 1 and geogennode.geomenu == 'Mesh':
+                if ob.manip == 1 and geogennode.geomenu == 'Mesh':
                     bpy.ops.object.shape_key_add(from_mix = False)
                     ob.active_shape_key.name = 'gen-' + str(scene.frame_current)
-                
-                
                     modgeo(ob, geogennode, scene, scene.frame_current, scene.frame_start)   
-        
-#                    if ob.manip == 1 and geogennode.geomenu == 'Mesh':
                     for shape in ob.data.shape_keys.key_blocks:
                         if "Basis" not in shape.name:
                             shape.value = 1 if shape.name == 'gen-{}'.format(scene.frame_current) else 0
-                            shape.keyframe_insert("value")
-    
-            radgexport(calc_op, geonode, genframe = scene.frame_current)
+                            shape.keyframe_insert("value")                
+                elif ob.manip == 1 and geogennode.geomenu == 'Object':
+                    modgeo(ob, geogennode, scene, scene.frame_current, scene.frame_start)
+                    ob.keyframe_insert(('location', 'rotation_euler', 'scale')[int(geogennode.omanmenu)])
+                                        
+            radgexport(calc_op, geonode, genframe = scene.frame_current, mo = [ob for ob in manipobs if ob.manip == 1])
             res.append(li_calc(calc_op, simnode, connode, geonode, vi_func.livisimacc(simnode, connode), genframe = scene.frame_current))
             
             for ob in vi_func.retobjs('livic'):
                 ob['licalc'] = vi_func.gentarget(tarnode, ob['oreslist']['{}'.format(scene.frame_current)]) 
                 ob.keyframe_insert(data_path='["licalc"]', frame = scene.frame_current + 1)
+                ob.manip = ob['licalc'] if ob.manip == 1 else ob.manip
         
         scene.frame_end = scene.frame_current + 1                        
         scene.frame_set(scene.frame_current + 1)
@@ -139,7 +134,7 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
     for frame in vi_func.framerange(scene, 'Animation'):
         scene.frame_set(frame)
         for geo in manipobs:
-            if geogennode.geomenu == 'Mesh':
+            if geogennode.geomenu == 'Mesh' and geo.data.shape_keys:
                 for shape in geo.data.shape_keys.key_blocks:
                     if "Basis" not in shape.name:
                         shape.value = 1 if shape.name == 'gen-{}'.format(frame) else 0

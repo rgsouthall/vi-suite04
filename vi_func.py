@@ -88,7 +88,26 @@ def retmesh(name, fr, node):
         return(node.objfilebase+"-{}-{}.mesh".format(name.replace(" ", "_"), fr))
     else:
         return(node.objfilebase+"-{}-{}.mesh".format(name.replace(" ", "_"), bpy.context.scene.frame_start))
-
+        
+def nodeinputs(node):
+    try:
+        ins = [i for i in node.inputs if not i.hide]
+        if ins and not all([i.is_linked for i in ins]):
+            return 0
+        elif ins and not all([i.links[0].from_node.exported for i in ins if i.is_linked]):
+            return 0
+        else:
+            inodes = [i.links[0].from_node for i in ins if i.links[0].from_node.inputs]
+            for inode in inodes:
+                iins = [i for i in inode.inputs if not i.hide]
+                if iins and not all([i.is_linked for i in iins]):
+                    return 0
+                elif iins and not all([i.links[0].from_node.exported for i in iins if i.is_linked]):
+                    return 0
+        return 1
+    except:
+        pass
+    
 def retmat(fr, node):
     if node.animmenu == "Material":
         return(node.filebase+"-"+str(fr)+".rad")
@@ -141,7 +160,7 @@ def clearscene(scene, op):
                 while ob.data.vertex_colors:
                     bpy.ops.mesh.vertex_color_remove()
         
-        if op.nodeid.split('@')[0] != 'LiVi Simulation':   
+        if op.nodeid.split('@')[0] not in ('LiVi Simulation', 'LiVi Geometry'):   
             for sunob in [ob for ob in scene.objects if ob.type == 'LAMP' and ob.data.type == 'SUN']:
                 scene.objects.unlink(sunob)
         
@@ -381,9 +400,10 @@ def rettimes(ts, fs, us):
 
 def socklink(sock, ng):
     try:
-        lsock = (sock.links[0].from_socket, sock.links[0].to_socket)[sock.in_out == 'OUT']
-        if sock.is_linked and sock.draw_color(bpy.context, sock.node) != lsock.draw_color(bpy.context, lsock.node):
-            bpy.data.node_groups[ng].links.remove(sock.links[0])
+        for link in sock.links:
+            lsock = (link.from_socket, link.to_socket)[sock.is_output]
+            if sock.is_linked and sock.draw_color(bpy.context, sock.node) != lsock.draw_color(bpy.context, lsock.node):
+                bpy.data.node_groups[ng].links.remove(link)
     except:
         pass
 
@@ -472,7 +492,12 @@ def drawfont(text, fi, lencrit, height, x1, y1):
     blf.draw(fi, text)
 
 def mtx2vals(mtxlines, fwd, locnode):
-    records = (datetime.datetime(datetime.datetime.now().year, locnode.endmonth, 1) - datetime.datetime(datetime.datetime.now().year, locnode.startmonth, 1)).days*24
+    if locnode:
+        records = (datetime.datetime(datetime.datetime.now().year, locnode.endmonth, 1) - datetime.datetime(datetime.datetime.now().year, locnode.startmonth, 1)).days*24
+    else:
+        for records, line in enumerate(mtxlines):
+            if line == '\n':
+                break
     try:
         import numpy
         np = 1
@@ -568,7 +593,7 @@ def sunpath():
     if 0 in (sun['solhour'] == scene.solhour, sun['solday'] == scene.solday, sun['soldistance'] == scene.soldistance):
         sunob = [ob for ob in scene.objects if ob.get('VIType') == 'SunMesh'][0]
         spathob = [ob for ob in scene.objects if ob.get('VIType') == 'SPathMesh'][0]
-        beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
+        beta, phi = solarPosition(scene.solday, scene.solhour, scene['latitude'], scene['longitude'])[2:]
         sunob.location.z = sun.location.z = spathob.location.z + scene.soldistance * sin(beta)
         sunob.location.x = sun.location.x = spathob.location.x -(scene.soldistance**2 - (sun.location.z-spathob.location.z)**2)**0.5  * sin(phi)
         sunob.location.y = sun.location.y = spathob.location.y -(scene.soldistance**2 - (sun.location.z-spathob.location.z)**2)**0.5 * cos(phi)
@@ -583,12 +608,12 @@ def sunpath():
                     bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
             if sun.data.node_tree:
                 for blnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Blackbody']:
-                    blnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
+                    blnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5 if beta > 0 else 2000
                 for emnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Emission']:
-                    emnode.inputs[1].default_value = 5 * sin(beta)
+                    emnode.inputs[1].default_value = 5 * sin(beta) if beta > 0 else 0
             if sunob.data.materials[0].node_tree:
                 for smblnode in [node for node in sunob.data.materials[0].node_tree.nodes if sunob.data.materials and node.bl_label == 'Blackbody']:
-                    smblnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
+                    smblnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5 if beta > 0 else 2000
             if skysphere and not skysphere.hide and skysphere.data.materials[0].node_tree:
                 if 'Sky Texture' in [no.bl_label for no in skysphere.data.materials[0].node_tree.nodes]:
                     skysphere.data.materials[0].node_tree.nodes['Sky Texture'].sun_direction = sin(phi), -cos(phi), sin(beta)
@@ -597,12 +622,13 @@ def sunpath():
     else:
         return
         
-def latilongi(scene, locnode):
-    if locnode and locnode.loc == '1':        
-        with open(locnode.weather, "r") as epwfile:
-            fl = epwfile.readline()
-            scene.latitude, scene.longitude = float(fl.split(",")[6]), float(fl.split(",")[7])
-    return(scene.latitude, scene.longitude)   
+def epwlatilongi(scene, node):        
+    with open(node.weather, "r") as epwfile:
+        fl = epwfile.readline()
+        latitude, longitude = float(fl.split(",")[6]), float(fl.split(",")[7])
+#    else:
+#        latitude, longitude = node.latitude, node.longitude
+    return(latitude, longitude)   
     
 #Compute solar position (altitude and azimuth in degrees) based on day of year (doy; integer), local solar time (lst; decimal hours), latitude (lat; decimal degrees), and longitude (lon; decimal degrees).
 def solarPosition(doy, lst, lat, lon):

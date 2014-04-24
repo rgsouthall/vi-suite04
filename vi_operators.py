@@ -27,7 +27,7 @@ from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, l
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .envi_calc import envi_sim
-from .vi_func import processf, livisimacc, solarPosition, retobjs, wr_axes, clearscene, framerange, vcframe, latilongi, nodeinit
+from .vi_func import processf, livisimacc, solarPosition, retobjs, wr_axes, clearscene, framerange, vcframe, epwlatilongi, nodeinit
 from .vi_chart import chart_disp
 from .vi_gen import vigen
 
@@ -44,13 +44,18 @@ class NODE_OT_LiGExport(bpy.types.Operator):
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         if bpy.data.filepath and " " not in bpy.data.filepath:
             node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+            for mglfr in node['frames']:
+                node['frames'][mglfr] = scene.frame_end if node.animmenu == mglfr else 0
+                scene.gfe = max(node['frames'].values())
             if node.filepath != bpy.data.filepath:
                 nodeinit(node)
             node.reslen = 0
             scene.frame_start, bpy.data.node_groups[self.nodeid.split('@')[1]].use_fake_user = 0, 1
             scene.frame_set(0)
             radgexport(self, node)
-            node.exported, node.outputs[1].hide = True, False
+            node.exported = True
+            node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
+            node.outputs['Geometry out'].hide = False
             return {'FINISHED'}
 
         elif " "  in bpy.data.filepath:
@@ -185,13 +190,16 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        scene = context.scene
+        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        scene = context.scene        
+        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         scene.frame_start = 0
         scene.frame_set(0)
-        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
-        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
-
+                
+        if 'LiVi Basic' in node.bl_label:
+            node.starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(node.shour), int((node.shour - int(node.shour))*60)) + datetime.timedelta(node.sdoy - 1) if node.skynum < 3 else datetime.datetime(datetime.datetime.now().year, 1, 1, 12)
+            if node.animmenu == 'Time' and node.skynum < 3:
+                node.endtime = datetime.datetime(2013, 1, 1, int(node.ehour), int((node.ehour - int(node.ehour))*60)) + datetime.timedelta(node.edoy - 1)
         if bpy.data.filepath:
             if bpy.context.object:
                 if bpy.context.object.type == 'MESH' and bpy.context.object.hide == False and bpy.context.object.layers[0] == True:
@@ -200,6 +208,8 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
             if " " not in bpy.data.filepath:
                 if (node.bl_label == 'LiVi CBDM' and node.inputs['Geometry in'].is_linked and (node.inputs['Location in'].is_linked or node.sm != '0')) \
                 or (node.bl_label != 'LiVi CBDM' and node.inputs['Geometry in'].is_linked):
+                    node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
+                    scene.li_compliance = 1 if node.bl_label == 'LiVi Compliance' else 0
                     radcexport(self, node)
                     node.exported = True
                     node.outputs['Context out'].hide = False
@@ -226,14 +236,16 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
+        scene = context.scene
+        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         connode = simnode.inputs['Context in'].links[0].from_node
         geonode = connode.inputs['Geometry in'].links[0].from_node
         rad_prev(self, simnode, connode, geonode, livisimacc(simnode, connode))
         return {'FINISHED'}
 
-class NODE_OT_Calculate(bpy.types.Operator):
-    bl_idname = "node.calculate"
+class NODE_OT_LiViCalc(bpy.types.Operator):
+    bl_idname = "node.livicalc"
     bl_label = "Radiance Export and Simulation"
 
     nodeid = bpy.props.StringProperty()
@@ -245,33 +257,34 @@ class NODE_OT_Calculate(bpy.types.Operator):
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         connode = simnode.inputs['Context in'].links[0].from_node
         geonode = connode.inputs['Geometry in'].links[0].from_node
+        scene['LiViContext'] = connode.bl_label
         
         for geo in retobjs('livig'):
             geo.licalc = any([m.livi_sense for m in geo.data.materials])
         geogennode = geonode.outputs['Generative out'].links[0].to_node if geonode.outputs['Generative out'].is_linked else 0  
         
-        if connode.bl_label == 'LiVi Basic':                  
+        if connode.bl_label == 'LiVi Basic':   
+               
             tarnode = connode.outputs['Target out'].links[0].to_node if connode.outputs['Target out'].is_linked else 0
-#        if connode.bl_label == 'LiVi Basic':
+
             if geogennode and tarnode: 
                 simnode['Animation'] = 'Animated'
-#                scene.fs, scene.fe = scene.frame_start, scene.frame_end
                 vigen(self, li_calc, resapply, geonode, connode, simnode, geogennode, tarnode)     
                 scene.vi_display = 1
             elif connode.analysismenu != '3':
-                simnode['Animation'] = connode['Animation']
+                simnode['Animation'] = 'Animated' if scene.gfe > 0 or scene.cfe > 0 else 'Static'
 #                scene.fs = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
 #                scene.fe = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
                 li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
                 scene.vi_display = 1
             else:
-                simnode['Animation'] = connode['Animation']
+                simnode['Animation'] = 'Animated' if scene.gfe > 0 or scene.cfe > 0 else 'Static'
 #                scene.fs = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
 #                scene.fe = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
                 li_glare(self, simnode, connode, geonode)
                 scene.vi_display = 0
         else:
-            simnode['Animation'] = connode['Animation']
+            simnode['Animation'] = 'Animated' if scene.gfe > 0 or scene.cfe > 0 else 'Static'
             scene.fs = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
             scene.fe = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
             li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
@@ -296,7 +309,11 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
             if context.scene.get('LiViContext') == 'LiVi Compliance':
-                bpy.types.SpaceView3D.draw_handler_remove(self._handle_comp, 'WINDOW')
+                try:
+                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_comp, 'WINDOW')
+                except:
+                    pass
+                context.scene.li_compliance = 0
             return {'CANCELLED'}
         return {'PASS_THROUGH'}
 
@@ -483,6 +500,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         locnode = node.inputs[0].links[0].from_node
         scene, scene.resnode, scene.restree = context.scene, node.name, self.nodeid.split('@')[1]
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 1, 0, 0, 0, 0, 0
+        scene['latitude'], scene['longitude'] = locnode['latitude'], locnode['longitude']
 
         if 'SolEquoRings' not in [mat.name for mat in bpy.data.materials]:
             bpy.data.materials.new('SolEquoRings')
@@ -496,12 +514,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
         if 'Sun' not in [mat.name for mat in bpy.data.materials]:
             bpy.data.materials.new('Sun')
             bpy.data.materials['Sun'].diffuse_color = (1, 1, 1)
-
-        if locnode.loc == "1":
-            with open(locnode.weather, "r") as epwfile:
-               fl = epwfile.readline()
-               scene.latitude, scene.longitude = float(fl.split(",")[6]), float(fl.split(",")[7])
-        
         if 'SUN' in [ob.data.type for ob in context.scene.objects if ob.data == 'LAMP' and ob.hide == False]:
             [ob.data.type for ob in context.scene.objects if ob.data == 'LAMP' and ob.data.type == 'SUN'][0]['VIType'] = 'Sun'
             
@@ -557,7 +569,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         for doy in range(0, 363):
             if (doy-4)%7 == 0:
                 for hour in range(1, 25):
-                    ([solalt, solazi]) = solarPosition(doy, hour, scene.latitude, scene.longitude)[2:]
+                    ([solalt, solazi]) = solarPosition(doy, hour, locnode['latitude'], locnode['longitude'])[2:]
                     spathmesh.vertices.add(1)
                     spathmesh.vertices[-1].co = [-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
 
@@ -574,7 +586,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
         for doy in (79, 172, 355):
             for hour in range(1, 25):
-                ([solalt, solazi]) = solarPosition(doy, hour, scene.latitude, scene.longitude)[2:]
+                ([solalt, solazi]) = solarPosition(doy, hour, locnode['latitude'], locnode['longitude'])[2:]
                 spathmesh.vertices.add(1)
                 spathmesh.vertices[-1].co = [-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
                 if spathmesh.vertices[-1].co.z >= 0 and doy in (172, 355):
@@ -702,7 +714,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
             with open(locnode.weather, "r") as epwfile:
                 if locnode.startmonth > locnode.endmonth:
                     self.report({'ERROR'},"Start month is later than end month")
-                    return
+                    return {'FINISHED'}
                 else:
                     wvals = [line.split(",")[20:22] for l, line in enumerate(epwfile.readlines()) if l > 7 and locnode.startmonth <= int(line.split(",")[1]) < locnode.endmonth]
                     simnode['maxres'], simnode['minres'],  simnode['avres']= max([float(w[1]) for w in wvals]), min([float(w[1]) for w in wvals]), sum([float(w[1]) for w in wvals])/len(wvals)
@@ -838,14 +850,13 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
         fdiff =  1 if simnode['Animation'] == 'Static' else scene.frame_end - scene.frame_start + 1
         locnode = simnode.inputs[0].links[0].from_node
-        latilongi(scene, locnode)
         time = datetime.datetime(datetime.datetime.now().year, locnode.startmonth, 1, simnode.starthour - 1)
         y =  datetime.datetime.now().year if locnode.endmonth >= locnode.startmonth else datetime.datetime.now().year + 1
         endtime = datetime.datetime(y, locnode.endmonth, (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)[locnode.endmonth - 1], simnode.endhour - 1)
         interval = datetime.timedelta(hours = modf(simnode.interval)[0], minutes = 60 * modf(simnode.interval)[1])
         while time <= endtime:
             if simnode.starthour <= time.hour <= simnode.endhour:
-                beta, phi = solarPosition(time.timetuple().tm_yday, time.hour+time.minute/60, scene.latitude, scene.longitude)[2:]
+                beta, phi = solarPosition(time.timetuple().tm_yday, time.hour+time.minute/60, locnode['latitude'], locnode['longitude'])[2:]
                 if beta > 0:
                     direcs.append(mathutils.Vector((-sin(phi), -cos(phi), tan(beta))))
             time += interval
@@ -861,10 +872,8 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
                 while ob.data.vertex_colors:
                     bpy.ops.mesh.vertex_color_remove()
-                for frame in range(scene.fs, scene.fe + 1):
+                for findex, frame in enumerate(range(scene.fs, scene.fe + 1)):
                     scene.frame_set(frame)
-                    findex = frame - scene.fs
-#                    if '{}'.format(frame) not in [vc.name for vc in ob.data.vertex_colors]:
                     bpy.ops.mesh.vertex_color_add()
                     ob.data.vertex_colors[-1].name = '{}'.format(frame)
                     vertexColor = ob.data.vertex_colors[-1]
@@ -892,17 +901,17 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 ob['omax'] = {str(f):obmaxres[f - scene.fs] for f in framerange(scene, simnode.animmenu)}
                 ob['omin'] = {str(f):obminres[f - scene.fs] for f in framerange(scene, simnode.animmenu)}
                 ob['oave'] = {str(f):obavres[f - scene.fs] for f in framerange(scene, simnode.animmenu)}
-                ob['oreslist'] = {str(f):[sh[2] for sh in shadcentres[f - scene.fs]] for f in framerange(scene, simnode.animmenu)}
+                ob['oreslist'] = {str(f):[100*sh[2] for sh in shadcentres[f - scene.fs]] for f in framerange(scene, simnode.animmenu)}
             
             else:
                ob.licalc = 0
         vcframe('', scene, obcalclist, simnode.animmenu)
         try:
-            simnode['maxres'], simnode['minres'], simnode['avres'] = scmaxres, scminres, [scavres[f]/len([ob for ob in scene.objects if ob.licalc]) for f in range(fdiff)]
+#            simnode['maxres'], simnode['minres'], simnode['avres'] = scmaxres, scminres, [scavres[f]/len([ob for ob in scene.objects if ob.licalc]) for f in range(fdiff)]
+            simnode['maxres'], simnode['minres'], simnode['avres'] = [100]*fdiff, [0]*fdiff, [scavres[f]/len([ob for ob in scene.objects if ob.licalc]) for f in range(fdiff)]
         except ZeroDivisionError:
             self.report({'ERROR'},"No objects have a VI Shadow material attached.")
 
         scene.frame_set(scene.fs)
-        if simnode.bl_label[0] == '*':
-            simnode.bl_label = simnode.bl_label[1:]
+        simnode.bl_label = simnode.bl_label[1:] if simnode.bl_label[0] == '*' else simnode.bl_label
         return {'FINISHED'}

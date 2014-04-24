@@ -1,10 +1,5 @@
 import bpy
-from .vi_func import radmat
-
-def newrow(layout, s1, root, s2):
-    row = layout.row()
-    row.label(s1)
-    row.prop(root, s2)
+from .vi_func import radmat, newrow
 
 from .envi_mat import envi_materials, envi_constructions
 envi_mats = envi_materials()
@@ -17,14 +12,13 @@ class Vi3DPanel(bpy.types.Panel):
     bl_region_type = "UI"
 
     def draw(self, context):
-        if context.scene.vi_display == 1:
-            view = context.space_data
-            scene = context.scene
+        scene = context.scene
+        if scene.vi_display == 1:
+            view = context.space_data            
             layout = self.layout
 
             if scene.wr_disp_panel == 1:
-                row = layout.row()
-                row.prop(scene, "vi_leg_display")
+                newrow(layout, 'Legend', scene, "vi_leg_display")
 
             if scene.sp_disp_panel == 1:
                 for i in (("Day of year:", "solday"), ("Hour of year:", "solhour"), ("Sunpath scale:", "soldistance"), ("Display hours:", "hourdisp")):
@@ -45,8 +39,10 @@ class Vi3DPanel(bpy.types.Panel):
                 if scene.ss_disp_panel == 2 or scene.li_disp_panel == 2:
                     row = layout.row()
                     row.prop(view, "show_only_render")
-                    row = layout.row()
-                    row.prop(scene, "vi_leg_display")
+                    newrow(layout, 'Legend', scene, "vi_leg_display")
+#                    row = layout.row()
+#                    row.label(text = 'Legend')
+#                    row.prop(scene, "vi_leg_display")
                     if scene.render.engine == 'BLENDER_RENDER' and context.active_object and context.active_object.type == 'MESH':
                         row = layout.row()
                         row.prop(context.active_object, "show_wire")
@@ -72,6 +68,7 @@ class Vi3DPanel(bpy.types.Panel):
                         newrow(layout, "Assesment individiual:", scene, "li_assind")
                         newrow(layout, "Job number:", scene, "li_jobno")
                         newrow(layout, "Project name:", scene, "li_projname")
+            newrow(layout, 'Display active', scene, 'vi_display')
 
 
 class VIMatPanel(bpy.types.Panel):
@@ -122,46 +119,6 @@ class VIMatPanel(bpy.types.Panel):
         
         radname, matname, radnum = radmat(cm, context.scene)
         row.label(radname.capitalize())
-#        if cm.use_shadeless == True:
-#            row.label('Anti-matter')
-#        elif cm.emit > 0:
-#            row.label('Emission')
-#            row = layout.row()
-#            row.label('RGB emission:')
-#            row.label('({:.2f}, {:.2f}, {:.2f})'.format(cm.emit * cm.diffuse_color[0], cm.emit * cm.diffuse_color[1], cm.emit * cm.diffuse_color[2]))
-#        elif cm.raytrace_mirror.use == True and cm.raytrace_mirror.reflect_factor > 0.99:
-#            row.label('Mirror')
-#            row = layout.row()
-#            row.label('RGB refelectance:')
-#            row.label('({:.2f}, {:.2f}, {:.2f})'.format(*cm.mirror_color))
-#        elif cm.use_transparency == True and cm.transparency_method == 'RAYTRACE' and cm.alpha < 1.0 and cm.translucency == 0:
-#            row.label('Glass')
-#            row = layout.row()
-#            row.label('RGB transparency:')
-#            row.label('({:.2f}, {:.2f}, {:.2f})'.format((1.0 - cm.alpha)*cm.diffuse_color[0], (1.0 - cm.alpha)*cm.diffuse_color[1], (1.0 - cm.alpha)*cm.diffuse_color[2]))
-#            row = layout.row()
-#            row.label('IOR:')
-#            row.label('{:.2f}'.format(cm.raytrace_transparency.ior))
-#        elif cm.use_transparency == True and cm.transparency_method == 'RAYTRACE' and cm.alpha < 1.0 and cm.translucency > 0:
-#            for matprop in ('Translucent', 0, 'RGB transmission:', '({:.2f}, {:.2f}, {:.2f})'.format(*cm.diffuse_color), 0, 'Specularity', '{:.2f}'.format(cm.specular_intensity), 0, 'Roughness:', '{:.2f}'.format(1.0-cm.specular_hardness/511.0), 0, 'Transmissivity', '{:.2f}'.format(1.0 - cm.alpha), 0, 'Transmitted Specular', '{:.2f}'.format(1.0 - cm.translucency)):
-#                if matprop:
-#                    row.label(matprop)  
-#                else:
-#                    row = layout.row()
-#
-#        elif cm.raytrace_mirror.use == True and cm.raytrace_mirror.reflect_factor <= 0.99:
-#            for matprop in ('Metal', 0, 'RGB refelectance:', '({:.2f}, {:.2f}, {:.2f})'.format(*cm.diffuse_color), 0, 'Specularity', '{:.2f}'.format(cm.specular_intensity), 0, 'Roughness:', '{:.2f}'.format(1.0-cm.specular_hardness/511.0)):
-#                if matprop:
-#                    row.label(matprop) 
-#                else:
-#                    row = layout.row()
-#        else:
-#            for matprop in ('Plastic', 0, 'RGB refelectance:', '({:.2f}, {:.2f}, {:.2f})'.format(*cm.diffuse_color), 0, 'Specularity', '{:.2f}'.format(cm.specular_intensity), 0, 'Roughness:', '{:.2f}'.format(1.0-cm.specular_hardness/511.0)):
-#                if matprop:
-#                    row.label(matprop) 
-#                else:
-#                    row = layout.row()
-
         layout = self.layout
         row = layout.row()
         row.label("-----------------------------------------")

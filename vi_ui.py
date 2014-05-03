@@ -89,11 +89,13 @@ class VIMatPanel(bpy.types.Panel):
         row = layout.row()
         row.prop(cm, "livi_sense")
         row = layout.row()
-        if bpy.data.node_groups.get('context.scene.restree'):
+        
+        if bpy.data.node_groups.get(context.scene.restree):
             ng = bpy.data.node_groups[context.scene.restree] 
-            if ng.nodes.get('context.scene.resnode'):
+            if ng.nodes.get(context.scene.resnode):
                 node = ng.nodes[context.scene.resnode]
                 if 'LiVi' in node.bl_label:
+
                     if node.inputs['Context in'].is_linked:
                         connode = node.inputs['Context in'].links[0].from_node        
                         if 'LiVi Compliance' in connode.bl_label:

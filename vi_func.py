@@ -32,8 +32,10 @@ def radmat(mat, scene):
                 '4 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.3f}'.format(matcol, matior))[matindex]
             except:
                 radname, radnums = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format((0.8, 0.8, 0.8), 0, 0)
-
-    else:# scene.render.engine == 'BLENDER_RENDER':
+        else:
+            radname, radnums = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format((0.8, 0.8, 0.8), 0, 0)
+            
+    elif scene.render.engine == 'BLENDER_RENDER':
         matcol = [i * mat.diffuse_intensity for i in mat.diffuse_color]
         matior = mat.raytrace_transparency.ior
         matrough = 1.0-mat.specular_hardness/511.0
@@ -60,7 +62,9 @@ def radmat(mat, scene):
             radname, radnums  = 'metal', '5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2}'.format(matcol, mat.specular_intensity, 1.0-mat.specular_hardness/511.0)
         else:
             radname, radnums  = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.2f} {2:.2f}'.format(matcol, mat.specular_intensity, 1.0-mat.specular_hardness/511.0)
-
+    else:
+        radname, radnums = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format((0.8, 0.8, 0.8), 0, 0)
+    
     return(radname, matname, radnums)
 
 def face_centre(ob, obresnum, f):
@@ -628,7 +632,7 @@ def epwlatilongi(scene, node):
         latitude, longitude = float(fl.split(",")[6]), float(fl.split(",")[7])
 #    else:
 #        latitude, longitude = node.latitude, node.longitude
-    return(latitude, longitude)   
+    return latitude, longitude  
     
 #Compute solar position (altitude and azimuth in degrees) based on day of year (doy; integer), local solar time (lst; decimal hours), latitude (lat; decimal degrees), and longitude (lon; decimal degrees).
 def solarPosition(doy, lst, lat, lon):

@@ -11,6 +11,9 @@ except:
 def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tarnode):
     scene = bpy.context.scene 
     simnode['Animation'] = 'Animated'
+    if not [ob for ob in scene.objects if ob.select and not ob.hide and ob.type == 'MESH'] and geogennode.oselmenu == 'Selected':
+        calc_op.report({'ERROR'}, "No object is selected")
+        return
     if geogennode.geomenu == 'Object':
         if geogennode.oselmenu == 'All':
             manipobs = [ob for ob in vi_func.retobjs('livig') if ob not in vi_func.retobjs('livic')]
@@ -179,8 +182,8 @@ def modgeo(ob, geogennode, scene, fc, fs):
                                 mat_rot = mathutils.Matrix.Rotation(math.radians((fc-fs) * geogennode.extent/geogennode.steps), 4, face.normal)  if geogennode.normal else mathutils.Matrix.Rotation(math.radians((fc-fs) * geogennode.extent/geogennode.steps), 4, mathutils.Vector((geogennode.x, geogennode.y, geogennode.z)))
                                 ob.data.shape_keys.key_blocks['gen-{}'.format(fc)].data[v].co = (mat_rot * (ob.data.shape_keys.key_blocks['Basis'].data[v].co - mathutils.Vector(fcent))) + mathutils.Vector(fcent)
                             elif geogennode.mmanmenu == '2':                            
-                                mat_scl = mathutils.Matrix.Scale((fc-fs) * geogennode.extent/geogennode.steps, 4, mathutils.Vector([1 - fn for fn in face.normal]))  if geogennode.normal else mathutils.Matrix.Scale((fc-fs) * geogennode.extent/geogennode.steps, 4, mathutils.Vector((geogennode.x, geogennode.y, geogennode.z)))
-                                ob.data.shape_keys.key_blocks['gen-{}'.format(fc)].data[v].co = (mat_scl * (ob.data.shape_keys.key_blocks['Basis'].data[v].co - mathutils.Vector(fcent))) + mathutils.Vector(fcent)
-                
+                                mat_scl = mathutils.Matrix.Scale((1+(fc-fs)) * geogennode.extent/geogennode.steps, 4, mathutils.Vector([1 - fn for fn in face.normal]))  if geogennode.normal else mathutils.Matrix.Scale((1+(fc-fs)) * geogennode.extent/geogennode.steps, 4, mathutils.Vector((geogennode.x, geogennode.y, geogennode.z)))
+#                                ob.data.shape_keys.key_blocks['gen-{}'.format(fc)].data[v].co = (mat_scl * (ob.data.shape_keys.key_blocks['Basis'].data[v].co - mathutils.Vector(fcent))) + mathutils.Vector(fcent)
+                                ob.data.shape_keys.key_blocks['gen-{}'.format(fc)].data[v].co = [ob.data.shape_keys.key_blocks['Basis'].data[v].co[i] + (ob.data.shape_keys.key_blocks['Basis'].data[v].co[i] - fcent[i]) * (direc[i], 1 - direc[i])[geogennode.normal] * (1+(fc-fs)) * geogennode.extent/geogennode.steps for i in range(3)]
                 except Exception as e:
-                    pass        
+                    print(e)        

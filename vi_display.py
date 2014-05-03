@@ -147,7 +147,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         return
     
     if not context.space_data.region_3d.is_perspective:
-        disp_op.report({'ERROR'},"Switch to prespective vie wmode for number display")
+        disp_op.report({'ERROR'},"Switch to prespective view mode for number display")
         return
     if scene.frame_current not in range(scene.fs, scene.fe + 1) and scene.vi_display:
         disp_op.report({'ERROR'},"Outside result frame range")
@@ -156,7 +156,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
     if bpy.context.active_object:
         if bpy.context.active_object.type == 'MESH' and bpy.context.active_object.mode != 'OBJECT':
              bpy.context.active_object.mode = 'OBJECT'
-
+    
     blf.enable(0, 4)
     blf.shadow(0, 5, scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])
     bgl.glColor4f(*scene.vi_display_rp_fc[:])
@@ -178,7 +178,8 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         obm = ob.data
         ob_mat = ob.matrix_world
         view_mat = context.space_data.region_3d.perspective_matrix
-        view_pos = [vmi*scene['cs']*2 for vmi in (view_mat.inverted()[0][3], view_mat.inverted()[1][3], view_mat.inverted()[2][3])]
+        view_pos = [vmi*scene['cs'] * 2 for vmi in (view_mat.inverted()[0][3], view_mat.inverted()[1][3], view_mat.inverted()[2][3])]
+
         if cp == "0" or not geonode:
             faces = [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons if ob.data.materials[f.material_index].vi_shadow] if simnode.bl_label == 'VI Shadow Study' else [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons if ob.data.materials[f.material_index].livi_sense]
             if scene.vi_display_vis_only:
@@ -383,26 +384,38 @@ def li_compliance(self, context, connode):
             vi_func.drawloop(100, height - 70, 900, height - 70  - (lencrit)*25)
             mat = [m for m in bpy.context.active_object.data.materials if m.livi_sense][0]
             if connode.analysismenu == '0':
-                buildspace = ('', '', (' - Public/Staff', ' - Patient')[int(mat.hspacemenu)], (' - Kitchen', ' - Living/Dining/Study', ' - Communal')[int(mat.rspacemenu)], (' - Sales', ' - Office')[int(mat.respacemenu)])[int(connode.bambuildmenu)]
+                buildspace = ('', '', (' - Public/Staff', ' - Patient')[int(mat.hspacemenu)], (' - Kitchen', ' - Living/Dining/Study', ' - Communal')[int(mat.rspacemenu)], (' - Sales', ' - Office')[int(mat.respacemenu)], '')[int(connode.bambuildmenu)]
             elif connode.analysismenu == '1':
                 buildspace = (' - Kitchen', ' - Living/Dining/Study')[int(mat.rspacemenu)]
 
             titles = ('Zone Metric', 'Target', 'Achieved', 'PASS/FAIL')
             tables = [[] for c in range(lencrit -1)]
             etables = [[] for e in range(len(geo['ecrit']))]
+
             for c, cr in enumerate(geo['crit']):
                 if cr[0] == 'Percent':
-                    tables[c] = ('{} (%)'.format(('Percentage area with Skyview', 'Average{}Daylight Factor'.format((' ', ' Point ')[cr[2] == 'PDF']))[cr[2] in ('DF', 'PDF')]), (cr[1],cr[3])[cr[2] in ('PDF','DF')], '{:.2f}'.format(geo['comps'][frame][:][c*2 + 1]), geo['cr4'][c].upper())
+                    if cr[2] == 'Skyview':
+                        tables[c] = ('Percentage area with Skyview (%)', cr[1], '{:.2f}'.format(geo['comps'][frame][:][c*2 + 1]), geo['cr4'][c].upper())
+                    elif cr[2] == 'DF':  
+                        tables[c] = ('Average Daylight Factor (%)', cr[3], '{:.2f}'.format(geo['comps'][frame][:][c*2 + 1]), geo['cr4'][c].upper())
+                    elif cr[2] == 'PDF':    
+                        tables[c] = ('Area with point Daylight Factor above {}'.format(cr[3]), cr[1], '{:.2f}'.format(geo['comps'][frame][:][c*2 + 1]), geo['cr4'][c].upper())
                 elif cr[0] == 'Ratio':
                     tables[c] = ('Uniformity ratio', cr[3], '{:.2f}'.format(geo['comps'][frame][:][c*2 + 1]), geo['cr4'][c].upper())
                 elif cr[0] == 'Min':
                     tables[c] = ('Minimum {} (%)'.format('Point Daylight Factor'), cr[3], '{:.2f}'.format(geo['comps'][frame][:][c*2 + 1]), geo['cr4'][c].upper())
                 elif cr[0] == 'Average':
                     tables[c] = ('Average {} (%)'.format('Daylight Factor'), cr[3], '{:.2f}'.format(geo['comps'][frame][:][c*2 + 1]), geo['cr4'][c].upper())
+
             if connode.analysismenu == '0':
                 for e, ecr in enumerate(ecrit):
                     if ecr[0] == 'Percent':
-                        etables[e] = ('{} (%)'.format('Average Daylight Factor'), ecr[3], '{:.2f}'.format(geo['ecomps'][frame][:][e*2 + 1]), geo['ecr4'][e].upper())
+                        if ecr[2] == 'skyview':
+                            etables[e] = ('Percentage area with Skyview (%)', ecr[1], '{:.2f}'.format(geo['ecomps'][frame][:][e*2 + 1]), geo['ecr4'][e].upper())
+                        elif ecr[2] == 'DF':  
+                            etables[e] = ('Average Daylight Factor (%)', ecr[3], '{:.2f}'.format(geo['ecomps'][frame][:][e*2 + 1]), geo['ecr4'][e].upper())
+                        elif ecr[2] == 'PDF':    
+                            etables[e] = ('Area with point Daylight Factor above {}'.format(ecr[3]), ecr[1], '{:.2f}'.format(geo['ecomps'][frame][:][e*2 + 1]), geo['ecr4'][e].upper())
                     elif ecr[0] == 'Min':
                         etables[e] = ('Minimum {} (%)'.format('Point Daylight Factor'), ecr[3], '{:.2f}'.format(geo['ecomps'][frame][:][e*2 + 1]), geo['ecr4'][e].upper())
 
@@ -430,6 +443,7 @@ def li_compliance(self, context, connode):
 
         tpf = 'FAIL' if 'FAIL' in pfs or 'FAIL*' in pfs else 'PASS'
         if connode.analysismenu == '0':
+            
             (tpf, lencrit) = ('EXEMPLARY', lencrit + len(geo['ecrit'])) if tpf == 'PASS' and ('FAIL' not in epfs and 'FAIL*' not in epfs) else (tpf, lencrit)
 
         return(tpf, lencrit, buildspace, etables)

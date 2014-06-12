@@ -1463,7 +1463,7 @@ class EnViZone(bpy.types.Node, EnViNodes):
         obj = bpy.data.objects[self.zone]
         odm = obj.data.materials
         omw = obj.matrix_world
-        self.location = (50 * (omw*obj.location)[0], ((omw*obj.location)[2] + (omw*obj.location)[1])*25)
+        self.location = (400 * (omw*obj.location)[0], ((omw*obj.location)[2] + (omw*obj.location)[1])*25)
         self.zonevolume = objvol('', obj)
         for oname in [outputs for outputs in self.outputs if outputs.name not in [mat.name for mat in odm if mat.envi_boundary == True] and outputs.bl_idname == 'EnViBoundSocket']:
             self.outputs.remove(oname)
@@ -1501,9 +1501,9 @@ class EnViZone(bpy.types.Node, EnViNodes):
     upperlim = bpy.props.FloatProperty(default = 50, name = "", min = 0, max = 100)
 
     def init(self, context):
-        self.outputs.new('EnViSchedSocket', 'TSPSchedule')
-        self.outputs['TSPSchedule'].hide = True
-        self.outputs.new('EnViSchedSocket', 'VASchedule')
+        self.inputs.new('EnViSchedSocket', 'TSPSchedule')
+        self.inputs['TSPSchedule'].hide = True
+        self.inputs.new('EnViSchedSocket', 'VASchedule')
 
     def update(self):
         try:
@@ -1531,8 +1531,8 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
     bl_icon = 'SOUND'
 
     def supdate(self, context):
-        self.outputs['Reference'].hide = False if self.linkmenu in ('Crack', 'EF') else True
-        self.outputs['TSPSchedule'].hide = False if self.linkmenu in ('SO', 'DO', 'HO') else True
+        self.inputs['Reference'].hide = False if self.linkmenu in ('Crack', 'EF') else True
+        self.inputs['TSPSchedule'].hide = False if self.linkmenu in ('SO', 'DO', 'HO') else True
         if self.linkmenu in ('SO', 'DO', 'HO'):
             for sock in [sock for sock in [outs for outs in self.outputs]+[ins for ins in self.inputs] if sock.bl_idname == 'EnViCAirSocket']:
                 if sock.is_linked == True:
@@ -1605,14 +1605,14 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
 
     def init(self, context):
         self['nodeid'] = nodeid(self, bpy.data.node_groups)
+        self.inputs.new('EnViSchedSocket', 'VASchedule')
+        self.inputs.new('EnViSchedSocket', 'TSPSchedule')
+        self.inputs.new('EnViCrRefSocket', 'Reference')
+        self.inputs['Reference'].hide = True
         self.inputs.new('EnViSAirSocket', 'Node 1', identifier = 'Node1_s')
         self.inputs.new('EnViSAirSocket', 'Node 2', identifier = 'Node2_s')
         self.outputs.new('EnViSAirSocket', 'Node 1', identifier = 'Node1_s')
         self.outputs.new('EnViSAirSocket', 'Node 2', identifier = 'Node2_s')
-        self.outputs.new('EnViSchedSocket', 'VASchedule')
-        self.outputs.new('EnViSchedSocket', 'TSPSchedule')
-        self.outputs.new('EnViCrRefSocket', 'Reference')
-        self.outputs['Reference'].hide = True
         self.inputs.new('EnViCAirSocket', 'Node 1', identifier = 'Node1_c')
         self.inputs.new('EnViCAirSocket', 'Node 2', identifier = 'Node2_c')
         self.outputs.new('EnViCAirSocket', 'Node 1', identifier = 'Node1_c')
@@ -1644,11 +1644,11 @@ class EnViSLinkNode(bpy.types.Node, EnViNodes):
                     for outs in self.outputs:
                         if ins.name == outs.name and ins.identifier == outs.identifier:
                             ins.hide = False
-        except:
-            pass
+        except Exception as e:
+            print(e)
 
         for sock in self.inputs:
-            if self.linkmenu == 'ELA' and sock.is_linked:
+            if self.linkmenu == 'ELA' and sock.is_linked and sock.identifier in ('Node1_s', 'Node2_s', 'Node1_c', 'Node2_c'):
                 try:
                     self.ela = triarea(bpy.data.objects[sock.links[0].from_node.zone], bpy.data.objects[sock.links[0].from_node.zone].data.polygons[int(sock.links[0].from_socket.sn)])
                 except:
@@ -1771,10 +1771,10 @@ class EnViCLinkNode(bpy.types.Node, EnViNodes):
     rpd = bpy.props.FloatProperty(default = 4, min = 0.1, max = 50, name = "")
 
     def init(self, context):
+        self.inputs.new('EnViCrRefSocket', 'Reference')
+        self.inputs['Reference'].hide = True
         self.inputs.new('EnViCAirSocket', 'Node 1')
         self.inputs.new('EnViCAirSocket', 'Node 2')
-        self.outputs.new('EnViCrRefSocket', 'Reference')
-        self.outputs['Reference'].hide = True
         self.outputs.new('EnViCAirSocket', 'Node 1')
         self.outputs.new('EnViCAirSocket', 'Node 2')
 
@@ -1823,7 +1823,7 @@ class EnViCrRef(bpy.types.Node, EnViNodes):
     refh = bpy.props.FloatProperty(name = '', min = 0, max = 10, default = 0, description = 'Reference Humidity Ratio (kgWater/kgDryAir)')
 
     def init(self, context):
-        self.inputs.new('EnViCrRefSocket', 'Reference', type = 'CUSTOM')
+        self.outputs.new('EnViCrRefSocket', 'Reference', type = 'CUSTOM')
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Temperature:', self, 'reft')
@@ -1909,7 +1909,7 @@ class EnViSched(bpy.types.Node, EnViNodes):
     u4 = bpy.props.StringProperty(name = "Untils")
 
     def init(self, context):
-        self.inputs.new('EnViSchedSocket', 'Schedule')
+        self.outputs.new('EnViSchedSocket', 'Schedule')
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'End day 1:', self, 't1')

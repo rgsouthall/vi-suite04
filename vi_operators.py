@@ -496,10 +496,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
     def invoke(self, context, event):
         solringnum, sd, numpos, ordinals = 0, 100, {}, []
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-#        locnode = node.inputs[0].links[0].from_node
         scene, scene.resnode, scene.restree = context.scene, node.name, self.nodeid.split('@')[1]
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 1, 0, 0, 0, 0, 0
-#        scene['latitude'], scene['longitude'] = locnode.updatelatlong(context)
 
         if 'SolEquoRings' not in [mat.name for mat in bpy.data.materials]:
             bpy.data.materials.new('SolEquoRings')
@@ -533,10 +531,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
             bpy.data.materials.new('SkyMesh')
             bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=16, size=105)
             smesh = context.active_object
-            smesh.rotation_euler[0] = pi
-            smesh.cycles_visibility.shadow = False
-            smesh.name = "SkyMesh"
-            smesh['VIType'] = 'SkyMesh'            
+            smesh.location, smesh.rotation_euler[0], smesh.cycles_visibility.shadow, smesh.name, smesh['VIType']  = (0,0,0), pi, False, "SkyMesh", "SkyMesh"          
             bpy.ops.object.material_slot_add()
             smesh.material_slots[0].material = bpy.data.materials['SkyMesh']
             bpy.ops.object.shade_smooth()
@@ -545,8 +540,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         if "SunMesh" not in [ob.get('VIType') for ob in context.scene.objects]:
             bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=12, size=1)
             sunob = context.active_object
-            sunob.name = "SunMesh"
-            sunob['VIType'] = 'SunMesh'
+            sunob.location, sunob.name, sunob['VIType'] = (0, 0, 0), "SunMesh", "SunMesh"
         else:
             sunob = [ob for ob in context.scene.objects if ob.get('VIType') == "SunMesh"][0]
 
@@ -561,9 +555,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
         bpy.ops.object.add(type = "MESH")
         spathob = context.active_object
-        spathob.name = "SPathMesh"
-        spathob['VIType'] = 'SPathMesh'
-        spathmesh = spathob.data
+        spathob.location, spathob.name,  spathob['VIType'], spathmesh = (0, 0, 0), "SPathMesh", "SPathMesh", spathob.data
 
         for doy in range(0, 363):
             if (doy-4)%7 == 0:
@@ -864,10 +856,9 @@ class NODE_OT_Shadow(bpy.types.Operator):
         for ob in [ob for ob in scene.objects if ob.type == 'MESH' and not ob.hide]:
             obavres, shadfaces, shadcentres = [0] * (fdiff), [[] for f in range(fdiff)], [[] for f in range(fdiff)]
             [obsumarea, obmaxres, obminres] = [[0 for f in range(fdiff)] for x in range(3)]
-            if len([mat for mat in ob.data.materials if mat.vi_shadow]) > 0:
+            if len([mat for mat in ob.data.materials if mat and mat.get('vi_shadow')]) > 0:
                 obcalclist.append(ob)
-                scene.objects.active, ob.licalc = ob, 1
-                obm = ob.matrix_world
+                scene.objects.active, ob.licalc, obm = ob, 1, ob.matrix_world
                 ob['cfaces'], ob['cverts'] = [face.index for face in ob.data.polygons if ob.data.materials[face.material_index].vi_shadow], []
 
                 while ob.data.vertex_colors:

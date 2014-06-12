@@ -508,13 +508,13 @@ Construction,\n\
     FOR: AllDays,\n\
     UNTIL: 24:00,1;\n\n")
     
-    for snode in [snode for snode in bpy.data.node_groups['EnVi Network'].nodes if snode.bl_idname == 'EnViSched' and snode.inputs[0].is_linked]:
-        insock = snode.inputs[0].links[0].from_socket
-        if insock.name == 'TSPSchedule':
-            schname = snode.inputs[0].links[0].from_node.zone+'_tsps,'
+    for snode in [snode for snode in bpy.data.node_groups['EnVi Network'].nodes if snode.bl_idname == 'EnViSched' and snode.outputs[0].is_linked]:
+        tosock = snode.outputs[0].links[0].to_socket
+        if tosock.name == 'TSPSchedule':
+            schname = snode.outputs[0].links[0].to_node.zone+'_tsps,'
             schtype = 'Any Number,'
-        elif insock.name == 'VASchedule':
-            schname = snode.inputs[0].links[0].from_node.zone+'_vas,'
+        elif tosock.name == 'VASchedule':
+            schname = snode.outputs[0].links[0].to_node.zone+'_vas,'
             schtype = 'Fraction,'
             
         ths = [ts for ts in (snode.t1, snode.t2, snode.t3, snode.t4)]
@@ -952,12 +952,12 @@ AirflowNetwork:SimulationControl,\n\
     {:{width}}!- Reference Humidity Ratio\n\n'.format('ReferenceCrackConditions,', str(enode.reft)+',', str(enode.refp)+',', str(enode.refh)+';', width = s))
 
         elif enode.bl_idname == 'EnViZone':
-            if enode.outputs['TSPSchedule'].is_linked:
+            if enode.inputs['TSPSchedule'].is_linked:
                 control, mvof, lowerlim, upperlim, sched = 'Temperature,', str(enode.mvof)+',', str(enode.lowerlim)+',', str(enode.upperlim)+',', enode.zone+'_tsps,'
             else:
                 control, mvof, lowerlim, upperlim, sched = 'NoVent,', ',', ',', ',', ','
             
-            vasched = enode.zone+'_vas;' if enode.outputs['VASchedule'].is_linked else ';'
+            vasched = enode.zone+'_vas;' if enode.inputs['VASchedule'].is_linked else ';'
 
             en_idf.write('AirflowNetwork:MultiZone:Zone,\n\
     {:{width}}!- Zone Name\n\
@@ -973,8 +973,7 @@ AirflowNetwork:SimulationControl,\n\
 
 # Surface definitions
 
-        elif enode.bl_idname == 'EnViSLink':
-            
+        elif enode.bl_idname == 'EnViSLink':            
             sname = []
             if enode.linkmenu == 'HO' and not (enode.inputs['Node 1'].is_linked or enode.inputs['Node 2'].is_linked and enode.outputs['Node 1'].is_linked or enode.outputs['Node 2'].is_linked):
                 exp_op.report({'ERROR'}, 'All horizonal opening surfaces must sit on the boundary between two thermal zones')
@@ -984,8 +983,8 @@ AirflowNetwork:SimulationControl,\n\
                     sn = (sock.links[0].from_socket.sn, sock.links[0].to_socket.sn)[sock.is_output]
                     znode = (sock.links[0].from_node, sock.links[0].to_node)[sock.is_output]
                     zn = znode.zone
-                    tsched = ('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-2], sock.links[0].to_socket.name[:-2])[sock.is_output]].envi_con_type == 'Door']+zn+'_'+sn+'_tsps,' if enode.outputs['TSPSchedule'].is_linked else ','
-                    vasched = ('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-2], sock.links[0].to_socket.name[:-2])[sock.is_output]].envi_con_type == 'Door']+zn+'_'+sn+'_vas' if enode.outputs['TSPSchedule'].is_linked else ';'
+                    tsched = ('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-2], sock.links[0].to_socket.name[:-2])[sock.is_output]].envi_con_type == 'Door']+zn+'_'+sn+'_tsps,' if enode.inputs['TSPSchedule'].is_linked else ','
+                    vasched = ('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-2], sock.links[0].to_socket.name[:-2])[sock.is_output]].envi_con_type == 'Door']+zn+'_'+sn+'_vas' if enode.inputs['TSPSchedule'].is_linked else ';'
                     sname.append(('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-2],  sock.links[0].to_socket.name[:-2])[sock.is_output]].envi_con_type == 'Door']+zn+'_'+sn)
                     en_idf.write('AirflowNetwork:MultiZone:Surface,\n\
     {:{width}}! - Surface Name\n\

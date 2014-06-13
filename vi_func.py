@@ -67,6 +67,30 @@ def radmat(mat, scene):
     
     return(radname, matname, radnums)
 
+def viparams(scene):
+    fd, fn = os.path.dirname(bpy.data.filepath), os.path.splitext(os.path.basename(bpy.data.filepath))[0]
+    
+    if not os.path.isdir(os.path.join(fd, fn)):
+        os.makedirs(os.path.join(fd, fn))
+    if not os.path.isdir(os.path.join(fd, fn, 'obj')):
+        os.makedirs(os.path.join(fd, fn, 'obj'))
+    nd = os.path.join(fd, fn)
+    fb, ofb, idf  = os.path.join(nd, fn), os.path.join(nd, 'obj', fn), os.path.join(nd, 'in.idf')
+    
+    scene['viparams'] = {'rm': ('rm ', 'del ')[str(sys.platform) == 'win32'], 'cat': ('cat ', 'type ')[str(sys.platform) == 'win32'], 
+    'cp': ('cp ', 'copy ')[str(sys.platform) == 'win32'], 'nproc': str(multiprocessing.cpu_count()), 'filepath': bpy.data.filepath,
+    'filename': fn, 'filedir': fd, 'newdir': nd, 'objfilebase': ofb, 'idf_file': idf, 'filebase': fb} 
+
+def nodestate(self, opstate):
+    if self['exportstate'] !=  opstate:
+        self.exported = False
+        if self.bl_label[0] != '*':
+            self.bl_label = '*'+self.bl_label
+    else:
+        self.exported = True
+        if self.bl_label[0] == '*':
+            self.bl_label = self.bl_label[1:-1]    
+
 def face_centre(ob, obresnum, f):
     vsum = mathutils.Vector((0, 0, 0))
     for v in f.vertices:
@@ -124,29 +148,29 @@ def retsky(fr, node, geonode):
     else:
         return("{}-{}.sky".format(geonode.filebase, bpy.context.scene.frame_start))
 
-def nodeinit(node):
-    if str(sys.platform) != 'win32':
-        node.rm = "rm "
-        node.cat = "cat "
-        node.fold = "/"
-        node.cp = "cp "
-    else:
-        node.rm = "del "
-        node.cat = "type "
-        node.fold = r'"\"'
-        node.cp = "copy "
-    node.nproc = str(multiprocessing.cpu_count())
-    node.filepath = bpy.data.filepath
-    node.filename = os.path.splitext(os.path.basename(node.filepath))[0]
-    node.filedir = os.path.dirname(node.filepath)
-    if not os.path.isdir(os.path.join(node.filedir, node.filename)):
-        os.makedirs(os.path.join(node.filedir, node.filename))
-    if not os.path.isdir(os.path.join(node.filedir, node.filename, 'obj')):
-       os.makedirs(os.path.join(node.filedir, node.filename, 'obj'))
-    node.newdir = os.path.join(node.filedir, node.filename)
-    node.filebase = os.path.join(node.newdir, node.filename)
-    node.objfilebase = os.path.join(node.newdir, 'obj', node.filename)
-    node.idf_file = os.path.join(node.newdir, "in.idf")
+#def nodeinit(node):
+#    if str(sys.platform) != 'win32':
+#        node.rm = "rm "
+#        node.cat = "cat "
+#        node.fold = "/"
+#        node.cp = "cp "
+#    else:
+#        node.rm = "del "
+#        node.cat = "type "
+#        node.fold = r'"\"'
+#        node.cp = "copy "
+#    node.nproc = str(multiprocessing.cpu_count())
+#    node.filepath = bpy.data.filepath
+#    node.filename = os.path.splitext(os.path.basename(node.filepath))[0]
+#    node.filedir = os.path.dirname(node.filepath)
+#    if not os.path.isdir(os.path.join(node.filedir, node.filename)):
+#        os.makedirs(os.path.join(node.filedir, node.filename))
+#    if not os.path.isdir(os.path.join(node.filedir, node.filename, 'obj')):
+#       os.makedirs(os.path.join(node.filedir, node.filename, 'obj'))
+#    node.newdir = os.path.join(node.filedir, node.filename)
+#    node.filebase = os.path.join(node.newdir, node.filename)
+#    node.objfilebase = os.path.join(node.newdir, 'obj', node.filename)
+#    node.idf_file = os.path.join(node.newdir, "in.idf")
 
 def nodeexported(self):
     self.exported = 0

@@ -38,6 +38,7 @@ class envi_materials(object):
         self.wood_dat = OrderedDict(sorted(self.wood_datd.items()))
         
         self.stone_datd = {'Sandstone': ('MediumSmooth', '1.83', '2200.0', '712.0', '0.90', '0.6', '0.6', '200'),
+                          'Limestone': ('MediumSmooth', '1.3', '2180.0', '720.0', '0.90', '0.6', '0.6', '200'),
                          'Clay tile': ('MediumSmooth', '0.85', '1900.0', '837.0', '0.90', '0.6', '0.6', '6'),
                          'Common earth': ('Rough', '1.28', '1460.0', '879.0', '0.90', '0.85', '0.85', '200'),                
                          'Gravel': ('Rough', '1.28', '1460.0', '879.0', '0.90', '0.85', '0.85', '200')}
@@ -65,7 +66,8 @@ class envi_materials(object):
                         'Cavity wall insul': ('Rough', '0.037', '300.0', '1000.0', '0.90', '0.6', '0.6', '100'),
                         'Roofing felt': ('Rough', '0.19', '960.0', '837.0', '0.90', '0.9', '0.9', '6'),
                         'Wilton wool carpet': ('Rough', '0.06', '186.0', '1360.0', '0.90', '0.60', '0.60', '5'),
-                        'Thermawall TW50': ('MediumSmooth', '0.022', '32.000', '1500', '0.900000', '0.600000', '0.600000', '200')}
+                        'Thermawall TW50': ('MediumSmooth', '0.022', '32.000', '1500', '0.900000', '0.600000', '0.600000', '200'),
+                        'Stramit': ('Rough', '0.102', '380.0', '645.2', '0.900000', '0.600000', '0.600000', '50')}
         self.insulation_dat = OrderedDict(sorted(self.insulation_datd.items()))
         
         self.namedict = OrderedDict()
@@ -98,7 +100,7 @@ class envi_materials(object):
     def amat_write(self, idf_file, name, stringmat):        
         idf_file.write("Material:AirGap,\n\
     {0:{width}}! - Name\n\
-    {1:{width}}! - Resistance\n\n".format(name + ",", stringmat, width = s-4))
+    {1[0]:{width}}! - Resistance\n\n".format(name + ",", stringmat, width = s-4))
     
     def tmat_write(self, idf_file, name, stringmat, thickness):
         idf_file.write("WindowMaterial:{2[0]}\n\

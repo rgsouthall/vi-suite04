@@ -19,7 +19,7 @@
 
 import bpy, glob, os, inspect, sys, datetime
 from nodeitems_utils import NodeCategory, NodeItem
-from .vi_func import nodeinit, objvol, triarea, socklink, newrow, epwlatilongi, nodeid, nodeinputs
+from .vi_func import objvol, triarea, socklink, newrow, epwlatilongi, nodeid, nodeinputs, nodestate
 
 try:
     import numpy
@@ -48,9 +48,7 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     exported = bpy.props.BoolProperty()
 
     def nodeupdate(self, context):
-        self.exported = False
-        if self.bl_label[0] != '*':
-            self.bl_label = '*'+self.bl_label
+        nodestate(self, self['exportstate'])
         self.outputs['Generative out'].hide = True if self.animmenu != 'Static' else False       
         
     animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis"), ('Material', "Material", "Animated material analysis"), ('Lights', "Lights", "Animated artificial lighting analysis")]
@@ -58,14 +56,12 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
             name="", description="Specify the calculation point geometry", default="1", update = nodeupdate)
 
-    def init(self, context):   
+    def init(self, context):
+        self['exportstate'] = [self.animtype, self.animmenu, self.cpoint]
         self.outputs.new('ViGen', 'Generative out')
         self.outputs.new('ViLiG', 'Geometry out')
         self.outputs['Geometry out'].hide = True
         self['nodeid'] = nodeid(self, bpy.data.node_groups)
-     
-        if bpy.data.filepath:
-            nodeinit(self)
         bpy.context.scene.gfe = 0
                 
     def draw_buttons(self, context, layout):
@@ -84,12 +80,23 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
             socklink(self.outputs['Geometry out'], self['nodeid'].split('@')[1])
             
     def export(self, context):
+        self['exportstate'] = [self.animtype, self.animmenu, self.cpoint]
         self['frames'] = {'Material': 0, 'Geometry': 0, 'Lights':0} 
         for mglfr in self['frames']:
             self['frames'][mglfr] = context.scene.frame_end if self.animmenu == mglfr else 0
             context.scene.gfe = max(self['frames'].values())
-        if self.filepath != bpy.data.filepath:
-            nodeinit(self)
+#        if self.filepath != bpy.data.filepath:
+#            nodeinit(self)
+        
+#        if bpy.context.active_object and bpy.context.active_object.type == 'MESH' and not bpy.context.active_object.hide:
+#            bpy.ops.object.mode_set()
+#            
+#        scene.frame_start, bpy.data.node_groups[self['nodeid'].split('@')[1]].use_fake_user = 0, 1
+#        scene.frame_set(0)
+#        radgexport(export_op, self)
+#        self.exported = True
+#        self.bl_label = self.bl_label[1:] if self.bl_label[0] == '*' else self.bl_label
+#        self.outputs['Geometry out'].hide = False
         
 class ViLiNode(bpy.types.Node, ViNodes):
     '''Node describing a basic LiVi analysis'''
@@ -559,8 +566,8 @@ class ViLoc(bpy.types.Node, ViNodes):
         self.outputs.new('ViLoc', 'Location out')
         bpy.context.scene['latitude'] = self.lat
         bpy.context.scene['longitude'] = self.long
-        if bpy.data.filepath:
-            nodeinit(self)
+#        if bpy.data.filepath:
+#            nodeinit(self)
         
     def update(self):
         socklink(self.outputs[0], self['nodeid'].split('@')[1])
@@ -684,7 +691,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
         self.inputs.new('ViLoc', 'Location in')
         self.outputs.new('ViEnC', 'Context out')
         self.outputs['Context out'].hide = True
-        nodeinit(self)
+#        nodeinit(self)
         self['nodeid'] = nodeid(self, bpy.data.node_groups)        
 
     def draw_buttons(self, context, layout):

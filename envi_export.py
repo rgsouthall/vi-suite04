@@ -14,7 +14,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     for scene in bpy.data.scenes:
         scene.update()
     en_epw = open(locnode.weather, "r")
-    en_idf = open(node.idf_file, 'w')
+    en_idf = open(scene['viparams']['idf_file'], 'w')
     node.sdoy = datetime.datetime(datetime.datetime.now().year, locnode.startmonth, 1).timetuple().tm_yday
     node.edoy = (datetime.date(datetime.datetime.now().year, locnode.endmonth + (1, -11)[locnode.endmonth == 12], 1) - datetime.timedelta(days = 1)).timetuple().tm_yday
 
@@ -183,7 +183,7 @@ Construction,\n\
         elif mat.envi_con_makeup == '1' and mat.envi_con_type not in ('None', 'Shading', 'Aperture'):
             thicklist = (mat.envi_export_lo_thi, mat.envi_export_l1_thi, mat.envi_export_l2_thi, mat.envi_export_l3_thi, mat.envi_export_l4_thi)
             conname = mat.name
-            print('hi0', mats, conname)
+#            print('hi0', mats, conname)
             for l, layer in enumerate([i for i in itertools.takewhile(lambda x: x != "0", (mat.envi_layero, mat.envi_layer1, mat.envi_layer2, mat.envi_layer3, mat.envi_layer4))]):
                 if layer == "1" and mat.envi_con_type in ("Wall", "Floor", "Roof"):
                     mats = ((mat.envi_export_bricklist_lo, mat.envi_export_claddinglist_lo, mat.envi_export_concretelist_lo, mat.envi_export_metallist_lo, mat.envi_export_stonelist_lo, mat.envi_export_woodlist_lo, mat.envi_export_gaslist_lo, mat.envi_export_insulationlist_lo), \
@@ -197,8 +197,10 @@ Construction,\n\
                         params = [str(mat)+(",", ",", ",", ",", ",", ",", ";", ",")[x] for x, mat in enumerate(em.matdat[mats])]
                         em.omat_write(en_idf, mats+"-"+str(matcount.count(mats)), params, str(thicklist[l]/1000))
                     else:
-                        params = [em.matdat[presetmat][2]+';']
-                        em.amat_write(en_idf, mats+"-"+matcount.count(mats), params, str(thicklist[l]/1000))
+#                        print(mats)
+                        params = [em.matdat[mats][2]+';']
+                        print(en_idf, '{}-{}'.format(mats, matcount.count(mats)), params, str(thicklist[l]/1000))
+                        em.amat_write(en_idf, '{}-{}'.format(mats, matcount.count(mats)), params)
 
                 elif layer == "1" and mat.envi_con_type == "Window":
                     mats = ((mat.envi_export_glasslist_lo, mat.envi_export_wgaslist_l1, mat.envi_export_glasslist_l2, mat.envi_export_wgaslist_l3, mat.envi_export_glasslist_l4)[l])
@@ -579,11 +581,13 @@ Construction,\n\
     if node.reslof == True:
         for snode in [cnode for cnode in bpy.data.node_groups['EnVi Network'].nodes if cnode.bl_idname == 'EnViSLink']:
             for sno in snode['sname']:
-                en_idf.write("Output:Variable,{},AFN Surface Venting Window or Door Opening Factor,hourly;\n".format(sno))        
+                en_idf.write("Output:Variable,{},AFN Surface Venting Window or Door Opening Factor,hourly;\n".format(sno)) 
+    en_idf.write("Output:Table:SummaryReports,\
+    AllSummary;              !- Report 1 Name")
     en_idf.close()
 
     if 'in.idf' not in [im.name for im in bpy.data.texts]:
-        bpy.data.texts.load(node.idf_file)
+        bpy.data.texts.load(scene['viparams']['idf_file'])
 
     if sys.platform == "win32":
         subprocess.call(node.cp+'"'+locnode.weather+'" '+os.path.join(node.newdir, "in.epw"), shell = True)

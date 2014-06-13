@@ -27,7 +27,7 @@ from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, l
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .envi_calc import envi_sim
-from .vi_func import processf, livisimacc, solarPosition, retobjs, wr_axes, clearscene, framerange, vcframe, epwlatilongi, nodeinit
+from .vi_func import processf, livisimacc, solarPosition, retobjs, wr_axes, clearscene, framerange, vcframe, epwlatilongi, viparams
 from .vi_chart import chart_disp
 from .vi_gen import vigen
 
@@ -44,6 +44,7 @@ class NODE_OT_LiGExport(bpy.types.Operator):
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
 
         if bpy.data.filepath and " " not in bpy.data.filepath:
+            viparams(scene)
             if bpy.context.active_object and bpy.context.active_object.type == 'MESH' and not bpy.context.active_object.hide:
                 bpy.ops.object.mode_set()
             node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
@@ -189,10 +190,11 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
 
     nodeid = bpy.props.StringProperty()
 
-    def invoke(self, context, event):
+    def invoke(self, context, event):        
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         node.export(context)
-        scene = context.scene        
+        scene = context.scene    
+        viparams(scene)
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         scene.frame_start = 0
         scene.frame_set(0)
@@ -238,6 +240,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
 
     def invoke(self, context, event):
         scene = context.scene
+        viparams(scene)
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         connode = simnode.inputs['Context in'].links[0].from_node
@@ -253,6 +256,7 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
 
     def invoke(self, context, event):
         scene = context.scene
+        viparams(scene)
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         clearscene(scene, self)
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
@@ -388,6 +392,7 @@ class NODE_OT_EnGExport(bpy.types.Operator):
 
     def invoke(self, context, event):
         scene = context.scene
+        viparams(scene)
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         pregeo(self)
@@ -406,6 +411,7 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
 
     def invoke(self, context, event):
         scene = context.scene
+        viparams(scene)
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         locnode = node.inputs['Location in'].links[0].from_node
@@ -448,6 +454,7 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
             bpy.data.node_groups[self.nodeid.split('@')[1]].links.remove(node.outputs[0].links[0])
             bpy.data.node_groups[self.nodeid.split('@')[1]].links.new(socket1, socket2)
         scene = context.scene
+        viparams(scene)
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 2, 0, 0, 0, 0
         return {'FINISHED'}
 

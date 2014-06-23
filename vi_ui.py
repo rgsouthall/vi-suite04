@@ -148,14 +148,14 @@ class VIMatPanel(bpy.types.Panel):
                 elif cm.envi_layero == '2' and cm.envi_con_type != 'Window':
                     for end in ('name', 0, 'thi', 'tc', 0, 'rho', 'shc', 0, 'tab', 'sab', 0, 'vab', 'rough'):
                         if end:
-                            row.prop(cm, '{}{}'.format("envi_export_l0_", end)) 
+                            row.prop(cm, '{}{}'.format("envi_export_lo_", end)) 
                         else: 
                             row = layout.row()
 
                 elif cm.envi_layero == '2' and cm.envi_con_type == 'Window':
-                    for end in ('name', 0, 'thi', 'tc', 0, 'odt', 'sds', 0, 'stn', 'fsn', 'bsn', 0, 'vtn', 'fvrn', 'bvrn', 0, 'itn', 'fie', 'bie'):
+                    for end in ('name', 0, 'thi', 'tc', 0, 'odt', 0, 'sds', 0, 'stn', 'fsn', 'bsn', 0, 'vtn', 'fvrn', 'bvrn', 0, 'itn', 'fie', 'bie'):
                         if end:
-                            row.prop(cm, '{}{}'.format("envi_export_l0_", end))  
+                            row.prop(cm, '{}{}'.format("envi_export_lo_", end))  
                         else:
                             row = layout.row()
 
@@ -206,7 +206,7 @@ class VIMatPanel(bpy.types.Panel):
                                     row = layout.row()
 
                         elif cm.envi_layer2 == '2' and cm.envi_con_type == 'Window':
-                            for end in ('name', 0, 'thi', 'tc', 0, 'odt', 'sds', 0, 'stn', 'fsn', 'bsn', 0, 'vtn', 'fvrn', 'bvrn', 0, 'itn', 'fie', 'bie'):
+                            for end in ('name', 0, 'thi', 'tc', 0, 'odt', 0, 'sds', 0, 'stn', 'fsn', 'bsn', 0, 'vtn', 'fvrn', 'bvrn', 0, 'itn', 'fie', 'bie'):
                                 if end:
                                     row.prop(cm, '{}{}'.format("envi_export_l2_", end))  
                                 else:
@@ -271,7 +271,7 @@ class VIMatPanel(bpy.types.Panel):
                                             row = layout.row()
 
                                 elif cm.envi_layer4 == '2' and cm.envi_con_type == 'Window':
-                                    for end in ('name', 0, 'thi', 'tc', 0, 'odt', 'sds', 0, 'stn', 'fsn', 'bsn', 0, 'vtn', 'fvrn', 'bvrn', 0, 'itn', 'fie', 'bie'):
+                                    for end in ('name', 0, 'thi', 'tc', 0, 'odt', 0, 'sds', 0, 'stn', 'fsn', 'bsn', 0, 'vtn', 'fvrn', 'bvrn', 0, 'itn', 'fie', 'bie'):
                                         if end:
                                             row.prop(cm, '{}{}'.format("envi_export_l4_", end)) 
                                         else:

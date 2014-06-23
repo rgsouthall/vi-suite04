@@ -1,6 +1,6 @@
 import bpy, os, itertools, subprocess, datetime, sys, nodeitems_utils, mathutils
 from nodeitems_utils import  NodeItem
-from . import vi_func
+from .vi_func import epentry, objvol, ceilheight, selobj, triarea, boundpoly
 from . import vi_node
 dtdf = datetime.date.fromordinal
 #from subprocess import PIPE, Popen, STDOUT
@@ -17,43 +17,25 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     en_idf = open(scene['viparams']['idf_file'], 'w')
     node.sdoy = datetime.datetime(datetime.datetime.now().year, locnode.startmonth, 1).timetuple().tm_yday
     node.edoy = (datetime.date(datetime.datetime.now().year, locnode.endmonth + (1, -11)[locnode.endmonth == 12], 1) - datetime.timedelta(days = 1)).timetuple().tm_yday
+    enng = [ng for ng in bpy.data.node_groups if 'EnVi Network' in ng.bl_label][0] if [ng for ng in bpy.data.node_groups if 'EnVi Network' in ng.bl_label] else 0
 
-    en_idf.write("!- Blender -> EnergyPlus\n\
-!- Using the EnVi export scripts\n\
-!- Author: Ryan Southall\n\
-!- Date: {1}\n\n\
-{2:{width}}!- EnergyPlus Version Identifier\n\n\
-Building,\n\
-{3:{width}}!- Name\n\
-{4:{width}}!- North Axis (deg)\n\
-{5:{width}}!- Terrain\n\
-{6:{width}}!- Loads Convergence Tolerance Value\n\
-{7:{width}}!- Temperature Convergence Tolerance Value (deltaC)\n\
-{8:{width}}!- Solar Distribution\n\
-{9:{width}}!- Maximum Number of Warmup Days (from MLC TCM)\n\n\
-{10:{width}}!- Time Step in Hours \n\
-SurfaceConvectionAlgorithm:Inside, TARP;                              !- Algorithm \n\
-SurfaceConvectionAlgorithm:Outside, TARP;                             !- Algorithm \n\
-HeatBalanceAlgorithm, ConductionTransferFunction; \n\
-ShadowCalculation, AverageOverDaysInFrequency, 10;                    !- (default frequency of calculation)\n\
-SimulationControl, No,No,No,No,Yes;                                   !- no zone sizing, system sizing, plant sizing, no design day, use weather file\n\n".format(',',
-datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), "VERSION,8.1.0;", "    "+node.loc+",", "    0.000,", ("    City,", "    Urban,", "    Suburbs,", "    Country,", "    Ocean,")[int(node.terrain)],
-'    0.004,', '    0.4,', '    FullExteriorWithReflections,', '    15;', 'Timestep,  '+str(node.timesteps)+';', width = s))
+    en_idf.write("!- Blender -> EnergyPlus\n!- Using the EnVi export scripts\n!- Author: Ryan Southall\n!- Date: {}\n\nVERSION,8.1.0;\n\n".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
+    
+    params = ('Name', 'North Axis (deg)', 'Terrain', 'Loads Convergence Tolerance Value', 'Temperature Convergence Tolerance Value (deltaC)',
+              'Solar Distribution', 'Maximum Number of Warmup Days(from MLC TCM)')
+    paramvs = (node.loc, '0.00', ("City", "Urban", "Suburbs", "Country", "Ocean,")[int(node.terrain)], '0.004', '0.4', 'FullExteriorWithReflections', '15')
+    en_idf.write(epentry('Building', params, paramvs))
+    params = ('Time Step in Hours', 'Algorithm', 'Algorithm', 'Algorithm', '(default frequency of calculation)', 'no zone sizing, system sizing, plant sizing, no design day, use weather file')
+    paramvs = ('Timestep, {}'.format(node.timesteps), 'SurfaceConvectionAlgorithm:Inside, TARP', 'SurfaceConvectionAlgorithm:Outside, TARP', 'HeatBalanceAlgorithm, ConductionTransferFunction',
+               'ShadowCalculation, AverageOverDaysInFrequency, 10', 'SimulationControl, No,No,No,No,Yes')
 
-    en_idf.write("RunPeriod,\n\
-    {0:{width}}!- Name\n\
-    {1:<{width}}!- Begin Month\n\
-    {2:<{width}}!- Begin Day\n\
-    {3:<{width}}!- End Month\n\
-    {4:<{width}}!- End Day\n\
-    {5:{width}}!- Day of Week for Start Day\n\
-    {6:{width}}!- Use Weather File Holidays and Special Days\n\
-    {6:{width}}!- Use Weather File Daylight Saving Period\n\
-    {7:{width}}!- Apply Weekend Holiday Rule\n\
-    {6:{width}}!- Use Weather File Rain Indicators\n\
-    {6:{width}}!- Use Weather File Snow Indicators\n\
-    {8:{width}}!- Number of Times Runperiod to be Repeated\n\n".format(node.loc+',', str(locnode.startmonth)+',', '1,', \
-    str(locnode.endmonth)+',', str((datetime.date(datetime.datetime.now().year, locnode.endmonth + (1, -11)[locnode.endmonth == 12], 1) - datetime.timedelta (days = 1)).day)+',', "UseWeatherFile,", "Yes,", "No,", "1;","", width = s-4))
+    for ppair in zip(params, paramvs):
+        en_idf.write(epentry('', [ppair[0]], [ppair[1]]) + ('', '\n\n')[ppair[0] == params[-1]])
+
+    params = ('Name', 'Begin Month', 'Begin Day', 'End Month', 'End Day', 'Day of Week for Start Day', 'Use Weather File Holidays and Special Days', 'Use Weather File Daylight Saving Period',\
+    'Apply Weekend Holiday Rule', 'Use Weather File Rain Indicators', 'Use Weather File Snow Indicators', 'Number of Times Runperiod to be Repeated')
+    paramvs = (node.loc, locnode.startmonth, '1', locnode.endmonth, ((datetime.date(datetime.datetime.now().year, locnode.endmonth + (1, -11)[locnode.endmonth == 12], 1) - datetime.timedelta(days = 1)).day), "UseWeatherFile", "Yes", "Yes", "No", "Yes", "Yes", "1")
+    en_idf.write(epentry('RunPeriod', params, paramvs))
 
 #    en_idf.write("Site:Location,\n")
 #    en_idf.write(es.wea.split("/")[-1].strip('.epw')+",   !- LocationName\n")
@@ -78,78 +60,15 @@ datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), "VERSION,8.1.0;", "    "+nod
     en_epw.close()
 
     en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: MATERIAL & CONSTRUCTIONS ===========\n\n")
-    matcount = []
-    matname = []
+    matcount, matname, namelist = [], [], []
 #    customcount = []
-    namelist = []
-
-
     if 'Window' in [mat.envi_con_type for mat in bpy.data.materials] or 'Door' in [mat.envi_con_type for mat in bpy.data.materials]:
-        en_idf.write('Material,\n\
-    {0:{width}}!- Name\n\
-    {1:{width}}!- Roughness\n\
-    {2:{width}}!- Thickness (m)\n\
-    {3:{width}}!- Conductivity (W/m-K)\n\
-    {4:{width}}!- Density (kg/m3)\n\
-    {5:{width}}!- Specific Heat (J/kg-K)\n\
-    {6:{width}}!- Thermal Absorptance\n\
-    {7:{width}}!- Solar Absorptance\n\
-    {8:{width}}!- Visible Absorptance\n\n\
-Construction,\n\
-    {9:{width}}!- Name\n\
-    {10:{width}}!- Outside Layer\n\n'.format('Wood frame,', 'Rough,', '0.12,', '0.1,', '1400.000,', '1000,', '0.9,', '0.6,', '0.6;' , 'Frame,', 'Wood frame;', width = s))
-
+        params = ('Name', 'Roughness', 'Thickness (m)', 'Conductivity (W/m-K)', 'Density (kg/m3)', 'Specific Heat (J/kg-K)', 'Thermal Absorptance', 'Solar Absorptance', 'Visible Absorptance', 'Name', 'Outside Layer') 
+        paramvs = ('Wood frame', 'Rough', '0.12', '0.1', '1400.00', '1000', '0.9', '0.6', '0.6', 'Frame', 'Wood frame')
+        en_idf.write(epentry('Material', params[:-2], paramvs[:-2]))
+        en_idf.write(epentry('Construction', params[-2:], paramvs[-2:]))
 
     for mat in [mat for mat in bpy.data.materials if mat.envi_export == True and mat.envi_con_type != "None"]:
-        if mat.envi_con_makeup == '1':
-            matname = []
-            if mat.envi_layero != '0':
-                if mat.envi_layero == '1':
-                    if mat.envi_con_type in ('Wall', "Floor", "Roof", "Door"):
-                        cono = [co for co, con in enumerate(('0', '1', '2', '3', '4', '5', '6')) if mat.envi_layeroto == con][0]
-                        typelist = (mat.envi_export_bricklist_lo, mat.envi_export_concretelist_lo, mat.envi_export_metallist_lo, mat.envi_export_stonelist_lo, mat.envi_export_woodlist_lo, mat.envi_export_gaslist_lo, mat.envi_export_insulationlist_lo)[cono]
-                        conlist = (em.brick_dat, em.concrete_dat, em.metal_dat, em.stone_dat, em.wood_dat, em.gas_dat, em.insulation_dat)[cono]
-                        if cono != 5:
-                            en_idf.write("Material,\n" +
-                                "{0:{width}}! - Name\n".format("    "+typelist+ "-"+str(matcount.count(typelist))+",", width = s) +
-                                "{0:{width}}! - Roughness\n".format("    "+conlist[typelist][0]+",", width = s) +
-                                "{0:{width}}! - Thickness (m)\n".format("    "+str(float(mat.envi_export_lo_thi)/1000)+",", width = s) +
-                                "{0:{width}}! - Conductivity (W/m-K)\n".format("    "+str(conlist[typelist][1])+",", width = s) +
-                                "{0:{width}}! - Density (kg/m3)\n".format("    "+str(conlist[typelist][2])+",", width = s) +
-                                "{0:{width}}! - Specific Heat (J/kg-K)\n".format("    "+str(conlist[typelist][3])+",", width = s) +
-                                "{0:{width}}! - Thermal Absorptance\n".format("    "+str(conlist[typelist][4])+",", width = s) +
-                                "{0:{width}}! - Solar Absorptance\n".format("    "+str(conlist[typelist][5])+",", width = s) +
-                                "{0:{width}}! - Visible Absorptance\n\n".format("    "+str(conlist[typelist][6])+";", width = s))
-                        else:
-                            en_idf.write("Material:AirGap,\n" +
-                            "{0:{width}}! - Name\n".format("    "+(typelist)+'-'+str(matcount.count(typelist)), width = s)+"," +
-                            "{0:{width}}! - Thermal Resistance (m2-K/W)\n\n".format(str(conlist[typelist][2])+";", width = s))
-                        matname.append((typelist)+'-'+str(matcount.count(typelist)))
-                        matcount.append(typelist)
-
-                    elif mat.envi_con_type == 'Window':
-                        cono = [co for co, con in enumerate(('0', '1')) if mat.envi_layerott == con][0]
-                        typelist = (mat.envi_export_glasslist_lo, mat.envi_export_gaslist_lo)[cono]
-                        conlist = (em.glass_dat, em.gas_dat)[cono]
-                        if cono == 0:
-                            en_idf.write("WindowMaterial:Glazing,\n" +
-                            "{0:{width}}! - Name\n".format("    "+typelist+"-"+str(matcount.count(typelist))+",", width = s) +
-                            "{0:{width}}! - Optical Data Type\n".format("    "+conlist[typelist][1]+",", width = s) +
-                            "{0:{width}}! - Window Glass Spectral Data Set Name\n".format("    "+conlist[typelist][2]+",", width = s) +
-                            "{0:{width}}! - Thickness (m)\n".format("    "+conlist[typelist][3]+",", width = s) +
-                            "{0:{width}}! - Solar Transmittance at Normal Incidence\n".format("    "+conlist[typelist][4]+",", width = s) +
-                            "{0:{width}}! - Front Side Solar Reflectance at Normal Incidence\n".format("    "+conlist[typelist][5]+",", width = s) +
-                            "{0:{width}}! - Back Side Solar Reflectance at Normal Incidence\n".format("    "+conlist[typelist][6]+",", width = s) +
-                            "{0:{width}}! - Visible Transmittance at Normal Incidence\n".format("    "+conlist[typelist][7]+",", width = s) +
-                            "{0:{width}}! - Front Side Visible Reflectance at Normal Incidence\n".format("    "+conlist[typelist][8]+",", width = s) +
-                            "{0:{width}}! - Back Side Visible Reflectance at Normal Incidence\n".format("    "+conlist[typelist][9]+",", width = s) +
-                            "{0:{width}}! - Infrared Transmittance at Normal Incidence\n".format("    "+conlist[typelist][10]+",", width = s) +
-                            "{0:{width}}! - Front Side Infrared Hemispherical Emissivity\n".format("    "+conlist[typelist][11]+",", width = s) +
-                            "{0:{width}}! - Back Side Infrared Hemispherical Emissivity\n".format("    "+conlist[typelist][12]+",", width = s) +
-                            "{0:{width}}! - Conductivity (W/m-K)\n\n".format("    "+conlist[typelist][13]+";", width = s))
-                        matname.append((typelist)+'-'+str(matcount.count(typelist)))
-                        matcount.append(typelist)
-
         conlist = []
         if mat.envi_con_makeup == '0' and mat.envi_con_type not in ('None', 'Shading', 'Aperture'):
             thicklist = (mat.envi_export_lo_thi, mat.envi_export_l1_thi, mat.envi_export_l2_thi, mat.envi_export_l3_thi, mat.envi_export_l4_thi)
@@ -183,7 +102,7 @@ Construction,\n\
         elif mat.envi_con_makeup == '1' and mat.envi_con_type not in ('None', 'Shading', 'Aperture'):
             thicklist = (mat.envi_export_lo_thi, mat.envi_export_l1_thi, mat.envi_export_l2_thi, mat.envi_export_l3_thi, mat.envi_export_l4_thi)
             conname = mat.name
-#            print('hi0', mats, conname)
+            
             for l, layer in enumerate([i for i in itertools.takewhile(lambda x: x != "0", (mat.envi_layero, mat.envi_layer1, mat.envi_layer2, mat.envi_layer3, mat.envi_layer4))]):
                 if layer == "1" and mat.envi_con_type in ("Wall", "Floor", "Roof"):
                     mats = ((mat.envi_export_bricklist_lo, mat.envi_export_claddinglist_lo, mat.envi_export_concretelist_lo, mat.envi_export_metallist_lo, mat.envi_export_stonelist_lo, mat.envi_export_woodlist_lo, mat.envi_export_gaslist_lo, mat.envi_export_insulationlist_lo), \
@@ -192,24 +111,22 @@ Construction,\n\
                     (mat.envi_export_bricklist_l3, mat.envi_export_claddinglist_l3, mat.envi_export_concretelist_l3, mat.envi_export_metallist_l3, mat.envi_export_stonelist_l3, mat.envi_export_woodlist_l3, mat.envi_export_gaslist_l3, mat.envi_export_insulationlist_l3), \
                     (mat.envi_export_bricklist_l4, mat.envi_export_claddinglist_l4, mat.envi_export_concretelist_l4, mat.envi_export_metallist_l4, mat.envi_export_stonelist_l4, mat.envi_export_woodlist_l4, mat.envi_export_gaslist_l4, mat.envi_export_insulationlist_l4))\
                     [l][int((mat.envi_layeroto, mat.envi_layer1to, mat.envi_layer2to, mat.envi_layer3to, mat.envi_layer4to)[l])]
-                    
+
                     if mats not in em.gas_dat:
                         params = [str(mat)+(",", ",", ",", ",", ",", ",", ";", ",")[x] for x, mat in enumerate(em.matdat[mats])]
-                        em.omat_write(en_idf, mats+"-"+str(matcount.count(mats)), params, str(thicklist[l]/1000))
+                        em.omat_write(en_idf, '{}-{}'.format(mats, matcount.count(mats)), params, str(thicklist[l]/1000))
                     else:
-#                        print(mats)
                         params = [em.matdat[mats][2]+';']
-                        print(en_idf, '{}-{}'.format(mats, matcount.count(mats)), params, str(thicklist[l]/1000))
                         em.amat_write(en_idf, '{}-{}'.format(mats, matcount.count(mats)), params)
 
                 elif layer == "1" and mat.envi_con_type == "Window":
                     mats = ((mat.envi_export_glasslist_lo, mat.envi_export_wgaslist_l1, mat.envi_export_glasslist_l2, mat.envi_export_wgaslist_l3, mat.envi_export_glasslist_l4)[l])
                     if l in (0, 2, 4):
                         params = [str(mat)+(",", ",", ",", ",", ",", ",", ",", ",", ",", ",", ",", ",", ",",";")[x] for x, mat in enumerate(em.matdat[mats])]
-                        em.tmat_write(en_idf, presetmat+"-"+str(em.namedict[presetmat]), params, str(thicklist[l]/1000))
+                        em.tmat_write(en_idf, '{}-{}'.format(mats, matcount.count(mats)), params, str(thicklist[l]/1000))
                     else:
                         params = [str(mat)+( ",", ",", ",")[x] for x, mat in enumerate(em.matdat[mats])]
-                        em.gmat_write(en_idf, presetmat+"-"+str(em.namedict[presetmat]), params, str(thicklist[l]/1000))
+                        em.gmat_write(en_idf, '{}-{}'.format(mats, matcount.count(mats)), params, str(thicklist[l]/1000))
 
                 elif layer == "2" and mat.envi_con_type in ("Wall", "Floor", "Roof"):
                     mats = (mat.envi_export_lo_name, mat.envi_export_l1_name, mat.envi_export_l2_name, mat.envi_export_l3_name, mat.envi_export_l4_name)[l]
@@ -234,12 +151,12 @@ Construction,\n\
                 conlist.append((mats)+'-'+str(matcount.count(mats)))
                 matname.append((mats)+'-'+str(matcount.count(mats)))
                 matcount.append(mats)
-
-            en_idf.write('Construction,\n    {:{width}}{}\n'.format(mat.name+",", "!- Name", width = s-4))
+            
+            params, paramvs = ['Name'],  [mat.name]
             for i, mn in enumerate(conlist):
-                en_idf.write("    {0:{width}}{1}".format(mn+(',', ';')[len(conlist) == i + 1], "!- Layer "+str(i)+('\n', '\n\n')[len(conlist) == i + 1], width = s-4))
-
-
+                params.append('Layer {}'.format(i))
+                paramvs.append(mn)
+            en_idf.write(epentry('Construction', params, paramvs))
 
     em.namedict = {}
     em.thickdict = {}
@@ -254,8 +171,8 @@ Construction,\n\
             "    0,                                                                !- Z Origin (m)\n" +
             "    1,                                                                !- Type\n" +
             "    1,                                                                !- Multiplier\n" +
-            "    {0:{width}}!- Ceiling Height (m)\n".format("{:.3f}".format(vi_func.ceilheight(obj, [])) + ",", width = s - 4) +
-            "    {0:{width}}!- Volume (m3)\n".format("{:.2f}".format(vi_func.objvol('', obj)) + ",", width = s - 4) +
+            "    {0:{width}}!- Ceiling Height (m)\n".format("{:.3f}".format(ceilheight(obj, [])) + ",", width = s - 4) +
+            "    {0:{width}}!- Volume (m3)\n".format("{:.2f}".format(objvol('', obj)) + ",", width = s - 4) +
             "    autocalculate,                                                    !- Floor Area (m2)\n" +
             "    TARP,                                                             !- Zone Inside Convection Algorithm\n"+
             "    TARP,                                                             !- Zone Outside Convection Algorithm\n"+
@@ -269,70 +186,56 @@ Construction,\n\
 
     en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: SURFACE DEFINITIONS ===========\n\n")
 
+    wfrparams = ['Name', 'Surface Type', 'Construction Name', 'Zone Name', 'Outside Boundary Condition', 'Outside Boundary Condition Object', 'Sun Exposure', 'Wind Exposure', 'View Factor to Ground', 'Number of Vertices']
+    hcparams = ('Name', 'Setpoint Temperature Schedule Name', 'Setpoint Temperature Schedule Name')
+    spparams = ('Name', 'Setpoint Temperature Schedule Name')
+#    cspparams = ('Name', 'Setpoint Temperature Schedule Name')
+    
     for obj in [obj for obj in bpy.data.objects if obj.layers[1] and obj.type == 'MESH' and obj.envi_type != '0']:
         obm, odv = obj.matrix_world, obj.data.vertices
-        obj["floorarea"] = sum([vi_func.triarea(obj, face) for face in obj.data.polygons if obj.data.materials[face.material_index].envi_con_type =='floor'])
+        obj["floorarea"] = sum([triarea(obj, face) for face in obj.data.polygons if obj.data.materials[face.material_index].envi_con_type =='floor'])
         for poly in obj.data.polygons:
             mat = obj.data.materials[poly.material_index]
-            (obc, obco, se, we) = vi_func.boundpoly(obj, mat, poly)
+            (obc, obco, se, we) = boundpoly(obj, mat, poly)
 
             if mat.envi_con_type in ('Wall', "Floor", "Roof") and mat.envi_con_makeup != "2":
-                en_idf.write('\nBuildingSurface:Detailed,\n' +
-                "    {0:{width}}!- Name\n".format(obj.name+'_'+str(poly.index)+",", width = s) +
-                "    {0:{width}}!- Surface Type\n".format(mat.envi_con_type + ",", width = s) +
-                "    {0:{width}}!- Construction Name\n".format(mat.name+",", width = s) +
-                "    {0:{width}}!- Zone Name\n".format(obj.name+",", width = s) +
-                "    {0:{width}}!- Outside Boundary Condition\n".format(obc+",", width = s) +
-                "    {0:{width}}!- Outside Boundary Condition Object\n".format(obco+",", width = s) +
-                "    {0:{width}}!- Sun Exposure\n" .format(se+",", width = s) +
-                "    {0:{width}}!- Wind Exposure\n" .format(we+",", width = s) +
-                "    {0:{width}}!- View Factor to Ground\n".format("autocalculate,", width = s) +
-                "    {0:{width}}!- Number of Vertices\n".format(str(len(poly.vertices))+",", width = s))
+                params = list(wfrparams)
+                paramvs = ['{}_{}'.format(obj.name, poly.index), mat.envi_con_type, mat.name, obj.name, obc, obco, se, we, 'autocalculate', len(poly.vertices)]
                 for vert in poly.vertices:
-                    en_idf.write("    {0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}{1:{width}} {2}".format(obm * odv[vert].co, (',', ';')[vert == poly.vertices[-1]], "!- X,Y,Z ==> Vertex "+str(vert)+" {m}\n", width = s - 16))
+                    params.append("X,Y,Z ==> Vertex {} (m)".format(vert))
+                    paramvs.append("  {0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}".format(obm * odv[vert].co))
+                en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))
 
                 if mat.envi_con_type == "Floor":
                     obj["floorarea"] = obj["floorarea"] + poly.area
 
             elif  mat.envi_con_type in ('Door', 'Window'):
                 xav, yav, zav = obm*mathutils.Vector(poly.center)
-                en_idf.write('BuildingSurface:Detailed,\n'\
-                "    {:{width}}!- Name\n".format(obj.name+'_'+str(poly.index)+",", width = s - 4) +
-                "    Wall,                                                             !- Surface Type\n"+
-                "    Frame,                                                     !- Construction Name\n"+
-                "    {:{width}}!- Zone Name\n".format(obj.name+",", width = s - 4) +
-                "    {0:{width}}!- Outside Boundary Condition\n".format(obc+",", width = s) +
-                "    {0:{width}}!- Outside Boundary Condition Object\n".format(obco+",", width = s) +
-                "    {0:{width}}!- Sun Exposure\n" .format(se+",", width = s) +
-                "    {0:{width}}!- Wind Exposure\n" .format(we+",", width = s) +
-                "    autocalculate,                                                    !- View Factor to Ground\n" +
-                "    {0:{width}}!- Number of Vertices\n".format(str(len(poly.vertices))+",", width = s))
+                params = list(wfrparams)
+                paramvs = ['{}_{}'.format(obj.name, poly.index), 'Wall', 'Frame', obj.name, obc, obco, se, we, 'autocalculate', len(poly.vertices)]
                 for vert in poly.vertices:
-                        en_idf.write("  {0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}{1:{width}}{2}".format(obm * odv[vert].co, (',', ';')[vert == poly.vertices[-1]], "!- X,Y,Z ==> Vertex "+str(vert)+" {m}\n", width = s - 16))
+                    params.append("!- X,Y,Z ==> Vertex {} (m)".format(vert))
+                    paramvs.append("  {0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}".format(obm * odv[vert].co))
+                en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))
 
-
-                en_idf.write('\nFenestrationSurface:Detailed,\n\
-                {0}!- Name\n\
-                {1:{width}}!- Surface Type\n\
-                {2:{width}}!- Construction Name\n\
-                {3:{width}}!- Building Surface Name\n\
-                {4:{width}}!- Outside Boundary Condition Object\n\
-                {5:{width}}!- View Factor to Ground\n\
-                {6:{width}}!- Shading Control Name\n\
-                {6:{width}}!- Frame and Divider Name\n\
-                {7:{width}}!- Multiplier\n\
-                {8:{width}}!- Number of Vertices\n'.format(('win-', 'door-')[mat.envi_con_type == 'Door']+obj.name+'_'+str(poly.index)+',', mat.envi_con_type+',', mat.name+',', obj.name+'_'+str(poly.index)+',', obco+',', 'autocalculate,', ',', '1,', str(len(poly.vertices))+",", width = s))
+                params = ['Name', 'Surface Type', 'Construction Name', 'Building Surface Name', 'Outside Boundary Condition Object', 'View Factor to Ground', 'Shading Control Name', 'Frame and Divider Name', 'Multiplier', 'Number of Vertices']
+                paramvs = [('win-', 'door-')[mat.envi_con_type == 'Door']+'{}_{}'.format(obj.name, poly.index), mat.envi_con_type, mat.name, '{}_{}'.format(obj.name, poly.index), obco, 'autocalculate', '', '', '1', len(poly.vertices)]
                 for vert in poly.vertices:
-                     en_idf.write("  {0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}{1:{width}}{2}".format((xav+((obm * odv[vert].co)[0]-xav)*0.95, yav+((obm * odv[vert].co)[1]-yav)*0.95, zav+((obm * odv[vert].co)[2]-zav)*0.95), (',', ';')[vert == poly.vertices[-1]], "!- X,Y,Z ==> Vertex "+str(vert)+" {m}\n", width = s - 8))
-
+                    paramvs.append("  {0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}".format((xav+((obm * odv[vert].co)[0]-xav)*0.95, yav+((obm * odv[vert].co)[1]-yav)*0.95, zav+((obm * odv[vert].co)[2]-zav)*0.95)))
+                    params.append("X,Y,Z ==> Vertex {} (m)".format(vert))
+                en_idf.write(epentry('FenestrationSurface:Detailed', params, paramvs))
+                
             elif mat.envi_con_type == 'Shading':
-                en_idf.write('\nShading:Building:Detailed,\n' +
-                "{0:{width}}! - Name\n".format("    "+obj.name+'_'+str(poly.index)+",",  width = s) +
-                "{0:{width}}! - Transmittance Schedule Name\n".format("    ,",  width = s) +
-                "{0:{width}}! - Number of Vertices\n".format("    3,",  width = s) +
-                "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obm * odv[poly.vertices[0]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
-                "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obm * odv[poly.vertices[1]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
-                "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}; {2}".format("       ", obm * odv[poly.vertices[2]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n\n"))
+                params = ['Name', 'Transmittance Schedule Name', 'Number of Vertices', 'X,Y,Z ==> Vertex 1 (m)', 'X,Y,Z ==> Vertex 2 (m)', 'X,Y,Z ==> Vertex 3 (m)']
+                paramvs = ['{}_{}'.format(obj.name, poly.index), '', '3', obm * odv[poly.vertices[0]].co, obm * odv[poly.vertices[1]].co, obm * odv[poly.vertices[2]].co]
+                en_idf.write(epentry('Shading:Building:Detailed', params, paramvs))
+#                en_idf.write('\nShading:Building:Detailed,\n' +
+#                "{0:{width}}! - Name\n".format("    "+obj.name+'_'+str(poly.index)+",",  width = s) +
+#                "{0:{width}}! - Transmittance Schedule Name\n".format("    ,",  width = s) +
+#                "{0:{width}}! - Number of Vertices\n".format("    3,",  width = s) +
+#                "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obm * odv[poly.vertices[0]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
+#                "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}, {2}".format("       ", obm * odv[poly.vertices[1]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n") +
+#                "{0}{1[0]:.3f}, {1[1]:.3f}, {1[2]:.3f}; {2}".format("       ", obm * odv[poly.vertices[2]].co,  "                                          !- X,Y,Z ==> Vertex 1 {m}\n\n"))
 
     for o, obj in enumerate([obj for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type == '1']):
         if o == 0:
@@ -363,21 +266,30 @@ Construction,\n\
             cool = None
 
         if heat and cool:
-            en_idf.write("ThermostatSetpoint:DualSetpoint,\n\
-    %s Dual Setpoint,%s!- Name\n" %(obj.name, spformat("Dual Setpoint "+obj.name)) +"\
-    Heating Setpoints %s,%s!- Setpoint Temperature Schedule Name\n" %(obj.name, spformat("Heating Setpoints "+obj.name))+"\
-    Cooling Setpoints %s;%s!- Setpoint Temperature Schedule Name\n\n" %(obj.name, spformat("Cooling Setpoints "+obj.name)))
+            params = list(hcparams)
+            paramvs = ('{} Dual Setpoint'.format(obj.name), 'Heating Setpoints {}'.format(obj.name), 'Cooling Setpoints {}'.format(obj.name))
+            en_idf.write(epentry('ThermostatSetpoint:DualSetpoint', params, paramvs))
+#            en_idf.write("ThermostatSetpoint:DualSetpoint,\n\
+#    %s Dual Setpoint,%s!- Name\n" %(obj.name, spformat("Dual Setpoint "+obj.name)) +"\
+#    Heating Setpoints %s,%s!- Setpoint Temperature Schedule Name\n" %(obj.name, spformat("Heating Setpoints "+obj.name))+"\
+#    Cooling Setpoints %s;%s!- Setpoint Temperature Schedule Name\n\n" %(obj.name, spformat("Cooling Setpoints "+obj.name)))
             ct = 4
 
         elif cool:
-            en_idf.write("ThermostatSetpoint:SingleCooling,\n\
-    %s Cooling Setpoint,%s!- Name\n" %(obj.name, spformat("Cooling Setpoint "+obj.name)) +"\
-    Cooling Setpoints %s;%s!- Setpoint Temperature Schedule Name\n\n" %(obj.name, spformat("Cooling Setpoints "+obj.name)))
+            params = list(spparams)
+            paramvs = ('{} Cooling Setpoint'.format(obj.name), 'Cooling Setpoints {}'.format(obj.name))
+            en_idf.write(epentry('ThermostatSetpoint:SingleCooling', params, paramvs))
+#            en_idf.write("ThermostatSetpoint:SingleCooling,\n\
+#    %s Cooling Setpoint,%s!- Name\n" %(obj.name, spformat("Cooling Setpoint "+obj.name)) +"\
+#    Cooling Setpoints %s;%s!- Setpoint Temperature Schedule Name\n\n" %(obj.name, spformat("Cooling Setpoints "+obj.name)))
             ct = 2
         elif heat:
-            en_idf.write("ThermostatSetpoint:SingleHeating,\n\
-    %s Heating Setpoint,%s!- Name\n" %(obj.name, spformat("Heating Setpoint "+obj.name)) +"\
-    Heating Setpoints %s;%s!- Setpoint Temperature Schedule Name\n\n" %(obj.name, spformat("Heating Setpoints "+obj.name)))
+            params = list(spparams)
+            paramvs = ('{} Heating Setpoint'.format(obj.name), 'Heating Setpoints {}'.format(obj.name))
+            en_idf.write(epentry('ThermostatSetpoint:SingleHeating', params, paramvs))
+#            en_idf.write("ThermostatSetpoint:SingleHeating,\n\
+#    %s Heating Setpoint,%s!- Name\n" %(obj.name, spformat("Heating Setpoint "+obj.name)) +"\
+#    Heating Setpoints %s;%s!- Setpoint Temperature Schedule Name\n\n" %(obj.name, spformat("Heating Setpoints "+obj.name)))
             ct = 1
 
         if obj.envi_heats1 == True or obj.envi_cools1 == True:
@@ -417,61 +329,79 @@ Construction,\n\
     1,%s!- Zone Equipment 1 Cooling Sequence\n" %(spformat("1")) +"\
     1;%s!- Zone Equipment 1 Heating or No-Load Sequence\n\n"  %(spformat("1")))
 
-            en_idf.write("ZoneHVAC:IdealLoadsAirSystem,\n\
-    %s_Air,%s!- Name\n" %(obj.name, spformat(obj.name+"_Air")) +"\
-    ,%s!- Availability Schedule Name\n"%(spformat("")) +"\
-    %s_supairnode,%s!- Zone Supply Air Node Name\n" %(obj.name, spformat(obj.name+"_supairnode")) +"\
-    ,%s!- Zone Exhaust Air Node Name\n" %(spformat("")) +"\
-    50,%s!- Maximum Heating Supply Air Temperature {C}\n" %(spformat("50")) +"\
-    10,%s!- Minimum Cooling Supply Air Temperature {C}\n" %(spformat("10")) +"\
-    0.015,%s!- Maximum Heating Supply Air Humidity Ratio {kg-H2O/kg-air}\n" %(spformat("0.015")) +"\
-    0.009,%s!- Minimum Cooling Supply Air Humidity Ratio {kg-H2O/kg-air}\n" %(spformat("0.009")) +"\
-    LimitCapacity,%s!- Heating Limit\n" %(spformat("LimitCapacity")) +"\
-    ,%s!- Maximum Heating Air Flow Rate {m3/s}\n" %(spformat("")) +"\
-    %s,%s!- Maximum Sensible Heating Capacity {W}\n" %(obj.envi_heats1c, spformat(obj.envi_heats1c)) +"\
-    LimitCapacity,%s!- Cooling Limit\n" %(spformat("LimitCapacity")) +"\
-    ,%s!- Maximum Cooling Air Flow Rate {m3/s}\n" %(spformat("")) +"\
-    %s,%s!- Maximum Total Cooling Capacity {W}\n" %(obj.envi_cools1c, spformat(obj.envi_cools1c)) +"\
-    ,%s!- Heating Availability Schedule Name\n" %(spformat("")) +"\
-    ,%s!- Cooling Availability Schedule Name\n" %(spformat("")) +"\
-    ConstantSupplyHumidityRatio,%s!- Dehumidification Control Type\n" %(spformat("ConstantSupplyHumidityRatio")) +"\
-    ,%s!- Cooling Sensible Heat Ratio {dimensionless}\n" %(spformat("")) +"\
-    ConstantSupplyHumidityRatio,%s!- Humidification Control Type\n" %(spformat("ConstantSupplyHumidityRatio")) +"\
-    ,%s!- Design Specification Outdoor Air Object Name\n" %(spformat("")) +"\
-    ,%s!- Outdoor Air Inlet Node Name\n" %(spformat("")) +"\
-    ,%s!- Demand Controlled Ventilation Type\n" %(spformat("")) +"\
-    ,%s!- Outdoor Air Economizer Type\n" %(spformat("")) +"\
-    ,%s!- Heat Recovery Type\n" %(spformat("")) +"\
-    ,%s!- Sensible Heat Recovery Effectiveness {dimensionless}\n" %(spformat("")) +"\
-    ;%s!- Latent Heat Recovery Effectiveness {dimensionless}\n\n" %(spformat("")))
+            params = ('Name', 'Availability Schedule Name', 'Zone Supply Air Node Name', 'Zone Exhaust Air Node Name', 'Maximum Heating Supply Air Temperature (C)', 
+                      'Minimum Cooling Supply Air Temperature (C)', ' Maximum Heating Supply Air Humidity Ratio (kg-H2O/kg-air)', 'Minimum Cooling Supply Air Humidity Ratio (kg-H2O/kg-air)',
+                        'Heating Limit', 'Maximum Heating Air Flow Rate (m3/s)', 'Maximum Sensible Heating Capacity (W)', 'Cooling Limit', 'Maximum Cooling Air Flow Rate (m3/s)', 
+                        'Maximum Total Cooling Capacity (W)', 'Heating Availability Schedule Name', 'Cooling Availability Schedule Name', 'Dehumidification Control Type', 'Design Specification Outdoor Air Object Name',
+                        ' Outdoor Air Inlet Node Name', 'Demand Controlled Ventilation Type', 'Outdoor Air Economizer Type', 'Heat Recovery Type', 'Sensible Heat Recovery Effectiveness (dimensionless)', 'Latent Heat Recovery Effectiveness (dimensionless)')
+            paramvs = ('{}_Air'.format(obj.name), '', '{}_supairnode'.format(obj.name), '', '', 50, 10, 0.015, 0.009, 'LimitCapacity', '', obj.envi_heats1c, 'LimitCapacity', '',\
+            obj.envi_cools1c, '', '', 'ConstantSupplyHumidityRatio', '', '', '', '', '', '', '')
+            en_idf.write(epentry('ZoneHVAC:IdealLoadsAirSystem', params, paramvs))
+#            en_idf.write("ZoneHVAC:IdealLoadsAirSystem,\n\
+#    %s_Air,%s!- Name\n" %(obj.name, spformat(obj.name+"_Air")) +"\
+#    ,%s!- Availability Schedule Name\n"%(spformat("")) +"\
+#    %s_supairnode,%s!- Zone Supply Air Node Name\n" %(obj.name, spformat(obj.name+"_supairnode")) +"\
+#    ,%s!- Zone Exhaust Air Node Name\n" %(spformat("")) +"\
+#    50,%s!- Maximum Heating Supply Air Temperature {C}\n" %(spformat("50")) +"\
+#    10,%s!- Minimum Cooling Supply Air Temperature {C}\n" %(spformat("10")) +"\
+#    0.015,%s!- Maximum Heating Supply Air Humidity Ratio {kg-H2O/kg-air}\n" %(spformat("0.015")) +"\
+#    0.009,%s!- Minimum Cooling Supply Air Humidity Ratio {kg-H2O/kg-air}\n" %(spformat("0.009")) +"\
+#    LimitCapacity,%s!- Heating Limit\n" %(spformat("LimitCapacity")) +"\
+#    ,%s!- Maximum Heating Air Flow Rate {m3/s}\n" %(spformat("")) +"\
+#    %s,%s!- Maximum Sensible Heating Capacity {W}\n" %(obj.envi_heats1c, spformat(obj.envi_heats1c)) +"\
+#    LimitCapacity,%s!- Cooling Limit\n" %(spformat("LimitCapacity")) +"\
+#    ,%s!- Maximum Cooling Air Flow Rate {m3/s}\n" %(spformat("")) +"\
+#    %s,%s!- Maximum Total Cooling Capacity {W}\n" %(obj.envi_cools1c, spformat(obj.envi_cools1c)) +"\
+#    ,%s!- Heating Availability Schedule Name\n" %(spformat("")) +"\
+#    ,%s!- Cooling Availability Schedule Name\n" %(spformat("")) +"\
+#    ConstantSupplyHumidityRatio,%s!- Dehumidification Control Type\n" %(spformat("ConstantSupplyHumidityRatio")) +"\
+#    ,%s!- Cooling Sensible Heat Ratio {dimensionless}\n" %(spformat("")) +"\
+#    ConstantSupplyHumidityRatio,%s!- Humidification Control Type\n" %(spformat("ConstantSupplyHumidityRatio")) +"\
+#    ,%s!- Design Specification Outdoor Air Object Name\n" %(spformat("")) +"\
+#    ,%s!- Outdoor Air Inlet Node Name\n" %(spformat("")) +"\
+#    ,%s!- Demand Controlled Ventilation Type\n" %(spformat("")) +"\
+#    ,%s!- Outdoor Air Economizer Type\n" %(spformat("")) +"\
+#    ,%s!- Heat Recovery Type\n" %(spformat("")) +"\
+#    ,%s!- Sensible Heat Recovery Effectiveness {dimensionless}\n" %(spformat("")) +"\
+#    ;%s!- Latent Heat Recovery Effectiveness {dimensionless}\n\n" %(spformat("")))
 
-            en_idf.write("NodeList,\n\
-    %sInlets,%s!- Name\n" %(obj.name, spformat(obj.name+"Inlets")) +"\
-    %s_supairnode;%s!- Node 1 Name\n\n" %(obj.name, spformat(obj.name+"_supairnode")))
+            params = ('Name', 'Node 1 Name')
+            paramvs = ('{}Inlets'.format(obj.name), '{}_supairnode'.format(obj.name))  
+            en_idf.write(epentry('Nodelist', params, paramvs))
+#            en_idf.write("NodeList,\n\
+#    %sInlets,%s!- Name\n" %(obj.name, spformat(obj.name+"Inlets")) +"\
+#    %s_supairnode;%s!- Node 1 Name\n\n" %(obj.name, spformat(obj.name+"_supairnode")))
 
 
 
         if obj.envi_occtype != "0":
             occ = occupancy(obj)
-
-
-            en_idf.write("Schedule:Compact,\n\
+#            params = ('Name', 'Schedule Type Limits Name')
+#            params = (obj.name+" Occupancy", 'Fraction')
+#            en_idf.write(epentry("Schedule:Compact", params, paramvs))
+            
+            en_idf.write("Schedule:Compact","\n\
     "+obj.name+" Occupancy,%s!- Name\n" %(spformat(obj.name+" Occupancy")) + "\
     Fraction,%s!- Schedule Type Limits Name\n" %(spformat("Fraction")) + "\
     Through: 12/31,\n\
 %s" %(occ.writeuf()))
 
-            en_idf.write("People,\n\
-    %s,%s!- Name\n" %(obj.name+" Occupancy Schedule", spformat(obj.name+" Occupancy Schedule")) +"\
-    %s,%s!- Zone or ZoneList Name\n" %(obj.name, spformat(obj.name)) + "\
-    %s,%s!- Number of People Schedule Name\n" %(obj.name+" Occupancy", spformat(obj.name+" Occupancy")) +"\
-    People,"+spformat("People")+ "!- Number of People Calculation Method\n\
-    %s,%s!- Number of People\n" %((obj.envi_occsmax, "", "")[int(obj.envi_occtype)-1], spformat((obj.envi_occsmax, "", "")[int(obj.envi_occtype)-1])) +"\
-    %s,%s!- People per Zone Floor Area {person/m2}\n" %(( "", obj.envi_occsmax, "")[int(obj.envi_occtype)-1], spformat(( "", obj.envi_occsmax, "")[int(obj.envi_occtype)-1])) +"\
-    %s,%s!- Zone Floor Area per Person {m2/person}\n" %(("", "", obj.envi_occsmax)[int(obj.envi_occtype)-1], spformat(("", "", obj.envi_occsmax)[int(obj.envi_occtype)-1])) +"\
-    0.7,%s!- Fraction Radiant\n" %(spformat("0.7")) + "\
-    ,%s!- Sensible Heat Fraction\n" %(spformat("")) + "\
-    %s Activity Lvl;%s!- Activity Level Schedule Name\n\n" %(obj.name, spformat(obj.name+" Activity Lvl")))
+            params = ('Name', ' Zone or ZoneList Name', 'Number of People Schedule Name', 'Number of People Calculation Method', 'Number of People', 'People per Zone Floor Area (person/m2)',
+                    'Zone Floor Area per Person (m2/person)', 'Zone Floor Area per Person (m2/person)', 'Fraction Radiant', 'Sensible Heat Fraction', 'Activity Level Schedule Name')
+            paramvs = (obj.name+" Occupancy Schedule", obj.name, obj.name+" Occupancy", 'People', (obj.envi_occsmax, "", "")[int(obj.envi_occtype)-1], ( "", obj.envi_occsmax, "")[int(obj.envi_occtype)-1], \
+            ("", "", obj.envi_occsmax)[int(obj.envi_occtype)-1], 0.7, '', obj.name + 'Activity Lvl')
+            en_idf.write(epentry("People", params, paramvs))
+#            ,\n\
+#    %s,%s!- Name\n" %(obj.name+" Occupancy Schedule", spformat(obj.name+" Occupancy Schedule")) +"\
+#    %s,%s!- Zone or ZoneList Name\n" %(obj.name, spformat(obj.name)) + "\
+#    %s,%s!- Number of People Schedule Name\n" %(obj.name+" Occupancy", spformat(obj.name+" Occupancy")) +"\
+#    People,"+spformat("People")+ "!- Number of People Calculation Method\n\
+#    %s,%s!- Number of People\n" %((obj.envi_occsmax, "", "")[int(obj.envi_occtype)-1], spformat((obj.envi_occsmax, "", "")[int(obj.envi_occtype)-1])) +"\
+#    %s,%s!- People per Zone Floor Area {person/m2}\n" %(( "", obj.envi_occsmax, "")[int(obj.envi_occtype)-1], spformat(( "", obj.envi_occsmax, "")[int(obj.envi_occtype)-1])) +"\
+#    %s,%s!- Zone Floor Area per Person {m2/person}\n" %(("", "", obj.envi_occsmax)[int(obj.envi_occtype)-1], spformat(("", "", obj.envi_occsmax)[int(obj.envi_occtype)-1])) +"\
+#    0.7,%s!- Fraction Radiant\n" %(spformat("0.7")) + "\
+#    ,%s!- Sensible Heat Fraction\n" %(spformat("")) + "\
+#    %s Activity Lvl;%s!- Activity Level Schedule Name\n\n" %(obj.name, spformat(obj.name+" Activity Lvl")))
 
             en_idf.write("Schedule:Compact,\n\
     %s Activity Lvl,%s!- Name\n" %(obj.name, spformat(obj.name+" Activity Lvl")) +"\
@@ -481,19 +411,24 @@ Construction,\n\
 
         if (obj.envi_inftype != "0" and obj.envi_occtype == "0") or (obj.envi_occinftype != "0" and obj.envi_occtype != "0"):
             infil = infiltration(obj)
-            en_idf.write("ZoneInfiltration:DesignFlowRate, \n\
-    %s Infiltration,%s!- Name\n" %(obj.name, spformat(obj.name + " Infiltration")) +"\
-    %s,%s!- Zone or ZoneList Name\n" %(obj.name, spformat(obj.name)) +"\
-    %s Infiltration Schedule,%s!- Schedule Name\n" %(obj.name, spformat(obj.name +" Infiltration Schedule")) +"\
-    %s,%s!- Design Flow Rate Calculation Method\n" %(infil.infilcalc, spformat(infil.infilcalc)) +"\
-    %s,%s!- Design Flow Rate {m3/s}\n" %(infil.infilmax[0], spformat(infil.infilmax[0])) +"\
-    %s,%s!- Flow per Zone Floor Area {m3/s-m2}\n" %(infil.infilmax[1], spformat(infil.infilmax[1])) +"\
-    %s,%s!- Flow per Exterior Surface Area {m3/s-m2}\n" %(infil.infilmax[2], spformat(infil.infilmax[2])) +"\
-    %s,%s!- Air Changes per Hour {1/hr}\n" %(infil.infilmax[3], spformat(infil.infilmax[3])) +"\
-    1.0000,%s!- Constant Term Coefficient\n" %(spformat("1.0000")) +"\
-    0.0000,%s!- Temperature Term Coefficient\n" %(spformat("0.0000")) +"\
-    0.0000,%s!- Velocity Term Coefficient\n" %(spformat("0.0000")) +"\
-    0.0000;%s!- Velocity Squared Term Coefficient\n\n" %(spformat("1.0000")))
+            params = ('Name', 'Zone or ZoneList Name', 'Schedule Name', 'Design Flow Rate Calculation Method', 'Design Flow Rate (m3/s)', 'Flow per Zone Floor Area (m3/s-m2)', 'Flow per Exterior Surface Area (m3/s-m2'\
+            'Air Changes per Hour (1/hr)', 'Constant Term Coefficient', 'Temperature Term Coefficient', 'Velocity Term Coefficient', 'Velocity Squared Term Coefficient')
+            paramvs = ('{} Infiltration', obj.name, '{} Infiltration Schedule'.format(obj.name), infil.infilcalc, infil.infilmax[0], infil.infilmax[1], infil.infilmax[2], infil.infilmax[3],\
+            1.00, 0.00, 0.00, 1.00)
+            en_idf.write(epentry('ZoneInfiltration:DesignFlowRate', params, paramvs))
+#            en_idf.write("ZoneInfiltration:DesignFlowRate, \n\
+#    %s Infiltration,%s!- Name\n" %(obj.name, spformat(obj.name + " Infiltration")) +"\
+#    %s,%s!- Zone or ZoneList Name\n" %(obj.name, spformat(obj.name)) +"\
+#    %s Infiltration Schedule,%s!- Schedule Name\n" %(obj.name, spformat(obj.name +" Infiltration Schedule")) +"\
+#    %s,%s!- Design Flow Rate Calculation Method\n" %(infil.infilcalc, spformat(infil.infilcalc)) +"\
+#    %s,%s!- Design Flow Rate {m3/s}\n" %(infil.infilmax[0], spformat(infil.infilmax[0])) +"\
+#    %s,%s!- Flow per Zone Floor Area {m3/s-m2}\n" %(infil.infilmax[1], spformat(infil.infilmax[1])) +"\
+#    %s,%s!- Flow per Exterior Surface Area {m3/s-m2}\n" %(infil.infilmax[2], spformat(infil.infilmax[2])) +"\
+#    %s,%s!- Air Changes per Hour {1/hr}\n" %(infil.infilmax[3], spformat(infil.infilmax[3])) +"\
+#    1.0000,%s!- Constant Term Coefficient\n" %(spformat("1.0000")) +"\
+#    0.0000,%s!- Temperature Term Coefficient\n" %(spformat("0.0000")) +"\
+#    0.0000,%s!- Velocity Term Coefficient\n" %(spformat("0.0000")) +"\
+#    0.0000;%s!- Velocity Squared Term Coefficient\n\n" %(spformat("1.0000")))
 
             if obj.envi_occtype != "0" and obj.envi_occinftype == "1":
                 en_idf.write("Schedule:Compact,\n\
@@ -501,87 +436,47 @@ Construction,\n\
     Any Number,%s!- Schedule Type Limits Name\n" %(spformat("Any Number")) +"\
     THROUGH: 12/31,\n\
     %s" %(infil.writeinfuf(occ, obj)))
-
             else:
-                en_idf.write("Schedule:Compact,\n\
-    %s Infiltration Schedule,%s!- Name\n" %(obj.name, spformat(obj.name + " Infiltration Schedule")) +"\
-    Any Number,%s!- Schedule Type Limits Name\n" %(spformat("Any Number")) +"\
-    THROUGH: 12/31,\n\
-    FOR: AllDays,\n\
-    UNTIL: 24:00,1;\n\n")
+                params = ('Name', 'Schedule Type Limits Name', 'Through', 'For', 'Until')
+                paramvs = ('{} Infiltration Schedule'.format(obj.name), 'Any Number', 'THROUGH: 12/31', 'FOR: AllDays', 'UNTIL: 24:00,1')
+                en_idf.write(epentry('Schedule:Compact', params, paramvs))
+#                en_idf.write("Schedule:Compact,\n\
+#    %s Infiltration Schedule,%s!- Name\n" %(obj.name, spformat(obj.name + " Infiltration Schedule")) +"\
+#    Any Number,%s!- Schedule Type Limits Name\n" %(spformat("Any Number")) +"\
+#    THROUGH: 12/31,\n\
+#    FOR: AllDays,\n\
+#    UNTIL: 24:00,1;\n\n")
     
-    for snode in [snode for snode in bpy.data.node_groups['EnVi Network'].nodes if snode.bl_idname == 'EnViSched' and snode.outputs[0].is_linked]:
-        tosock = snode.outputs[0].links[0].to_socket
-        if tosock.name == 'TSPSchedule':
-            schname = snode.outputs[0].links[0].to_node.zone+'_tsps,'
-            schtype = 'Any Number,'
-        elif tosock.name == 'VASchedule':
-            schname = snode.outputs[0].links[0].to_node.zone+'_vas,'
-            schtype = 'Fraction,'
-            
-        ths = [ts for ts in (snode.t1, snode.t2, snode.t3, snode.t4)]
-        fos = [fs for fs in (snode.f1, snode.f2, snode.f3, snode.f4) if fs != '']
-        uns = [us for us in (snode.u1, snode.u2, snode.u3, snode.u4) if us != '']
-        ts, fs, us = vi_func.rettimes(ths, fos, uns)
-        for t in range(len(ts)):
-            if t == 0:
-                en_idf.write('Schedule:Compact,\n\
-    {:{width}}!- Name\n\
-    {:{width}}!- Schedule Type Limits Name\n'.format(schname, schtype, width = s))
-            en_idf.write('    {:{width}}!- Field {}\n'.format(ts[t], t*4, width = s))
-            
-            for f in range(len(fs[t])):
-                en_idf.write('    {:{width}}!- Field {}\n'.format(fs[t][f], t*4 +1, width = s))
-                
-                for u in range(len(us[t][f])):
-                    en_idf.write('    {:{width}}!- Field {}\n'.format(us[t][f][u][0], t*4 + 2, width = s))
-        en_idf.write('\n')
+    if enng:
+        for snode in [snode for snode in enng.nodes if snode.bl_idname == 'EnViSched' and snode.outputs['Schedule'].is_linked]:
+            en_idf.write(snode.epwrite())
 
-    writeafn(exp_op, en_idf)
+    writeafn(exp_op, en_idf, enng)
 
     en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: REPORT VARIABLE ===========\n\n")
+    epentrydict = {"Output:Variable,*,Site Outdoor Air Drybulb Temperature,Hourly;\n": node.resat, "Output:Variable,*,Site Outdoor Air Drybulb Temperature,Hourly;\n": node.resaws,
+                   "Output:Variable,*,Site Wind Direction,Hourly;\n": node.resawd, "Output:Variable,*,Site Outdoor Air Relative Humidity,hourly;\n": node.resah,
+                   "Output:Variable,*,Site Direct Solar Radiation Rate per Area,hourly;\n": node.resasb, "Output:Variable,*,Zone Air Temperature,hourly;\n": node.restt,
+                   "Output:Variable,*,Zone Air System Sensible Heating Rate,hourly;\n": node.restwh, "Output:Variable,*,Zone Air System Sensible Cooling Rate,hourly;\n": node.restwc,
+                   "Output:Variable,*,FangerPMV,hourly;\n": node.rescpm, "Output:Variable,*,FangerPPD,hourly;\n": node.rescpp, "Output:Variable,*,AFN Zone Infiltration Volume, hourly;\n":node.resim,
+                   "Output:Variable,*,AFN Zone Infiltration Air Change Rate, hourly;\n": node.resiach, "Output:Variable,*,Zone Windows Total Transmitted Solar Radiation Rate [W],hourly;\n": node.reswsg,
+                   "Output:Variable,*,AFN Node CO2 Concentration,hourly;\n": node.resco2}
+    for ep in epentrydict:
+        if epentrydict[ep]:
+            en_idf.write(ep)
 
-    if node.resat == True:
-        en_idf.write("Output:Variable,*,Site Outdoor Air Drybulb Temperature,Hourly;\n")
-    if node.resaws == True:
-        en_idf.write("Output:Variable,*,Site Wind Speed,Hourly;\n")
-    if node.resawd == True:
-        en_idf.write("Output:Variable,*,Site Wind Direction,Hourly;\n")
-    if node.resah == True:
-        en_idf.write("Output:Variable,*,Site Outdoor Air Relative Humidity,hourly;\n")
-    if node.resasb == True:
-        en_idf.write("Output:Variable,*,Site Direct Solar Radiation Rate per Area,hourly;\n")
-    if node.resasd == True:
-        en_idf.write("Output:Variable,*,Site Diffuse Solar Radiation Rate per Area,hourly;\n")
-    if node.restt == True:
-        en_idf.write("Output:Variable,*,Zone Air Temperature,hourly;\n")
-    if node.restwh == True:
-        en_idf.write("Output:Variable,*,Zone Air System Sensible Heating Rate,hourly;\n")
-    if node.restwc == True:
-        en_idf.write("Output:Variable,*,Zone Air System Sensible Cooling Rate,hourly;\n")
-    if node.rescpm == True:
-        en_idf.write("Output:Variable,*,FangerPMV,hourly;\n")
-    if node.rescpp == True:
-        en_idf.write("Output:Variable,*,FangerPPD,hourly;\n")
-    if node.resim == True:
-        en_idf.write("Output:Variable,*,AFN Zone Infiltration Volume, hourly;\n")
-    if node.resiach == True:
-        en_idf.write("Output:Variable,*,AFN Zone Infiltration Air Change Rate, hourly;\n")
-    if node.reswsg == True:
-        en_idf.write("Output:Variable,*,Zone Windows Total Transmitted Solar Radiation Rate [W],hourly;\n")
-    if node.resco2 == True:
-        en_idf.write("Output:Variable,*,AFN Node CO2 Concentration,hourly;\n")
-    if node.resl12ms == True:
-        for cnode in [cnode for cnode in bpy.data.node_groups['EnVi Network'].nodes if cnode.bl_idname == 'EnViCLink']:
+    if node.resl12ms:
+        for cnode in [cnode for cnode in bpy.data.node_groups['EnVi Network'].nodes if cnode.bl_idname == 'EnViSFlow']:
             for sno in cnode['sname']:
                 en_idf.write("Output:Variable,{},AFN Linkage Node 1 to Node 2 Volume Flow Rate,hourly;\n".format(sno))
-        for snode in [snode for snode in bpy.data.node_groups['EnVi Network'].nodes if snode.bl_idname == 'EnViSLink']:
+        for snode in [snode for snode in bpy.data.node_groups['EnVi Network'].nodes if snode.bl_idname == 'EnViSSFlow']:
             for sno in snode['sname']:
                 en_idf.write("Output:Variable,{},AFN Linkage Node 1 to Node 2 Volume Flow Rate,hourly;\n".format(sno))
     if node.reslof == True:
-        for snode in [cnode for cnode in bpy.data.node_groups['EnVi Network'].nodes if cnode.bl_idname == 'EnViSLink']:
-            for sno in snode['sname']:
-                en_idf.write("Output:Variable,{},AFN Surface Venting Window or Door Opening Factor,hourly;\n".format(sno)) 
+        for snode in [cnode for cnode in bpy.data.node_groups['EnVi Network'].nodes if cnode.bl_idname == 'EnViSSFlow']:
+            if snode.linkmenu in ('SO', 'DO' 'HO'):
+                for sno in snode['sname']:
+                    en_idf.write("Output:Variable,{},AFN Surface Venting Window or Door Opening Factor,hourly;\n".format(sno)) 
     en_idf.write("Output:Table:SummaryReports,\
     AllSummary;              !- Report 1 Name")
     en_idf.close()
@@ -610,10 +505,10 @@ def pregeo(op):
 
     for obj in [obj for obj in scene.objects if obj.envi_type in ('1', '2') and obj.layers[0] == True and obj.hide == False]:
         if 'EnVi Network' not in bpy.data.node_groups.keys():
-            bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network")
+            enng = bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network")
             bpy.data.node_groups['EnVi Network'].use_fake_user = 1
 
-        obj["volume"] = vi_func.objvol(op, obj)
+        obj["volume"] = objvol(op, obj)
         bpy.data.scenes[0].layers[0:2] = (True, False)
 
         for mats in obj.data.materials:
@@ -623,7 +518,7 @@ def pregeo(op):
 #        scene.objects.active = obj
 #        bpy.ops.object.select_all(action='DESELECT')
 
-        vi_func.selobj(scene, obj)
+        selobj(scene, obj)
         bpy.ops.object.mode_set(mode = "EDIT")
         bpy.ops.mesh.select_all(action='DESELECT')
         bpy.ops.object.mode_set(mode = 'OBJECT')
@@ -641,24 +536,9 @@ def pregeo(op):
         for s, slots in enumerate(en_obj.material_slots):
             bpy.data.materials['en_'+en_obj.data.materials[s].name].envi_export = True
             slots.material = bpy.data.materials['en_'+en_obj.data.materials[s].name]
-            if slots.material.envi_con_type == 'Wall':
-                slots.material.diffuse_color = (1, 1, 1)
-            if slots.material.envi_con_type == 'Partition':
-                slots.material.diffuse_color = (0.5, 0.5, 0.5)
-            if slots.material.envi_con_type == 'Window':
-                slots.material.diffuse_color = (0, 1, 1)
-            if slots.material.envi_con_type == 'Roof':
-                slots.material.diffuse_color = (0, 1, 0)
-            if slots.material.envi_con_type == 'Ceiling':
-                slots.material.diffuse_color = (0, 0.5, 0)
-            if slots.material.envi_con_type == 'Floor':
-                slots.material.diffuse_color = (0.44, 0.185, 0.07)
-            if slots.material.envi_con_type == 'Ground':
-                slots.material.diffuse_color = (0.22, 0.09, 0.04)
-            if slots.material.envi_con_type == 'Shading':
-                slots.material.diffuse_color = (1, 0, 0)
-            if slots.material.envi_con_type == 'Aperture':
-                slots.material.diffuse_color = (0, 0, 1)
+            dcdict = {'Wall':(1,1,1), 'Partition':(0.5,0.5,0.5), 'Window':(0,1,1), 'Roof':(0,1,0), 'Ceiling':(0, 0.5, 0), 'Floor':(0.44,0.185,0.07), 'Ground':(0.22, 0.09, 0.04), 'Shading':(1, 0, 0), 'Aperture':(0, 0, 1)}
+            slots.material.diffuse_color = dcdict[slots.material.envi_con_type]
+
         for poly in en_obj.data.polygons:
             if en_obj.data.materials[poly.material_index].envi_con_type == 'None':
                 poly.select = True
@@ -670,14 +550,11 @@ def pregeo(op):
         en_obj.select = False
 
         if en_obj.name not in [node.zone for node in bpy.data.node_groups['EnVi Network'].nodes if hasattr(node, 'zone')]:
-            bpy.data.node_groups['EnVi Network'].nodes.new(type = 'EnViZone').zone = en_obj.name
+            enng.nodes.new(type = 'EnViZone').zone = en_obj.name
         else:
-            for node in bpy.data.node_groups['EnVi Network'].nodes:
+            for node in enng.nodes:
                 if hasattr(node, 'zone') and node.zone == en_obj.name:
                     node.zupdate(bpy.context)
-
-
-
 
 class heating(object):
     def __init__(self, obj):
@@ -694,7 +571,6 @@ class heating(object):
         self.untils = [[] for x in range(2)]
         self.nsetpoints = [[] for x in range(2)]
         for i in range(0,len(self.heatdays)):
-
             if heatshours[i][0] > 1:
                 self.nsetpoints[i].append(-50)
                 self.untils[i].append(heatshours[i][0])
@@ -881,7 +757,7 @@ class infiltration(object):
             if obj.envi_infbasetype == "0":
                 self.baseinfil = obj.envi_infbaselevel * obj["floorarea"] * obj.envi_occsmax * 0.001
             else:
-                self.baseinfil = obj.envi_infbaselevel * vi_func.objvol(obj) * obj["floorarea"] * obj.envi_occsmax * 0.001
+                self.baseinfil = obj.envi_infbaselevel * objvol(obj) * obj["floorarea"] * obj.envi_occsmax * 0.001
         elif obj.envi_occinftype == "2" and obj.envi_occtype == "2":
             self.infilmax = ("", obj.envi_inflevel, "", "")
             self.infilcalc = "Flow/Area"
@@ -895,7 +771,7 @@ class infiltration(object):
             if obj.envi_infbasetype == "0":
                 self.baseinfil = (1/(obj.envi_infbaselevel/obj["floorarea"])) * 1/obj.envi_occsmax * 0.001
             else:
-                self.baseinfil = (1/(obj.envi_infbaselevel * vi_func.objvol(obj)/obj["floorarea"])) * (1/obj.envi_occsmax) * 0.001
+                self.baseinfil = (1/(obj.envi_infbaselevel * objvol(obj)/obj["floorarea"])) * (1/obj.envi_occsmax) * 0.001
         elif obj.envi_occinftype == "2" and obj.envi_occtype == "3":
             self.infilmax = ("", obj.envi_inflevel, "", "")
             self.infilcalc = "Flow/Area"
@@ -919,202 +795,25 @@ class infiltration(object):
                     String = String+"    For AllOtherDays,\n    Until: 24:00, 0;\n"
         return(String+"\n")
 
-def writeafn(exp_op, en_idf):
+def writeafn(exp_op, en_idf, enng):
     cf = 0
-    if len([enode for enode in bpy.data.node_groups['EnVi Network'].nodes if enode.bl_idname == 'AFNCon']) == 0:
-        constrings = ('Natural,', 'MultiZoneWithoutDistribution,', 'SurfaceAverageCalculation,', ',', ',', 'Low rise,', '500,', 'ZeroNodePressures,',
-                      '0.001,', '0.00001,', '-0.5,', '0,', '1;')
-    else:
-        cnode = bpy.data.node_groups['EnVi Network'].nodes[('Control')]
-        wpctype = 1 if cnode.wpctype == 'Input' else 0
-        constrings =(cnode.afnname+',', cnode.afntype+',',
-    cnode.wpctype+',', (",", cnode.wpcaname+',')[wpctype], (",", cnode.wpchs+',')[wpctype], (cnode.buildtype+',', ",")[wpctype], str(cnode.maxiter)+',', str(cnode.initmet)+',',
-    str(cnode.rcontol)+',', str(cnode.acontol)+',', str(cnode.conal)+',', (str(cnode.aalax)+',', ",")[wpctype], (str(cnode.rsala)+';', ";")[wpctype])
-        
-        en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: AIRFLOW NETWORK ===========\n\n\
-AirflowNetwork:SimulationControl,\n\
-    {0[0]:{width}}!- Name\n\
-    {0[1]:{width}}!- AirflowNetwork Control\n\
-    {0[2]:{width}}!- Wind Pressure Coefficient Type\n\
-    {0[3]:{width}}!- AirflowNetwork Wind Pressure Coefficient Array Name\n\
-    {0[4]:{width}}!- Height Selection for Local Wind Pressure Calculation\n\
-    {0[5]:{width}}!- Building Type\n\
-    {0[6]:{width}}!- Maximum Number of Iterations (dimensionless)\n\
-    {0[7]:{width}}!- Initialization Type\n\
-    {0[8]:{width}}!- Relative Airflow Convergence Tolerance (dimensionless)\n\
-    {0[9]:{width}}!- Absolute Airflow Convergence Tolerance (kg/s)\n\
-    {0[10]:{width}}!- Convergence Acceleration Limit (dimensionless)\n\
-    {0[11]:{width}}!- Azimuth Angle of Long Axis of Building (deg)\n\
-    {0[12]:{width}}!- Ratio of Building Width Along Short Axis to Width Along Long Axis\n\n".format(constrings, width = s))
-    
-    for enode in bpy.data.node_groups['EnVi Network'].nodes:
-        if enode.bl_idname == 'EnViCrRef':
-            en_idf.write('AirflowNetwork:MultiZone:ReferenceCrackConditions,\n\
-    {:{width}}!- Name\n\
-    {:{width}}!- Reference Temperature\n\
-    {:{width}}!- Reference Pressure\n\
-    {:{width}}!- Reference Humidity Ratio\n\n'.format('ReferenceCrackConditions,', str(enode.reft)+',', str(enode.refp)+',', str(enode.refh)+';', width = s))
+    if not len([enode for enode in enng.nodes if enode.bl_idname == 'AFNCon']):
+        enng.nodes.new(type = 'AFNCon')
 
-        elif enode.bl_idname == 'EnViZone':
-            if enode.inputs['TSPSchedule'].is_linked:
-                control, mvof, lowerlim, upperlim, sched = 'Temperature,', str(enode.mvof)+',', str(enode.lowerlim)+',', str(enode.upperlim)+',', enode.zone+'_tsps,'
-            else:
-                control, mvof, lowerlim, upperlim, sched = 'NoVent,', ',', ',', ',', ','
-            
-            vasched = enode.zone+'_vas;' if enode.inputs['VASchedule'].is_linked else ';'
-
-            en_idf.write('AirflowNetwork:MultiZone:Zone,\n\
-    {:{width}}!- Zone Name\n\
-    {:{width}}!- Ventilation Control Mode\n\
-    {:{width}}!- Ventilation Control Zone Temperature Setpoint Schedule Name\n\
-    {:{width}}!- Minimum Venting Open Factor (dimensionless)\n\
-    {:{width}}!- Lower value for modulating venting open factor (deltaC)\n\
-    {:{width}}!- Upper value for modulating venting open factor (deltaC)\n\
-    {:{width}}!- Indoor and Outdoor Enthalpy Difference Lower Limit For Maximum Venting Open Factor (deltaJ/kg)\n\
-    {:{width}}!- Indoor and Outdoor Enthalpy Difference Upper Limit for Minimun Venting Open Factor (deltaJ/kg)\n\
-    {:{width}}!- Venting Availability Schedule Name\n\n'.format(enode.zone + ',', control, sched, mvof,
-    lowerlim, upperlim, str(0.0) + ',', str(300000.0) + ',', vasched, width = s))
-
-# Surface definitions
-
-        elif enode.bl_idname == 'EnViSLink':            
-            sname = []
-            if enode.linkmenu == 'HO' and not (enode.inputs['Node 1'].is_linked or enode.inputs['Node 2'].is_linked and enode.outputs['Node 1'].is_linked or enode.outputs['Node 2'].is_linked):
-                exp_op.report({'ERROR'}, 'All horizonal opening surfaces must sit on the boundary between two thermal zones')
-            for sock in ([inp for inp in enode.inputs]+[outp for outp in enode.outputs]):
-                if sock.is_linked and 'EnViSAirSocket' in sock.bl_idname:
-                    
-                    sn = (sock.links[0].from_socket.sn, sock.links[0].to_socket.sn)[sock.is_output]
-                    znode = (sock.links[0].from_node, sock.links[0].to_node)[sock.is_output]
-                    zn = znode.zone
-                    tsched = ('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-2], sock.links[0].to_socket.name[:-2])[sock.is_output]].envi_con_type == 'Door']+zn+'_'+sn+'_tsps,' if enode.inputs['TSPSchedule'].is_linked else ','
-                    vasched = ('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-2], sock.links[0].to_socket.name[:-2])[sock.is_output]].envi_con_type == 'Door']+zn+'_'+sn+'_vas' if enode.inputs['TSPSchedule'].is_linked else ';'
-                    sname.append(('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-2],  sock.links[0].to_socket.name[:-2])[sock.is_output]].envi_con_type == 'Door']+zn+'_'+sn)
-                    en_idf.write('AirflowNetwork:MultiZone:Surface,\n\
-    {:{width}}! - Surface Name\n\
-    {:{width}}! - Leakage Component Name\n\
-    {:{width}}! - External Node Name\n\
-    {:{width}}! - Window/Door Opening Factor\n\
-    {:{width}}! - Ventilation Control Mode\n\
-    {:{width}}! - Vent TemperatureSchedule Name\n\
-    {:{width}}! - Limit multiplier\n\
-    {:{width}}! - Lower multiplier\n\
-    {:{width}}! - Upper multiplier\n\
-    {:{width}}! - Venting Availability Schedule Name\n\n'.format(('win-', 'door-')[bpy.data.materials[(sock.links[0].from_socket.name[:-2], sock.links[0].to_socket.name[:-2])[sock.is_output]].envi_con_type == 'Door']+zn+'_'+sn+',',
-    'ComponentFlow_'+str(cf)+',', ',', str(enode.wdof)+',', enode.controls+',', tsched, str(enode.mvof)+',', str(enode.lvof)+',', str(enode.uvof)+',', vasched, width = s))
-  
-                enode['sname'] = sname
-
-        elif enode.bl_idname == 'EnViCLink':
-            for sock in ([inp for inp in enode.inputs]+[outp for outp in enode.outputs]):
-                if sock.is_linked and 'EnViCAirSocket' in sock.bl_idname:
-                    sname = []
-                    sn = (sock.links[0].from_socket.sn, sock.links[0].to_socket.sn)[sock.is_output]
-                    znode = (sock.links[0].from_node, sock.links[0].to_node)[sock.is_output]
-                    zn = znode.zone
-                    sname.append(zn+'_'+sn)
-                    en_idf.write('AirflowNetwork:Multizone:Surface,\n\
-    {:{width}}! - Surface Name\n\
-    {:{width}}!- Leakage Component Name\n\
-    {:{width}}! - External Node Name\n\
-    {:{width}}!- Crack Opening Factor\n\n'.format(zn+'_'+sn+',',
-    'ComponentFlow_'+str(cf)+',', ',', str(enode.cf)+';', width = s))
-                    enode['sname'] = sname
+    else: 
+        contnode = [enode for enode in enng.nodes if enode.bl_idname == 'AFNCon'][0]
+        en_idf.write(contnode.epwrite(exp_op))
+        extnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViExt']
+        crrefnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViCrRef']
+        zonenodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViZone']
+        ssafnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViSSFlow']
+        safnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViSFlow']
                 
-# Component defintions
-        
-        if enode.bl_idname in ('EnViCLink', 'EnViSLink'):
+        for enode in zonenodes:
+            en_idf.write(enode.epwrite())
+        for enode in ssafnodes + safnodes:
+            en_idf.write(enode.epwrite(exp_op, crref = crrefnodes))
             
-            if enode.linkmenu == 'Crack':
-                en_idf.write('AirflowNetwork:Multizone:Surface:Crack,\n\
-    {:{width}}! - Name\n\
-    {:{width}}! - Air Mass Flow Coefficient at Reference Conditions (kg/s)\n\
-    {:{width}}! - Air Mass Flow Exponent (dimensionless)\n\n'.format('ComponentFlow_'+str(cf)+',', str(enode.amfc)+',', str(enode.amfe)+',', width = s))
-                ref = 'ReferenceCrackConditions;'if enode.outputs['Reference'].is_linked else ';'
-                en_idf.write('{:{width}}! - Reference Crack Conditions\n\n'.format(ref, width = s))
-
-            elif enode.linkmenu == 'ELA':
-                en_idf.write('AirflowNetwork:Multizone:Surface:EffectiveLeakageArea,\n\
-    {:{width}}! - Name\n\
-    {:{width}}! - Effective Leakage Area (dimensionless)\n\
-    {:{width}}! - Discharge Coefficient (dimensionless)\n\
-    {:{width}}! - Reference Pressure Difference\n\
-    {:{width}}! - Air Mass Flow Exponent (dimensionless)\n\n'.format('ComponentFlow_'+str(cf)+',', str(enode.ela)+',', str(enode.dcof)+',', str(enode.rpd)+',', str(enode.amfe)+';', width = s))
-                cf += 1
-
-            elif enode.linkmenu == 'EF':
-                en_idf.write('AirflowNetwork:Multizone:Component:ZoneExhaustFan,\n\
-    {:{width}}! - Name\n\
-    {:{width}}! - Air Mass Flow Coefficient When the Zone Exhaust Fan is Off at Reference Conditions (kg/s)\n\
-    {:{width}}! - Air Mass Flow Exponent When the Zone Exhaust Fan is Off (dimensionless)\n\n'.format('ComponentFlow_'+str(cf)+',', str(enode.amfc)+',', str(enode.amfe)+';', width = s))
-                cf += 1
-                en_idf.write('Fan:ZoneExhaust,\n\
-Zone 2 Exhaust Fan, !- Name\n\
-FanAndCoilAvailSched, !- Availability Schedule Name\n\
-0.6, !- Fan Efficiency\n\
-125, !- Pressure Rise {Pa}\n\
-0.1, !- Maximum Flow Rate {m3/s}\n\
-Zone 2 Exhaust Node, !- Air Inlet Node Name\n\
-Zone 2 Exhaust Fan Outlet Node, !- Air Outlet Node Name\n\
-Kitchen Exhaust; !- End-Use Subcategory\n\n')
-
-
-            elif enode.linkmenu == 'SO':
-                en_idf.write('AirflowNetwork:Multizone:Component:SimpleOpening,\n\
-    {:{width}}! - Name\n\
-    {:{width}}!- Air Mass Flow Coefficient When Opening is Closed (kg/s-m)\n\
-    {:{width}}!- Air Mass Flow Exponent When Opening is Closed (dimensionless)\n\
-    {:{width}}!- Minimum Density Difference for Two-way Flow\n\
-    {:{width}}!- Discharge Coefficient\n\n'.format('ComponentFlow_'+str(cf)+',', str(enode.amfcc)+',', str(enode.amfec)+',', str(enode.ddtw)+',', str(enode.dcof)+';', width = s))
-                cf += 1
-
-            elif enode.linkmenu == 'DO':
-                en_idf.write('AirflowNetwork:Multizone:Component:DetailedOpening,\n\
-    {:{width}}! - Name\n\
-    {:{width}}!- Air Mass Flow Coefficient When Opening is Closed (kg/s-m)\n\
-    {:{width}}!- Air Mass Flow Exponent When Opening is Closed (dimensionless)\n\
-    {:{width}}!- Type of Rectanguler Large Vertical Opening (LVO)\n\
-    {:{width}}!- Extra Crack Length or Height of Pivoting Axis (m)\n\
-    {:{width}}!- Number of Sets of Opening Factor Data\n\
-    0.0,                                                               !- Opening Factor 1 (dimensionless)\n\
-    {:{width}}!- Discharge Coefficient for Opening Factor 1 (dimensionless)\n\
-    {:{width}}!- Width Factor for Opening Factor 1 (dimensionless)\n\
-    {:{width}}!- Height Factor for Opening Factor 1 (dimensionless)\n\
-    {:{width}}!- Start Height Factor for Opening Factor 1 (dimensionless)\n\
-    {:{width}}!- Opening Factor 2 (dimensionless)\n\
-    {:{width}}!- Discharge Coefficient for Opening Factor 2 (dimensionless)\n\
-    {:{width}}!- Width Factor for Opening Factor 2 (dimensionless)\n\
-    {:{width}}!- Height Factor for Opening Factor 2 (dimensionless)\n\
-    {:{width}}!- Start Height Factor for Opening Factor 2 (dimensionless)\n'.format('Component_'+str(cf)+',', str(enode.amfcc)+',',
-    str(enode.amfec)+',', enode.lvo+',', ('Extra,', str(enode.ecl)+',')[enode.lvo == 'NonPivoted'], str(enode.noof)+',', str(enode.dcof1) + ',',
-    str(enode.wfof1)+',', str(enode.hfof1)+ ',', str(enode.sfof1) + ',', str(enode.of2) + ',', str(enode.dcof2)+',',str(enode.wfof2)+',',
-    str(enode.hfof2)+ ',', str(enode.sfof2) + (',', ';')[enode.noof == 2], width = s))
-                cf += 1
-
-                if enode.noof > 2:
-                    en_idf.write('    {:{width}}!- Opening Factor 3 (dimensionless)\n\
-    {:{width}}!- Discharge Coefficient for Opening Factor 3 (dimensionless)\n\
-    {:{width}}!- Width Factor for Opening Factor 3 (dimensionless)\n\
-    {:{width}}!- Height Factor for Opening Factor 3 (dimensionless)\n\
-    {:{width}}!- Start Height Factor for Opening Factor 3 (dimensionless)'.format(str(enode.of3) + ',', str(enode.dcof3)+',',str(enode.wfof3)+',', str(enode.hfof3)+ ',', str(enode.sfof3) + (',', ';')[enode.noof == 3],  width = s))
-
-                if enode.noof > 3:
-                    en_idf.write('    {:{width}}!- Opening Factor 4 (dimensionless)\n\
-    {:{width}}!- Discharge Coefficient for Opening Factor 4 (dimensionless)\n\
-    {:{width}}!- Width Factor for Opening Factor 4 (dimensionless)\n\
-    {:{width}}!- Height Factor for Opening Factor 4 (dimensionless)\n\
-    {:{width}}!- Start Height Factor for Opening Factor 4 (dimensionless)\n\n'.format(str(enode.of4) + ',', str(enode.dcof4)+',',str(enode.wfof4)+',', str(enode.hfof4)+ ',', str(enode.sfof4) + ';',  width = s))
-
-            elif enode.linkmenu == 'HO':
-                en_idf.write('AirflowNetwork:Multizone:Component:HorizontalOpening,\n\
-    {:{width}}! - Name\n\
-    {:{width}}!- Air Mass Flow Coefficient When Opening is Closed (kg/s-m)\n\
-    {:{width}}!- Air Mass Flow Exponent When Opening is Closed (dimensionless)\n\
-    {:{width}}!- Sloping Plane Angle\n\
-    {:{width}}!- Discharge Coefficient\n\n'.format('ComponentFlow_'+str(cf)+',', str(enode.amfcc)+',', str(enode.amfec)+',', str(enode.spa)+',', str(enode.dcof)+';', width = s))
-
-                cf += 1
-
 def spformat(s):
     space = "                                                                       "
     if s == "":

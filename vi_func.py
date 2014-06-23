@@ -8,7 +8,7 @@ try:
 except:
     mp = 0
 
-
+s = 60
 #from . import windrose
 dtdf = datetime.date.fromordinal
 
@@ -415,15 +415,15 @@ def rettimes(ts, fs, us):
     tot = range(min(len(ts), len(fs), len(us)))
     fstrings = [[] for t in tot]
     ustrings = [[] for t in tot]
-    tstrings = ['Through: '+str(dtdf(ts[t]).month)+'/'+str(dtdf(ts[t]).day)+',' for t in tot]
+    tstrings = ['Through: {}/{}'.format(dtdf(ts[t]).month, dtdf(ts[t]).day) for t in tot]
     for t in tot:
         for f in fs[t].split(' '):
-            fstrings[t].append('For: '+''.join([f+',' for f in f.split(' ') if f != '']))
+            fstrings[t].append('For: '+''.join([f for f in f.split(' ') if f]))
         for uf, ufor in enumerate(us[t].split(';')):
             ustrings[t].append([])
             for ut, utime in enumerate(ufor.split(',')):
-                ustrings[t][uf].append(['Until: '+''.join([u+',' for u in utime.split(' ') if u != ''])])
-    ustrings[-1][-1][-1][-1] = ustrings[-1][-1][-1][-1][:-1]+';'
+                ustrings[t][uf].append(['Until: '+','.join([u for u in utime.split(' ') if u])])
+#    ustrings[-1][-1][-1][-1] = ustrings[-1][-1][-1][-1][:-1]
     return(tstrings, fstrings, ustrings)
 
 def socklink(sock, ng):
@@ -739,3 +739,21 @@ def nodeid(node, ngs):
     for ng in ngs:
         if node in ng.nodes[:]:
             return node.name+'@'+ng.name
+            
+def remlink(node, links):
+#    for ng in bpy.data.node_groups:
+#    if node in .nodes[:]:
+    for link in links:
+        bpy.data.node_groups[node['nodeid'].split('@')[1]].links.remove(link)
+                
+def epentry(header, params, paramvs):
+    return '{}\n'.format(header+(',', '')[header == ''])+'\n'.join([('    ', '')[header == '']+'{:{width}}! - {}'.format(str(pv[0])+(',', ';')[pv[1] == params[-1]], pv[1], width = s + (0, 4)[header == '']) for pv in zip(paramvs, params)]) + ('\n\n', '')[header == '']
+
+def sockhide(node, lsocknames):
+    try:
+        for ins in [insock for insock in node.inputs if insock.name in lsocknames]:
+            node.outputs[ins.name].hide = True if ins.is_linked else False
+        for outs in [outsock for outsock in node.outputs if outsock.name in lsocknames]:
+            node.inputs[outs.name].hide = True if outs.is_linked else False
+    except:
+        pass

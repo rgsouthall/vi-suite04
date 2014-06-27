@@ -796,23 +796,26 @@ class infiltration(object):
         return(String+"\n")
 
 def writeafn(exp_op, en_idf, enng):
+    enng['enviparams'] = {'wpca': 0, 'wpcn': 0, 'crref': 0}
     cf = 0
     if not len([enode for enode in enng.nodes if enode.bl_idname == 'AFNCon']):
-        enng.nodes.new(type = 'AFNCon')
-
-    else: 
-        contnode = [enode for enode in enng.nodes if enode.bl_idname == 'AFNCon'][0]
-        en_idf.write(contnode.epwrite(exp_op))
-        extnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViExt']
-        crrefnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViCrRef']
-        zonenodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViZone']
-        ssafnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViSSFlow']
-        safnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViSFlow']
-                
-        for enode in zonenodes:
-            en_idf.write(enode.epwrite())
-        for enode in ssafnodes + safnodes:
-            en_idf.write(enode.epwrite(exp_op, crref = crrefnodes))
+        enng.nodes.new(type = 'AFNCon')   
+    en_idf.write([enode for enode in enng.nodes if enode.bl_idname == 'AFNCon'][0].epwrite(exp_op, enng))
+    if [enode for enode in enng.nodes if enode.bl_idname == 'EnViCrRef']:
+        en_idf.write([enode for enode in enng.nodes if enode.bl_idname == 'EnViCrRef'][0].epwrite())
+        enng['enviparams']['crref'] = 1
+    extnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViExt']    
+    zonenodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViZone']
+    ssafnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViSSFlow']
+    safnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViSFlow']
+    
+    for extnode in extnodes:
+        en_idf.write(extnode.epwrite(enng))        
+    for enode in zonenodes:
+        en_idf.write(enode.epwrite())
+    for enode in ssafnodes + safnodes:
+#        enode['wpca'] = enng['enviparams']['wpca']
+        en_idf.write(enode.epwrite(exp_op, enng))
             
 def spformat(s):
     space = "                                                                       "

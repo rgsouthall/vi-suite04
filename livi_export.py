@@ -75,15 +75,15 @@ def radgexport(export_op, node, **kwargs):
                     selobj(scene, o)
                     if o.get('merr') != 1:
                         if node.animmenu in ('Geometry'' Material'):# or export_op.nodeid.split('@')[0] == 'LiVi Simulation':
-                            bpy.ops.export_scene.obj(filepath=retobj(o.name, gframe, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=False, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=False, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
-                            objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, retobj(o.name, gframe, node), retmesh(o.name, max(gframe, mframe), node)) 
+                            bpy.ops.export_scene.obj(filepath=retobj(o.name, gframe, node, scene), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=False, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=False, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
+                            objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, retobj(o.name, gframe, node, scene), retmesh(o.name, max(gframe, mframe), node, scene)) 
                         elif export_op.nodeid.split('@')[0] == 'LiVi Simulation':
-                            bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_start, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=False, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=False, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
-                            objcmd = "obj2mesh -w -a {} {} {}".format(retmat(scene.frame_start, node), retobj(o.name, scene.frame_start, node), retmesh(o.name, scene.frame_start, node))
+                            bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_start, node, scene), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=False, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=False, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
+                            objcmd = "obj2mesh -w -a {} {} {}".format(retmat(scene.frame_start, node, scene), retobj(o.name, scene.frame_start, node), retmesh(o.name, scene.frame_start, node, scene))
                         else:
                             if frame == scene.fs:                        
-                                bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_current, node), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=False, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=False, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
-                                objcmd = "obj2mesh -w -a {} {} {}".format(retmat(frame, node), retobj(o.name, scene.frame_current, node), retmesh(o.name, scene.frame_current, node))
+                                bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_current, node, scene), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=False, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=False, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
+                                objcmd = "obj2mesh -w -a {} {} {}".format(retmat(frame, node, scene), retobj(o.name, scene.frame_current, node, scene), retmesh(o.name, scene.frame_current, node, scene))
                             else:
                                 objcmd = ''
                         objrun = Popen(objcmd, shell = True, stdout = PIPE, stderr=STDOUT)
@@ -97,7 +97,7 @@ def radgexport(export_op, node, **kwargs):
                         o.select = False
     
                 if o.get('merr') != 1:
-                    gradfile += "void mesh id \n1 "+retmesh(o.name, max(gframe, mframe), node)+"\n0\n0\n\n"
+                    gradfile += "void mesh id \n1 "+retmesh(o.name, max(gframe, mframe), node, scene)+"\n0\n0\n\n"
                 else:
                     export_op.report({'INFO'}, o.name+" could not be converted into a Radiance mesh and simpler export routine has been used. No un-applied object modifiers will be exported.")
                     if o.get('merr'):
@@ -188,7 +188,7 @@ def radgexport(export_op, node, **kwargs):
             export_op.report({'ERROR'},"Make sure your object "+geo.name+" has an associated material")
         node['reslen'] = reslen
     
-    with open(node.filebase+".rtrace", "w") as rtrace:
+    with open(scene['viparams']['filebase']+".rtrace", "w") as rtrace:
         rtrace.write(rtpoints)
     
     scene.fe = max(scene.cfe, scene.gfe)
@@ -213,9 +213,9 @@ def radcexport(export_op, node):
                             sun = bpy.context.object
                             sun['VIType'] = 'Sun'
                     blsunexport(scene, node, locnode, frame - scene.fs, sun)
-                with open(geonode.filebase+"-{}.sky".format(frame), 'a') as skyfilea:
+                with open("{}-{}.sky".format(scene['viparams']['filebase'], frame), 'a') as skyfilea:
                     skyexport(node, skyfilea)
-                with open(geonode.filebase+"-{}.sky".format(frame), 'r') as skyfiler:
+                with open("{}-{}.sky".format(scene['viparams']['filebase'], frame), 'r') as skyfiler:
                     skyfileslist.append(skyfiler.read())
                 if node.hdr == True:
                     hdrexport(scene, frame, node, geonode)
@@ -227,7 +227,7 @@ def radcexport(export_op, node):
             node['skyfiles'] = [hdrsky(node.hdrname)]
 
         elif node['skynum'] == 5:
-            subprocess.call("cp {} {}".format(node.radname, geonode.filebase+"-0.sky"), shell = True)
+            subprocess.call("cp {} {}-0.sky".format(node.radname, scene['viparams']['filebase']), shell = True)
             with open(node.radname, 'r') as radfiler:
                 node['skyfiles'] =  [radfiler.read()]
 
@@ -243,7 +243,7 @@ def radcexport(export_op, node):
                 if locnode.endmonth < locnode.startmonth:
                     export_op.report({'ERROR'}, "End month is earlier than start month")
                     return
-                os.chdir(geonode.newdir)
+                os.chdir(scene['viparams']['newdir'])
                 pcombfiles = ""
                 for i in range(0, 146):
                     pcombfiles = pcombfiles + "ps{}.hdr ".format(i)
@@ -252,17 +252,17 @@ def radcexport(export_op, node):
                     with open(locnode.weather, "r") as epwfile:
                         epwlines = epwfile.readlines()
                         epwyear = epwlines[8].split(",")[0]
-                        with open(geonode.newdir+os.path.sep+epwbase[0]+".wea", "w") as wea:
+                        with open(os.path.join(scene['viparams']['newdir'], "{}.wea".format(epwbase[0]), "w")) as wea:
                             wea.write("place {0[1]}\nlatitude {0[6]}\nlongitude {0[7]}\ntime_zone {0[8]}\nsite_elevation {0[9]}weather_data_file_units 1\n".format(epwlines[0].split(",")))
                             for epwline in epwlines[8:]:
                                 if int(epwline.split(",")[1]) in range(locnode.startmonth, locnode.endmonth + 1):
                                     wea.write("{0[1]} {0[2]} {0[3]} {0[14]} {0[15]} \n".format(epwline.split(",")))
-                        subprocess.call("gendaymtx -m 1 {0} {1}.wea > {1}.mtx".format(('', '-O1')[node.analysismenu in ('1', '3')], geonode.newdir+os.path.sep+epwbase[0]), shell=True)                       
+                        subprocess.call("gendaymtx -m 1 {0} {1}.wea > {1}.mtx".format(('', '-O1')[node.analysismenu in ('1', '3')], scene['viparams']['newdir']+os.path.sep+epwbase[0]), shell=True)                       
                 else:
                     export_op.report({'ERROR'}, "Not a valid EPW file")
                     return
     
-                mtxfile = open(geonode.newdir+os.path.sep+epwbase[0]+".mtx", "r")
+                mtxfile = open(scene['viparams']['newdir']+os.path.sep+epwbase[0]+".mtx", "r")
             
             elif node['source'] == '1' and int(node.analysismenu) > 1:
                 mtxfile = open(node.mtxname, "r")
@@ -274,20 +274,20 @@ def radcexport(export_op, node):
                     mtxfile.close()
                     node['vecvals'] = vecvals
                     node['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
-                    oconvcmd = "oconv -w - > {0}-whitesky.oct".format(geonode.filebase)
+                    oconvcmd = "oconv -w - > {0}-whitesky.oct".format(scene['viparams']['filebase'])
                     Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = node['whitesky'].encode('utf-8'))
                     if int(node.analysismenu) < 2 or node.hdr:
-                        subprocess.call("vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0 | rcontrib -bn 146 -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o p%d.hdr -m sky_glow {}-whitesky.oct".format(geonode.nproc, geonode.filename), shell = True)
+                        subprocess.call("vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0 | rcontrib -bn 146 -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o p%d.hdr -m sky_glow {}-whitesky.oct".format(scene['viparams']['nproc'], scene['viparams']['filename']), shell = True)
                         for j in range(0, 146):
                             subprocess.call("pcomb -s {0} p{1}.hdr > ps{1}.hdr".format(vals[j], j), shell = True)
-                            subprocess.call("{0}  p{1}.hdr".format(geonode.rm, j), shell = True)        
-                        subprocess.call("pcomb -h  "+pcombfiles+" > "+geonode.newdir+os.path.sep+epwbase[0]+".hdr", shell = True)
-                        subprocess.call(geonode.rm+" ps*.hdr" , shell = True)
-                        node.hdrname = geonode.newdir+os.path.sep+epwbase[0]+".hdr"
+                            subprocess.call("{0}  p{1}.hdr".format(scene['viparams']['rm'], j), shell = True)        
+                        subprocess.call("pcomb -h  "+pcombfiles+" > "+os.path.join(scene['viparams']['newdir'], epwbase[0]+".hdr"), shell = True)
+                        subprocess.call(scene['viparams']['rm']+" ps*.hdr" , shell = True)
+                        node.hdrname = os.path.join(scene['viparams']['newdir'], epwbase[0]+".hdr")
                     
                     if node.hdr:
-                        Popen("oconv -w - > {}{}{}.oct".format(geonode.newdir, os.path.sep, epwbase[0]), shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = hdrsky(geonode.newdir+os.path.sep+epwbase[0]+".hdr").encode('utf-8'))
-                        subprocess.call('cnt 750 1500 | rcalc -f "'+os.path.join(scene.vipath, 'lib', 'latlong.cal"')+' -e "XD=1500;YD=750;inXD=0.000666;inYD=0.001333" | rtrace -af pan.af -n {} -x 1500 -y 750 -fac "{}{}{}.oct" > '.format(geonode.nproc, geonode.newdir, os.path.sep, epwbase[0]) + '"'+os.path.join(geonode.newdir, epwbase[0]+'p.hdr')+'"', shell=True)
+                        Popen("oconv -w - > {}.oct".format(os.path.join(scene['viparams']['newdir'], epwbase[0])), shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = hdrsky(os.path.join(scene['viparams']['newdir'], epwbase[0]+".hdr").encode('utf-8')))
+                        subprocess.call('cnt 750 1500 | rcalc -f "'+os.path.join(scene.vipath, 'lib', 'latlong.cal')+'" -e "XD=1500;YD=750;inXD=0.000666;inYD=0.001333" | rtrace -af pan.af -n {} -x 1500 -y 750 -fac "{}{}{}.oct" > '.format(scene['viparams']['nproc'], os.path.join(scene['viparams']['newdir'], epwbase[0])) + '"'+os.path.join(scene['viparams']['newdir'], epwbase[0]+'p.hdr')+'"', shell=True)
                 else:
                     export_op.report({'ERROR'}, "No location node connected")
                     return
@@ -307,17 +307,17 @@ def sunexport(scene, node, geonode, locnode, frame):
     if locnode:
         simtime = node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
         solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour + (simtime.minute)*0.016666, scene['latitude'], scene['longitude'])
-        subprocess.call("gensky -ang {} {} {} > {}".format(solalt, solazi, node['skytypeparams'], retsky(frame, node, geonode)), shell = True)
+        subprocess.call("gensky -ang {} {} {} > {}".format(solalt, solazi, node['skytypeparams'], retsky(frame, node, scene)), shell = True)
     else:
-        subprocess.call("gensky -ang {} {} {} > {}".format(45, 0, node['skytypeparams'], retsky(0, node, geonode)), shell = True)
+        subprocess.call("gensky -ang {} {} {} > {}".format(45, 0, node['skytypeparams'], retsky(0, node, scene)), shell = True)
 
 def hdrexport(scene, frame, node, geonode):
 #    if locnode:
-    subprocess.call("oconv {} > {}-{}sky.oct".format(retsky(frame, node, geonode), geonode.filebase, frame), shell=True)
-    subprocess.call("rpict -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -x 1500 -y 1500 {0}-{1}sky.oct > ".format(geonode.filebase, frame) + os.path.join(geonode.newdir, str(frame)+".hdr"), shell=True)
-    subprocess.call('cnt 750 1500 | rcalc -f "'+os.path.join(scene.vipath, 'lib', 'latlong.cal"')+' -e "XD=1500;YD=750;inXD=0.000666;inYD=0.001333" | rtrace -af pan.af -n {0} -x 1500 -y 750 -fac "{1}-{2}sky.oct" > '.format(geonode.nproc, geonode.filebase, frame) + '"'+os.path.join(geonode.newdir, str(frame)+'p.hdr')+'"', shell=True)
+    subprocess.call("oconv {} > {}-{}sky.oct".format(retsky(frame, node, scene), scene['viparams']['filebase'], frame), shell=True)
+    subprocess.call("rpict -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -x 1500 -y 1500 {0}-{1}sky.oct > ".format(scene['viparams']['filebase'], frame) + os.path.join(scene['viparams']['newdir'], str(frame)+".hdr"), shell=True)
+    subprocess.call('cnt 750 1500 | rcalc -f "'+os.path.join(scene.vipath, 'lib', 'latlong.cal"')+' -e "XD=1500;YD=750;inXD=0.000666;inYD=0.001333" | rtrace -af pan.af -n {0} -x 1500 -y 750 -fac "{1}-{2}sky.oct" > '.format(scene['viparams']['nproc'], scene['viparams']['filebase'], frame) + '"'+os.path.join(scene['viparams']['newdir'], str(frame)+'p.hdr')+'"', shell=True)
     if '{}p.hdr'.format(frame) not in bpy.data.images:
-        bpy.data.images.load(os.path.join(geonode.newdir, str(frame)+"p.hdr"))
+        bpy.data.images.load(os.path.join(scene['viparams']['newdir'], "{}p.hdr".format(frame)))
     else:
         bpy.data.images['{}p.hdr'.format(frame)].reload()
 
@@ -365,7 +365,7 @@ def fexport(scene, frame, export_op, node, othernode, **kwargs):
         skyframe = frame if scene.cfe > 0 else 0
         radtext = geonode['radfiles'][0] + connode['skyfiles'][skyframe] if len(geonode['radfiles']) == 1 else geonode['radfiles'][frame] + connode['skyfiles'][0]
 
-    with open(geonode.filebase+"-{}.rad".format(frame), 'w') as radfile:
+    with open("{}-{}.rad".format(scene['viparams']['filebase'], frame), 'w') as radfile:
         radfile.write(radtext)
         
     if not bpy.data.texts.get('Radiance input-{}'.format(frame)):
@@ -373,7 +373,7 @@ def fexport(scene, frame, export_op, node, othernode, **kwargs):
     bpy.data.texts['Radiance input-{}'.format(frame)].clear()
     bpy.data.texts['Radiance input-{}'.format(frame)].write(radtext)
     
-    oconvcmd = "oconv -w {0}-{1}.rad > {0}-{1}.oct".format(geonode.filebase, frame)
+    oconvcmd = "oconv -w {0}-{1}.rad > {0}-{1}.oct".format(scene['viparams']['filebase'], frame)
     
 #    This next line allows the radiance scene description to be piped into the oconv command.
 #   oconvcmd = "oconv -w - > {0}-{1}.oct".format(geonode.filebase, frame).communicate(input = radtext.encode('utf-8'))

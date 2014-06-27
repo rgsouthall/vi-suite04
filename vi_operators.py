@@ -547,7 +547,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         if "SunMesh" not in [ob.get('VIType') for ob in context.scene.objects]:
             bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=12, size=1)
             sunob = context.active_object
-            sunob.location, sunob.name, sunob['VIType'] = (0, 0, 0), "SunMesh", "SunMesh"
+            sunob.location, sunob.cycles_visibility.shadow, sunob.name, sunob['VIType'] = (0, 0, 0), 0, "SunMesh", "SunMesh"
         else:
             sunob = [ob for ob in context.scene.objects if ob.get('VIType') == "SunMesh"][0]
 
@@ -704,10 +704,11 @@ class NODE_OT_WindRose(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        if mp == 1:
+        if mp == 1:            
             simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
             locnode = simnode.inputs[0].links[0].from_node
             scene, scene.resnode, scene.restree = context.scene, simnode.name, self.nodeid.split('@')[1]
+            viparams(scene)
             scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 0, 1
     
             with open(locnode.weather, "r") as epwfile:
@@ -734,43 +735,43 @@ class NODE_OT_WindRose(bpy.types.Operator):
             if simnode.wrtype == '4':
                 ax.contour(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
     
-            if locnode.newdir:
-                if str(sys.platform) != 'win32':
-                    plt.savefig(locnode.newdir+'/disp_wind.png', dpi = (150), transparent=False)
-                    if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
-                        bpy.data.images.load(locnode.newdir+'/disp_wind.png')
-                    else:
-                        bpy.data.images['disp_wind.png'].filepath = locnode.newdir+'/disp_wind.png'
-                        bpy.data.images['disp_wind.png'].reload()
-                # Below is a workaround for the matplotlib/blender png bug
+#            if scene['viparams'].get['newdir']:
+            if str(sys.platform) != 'win32':
+                plt.savefig(scene['viparams']['newdir']+'/disp_wind.png', dpi = (150), transparent=False)
+                if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
+                    bpy.data.images.load(scene['viparams']['newdir']+'/disp_wind.png')
                 else:
-                    canvas = FigureCanvasAgg(fig)
-                    canvas.draw()
-                    pixbuffer, pixels = canvas.buffer_rgba(), []
-                    [w, h] = [int(d) for d in fig.bbox.bounds[2:]]
-                    pixarray = numpy.frombuffer(pixbuffer, numpy.uint8)
-                    pixarray.shape = h, w, 4
-                    for hi in reversed(pixarray):
-                        for wi in hi:
-                            pixels += [p/255 for p in wi]
-
-                    if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
-                        wrim = bpy.data.images.new('disp_wind.png', height = h, width = w)
-                        wrim.file_format = 'PNG'
-                        wrim.filepath = locnode.newdir+os.sep+wrim.name
-                        wrim.save()
-                    else:
-                        wrim = bpy.data.images['disp_wind.png']
-                    wrim.pixels = pixels
-                    wrim.update()
-                    wrim.save()
-                    wrim.reload()
-                                           
-                plt.savefig(locnode.newdir+'/disp_wind.svg')
-            
+                    bpy.data.images['disp_wind.png'].filepath = scene['viparams']['newdir']+'/disp_wind.png'
+                    bpy.data.images['disp_wind.png'].reload()
+            # Below is a workaround for the matplotlib/blender png bug
             else:
-                self.report({'ERROR'},"No project directory. Save the Blender file and recreate the VI Location node.")
-                return {'CANCELLED'}          
+                canvas = FigureCanvasAgg(fig)
+                canvas.draw()
+                pixbuffer, pixels = canvas.buffer_rgba(), []
+                [w, h] = [int(d) for d in fig.bbox.bounds[2:]]
+                pixarray = numpy.frombuffer(pixbuffer, numpy.uint8)
+                pixarray.shape = h, w, 4
+                for hi in reversed(pixarray):
+                    for wi in hi:
+                        pixels += [p/255 for p in wi]
+
+                if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
+                    wrim = bpy.data.images.new('disp_wind.png', height = h, width = w)
+                    wrim.file_format = 'PNG'
+                    wrim.filepath = locnode.newdir+os.sep+wrim.name
+                    wrim.save()
+                else:
+                    wrim = bpy.data.images['disp_wind.png']
+                wrim.pixels = pixels
+                wrim.update()
+                wrim.save()
+                wrim.reload()
+                                       
+            plt.savefig(scene['viparams']['newdir']+'/disp_wind.svg')
+            
+#            else:
+#                self.report({'ERROR'},"No project directory. Save the Blender file and recreate the VI Location node.")
+#                return {'CANCELLED'}          
     
             if 'Wind_Plane' not in [ob.get('VIType') for ob in bpy.context.scene.objects]:
                 bpy.ops.mesh.primitive_plane_add(enter_editmode=False, location=(0.0, 0.0, 0.0))

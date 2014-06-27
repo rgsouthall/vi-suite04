@@ -34,12 +34,14 @@ def radfexport(scene, export_op, connode, geonode, frames):
 
 def rad_prev(prev_op, simnode, connode, geonode, simacc):    
     scene = bpy.context.scene    
-    if os.path.isfile("{}-{}.rad".format(geonode.filebase, scene.frame_current)):
+    if os.path.isfile("{}-{}.rad".format(scene['viparams']['filebase'], scene.frame_current)):
         cam = scene.camera
+        print(cam.location)
         if cam != None:
             cang = '180 -vth' if connode.analysismenu == '3' else cam.data.angle*180/pi
             vv = 180 if connode.analysismenu == '3' else cang * scene.render.resolution_y/scene.render.resolution_x
-            rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0][2]:.3f} {3[1][2]:.3f} {3[2][2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct &".format(geonode.nproc, vv, cang, -1*cam.matrix_world, cam.location, simnode['radparams'], geonode.filebase, scene.frame_current)
+            rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0][2]:.3f} {3[1][2]:.3f} {3[2][2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct &".format(scene['viparams']['nproc'], vv, cang, -1*cam.matrix_world, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current)
+            print(rvucmd)
             rvurun = Popen(rvucmd, shell = True, stdout=PIPE, stderr=STDOUT)
             for l,line in enumerate(rvurun.stdout):            
                 if 'octree' in line.decode() or 'mesh' in line.decode():
@@ -53,10 +55,10 @@ def rad_prev(prev_op, simnode, connode, geonode, simacc):
 def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs): 
     scene = bpy.context.scene
     frames = range(scene.fs, scene.fe + 1) if not kwargs.get('genframe') else [kwargs['genframe']]
-    os.chdir(geonode.newdir)
+    os.chdir(scene['viparams']['newdir'])
     if bpy.context.active_object and bpy.context.active_object.mode != 'OBJECT':
         bpy.ops.object.mode_set(mode = 'OBJECT')
-    if os.lstat(geonode.filebase+".rtrace").st_size == 0:
+    if os.lstat("{}.rtrace".format(scene['viparams']['filebase'])).st_size == 0:
         calc_op.report({'ERROR'},"There are no materials with the livi sensor option enabled")
     else:
         if np == 1:
@@ -67,11 +69,11 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
         for frame in frames:            
             findex = frame - scene.fs if not kwargs.get('genframe') else 0
             if connode.bl_label in ('LiVi Basic', 'LiVi Compliance') or (connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) < 2):
-                if os.path.isfile("{}-{}.af".format(geonode.filebase, frame)):
-                    subprocess.call("{} {}-{}.af".format(geonode.rm, geonode.filebase, frame), shell=True)
-                rtcmd = "rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, simnode['radparams'], geonode.filebase, frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+                if os.path.isfile("{}-{}.af".format(scene['viparams']['filebase'], frame)):
+                    subprocess.call("{} {}-{}.af".format(scene['viparams']['rm'], scene['viparams']['filebase'], frame), shell=True)
+                rtcmd = "rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct  < {2}.rtrace {4}".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                 rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
-                with open(os.path.join(geonode.newdir, connode['resname']+"-"+str(frame)+".res"), 'w') as resfile:
+                with open(os.path.join(scene['viparams']['newdir'], connode['resname']+"-"+str(frame)+".res"), 'w') as resfile:
                     for l,line in enumerate(rtrun.stdout):
                         if 'octree' in line.decode() or 'mesh' in line.decode():
                             print(line.decode() + ' rerunning export')
@@ -88,9 +90,9 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                 
             if connode.bl_label == 'LiVi Compliance' and connode.analysismenu in ('0', '1'):
                 if connode.analysismenu in ('0', '1'):
-                    svcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(geonode.nproc, '-ab 1 -ad 8192 -aa 0 -ar 512 -as 1024 -lw 0.0002', geonode.filebase, frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+                    svcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(scene['viparams']['nproc'], '-ab 1 -ad 8192 -aa 0 -ar 512 -as 1024 -lw 0.0002', scene['viparams']['filebase'], frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                     svrun = Popen(svcmd, shell = True, stdout=PIPE, stderr=STDOUT)
-                    with open(os.path.join(geonode.newdir,'skyview'+"-"+str(frame)+".res"), 'w') as svresfile:
+                    with open(os.path.join(scene['viparams']['newdir'],'skyview'+"-"+str(frame)+".res"), 'w') as svresfile:
                         for sv,line in enumerate(svrun.stdout):
                             svres[findex][sv] = float(line.decode())
                         svresfile.write("{}".format(svres[findex]).strip("]").strip("["))
@@ -100,9 +102,9 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                     connode['vecvals'], vals = vi_func.mtx2vals(open(connode.mtxname, "r").readlines(), datetime.datetime(2010, 1, 1).weekday(), '')
                 hours = 0
                 sensarray = [[0 for x in range(146)] for y in range(geonode['reslen'])] if np == 0 else numpy.zeros([geonode['reslen'], 146])
-                oconvcmd = "oconv -w - > {0}-ws.oct".format(geonode.filebase)
+                oconvcmd = "oconv -w - > {0}-ws.oct".format(scene['viparams']['filebase'])
                 Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = (connode['whitesky']+geonode['radfiles'][frame]).encode('utf-8'))
-                senscmd = geonode.cat+geonode.filebase+".rtrace | rcontrib -w  -h -I -fo -bn 146 "+simnode['radparams']+" -n "+geonode.nproc+" -f tregenza.cal -b tbin -m sky_glow "+geonode.filebase+"-ws.oct"
+                senscmd = scene['viparams']['cat']+scene['viparams']['filebase']+".rtrace | rcontrib -w  -h -I -fo -bn 146 "+simnode['radparams']+" -n "+scene['viparams']['nproc']+" -f tregenza.cal -b tbin -m sky_glow "+scene['viparams']['filebase']+"-ws.oct"
                 sensrun = Popen(senscmd, shell = True, stdout=PIPE)
 
                 for li, line in enumerate(sensrun.stdout):
@@ -149,7 +151,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                         res[findex] = res[frame]*100/hours
                     elif  np == 0 and hours != 0:
                         res[findex] = [rf*100/hours for rf in res[findex][0]]
-                    with open(os.path.join(geonode.newdir, connode['resname']+"-"+str(frame)+".res"), "w") as daresfile:
+                    with open(os.path.join(scene['viparams']['newdir'], connode['resname']+"-"+str(frame)+".res"), "w") as daresfile:
                         [daresfile.write("{:.2f}\n".format(r)) for r in res[findex]]
                 
                 if connode.analysismenu == '3':
@@ -184,8 +186,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                         geo['omin'][str(frame)] = min(obres)
                         geo['oreslist'][str(frame)] = obres 
                                    
-        if not kwargs:
-            
+        if not kwargs:           
             resapply(calc_op, res, svres, simnode, connode, geonode)
             vi_func.vcframe('', scene, [ob for ob in scene.objects if ob.get('licalc')] , simnode['Animation'])
         else:
@@ -234,7 +235,7 @@ def resapply(calc_op, res, svres, simnode, connode, geonode):
                 vi_func.selobj(scene, geo)
                 bpy.ops.mesh.vertex_color_add()
                 geo.data.vertex_colors[-1].name = str(frame)
-                vertexColour = geo.data.vertex_colors[-1]
+                vertexColour = geo.data.vertex_colors[str(frame)]
                 mat = [matslot.material for matslot in geo.material_slots if matslot.material.livi_sense][0]
                 mcol_i = len(tuple(set(lcol_i)))
 
@@ -256,8 +257,8 @@ def resapply(calc_op, res, svres, simnode, connode, geonode):
                 if connode.bl_label == 'LiVi Compliance':
                     if connode.analysismenu == '1':
                         bpy.ops.mesh.vertex_color_add()
-                        geo.data.vertex_colors[frame+1].name = '{}sv'.format(frame)
-                        vertexColour = geo.data.vertex_colors[frame+1]
+                        geo.data.vertex_colors[-1].name = '{}sv'.format(frame)
+                        vertexColour = geo.data.vertex_colors['{}sv'.format(frame)]
                         for face in geo.data.polygons:
                             if geo.data.materials[face.material_index].livi_sense:
                                 if geonode.cpoint == '1':
@@ -617,21 +618,21 @@ def li_glare(calc_op, simnode, connode, geonode):
         for frame in range(scene.fs, scene.fe + 1):
             time = datetime.datetime(2014, 1, 1, connode.shour, 0) + datetime.timedelta(connode.sdoy - 1) if connode.animmenu == '0' else \
             datetime.datetime(2014, 1, 1, int(connode.shour), int(60*(connode.shour - int(connode.shour)))) + datetime.timedelta(connode.sdoy - 1) + datetime.timedelta(hours = int(connode.interval*(frame-scene.frame_start)), seconds = int(60*(connode.interval*(frame-scene.frame_start) - int(connode.interval*(frame-scene.frame_start)))))
-            glarecmd = "rpict -w -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{5}.oct | evalglare -c {4}.hdr".format(-1*cam.matrix_world, cam.location, simnode['radparams'], geonode.filebase, os.path.join(geonode.newdir, 'glare'+str(frame)), frame)               
+            glarecmd = "rpict -w -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{5}.oct | evalglare -c {4}.hdr".format(-1*cam.matrix_world, cam.location, simnode['radparams'], scene['viparams']['filebase'], os.path.join(scene['viparams']['newdir'], 'glare'+str(frame)), frame)               
             glarerun = Popen(glarecmd, shell = True, stdout = PIPE)
-            glaretf = open(geonode.filebase+".glare", "w")
+            glaretf = open(scene['viparams']['filebase']+".glare", "w")
             for line in glarerun.stdout:
                 if line.decode().split(",")[0] == 'dgp':
                     glaretext = line.decode().replace(',', ' ').replace("#INF", "").split(' ')                    
                     glaretf.write("{0:0>2d}/{1:0>2d} {2:0>2d}:{3:0>2d}\ndgp: {4:.3f}\ndgi: {5:.3f}\nugr: {6:.3f}\nvcp: {7:.3f}\ncgi: {8:.3f}\nLveil: {9:.3f}\n".format(time.day, time.month, time.hour, time.minute, *[float(x) for x in glaretext[6:12]]))
                     glaretf.close()
-            subprocess.call("pcond -u 300 {0}.hdr > {0}.temphdr".format(os.path.join(geonode.newdir, 'glare'+str(frame))), shell=True)
-            subprocess.call("{0} {1}.glare | psign -h 32 -cb 0 0 0 -cf 40 40 40 | pcompos {3}.temphdr 0 0 - 800 550 > {3}.hdr" .format(geonode.cat, geonode.filebase, frame, os.path.join(geonode.newdir, 'glare'+str(frame))), shell=True)
-            subprocess.call("{} {}.temphdr".format(geonode.rm, os.path.join(geonode.newdir, 'glare'+str(frame))), shell=True)                    
+            subprocess.call("pcond -u 300 {0}.hdr > {0}.temphdr".format(os.path.join(scene['viparams']['newdir'], 'glare'+str(frame))), shell=True)
+            subprocess.call("{0} {1}.glare | psign -h 32 -cb 0 0 0 -cf 40 40 40 | pcompos {3}.temphdr 0 0 - 800 550 > {3}.hdr" .format(scene['viparams']['cat'], scene['viparams']['filebase'], frame, os.path.join(scene['viparams']['newdir'], 'glare'+str(frame))), shell=True)
+            subprocess.call("{} {}.temphdr".format(scene['viparams']['rm'], os.path.join(scene['viparams']['newdir'], 'glare'+str(frame))), shell=True)                    
             if  'glare{}.hdr'.format(frame) in bpy.data.images:
                 bpy.data.images['glare{}.hdr'.format(frame)].reload()
             else:
-                bpy.data.images.load(os.path.join(geonode.newdir, 'glare{}.hdr'.format(frame)))
+                bpy.data.images.load(os.path.join(scene['viparams']['newdir'], 'glare{}.hdr'.format(frame)))
                 
     else:
         calc_op.report({'ERROR'}, "There is no camera in the scene. Create one for glare analysis")

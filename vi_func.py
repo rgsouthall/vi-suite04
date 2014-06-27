@@ -105,17 +105,17 @@ def newrow(layout, s1, root, s2):
     row.label(s1)
     row.prop(root, s2)
 
-def retobj(name, fr, node):
+def retobj(name, fr, node, scene):
     if node.animmenu == "Geometry":
-        return(node.objfilebase+"-{}-{}.obj".format(name.replace(" ", "_"), fr))
+        return(scene['viparams']['objfilebase']+"-{}-{}.obj".format(name.replace(" ", "_"), fr))
     else:
-        return(node.objfilebase+"-{}-{}.obj".format(name.replace(" ", "_"), bpy.context.scene.frame_start))
+        return(scene['viparams']['objfilebase']+"-{}-{}.obj".format(name.replace(" ", "_"), bpy.context.scene.frame_start))
 
-def retmesh(name, fr, node):
+def retmesh(name, fr, node, scene):
     if node.animmenu in ("Geometry", "Material"):
-        return(node.objfilebase+"-{}-{}.mesh".format(name.replace(" ", "_"), fr))
+        return(scene['viparams']['objfilebase']+"-{}-{}.mesh".format(name.replace(" ", "_"), fr))
     else:
-        return(node.objfilebase+"-{}-{}.mesh".format(name.replace(" ", "_"), bpy.context.scene.frame_start))
+        return(scene['viparams']['objfilebase']+"-{}-{}.mesh".format(name.replace(" ", "_"), bpy.context.scene.frame_start))
         
 def nodeinputs(node):
     try:
@@ -136,17 +136,17 @@ def nodeinputs(node):
     except:
         pass
     
-def retmat(fr, node):
+def retmat(fr, node, scene):
     if node.animmenu == "Material":
-        return(node.filebase+"-"+str(fr)+".rad")
+        return("{}-{}.rad".format(scene['viparams']['filebase'], fr))
     else:
-        return("{}-{}.rad".format(node.filebase, bpy.context.scene.frame_start))
+        return("{}-{}.rad".format(scene['viparams']['filebase'], scene.frame_start))
 
-def retsky(fr, node, geonode):
+def retsky(fr, node, scene):
     if node.animmenu == "Time":
-        return(geonode.filebase+"-"+str(fr)+".sky")
+        return("{}-{}.sky".format(scene['viparams']['filebase'], fr))
     else:
-        return("{}-{}.sky".format(geonode.filebase, bpy.context.scene.frame_start))
+        return("{}-{}.sky".format(scene['viparams']['filebase'], scene.frame_start))
 
 #def nodeinit(node):
 #    if str(sys.platform) != 'win32':
@@ -195,6 +195,8 @@ def clearscene(scene, op):
     for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
         if ob.lires == 1:
             scene.objects.unlink(ob)
+        if ob.licalc == 1:
+            ob.data.animation_data_clear()
 
     for mesh in bpy.data.meshes:
         if mesh.users == 0:
@@ -426,14 +428,7 @@ def rettimes(ts, fs, us):
 #    ustrings[-1][-1][-1][-1] = ustrings[-1][-1][-1][-1][:-1]
     return(tstrings, fstrings, ustrings)
 
-def socklink(sock, ng):
-    try:
-        for link in sock.links:
-            lsock = (link.from_socket, link.to_socket)[sock.is_output]
-            if sock.is_linked and sock.draw_color(bpy.context, sock.node) != lsock.draw_color(bpy.context, lsock.node):
-                bpy.data.node_groups[ng].links.remove(link)
-    except:
-        pass
+
 
 def windcompass():
     rad1 = 1.4
@@ -740,6 +735,9 @@ def nodeid(node, ngs):
         if node in ng.nodes[:]:
             return node.name+'@'+ng.name
             
+def nodecolour(node, prob):
+    (node.use_custom_color, node.color) = (1, (1.0, 0.3, 0.3)) if prob else (0, (1.0, 0.3, 0.3)) 
+            
 def remlink(node, links):
 #    for ng in bpy.data.node_groups:
 #    if node in .nodes[:]:
@@ -752,8 +750,17 @@ def epentry(header, params, paramvs):
 def sockhide(node, lsocknames):
     try:
         for ins in [insock for insock in node.inputs if insock.name in lsocknames]:
-            node.outputs[ins.name].hide = True if ins.is_linked else False
+            node.outputs[ins.name].hide = True if ins.links else False
         for outs in [outsock for outsock in node.outputs if outsock.name in lsocknames]:
-            node.inputs[outs.name].hide = True if outs.is_linked else False
-    except:
-        pass
+            node.inputs[outs.name].hide = True if outs.links else False
+    except Exception as e:
+        print(e)
+        
+def socklink(sock, ng):
+    try:
+        for link in sock.links:
+            lsock = (link.from_socket, link.to_socket)[sock.is_output]
+            if sock.is_linked and sock.draw_color(bpy.context, sock.node) != lsock.draw_color(bpy.context, lsock.node):
+                bpy.data.node_groups[ng].links.remove(link)
+    except Exception as e:
+        print(e)

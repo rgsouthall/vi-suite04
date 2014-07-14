@@ -240,17 +240,24 @@ def processf(pro_op, node):
                 'Site Wind Speed [m/s] !Hourly': 'Wind Speed (m/s)',
                 'Site Diffuse Solar Radiation Rate per Area [W/m2] !Hourly': "Diffuse Solar (W/m"+u'\u00b2'+")",
                 'Site Direct Solar Radiation Rate per Area [W/m2] !Hourly': "Direct Solar (W/m"+u'\u00b2'+")"}
-    zresdict = {'Zone Air Temperature [C] !Hourly': "Temperature ("+ u'\u00b0'+"C)",
+    zresdict = {'Zone Air Temperature [C] !Hourly': "Temperature ({}C)".format(u'\u00b0'),
                 'Zone Air System Sensible Heating Rate [W] !Hourly': 'Zone heating (W)',
                 'Zone Air System Sensible Cooling Rate [W] !Hourly': 'Zone cooling (W)',
                 'Zone Windows Total Transmitted Solar Radiation Rate [W] !Hourly': 'Solar gain (W)',
                 'AFN Zone Infiltration Volume [m3] !Hourly': 'Infiltration (m'+u'\u00b3'+')',
-                'AFN Zone Infiltration Air Change Rate [ach] !Hourly': 'ACH'}
+                'AFN Zone Infiltration Air Change Rate [ach] !Hourly': 'ACH',
+                'Zone Mean Air Temperature [C] ! Hourly': 'Mean Temperature ({})'.format(u'\u00b0'),
+                'Zone Mean Radiant Temperature [C] !Hourly' :'Mean Radiant ({})'.format(u'\u00b0'),
+                'Zone Thermal Comfort Fanger Model PPD [%] !Hourly' :'PPD',
+                'Zone Thermal Comfort Fanger Model PMV [] !Hourly' :'PMV'}
     lresdict = {'AFN Linkage Node 1 to Node 2 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow 1 to 2',
+                'AFN Linkage Node 2 to Node 1 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow 2 to 1',
                 'AFN Surface Venting Window or Door Opening Factor [] !Hourly': 'Opening Factor'}
     resdict = {}
+    
+    connode = node.inputs['Context in'].links[0].from_node
 
-    objlist = [obj.name.upper() for obj in bpy.data.objects if obj.envi_type == '1' and obj.layers[1] == True]
+    objlist = [obj.name.upper() for obj in bpy.data.objects if obj.envi_type == '1' and obj.layers[1] == True] if connode.bl_idname != 'ViEnInNode' else connode['oblist']
 
     for line in resfile.readlines():
         linesplit = line.strip('\n').split(',')
@@ -273,26 +280,35 @@ def processf(pro_op, node):
         elif len(linesplit) > 3 and linesplit[2] == 'Environment':
             if 'Climate' not in node['rtypes']:
                 node['rtypes']+= ['Climate']
-            resdict[linesplit[0]] = ['Climate', envdict[linesplit[3]]]
-            ctypes.append(envdict[linesplit[3]])
+            try:
+                resdict[linesplit[0]] = ['Climate', envdict[linesplit[3]]]            
+                ctypes.append(envdict[linesplit[3]])
+            except:
+                pass
 
         elif len(linesplit) > 3 and linesplit[2] in objlist:
             if 'Zone' not in node['rtypes']:
                node['rtypes'] += ['Zone']
-            resdict[linesplit[0]] = [linesplit[2], zresdict[linesplit[3]]]
-            if linesplit[2] not in ztypes:
-                ztypes.append(linesplit[2])
-            if zresdict[linesplit[3]] not in zrtypes:
-                zrtypes.append(zresdict[linesplit[3]])
+            try:
+                resdict[linesplit[0]] = [linesplit[2], zresdict[linesplit[3]]]
+                if linesplit[2] not in ztypes:
+                    ztypes.append(linesplit[2])                
+                if zresdict[linesplit[3]] not in zrtypes:
+                    zrtypes.append(zresdict[linesplit[3]])
+            except Exception as e:
+                pass
 
         elif len(linesplit) > 3 and linesplit[3] in lresdict:
             if 'Linkage' not in node['rtypes']:
                node['rtypes'] += ['Linkage']
-            resdict[linesplit[0]] = [linesplit[2], lresdict[linesplit[3]]]
-            if linesplit[2] not in ltypes:
-                ltypes.append(linesplit[2])
-            if lresdict[linesplit[3]] not in lrtypes:
-                lrtypes.append(lresdict[linesplit[3]])
+            try:
+                resdict[linesplit[0]] = [linesplit[2], lresdict[linesplit[3]]]
+                if linesplit[2] not in ltypes:
+                    ltypes.append(linesplit[2])
+                if lresdict[linesplit[3]] not in lrtypes:
+                    lrtypes.append(lresdict[linesplit[3]])
+            except:
+                pass
 
     resfile.close()
 #    node['rtypes'] = rtypes
@@ -405,8 +421,7 @@ def vsarea(obj, vs):
         cross = mathutils.Vector.cross(vs[3]-vs[1], vs[3]-vs[2])
         return(0.5*(cross[0]**2 + cross[1]**2 +cross[2]**2)**0.5)
     else:
-        i = 0
-        area = 0
+        i, area = 0, 0
         while i < len(vs) - 2:
             cross = mathutils.Vector.cross(vs[0]-vs[1+i], vs[0]-vs[2+i])
             area += 0.5*(cross[0]**2 + cross[1]**2 +cross[2]**2)**0.5
@@ -419,13 +434,11 @@ def rettimes(ts, fs, us):
     ustrings = [[] for t in tot]
     tstrings = ['Through: {}/{}'.format(dtdf(ts[t]).month, dtdf(ts[t]).day) for t in tot]
     for t in tot:
-        for f in fs[t].split(' '):
-            fstrings[t].append('For: '+''.join([f for f in f.split(' ') if f]))
+        fstrings[t]= ['For: '+''.join(f) for f in fs[t].split(' ') if f.strip(' ') != '']
         for uf, ufor in enumerate(us[t].split(';')):
             ustrings[t].append([])
             for ut, utime in enumerate(ufor.split(',')):
-                ustrings[t][uf].append(['Until: '+','.join([u for u in utime.split(' ') if u])])
-#    ustrings[-1][-1][-1][-1] = ustrings[-1][-1][-1][-1][:-1]
+                ustrings[t][uf].append(['Until: '+','.join([u for u in utime.split(' ') if u.strip(' ')])])
     return(tstrings, fstrings, ustrings)
 
 
@@ -704,8 +717,8 @@ def vcframe(pp, scene, oblist, anim):
                     vc.keyframe_insert("active_render")   
             elif scene.vi_disp_3d == 1:
                 for shape in ob.data.shape_keys.key_blocks:
-                    if "Basis" not in shape.name:
-                        shape.value = 1 if int(shape.name) == frame else 0
+                    if shape.name.isdigit():
+                        shape.value = shape.name == str(frame)
                         shape.keyframe_insert("value")
 
 def gentarget(tarnode, result):
@@ -737,6 +750,7 @@ def nodeid(node, ngs):
             
 def nodecolour(node, prob):
     (node.use_custom_color, node.color) = (1, (1.0, 0.3, 0.3)) if prob else (0, (1.0, 0.3, 0.3)) 
+    return not prob
             
 def remlink(node, links):
 #    for ng in bpy.data.node_groups:
@@ -762,5 +776,20 @@ def socklink(sock, ng):
             lsock = (link.from_socket, link.to_socket)[sock.is_output]
             if sock.is_linked and sock.draw_color(bpy.context, sock.node) != lsock.draw_color(bpy.context, lsock.node):
                 bpy.data.node_groups[ng].links.remove(link)
-    except Exception as e:
-        print(e)
+    except:
+        pass
+
+def epschedwrite(name, stype, ts, fs, us): 
+    print(ts, fs, us)
+    params = ['Name', 'Schedule Type Limits Name']
+    paramvs = [name, stype]
+    for t in range(len(ts)):
+        params.append('Field {}'.format(len(params)-2))
+        paramvs .append(ts[t])
+        for f in range(len(fs[t])):
+            params.append('Field {}'.format(len(params)-2))
+            paramvs.append(fs[t][f])                  
+            for u in range(len(us[t][f])):
+                params.append('Field {}'.format(len(params)-2))
+                paramvs.append(us[t][f][u][0])
+    return epentry('Schedule:Compact', params, paramvs)

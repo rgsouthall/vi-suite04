@@ -4,20 +4,23 @@ from os import rename
 from .vi_func import processf
 
 def envi_sim(calc_op, node, connode):
-    scene = bpy.context.scene
+    scene, err = bpy.context.scene, 0
     os.chdir(scene['viparams']['newdir'])
     esimcmd = "EnergyPlus in.idf in.epw" 
-    esimrun = Popen(esimcmd, shell = True, stdout = PIPE)
-    for line in esimrun.stdout:
-        if 'FATAL' in line.decode():
+    esimrun = Popen(esimcmd, shell = True, stdout = PIPE, stderr = PIPE)
+    for line in esimrun.stderr:
+        if 'EnergyPlus Terminated--Error(s) Detected' in line.decode():
             print(line) 
+            calc_op.report({'ERROR'}, "There was an error in the input IDF file. Chect the *.err file in Blender's text editor.")
+            err = 1
     for fname in os.listdir('.'):
         if fname.split(".")[0] == node.resname:
             os.remove(os.path.join(scene['viparams']['newdir'], fname))
     for fname in os.listdir('.'):
         if fname.split(".")[0] == "eplusout":
             rename(os.path.join(scene['viparams']['newdir'], fname), os.path.join(scene['viparams']['newdir'],fname.replace("eplusout", node.resname)))
-
+    if err:
+        return
     processf(calc_op, node)
     node.dsdoy = connode.sdoy # (locnode.startmonthnode.sdoy
     node.dedoy = connode.edoy

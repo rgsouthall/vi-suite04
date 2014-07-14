@@ -173,8 +173,9 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         obd = [context.active_object] if context.active_object in oblist else []
 
     for ob in obd:
-        if ob.active_shape_key_index != fn+1:
-            ob.active_shape_key_index = fn+1
+        if str(fn) in [sk.name for sk in ob.data.shape_keys.key_blocks] and ob.active_shape_key.name != str(fn):
+            ob.active_shape_key_index = [sk.name for sk in ob.data.shape_keys.key_blocks].index(str(fn))
+
         obm = ob.data
         ob_mat = ob.matrix_world
         view_mat = context.space_data.region_3d.perspective_matrix

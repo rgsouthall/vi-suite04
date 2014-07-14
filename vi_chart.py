@@ -1,5 +1,5 @@
-import sys
-
+#import sys
+#from multiprocessing import Process
 try:
     import matplotlib.pyplot as plt
     mp = 1
@@ -39,6 +39,9 @@ def timedata(datastring, timetype, stattype, months, days, dos, dnode, si, ei, S
         return(statdata(res, stattype))
 
 def chart_disp(chart_op, dnode, rnodes, Sdate, Edate):
+    if not mp:
+        chart_op.report({'ERROR'},"Matplotlib cannot be found by the Pyhton installation used by Blender")
+        return
     rn = dnode.inputs['X-axis'].links[0].from_node
     rd = rn['resdict']
     sm, sd, sh, em, ed, eh = Sdate.month, Sdate.day, Sdate.hour, Edate.month, Edate.day, Edate.hour
@@ -104,14 +107,13 @@ def chart_disp(chart_op, dnode, rnodes, Sdate, Edate):
                     line, = plt.plot(xdata, y2data, linestyle = '--', color = '0.75', label = 'Ambient ' + (" ("+dnode.inputs['Y-axis 2'].statmenu + ")", "")[dnode.timemenu == '0'])
             elif dnode.inputs['Y-axis 2'].rtypemenu == 'Zone':
                 if (dnode.inputs['Y-axis 2'].rtypemenu, rn['resdict'][rd][0:2]) == ('Zone', [dnode.inputs['Y-axis 2'].zonemenu, dnode.inputs['Y-axis 2'].zonermenu]):
-                    y2data = timedata(rn['resdict'][rd][si+3:ei+4], dnode.timemenu, dnode.inputs['Y-axis 2'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'], rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
+                    y2data = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 2'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'], rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
                     line, = plt.plot(xdata, y2data, color = '0.75', linestyle = '--', label = rn['resdict'][rd][0] + (" ("+dnode.inputs['Y-axis 2'].statmenu + ")", "")[dnode.timemenu == '0'])
             elif dnode.inputs['Y-axis 2'].rtypemenu == 'Linkage':
                 if (dnode.inputs['Y-axis 2'].rtypemenu, rn['resdict'][rd][0:2]) == ('Linkage', [dnode.inputs['Y-axis 2'].linkmenu, dnode.inputs['Y-axis 2'].linkrmenu]):
-                    y1data = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 2'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'], rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
-                    line, = plt.plot(xdata, y1data, color='k', label=rn['resdict'][rd][0] + (" ("+dnode.inputs['Y-axis 2'].statmenu + ")", "")[dnode.timemenu == '0'])
-    
-    
+                    y2data = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 2'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'], rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)                                     
+                    line, = plt.plot(xdata, y2data, color='k', label=rn['resdict'][rd][0] + (" ("+dnode.inputs['Y-axis 2'].statmenu + ")", "")[dnode.timemenu == '0'])
+
     if dnode.inputs['Y-axis 3'].is_linked:
         rn = dnode.inputs['Y-axis 3'].links[0].from_node
         for rd in rn['resdict']:
@@ -121,12 +123,12 @@ def chart_disp(chart_op, dnode, rnodes, Sdate, Edate):
                     line, = plt.plot(xdata, y3data, linestyle = ':', color = '0.5',label = 'Ambient ' + (" ("+dnode.inputs['Y-axis 3'].statmenu + ")", "")[dnode.timemenu == '0'])
             elif dnode.inputs['Y-axis 3'].rtypemenu == 'Zone':
                 if (dnode.inputs['Y-axis 3'].rtypemenu, rn['resdict'][rd][0:2]) == ('Zone', [dnode.inputs['Y-axis 3'].zonemenu, dnode.inputs['Y-axis 3'].zonermenu]):
-                    y3data = timedata(rn['resdict'][rd][si+3:ei+4], dnode.timemenu, dnode.inputs['Y-axis 3'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
+                    y3data = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 3'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'],rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
                     line, = plt.plot(xdata, y3data, linestyle = ':', color = '0.5',label = rn['resdict'][rd][0] + (" ("+dnode.inputs['Y-axis 3'].statmenu + ")", "")[dnode.timemenu == '0'])
             elif dnode.inputs['Y-axis 3'].rtypemenu == 'Linkage':
                 if (dnode.inputs['Y-axis 3'].rtypemenu, rn['resdict'][rd][0:2]) == ('Linkage', [dnode.inputs['Y-axis 3'].linkmenu, dnode.inputs['Y-axis 3'].linkrmenu]):
-                    y1data = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 3'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'], rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
-                    line, =plt.plot(xdata, y1data, color='k', label=rn['resdict'][rd][0] + (" ("+dnode.inputs['Y-axis 3'].statmenu + ")", "")[dnode.timemenu == '0'])
+                    y3data = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 3'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'], rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
+                    line, =plt.plot(xdata, y3data, color='k', label=rn['resdict'][rd][0] + (" ("+dnode.inputs['Y-axis 3'].statmenu + ")", "")[dnode.timemenu == '0'])
     
     plt.xlabel(xlabel)    
     plt.ylabel(ylabel)
@@ -134,3 +136,10 @@ def chart_disp(chart_op, dnode, rnodes, Sdate, Edate):
     plt.grid(True)
     plt.show()
 
+    def plot_graph(*args):
+        args[0][0].plot()
+        args[0][0].show()
+
+#    p = Process(target=plot_graph, args=([plt],))
+#    p.start()
+#    p.join()

@@ -356,104 +356,109 @@ class EnZonePanel(bpy.types.Panel):
             return len(context.object.data.materials)
 
     def draw(self, context):
-        object = bpy.context.active_object
+        obj = bpy.context.active_object
         layout = self.layout
         row = layout.row()
-        row.prop(object, "envi_type")
+        row.prop(obj, "envi_type")
         row = layout.row()
-        if object.envi_type == '1':
-            newrow(layout, 'Heating:', object, "envi_heats1c")
+        if obj.envi_type == '1':
+            newrow(layout, 'Heating level:', obj, 'envi_heat')
+            if obj.envi_heat > 0:
+                newrow(layout, 'Thermostat schedule:', obj, 'envi_htspsched')
+                if not obj.envi_htspsched:
+                    newrow(layout, 'Thermostat level:', obj, 'envi_htsp')
+                else:
+                    uvals, u = (1, obj.htspu1, obj.htspu2, obj.htspu3, obj.htspu4), 0
+                    tvals = (0, obj.htspt1, obj.htspt2, obj.htspt3, obj.htspt4)
+                    while uvals[u] and tvals[u] < 365:
+                        [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'htspt'+str(u+1)), ('Fors:', 'htspf'+str(u+1)), ('Untils:', 'htspu'+str(u+1)))]
+                        u += 1
+            
             row = layout.row()
-            row.prop(object, "envi_heats1")
-            if object.envi_heats1 == True:
-                for end in ('d', 0, 'p1st', 'p1et', 'sp1', 0, 'p2st', 'p2et', 'sp2', 0, 'p3st', 'p3et', 'sp3'):
-                    if end:
-                        row.prop(object, '{}{}'.format("envi_heats1", end))  
-                    else:
-                        row = layout.row()
-                if object.envi_heats1d != "0":
-                    row = layout.row()
-                    row.prop(object, "envi_heats2")
-                    if object.envi_heats2 == True:
-                        if object.envi_heats1d == "1":
-                            row.prop(object, "envi_heats2dwe")
-                        else:
-                            row.prop(object, "envi_heats2dwd")
-                        for end in (0, 'p1st', 'p1et', 'sp1', 0, 'p2st', 'p2et', 'sp2', 0, 'p3st', 'p3et', 'sp3'):
-                            if end:
-                                row.prop(object, '{}{}'.format("envi_heats2", end))  
-                            else:
-                                row = layout.row()
+            row.label('-------------------------------------')
+            newrow(layout, 'Cooling level:', obj, 'envi_cool')
+            if obj.envi_cool > 0:
+                newrow(layout, 'Thermostat schedule:', obj, 'envi_ctspsched')
+                if not obj.envi_ctspsched:
+                    newrow(layout, 'Thermostat level:', obj, 'envi_ctsp')
+                else:
+                    uvals, u = (1, obj.ctspu1, obj.ctspu2, obj.ctspu3, obj.ctspu4), 0
+                    tvals = (0, obj.ctspt1, obj.ctspt2, obj.ctspt3, obj.ctspt4)
+                    while uvals[u] and tvals[u] < 365:
+                        [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'ctspt'+str(u+1)), ('Fors:', 'ctspf'+str(u+1)), ('Untils:', 'ctspu'+str(u+1)))]
+                        u += 1
 
             row = layout.row()
             row.label('-------------------------------------')
 
             row = layout.row()
-            row.label('Cooling:')
-            row.prop(object, "envi_cools1c")
-            row = layout.row()
-            row.prop(object, "envi_cools1")
-
-            if object.envi_cools1 == True:
-                for end in ('s1d', 0, 'p1st', 'p1et', 'sp1', 0, 'p2st', 'p2et', 'sp2', 0, 'p3st', 'p3et', 'sp3'):
-                    if end:
-                        row.prop(object, '{}{}'.format("envi_cools1", end))  
-                    else:
-                        row = layout.row()
-
-                if object.envi_cools1d != "0":
-                    row = layout.row()
-                    row.prop(object, "envi_cools2")
-                    if object.envi_cools2 == True:
-                        if object.envi_cools1d == "1":
-                            row.prop(object, "envi_cools2dwe")
-                        else:
-                            row.prop(object, "envi_cools2dwd")
-                        for end in (0, 'p1st', 'p1et', 'sp1', 0, 'p2st', 'p2et', 'sp2', 0, 'p3st', 'p3et', 'sp3'):
-                            if end:
-                                row.prop(object, '{}{}'.format("envi_cools2", end))  
-                            else:
-                                row = layout.row()
-
-            row = layout.row()
-            row.label('------------------------------------------------------------')
-
-            row = layout.row()
             row.label('Occupancy:')
-            row.prop(object, "envi_occtype")
-            if object.envi_occtype != "0":
-                for end in ('max', '1d', 0, '1p1st', '1p1et', '1p1level', 0, '1p2st', '1p2et', '1p2level', 0, '1p3st', '1p3et', '1p3level', 0, '1watts'):
-                    if end:
-                        row.prop(object, '{}{}'.format("envi_occs", end))  
+            row.prop(obj, "envi_occtype")
+            if obj.envi_occtype != '0':
+                row.prop(obj, "envi_occsmax")                
+                uvals, u = (1, obj.occu1, obj.occu2, obj.occu3, obj.occu4), 0
+                tvals = (0, obj.occt1, obj.occt2, obj.occt3, obj.occt4)
+                while uvals[u] and tvals[u] < 365:
+                    [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'occt'+str(u+1)), ('Fors:', 'occf'+str(u+1)), ('Untils:', 'occu'+str(u+1)))]
+                    u += 1
+                newrow(layout, 'Activity schedule:', obj, 'envi_asched')
+                if not obj.envi_asched:
+                    newrow(layout, 'Activity level:', obj, 'envi_occwatts')
+                else:
+                    uvals, u = (1, obj.aoccu1, obj.aoccu2, obj.aoccu3, obj.aoccu4), 0
+                    tvals = (0, obj.aocct1, obj.aocct2, obj.aocct3, obj.aocct4)
+                    while uvals[u] and tvals[u] < 365:
+                        [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'aocct'+str(u+1)), ('Fors:', 'aoccf'+str(u+1)), ('Untils:', 'aoccu'+str(u+1)))]
+                        u += 1
+                newrow(layout, 'Comfort calc:', obj, 'envi_comfort')
+                if obj.envi_comfort:                
+                    newrow(layout, 'WE schedule:', obj, 'envi_wsched')
+                    if not obj.envi_wsched:
+                        newrow(layout, 'Work efficiency:', obj, 'envi_weff')
                     else:
-                        row = layout.row()
-                row = layout.row()
-                if object.envi_occs1d != "0":
-                    row.prop(object, "envi_occs2")
-                    if object.envi_occs2 == True:
-                        if object.envi_occs1d == "1":
-                            row.prop(object, "envi_occs2dwe")
-                        else:
-                            row.prop(object, "envi_occs2dwd")
-                        for end in ('2p1st', '2p1et', '2p1level', 0, '2p2st', '2p2et', '2p2level', 0, '2p3st', '2p3et', '2p3level', 0, '2watts'):
-                            if end:
-                                row.prop(object, '{}{}'.format("envi_occs", end))  
-                            else:
-                                row = layout.row()
+                        uvals, u = (1, obj.woccu1, obj.woccu2, obj.woccu3, obj.woccu4), 0
+                        tvals = (0, obj.wocct1, obj.wocct2, obj.wocct3, obj.wocct4)
+                        while uvals[u] and tvals[u] < 365:
+                            [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'wocct'+str(u+1)), ('Fors:', 'woccf'+str(u+1)), ('Untils:', 'woccu'+str(u+1)))]
+                            u += 1
+                    newrow(layout, 'AV schedule:', obj, 'envi_avsched')
+                    if not obj.envi_avsched:
+                        newrow(layout, 'Air velocity:', obj, 'envi_airv')
+                    else:
+                        uvals, u = (1, obj.avoccu1, obj.avoccu2, obj.avoccu3, obj.avoccu4), 0
+                        tvals = (0, obj.avocct1, obj.avocct2, obj.avocct3, obj.avocct4)
+                        while uvals[u] and tvals[u] < 365:
+                            [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'avocct'+str(u+1)), ('Fors:', 'avoccf'+str(u+1)), ('Untils:', 'avoccu'+str(u+1)))]
+                            u += 1
+                    newrow(layout, 'Cl schedule:', obj, 'envi_clsched')
+                    if not obj.envi_clsched:
+                        newrow(layout, 'Clothing:', obj, 'envi_cloth')
+                    else:
+                        uvals, u = (1, obj.coccu1, obj.coccu2, obj.coccu3, obj.coccu4), 0
+                        tvals = (0, obj.cocct1, obj.cocct2, obj.cocct3, obj.cocct4)
+                        while uvals[u] and tvals[u] < 365:
+                            [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'cocct'+str(u+1)), ('Fors:', 'coccf'+str(u+1)), ('Untils:', 'coccu'+str(u+1)))]
+                            u += 1   
 
             row = layout.row()
-            row.label('---------------------------------------------------------')
-
+            row.label('---------------------------------------')
             row = layout.row()
-            row.label('Infiltration:')
-            if object.envi_occtype != "0":
-                row.prop(object, "envi_occinftype")
+            row.label('Infiltration:')                    
+            if obj.envi_occtype != "0":
+                newrow(layout, 'Type:', obj, "envi_occinftype")
             else:
-                row.prop(object, "envi_inftype")
-            row.prop(object, "envi_inflevel")
-            if object.envi_occinftype == "1" and object.envi_occtype != "0":
-                newrow(layout, 'Base Infiltration:', object, "envi_infbasetype")
-                row.prop(object, "envi_infbaselevel")
+                newrow(layout, 'Type:', obj, "envi_inftype")
+              
+            if obj.envi_occtype != "0" and obj.envi_occinftype == '6':
+                newrow(layout, 'Level:', obj, "envi_inflevel")            
+            if (obj.envi_occtype == "0" and obj.envi_inftype != '0') or (obj.envi_occtype == "1" and obj.envi_occinftype not in ('0', '6')):
+                newrow(layout, 'Schedule:', obj, 'envi_infsched')
+                if not obj.envi_infsched:
+                    newrow(layout, 'Level:', obj, "envi_inflevel")
+                else:
+                    uvals, u = (1, obj.infu1, obj.infu2, obj.infu3, obj.infu4), 0
+                    tvals = (0, obj.inft1, obj.inft2, obj.inft3, obj.inft4)
+                    while uvals[u] and tvals[u] < 365:
+                        [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'inft'+str(u+1)), ('Fors:', 'inff'+str(u+1)), ('Untils:', 'infu'+str(u+1)))]
+                        u += 1
 
-#
-#class EnMatPanel(bpy.types.Panel):

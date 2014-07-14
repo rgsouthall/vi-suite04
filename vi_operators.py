@@ -382,6 +382,31 @@ class NODE_OT_ESOSelect(bpy.types.Operator, io_utils.ImportHelper):
     def invoke(self,context,event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
+        
+class NODE_OT_IDFSelect(bpy.types.Operator, io_utils.ImportHelper):
+    bl_idname = "node.idfselect"
+    bl_label = "Select EnergyPlus input file"
+    bl_description = "Select the EnVi input file to process"
+    filename = ""
+    filename_ext = ".idf"
+    filter_glob = bpy.props.StringProperty(default="*.idf", options={'HIDDEN'})
+    bl_register = True
+    bl_undo = True
+
+    nodeid = bpy.props.StringProperty()
+    
+    def draw(self,context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Open an idf input file with the file browser", icon='WORLD_DATA')
+
+    def execute(self, context):
+        bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].idffilename = self.filepath
+        return {'FINISHED'}
+
+    def invoke(self,context,event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
 class NODE_OT_EnGExport(bpy.types.Operator):
     bl_idname = "node.engexport"
@@ -487,7 +512,7 @@ class NODE_OT_FileProcess(bpy.types.Operator, io_utils.ExportHelper):
     def invoke(self, context, event):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         processf(self, node)
-        node.outputs['Results out'].hide = False
+        node.outputs['Context out'].hide = False
         node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
         return {'FINISHED'}
 
@@ -505,7 +530,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         scene, scene.resnode, scene.restree = context.scene, node.name, self.nodeid.split('@')[1]
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 1, 0, 0, 0, 0, 0
-
+        bpy.context.scene.cursor_location = (0.0, 0.0, 0.0)
+        
         if 'SolEquoRings' not in [mat.name for mat in bpy.data.materials]:
             bpy.data.materials.new('SolEquoRings')
             bpy.data.materials['SolEquoRings'].diffuse_color = (1, 0, 0)
@@ -704,6 +730,9 @@ class NODE_OT_WindRose(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
+        if not bpy.data.filepath:
+            self.report({'ERROR'},"Save the Blender file first")
+            return {'CANCELLED'}
         if mp == 1:            
             simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
             locnode = simnode.inputs[0].links[0].from_node

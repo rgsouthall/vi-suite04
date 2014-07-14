@@ -131,128 +131,67 @@ def register():
     Object.manip = bprop("", "", False)
 
 # EnVi zone definitions
-
     Object.envi_type = eprop([("0", "None", "None"), ("1", "Thermal", "Thermal Zone"), ("2", "Shading", "Shading Object")], "EnVi object type", "Specify the EnVi object type", "0")
-    Object.envi_heats1 = bprop("Schedule 1", "Enable period 1 zone heating", False)
-    Object.envi_heats2 = bprop("Schedule 2", "Enable period 2 zone heating", False)
-    Object.envi_heats1d = eprop([("0", "Every Day", "Daily Heating"), ("1", "Weekdays", "Weekday Heating"), ("2", "Weekend", "Weekend Heating")], "", "Heating", "0")
-    Object.envi_heats2dwd = eprop([("1", "Weekdays", "Weekday cooling")], "", "Occupancy", "1")
-    Object.envi_heats2dwe = eprop([("2", "Weekend", "Weekend cooling")], "", "Occupancy", "2")
-    Object.envi_heats1c = iprop("Capacity (W)", "Maximum Heating Capacity (W)", 1, 50000, 500)
-    Object.envi_heats1sp1 = iprop("Set-point ("+ u'\u00b0'+"C)", "Heating set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
-    Object.envi_heats2sp1 = iprop("Set-point ("+ u'\u00b0'+"'C)", "Heating set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
-    Object.envi_heats1sp2 = iprop("Set-point ("+ u'\u00b0'+"C)", "Heating set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
-    Object.envi_heats2sp2 = iprop("Set-point ("+ u'\u00b0'+"C)", "Heating set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
-    Object.envi_heats1sp3 = iprop("Set-point ("+ u'\u00b0'+"C)", "Heating set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
-    Object.envi_heats2sp3 = iprop("Set-point ("+ u'\u00b0'+"C)", "Heating set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
-    Object.envi_heats1p1st = iprop("Start hour", "Heating Start Time", 1, 24, 0)
-    Object.envi_heats1p1et = iprop("End hour", "Heating End Time", 1, 24, 0)
-    Object.envi_heats1p2st = iprop("Start hour", "Heating Start Time", 1, 24, 0)
-    Object.envi_heats1p2et = iprop("End hour", "Heating End Time", 1, 24, 0)
-    Object.envi_heats1p3st = iprop("Start hour", "Heating Start Time", 1, 24, 0)
-    Object.envi_heats1p3et = iprop("End hour", "Heating End Time", 1, 24, 0)
-    Object.envi_heats2p1st = iprop("Start hour", "Heating Start Time", 1, 24, 0)
-    Object.envi_heats2p1et = iprop("End hour", "Heating End Time", 1, 24, 0)
-    Object.envi_heats2p2st = iprop("Start hour", "Heating Start Time", 1,24, 0)
-    Object.envi_heats2p2et = iprop("End hour", "Heating End Time", 1, 24, 0)
-    Object.envi_heats2p3st = iprop("Start hour", "Heating Start Time", 1, 24, 0)
-    Object.envi_heats2p3et = iprop("End hour", "Heating End Time", 1, 24, 0)
-    Object.envi_cools1 = bprop("Schedule 1", "Enable period 1 zone heating", False)
-    Object.envi_cools2 = bprop("Schedule 2", "Enable period 2 zone heating", False)
-    Object.envi_cools1p1 = bprop("Period 1", "Enable period 1 zone cooling", False)
-    Object.envi_cools1p2 = bprop("Period 2", "Enable period 2 zone cooling", False)
-    Object.envi_cools1p3 = bprop("Period 3", "Enable period 3 zone cooling", False)
-    Object.envi_cools2p1 = bprop("Period 1", "Enable period 1 zone cooling", False)
-    Object.envi_cools2p2 = bprop("Period 2", "Enable period 2 zone cooling", False)
-    Object.envi_cools2p3 = bprop("Period 3", "Enable period 3 zone cooling", False)
-    Object.envi_cools1d = eprop([("0", "Every Day", "Daily cooling"), ("1", "Weekdays", "Weekday cooling"), ("2", "Weekend", "Weekend cooling")], "", "Occupancy", "0")
-    Object.envi_cools2dwd = eprop([("1", "Weekdays", "Weekday cooling")], "", "Occupancy", "1")
-    Object.envi_cools2dwe = eprop([("2", "Weekend", "Weekend cooling")], "", "Occupancy", "2")
-    Object.envi_cools1c = iprop("Capacity (W)", "Maximum cooling Capacity (W)", 1, 50000, 0)
-    Object.envi_cools1sp1 = iprop("Set-point("+ u'\u00b0'+"C)", "cooling set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
-    Object.envi_cools1sp2 = iprop("Set-point("+ u'\u00b0'+"C)", "cooling set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
-    Object.envi_cools1sp3 = iprop("Set-point("+ u'\u00b0'+"C)", "cooling set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
-    Object.envi_cools2sp1 = iprop("Set-point("+ u'\u00b0'+"C)", "cooling set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
-    Object.envi_cools2sp2 = iprop("Set-point("+ u'\u00b0'+"C)", "cooling set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
-    Object.envi_cools2sp3 = iprop("Set-point("+ u'\u00b0'+"C)", "cooling set-point ("+ u'\u00b0'+"C)", 1, 30, 20)
-    Object.envi_cools1p1st = iprop("Start hour", "Cooling Start Time",1, 24, 1)
-    Object.envi_cools1p1et = iprop("End hour", "Cooling End Time",1, 24, 1)
-    Object.envi_cools1p2st = iprop("Start hour", "Cooling Start Time",1, 24, 1)
-    Object.envi_cools1p2et = iprop("End hour", "Cooling End Time",1, 24, 1)
-    Object.envi_cools1p3st = iprop("Start hour", "Cooling Start Time",1, 24, 1)
-    Object.envi_cools1p3et = iprop("End hour", "Cooling End Time",1, 24, 1)
-    Object.envi_cools2p1st = iprop("Start hour", "Cooling Start Time", 1, 24, 1)
-    Object.envi_cools2p1et = iprop("End hour", "Cooling End Time",1, 24, 1)
-    Object.envi_cools2p2st = iprop("Start hour", "Cooling Start Time", 1, 24, 1)
-    Object.envi_cools2p2et = iprop("End hour", "Cooling End Time", 1, 24, 1)
-    Object.envi_cools2p3st = iprop("Start hour", "Cooling Start Time", 1, 24, 1)
-    Object.envi_cools2p3et = iprop("End hour", "Cooling End Time", 1, 24, 1)
-    Object.envi_occs1 = bprop("Period 1", "Enable zone occupation for period 1", False)
-    Object.envi_occs2 = bprop("Period 2", "Enable zone occupation for period 1", False)
+# Heating defintions
+    Object.envi_heat = iprop("W", "Heating", 0, 100000, 0)
+    Object.envi_htsp = iprop(u'\u00b0'+"C", "Temperature", 0, 50, 20)
+    Object.envi_htspsched = bprop("Schedule", "Create a thermostat level schedule", False)
+    (Object.htspu1, Object.htspu2, Object.htspu3, Object.htspu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
+    (Object.htspf1, Object.htspf2, Object.htspf3, Object.htspf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.htspt1, Object.htspt2, Object.htspt3, Object.htspt4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
+# Cooling definitions
+    Object.envi_cool = iprop("W", "Cooling", 0, 100000, 0)
+    Object.envi_ctsp = iprop(u'\u00b0'+"C", "Temperature", 0, 50, 20)
+    Object.envi_ctspsched = bprop("Schedule", "Create a thermostat level schedule", False)
+    (Object.ctspu1, Object.ctspu2, Object.ctspu3, Object.ctspu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
+    (Object.ctspf1, Object.ctspf2, Object.ctspf3, Object.ctspf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.ctspt1, Object.ctspt2, Object.ctspt3, Object.ctspt4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
+#Occupancy definitions
+    (Object.occu1, Object.occu2, Object.occu3, Object.occu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
+    (Object.occf1, Object.occf2, Object.occf3, Object.occf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.occt1, Object.occt2, Object.occt3, Object.occt4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
+    Object.envi_occwatts = iprop("W/p", "Watts per person", 70, 800, 90)
+    Object.envi_asched = bprop("Schedule", "Create an activity level schedule", False)
+    (Object.aoccu1, Object.aoccu2, Object.aoccu3, Object.aoccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
+    (Object.aoccf1, Object.aoccf2, Object.aoccf3, Object.aoccf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.aocct1, Object.aocct2, Object.aocct3, Object.aocct4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
+    Object.envi_weff = fprop("Efficiency", "Work efficiency", 0, 1, 0.0)
+    Object.envi_wsched = bprop("Schedule", "Create an activity level schedule", False)
+    (Object.woccu1, Object.woccu2, Object.woccu3, Object.woccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
+    (Object.woccf1, Object.woccf2, Object.woccf3, Object.woccf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.wocct1, Object.wocct2, Object.wocct3, Object.wocct4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
+    Object.envi_airv = fprop("Air velocity", "Average air velocity", 0, 1, 0.1)
+    Object.envi_avsched = bprop("Schedule", "Create an air velocity schedule", False)
+    (Object.avoccu1, Object.avoccu2, Object.avoccu3, Object.avoccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
+    (Object.avoccf1, Object.avoccf2, Object.avoccf3, Object.avoccf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.avocct1, Object.avocct2, Object.avocct3, Object.avocct4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
+
+    Object.envi_cloth = fprop("Clothing", "Clothing level", 0, 1, 0.5)
+    Object.envi_clsched = bprop("Schedule", "Create an clothing level schedule", False)
+    (Object.coccu1, Object.coccu2, Object.coccu3, Object.coccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
+    (Object.coccf1, Object.coccf2, Object.coccf3, Object.coccf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.cocct1, Object.cocct2, Object.cocct3, Object.cocct4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
+
     Object.envi_occtype = eprop([("0", "None", "No occupancy"),("1", "Occupants", "Actual number of people"), ("2", "Person/m"+ u'\u00b2', "Number of people per squared metre floor area"),
                                               ("3", "m"+ u'\u00b2'+"/Person", "Floor area per person")], "", "The type of zone occupancy specification", "0")
     Object.envi_occsmax = fprop("Max", "Maximum level of occupancy that will occur in this schedule", 1, 500, 1)
-    Object.envi_occs1d = eprop([("0", "Every Day", "Daily Occupancy"), ("1", "Weekdays", "Weekday Occupancy"), ("2", "Weekend", "Weekend Occupancy")], "", "Occupancy", "0")
-    Object.envi_occs2dwd = eprop([("1", "Weekdays", "Weekday occupancy")], "", "Occupancy", "1")
-    Object.envi_occs2dwe = eprop([("2", "Weekend", "Weekend occupancy")], "", "Occupancy", "2")
-    Object.envi_occs1p1st = iprop("Start hour", "Occupancy Start Time", 1, 24, 1)
-    Object.envi_occs1p1et = iprop("End hour", "Occupancy End Time", 1, 24, 1)
-    Object.envi_occs1p1level = fprop("Fraction", "Fraction of maximum evel of occupancy", 0, 500, 0)
-    Object.envi_occs1p2st = iprop("Start hour", "Occupancy Start Time", 1, 24, 1)
-    Object.envi_occs1p2et = iprop("End hour", "Occupancy End Time", 1, 24, 1)
-    Object.envi_occs1p2level = fprop("Fraction", "Fraction of maximum level of occupancy", 0, 1, 0)
-    Object.envi_occs1p3st = iprop("Start hour", "Occupancy Start Time", 1, 24, 1)
-    Object.envi_occs1p3et = iprop("End hour", "Occupancy End Time", 1, 24, 1)
-    Object.envi_occs1p3level = fprop("Fraction", "Fraction of maximum evel of occupancy", 0, 1, 0)
-    Object.envi_occs1watts = iprop("W/p", "Watts per person", 70, 800, 90)
-    Object.envi_occs2p1st = iprop("Start hour", "Occupancy Start Time", 1, 24, 1)
-    Object.envi_occs2p1et = iprop("End hour", "Occupancy End Time", 1, 24, 1)
-    Object.envi_occs2p1level = fprop("Fraction", "Fraction of maximum evel of occupancy", 0, 1, 0)
-    Object.envi_occs2p2st = iprop("Start hour", "Occupancy Start Time", 1, 24, 1)
-    Object.envi_occs2p2et = iprop("End hour", "Occupancy End Time", 1, 24, 1)
-    Object.envi_occs2p2level = fprop("Fraction", "Fraction of maximum evel of occupancy", 0, 1, 0)
-    Object.envi_occs2p3st = iprop("Start hour", "Occupancy Start Time", 1, 24, 1)
-    Object.envi_occs2p3et = iprop("End hour", "Occupancy End Time", 1, 24, 1)
-    Object.envi_occs2p3level = fprop("Fraction", "Fraction of maximum evel of occupancy", 0, 1, 0)
-    Object.envi_occs2watts = iprop("W/p", "Watts per person", 70, 800, 90)
-    Object.envi_inftype = eprop([("0", "None", "No infiltration"), ("2", "m"+ u'\u00b3'+"/s", "metre cubed per second"), ("3", "ACH", "Air changes per hour")], "", "The type of zone infiltration specification", "0")
-    Object.envi_occinftype = eprop([("0", "None", "No infiltration"),("1", "l/s/p", "litres per second per person"), ("2", "m"+ u'\u00b3'+"/s", "metre cubed per second"),
-                                    ("3", "ACH", "Air changes per hour")], "", "The type of zone infiltration specification", "0")
-    Object.envi_infbasetype = eprop([("0", "m"+ u'\u00b3'+"/s", "metre cubed per second"), ("1", "ACH", "Air changes per hour")], "", "The type of zone base infiltration specification", "1")
-    Object.envi_infbaselevel = fprop("Level", "Level of Infiltration", 0, 500, 0.1)
-    Object.envi_inflevel = fprop("Level", "Level of Infiltration", 0, 500, 0.1)
-    Object.envi_infs1d = eprop([("0", "Every Day", "Daily Infiltration"), ("1", "Weekdays", "Weekday Infiltration"), ("2", "Weekend", "Weekend Infiltration")], "", "Infiltration", "0")
-    Object.envi_infs1p1st = iprop("Start hour", "Infiltration Start Time",1, 24, 1)
-    Object.envi_infs1p1et = iprop("End hour", "Infiltration End Time",1, 24, 1)
-    Object.envi_infs1p1level = iprop("Level", "Level of Infiltration", 1, 500, 0)
-    Object.envi_infs1p2st = iprop("Start hour", "Infiltration Start Time", 1, 24, 1)
-    Object.envi_infs1p2et = iprop("End hour", "Infiltration End Time", 1, 24, 1)
-    Object.envi_infs1p2level = iprop("Level", "Level of Infiltration", 1, 500, 0)
-    Object.envi_infs1p3st = iprop("Start hour", "Infiltration Start Time", 1, 24, 1)
-    Object.envi_infs1p3et = iprop("End hour", "Infiltration End Time",1, 24, 1)
-    Object.envi_infs1p3level = iprop("Level", "Level of Infiltration", 1, 500, 0)
-    Object.envi_infs2d = eprop([("0", "Every Day", "Daily Infiltration"), ("1", "Weekdays", "Weekday Infiltration"), ("2", "Weekend", "Weekend Infiltration")],"", "Infiltration", "0")
-    Object.envi_infs2p1st = iprop("Start hour", "Infiltration Start Time", 1, 24, 1)
-    Object.envi_infs2p1et = iprop("End hour", "Infiltration End Time", 1, 24, 1)
-    Object.envi_infs2p1level = iprop("Level", "Level of Infiltration", 1, 500, 0)
-    Object.envi_infs2p2st = iprop("Start hour", "Infiltration Start Time", 1, 24, 1)
-    Object.envi_infs2p2et = iprop("End hour", "Infiltration End Time", 1, 24, 1)
-    Object.envi_infs2p2level = iprop("Level", "Level of Infiltration", 1, 500, 0)
-    Object.envi_infs2p3st = iprop("Start hour", "Infiltration Start Time", 1, 24, 1)
-    Object.envi_infs2p3et = iprop("End hour", "Infiltration End Time", 1, 24, 1)
-    Object.envi_infs2p3level = iprop("Level", "Level of Infiltration", 1, 500, 0)
-    Object.envi_infs2watts = iprop("W/p", "Watts per person",70, 800, 90)
-    Object.envi_inf3d = eprop([("0", "Every Day", "Daily Infiltration"), ("1", "Weekdays", "Weekday Infiltration"), ("2", "Weekend", "Weekend Infiltration")], "", "Infiltration", "0")
-    Object.envi_infs3p1st = iprop("Start hour", "Infiltration Start Time", 1, 24, 1)
-    Object.envi_infs3p1et = iprop("End hour", "Infiltration End Time", 1, 24, 1)
-    Object.envi_infs3p1level = iprop("Level", "Level of Infiltration", 1, 500, 0)
-    Object.envi_infs3p2st = iprop("Start hour", "Infiltration Start Time", 1, 24, 1)
-    Object.envi_infs3p2et = iprop("End hour", "Infiltration End Time", 1, 24, 1)
-    Object.envi_infs3p2level = iprop("Level", "Level of Infiltration", 1, 500, 0)
-    Object.envi_infs3p3st = iprop("Start hour", "Infiltration Start Time", 1, 24, 1)
-    Object.envi_infs3p3et = iprop("End hour", "Infiltration End Time", 1, 24, 1)
-    Object.envi_infs3p3level = iprop("Level", "Level of Infiltration", 1, 500, 0)
-    Object.envi_inf3watts = iprop("W/p", "Watts per person",70, 800, 90)
+    Object.envi_comfort = bprop("Comfort", "Enable comfor calculations for this space", False)
+
+# Infiltration definitions
+    Object.envi_inftype = eprop([("0", "None", "No infiltration"), ("1", 'Flow/Zone', "Absolute flow rate in m{}/s".format(u'\u00b3')), ("2", "Flow/Area", 'Flow in m{}/s per m{} floor area'.format(u'\u00b3', u'\u00b2')), 
+                                 ("3", "Flow/ExteriorArea", 'Flow in m{}/s per m{} external surface area'.format(u'\u00b3', u'\u00b2')), ("4", "Flow/ExteriorWallArea", 'Flow in m{}/s per m{} external wall surface area'.format(u'\u00b3', u'\u00b2')), 
+                                 ("4", "ACH", "ACH flow rate")], "", "The type of zone infiltration specification", "0")
+
+    Object.envi_inflevel = fprop("Level", "Level of Infiltration", 0, 500, 0.001)
+    Object.envi_infsched = bprop("Schedule", "Create an infiltration schedule", False)
+    (Object.infu1, Object.infu2, Object.infu3, Object.infu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
+    (Object.inff1, Object.inff2, Object.inff3, Object.inff4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.inft1, Object.inft2, Object.inft3, Object.inft4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
+
+    
+    Object.envi_occinftype = eprop([("0", "None", "No infiltration"), ("1", 'Flow/Zone', "Absolute flow rate in m{}/s".format(u'\u00b3')), ("2", "Flow/Area", 'Flow in m{}/s per m{} floor area'.format(u'\u00b3', u'\u00b2')), 
+                                 ("3", "Flow/ExteriorArea", 'Flow in m{}/s per m{} external surface area'.format(u'\u00b3', u'\u00b2')), ("4", "Flow/ExteriorWallArea", 'Flow in m{}/s per m{} external wall surface area'.format(u'\u00b3', u'\u00b2')), 
+                                 ("5", "ACH", "ACH flow rate"), ("6", "l/s/p", 'Litres per second per person')], "", "The type of zone infiltration specification", "0")
 
 # LiVi material definitions
     Material.vi_shadow = bprop("VI Shadow", "Flag to signify whether the material represents a VI Shadow sensing surface", False)

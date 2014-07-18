@@ -362,32 +362,63 @@ class EnZonePanel(bpy.types.Panel):
         row.prop(obj, "envi_type")
         row = layout.row()
         if obj.envi_type == '1':
-            newrow(layout, 'Heating level:', obj, 'envi_heat')
-            if obj.envi_heat > 0:
-                newrow(layout, 'Thermostat schedule:', obj, 'envi_htspsched')
-                if not obj.envi_htspsched:
-                    newrow(layout, 'Thermostat level:', obj, 'envi_htsp')
-                else:
-                    uvals, u = (1, obj.htspu1, obj.htspu2, obj.htspu3, obj.htspu4), 0
-                    tvals = (0, obj.htspt1, obj.htspt2, obj.htspt3, obj.htspt4)
-                    while uvals[u] and tvals[u] < 365:
-                        [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'htspt'+str(u+1)), ('Fors:', 'htspf'+str(u+1)), ('Untils:', 'htspu'+str(u+1)))]
-                        u += 1
+            row = layout.row()
+            row.label('HVAC --------------')
+            row.prop(obj, 'envi_hvact')
+            row = layout.row()
+            row.label('Heating -----------')
+            newrow(layout, 'Heating temp:', obj, 'envi_hvacht')
+            newrow(layout, 'Heating limit:', obj, 'envi_hvachlt')
+            if obj.envi_hvachlt in ('0', '2',):
+                newrow(layout, 'Heating airflow:', obj, 'envi_hvachaf')
+            if obj.envi_hvachlt in ('1', '2'):
+                newrow(layout, 'Heating capacity:', obj, 'envi_hvacshc')            
+            newrow(layout, 'Thermostat schedule:', obj, 'envi_htspsched')
+            if not obj.envi_htspsched:
+                newrow(layout, 'Thermostat level:', obj, 'envi_htsp')
+            else:
+                uvals, u = (1, obj.htspu1, obj.htspu2, obj.htspu3, obj.htspu4), 0
+                tvals = (0, obj.htspt1, obj.htspt2, obj.htspt3, obj.htspt4)
+                while uvals[u] and tvals[u] < 365:
+                    [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'htspt'+str(u+1)), ('Fors:', 'htspf'+str(u+1)), ('Untils:', 'htspu'+str(u+1)))]
+                    u += 1
             
             row = layout.row()
-            row.label('-------------------------------------')
-            newrow(layout, 'Cooling level:', obj, 'envi_cool')
-            if obj.envi_cool > 0:
-                newrow(layout, 'Thermostat schedule:', obj, 'envi_ctspsched')
-                if not obj.envi_ctspsched:
-                    newrow(layout, 'Thermostat level:', obj, 'envi_ctsp')
-                else:
-                    uvals, u = (1, obj.ctspu1, obj.ctspu2, obj.ctspu3, obj.ctspu4), 0
-                    tvals = (0, obj.ctspt1, obj.ctspt2, obj.ctspt3, obj.ctspt4)
-                    while uvals[u] and tvals[u] < 365:
-                        [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'ctspt'+str(u+1)), ('Fors:', 'ctspf'+str(u+1)), ('Untils:', 'ctspu'+str(u+1)))]
-                        u += 1
-
+            row.label('Cooling ------------')
+            newrow(layout, 'Cooling temp:', obj, 'envi_hvacct')
+            newrow(layout, 'Cooling limit:', obj, 'envi_hvacclt')
+            if obj.envi_hvacclt in ('0', '2'):
+                newrow(layout, 'Cooling airflow:', obj, 'envi_hvaccaf')
+            if obj.envi_hvacclt in ('1', '2'):
+                newrow(layout, 'Cooling capacity:', obj, 'envi_hvacscc')    
+            newrow(layout, 'Thermostat schedule:', obj, 'envi_ctspsched')
+            if not obj.envi_ctspsched:
+                newrow(layout, 'Thermostat level:', obj, 'envi_ctsp')
+            else:
+                uvals, u = (1, obj.ctspu1, obj.ctspu2, obj.ctspu3, obj.ctspu4), 0
+                tvals = (0, obj.ctspt1, obj.ctspt2, obj.ctspt3, obj.ctspt4)
+                while uvals[u] and tvals[u] < 365:
+                    [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'ctspt'+str(u+1)), ('Fors:', 'ctspf'+str(u+1)), ('Untils:', 'ctspu'+str(u+1)))]
+                    u += 1
+            if obj.envi_hvact:
+                row = layout.row()
+                row.label('Template --------------')
+                newrow(layout, 'Outdoor air:', obj, 'envi_hvacoam')
+                if obj.envi_hvacoam in ('2', '4', '5'):
+                    newrow(layout, 'Flow/person:', obj, 'envi_hvacfrp')
+                if obj.envi_hvacoam in ('1', '4', '5'):
+                    newrow(layout, 'Zone flow:', obj, 'envi_hvacfrz')
+                if obj.envi_hvacoam in ('3', '4', '5'):
+                    newrow(layout, 'Flow/area:', obj, 'envi_hvacfrzfa')
+#                if obj.envi_hvacoam == '6':
+#                    pass
+#                uvals, u = (1, obj.hvacu1, obj.hvacu2, obj.hvacu3, obj.hvacu4), 0
+#                tvals = (0, obj.hvact1, obj.hvact2, obj.hvact3, obj.hvact4)
+#                while uvals[u] and tvals[u] < 365:
+#                    [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'hvact'+str(u+1)), ('Fors:', 'hvacf'+str(u+1)), ('Untils:', 'hvacu'+str(u+1)))]
+#                    u += 1
+            
+                
             row = layout.row()
             row.label('-------------------------------------')
 
@@ -395,12 +426,14 @@ class EnZonePanel(bpy.types.Panel):
             row.label('Occupancy:')
             row.prop(obj, "envi_occtype")
             if obj.envi_occtype != '0':
-                row.prop(obj, "envi_occsmax")                
-                uvals, u = (1, obj.occu1, obj.occu2, obj.occu3, obj.occu4), 0
-                tvals = (0, obj.occt1, obj.occt2, obj.occt3, obj.occt4)
-                while uvals[u] and tvals[u] < 365:
-                    [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'occt'+str(u+1)), ('Fors:', 'occf'+str(u+1)), ('Untils:', 'occu'+str(u+1)))]
-                    u += 1
+                row.prop(obj, "envi_occsmax")  
+                newrow(layout, 'Schedule:', obj, 'envi_occsched')
+                if obj.envi_occsched:
+                    uvals, u = (1, obj.occu1, obj.occu2, obj.occu3, obj.occu4), 0
+                    tvals = (0, obj.occt1, obj.occt2, obj.occt3, obj.occt4)
+                    while uvals[u] and tvals[u] < 365:
+                        [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'occt'+str(u+1)), ('Fors:', 'occf'+str(u+1)), ('Untils:', 'occu'+str(u+1)))]
+                        u += 1
                 newrow(layout, 'Activity schedule:', obj, 'envi_asched')
                 if not obj.envi_asched:
                     newrow(layout, 'Activity level:', obj, 'envi_occwatts')
@@ -439,6 +472,8 @@ class EnZonePanel(bpy.types.Panel):
                         while uvals[u] and tvals[u] < 365:
                             [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'cocct'+str(u+1)), ('Fors:', 'coccf'+str(u+1)), ('Untils:', 'coccu'+str(u+1)))]
                             u += 1   
+                    if obj.envi_co2:
+                        newrow(layout, 'CO2:', obj, 'envi_co2')
 
             row = layout.row()
             row.label('---------------------------------------')

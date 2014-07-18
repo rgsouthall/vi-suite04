@@ -1551,10 +1551,8 @@ class AFNCon(bpy.types.Node, EnViNodes):
         'Relative Airflow Convergence Tolerance (dimensionless)', 'Absolute Airflow Convergence Tolerance (kg/s)', 'Convergence Acceleration Limit (dimensionless)', \
         'Azimuth Angle of Long Axis of Building (deg)', 'Ratio of Building Width Along Short Axis to Width Along Long Axis')
         
-        simentry = "!-   ===========  ALL OBJECTS IN CLASS: AIRFLOW NETWORK ===========\n\n" + \
-        epentry('AirflowNetwork:SimulationControl', params, paramvs)
-        
-        
+        simentry = epentry('AirflowNetwork:SimulationControl', params, paramvs)
+                
         if self.inputs['WPC Array'].is_linked:
             (wpcaentry, wpcnum) = self.inputs['WPC Array'].links[0].from_node.epwrite() if wpctype == 1 else ('', 0)
             enng['enviparams']['wpca'], enng['enviparams']['wpcn'] = 1, wpcnum
@@ -2152,6 +2150,31 @@ class EnViFanNode(bpy.types.Node, EnViNodes):
             newrow(layout, "Motor efficiency:", self, 'fmeff')
             newrow(layout, "Airstream fraction:", self, 'fmaf')
             
+#class HVACTILS(bpy.types.Node, EnViNodes):
+#    '''Node describing an ideal load system HVAC template'''
+#    bl_idname = 'HVACTILS'
+#    bl_label = 'Ideal load'
+#    bl_icon = 'SOUND'
+#    
+#    def init(self, context):
+#        self.inputs.new('EnViCAirSocket', 'Extract from')
+#        self.inputs.new('EnViCAirSocket', 'Supply to')
+#        self.outputs.new('NodeSocket', 'Schedule')
+#        self.outputs.new('EnViCAirSocket', 'Extract from')
+#        self.outputs.new('EnViCAirSocket', 'Supply to')
+#    
+#    def epwrite(self):
+#        params = ('Zone Name' , 'Thermostat Name', 'System Availability Schedule Name', 'Maximum Heating Supply Air Temperature', 'Minimum Cooling Supply Air Temperature', 
+#                   'Maximum Heating Supply Air Humidity Ratio (kgWater/kgDryAir)', 'Minimum Cooling Supply Air Humidity Ratio (kgWater/kgDryAir)', 'Heating Limit', 'Maximum Heating Air Flow Rate (m3/s)',
+#                    'Maximum Sensible Heating Capacity (W)', 'Cooling Limit', 'Maximum Cooling Air Flow Rate (m3/s)', 'Maximum Total Cooling Capacity (W)', 'Heating Availability Schedule Name', 
+#                    'Cooling Availability Schedule Name', 'Dehumidification Control Type', 'Cooling Sensible Heat Ratio', 'Dehumidification Setpoint (percent)', 'Humidification Control Type', 
+#                    'Humidification Setpoint (percent)', 'Outdoor Air Method', 'Outdoor Air Flow Rate per Person (m3/s)', 'Outdoor Air Flow Rate per Zone Floor (m3/s-m2)', 'Outdoor Air Flow Rate per Zone (m3/s)', 
+#                    'Design Specification Outdoor Air Object', 'Demand Controlled Ventilation Type', 'Outdoor Air Economizer Type', 'Heat Recovery Type', 'Sensible Heat Recovery Effectiveness',
+#                    'Latent Heat Recovery Effectiveness')
+#        paramvs = ('','','','','','','','','','','','','','','','','','','','', '','','','','','','','','','','','')
+#        
+#        return epentry('HVACTemplate:Zone:IdealLoadsAirSystem', params, paramvs)
+            
 class EnViNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):
@@ -2167,8 +2190,8 @@ envinode_categories = [
             NodeItem("EnViSSFlow", label="Sub-surface Flow Node"), NodeItem("EnViSFlow", label="Surface Flow Node")]),
         EnViNodeCategory("SchedNodes", "Schedule Nodes", items=[
             NodeItem("EnViSched", label="Schedule")])]
-#        EnViNodeCategory("PlantNodes", "Plant Nodes", items=[
-#            NodeItem("EnViFan", label="EnVi fan node")])]
+#        EnViNodeCategory("HVACTemplates", "HVAC Template nodes", items=[
+#            NodeItem("HVACTILS", label="EnVi ideal load HVAC template")])]
 
 
 

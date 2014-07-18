@@ -41,7 +41,7 @@ if str(sys.platform) == 'darwin':
 if str(sys.platform) == 'linux':
     if not hasattr(os.environ, 'RAYPATH'):
         raddir =  '/usr/share/radiance' if os.path.isdir('/usr/share/radiance') else '/usr/local/radiance'
-        os.environ["PATH"] = os.environ["PATH"] + ":{}/bin:{}/linux:/usr/local/EnergyPlus-{}/bin".format(raddir, addonpath, epversion)
+        os.environ["PATH"] = os.environ["PATH"] + ":{}/bin:{}/linux:/usr/local/EnergyPlus-{}".format(raddir, addonpath, epversion)
         os.environ["RAYPATH"] = "{}/lib:{}/lib".format(raddir, addonpath)
 
 elif str(sys.platform) == 'win32':
@@ -132,21 +132,38 @@ def register():
 
 # EnVi zone definitions
     Object.envi_type = eprop([("0", "None", "None"), ("1", "Thermal", "Thermal Zone"), ("2", "Shading", "Shading Object")], "EnVi object type", "Specify the EnVi object type", "0")
+    
+# EnVi HVAC Template definitions
+    Object.envi_hvact = bprop("Template:", "", False)
+    Object.envi_hvacht = fprop("", "Heating temperature:", 10, 60, 50)
+    Object.envi_hvacct = fprop("", "Cooling temperature:", -10, 20, 13)
+    Object.envi_hvachlt = eprop([('0', 'LimitFlowRate', 'LimitFlowRate'), ('1', 'LimitCapacity', 'LimitCapacity'), ('2', 'LimitFlowRateAndCapacity', 'LimitFlowRateAndCapacity'), ('3', 'NoLimit', 'NoLimit')], '', "Heating limit type", '3')    
+    Object.envi_hvachaf = fprop("", "Heating air flow rate", 0, 60, 1)
+    Object.envi_hvacshc = fprop("", "Sensible heating capacity", 0, 10000, 1000)
+    Object.envi_hvacclt = eprop([('0', 'LimitFlowRate', 'LimitFlowRate'), ('1', 'LimitCapacity', 'LimitCapacity'), ('2', 'LimitFlowRateAndCapacity', 'NoLimit')], '', "Cooling limit type", '2')
+    Object.envi_hvaccaf = fprop("", "Heating air flow rate", 0, 60, 1)
+    Object.envi_hvacscc = fprop("", "Sensible cooling capacity", 0, 10000, 1000)
+    Object.envi_hvacoam = eprop([('0', 'None', 'None'), ('1', 'Flow/Zone', 'Flow/Zone'), ('2', 'Flow/Person', 'Flow/Person'), ('3', 'Flow/Area', 'Flow/Area'), ('4', 'Sum', 'Sum'), ('5', 'Maximum ', 'Maximum'), ('6', 'DetailedSpecification ', 'DetailedSpecification')], '', "Cooling limit type", '2')
+    Object.envi_hvacfrp = fprop("", "Flow rate per person", 0, 1, 0.008)
+    Object.envi_hvacfrzfa = fprop("", "Flow rate per zone area", 0, 1, 0.008)
+    Object.envi_hvacfrz = fprop("", "Flow rate per zone", 0, 100, 0.1)
+    
 # Heating defintions
-    Object.envi_heat = iprop("W", "Heating", 0, 100000, 0)
+#    Object.envi_heat = iprop("W", "Heating", 0, 100000, 0)
     Object.envi_htsp = iprop(u'\u00b0'+"C", "Temperature", 0, 50, 20)
     Object.envi_htspsched = bprop("Schedule", "Create a thermostat level schedule", False)
     (Object.htspu1, Object.htspu2, Object.htspu3, Object.htspu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
     (Object.htspf1, Object.htspf2, Object.htspf3, Object.htspf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.htspt1, Object.htspt2, Object.htspt3, Object.htspt4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
 # Cooling definitions
-    Object.envi_cool = iprop("W", "Cooling", 0, 100000, 0)
+#    Object.envi_cool = iprop("W", "Cooling", 0, 100000, 0)
     Object.envi_ctsp = iprop(u'\u00b0'+"C", "Temperature", 0, 50, 20)
     Object.envi_ctspsched = bprop("Schedule", "Create a thermostat level schedule", False)
     (Object.ctspu1, Object.ctspu2, Object.ctspu3, Object.ctspu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
     (Object.ctspf1, Object.ctspf2, Object.ctspf3, Object.ctspf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.ctspt1, Object.ctspt2, Object.ctspt3, Object.ctspt4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
 #Occupancy definitions
+    Object.envi_occsched = bprop("Schedule", "Create an occupancy level schedule", False)
     (Object.occu1, Object.occu2, Object.occu3, Object.occu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
     (Object.occf1, Object.occf2, Object.occf3, Object.occf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.occt1, Object.occt2, Object.occt3, Object.occt4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
@@ -175,8 +192,9 @@ def register():
     Object.envi_occtype = eprop([("0", "None", "No occupancy"),("1", "Occupants", "Actual number of people"), ("2", "Person/m"+ u'\u00b2', "Number of people per squared metre floor area"),
                                               ("3", "m"+ u'\u00b2'+"/Person", "Floor area per person")], "", "The type of zone occupancy specification", "0")
     Object.envi_occsmax = fprop("Max", "Maximum level of occupancy that will occur in this schedule", 1, 500, 1)
-    Object.envi_comfort = bprop("Comfort", "Enable comfor calculations for this space", False)
-
+    Object.envi_comfort = bprop("Comfort", "Enable comfort calculations for this space", False)
+    Object.envi_co2 = bprop("C02", "Enable CO2 concentration calculations", False)
+    
 # Infiltration definitions
     Object.envi_inftype = eprop([("0", "None", "No infiltration"), ("1", 'Flow/Zone', "Absolute flow rate in m{}/s".format(u'\u00b3')), ("2", "Flow/Area", 'Flow in m{}/s per m{} floor area'.format(u'\u00b3', u'\u00b2')), 
                                  ("3", "Flow/ExteriorArea", 'Flow in m{}/s per m{} external surface area'.format(u'\u00b3', u'\u00b2')), ("4", "Flow/ExteriorWallArea", 'Flow in m{}/s per m{} external wall surface area'.format(u'\u00b3', u'\u00b2')), 

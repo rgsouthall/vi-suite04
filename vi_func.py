@@ -249,7 +249,8 @@ def processf(pro_op, node):
                 'Zone Mean Air Temperature [C] ! Hourly': 'Mean Temperature ({})'.format(u'\u00b0'),
                 'Zone Mean Radiant Temperature [C] !Hourly' :'Mean Radiant ({})'.format(u'\u00b0'),
                 'Zone Thermal Comfort Fanger Model PPD [%] !Hourly' :'PPD',
-                'Zone Thermal Comfort Fanger Model PMV [] !Hourly' :'PMV'}
+                'Zone Thermal Comfort Fanger Model PMV [] !Hourly' :'PMV',
+                'Zone Air CO2 Concentration [ppm] !Hourly': 'CO2'}
     lresdict = {'AFN Linkage Node 1 to Node 2 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow 1 to 2',
                 'AFN Linkage Node 2 to Node 1 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow 2 to 1',
                 'AFN Surface Venting Window or Door Opening Factor [] !Hourly': 'Opening Factor'}

@@ -8,7 +8,7 @@ try:
 except:
     mp = 0
 
-s = 60
+#s = 60
 #from . import windrose
 dtdf = datetime.date.fromordinal
 
@@ -34,7 +34,7 @@ def radmat(mat, scene):
                 radname, radnums = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format((0.8, 0.8, 0.8), 0, 0)
         else:
             radname, radnums = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format((0.8, 0.8, 0.8), 0, 0)
-            
+
     elif scene.render.engine == 'BLENDER_RENDER':
         matcol = [i * mat.diffuse_intensity for i in mat.diffuse_color]
         matior = mat.raytrace_transparency.ior
@@ -64,22 +64,22 @@ def radmat(mat, scene):
             radname, radnums  = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.2f} {2:.2f}'.format(matcol, mat.specular_intensity, 1.0-mat.specular_hardness/511.0)
     else:
         radname, radnums = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format((0.8, 0.8, 0.8), 0, 0)
-    
+
     return(radname, matname, radnums)
 
 def viparams(scene):
     fd, fn = os.path.dirname(bpy.data.filepath), os.path.splitext(os.path.basename(bpy.data.filepath))[0]
-    
+
     if not os.path.isdir(os.path.join(fd, fn)):
         os.makedirs(os.path.join(fd, fn))
     if not os.path.isdir(os.path.join(fd, fn, 'obj')):
         os.makedirs(os.path.join(fd, fn, 'obj'))
     nd = os.path.join(fd, fn)
     fb, ofb, idf  = os.path.join(nd, fn), os.path.join(nd, 'obj', fn), os.path.join(nd, 'in.idf')
-    
-    scene['viparams'] = {'rm': ('rm ', 'del ')[str(sys.platform) == 'win32'], 'cat': ('cat ', 'type ')[str(sys.platform) == 'win32'], 
+
+    scene['viparams'] = {'rm': ('rm ', 'del ')[str(sys.platform) == 'win32'], 'cat': ('cat ', 'type ')[str(sys.platform) == 'win32'],
     'cp': ('cp ', 'copy ')[str(sys.platform) == 'win32'], 'nproc': str(multiprocessing.cpu_count()), 'filepath': bpy.data.filepath,
-    'filename': fn, 'filedir': fd, 'newdir': nd, 'objfilebase': ofb, 'idf_file': idf, 'filebase': fb} 
+    'filename': fn, 'filedir': fd, 'newdir': nd, 'objfilebase': ofb, 'idf_file': idf, 'filebase': fb}
 
 def nodestate(self, opstate):
     if self['exportstate'] !=  opstate:
@@ -89,7 +89,7 @@ def nodestate(self, opstate):
     else:
         self.exported = True
         if self.bl_label[0] == '*':
-            self.bl_label = self.bl_label[1:-1]    
+            self.bl_label = self.bl_label[1:-1]
 
 def face_centre(ob, obresnum, f):
     vsum = mathutils.Vector((0, 0, 0))
@@ -116,7 +116,7 @@ def retmesh(name, fr, node, scene):
         return(scene['viparams']['objfilebase']+"-{}-{}.mesh".format(name.replace(" ", "_"), fr))
     else:
         return(scene['viparams']['objfilebase']+"-{}-{}.mesh".format(name.replace(" ", "_"), bpy.context.scene.frame_start))
-        
+
 def nodeinputs(node):
     try:
         ins = [i for i in node.inputs if not i.hide]
@@ -135,7 +135,7 @@ def nodeinputs(node):
         return 1
     except:
         pass
-    
+
 def retmat(fr, node, scene):
     if node.animmenu == "Material":
         return("{}-{}.rad".format(scene['viparams']['filebase'], fr))
@@ -148,30 +148,6 @@ def retsky(fr, node, scene):
     else:
         return("{}-{}.sky".format(scene['viparams']['filebase'], scene.frame_start))
 
-#def nodeinit(node):
-#    if str(sys.platform) != 'win32':
-#        node.rm = "rm "
-#        node.cat = "cat "
-#        node.fold = "/"
-#        node.cp = "cp "
-#    else:
-#        node.rm = "del "
-#        node.cat = "type "
-#        node.fold = r'"\"'
-#        node.cp = "copy "
-#    node.nproc = str(multiprocessing.cpu_count())
-#    node.filepath = bpy.data.filepath
-#    node.filename = os.path.splitext(os.path.basename(node.filepath))[0]
-#    node.filedir = os.path.dirname(node.filepath)
-#    if not os.path.isdir(os.path.join(node.filedir, node.filename)):
-#        os.makedirs(os.path.join(node.filedir, node.filename))
-#    if not os.path.isdir(os.path.join(node.filedir, node.filename, 'obj')):
-#       os.makedirs(os.path.join(node.filedir, node.filename, 'obj'))
-#    node.newdir = os.path.join(node.filedir, node.filename)
-#    node.filebase = os.path.join(node.newdir, node.filename)
-#    node.objfilebase = os.path.join(node.newdir, 'obj', node.filename)
-#    node.idf_file = os.path.join(node.newdir, "in.idf")
-
 def nodeexported(self):
     self.exported = 0
 
@@ -182,16 +158,16 @@ def negneg(x):
 
 def clearscene(scene, op):
     if type(op) != str:
-        if op.nodeid.split('@')[0] in ('LiVi Geometry', 'LiVi Simulation', 'LiVi Basic', 'LiVi Compliance', 'LiVi CBDM', 'LiVi Shadow'):            
+        if op.nodeid.split('@')[0] in ('LiVi Geometry', 'LiVi Simulation', 'LiVi Basic', 'LiVi Compliance', 'LiVi CBDM', 'LiVi Shadow'):
             for ob in [ob for ob in scene.objects if ob.type == 'MESH' and ob.get('licalc')]:
                 scene.objects.active = ob
                 while ob.data.vertex_colors:
                     bpy.ops.mesh.vertex_color_remove()
-        
-        if op.nodeid.split('@')[0] not in ('LiVi Simulation', 'LiVi Geometry'):   
+
+        if op.nodeid.split('@')[0] not in ('LiVi Simulation', 'LiVi Geometry'):
             for sunob in [ob for ob in scene.objects if ob.type == 'LAMP' and ob.data.type == 'SUN']:
                 scene.objects.unlink(sunob)
-        
+
     for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
         if ob.lires == 1:
             scene.objects.unlink(ob)
@@ -214,21 +190,7 @@ def clearscene(scene, op):
         if sk.users == 0:
             for keys in sk.keys():
                 keys.animation_data_clear()
-    
 
-#def clearscenege(scene):
-#    for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
-#        scene.objects.active = ob
-#        while ob.data.vertex_colors:
-#            bpy.ops.mesh.vertex_color_remove()
-#            
-#    for sk in bpy.data.shape_keys:
-#        if sk.users == 0:
-#            for keys in sk.keys():
-#                keys.animation_data_clear()
-#              
-#def clearscened(scene):
-    
 
 def processf(pro_op, node):
     rtypes, ctypes, ztypes, zrtypes, ltypes, lrtypes = [], [], [], [], [], []
@@ -255,7 +217,7 @@ def processf(pro_op, node):
                 'AFN Linkage Node 2 to Node 1 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow 2 to 1',
                 'AFN Surface Venting Window or Door Opening Factor [] !Hourly': 'Opening Factor'}
     resdict = {}
-    
+
     connode = node.inputs['Context in'].links[0].from_node
 
     objlist = [obj.name.upper() for obj in bpy.data.objects if obj.envi_type == '1' and obj.layers[1] == True] if connode.bl_idname != 'ViEnInNode' else connode['oblist']
@@ -271,18 +233,13 @@ def processf(pro_op, node):
                 resdict['Hour'].append(linesplit[5])
 
         elif len(linesplit) > 3 and linesplit[2] == 'Day of Simulation[]':
-            resdict[linesplit[0]] = ['Day of Simulation']
-            resdict['Month'] = []
-            resdict['Day'] = []
-            resdict['Hour'] = []
-            dos = linesplit[0]
-            node['rtypes'] = ['Time']
+            resdict[linesplit[0]], resdict['Month'],  resdict['Day'], resdict['Hour'], dos, node['rtypes'] = ['Day of Simulation'], [], [], [], linesplit[0], ['Time']
 
         elif len(linesplit) > 3 and linesplit[2] == 'Environment':
             if 'Climate' not in node['rtypes']:
                 node['rtypes']+= ['Climate']
             try:
-                resdict[linesplit[0]] = ['Climate', envdict[linesplit[3]]]            
+                resdict[linesplit[0]] = ['Climate', envdict[linesplit[3]]]
                 ctypes.append(envdict[linesplit[3]])
             except:
                 pass
@@ -293,10 +250,10 @@ def processf(pro_op, node):
             try:
                 resdict[linesplit[0]] = [linesplit[2], zresdict[linesplit[3]]]
                 if linesplit[2] not in ztypes:
-                    ztypes.append(linesplit[2])                
+                    ztypes.append(linesplit[2])
                 if zresdict[linesplit[3]] not in zrtypes:
                     zrtypes.append(zresdict[linesplit[3]])
-            except Exception as e:
+            except:
                 pass
 
         elif len(linesplit) > 3 and linesplit[3] in lresdict:
@@ -313,19 +270,19 @@ def processf(pro_op, node):
 
     resfile.close()
 #    node['rtypes'] = rtypes
-    node['dos'] = dos
-    node['resdict'] = resdict
-    node['ctypes'] = ctypes
-    node['ztypes'] = ztypes
-    node['zrtypes'] = zrtypes
-    node['ltypes'] = ltypes
-    node['lrtypes'] = lrtypes
-    node.dsdoy = int(resdict[dos][1])
-    node.dedoy = int(resdict[dos][-1])
+    node['dos'], node['resdict'], node['ctypes'], node['ztypes'], node['zrtypes'], node['ltypes'], node['lrtypes'], node.dsdoy, node.dedoy = dos, resdict, ctypes, ztypes, ltypes, lrtypes, int(resdict[dos][1]), int(resdict[dos][-1])
+#    node['resdict'] = resdict
+#    node['ctypes'] = ctypes
+#    node['ztypes'] = ztypes
+#    node['zrtypes'] = zrtypes
+#    node['ltypes'] = ltypes
+#    node['lrtypes'] = lrtypes
+#    node.dsdoy = int(resdict[dos][1])
+#    node.dedoy = int(resdict[dos][-1])
 
 
 def iprop(iname, idesc, imin, imax, idef):
-        return(IntProperty(name = iname, description = idesc, min = imin, max = imax, default = idef))
+    return(IntProperty(name = iname, description = idesc, min = imin, max = imax, default = idef))
 def eprop(eitems, ename, edesc, edef):
     return(EnumProperty(items=eitems, name = ename, description = edesc, default = edef))
 def bprop(bname, bdesc, bdef):
@@ -378,20 +335,16 @@ def boundpoly(obj, mat, poly, enng):
 
 
 def objvol(op, obj):
-    bm = bmesh.new()
+    bm , floor, roof, mesh = bmesh.new(), [], [], obj.data
     bm.from_object(obj, bpy.context.scene)
-
-    floor, roof = [], []
-    mesh = obj.data
     for f in mesh.polygons:
         if obj.data.materials[f.material_index].envi_con_type == 'Floor':
             floor.append((triarea(obj, f), (obj.matrix_world*mathutils.Vector(f.center))[2]))
         elif obj.data.materials[f.material_index].envi_con_type == 'Roof':
             roof.append((triarea(obj, f), (obj.matrix_world*mathutils.Vector(f.center))[2]))
     zfloor = list(zip(*floor))
-    if not zfloor:
-        if op:
-            op.report({'INFO'},"Zone has no floor area")
+    if not zfloor and op:
+        op.report({'INFO'},"Zone has no floor area")
 #    else:
 #        taf = sum(zfloor[0])
 #    avhf = sum([(zfloor[0][i]*zfloor[1][i])/taf for i in range(len(zfloor[0]))])
@@ -407,12 +360,10 @@ def ceilheight(obj, vertz):
     mesh = obj.data
     for vert in mesh.vertices:
         vertz.append((obj.matrix_world * vert.co)[2])
-    zmax = max(vertz)
-    zmin = min(vertz)
+    zmax, zmin = max(vertz), min(vertz)
     ceiling = [max((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) for poly in mesh.polygons if max((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) > 0.9 * zmax]
     floor = [min((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) for poly in mesh.polygons if min((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) < zmin + 0.1 * (zmax - zmin)]
     return(sum(ceiling)/len(ceiling)-sum(floor)/len(floor))
-
 
 def triarea(obj, face):
     omw = obj.matrix_world
@@ -433,9 +384,7 @@ def vsarea(obj, vs):
 
 def rettimes(ts, fs, us):
     tot = range(min(len(ts), len(fs), len(us)))
-    fstrings = [[] for t in tot]
-    ustrings = [[] for t in tot]
-    tstrings = ['Through: {}/{}'.format(dtdf(ts[t]).month, dtdf(ts[t]).day) for t in tot]
+    fstrings, ustrings, tstrings = [[] for t in tot],  [[] for t in tot], ['Through: {}/{}'.format(dtdf(ts[t]).month, dtdf(ts[t]).day) for t in tot]
     for t in tot:
         fstrings[t]= ['For: '+''.join(f) for f in fs[t].split(' ') if f.strip(' ') != '']
         for uf, ufor in enumerate(us[t].split(';')):
@@ -443,8 +392,6 @@ def rettimes(ts, fs, us):
             for ut, utime in enumerate(ufor.split(',')):
                 ustrings[t][uf].append(['Until: '+','.join([u for u in utime.split(' ') if u.strip(' ')])])
     return(tstrings, fstrings, ustrings)
-
-
 
 def windcompass():
     rad1 = 1.4
@@ -656,19 +603,19 @@ def sunpath():
             if skysphere and not skysphere.hide and skysphere.data.materials[0].node_tree:
                 if 'Sky Texture' in [no.bl_label for no in skysphere.data.materials[0].node_tree.nodes]:
                     skysphere.data.materials[0].node_tree.nodes['Sky Texture'].sun_direction = sin(phi), -cos(phi), sin(beta)
-            
+
         sun['solhour'], sun['solday'], sun['soldistance'] = scene.solhour, scene.solday, scene.soldistance
     else:
         return
-        
-def epwlatilongi(scene, node):        
+
+def epwlatilongi(scene, node):
     with open(node.weather, "r") as epwfile:
         fl = epwfile.readline()
         latitude, longitude = float(fl.split(",")[6]), float(fl.split(",")[7])
 #    else:
 #        latitude, longitude = node.latitude, node.longitude
-    return latitude, longitude  
-    
+    return latitude, longitude
+
 #Compute solar position (altitude and azimuth in degrees) based on day of year (doy; integer), local solar time (lst; decimal hours), latitude (lat; decimal degrees), and longitude (lon; decimal degrees).
 def solarPosition(doy, lst, lat, lon):
     #Set the local standard time meridian (lsm) (integer degrees of arc)
@@ -717,7 +664,7 @@ def vcframe(pp, scene, oblist, anim):
                 for vc in ob.data.vertex_colors:
                     vc.active = vc.active_render = vc.name == pp+str(frame)
                     vc.keyframe_insert("active")
-                    vc.keyframe_insert("active_render")   
+                    vc.keyframe_insert("active_render")
             elif scene.vi_disp_3d == 1:
                 for shape in ob.data.shape_keys.key_blocks:
                     if shape.name.isdigit():
@@ -730,37 +677,37 @@ def gentarget(tarnode, result):
     elif tarnode.stat == '1':
         res = max(result)
     elif tarnode.stat == '2':
-        res = min(result)  
+        res = min(result)
     elif tarnode.stat == '3':
         res = sum(result)
-    
+
     if tarnode.value > res and tarnode.ab == '0':
         return(1)
     elif tarnode.value < res and tarnode.ab == '1':
         return(1)
     else:
         return(0)
-        
+
 def selobj(scene, geo):
     for ob in scene.objects:
         ob.select = True if ob == geo else False
     scene.objects.active = geo
-    
+
 def nodeid(node, ngs):
     for ng in ngs:
         if node in ng.nodes[:]:
             return node.name+'@'+ng.name
-            
+
 def nodecolour(node, prob):
-    (node.use_custom_color, node.color) = (1, (1.0, 0.3, 0.3)) if prob else (0, (1.0, 0.3, 0.3)) 
+    (node.use_custom_color, node.color) = (1, (1.0, 0.3, 0.3)) if prob else (0, (1.0, 0.3, 0.3))
     return not prob
-            
+
 def remlink(node, links):
 #    for ng in bpy.data.node_groups:
 #    if node in .nodes[:]:
     for link in links:
         bpy.data.node_groups[node['nodeid'].split('@')[1]].links.remove(link)
-                
+
 def epentry(header, params, paramvs):
     return '{}\n'.format(header+(',', '')[header == ''])+'\n'.join([('    ', '')[header == '']+'{:{width}}! - {}'.format(str(pv[0])+(',', ';')[pv[1] == params[-1]], pv[1], width = s + (0, 4)[header == '']) for pv in zip(paramvs, params)]) + ('\n\n', '')[header == '']
 
@@ -772,7 +719,7 @@ def sockhide(node, lsocknames):
             node.inputs[outs.name].hide = True if outs.links else False
     except Exception as e:
         print(e)
-        
+
 def socklink(sock, ng):
     try:
         for link in sock.links:
@@ -782,7 +729,7 @@ def socklink(sock, ng):
     except:
         pass
 
-def epschedwrite(name, stype, ts, fs, us): 
+def epschedwrite(name, stype, ts, fs, us):
     print(ts, fs, us)
     params = ['Name', 'Schedule Type Limits Name']
     paramvs = [name, stype]
@@ -791,7 +738,7 @@ def epschedwrite(name, stype, ts, fs, us):
         paramvs .append(ts[t])
         for f in range(len(fs[t])):
             params.append('Field {}'.format(len(params)-2))
-            paramvs.append(fs[t][f])                  
+            paramvs.append(fs[t][f])
             for u in range(len(us[t][f])):
                 params.append('Field {}'.format(len(params)-2))
                 paramvs.append(us[t][f][u][0])

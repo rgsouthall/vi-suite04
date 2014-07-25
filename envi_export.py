@@ -13,7 +13,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     enng = [ng for ng in bpy.data.node_groups if 'EnVi Network' in ng.bl_label][0] if [ng for ng in bpy.data.node_groups if 'EnVi Network' in ng.bl_label] else 0
 
     en_idf.write("!- Blender -> EnergyPlus\n!- Using the EnVi export scripts\n!- Author: Ryan Southall\n!- Date: {}\n\nVERSION,8.1.0;\n\n".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
-    
+
     params = ('Name', 'North Axis (deg)', 'Terrain', 'Loads Convergence Tolerance Value', 'Temperature Convergence Tolerance Value (deltaC)',
               'Solar Distribution', 'Maximum Number of Warmup Days(from MLC TCM)')
     paramvs = (node.loc, '0.00', ("City", "Urban", "Suburbs", "Country", "Ocean,")[int(node.terrain)], '0.004', '0.4', 'FullExteriorWithReflections', '15')
@@ -54,7 +54,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: MATERIAL & CONSTRUCTIONS ===========\n\n")
     matcount, matname, namelist = [], [], []
     if 'Window' in [mat.envi_con_type for mat in bpy.data.materials] or 'Door' in [mat.envi_con_type for mat in bpy.data.materials]:
-        params = ('Name', 'Roughness', 'Thickness (m)', 'Conductivity (W/m-K)', 'Density (kg/m3)', 'Specific Heat (J/kg-K)', 'Thermal Absorptance', 'Solar Absorptance', 'Visible Absorptance', 'Name', 'Outside Layer') 
+        params = ('Name', 'Roughness', 'Thickness (m)', 'Conductivity (W/m-K)', 'Density (kg/m3)', 'Specific Heat (J/kg-K)', 'Thermal Absorptance', 'Solar Absorptance', 'Visible Absorptance', 'Name', 'Outside Layer')
         paramvs = ('Wood frame', 'Rough', '0.12', '0.1', '1400.00', '1000', '0.9', '0.6', '0.6', 'Frame', 'Wood frame')
         en_idf.write(epentry('Material', params[:-2], paramvs[:-2]))
         en_idf.write(epentry('Construction', params[-2:], paramvs[-2:]))
@@ -88,7 +88,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 
         elif mat.envi_con_makeup == '1' and mat.envi_con_type not in ('None', 'Shading', 'Aperture'):
             thicklist = (mat.envi_export_lo_thi, mat.envi_export_l1_thi, mat.envi_export_l2_thi, mat.envi_export_l3_thi, mat.envi_export_l4_thi)
-            conname = mat.name            
+            conname = mat.name
             for l, layer in enumerate([i for i in itertools.takewhile(lambda x: x != "0", (mat.envi_layero, mat.envi_layer1, mat.envi_layer2, mat.envi_layer3, mat.envi_layer4))]):
                 if layer == "1" and mat.envi_con_type in ("Wall", "Floor", "Roof"):
                     mats = ((mat.envi_export_bricklist_lo, mat.envi_export_claddinglist_lo, mat.envi_export_concretelist_lo, mat.envi_export_metallist_lo, mat.envi_export_stonelist_lo, mat.envi_export_woodlist_lo, mat.envi_export_gaslist_lo, mat.envi_export_insulationlist_lo), \
@@ -132,7 +132,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 conlist.append((mats)+'-'+str(matcount.count(mats)))
                 matname.append((mats)+'-'+str(matcount.count(mats)))
                 matcount.append(mats)
-            
+
             params, paramvs = ['Name'],  [mat.name]
             for i, mn in enumerate(conlist):
                 params.append('Layer {}'.format(i))
@@ -161,7 +161,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     hcparams = ('Name', 'Setpoint Temperature Schedule Name', 'Setpoint Temperature Schedule Name')
     spparams = ('Name', 'Setpoint Temperature Schedule Name')
 #    cspparams = ('Name', 'Setpoint Temperature Schedule Name')
-    
+
     for obj in [obj for obj in bpy.data.objects if obj.layers[1] and obj.type == 'MESH' and obj.envi_type != '0']:
         obm, odv = obj.matrix_world, obj.data.vertices
         obj["floorarea"] = sum([triarea(obj, face) for face in obj.data.polygons if obj.data.materials[face.material_index].envi_con_type =='floor'])
@@ -187,7 +187,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 paramvs = [('win-', 'door-')[mat.envi_con_type == 'Door']+'{}_{}'.format(obj.name, poly.index), mat.envi_con_type, mat.name, '{}_{}'.format(obj.name, poly.index), obco, 'autocalculate', '', '', '1', len(poly.vertices)] + \
                 ["  {0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}".format((xav+((obm * odv[v].co)[0]-xav)*0.95, yav+((obm * odv[v].co)[1]-yav)*0.95, zav+((obm * odv[v].co)[2]-zav)*0.95)) for v in poly.vertices]
                 en_idf.write(epentry('FenestrationSurface:Detailed', params, paramvs))
-                
+
             elif mat.envi_con_type == 'Shading':
                 params = ['Name', 'Transmittance Schedule Name', 'Number of Vertices'] + ['X,Y,Z ==> Vertex {} (m)'.format(v) for v in range(len(poly.vertices))]
                 paramvs = ['{}_{}'.format(obj.name, poly.index), '', len(poly.vertices)] + ['{0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}'.format(obm * odv[poly.vertices[v]].co) for v in range(len(poly.vertices))]
@@ -206,7 +206,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     params = ['Name']
     paramvs = ["Any Number"]
     en_idf.write(epentry('ScheduleTypeLimits', params, paramvs))
-    
+
     hcoiobjs = [hcoiwrite(obj) for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type == '1']
 
     for hcoiobj in hcoiobjs:
@@ -225,20 +225,20 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 en_idf.write(hcoiobj.clschedwrite())
                 if hcoiobj.obj.envi_co2:
                     en_idf.write(hcoiobj.co2sched())
-                    
-        if (hcoiobj.obj.envi_occtype == "1" and hcoiobj.obj.envi_occinftype != 0) or (hcoiobj.obj.envi_occtype != "1" and hcoiobj.obj.envi_inftype != 0):   
+
+        if (hcoiobj.obj.envi_occtype == "1" and hcoiobj.obj.envi_occinftype != 0) or (hcoiobj.obj.envi_occtype != "1" and hcoiobj.obj.envi_inftype != 0):
             en_idf.write(hcoiobj.zisched())
-            
+
     if enng:
         for snode in [snode for snode in enng.nodes if snode.bl_idname == 'EnViSched' and snode.outputs['Schedule'].is_linked]:
             en_idf.write(snode.epwrite())
-    
+
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: THERMOSTSTATS ===========\n\n")
     for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc]:
         en_idf.write(hcoiobj.thermowrite())
         en_idf.write(hcoiobj.zc())
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: EQUIPMENT ===========\n\n")
-    for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc and not hcoiobj.obj.envi_hvact]: 
+    for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc and not hcoiobj.obj.envi_hvact]:
         en_idf.write(hcoiobj.ec())
         en_idf.write(hcoiobj.el())
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: HVAC ===========\n\n")
@@ -250,21 +250,21 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     for hcoiobj in hcoiobjs:
         if hcoiobj.obj.envi_occtype != "0":
             en_idf.write(hcoiobj.peoplewrite())
-    
+
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: CONTAMINANTS ===========\n\n")
     co2 = 0
     for hcoiobj in hcoiobjs:
         if hcoiobj.obj.envi_co2 and not co2:
             en_idf.write(hcoiobj.co2())
             co2 = 1
-    
+
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: INFILTRATION ===========\n\n")
-    for hcoiobj in hcoiobjs:       
+    for hcoiobj in hcoiobjs:
         if (hcoiobj.obj.envi_occtype == "1" and hcoiobj.obj.envi_occinftype != '0') or (hcoiobj.obj.envi_occtype != "1" and hcoiobj.obj.envi_inftype != '0'):
             en_idf.write(hcoiobj.zi())
-    
-    en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: AIRFLOW NETWORK ===========\n\n")            
-    
+
+    en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: AIRFLOW NETWORK ===========\n\n")
+
     writeafn(exp_op, en_idf, enng)
 
     en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: REPORT VARIABLE ===========\n\n")
@@ -289,9 +289,9 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     if node.reslof == True:
         for snode in [snode for snode in enng.nodes if snode.bl_idname == 'EnViSSFlow']:
             if snode.linkmenu in ('SO', 'DO', 'HO'):
-                for sno in snode['sname']:                    
-                    en_idf.write("Output:Variable,{},AFN Surface Venting Window or Door Opening Factor,hourly;\n".format(sno)) 
-        
+                for sno in snode['sname']:
+                    en_idf.write("Output:Variable,{},AFN Surface Venting Window or Door Opening Factor,hourly;\n".format(sno))
+
     en_idf.write("Output:Table:SummaryReports,\
     AllSummary;              !- Report 1 Name")
     en_idf.close()
@@ -322,11 +322,10 @@ def pregeo(op):
         if obj.envi_type == '1':
             if 'EnVi Network' not in bpy.data.node_groups.keys():
                 enng = bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network")
-                enng.use_fake_user = 1
+                bpy.data.node_groups['EnVi Network'].use_fake_user = 1
             else:
-                enng = bpy.data.node_groups['EnVi Network']    
-        
-#        bpy.data.scenes[0].layers[0:2] = (True, False)    
+                enng = bpy.data.node_groups['EnVi Network']
+
         for mats in obj.data.materials:
             if 'en_'+mats.name not in [mat.name for mat in bpy.data.materials]:
                 mats.copy().name = 'en_'+mats.name
@@ -342,7 +341,7 @@ def pregeo(op):
         for s, slots in enumerate(en_obj.material_slots):
             slots.material = bpy.data.materials['en_'+obj.data.materials[s].name]
             slots.material.envi_export = True
-            
+
             dcdict = {'Wall':(1,1,1), 'Partition':(0.5,0.5,0.5), 'Window':(0,1,1), 'Roof':(0,1,0), 'Ceiling':(0, 0.5, 0), 'Floor':(0.44,0.185,0.07), 'Ground':(0.22, 0.09, 0.04), 'Shading':(1, 0, 0), 'Aperture':(0, 0, 1)}
             if slots.material.envi_con_type in dcdict.keys():
                 slots.material.diffuse_color = dcdict[slots.material.envi_con_type]
@@ -367,6 +366,9 @@ def pregeo(op):
             for node in enng.nodes:
                 if hasattr(node, 'zone') and node.zone == en_obj.name:
                     node.zupdate(bpy.context)
+        bpy.data.scenes[0].layers[0:2] = (True, False)
+        obj.select = True
+        scene.objects.active = obj
 
 class hcoiwrite(object):
     def __init__(self, obj):
@@ -376,7 +378,7 @@ class hcoiwrite(object):
         self.hc = ('', 'SingleHeating', 'SingleCooling', 'DualSetpoint')[(not self.h and not self.c, self.h and not self.c, not self.h and self.c, self.h and self.c).index(1)]
         self.ctdict = {'DualSetpoint': 4, 'SingleHeating': 1, 'SingleCooling': 2}
         self.limittype = {'0': 'LimitFlowRate', '1': 'LimitCapacity', '2': 'LimitFlowRateAndCapacity', '3': 'NoLimit', '4': ''}
-        
+
     def htspwrite(self):
         if self.obj.envi_htspsched:
             ths = [self.obj.htspt1, self.obj.htspt2, self.obj.htspt3, self.obj.htspt4]
@@ -384,21 +386,21 @@ class hcoiwrite(object):
             uns = [us for us in (self.obj.htspu1, self.obj.htspu2, self.obj.htspu3, self.obj.htspu4) if us]
             ts, fs, us = rettimes(ths, fos, uns)
             return epschedwrite(self.obj.name + '_htspsched', 'Temperature', ts, fs, us)
-        else:   
+        else:
             return epschedwrite(self.obj.name + '_htspsched', 'Temperature', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(self.obj.envi_htsp)]]]])
-    
-    def ctspwrite(self):        
+
+    def ctspwrite(self):
         if self.obj.envi_ctspsched:
             ths = [self.obj.ctspt1, self.obj.ctspt2, self.obj.ctspt3, self.obj.ctspt4]
             fos = [fs for fs in (self.obj.ctspf1, self.obj.ctspf2, self.obj.ctspf3, self.obj.ctspf4) if fs]
             uns = [us for us in (self.obj.ctspu1, self.obj.ctspu2, self.obj.ctspu3, self.obj.ctspu4) if us]
             tts, tfs, tus = rettimes(ths, fos, uns)
             return epschedwrite(self.obj.name + '_ctspsched', 'Temperature', tts, tfs, tus)
-        else:   
+        else:
             return epschedwrite(self.obj.name + '_ctspsched', 'Temperature', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(self.obj.envi_ctsp)]]]])
-        
+
     def thermowrite(self):
-        params = ['Name', 'Setpoint Temperature Schedule Name']        
+        params = ['Name', 'Setpoint Temperature Schedule Name']
         if self.hc ==  'DualSetpoint':
             params += ['Setpoint Temperature Schedule Name 2']
             paramvs = [self.obj.name+'_tsp', self.obj.name + '_htspsched', self.obj.name + '_ctspsched']
@@ -407,20 +409,20 @@ class hcoiwrite(object):
         elif self.hc == 'SingleCooling':
             paramvs = [self.obj.name+'_tsp', self.obj.name + '_ctspsched']
         return epentry('ThermostatSetpoint:{}'.format(self.hc), params, paramvs)
-    
+
     def zc(self):
         params = ('Name', 'Zone or Zonelist Name', 'Control Type Schedule Name', 'Control 1 Object Type', 'Control 1 Name')
         paramvs = (self.obj.name+'_thermostat', self.obj.name, self.obj.name+'_thermocontrol', 'ThermostatSetpoint:{}'.format(self.hc), self.obj.name + '_tsp')
         return epentry('ZoneControl:Thermostat', params, paramvs)
-        
-    def consched(self): 
+
+    def consched(self):
         return epschedwrite(self.obj.name + '_thermocontrol', 'Control type', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(self.ctdict[self.hc])]]]])
 
     def ec(self):
-        params = ('Zone Name', 'Zone Conditioning Equipment List Name', 'Zone Air Inlet Node or NodeList Name', 'Zone Air Exhaust Node or NodeList Name', 
+        params = ('Zone Name', 'Zone Conditioning Equipment List Name', 'Zone Air Inlet Node or NodeList Name', 'Zone Air Exhaust Node or NodeList Name',
                   'Zone Air Node Name', 'Zone Return Air Node Name')
         paramvs = (self.obj.name, self.obj.name+'_Equipment', self.obj.name+'_supairnode', '', self.obj.name+'_airnode', self.obj.name+'_retairnode')
-        return epentry('ZoneHVAC:EquipmentConnections', params, paramvs)    
+        return epentry('ZoneHVAC:EquipmentConnections', params, paramvs)
 
     def el(self):
         params = ('Name', 'Zone Equipment 1 Object Type', 'Zone Equipment 1 Name', 'Zone Equipment 1 Cooling Sequence', 'Zone Equipment 1 Heating or No-Load Sequence')
@@ -428,36 +430,36 @@ class hcoiwrite(object):
         return epentry('ZoneHVAC:EquipmentList', params, paramvs)
 
     def zh(self):
-        params = ('Name', 'Availability Schedule Name', 'Zone Supply Air Node Name', 'Zone Exhaust Air Node Name', 
+        params = ('Name', 'Availability Schedule Name', 'Zone Supply Air Node Name', 'Zone Exhaust Air Node Name',
               "Maximum Heating Supply Air Temperature ("+ u'\u00b0'+"C)", "Minimum Cooling Supply Air Temperature ("+ u'\u00b0'+"C)",
-              'Maximum Heating Supply Air Humidity Ratio (kgWater/kgDryAir)', 'Minimum Cooling Supply Air Humidity Ratio (kgWater/kgDryAir)', 
-              'Heating Limit', 'Maximum Heating Air Flow Rate (m3/s)', 'Maximum Sensible Heating Capacity (W)', 
+              'Maximum Heating Supply Air Humidity Ratio (kgWater/kgDryAir)', 'Minimum Cooling Supply Air Humidity Ratio (kgWater/kgDryAir)',
+              'Heating Limit', 'Maximum Heating Air Flow Rate (m3/s)', 'Maximum Sensible Heating Capacity (W)',
               'Cooling limit', 'Maximum Cooling Air Flow Rate (m3/s)', 'Maximum Total Cooling Capacity (W)', 'Heating Availability Schedule Name',
               'Cooling Availability Schedule Name', 'Dehumidification Control Type', 'Cooling Sensible Heat Ratio (dimensionless)', 'Humidification Control Type',
               'Design Specification Outdoor Air Object Name', 'Outdoor Air Inlet Node Name', 'Demand Controlled Ventilation Type', 'Outdoor Air Economizer Type',
               'Heat Recovery Type', 'Sensible Heat Recovery Effectiveness (dimensionless)', 'Latent Heat Recovery Effectiveness (dimensionless)')
-        paramvs = ('{}_Air'.format(self.obj.name), '', '{}_supairnode'.format(self.obj.name), '', self.obj.envi_hvacht, self.obj.envi_hvacct, 0.015, 0.009, self.limittype[self.obj.envi_hvachlt], 
-                   self.obj.envi_hvachaf if self.obj.envi_hvachlt in ('0', '2') else '', self.obj.envi_hvacshc if self.obj.envi_hvachlt in ('1', '2') else '', self.limittype[self.obj.envi_hvacclt], 
-                   self.obj.envi_hvaccaf if self.obj.envi_hvacclt in ('0', '2') else '', self.obj.envi_hvacscc if self.obj.envi_hvacclt in ('1', '2') else '', 
+        paramvs = ('{}_Air'.format(self.obj.name), '', '{}_supairnode'.format(self.obj.name), '', self.obj.envi_hvacht, self.obj.envi_hvacct, 0.015, 0.009, self.limittype[self.obj.envi_hvachlt],
+                   self.obj.envi_hvachaf if self.obj.envi_hvachlt in ('0', '2') else '', self.obj.envi_hvacshc if self.obj.envi_hvachlt in ('1', '2') else '', self.limittype[self.obj.envi_hvacclt],
+                   self.obj.envi_hvaccaf if self.obj.envi_hvacclt in ('0', '2') else '', self.obj.envi_hvacscc if self.obj.envi_hvacclt in ('1', '2') else '',
                    '', '', 'ConstantSupplyHumidityRatio', '', 'ConstantSupplyHumidityRatio', '', '', '', '', '', '', '')
         return epentry('ZoneHVAC:IdealLoadsAirSystem', params, paramvs)
-    
-    def zht(self):  
+
+    def zht(self):
         oam = {'0':'None', '1':'Flow/Zone', '2':'Flow/Person', '3':'Flow/Area', '4':'Sum', '5':'Maximum', '6':'DetailedSpecification'}
         params = ('Zone Name' , 'Thermostat Name', 'System Availability Schedule Name', 'Maximum Heating Supply Air Temperature', 'Minimum Cooling Supply Air Temperature',
                 'Maximum Heating Supply Air Humidity Ratio (kgWater/kgDryAir)', 'Minimum Cooling Supply Air Humidity Ratio (kgWater/kgDryAir)', 'Heating Limit', 'Maximum Heating Air Flow Rate (m3/s)',
-                'Maximum Sensible Heating Capacity (W)', 'Cooling Limit', 'Maximum Cooling Air Flow Rate (m3/s)', 'Maximum Total Cooling Capacity (W)', 'Heating Availability Schedule Name', 
-                'Cooling Availability Schedule Name', 'Dehumidification Control Type', 'Cooling Sensible Heat Ratio', 'Dehumidification Setpoint (percent)', 'Humidification Control Type', 
-                'Humidification Setpoint (percent)', 'Outdoor Air Method', 'Outdoor Air Flow Rate per Person (m3/s)', 'Outdoor Air Flow Rate per Zone Floor (m3/s-m2)', 'Outdoor Air Flow Rate per Zone (m3/s)', 
+                'Maximum Sensible Heating Capacity (W)', 'Cooling Limit', 'Maximum Cooling Air Flow Rate (m3/s)', 'Maximum Total Cooling Capacity (W)', 'Heating Availability Schedule Name',
+                'Cooling Availability Schedule Name', 'Dehumidification Control Type', 'Cooling Sensible Heat Ratio', 'Dehumidification Setpoint (percent)', 'Humidification Control Type',
+                'Humidification Setpoint (percent)', 'Outdoor Air Method', 'Outdoor Air Flow Rate per Person (m3/s)', 'Outdoor Air Flow Rate per Zone Floor (m3/s-m2)', 'Outdoor Air Flow Rate per Zone (m3/s)',
                 'Design Specification Outdoor Air Object', 'Demand Controlled Ventilation Type', 'Outdoor Air Economizer Type', 'Heat Recovery Type', 'Sensible Heat Recovery Effectiveness',
                 'Latent Heat Recovery Effectiveness')
-        paramvs = (self.obj.name, '', '', self.obj.envi_hvacht, self.obj.envi_hvacct, 0.015, 0.009, self.limittype[self.obj.envi_hvachlt], self.obj.envi_hvachaf if self.obj.envi_hvachlt in ('0', '2') else '', 
-                   self.obj.envi_hvacshc if self.obj.envi_hvachlt in ('1', '2') else '', self.limittype[self.obj.envi_hvacclt], self.obj.envi_hvaccaf if self.obj.envi_hvacclt in ('0', '2') else '', 
-                    self.obj.envi_hvacscc if self.obj.envi_hvacclt in ('1', '2') else '', '', '', 'None', '', '', 'None', '', oam[self.obj.envi_hvacoam], self.obj.envi_hvacfrp if self.obj.envi_hvacoam in ('2', '4', '5') else '', 
+        paramvs = (self.obj.name, '', '', self.obj.envi_hvacht, self.obj.envi_hvacct, 0.015, 0.009, self.limittype[self.obj.envi_hvachlt], self.obj.envi_hvachaf if self.obj.envi_hvachlt in ('0', '2') else '',
+                   self.obj.envi_hvacshc if self.obj.envi_hvachlt in ('1', '2') else '', self.limittype[self.obj.envi_hvacclt], self.obj.envi_hvaccaf if self.obj.envi_hvacclt in ('0', '2') else '',
+                    self.obj.envi_hvacscc if self.obj.envi_hvacclt in ('1', '2') else '', '', '', 'None', '', '', 'None', '', oam[self.obj.envi_hvacoam], self.obj.envi_hvacfrp if self.obj.envi_hvacoam in ('2', '4', '5') else '',
                     self.obj.envi_hvacfrzfa if self.obj.envi_hvacoam in ('3', '4', '5') else '', self.obj.envi_hvacfrz if self.obj.envi_hvacoam in ('1', '4', '5') else '', '', 'None', 'NoEconomizer', 'None', 0.7, 0.65)
         bpy.context.scene['viparams']['hvactemplate'] = 1
         return epentry('HVACTemplate:Zone:IdealLoadsAirSystem', params, paramvs)
-                    
+
     def peoplewrite(self):
         plist = ['', '', '']
         plist[int(self.obj.envi_occtype) - 1] = self.obj.envi_occsmax
@@ -470,7 +472,7 @@ class hcoiwrite(object):
                        'Clothing Insulation Schedule Name', 'Air Velocity Schedule Name', 'Thermal Comfort Model 1 Type']
             paramvs += [3.82E-8, 'No', 'zoneaveraged', '', self.obj.name + '_wesched', 'ClothingInsulationSchedule', '', self.obj.name + '_clsched', self.obj.name + '_avsched', 'FANGER']
         return epentry('People', params, paramvs)
-                
+
     def schedwrite(self):
         if self.obj.envi_occsched:
             ths = [self.obj.occt1, self.obj.occt2, self.obj.occt3, self.obj.occt4]
@@ -480,7 +482,7 @@ class hcoiwrite(object):
             return epschedwrite(self.obj.name + '_occsched', 'Fraction', self.pts, self.pfs, self.pus)
         else:
             return epschedwrite(self.obj.name + '_occsched', 'Any number', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(self.obj.envi_occsmax)]]]])
-            
+
     def aschedwrite(self):
         if self.obj.envi_asched:
             aths = [self.obj.aocct1, self.obj.aocct2, self.obj.aocct3, self.obj.aocct4]
@@ -488,9 +490,9 @@ class hcoiwrite(object):
             auns = [us for us in (self.obj.aoccu1, self.obj.aoccu2, self.obj.aoccu3, self.obj.aoccu4) if us]
             ats, afs, aus = rettimes(aths, afos, auns)
             return epschedwrite(self.obj.name + '_actsched', 'Any number', ats, afs, aus)
-        else:   
+        else:
             return epschedwrite(self.obj.name + '_actsched', 'Any number', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(self.obj.envi_occwatts)]]]])
-    
+
     def weschedwrite(self):
         if self.obj.envi_wsched:
             wths = [self.obj.wocct1, self.obj.wocct2, self.obj.wocct3, self.obj.wocct4]
@@ -503,7 +505,7 @@ class hcoiwrite(object):
 
     def cischedwrite(self):
         return epschedwrite(self.obj.name + '_cisched', 'Any number', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(5)]]]])
-        
+
     def avschedwrite(self):
         if self.obj.envi_avsched:
             avths = [self.obj.avocct1, self.obj.avocct2, self.obj.avocct3, self.obj.avocct4]
@@ -513,7 +515,7 @@ class hcoiwrite(object):
             return epschedwrite(self.obj.name + '_avsched', 'Any number', avts, avfs, avus)
         else:
             return epschedwrite(self.obj.name + '_avsched', 'Any number', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{:.2}'.format(self.obj.envi_airv)]]]])
-    
+
     def clschedwrite(self):
         if self.obj.envi_clsched:
             cths = [self.obj.cocct1, self.obj.cocct2, self.obj.cocct3, self.obj.cocct4]
@@ -522,17 +524,17 @@ class hcoiwrite(object):
             cts, cfs, cus = rettimes(cths, cfos, cuns)
             return epschedwrite(self.obj.name + '_clsched', 'Any number', cts, cfs, cus)
         else:
-            return epschedwrite(self.obj.name + '_clsched', 'Any number', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{:.2}'.format(self.obj.envi_cloth)]]]])  
-            
+            return epschedwrite(self.obj.name + '_clsched', 'Any number', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{:.2}'.format(self.obj.envi_cloth)]]]])
+
     def co2(self):
         params = ('Carbon Dioxide Concentration', 'Outdoor Carbon Dioxide Schedule Name', 'Generic Contaminant Concentration', 'Outdoor Generic Contaminant Schedule Name')
         paramvs = ('Yes', 'Default outdoor CO2 levels 400 ppm', 'No', '')
         return epentry('ZoneAirContaminantBalance', params, paramvs)
-    
+
     def co2sched(self):
-        return epschedwrite('Default outdoor CO2 levels 400 ppm', 'Any number', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format('400')]]]]) 
-        
-        
+        return epschedwrite('Default outdoor CO2 levels 400 ppm', 'Any number', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format('400')]]]])
+
+
     def zi(self):
         self.infiltype = self.obj.envi_inftype if self.obj.envi_occtype != '1' else self.obj.envi_occinftype
         self.infildict = {'0': '', '1': 'Flow/Zone', '2': 'Flow/Area', '3': 'Flow/ExteriorArea', '4': 'Flow/ExteriorWallArea',
@@ -547,7 +549,7 @@ class hcoiwrite(object):
         paramvs = [self.obj.name + '_infiltration', self.obj.name, self.obj.name + '_infilsched', self.infildict[self.infiltype]] + inflist + [1, 0, 0, 0]
         return epentry('ZoneInfiltration:DesignFlowRate', params, paramvs)
 
-            
+
     def zisched(self):
         if self.obj.envi_occtype == '1' and self.obj.envi_occinftype == '6':
             return epschedwrite(self.obj.name + '_infilsched', 'Fraction', self.pts, self.pfs, self.pus)
@@ -563,21 +565,21 @@ class hcoiwrite(object):
 def writeafn(exp_op, en_idf, enng):
     enng['enviparams'] = {'wpca': 0, 'wpcn': 0, 'crref': 0}
     if not len([enode for enode in enng.nodes if enode.bl_idname == 'AFNCon']):
-        enng.nodes.new(type = 'AFNCon')   
+        enng.nodes.new(type = 'AFNCon')
     en_idf.write([enode for enode in enng.nodes if enode.bl_idname == 'AFNCon'][0].epwrite(exp_op, enng))
     if [enode for enode in enng.nodes if enode.bl_idname == 'EnViCrRef']:
         en_idf.write([enode for enode in enng.nodes if enode.bl_idname == 'EnViCrRef'][0].epwrite())
         enng['enviparams']['crref'] = 1
-    extnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViExt']    
+    extnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViExt']
     zonenodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViZone']
     ssafnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViSSFlow']
     safnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViSFlow']
-    
+
     if enng['enviparams']['wpca'] == 1:
         for extnode in extnodes:
-            en_idf.write(extnode.epwrite(enng))        
+            en_idf.write(extnode.epwrite(enng))
     for enode in zonenodes:
         en_idf.write(enode.epwrite())
     for enode in ssafnodes + safnodes:
         en_idf.write(enode.epwrite(exp_op, enng))
-            
+

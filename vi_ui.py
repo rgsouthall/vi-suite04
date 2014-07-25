@@ -14,7 +14,7 @@ class Vi3DPanel(bpy.types.Panel):
     def draw(self, context):
         scene = context.scene
         if scene.vi_display == 1:
-            view = context.space_data            
+            view = context.space_data
             layout = self.layout
 
             if scene.wr_disp_panel == 1:
@@ -46,7 +46,7 @@ class Vi3DPanel(bpy.types.Panel):
                     if scene.render.engine == 'BLENDER_RENDER' and context.active_object and context.active_object.type == 'MESH':
                         row = layout.row()
                         row.prop(context.active_object, "show_wire")
-                    
+
                     if int(context.scene.vi_disp_3d) == 1:
                         newrow(layout, "3D Level", scene, "vi_disp_3dlevel")
 
@@ -88,14 +88,14 @@ class VIMatPanel(bpy.types.Panel):
         row = layout.row()
         row.prop(cm, "livi_sense")
         row = layout.row()
-        
+
         if bpy.data.node_groups.get(context.scene.restree):
-            ng = bpy.data.node_groups[context.scene.restree] 
+            ng = bpy.data.node_groups[context.scene.restree]
             if ng.nodes.get(context.scene.resnode):
                 node = ng.nodes[context.scene.resnode]
                 if 'LiVi' in node.bl_label:
                     if node.inputs['Context in'].is_linked:
-                        connode = node.inputs['Context in'].links[0].from_node        
+                        connode = node.inputs['Context in'].links[0].from_node
                         if 'LiVi Compliance' in connode.bl_label:
                             if cm.livi_sense:
                                 if connode.analysismenu == '0':
@@ -113,9 +113,9 @@ class VIMatPanel(bpy.types.Panel):
                                     if cm.rspacemenu == '2':
                                         row = layout.row()
                                         row.label('Warning: Not an assessable CfSH space')
-        
+
         row = layout.row()
-        row.label('LiVi Radiance type:')        
+        row.label('LiVi Radiance type:')
         radname, matname, radnum = radmat(cm, context.scene)
         row.label(radname.capitalize())
         layout = self.layout
@@ -132,7 +132,7 @@ class VIMatPanel(bpy.types.Panel):
             if cm.envi_con_makeup == '1':
                 newrow(layout, "Outside layer:", cm, "envi_layero")
                 row = layout.row()
-                if cm.envi_layero == '1':                    
+                if cm.envi_layero == '1':
                     if cm.envi_con_type == "Window":
                         newrow(layout, "Glass Type:", cm, "envi_export_glasslist_lo")
                     elif cm.envi_con_type in ("Wall", "Roof", "Floor", "Door"):
@@ -144,14 +144,14 @@ class VIMatPanel(bpy.types.Panel):
                 elif cm.envi_layero == '2' and cm.envi_con_type != 'Window':
                     for end in ('name', 0, 'thi', 'tc', 0, 'rho', 'shc', 0, 'tab', 'sab', 0, 'vab', 'rough'):
                         if end:
-                            row.prop(cm, '{}{}'.format("envi_export_lo_", end)) 
-                        else: 
+                            row.prop(cm, '{}{}'.format("envi_export_lo_", end))
+                        else:
                             row = layout.row()
 
                 elif cm.envi_layero == '2' and cm.envi_con_type == 'Window':
                     for end in ('name', 0, 'thi', 'tc', 0, 'odt', 0, 'sds', 0, 'stn', 'fsn', 'bsn', 0, 'vtn', 'fvrn', 'bvrn', 0, 'itn', 'fie', 'bie'):
                         if end:
-                            row.prop(cm, '{}{}'.format("envi_export_lo_", end))  
+                            row.prop(cm, '{}{}'.format("envi_export_lo_", end))
                         else:
                             row = layout.row()
 
@@ -172,7 +172,7 @@ class VIMatPanel(bpy.types.Panel):
                     elif cm.envi_layer1 == '2' and cm.envi_con_type != 'Window':
                         for end in ('name', 0, 'thi', 'tc', 0, 'rho', 'shc', 0, 'tab', 'sab', 0, 'vab', 'rough'):
                             if end:
-                                row.prop(cm, '{}{}'.format("envi_export_l1_", end))  
+                                row.prop(cm, '{}{}'.format("envi_export_l1_", end))
                             else:
                                 row = layout.row()
 
@@ -197,14 +197,14 @@ class VIMatPanel(bpy.types.Panel):
                         elif cm.envi_layer2 == '2'and cm.envi_con_type != 'Window':
                             for end in ('name', 0, 'thi', 'tc', 0, 'rho', 'shc', 0, 'tab', 'sab', 0, 'vab', 'rough'):
                                 if end:
-                                    row.prop(cm, '{}{}'.format("envi_export_l2_", end))  
-                                else: 
+                                    row.prop(cm, '{}{}'.format("envi_export_l2_", end))
+                                else:
                                     row = layout.row()
 
                         elif cm.envi_layer2 == '2' and cm.envi_con_type == 'Window':
                             for end in ('name', 0, 'thi', 'tc', 0, 'odt', 0, 'sds', 0, 'stn', 'fsn', 'bsn', 0, 'vtn', 'fvrn', 'bvrn', 0, 'itn', 'fie', 'bie'):
                                 if end:
-                                    row.prop(cm, '{}{}'.format("envi_export_l2_", end))  
+                                    row.prop(cm, '{}{}'.format("envi_export_l2_", end))
                                 else:
                                     row = layout.row()
 
@@ -230,7 +230,7 @@ class VIMatPanel(bpy.types.Panel):
                             elif cm.envi_layer3 == '2'and cm.envi_con_type != 'Window':
                                 for end in ('name', 0, 'thi', 'tc', 0, 'rho', 'shc', 0, 'tab', 'sab', 0, 'vab', 'rough'):
                                     if end:
-                                        row.prop(cm, '{}{}'.format("envi_export_l3_", end))  
+                                        row.prop(cm, '{}{}'.format("envi_export_l3_", end))
                                     else:
                                         row = layout.row()
 
@@ -262,14 +262,14 @@ class VIMatPanel(bpy.types.Panel):
                                 elif cm.envi_layer4 == '2' and cm.envi_con_type != 'Window':
                                     for end in ('name', 0, 'thi', 'tc', 0, 'rho', 'shc', 0, 'tab', 'sab', 0, 'vab', 'rough'):
                                         if end:
-                                            row.prop(cm, '{}{}'.format("envi_export_l4_", end))  
+                                            row.prop(cm, '{}{}'.format("envi_export_l4_", end))
                                         else:
                                             row = layout.row()
 
                                 elif cm.envi_layer4 == '2' and cm.envi_con_type == 'Window':
                                     for end in ('name', 0, 'thi', 'tc', 0, 'odt', 0, 'sds', 0, 'stn', 'fsn', 'bsn', 0, 'vtn', 'fvrn', 'bvrn', 0, 'itn', 'fie', 'bie'):
                                         if end:
-                                            row.prop(cm, '{}{}'.format("envi_export_l4_", end)) 
+                                            row.prop(cm, '{}{}'.format("envi_export_l4_", end))
                                         else:
                                             row = layout.row()
 
@@ -285,7 +285,7 @@ class VIMatPanel(bpy.types.Panel):
                             row.prop(cm, thicklist[l])
                             row.label(text = "default: "+str(envi_mats.matdat[layername][7])+"mm")
                         row = layout.row()
-                
+
                 elif cm.envi_con_type == 'Floor':
                     row.prop(cm, "envi_export_floorconlist")
                     row = layout.row()
@@ -365,11 +365,11 @@ class EnZonePanel(bpy.types.Panel):
             row.label('Heating -----------')
             newrow(layout, 'Heating limit:', obj, 'envi_hvachlt')
             if obj.envi_hvachlt != '4':
-                newrow(layout, 'Heating temp:', obj, 'envi_hvacht')                
+                newrow(layout, 'Heating temp:', obj, 'envi_hvacht')
                 if obj.envi_hvachlt in ('0', '2',):
                     newrow(layout, 'Heating airflow:', obj, 'envi_hvachaf')
                 if obj.envi_hvachlt in ('1', '2'):
-                    newrow(layout, 'Heating capacity:', obj, 'envi_hvacshc')            
+                    newrow(layout, 'Heating capacity:', obj, 'envi_hvacshc')
                 newrow(layout, 'Thermostat schedule:', obj, 'envi_htspsched')
                 if not obj.envi_htspsched:
                     newrow(layout, 'Thermostat level:', obj, 'envi_htsp')
@@ -379,16 +379,16 @@ class EnZonePanel(bpy.types.Panel):
                     while uvals[u] and tvals[u] < 365:
                         [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'htspt'+str(u+1)), ('Fors:', 'htspf'+str(u+1)), ('Untils:', 'htspu'+str(u+1)))]
                         u += 1
-            
+
             row = layout.row()
             row.label('Cooling ------------')
             newrow(layout, 'Cooling limit:', obj, 'envi_hvacclt')
             if obj.envi_hvacclt != '4':
-                newrow(layout, 'Cooling temp:', obj, 'envi_hvacct')                
+                newrow(layout, 'Cooling temp:', obj, 'envi_hvacct')
                 if obj.envi_hvacclt in ('0', '2'):
                     newrow(layout, 'Cooling airflow:', obj, 'envi_hvaccaf')
                 if obj.envi_hvacclt in ('1', '2'):
-                    newrow(layout, 'Cooling capacity:', obj, 'envi_hvacscc')    
+                    newrow(layout, 'Cooling capacity:', obj, 'envi_hvacscc')
                 newrow(layout, 'Thermostat schedule:', obj, 'envi_ctspsched')
                 if not obj.envi_ctspsched:
                     newrow(layout, 'Thermostat level:', obj, 'envi_ctsp')
@@ -415,8 +415,8 @@ class EnZonePanel(bpy.types.Panel):
 #                while uvals[u] and tvals[u] < 365:
 #                    [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'hvact'+str(u+1)), ('Fors:', 'hvacf'+str(u+1)), ('Untils:', 'hvacu'+str(u+1)))]
 #                    u += 1
-            
-                
+
+
             row = layout.row()
             row.label('-------------------------------------')
 
@@ -424,7 +424,7 @@ class EnZonePanel(bpy.types.Panel):
             row.label('Occupancy:')
             row.prop(obj, "envi_occtype")
             if obj.envi_occtype != '0':
-                row.prop(obj, "envi_occsmax")  
+                row.prop(obj, "envi_occsmax")
                 newrow(layout, 'Schedule:', obj, 'envi_occsched')
                 if obj.envi_occsched:
                     uvals, u = (1, obj.occu1, obj.occu2, obj.occu3, obj.occu4), 0
@@ -442,7 +442,7 @@ class EnZonePanel(bpy.types.Panel):
                         [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'aocct'+str(u+1)), ('Fors:', 'aoccf'+str(u+1)), ('Untils:', 'aoccu'+str(u+1)))]
                         u += 1
                 newrow(layout, 'Comfort calc:', obj, 'envi_comfort')
-                if obj.envi_comfort:                
+                if obj.envi_comfort:
                     newrow(layout, 'WE schedule:', obj, 'envi_wsched')
                     if not obj.envi_wsched:
                         newrow(layout, 'Work efficiency:', obj, 'envi_weff')
@@ -469,20 +469,19 @@ class EnZonePanel(bpy.types.Panel):
                         tvals = (0, obj.cocct1, obj.cocct2, obj.cocct3, obj.cocct4)
                         while uvals[u] and tvals[u] < 365:
                             [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'cocct'+str(u+1)), ('Fors:', 'coccf'+str(u+1)), ('Untils:', 'coccu'+str(u+1)))]
-                            u += 1   
+                            u += 1
                     newrow(layout, 'CO2:', obj, 'envi_co2')
 
             row = layout.row()
             row.label('---------------------------------------')
-            row = layout.row()
-            row.label('Infiltration:')                    
+
             if obj.envi_occtype != "0":
-                newrow(layout, 'Type:', obj, "envi_occinftype")
+                newrow(layout, 'Infiltration:', obj, "envi_occinftype")
             else:
-                newrow(layout, 'Type:', obj, "envi_inftype")
-              
+                newrow(layout, 'Infiltration:', obj, "envi_inftype")
+
             if obj.envi_occtype != "0" and obj.envi_occinftype == '6':
-                newrow(layout, 'Level:', obj, "envi_inflevel")            
+                newrow(layout, 'Level:', obj, "envi_inflevel")
             if (obj.envi_occtype == "0" and obj.envi_inftype != '0') or (obj.envi_occtype == "1" and obj.envi_occinftype not in ('0', '6')):
                 newrow(layout, 'Schedule:', obj, 'envi_infsched')
                 if not obj.envi_infsched:

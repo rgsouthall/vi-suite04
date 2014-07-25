@@ -1601,8 +1601,8 @@ class EnViZone(bpy.types.Node, EnViNodes):
         self.location = (400 * (omw*obj.location)[0], ((omw*obj.location)[2] + (omw*obj.location)[1])*25)
         self.zonevolume = objvol('', obj)
         bsocklist = ['{}_{}_b'.format(odm[face.material_index].name, face.index)  for face in obj.data.polygons if odm[face.material_index].envi_boundary == 1 and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViBoundSocket']]
-        ssocklist = ['{}_{}_s'.format(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].afsurface == 1 and odm[face.material_index].envi_con_type not in ('Window', 'Door') and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViSFlowSocket']]
-        sssocklist = ['{}_{}_ss'.format(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].afsurface == 1 and odm[face.material_index].envi_con_type in ('Window', 'Door') and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViSSFlowSocket']]
+        ssocklist = ['{}_{}_s'.format(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type not in ('Window', 'Door') and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViSFlowSocket']]
+        sssocklist = ['{}_{}_ss'.format(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type in ('Window', 'Door') and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViSSFlowSocket']]
 
         for oname in [outputs for outputs in self.outputs if outputs.name not in bsocklist and outputs.bl_idname == 'EnViBoundSocket']:
             self.outputs.remove(oname)
@@ -2070,8 +2070,10 @@ class EnViSched(bpy.types.Node, EnViNodes):
     bl_icon = 'SOUND'
     
     def tupdate(self, context):
-        self.t2 = self.t1 + 1 if self.t2 <= self.t1 else self.t2            
-        self.t3 = self.t2 + 1 if self.t3 <= self.t2 else self.t3            
+        if self.t2 <= self.t1:
+            self.t2 = self.t1 + 1           
+        if self.t3 <= self.t2:
+            self.t3 = self.t2 + 1          
         if self.t4 != 365:
             self.t4 = 365
 

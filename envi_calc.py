@@ -1,4 +1,4 @@
-import os, bpy
+import os, bpy, subprocess
 from subprocess import PIPE, Popen
 from os import rename
 from .vi_func import processf
@@ -6,6 +6,10 @@ from .vi_func import processf
 def envi_sim(calc_op, node, connode):
     scene, err = bpy.context.scene, 0
     os.chdir(scene['viparams']['newdir'])
+    if scene['viparams'].get('hvactemplate'):
+        ehtempcmd = "ExpandObjects in.idf"
+        subprocess.call(ehtempcmd, shell = True)
+        subprocess.call('{} {} {}'.format(scene['viparams']['cp'], 'expanded.idf', 'in.idf'), shell = True)
     esimcmd = "EnergyPlus in.idf in.epw" 
     esimrun = Popen(esimcmd, shell = True, stdout = PIPE, stderr = PIPE)
     for line in esimrun.stderr:
@@ -28,7 +32,4 @@ def envi_sim(calc_op, node, connode):
         bpy.data.texts.load(os.path.join(scene['viparams']['newdir'], node.resname+".err"))
     calc_op.report({'INFO'}, "Calculation is finished.")  
             
-#    if node.resname+".err" not in [im.name for im in bpy.data.texts]:
-#        bpy.data.texts.load(os.path.join(scene['viparams']['newdir'], node.resname+".err"))
-
    

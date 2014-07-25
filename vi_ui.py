@@ -70,7 +70,6 @@ class Vi3DPanel(bpy.types.Panel):
                         newrow(layout, "Project name:", scene, "li_projname")
             newrow(layout, 'Display active', scene, 'vi_display')
 
-
 class VIMatPanel(bpy.types.Panel):
     bl_label = "VI-Suite Material"
     bl_space_type = "PROPERTIES"
@@ -95,7 +94,6 @@ class VIMatPanel(bpy.types.Panel):
             if ng.nodes.get(context.scene.resnode):
                 node = ng.nodes[context.scene.resnode]
                 if 'LiVi' in node.bl_label:
-
                     if node.inputs['Context in'].is_linked:
                         connode = node.inputs['Context in'].links[0].from_node        
                         if 'LiVi Compliance' in connode.bl_label:
@@ -117,8 +115,7 @@ class VIMatPanel(bpy.types.Panel):
                                         row.label('Warning: Not an assessable CfSH space')
         
         row = layout.row()
-        row.label('LiVi Radiance type:')
-        
+        row.label('LiVi Radiance type:')        
         radname, matname, radnum = radmat(cm, context.scene)
         row.label(radname.capitalize())
         layout = self.layout
@@ -127,12 +124,11 @@ class VIMatPanel(bpy.types.Panel):
         newrow(layout, "EnVi Construction Type:", cm, "envi_con_type")
         row = layout.row()
         if cm.envi_con_type not in ("Aperture", "Shading", "None"):
-            row = layout.row()
-            row.prop(cm, "envi_boundary")
-            row = layout.row()
-            row.prop(cm, "afsurface")
+            newrow(layout, 'Intrazone Boundary', cm, "envi_boundary")
+            newrow(layout, 'Airflow surface:', cm, "envi_afsurface")
+            if not cm.envi_boundary and not cm.envi_afsurface:
+                newrow(layout, 'Thermal mass:', cm, "envi_thermalmass")
             newrow(layout, "Construction Make-up:", cm, "envi_con_makeup")
-
             if cm.envi_con_makeup == '1':
                 newrow(layout, "Outside layer:", cm, "envi_layero")
                 row = layout.row()
@@ -367,49 +363,51 @@ class EnZonePanel(bpy.types.Panel):
             row.prop(obj, 'envi_hvact')
             row = layout.row()
             row.label('Heating -----------')
-            newrow(layout, 'Heating temp:', obj, 'envi_hvacht')
             newrow(layout, 'Heating limit:', obj, 'envi_hvachlt')
-            if obj.envi_hvachlt in ('0', '2',):
-                newrow(layout, 'Heating airflow:', obj, 'envi_hvachaf')
-            if obj.envi_hvachlt in ('1', '2'):
-                newrow(layout, 'Heating capacity:', obj, 'envi_hvacshc')            
-            newrow(layout, 'Thermostat schedule:', obj, 'envi_htspsched')
-            if not obj.envi_htspsched:
-                newrow(layout, 'Thermostat level:', obj, 'envi_htsp')
-            else:
-                uvals, u = (1, obj.htspu1, obj.htspu2, obj.htspu3, obj.htspu4), 0
-                tvals = (0, obj.htspt1, obj.htspt2, obj.htspt3, obj.htspt4)
-                while uvals[u] and tvals[u] < 365:
-                    [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'htspt'+str(u+1)), ('Fors:', 'htspf'+str(u+1)), ('Untils:', 'htspu'+str(u+1)))]
-                    u += 1
+            if obj.envi_hvachlt != '4':
+                newrow(layout, 'Heating temp:', obj, 'envi_hvacht')                
+                if obj.envi_hvachlt in ('0', '2',):
+                    newrow(layout, 'Heating airflow:', obj, 'envi_hvachaf')
+                if obj.envi_hvachlt in ('1', '2'):
+                    newrow(layout, 'Heating capacity:', obj, 'envi_hvacshc')            
+                newrow(layout, 'Thermostat schedule:', obj, 'envi_htspsched')
+                if not obj.envi_htspsched:
+                    newrow(layout, 'Thermostat level:', obj, 'envi_htsp')
+                else:
+                    uvals, u = (1, obj.htspu1, obj.htspu2, obj.htspu3, obj.htspu4), 0
+                    tvals = (0, obj.htspt1, obj.htspt2, obj.htspt3, obj.htspt4)
+                    while uvals[u] and tvals[u] < 365:
+                        [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'htspt'+str(u+1)), ('Fors:', 'htspf'+str(u+1)), ('Untils:', 'htspu'+str(u+1)))]
+                        u += 1
             
             row = layout.row()
             row.label('Cooling ------------')
-            newrow(layout, 'Cooling temp:', obj, 'envi_hvacct')
             newrow(layout, 'Cooling limit:', obj, 'envi_hvacclt')
-            if obj.envi_hvacclt in ('0', '2'):
-                newrow(layout, 'Cooling airflow:', obj, 'envi_hvaccaf')
-            if obj.envi_hvacclt in ('1', '2'):
-                newrow(layout, 'Cooling capacity:', obj, 'envi_hvacscc')    
-            newrow(layout, 'Thermostat schedule:', obj, 'envi_ctspsched')
-            if not obj.envi_ctspsched:
-                newrow(layout, 'Thermostat level:', obj, 'envi_ctsp')
-            else:
-                uvals, u = (1, obj.ctspu1, obj.ctspu2, obj.ctspu3, obj.ctspu4), 0
-                tvals = (0, obj.ctspt1, obj.ctspt2, obj.ctspt3, obj.ctspt4)
-                while uvals[u] and tvals[u] < 365:
-                    [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'ctspt'+str(u+1)), ('Fors:', 'ctspf'+str(u+1)), ('Untils:', 'ctspu'+str(u+1)))]
-                    u += 1
-            if obj.envi_hvact:
+            if obj.envi_hvacclt != '4':
+                newrow(layout, 'Cooling temp:', obj, 'envi_hvacct')                
+                if obj.envi_hvacclt in ('0', '2'):
+                    newrow(layout, 'Cooling airflow:', obj, 'envi_hvaccaf')
+                if obj.envi_hvacclt in ('1', '2'):
+                    newrow(layout, 'Cooling capacity:', obj, 'envi_hvacscc')    
+                newrow(layout, 'Thermostat schedule:', obj, 'envi_ctspsched')
+                if not obj.envi_ctspsched:
+                    newrow(layout, 'Thermostat level:', obj, 'envi_ctsp')
+                else:
+                    uvals, u = (1, obj.ctspu1, obj.ctspu2, obj.ctspu3, obj.ctspu4), 0
+                    tvals = (0, obj.ctspt1, obj.ctspt2, obj.ctspt3, obj.ctspt4)
+                    while uvals[u] and tvals[u] < 365:
+                        [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'ctspt'+str(u+1)), ('Fors:', 'ctspf'+str(u+1)), ('Untils:', 'ctspu'+str(u+1)))]
+                        u += 1
+            if obj.envi_hvact and (obj.envi_hvachlt, obj.envi_hvacclt) != ('4', '4'):
                 row = layout.row()
                 row.label('Template --------------')
                 newrow(layout, 'Outdoor air:', obj, 'envi_hvacoam')
                 if obj.envi_hvacoam in ('2', '4', '5'):
-                    newrow(layout, 'Flow/person:', obj, 'envi_hvacfrp')
+                    newrow(layout, 'Flow/person (m3/s.p:', obj, 'envi_hvacfrp')
                 if obj.envi_hvacoam in ('1', '4', '5'):
-                    newrow(layout, 'Zone flow:', obj, 'envi_hvacfrz')
+                    newrow(layout, 'Zone flow (m3/s):', obj, 'envi_hvacfrz')
                 if obj.envi_hvacoam in ('3', '4', '5'):
-                    newrow(layout, 'Flow/area:', obj, 'envi_hvacfrzfa')
+                    newrow(layout, 'Flow/area (m3/s.a:', obj, 'envi_hvacfrzfa')
 #                if obj.envi_hvacoam == '6':
 #                    pass
 #                uvals, u = (1, obj.hvacu1, obj.hvacu2, obj.hvacu3, obj.hvacu4), 0
@@ -472,8 +470,7 @@ class EnZonePanel(bpy.types.Panel):
                         while uvals[u] and tvals[u] < 365:
                             [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'cocct'+str(u+1)), ('Fors:', 'coccf'+str(u+1)), ('Untils:', 'coccu'+str(u+1)))]
                             u += 1   
-                    if obj.envi_co2:
-                        newrow(layout, 'CO2:', obj, 'envi_co2')
+                    newrow(layout, 'CO2:', obj, 'envi_co2')
 
             row = layout.row()
             row.label('---------------------------------------')

@@ -38,8 +38,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 #    en_idf.write("10.0;   !- Elevation {m} [supplied by user]\n\n")
     for line in en_epw.readlines():
         if line.split(",")[0].upper() == "GROUND TEMPERATURES":
-            gtline = line.split(",")
-            gt = []
+            gtline, gt = line.split(","), []
             for gtn in range(int(gtline[1])):
                 gt.append((gtline[2+gtn*16], [g.strip("\n") for g in gtline[6+gtn*16:18+gtn*16]]))
                 if float(gt[gtn][0]) > 0.0 and float(gt[gtn][0]) <= 1:
@@ -67,6 +66,8 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
             conname = (mat.envi_export_wallconlist, mat.envi_export_roofconlist, mat.envi_export_floorconlist, mat.envi_export_doorconlist, mat.envi_export_glazeconlist)[("Wall", "Roof", "Floor", "Door", "Window").index(mat.envi_con_type)]
             mats = (ec.wall_con, ec.roof_con, ec.floor_con, ec.door_con, ec.glaze_con)[("Wall", "Roof", "Floor", "Door", "Window").index(mat.envi_con_type)][conname]
             for pm, presetmat in enumerate(mats):
+                matname.append((presetmat)+'-'+str(matcount.count(presetmat)))
+                matcount.append(presetmat)
                 if em.namedict.get(presetmat) == None:
                     em.namedict[presetmat] = 0
                     em.thickdict[presetmat] = [thicklist[pm]/1000]
@@ -74,23 +75,20 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                     em.namedict[presetmat] = em.namedict[presetmat] + 1
                     em.thickdict[presetmat].append(thicklist[pm]/1000)
                 if mat.envi_con_type in ('Wall', 'Floor', 'Roof', 'Door') and presetmat not in em.gas_dat:
-                    em.omat_write(en_idf, presetmat+"-"+str(em.namedict[presetmat]), list(em.matdat[presetmat]), str(thicklist[pm]/1000))
+                    em.omat_write(en_idf, matname[-1], list(em.matdat[presetmat]), str(thicklist[pm]/1000))
                 elif presetmat in em.gas_dat:
-                    em.amat_write(en_idf, presetmat+"-"+str(em.namedict[presetmat]), [em.matdat[presetmat][2]])
+                    em.amat_write(en_idf, matname[-1], [em.matdat[presetmat][2]])
                 elif mat.envi_con_type =='Window' and em.matdat[presetmat][0] == 'Glazing':
-                    em.tmat_write(en_idf, presetmat+"-"+str(em.namedict[presetmat]), list(em.matdat[presetmat]), str(thicklist[pm]/1000))
+                    em.tmat_write(en_idf, matname[-1], list(em.matdat[presetmat]), str(thicklist[pm]/1000))
                 elif mat.envi_con_type =='Window' and em.matdat[presetmat][0] == 'Gas':
-                    em.gmat_write(en_idf, presetmat+"-"+str(em.namedict[presetmat]), list(em.matdat[presetmat]), str(thicklist[pm]/1000))
-                matname.append((presetmat)+'-'+str(matcount.count(presetmat)))
-                matcount.append(presetmat)
+                    em.gmat_write(en_idf, matname[-1], list(em.matdat[presetmat]), str(thicklist[pm]/1000))
 
             namelist.append(conname)
             ec.con_write(en_idf, mat.envi_con_type, conname, str(namelist.count(conname)-1), mat.name)
 
         elif mat.envi_con_makeup == '1' and mat.envi_con_type not in ('None', 'Shading', 'Aperture'):
             thicklist = (mat.envi_export_lo_thi, mat.envi_export_l1_thi, mat.envi_export_l2_thi, mat.envi_export_l3_thi, mat.envi_export_l4_thi)
-            conname = mat.name
-            
+            conname = mat.name            
             for l, layer in enumerate([i for i in itertools.takewhile(lambda x: x != "0", (mat.envi_layero, mat.envi_layer1, mat.envi_layer2, mat.envi_layer3, mat.envi_layer4))]):
                 if layer == "1" and mat.envi_con_type in ("Wall", "Floor", "Roof"):
                     mats = ((mat.envi_export_bricklist_lo, mat.envi_export_claddinglist_lo, mat.envi_export_concretelist_lo, mat.envi_export_metallist_lo, mat.envi_export_stonelist_lo, mat.envi_export_woodlist_lo, mat.envi_export_gaslist_lo, mat.envi_export_insulationlist_lo), \
@@ -149,7 +147,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         if obj.type == 'MESH':
             params = ('Name', 'Direction of Relative North (deg)', 'X Origin (m)', 'Y Origin (m)', 'Z Origin (m)', 'Type', 'Multiplier', 'Ceiling Height (m)', 'Volume (m3)',
                       'Floor Area (m2)', 'Zone Inside Convection Algorithm', 'Zone Outside Convection Algorithm', 'Part of Total Floor Area')
-            paramvs = (obj.name, 0, 0, 0, 0, 1, 1, ceilheight(obj, []), objvol('', obj), 'autocalculate', 'TARP', 'TARP', 'Yes')
+            paramvs = (obj.name, 0, 0, 0, 0, 1, 1, ceilheight(obj, []), 'autocalculate', 'autocalculate', 'TARP', 'TARP', 'Yes')
             en_idf.write(epentry('Zone', params, paramvs))
 
     en_idf.write("GlobalGeometryRules,\n" +
@@ -169,7 +167,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         obj["floorarea"] = sum([triarea(obj, face) for face in obj.data.polygons if obj.data.materials[face.material_index].envi_con_type =='floor'])
         for poly in obj.data.polygons:
             mat = obj.data.materials[poly.material_index]
-            (obc, obco, se, we) = boundpoly(obj, mat, poly)
+            (obc, obco, se, we) = boundpoly(obj, mat, poly, enng)
 
             if mat.envi_con_type in ('Wall', "Floor", "Roof") and mat.envi_con_makeup != "2":
                 params = list(wfrparams) + ["!- X,Y,Z ==> Vertex {} (m)".format(v) for v in poly.vertices]
@@ -225,7 +223,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 en_idf.write(hcoiobj.weschedwrite())
                 en_idf.write(hcoiobj.avschedwrite())
                 en_idf.write(hcoiobj.clschedwrite())
-                if hcoiobj.envi_co2:
+                if hcoiobj.obj.envi_co2:
                     en_idf.write(hcoiobj.co2sched())
                     
         if (hcoiobj.obj.envi_occtype == "1" and hcoiobj.obj.envi_occinftype != 0) or (hcoiobj.obj.envi_occtype != "1" and hcoiobj.obj.envi_inftype != 0):   
@@ -236,21 +234,18 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
             en_idf.write(snode.epwrite())
     
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: THERMOSTSTATS ===========\n\n")
-    for hcoiobj in hcoiobjs:
-        if hcoiobj.hc:
-            en_idf.write(hcoiobj.thermowrite())
-            en_idf.write(hcoiobj.zc())
+    for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc]:
+        en_idf.write(hcoiobj.thermowrite())
+        en_idf.write(hcoiobj.zc())
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: EQUIPMENT ===========\n\n")
-    for hcoiobj in hcoiobjs: 
-        if hcoiobj.hc and not hcoiobj.obj.envi_hvact:
-            en_idf.write(hcoiobj.ec())
-            en_idf.write(hcoiobj.el())
+    for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc and not hcoiobj.obj.envi_hvact]: 
+        en_idf.write(hcoiobj.ec())
+        en_idf.write(hcoiobj.el())
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: HVAC ===========\n\n")
-    for hcoiobj in hcoiobjs:
-        if not hcoiobj.obj.envi_hvact:
-            en_idf.write(hcoiobj.zh())
-        else:
-            en_idf.write(hcoiobj.zht())
+    for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc and not hcoiobj.obj.envi_hvact]:
+        en_idf.write(hcoiobj.zh())
+    for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc and hcoiobj.obj.envi_hvact]:
+        en_idf.write(hcoiobj.zht())
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: OCCUPANCY ===========\n\n")
     for hcoiobj in hcoiobjs:
         if hcoiobj.obj.envi_occtype != "0":
@@ -331,7 +326,7 @@ def pregeo(op):
             else:
                 enng = bpy.data.node_groups['EnVi Network']    
         
-        bpy.data.scenes[0].layers[0:2] = (True, False)    
+#        bpy.data.scenes[0].layers[0:2] = (True, False)    
         for mats in obj.data.materials:
             if 'en_'+mats.name not in [mat.name for mat in bpy.data.materials]:
                 mats.copy().name = 'en_'+mats.name
@@ -340,13 +335,14 @@ def pregeo(op):
         bpy.ops.object.mode_set(mode = "EDIT")
         bpy.ops.mesh.select_all(action='DESELECT')
         bpy.ops.object.mode_set(mode = 'OBJECT')
-        bpy.ops.object.duplicate(linked = True)
+        bpy.ops.object.duplicate()
 
         en_obj = scene.objects.active
         obj.select, en_obj.select, en_obj.name, en_obj.data.name, en_obj.layers[1], en_obj.layers[0], bpy.data.scenes[0].layers[0:2] = False, True, 'en_'+obj.name, en_obj.data.name, True, False, (False, True)
         for s, slots in enumerate(en_obj.material_slots):
-            bpy.data.materials['en_'+en_obj.data.materials[s].name].envi_export = True
-            slots.material = bpy.data.materials['en_'+en_obj.data.materials[s].name]
+            slots.material = bpy.data.materials['en_'+obj.data.materials[s].name]
+            slots.material.envi_export = True
+            
             dcdict = {'Wall':(1,1,1), 'Partition':(0.5,0.5,0.5), 'Window':(0,1,1), 'Roof':(0,1,0), 'Ceiling':(0, 0.5, 0), 'Floor':(0.44,0.185,0.07), 'Ground':(0.22, 0.09, 0.04), 'Shading':(1, 0, 0), 'Aperture':(0, 0, 1)}
             if slots.material.envi_con_type in dcdict.keys():
                 slots.material.diffuse_color = dcdict[slots.material.envi_con_type]
@@ -354,11 +350,14 @@ def pregeo(op):
         for poly in en_obj.data.polygons:
             if en_obj.data.materials[poly.material_index].envi_con_type == 'None':
                 poly.select = True
+#                poly.hide = True
         bpy.ops.object.mode_set(mode = "EDIT")
         bpy.ops.mesh.delete(type = 'FACE')
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.mesh.remove_doubles()
         bpy.ops.object.mode_set(mode = 'OBJECT')
+#        obj.active = True
+#        bpy.ops.object.make_links_data(type='OBDATA')
         en_obj.select = False
         en_obj["volume"] = objvol(op, obj)
 
@@ -372,11 +371,11 @@ def pregeo(op):
 class hcoiwrite(object):
     def __init__(self, obj):
         self.obj = obj
-        self.h = 1 if (self.obj.envi_hvachaf, self.obj.envi_hvacshc, self.obj.envi_hvachaf + self.obj.envi_hvacscc)[int(self.obj.envi_hvachlt)] > 0 else 0
-        self.c = 1 if (self.obj.envi_hvaccaf, self.obj.envi_hvacscc, self.obj.envi_hvaccaf + self.obj.envi_hvacscc)[int(self.obj.envi_hvacclt)] > 0 else 0
+        self.h = 1 if self.obj.envi_hvachlt != '4' else 0
+        self.c = 1 if self.obj.envi_hvacclt != '4' else 0
         self.hc = ('', 'SingleHeating', 'SingleCooling', 'DualSetpoint')[(not self.h and not self.c, self.h and not self.c, not self.h and self.c, self.h and self.c).index(1)]
         self.ctdict = {'DualSetpoint': 4, 'SingleHeating': 1, 'SingleCooling': 2}
-        self.limittype = {'0': 'LimitFlowRate', '1': 'LimitCapacity', '2': 'LimitFlowRateAndCapacity', '3': 'NoLimit'}
+        self.limittype = {'0': 'LimitFlowRate', '1': 'LimitCapacity', '2': 'LimitFlowRateAndCapacity', '3': 'NoLimit', '4': ''}
         
     def htspwrite(self):
         if self.obj.envi_htspsched:
@@ -453,9 +452,10 @@ class hcoiwrite(object):
                 'Design Specification Outdoor Air Object', 'Demand Controlled Ventilation Type', 'Outdoor Air Economizer Type', 'Heat Recovery Type', 'Sensible Heat Recovery Effectiveness',
                 'Latent Heat Recovery Effectiveness')
         paramvs = (self.obj.name, '', '', self.obj.envi_hvacht, self.obj.envi_hvacct, 0.015, 0.009, self.limittype[self.obj.envi_hvachlt], self.obj.envi_hvachaf if self.obj.envi_hvachlt in ('0', '2') else '', 
-                   self.obj.envi_hvacshc if self.obj.envi_hvachlt in ('1', '2') else '', self.limittype[self.obj.envi_hvacclt], self.obj.envi_hvaccaf if self.obj.envi_hvachlt in ('0', '2') else '', 
+                   self.obj.envi_hvacshc if self.obj.envi_hvachlt in ('1', '2') else '', self.limittype[self.obj.envi_hvacclt], self.obj.envi_hvaccaf if self.obj.envi_hvacclt in ('0', '2') else '', 
                     self.obj.envi_hvacscc if self.obj.envi_hvacclt in ('1', '2') else '', '', '', 'None', '', '', 'None', '', oam[self.obj.envi_hvacoam], self.obj.envi_hvacfrp if self.obj.envi_hvacoam in ('2', '4', '5') else '', 
-                    self.obj.envi_hvacfrz if self.obj.envi_hvacoam in ('1', '4', '5') else '', self.obj.envi_hvacfrza if self.obj.envi_hvacoam in ('3', '4', '5') else '', '', 'None', 'NoEconomizer', 'None', 0.7, 0.65)
+                    self.obj.envi_hvacfrzfa if self.obj.envi_hvacoam in ('3', '4', '5') else '', self.obj.envi_hvacfrz if self.obj.envi_hvacoam in ('1', '4', '5') else '', '', 'None', 'NoEconomizer', 'None', 0.7, 0.65)
+        bpy.context.scene['viparams']['hvactemplate'] = 1
         return epentry('HVACTemplate:Zone:IdealLoadsAirSystem', params, paramvs)
                     
     def peoplewrite(self):
@@ -530,7 +530,7 @@ class hcoiwrite(object):
         return epentry('ZoneAirContaminantBalance', params, paramvs)
     
     def co2sched(self):
-        return epschedwrite('Default outdoor CO2 levels 400 pp', 'Any number', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format('400')]]]]) 
+        return epschedwrite('Default outdoor CO2 levels 400 ppm', 'Any number', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format('400')]]]]) 
         
         
     def zi(self):

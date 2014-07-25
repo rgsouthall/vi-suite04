@@ -245,12 +245,12 @@ def processf(pro_op, node):
                 'Zone Air System Sensible Cooling Rate [W] !Hourly': 'Zone cooling (W)',
                 'Zone Windows Total Transmitted Solar Radiation Rate [W] !Hourly': 'Solar gain (W)',
                 'AFN Zone Infiltration Volume [m3] !Hourly': 'Infiltration (m'+u'\u00b3'+')',
-                'AFN Zone Infiltration Air Change Rate [ach] !Hourly': 'ACH',
+                'AFN Zone Infiltration Air Change Rate [ach] !Hourly': 'Infiltration (ACH)',
                 'Zone Mean Air Temperature [C] ! Hourly': 'Mean Temperature ({})'.format(u'\u00b0'),
                 'Zone Mean Radiant Temperature [C] !Hourly' :'Mean Radiant ({})'.format(u'\u00b0'),
                 'Zone Thermal Comfort Fanger Model PPD [%] !Hourly' :'PPD',
                 'Zone Thermal Comfort Fanger Model PMV [] !Hourly' :'PMV',
-                'Zone Air CO2 Concentration [ppm] !Hourly': 'CO2'}
+                'AFN Node CO2 Concentration [ppm] !Hourly': 'CO2'}
     lresdict = {'AFN Linkage Node 1 to Node 2 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow 1 to 2',
                 'AFN Linkage Node 2 to Node 1 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow 2 to 1',
                 'AFN Surface Venting Window or Door Opening Factor [] !Hourly': 'Opening Factor'}
@@ -349,10 +349,10 @@ def nfprop(fname, fdesc, fmin, fmax, fdef):
 def nfvprop(fvname, fvattr, fvdef, fvsub):
     return(FloatVectorProperty(name=fvname, attr = fvattr, default = fvdef, subtype = fvsub, update = nodeexported))
 
-def boundpoly(obj, mat, poly):
+def boundpoly(obj, mat, poly, enng):
     if mat.envi_boundary:
         polyloc = obj.matrix_world*mathutils.Vector(poly.center)
-        for node in bpy.data.node_groups['EnVi Network'].nodes:
+        for node in enng.nodes:
             if hasattr(node, 'zone'):
                 if node.inputs[mat.name+'_b'].is_linked == True:
                     bobj = bpy.data.objects[node.inputs[mat.name+'_b'].links[0].from_node.zone]
@@ -371,6 +371,8 @@ def boundpoly(obj, mat, poly):
                 return(("Outdoors", "", "SunExposed", "WindExposed"))
         else:
             return(("Outdoors", "", "SunExposed", "WindExposed"))
+    elif mat.envi_thermalmass:
+        return(("Adiabatic", "", "NoSun", "NoWind"))
     else:
         return(("Outdoors", "", "SunExposed", "WindExposed"))
 

@@ -7,13 +7,9 @@ except:
     mp = 0
         
 def label(cat, stat, time, metric):
-    if cat == 'Climate':
-        catstring = 'Ambient'
-    elif cat == 'Zone':
-        catstring = 'Zone'
-    elif cat == 'Linkage':
-        catstring = 'Linkage'
-    return('{} {} {} {}'.format(stat, catstring, ('Hourly', 'Daily', 'Monthly')[int(time)], metric))
+    catdict = {'Climate': 'Ambient', 'Zone': 'Zone', 'Linkage': 'Linkage'} 
+    st = stat if time != '0' else ''
+    return('{} {} {} {}'.format(st, catdict[cat], ('Hourly', 'Daily', 'Monthly')[int(time)], metric))
     
 def statdata(res, stat):
     if stat == 'Average':
@@ -25,7 +21,7 @@ def statdata(res, stat):
 
 def timedata(datastring, timetype, stattype, months, days, dos, dnode, si, ei, Sdate, Edate):
     if timetype == '0':
-        return([float(x) for x in datastring])
+        return([float(x) for x in datastring])        
     else:
         if timetype == '1':
             res = [[] for d in range(dnode['Start'], dnode['End']+1)]

@@ -662,37 +662,20 @@ class ViExEnNode(bpy.types.Node, ViNodes):
 
     restype= bpy.props.EnumProperty(items = [("0", "Ambient", "Ambient Conditions"), ("1", "Zone Thermal", "Thermal Results"), ("2", "Comfort", "Comfort Results"), ("3", "Zone Ventilation", "Zone Ventilation Results"), ("4", "Ventilation Link", "ZoneVentilation Results")],
                                    name="", description="Specify the EnVi results catagory", default="0", update = nodeupdate)
-
-    resat = bpy.props.BoolProperty(name = "Temperature", description = "Ambient Temperature (K)", default = False, update = nodeupdate)
-    resaws = bpy.props.BoolProperty(name = "Wind Speed", description = "Ambient Wind Speed (m/s)", default = False, update = nodeupdate)
-    resawd = bpy.props.BoolProperty(name = "Wind Direction", description = "Ambient Wind Direction (degrees from North)", default = False, update = nodeupdate)
-    resah = bpy.props.BoolProperty(name = "Humidity", description = "Ambient Humidity", default = False, update = nodeupdate)
-    resasb = bpy.props.BoolProperty(name = "Direct Solar", description = u'Direct Solar Radiation (W/m\u00b2K)', default = False, update = nodeupdate)
-    resasd = bpy.props.BoolProperty(name = "Diffuse Solar", description = u'Diffuse Solar Radiation (W/m\u00b2K)', default = False, update = nodeupdate)
-    restt = bpy.props.BoolProperty(name = "Temperature", description = "Zone Temperatures", default = False, update = nodeupdate)
-    restwh = bpy.props.BoolProperty(name = "Heating Watts", description = "Zone Heating Requirement (Watts)", default = False, update = nodeupdate)
-    restwc = bpy.props.BoolProperty(name = "Cooling Watts", description = "Zone Cooling Requirement (Watts)", default = False, update = nodeupdate)
-    reswsg = bpy.props.BoolProperty(name = "Solar Gain", description = "Window Solar Gain (Watts)", default = False, update = nodeupdate)
-#    resthm = BoolProperty(name = "kWh/m2 Heating", description = "Zone Heating kilo Watt hours of heating per m2 floor area", default = False)
-#    restcm = BoolProperty(name = "kWh/m2 Cooling", description = "Zone Cooling kilo Watt hours of cooling per m2 floor area", default = False)
-    rescpp = bpy.props.BoolProperty(name = "PPD", description = "Percentage Proportion Dissatisfied", default = False, update = nodeupdate)
-    rescpm = bpy.props.BoolProperty(name = "PMV", description = "Predicted Mean Vote", default = False, update = nodeupdate)
-    resvls = bpy.props.BoolProperty(name = "Ventilation (l/s)", description = "Zone Ventilation rate (l/s)", default = False, update = nodeupdate)
-    resvmh = bpy.props.BoolProperty(name = u'Ventilation (m3/h)', description = u'Zone Ventilation rate (m\u00b3/h)', default = False, update = nodeupdate)
-#    resims = bpy.props.BoolProperty(name = u'Infiltration (m3/s)', description = u'Zone Infiltration rate (m\u00b3/s)', default = False, update = nodeupdate)
-    resim = bpy.props.BoolProperty(name = u'Infiltration (m\u00b3)', description = u'Zone Infiltration (m\u00b3)', default = False, update = nodeupdate)
-    resiach = bpy.props.BoolProperty(name = 'Infiltration (ACH)', description = 'Zone Infiltration rate (ACH)', default = False, update = nodeupdate)
-    resco2 = bpy.props.BoolProperty(name = u'CO\u2082 concentration (ppm)', description = u'Zone CO\u2082 concentration (ppm)', default = False, update = nodeupdate)
-    resihl = bpy.props.BoolProperty(name = "Heat loss (W)", description = "Ventilation Heat Loss (W)", default = False, update = nodeupdate)
-    resl12ms = bpy.props.BoolProperty(name = u'Flow (m\u00b3/s)', description = u'Linkage flow (m\u00b3/s)', default = False, update = nodeupdate)
-    reslof = bpy.props.BoolProperty(name = 'Opening factor', description = 'Linkage Opening Factor', default = False, update = nodeupdate)
+    resnameunits = {"Temperature": "Ambient Temperature (K)", "Wind Speed": "Ambient Wind Speed (m/s)", "Wind Direction": "Ambient Wind Direction (degrees from North)", "Humidity": "Ambient Humidity",
+                    "Direct Solar": u'Direct Solar Radiation (W/m\u00b2K)', "Diffuse Solar": u'Diffuse Solar Radiation (W/m\u00b2K)', "Temperature": "Zone Temperatures", "Heating Watts": "Zone Heating Requirement (Watts)",
+                    "Cooling Watts": "Zone Cooling Requirement (Watts)", "Solar Gain": "Window Solar Gain (Watts)", "PPD": "Percentage Proportion Dissatisfied", "PMV": "Predicted Mean Vote",
+                    "Ventilation (l/s)": "Zone Ventilation rate (l/s)", u'Ventilation (m\u00b3/h)': u'Zone Ventilation rate (m\u00b3/h)', u'Infiltration (m\u00b3)': u'Zone Infiltration (m\u00b3)', 
+                    'Infiltration (ACH)': 'Zone Infiltration rate (ACH)', u'CO\u2082 concentration (ppm)': u'Zone CO\u2082 concentration (ppm)', "Heat loss (W)": "Ventilation Heat Loss (W)",
+                    u'Flow (m\u00b3/s)': u'Linkage flow (m\u00b3/s)', 'Opening factor': 'Linkage Opening Factor'}                       
+    (resat, resaws, resawd, resah, resasb, resasd, restt, restwh, restwc, reswsg, rescpp, rescpm, resvls, resvmh, resim, resiach, resco2, resihl, resl12ms, reslof) = \
+    [bpy.props.BoolProperty(name = resnu[0], description = resnu[1], default = False, update = nodeupdate) for resnu in resnameunits.items()]
 
     def init(self, context):
         self.inputs.new('ViEnG', 'Geometry in')
         self.inputs.new('ViLoc', 'Location in')
         self.outputs.new('ViEnC', 'Context out')
         self.outputs['Context out'].hide = True
-#        nodeinit(self)
         self['nodeid'] = nodeid(self, bpy.data.node_groups)
         nodecolour(self, 1)
 
@@ -881,25 +864,20 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     layout.label('X-axis')
 
         else:
-            xrtype, xctype, xztype, xzrtype, xltype, xlrtype = [], [], [], [], [], []
+#            xrtype, xctype, xztype, xzrtype, xltype, xlrtype = [], [], [], [], [], []
             try:
                 innode = self.inputs['X-axis'].links[0].from_node
             except:
                 return
             self["_RNA_UI"] = {"Start": {"min":innode.dsdoy, "max":innode.dedoy}, "End": {"min":innode.dsdoy, "max":innode.dedoy}}
             self['Start'], self['End'] = innode.dsdoy, innode.dedoy
-            for restype in innode['rtypes']:
-                xrtype.append((restype, restype, "Plot "+restype))
-            for clim in innode['ctypes']:
-                xctype.append((clim, clim, "Plot "+clim))
-            for zone in innode['ztypes']:
-                xztype.append((zone, zone, "Plot "+zone))
-            for zoner in innode['zrtypes']:
-                xzrtype.append((zoner, zoner, "Plot "+zoner))
-            for link in innode['ltypes']:
-                xltype.append((link, link, "Plot "+link))
-            for linkr in innode['lrtypes']:
-                xlrtype.append((linkr, linkr, "Plot "+linkr))
+            xrtype = [(restype, restype, "Plot "+restype) for restype in innode['rtypes']]
+            xrtype= [(restype, restype, "Plot "+restype) for restype in innode['rtypes']]
+            xctype = [(clim, clim, "Plot "+clim) for clim in innode['ctypes']]
+            xztype = [(zone, zone, "Plot "+zone) for zone in innode['ztypes']]
+            xzrtype = [(zoner, zoner, "Plot "+zoner) for zoner in innode['zrtypes']]
+            xltype = [(link, link, "Plot "+link) for link in innode['ltypes']]
+            xlrtype= [(linkr, linkr, "Plot "+linkr) for linkr in innode['lrtypes']]
             if self.inputs.get('Y-axis 1'):
                 self.inputs['Y-axis 1'].hide = False
 
@@ -928,6 +906,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                         for rtype in typedict[self.rtypemenu]:
                             row.prop(self, rtype)
                         if self.node.timemenu in ('1', '2') and self.rtypemenu !='Time':
+                            row = layout.row()
                             row.prop(self, "statmenu")
 
                 def draw_color(self, context, node):

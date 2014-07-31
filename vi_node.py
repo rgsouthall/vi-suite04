@@ -22,8 +22,6 @@ from subprocess import Popen
 from nodeitems_utils import NodeCategory, NodeItem
 from .vi_func import objvol, triarea, socklink, newrow, epwlatilongi, nodeid, nodeinputs, nodestate, remlink, rettimes, epentry, sockhide, nodecolour, epschedwrite
 
-#s = 40
-
 try:
     import numpy
     np =1
@@ -47,7 +45,7 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     bl_label = 'LiVi Geometry'
     bl_icon = 'LAMP'
 
-    (filepath, filename, filedir, newdir, filebase, objfilebase, nodetree, nproc, rm, cp, cat, fold) = (bpy.props.StringProperty() for x in range(12))
+#    (filepath, filename, filedir, newdir, filebase, objfilebase, nodetree, nproc, rm, cp, cat, fold) = (bpy.props.StringProperty() for x in range(12))
     exported = bpy.props.BoolProperty()
 
     def nodeupdate(self, context):
@@ -88,18 +86,6 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
         for mglfr in self['frames']:
             self['frames'][mglfr] = context.scene.frame_end if self.animmenu == mglfr else 0
             context.scene.gfe = max(self['frames'].values())
-#        if self.filepath != bpy.data.filepath:
-#            nodeinit(self)
-
-#        if bpy.context.active_object and bpy.context.active_object.type == 'MESH' and not bpy.context.active_object.hide:
-#            bpy.ops.object.mode_set()
-#
-#        scene.frame_start, bpy.data.node_groups[self['nodeid'].split('@')[1]].use_fake_user = 0, 1
-#        scene.frame_set(0)
-#        radgexport(export_op, self)
-#        self.exported = True
-#        self.bl_label = self.bl_label[1:] if self.bl_label[0] == '*' else self.bl_label
-#        self.outputs['Geometry out'].hide = False
 
 class ViLiNode(bpy.types.Node, ViNodes):
     '''Node describing a basic LiVi analysis'''
@@ -110,13 +96,9 @@ class ViLiNode(bpy.types.Node, ViNodes):
     analysistype = [('0', "Illuminance", "Lux Calculation"), ('1', "Irradiance", "W/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Factor", "DF (%) Calculation"), ('3', "Glare", "Glare Calculation")]
     unit = bpy.props.StringProperty()
     animtype = [('Static', "Static", "Simple static analysis"), ('Time', "Time", "Animated time analysis")]
-    skylist = [    ("0", "Sunny", "CIE Sunny Sky description"),
-                   ("1", "Partly Coudy", "CIE Sunny Sky description"),
-                   ("2", "Coudy", "CIE Partly Cloudy Sky description"),
-                   ("3", "DF Sky", "Daylight Factor Sky description"),
-                   ("4", "HDR Sky", "HDR file sky"),
-                   ("5", "Radiance Sky", "Radiance file sky"),
-                   ("6", "None", "No Sky")]
+    skylist = [("0", "Sunny", "CIE Sunny Sky description"), ("1", "Partly Coudy", "CIE Sunny Sky description"),
+               ("2", "Coudy", "CIE Partly Cloudy Sky description"), ("3", "DF Sky", "Daylight Factor Sky description"),
+               ("4", "HDR Sky", "HDR file sky"), ("5", "Radiance Sky", "Radiance file sky"), ("6", "None", "No Sky")]
 #    skytypeparams = bpy.props.StringProperty(default = "+s")
 
     def nodeupdate(self, context):
@@ -229,7 +211,6 @@ class ViLiNode(bpy.types.Node, ViNodes):
 
         if int(self.skymenu) < 4:
             self['skytypeparams'] = ("+s", "+i", "-c", "-b 22.86 -c")[int(self['skynum'])]
-
 
 class ViLiClass(bpy.types.Node):
     '''Node describing a base LiVi context node'''
@@ -421,21 +402,13 @@ class ViLiSNode(bpy.types.Node, ViNodes):
     bl_label = 'LiVi Simulation'
     bl_icon = 'LAMP'
 
-    def nodeupdate(self, context):
-        if self.inputs['Context in'].is_linked:
-            connode = self.inputs['Context in'].links[0].from_node
-            if connode.bl_label == 'LiVi Basic':
-                self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.numbasic], [n[int(self.simacc)+1] for n in self.numbasic]))
-            else:
-                self['radparams'] = self.cusacc if self.csimacc == '0' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.numadvance], [n[int(self.csimacc)+1] for n in self.numadvance]))
-
     simacc = bpy.props.EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),("3", "Custom", "Edit Radiance parameters"), ],
-            name="", description="Simulation accuracy", default="0", update = nodeupdate)
+            name="", description="Simulation accuracy", default="0")
     csimacc = bpy.props.EnumProperty(items=[("0", "Custom", "Edit Radiance parameters"), ("1", "Initial", "Initial accuracy for this metric"), ("2", "Final", "Final accuracy for this metric")],
-            name="", description="Simulation accuracy", default="1", update = nodeupdate)
+            name="", description="Simulation accuracy", default="1")
     cusacc = bpy.props.StringProperty(
-            name="", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
-    numbasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-ar", 128, 512, 1024), ("-as", 128, 512, 1024), ("-aa", 0.3, 0.15, 0.08), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
+            name="", description="Custom Radiance simulation parameters", default="")
+    numbasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-ar", 128, 512, 1024), ("-as", 128, 512, 2048), ("-aa", 0.3, 0.22, 0.18))#, ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
     numadvance = (("-ab", 3, 5), ("-ad", 2048, 4096), ("-ar", 512, 1024), ("-as", 1024, 2048), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 0.001, 0.0002))
 
     def init(self, context):
@@ -443,15 +416,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
         self.outputs.new('LiViWOut', 'Data out')
         self.outputs['Data out'].hide = True
         self['nodeid'] = nodeid(self, bpy.data.node_groups)
-
-    def update(self):
-        if self.inputs['Context in'].is_linked:
-            connode = self.inputs['Context in'].links[0].from_node
-            if connode.bl_label == 'LiVi Basic':
-                self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.numbasic], [n[int(self.simacc)+1] for n in self.numbasic]))
-            else:
-                self['radparams'] = self.cusacc if self.csimacc == '0' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.numadvance], [n[int(self.csimacc)+1] for n in self.numadvance]))
-
+        
     def draw_buttons(self, context, layout):
         if nodeinputs(self):
             row = layout.row()
@@ -469,7 +434,16 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             row = layout.row()
             row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']
             row.operator("node.livicalc", text = 'Calculate').nodeid = self['nodeid']
-
+            
+    def export(self):
+        connode = self.inputs['Context in'].links[0].from_node 
+        geonode = connode.inputs['Geometry in'].links[0].from_node
+        if connode.bl_label == 'LiVi Basic':
+            self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} ".format([n[0] for n in self.numbasic], [n[int(self.simacc)+1] for n in self.numbasic]))
+        else:
+            self['radparams'] = self.cusacc if self.csimacc == '0' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.numadvance], [n[int(self.csimacc)+1] for n in self.numadvance]))
+        return connode, geonode
+        
 class ViSPNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite sun path'''
     bl_idname = 'ViSPNode'
@@ -549,7 +523,7 @@ class ViLoc(bpy.types.Node, ViNodes):
     def updatelatlong(self, context):
         (context.scene['latitude'], context.scene['longitude']) = epwlatilongi(context.scene, self) if self.loc == '1' and self.weather else (self.lat, self.long)
 
-    (filepath, filename, filedir, newdir, filebase, objfilebase, nodetree, nproc, rm , cp, cat, fold) = (bpy.props.StringProperty() for x in range(12))
+#    (filepath, filename, filedir, newdir, filebase, objfilebase, nodetree, nproc, rm , cp, cat, fold) = (bpy.props.StringProperty() for x in range(12))
     epwpath = os.path.dirname(inspect.getfile(inspect.currentframe()))+'/EPFiles/Weather/'
     weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]
     weather = bpy.props.EnumProperty(items = weatherlist, name="", description="Weather for this project", update = updatelatlong)
@@ -630,17 +604,6 @@ class ViExEnNode(bpy.types.Node, ViNodes):
     bl_label = 'EnVi Export'
     bl_icon = 'LAMP'
 
-#    nproc = bpy.props.StringProperty()
-#    rm = bpy.props.StringProperty()
-#    cat = bpy.props.StringProperty()
-#    fold = bpy.props.StringProperty()
-#    cp = bpy.props.StringProperty()
-#    filepath = bpy.props.StringProperty()
-#    filename = bpy.props.StringProperty()
-#    filedir = bpy.props.StringProperty()
-#    newdir = bpy.props.StringProperty()
-#    filebase = bpy.props.StringProperty()
-#    idf_file = bpy.props.StringProperty()
     exported = bpy.props.BoolProperty()
 
     def nodeupdate(self, context):
@@ -659,18 +622,19 @@ class ViExEnNode(bpy.types.Node, ViNodes):
     sdoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeupdate)
     edoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeupdate)
     timesteps = bpy.props.IntProperty(name = "", description = "Time steps per hour", min = 1, max = 4, default = 1, update = nodeupdate)
-
     restype= bpy.props.EnumProperty(items = [("0", "Ambient", "Ambient Conditions"), ("1", "Zone Thermal", "Thermal Results"), ("2", "Comfort", "Comfort Results"), ("3", "Zone Ventilation", "Zone Ventilation Results"), ("4", "Ventilation Link", "ZoneVentilation Results")],
                                    name="", description="Specify the EnVi results catagory", default="0", update = nodeupdate)
-    resnameunits = {"Temperature": "Ambient Temperature (K)", "Wind Speed": "Ambient Wind Speed (m/s)", "Wind Direction": "Ambient Wind Direction (degrees from North)", "Humidity": "Ambient Humidity",
-                    "Direct Solar": u'Direct Solar Radiation (W/m\u00b2K)', "Diffuse Solar": u'Diffuse Solar Radiation (W/m\u00b2K)', "Temperature": "Zone Temperatures", "Heating Watts": "Zone Heating Requirement (Watts)",
-                    "Cooling Watts": "Zone Cooling Requirement (Watts)", "Solar Gain": "Window Solar Gain (Watts)", "PPD": "Percentage Proportion Dissatisfied", "PMV": "Predicted Mean Vote",
-                    "Ventilation (l/s)": "Zone Ventilation rate (l/s)", u'Ventilation (m\u00b3/h)': u'Zone Ventilation rate (m\u00b3/h)', u'Infiltration (m\u00b3)': u'Zone Infiltration (m\u00b3)', 
-                    'Infiltration (ACH)': 'Zone Infiltration rate (ACH)', u'CO\u2082 concentration (ppm)': u'Zone CO\u2082 concentration (ppm)', "Heat loss (W)": "Ventilation Heat Loss (W)",
-                    u'Flow (m\u00b3/s)': u'Linkage flow (m\u00b3/s)', 'Opening factor': 'Linkage Opening Factor'}                       
-    (resat, resaws, resawd, resah, resasb, resasd, restt, restwh, restwc, reswsg, rescpp, rescpm, resvls, resvmh, resim, resiach, resco2, resihl, resl12ms, reslof) = \
-    [bpy.props.BoolProperty(name = resnu[0], description = resnu[1], default = False, update = nodeupdate) for resnu in resnameunits.items()]
-
+    def resnameunits():
+        rnu = {'0': ("Temperature", "Ambient Temperature (K)"),'1': ("Wind Speed", "Ambient Wind Speed (m/s)"), '2': ("Wind Direction", "Ambient Wind Direction (degrees from North)"),
+                    '3': ("Humidity", "Ambient Humidity"),'4': ("Direct Solar", u'Direct Solar Radiation (W/m\u00b2K)'), '5': ("Diffuse Solar", u'Diffuse Solar Radiation (W/m\u00b2K)'), 
+                    '6': ("Temperature", "Zone Temperatures"), '7': ("Heating Watts", "Zone Heating Requirement (Watts)"), '8': ("Cooling Watts", "Zone Cooling Requirement (Watts)"),
+                    '9': ("Solar Gain", "Window Solar Gain (Watts)"), '10': ("PPD", "Percentage Proportion Dissatisfied"), '11': ("PMV", "Predicted Mean Vote"),
+                    '12': ("Ventilation (l/s)", "Zone Ventilation rate (l/s)"), '13': (u'Ventilation (m\u00b3/h)', u'Zone Ventilation rate (m\u00b3/h)'), 
+                    '14': (u'Infiltration (m\u00b3)',  u'Zone Infiltration (m\u00b3)'), '15': ('Infiltration (ACH)', 'Zone Infiltration rate (ACH)'), '16': (u'CO\u2082 (ppm)', u'Zone CO\u2082 concentration (ppm)'), 
+                    '17': ("Heat loss (W)", "Ventilation Heat Loss (W)"), '18': (u'Flow (m\u00b3/s)', u'Linkage flow (m\u00b3/s)'), '19': ('Opening factor', 'Linkage Opening Factor')}  
+        return [bpy.props.BoolProperty(name = rnu[str(rnum)][0], description = rnu[str(rnum)][1], default = False) for rnum in range(20)]                      
+    (resat, resaws, resawd, resah, resasb, resasd, restt, restwh, restwc, reswsg, rescpp, rescpm, resvls, resvmh, resim, resiach, resco2, resihl, resl12ms, reslof) = resnameunits()
+        
     def init(self, context):
         self.inputs.new('ViEnG', 'Geometry in')
         self.inputs.new('ViLoc', 'Location in')
@@ -692,7 +656,6 @@ class ViExEnNode(bpy.types.Node, ViNodes):
         col.prop(self, "restype")
         resdict = {'0': (0, "resat", "resaws", 0, "resawd", "resah", 0, "resasb", "resasd"), '1': (0, "restt", "restwh", 0, "restwc", "reswsg"),\
         '2': (0, "rescpp", "rescpm"), '3': (0, "resim", "resiach", 0, "resco2", "resihl"), '4': (0, "resl12ms", "reslof")}
-
         for rprop in resdict[self.restype]:
             if not rprop:
                 row = layout.row()
@@ -730,11 +693,10 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
 
     resname = bpy.props.StringProperty(name="", description="Base name for the results files", default="results", update = nodeupdate)
     resfilename = bpy.props.StringProperty(name = "", default = 'results')
-    dsdoy = bpy.props.IntProperty()
-    dedoy = bpy.props.IntProperty()
+    dsdoy, dedoy  = bpy.props.IntProperty(), bpy.props.IntProperty()
 
     def update(self):
-        if self.inputs['Context in'].is_linked:
+        if self.inputs['Context in'].links:
             self.resfilename = os.path.join(self.inputs['Context in'].links[0].from_node.newdir, self.resname+'.eso')
 
     def draw_buttons(self, context, layout):
@@ -755,8 +717,7 @@ class ViEnRFNode(bpy.types.Node, ViNodes):
         self.outputs['Results out'].hide = True
 
     resfilename = bpy.props.StringProperty(name="", description="Name of the EnVi results file", default="", update = nodeupdate)
-    dsdoy = bpy.props.IntProperty()
-    dedoy = bpy.props.IntProperty()
+    dsdoy, dedoy = bpy.props.IntProperty(), bpy.props.IntProperty()
 
     def init(self, context):
         self.outputs.new('ViEnR', 'Results out')
@@ -872,7 +833,6 @@ class ViEnRNode(bpy.types.Node, ViNodes):
             self["_RNA_UI"] = {"Start": {"min":innode.dsdoy, "max":innode.dedoy}, "End": {"min":innode.dsdoy, "max":innode.dedoy}}
             self['Start'], self['End'] = innode.dsdoy, innode.dedoy
             xrtype = [(restype, restype, "Plot "+restype) for restype in innode['rtypes']]
-            xrtype= [(restype, restype, "Plot "+restype) for restype in innode['rtypes']]
             xctype = [(clim, clim, "Plot "+clim) for clim in innode['ctypes']]
             xztype = [(zone, zone, "Plot "+zone) for zone in innode['ztypes']]
             xzrtype = [(zoner, zoner, "Plot "+zoner) for zoner in innode['zrtypes']]
@@ -2183,17 +2143,13 @@ class EnViNodeCategory(NodeCategory):
         return context.space_data.tree_type == 'EnViN'
 
 envinode_categories = [
-        # identifier, label, items list
         EnViNodeCategory("Control", "Control Node", items=[NodeItem("AFNCon", label="Control Node"), NodeItem("EnViWPCA", label="WPCA Node"), NodeItem("EnViCrRef", label="Crack Reference")]),
         EnViNodeCategory("Nodes", "Zone Nodes", items=[NodeItem("EnViZone", label="Zone Node"), NodeItem("EnViExt", label="External Node")]),
-#        EnViNodeCategory("SLinkNodes", "Surface Link Nodes", items=[
-#            NodeItem("EnViSLink", label="Surface Link Node")]),
         EnViNodeCategory("LinkNodes", "Airflow Link Nodes", items=[
             NodeItem("EnViSSFlow", label="Sub-surface Flow Node"), NodeItem("EnViSFlow", label="Surface Flow Node")]),
         EnViNodeCategory("SchedNodes", "Schedule Nodes", items=[
             NodeItem("EnViSched", label="Schedule")])]
-#        EnViNodeCategory("HVACTemplates", "HVAC Template nodes", items=[
-#            NodeItem("HVACTILS", label="EnVi ideal load HVAC template")])]
+
 
 
 

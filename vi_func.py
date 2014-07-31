@@ -8,64 +8,67 @@ try:
 except:
     mp = 0
 
-#s = 60
-#from . import windrose
 dtdf = datetime.date.fromordinal
 
-def radmat(mat, scene):
-    matname = mat.name.replace(" ", "_")
-    if scene.render.engine == 'CYCLES' and hasattr(mat.node_tree, 'nodes'):
-        cycmattypes = ('Diffuse BSDF', 'Glass BSDF', 'Glossy BSDF', 'Translucent BSDF', 'Ambient Occlusion', 'Emission', 'Transparent BSDF')
-        if mat.node_tree.nodes['Material Output'].inputs['Surface'].is_linked:
-            try:
-                matnode = mat.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node
-                matindex = cycmattypes.index(matnode.bl_label) if matnode.bl_label in cycmattypes else 0
-                matcol, matior, matrough, matemit  = matnode.inputs[0].default_value, matnode.inputs[2].default_value if matindex == 1 else 1.52, \
-                    matnode.inputs[1].default_value if matindex == 0 else 0,  matnode.inputs[1].default_value if matindex == 5 else 0
-                radname = ('plastic', 'glass', 'mirror', 'trans', 'antimatter', 'light', 'glass')[matindex]
+def radmat(self, scene, ui):
+    radname = self.name.replace(" ", "_")
+    if scene.render.engine == 'CYCLES' and hasattr(self.node_tree, 'nodes'):
+        cycmattypes = ('Diffuse BSDF', 'Glass BSDF', 'Glossy BSDF', 'Ambient Occlusion', 'Emission', 'Transparent BSDF')
+        matnode = [link.from_node for link in self.node_tree.nodes['Material Output'].inputs['Surface'].links]
+        mixnodes = [link.from_node for link in matnode[0].inputs[1].links + matnode[0].inputs[2].links] if matnode[0].bl_label == 'Mix Shader' else matnode
+        if mixnodes:            
+            if len(mixnodes) == 2:
+                trlnode = [node for node in mixnodes if node.bl_label == 'Translucent BSDF']
+                glossnode = [node for node in mixnodes if node.bl_label == 'Glossy BSDF']
+                if trlnode and glossnode:
+                    radtype, radnums = 'trans', '7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f} {0[3]:.3f} {3:.3f}'.format(trlnode[0].inputs[0].default_value, matnode[0].inputs[0].default_value, glossnode[0].inputs[1].default_value, 1 - glossnode[0].inputs[0].default_value[3])
+
+            elif len(mixnodes) == 1:     
+                matindex = cycmattypes.index(mixnodes[0].bl_label) if mixnodes[0].bl_label in cycmattypes else 0
+                matcol, matior, matrough, matemit  = mixnodes[0].inputs[0].default_value, mixnodes[0].inputs[2].default_value if matindex == 1 else 1.52, \
+                    mixnodes[0].inputs[1].default_value if matindex == 0 else 0,  mixnodes[0].inputs[1].default_value if matindex == 5 else 0
+                radtype = ('plastic', 'glass', 'mirror', 'antimatter', 'light', 'glass')[matindex]
                 radnums = ('5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format(matcol, '0', matrough),\
                 '4 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.3f}'.format(matcol, matior), \
                 '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}'.format(matcol), \
-                '7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n\n'.format(matcol), \
                 '', \
                 '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n'.format([c * matemit for c in matcol]), \
                 '4 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.3f}'.format(matcol, matior))[matindex]
-            except:
-                radname, radnums = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format((0.8, 0.8, 0.8), 0, 0)
         else:
-            radname, radnums = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format((0.8, 0.8, 0.8), 0, 0)
+            radtype, radnums = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format((0.8, 0.8, 0.8), 0, 0)
 
     elif scene.render.engine == 'BLENDER_RENDER':
-        matcol = [i * mat.diffuse_intensity for i in mat.diffuse_color]
-        matior = mat.raytrace_transparency.ior
-        matrough = 1.0-mat.specular_hardness/511.0
-        matemit = mat.emit
+        matcol = [i * self.diffuse_intensity for i in self.diffuse_color]
+        matior = self.raytrace_transparency.ior
+        matrough = 1.0-self.specular_hardness/511.0
+        matemit = self.emit
 
-        if mat.use_shadeless == 1 or mat.livi_compliance:
-            radname, radnums = 'antimatter', ''
-
-        elif mat.emit > 0:
-            radname, radnums = 'light', '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n'.format([c * matemit for c in matcol])
-
-        elif mat.use_transparency == False and mat.raytrace_mirror.use == True and mat.raytrace_mirror.reflect_factor >= 0.99:
-            radname, radnums = 'mirror', '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}'.format(mat.mirror_color)
-
-        elif mat.use_transparency == True and mat.transparency_method == 'RAYTRACE' and mat.alpha < 1.0 and mat.translucency == 0:
-            radname = 'glass'
-            if "{:.2f}".format(mat.raytrace_transparency.ior) == "1.52":
-                radnums = '3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}'.format([c * (1.0 - mat.alpha) for c in matcol])
+        if self.use_shadeless == 1 or self.livi_compliance:
+            radtype, radnums = 'antimatter', ''
+        elif self.emit > 0:
+            radtype, radnums = 'light', '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n'.format([c * matemit for c in matcol])
+        elif self.use_transparency == False and self.raytrace_mirror.use == True and self.raytrace_mirror.reflect_factor >= 0.99:
+            radtype, radnums = 'mirror', '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}'.format(self.mirror_color)
+        elif self.use_transparency == True and self.transparency_method == 'RAYTRACE' and self.alpha < 1.0 and self.translucency == 0:
+            radtype = 'glass'
+            if "{:.2f}".format(self.raytrace_transparency.ior) == "1.52":
+                radnums = '3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}'.format([c * (1.0 - self.alpha) for c in matcol])
             else:
-                radnums = '4 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f}'.format([c * (1.0 - mat.alpha) for c in matcol], matior)
-        elif mat.use_transparency == True and mat.transparency_method == 'RAYTRACE' and mat.alpha < 1.0 and mat.translucency > 0.001:
-            radname, radnums  = 'trans', '7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2} {3} {4}'.format(matcol, mat.specular_intensity, 1.0 - mat.specular_hardness/511.0, 1.0 - mat.alpha, 1.0 - mat.translucency)
-        elif mat.use_transparency == False and mat.raytrace_mirror.use == True and mat.raytrace_mirror.reflect_factor < 0.99:
-            radname, radnums  = 'metal', '5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2}'.format(matcol, mat.specular_intensity, 1.0-mat.specular_hardness/511.0)
+                radnums = '4 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f}'.format([c * (1.0 - self.alpha) for c in matcol], matior)
+        elif self.use_transparency == True and self.transparency_method == 'RAYTRACE' and self.alpha < 1.0 and self.translucency > 0.001:
+            radtype, radnums  = 'trans', '7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2} {3} {4}'.format(matcol, self.specular_intensity, 1.0 - self.specular_hardness/511.0, 1.0 - self.alpha, 1.0 - self.translucency)
+        elif self.use_transparency == False and self.raytrace_mirror.use == True and self.raytrace_mirror.reflect_factor < 0.99:
+            radtype, radnums  = 'metal', '5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2}'.format(matcol, self.specular_intensity, 1.0-self.specular_hardness/511.0)
         else:
-            radname, radnums  = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.2f} {2:.2f}'.format(matcol, mat.specular_intensity, 1.0-mat.specular_hardness/511.0)
+            radtype, radnums  = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.2f} {2:.2f}'.format(matcol, self.specular_intensity, 1.0-self.specular_hardness/511.0)
     else:
-        radname, radnums = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format((0.8, 0.8, 0.8), 0, 0)
-
-    return(radname, matname, radnums)
+        radtype, radnums = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format((0.8, 0.8, 0.8), 0, 0)
+    
+    radentry = '# {0} material\nvoid {0} {1}\n0\n0\n{2}\n\n'.format(radtype, radname, radnums) if radtype != 'antimatter' \
+                    else '# {0} material\nvoid {0} {1}\n1 void\n0\n0\n\n'.format(radtype, radname)
+    if ui == 0:
+        self['radentry'] = radentry
+    return(radentry)
 
 def viparams(scene):
     fd, fn = os.path.dirname(bpy.data.filepath), os.path.splitext(os.path.basename(bpy.data.filepath))[0]
@@ -269,17 +272,7 @@ def processf(pro_op, node):
                 pass
 
     resfile.close()
-#    node['rtypes'] = rtypes
-    node['dos'], node['resdict'], node['ctypes'], node['ztypes'], node['zrtypes'], node['ltypes'], node['lrtypes'], node.dsdoy, node.dedoy = dos, resdict, ctypes, ztypes, ltypes, lrtypes, int(resdict[dos][1]), int(resdict[dos][-1])
-#    node['resdict'] = resdict
-#    node['ctypes'] = ctypes
-#    node['ztypes'] = ztypes
-#    node['zrtypes'] = zrtypes
-#    node['ltypes'] = ltypes
-#    node['lrtypes'] = lrtypes
-#    node.dsdoy = int(resdict[dos][1])
-#    node.dedoy = int(resdict[dos][-1])
-
+    node['dos'], node['resdict'], node['ctypes'], node['ztypes'], node['zrtypes'], node['ltypes'], node['lrtypes'], node.dsdoy, node.dedoy = dos, resdict, ctypes, ztypes, zrtypes, ltypes, lrtypes, int(resdict[dos][1]), int(resdict[dos][-1])
 
 def iprop(iname, idesc, imin, imax, idef):
     return(IntProperty(name = iname, description = idesc, min = imin, max = imax, default = idef))

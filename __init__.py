@@ -174,6 +174,7 @@ def register():
                                  ("5", "ACH", "ACH flow rate"), ("6", "l/s/p", 'Litres per second per person')], "", "The type of zone infiltration specification", "0")
 
 # LiVi material definitions
+    Material.radmat = vi_func.radmat
     Material.vi_shadow = bprop("VI Shadow", "Flag to signify whether the material represents a VI Shadow sensing surface", False)
     Material.livi_sense = bprop("LiVi Sensor", "Flag to signify whether the material represents a LiVi sensing surface", False)
     Material.livi_compliance = bprop("LiVi Compliance Surface", "Flag to siginify whether the material represents a LiVi compliance surface", False)

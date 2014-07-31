@@ -173,7 +173,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         obd = [context.active_object] if context.active_object in oblist else []
 
     for ob in obd:
-        if str(fn) in [sk.name for sk in ob.data.shape_keys.key_blocks] and ob.active_shape_key.name != str(fn):
+        if ob.data.shape_keys and str(fn) in [sk.name for sk in ob.data.shape_keys.key_blocks] and ob.active_shape_key.name != str(fn):
             ob.active_shape_key_index = [sk.name for sk in ob.data.shape_keys.key_blocks].index(str(fn))
 
         obm = ob.data

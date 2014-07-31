@@ -36,8 +36,7 @@ def rad_prev(prev_op, simnode, connode, geonode, simacc):
     scene = bpy.context.scene    
     if os.path.isfile("{}-{}.rad".format(scene['viparams']['filebase'], scene.frame_current)):
         cam = scene.camera
-        print(cam.location)
-        if cam != None:
+        if cam:
             cang = '180 -vth' if connode.analysismenu == '3' else cam.data.angle*180/pi
             vv = 180 if connode.analysismenu == '3' else cang * scene.render.resolution_y/scene.render.resolution_x
             rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0][2]:.3f} {3[1][2]:.3f} {3[2][2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct &".format(scene['viparams']['nproc'], vv, cang, -1*cam.matrix_world, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current)

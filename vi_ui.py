@@ -116,8 +116,11 @@ class VIMatPanel(bpy.types.Panel):
 
         row = layout.row()
         row.label('LiVi Radiance type:')
-        radname, matname, radnum = radmat(cm, context.scene)
-        row.label(radname.capitalize())
+        radentry = cm.radmat(context.scene, 1)
+        row = layout.row()
+        for line in radentry.splitlines():
+            row = layout.row()
+            row.label('    '+line)
         layout = self.layout
         row = layout.row()
         row.label("-----------------------------------------")

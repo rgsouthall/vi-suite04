@@ -1,5 +1,7 @@
-import bpy, bpy_extras, sys, datetime, mathutils, os
+import bpy, bpy_extras, sys, datetime, mathutils, os, shlex, time
 import bpy_extras.io_utils as io_utils
+from subprocess import Popen, PIPE, STDOUT
+from threading  import Thread
 try:
     import numpy
     from numpy import arange
@@ -22,12 +24,12 @@ except:
     mp = 0
 
 from .livi_export import radcexport, radgexport, cyfc1
-from .livi_calc  import rad_prev, li_calc, li_glare, resapply
+from .livi_calc  import li_calc, li_glare, resapply
 from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .envi_calc import envi_sim
-from .vi_func import processf, livisimacc, solarPosition, retobjs, wr_axes, clearscene, framerange, vcframe, epwlatilongi, viparams
+from .vi_func import processf, livisimacc, solarPosition, retobjs, wr_axes, clearscene, framerange, vcframe, viparams, objmode
 from .vi_chart import chart_disp
 from .vi_gen import vigen
 
@@ -42,15 +44,11 @@ class NODE_OT_LiGExport(bpy.types.Operator):
     def invoke(self, context, event):
         scene = context.scene
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
-
         if bpy.data.filepath and " " not in bpy.data.filepath:
             viparams(scene)
-            if bpy.context.active_object and bpy.context.active_object.type == 'MESH' and not bpy.context.active_object.hide:
-                bpy.ops.object.mode_set()
+            objmode()
             node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
             node.export(context)
-#            node['radfiles'] = []
-
             scene.frame_start, bpy.data.node_groups[self.nodeid.split('@')[1]].use_fake_user = 0, 1
             scene.frame_set(0)
             radgexport(self, node)
@@ -189,7 +187,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
     bl_undo = True
 
     nodeid = bpy.props.StringProperty()
-
+    
     def invoke(self, context, event):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         node.export(context)
@@ -204,9 +202,10 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
             if node.animmenu == 'Time' and node['skynum'] < 3:
                 node.endtime = datetime.datetime(2013, 1, 1, int(node.ehour), int((node.ehour - int(node.ehour))*60)) + datetime.timedelta(node.edoy - 1)
         if bpy.data.filepath:
-            if bpy.context.object:
-                if bpy.context.object.type == 'MESH' and bpy.context.object.hide == False and bpy.context.object.layers[0] == True:
-                    bpy.ops.object.mode_set(mode = 'OBJECT')
+            objmode()
+#            if bpy.context.object:
+#                if bpy.context.object.type == 'MESH' and bpy.context.object.hide == False and bpy.context.object.layers[0] == True:
+#                    bpy.ops.object.mode_set(mode = 'OBJECT')
 
             if " " not in bpy.data.filepath:
                 if ('LiVi CBDM' in node.bl_label and node.inputs['Geometry in'].is_linked and (node.inputs['Location in'].is_linked or node.sm != '0')) \
@@ -237,15 +236,42 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
     bl_undo = True
 
     nodeid = bpy.props.StringProperty()
-
+    
     def invoke(self, context, event):
         scene = context.scene
         viparams(scene)
+        objmode()
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        connode, geonode =  simnode.export()
-        rad_prev(self, simnode, connode, geonode, livisimacc(simnode, connode))
-        return {'FINISHED'}
+        connode, geonode =  simnode.export()  
+        if os.path.isfile("{}-{}.rad".format(scene['viparams']['filebase'], scene.frame_current)):
+            cam = scene.camera
+            if cam:
+                cang = '180 -vth' if connode.analysismenu == '3' else cam.data.angle*180/pi
+                vv = 180 if connode.analysismenu == '3' else cang * scene.render.resolution_y/scene.render.resolution_x
+ #               rvucmd = shlex.split("/usr/local/radiance/bin/rvu -w -n {0} -vv {1} -vh {2} -vd {3[0][2]:.3f} {3[1][2]:.3f} {3[2][2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['nproc'], vv, cang, -1*cam.matrix_world, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current))
+                rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0][2]:.3f} {3[1][2]:.3f} {3[2][2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['nproc'], vv, cang, -1*cam.matrix_world, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current)
+                rvurun = Popen(rvucmd, stdout = PIPE, stderr = PIPE, shell = True)
+                #rvurun.stdout.flush()
+#                rvurun.stdout.flush()
+#                for line in iter(rvurun.stderr.readline, ''):
+#                    rvurun.stdout.flush()
+#                    print('hi', line)
+#                print('hi2', len(rvurun.stdout), rvurun.stdout)
+#                for i in range(10):
+                    
+#                    print(i, rvurun.stderr.flush())
+                time.sleep(0.1)
+                if rvurun.poll() is not None:
+                    self.report({'ERROR'}, "Something wrong with the Radiance input files. Try rerunning the geometry and context export")
+                    return {'CANCELLED'}
+                return {'FINISHED'}    
+            else:
+                self.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
+                return {'CANCELLED'}
+        else:
+            self.report({'ERROR'},"Missing export file. Make sure you have exported the scene or that the current frame is within the exported frame range.")
+            return {'CANCELLED'}
 
 class NODE_OT_LiViCalc(bpy.types.Operator):
     bl_idname = "node.livicalc"
@@ -256,6 +282,7 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
     def invoke(self, context, event):
         scene = context.scene
         viparams(scene)
+        objmode()
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         clearscene(scene, self)
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
@@ -274,14 +301,10 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
                 scene.vi_display = 1
             elif connode.analysismenu != '3':
                 simnode['Animation'] = 'Animated' if scene.gfe > 0 or scene.cfe > 0 else 'Static'
-#                scene.fs = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
-#                scene.fe = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
                 li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
                 scene.vi_display = 1
             else:
                 simnode['Animation'] = 'Animated' if scene.gfe > 0 or scene.cfe > 0 else 'Static'
-#                scene.fs = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
-#                scene.fe = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
                 li_glare(self, simnode, connode, geonode)
                 scene.vi_display = 0
         else:

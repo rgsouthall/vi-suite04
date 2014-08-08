@@ -144,18 +144,22 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
     if (scene.li_disp_panel != 2 and scene.ss_disp_panel != 2) or scene.vi_display_rp != True \
          or (bpy.context.active_object not in (obcalclist+obreslist) and scene.vi_display_sel_only == True)  \
          or (bpy.context.active_object and bpy.context.active_object.mode == 'EDIT'):
+        print('1return')
         return
     
     if not context.space_data.region_3d.is_perspective:
         disp_op.report({'ERROR'},"Switch to prespective view mode for number display")
+        print('2return')
         return
     if scene.frame_current not in range(scene.fs, scene.fe + 1) and scene.vi_display:
         disp_op.report({'ERROR'},"Outside result frame range")
+        print('3return')
         return
     
-    if bpy.context.active_object:
-        if bpy.context.active_object.type == 'MESH' and bpy.context.active_object.mode != 'OBJECT':
-             bpy.context.active_object.mode = 'OBJECT'
+    vi_func.objmode()
+#    if bpy.context.active_object:
+#        if bpy.context.active_object.type == 'MESH' and bpy.context.active_object.mode != 'OBJECT':
+#             bpy.context.active_object.mode = 'OBJECT'
     
     blf.enable(0, 4)
     blf.shadow(0, 5, scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])

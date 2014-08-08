@@ -17,7 +17,6 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import bpy, os, subprocess, colorsys, datetime
-from math import pi
 from subprocess import PIPE, Popen, STDOUT
 from . import vi_func
 from . import livi_export
@@ -32,26 +31,8 @@ def radfexport(scene, export_op, connode, geonode, frames):
     for frame in frames:
         livi_export.fexport(scene, frame, export_op, connode, geonode, pause = 1)
 
-def rad_prev(prev_op, simnode, connode, geonode, simacc):    
-    scene = bpy.context.scene    
-    if os.path.isfile("{}-{}.rad".format(scene['viparams']['filebase'], scene.frame_current)):
-        cam = scene.camera
-        if cam:
-            cang = '180 -vth' if connode.analysismenu == '3' else cam.data.angle*180/pi
-            vv = 180 if connode.analysismenu == '3' else cang * scene.render.resolution_y/scene.render.resolution_x
-            rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0][2]:.3f} {3[1][2]:.3f} {3[2][2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct &".format(scene['viparams']['nproc'], vv, cang, -1*cam.matrix_world, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current)
-            print(rvucmd)
-            rvurun = Popen(rvucmd, shell = True, stdout=PIPE, stderr=STDOUT)
-            for l,line in enumerate(rvurun.stdout):            
-                if 'octree' in line.decode() or 'mesh' in line.decode():
-                    prev_op.report({'ERROR'}, "Something wrong with the Radiance input files. Try rerunning the geometry and context export")
-                    return
-        else:
-            prev_op.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
-    else:
-        prev_op.report({'ERROR'},"Missing export file. Make sure you have exported the scene or that the current frame is within the exported frame range.")
-
 def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs): 
+    vi_func.objmode()
     scene = bpy.context.scene
     frames = range(scene.fs, scene.fe + 1) if not kwargs.get('genframe') else [kwargs['genframe']]
     os.chdir(scene['viparams']['newdir'])
@@ -71,6 +52,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                 if os.path.isfile("{}-{}.af".format(scene['viparams']['filebase'], frame)):
                     subprocess.call("{} {}-{}.af".format(scene['viparams']['rm'], scene['viparams']['filebase'], frame), shell=True)
                 rtcmd = "rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct  < {2}.rtrace {4}".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+                print(rtcmd)
                 rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)
                 with open(os.path.join(scene['viparams']['newdir'], connode['resname']+"-"+str(frame)+".res"), 'w') as resfile:
                     for l,line in enumerate(rtrun.stdout):

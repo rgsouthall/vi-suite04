@@ -298,7 +298,7 @@ def register():
     Scene.li_assind = sprop("", "Name of the assessing individual", 1024, '')
     Scene.li_jobno = sprop("", "Project job number", 1024, '')
     Scene.resnode = sprop("", "", 0, "")
-    Scene.restree = sprop("", "", 0, "")
+    Scene.restree = sprop("", "", 0, "")    
 
     nodeitems_utils.register_node_categories("Vi Nodes", vinode_categories)
     nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)

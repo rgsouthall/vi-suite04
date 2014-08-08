@@ -1,4 +1,4 @@
-import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf
+import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, fcntl
 from math import sin, cos, asin, acos, pi
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
 try:
@@ -11,7 +11,7 @@ except:
 dtdf = datetime.date.fromordinal
 
 def radmat(self, scene, ui):
-    radname = self.name.replace(" ", "_")
+    radname, radtype = self.name.replace(" ", "_"), ''
     if scene.render.engine == 'CYCLES' and hasattr(self.node_tree, 'nodes'):
         cycmattypes = ('Diffuse BSDF', 'Glass BSDF', 'Glossy BSDF', 'Ambient Occlusion', 'Emission', 'Transparent BSDF')
         matnode = [link.from_node for link in self.node_tree.nodes['Material Output'].inputs['Surface'].links]
@@ -20,9 +20,13 @@ def radmat(self, scene, ui):
             if len(mixnodes) == 2:
                 trlnode = [node for node in mixnodes if node.bl_label == 'Translucent BSDF']
                 glossnode = [node for node in mixnodes if node.bl_label == 'Glossy BSDF']
+                transpnode = [node for node in mixnodes if node.bl_label == 'Transparent BSDF']
+                diffnode = [node for node in mixnodes if node.bl_label == 'Diffuse BSDF']
                 if trlnode and glossnode:
                     radtype, radnums = 'trans', '7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f} {0[3]:.3f} {3:.3f}'.format(trlnode[0].inputs[0].default_value, matnode[0].inputs[0].default_value, glossnode[0].inputs[1].default_value, 1 - glossnode[0].inputs[0].default_value[3])
-
+                if transpnode and diffnode:
+                    radtype, radnums = 'antimatter', ''
+                    
             elif len(mixnodes) == 1:     
                 matindex = cycmattypes.index(mixnodes[0].bl_label) if mixnodes[0].bl_label in cycmattypes else 0
                 matcol, matior, matrough, matemit  = mixnodes[0].inputs[0].default_value, mixnodes[0].inputs[2].default_value if matindex == 1 else 1.52, \
@@ -34,9 +38,7 @@ def radmat(self, scene, ui):
                 '', \
                 '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n'.format([c * matemit for c in matcol]), \
                 '4 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.3f}'.format(matcol, matior))[matindex]
-        else:
-            radtype, radnums = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format((0.8, 0.8, 0.8), 0, 0)
-
+                
     elif scene.render.engine == 'BLENDER_RENDER':
         matcol = [i * self.diffuse_intensity for i in self.diffuse_color]
         matior = self.raytrace_transparency.ior
@@ -61,7 +63,8 @@ def radmat(self, scene, ui):
             radtype, radnums  = 'metal', '5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2}'.format(matcol, self.specular_intensity, 1.0-self.specular_hardness/511.0)
         else:
             radtype, radnums  = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.2f} {2:.2f}'.format(matcol, self.specular_intensity, 1.0-self.specular_hardness/511.0)
-    else:
+        
+    if not radtype:
         radtype, radnums = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format((0.8, 0.8, 0.8), 0, 0)
     
     radentry = '# {0} material\nvoid {0} {1}\n0\n0\n{2}\n\n'.format(radtype, radname, radnums) if radtype != 'antimatter' \
@@ -79,7 +82,6 @@ def viparams(scene):
         os.makedirs(os.path.join(fd, fn, 'obj'))
     nd = os.path.join(fd, fn)
     fb, ofb, idf  = os.path.join(nd, fn), os.path.join(nd, 'obj', fn), os.path.join(nd, 'in.idf')
-
     scene['viparams'] = {'rm': ('rm ', 'del ')[str(sys.platform) == 'win32'], 'cat': ('cat ', 'type ')[str(sys.platform) == 'win32'],
     'cp': ('cp ', 'copy ')[str(sys.platform) == 'win32'], 'nproc': str(multiprocessing.cpu_count()), 'filepath': bpy.data.filepath,
     'filename': fn, 'filedir': fd, 'newdir': nd, 'objfilebase': ofb, 'idf_file': idf, 'filebase': fb}
@@ -113,6 +115,10 @@ def retobj(name, fr, node, scene):
         return(scene['viparams']['objfilebase']+"-{}-{}.obj".format(name.replace(" ", "_"), fr))
     else:
         return(scene['viparams']['objfilebase']+"-{}-{}.obj".format(name.replace(" ", "_"), bpy.context.scene.frame_start))
+
+def objmode():
+    if bpy.context.active_object and bpy.context.active_object.type == 'MESH' and not bpy.context.active_object.hide:
+        bpy.ops.object.mode_set(mode = 'OBJECT')
 
 def retmesh(name, fr, node, scene):
     if node.animmenu in ("Geometry", "Material"):
@@ -736,3 +742,12 @@ def epschedwrite(name, stype, ts, fs, us):
                 params.append('Field {}'.format(len(params)-2))
                 paramvs.append(us[t][f][u][0])
     return epentry('Schedule:Compact', params, paramvs)
+    
+def non_block_read(output):
+    fd = output.fileno()
+    fl = fcntl.fcntl(fd, fcntl.F_GETFL)
+    fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+    try:
+        return output.read()
+    except:
+        return ""

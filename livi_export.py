@@ -51,8 +51,8 @@ def radgexport(export_op, node, **kwargs):
                         mradfile += mat.radmat(scene, 0)
                         matnames.append(mat.name)
                         mat.use_vertex_color_paint = 1 if mat.livi_sense else 0
-                        if 'light' in mat['radentry'].split('\n')[0] or 'mirror' in mat['radentry'].split('\n')[0]:
-                            export_op.report({'INFO'}, o.name+" has a emission or mirror material. Basic export routine used with no modifiers.")
+                        if mat['radentry'].split(' ')[1] in ('light', 'mirror', 'antimatter'):
+                            export_op.report({'INFO'}, o.name+" has an antimatter, emission or mirror material. Basic export routine used with no modifiers.")
                             o['merr'] = 1                            
             bpy.ops.object.select_all(action='DESELECT')
             
@@ -100,15 +100,15 @@ def radgexport(export_op, node, **kwargs):
 
                         o.select = False
     
-                if o.get('merr') != 1:
+                if not o.get('merr'):
                     gradfile += "void mesh id \n1 "+retmesh(o.name, max(gframe, mframe), node, scene)+"\n0\n0\n\n"
                 else:
                     export_op.report({'INFO'}, o.name+" could not be converted into a Radiance mesh and simpler export routine has been used. No un-applied object modifiers will be exported.")
                     if o.get('merr'):
                         del o['merr']
                     geomatrix = o.matrix_world
-                    for face in o.data.polygons:
-                        try:
+                    try:
+                        for face in [face for face in o.data.polygons if o.data.materials and face.material_index < len(o.data.materials) and o.data.materials[face.material_index]['radentry'].split(' ')[1] != 'antimatter']:
                             vertices = face.vertices[:]
                             gradfile += "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(o.data.materials[face.material_index].name.replace(" ", "_"), o.data.name.replace(" ", "_"), face.index, 3*len(face.vertices))
                             if o.data.shape_keys and o.data.shape_keys.key_blocks[0] and o.data.shape_keys.key_blocks[1]:
@@ -120,13 +120,13 @@ def radgexport(export_op, node, **kwargs):
                                 for vertindex in vertices:
                                     gradfile += " {0[0]} {0[1]} {0[2]}\n".format(geomatrix*o.data.vertices[vertindex].co)
                             gradfile += "\n"
-                        except:
-                            export_op.report({'ERROR'},"Make sure your object "+o.name+" has an associated material")
+                    except Exception as e:
+                        print(e)
+                        export_op.report({'ERROR'},"Make sure your object "+o.name+" has an associated material for all faces")
 
         # Lights export routine
         if frame in range(node['frames']['Lights'] + 1):
-            lradfile = "# Lights \n\n"
-    
+            lradfile = "# Lights \n\n"    
             for geo in retobjs('livil'):
                 if geo.ies_name != "":
                     iesname = os.path.splitext(os.path.basename(geo.ies_name))[0]
@@ -154,8 +154,7 @@ def radgexport(export_op, node, **kwargs):
 # rtrace export routine
     
     reslen, rtpoints = 0, ''
-    geos = retobjs('livig') if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else retobjs('livic')
-    
+    geos = retobjs('livig') if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else retobjs('livic')    
     for o, geo in enumerate(geos):
         if len(geo.data.materials) > 0:
             if len([f for f in geo.data.polygons if geo.data.materials[f.material_index].livi_sense]) > 0:
@@ -382,8 +381,9 @@ def fexport(scene, frame, export_op, node, othernode, **kwargs):
 #    This next line allows the radiance scene description to be piped into the oconv command.
 #   oconvcmd = "oconv -w - > {0}-{1}.oct".format(geonode.filebase, frame).communicate(input = radtext.encode('utf-8'))
 #    ti.sleep(pt)
-#    oconvrun = Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT)#.communicate(input = radtext.encode('utf-8'))
-    subprocess.call(oconvcmd, shell = True)
+    oconvrun = Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate()
+    #.communicate(input = radtext.encode('utf-8'))
+#    subprocess.call(oconvcmd, shell = True)
 #    for line in oconvrun.stdout:
 #        print(line)
 #        if 'incompatible' in line.decode():

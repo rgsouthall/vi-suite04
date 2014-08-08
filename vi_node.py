@@ -148,10 +148,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
         self['nodeid'] = nodeid(self, bpy.data.node_groups)
         self.starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, 12, 0)
         self.endtime = datetime.datetime(datetime.datetime.now().year, 1, 1, 12, 0)
-        self['hours'] = 0
-        self['frames'] = {'Time':0}
-        self['resname'] = 'illumout'
-        self['unit'] = "Lux"
+        self['hours'], self['frames'], self['resname'], self['unit'] = 0, {'Time':0}, 'illumout', "Lux"
 
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -408,8 +405,8 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             name="", description="Simulation accuracy", default="1")
     cusacc = bpy.props.StringProperty(
             name="", description="Custom Radiance simulation parameters", default="")
-    numbasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-ar", 128, 512, 1024), ("-as", 128, 512, 2048), ("-aa", 0.3, 0.22, 0.18))#, ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.01, 0.002))
-    numadvance = (("-ab", 3, 5), ("-ad", 2048, 4096), ("-ar", 512, 1024), ("-as", 1024, 2048), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 0.001, 0.0002))
+    numbasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.001, 0.0001, 0.00002), ("-lr", 2, 3, 4))
+    numadvance = (("-ab", 3, 5), ("-ad", 2048, 4096), ("-as", 1024, 2048), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 0.0001, 0.00002), ("-lr", 3, 5))
 
     def init(self, context):
         self.inputs.new('ViLiC', 'Context in')
@@ -439,9 +436,9 @@ class ViLiSNode(bpy.types.Node, ViNodes):
         connode = self.inputs['Context in'].links[0].from_node 
         geonode = connode.inputs['Geometry in'].links[0].from_node
         if connode.bl_label == 'LiVi Basic':
-            self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} ".format([n[0] for n in self.numbasic], [n[int(self.simacc)+1] for n in self.numbasic]))
+            self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.numbasic], [n[int(self.simacc)+1] for n in self.numbasic]))
         else:
-            self['radparams'] = self.cusacc if self.csimacc == '0' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.numadvance], [n[int(self.csimacc)+1] for n in self.numadvance]))
+            self['radparams'] = self.cusacc if self.csimacc == '0' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.numadvance], [n[int(self.csimacc)] for n in self.numadvance]))
         return connode, geonode
         
 class ViSPNode(bpy.types.Node, ViNodes):
@@ -523,7 +520,6 @@ class ViLoc(bpy.types.Node, ViNodes):
     def updatelatlong(self, context):
         (context.scene['latitude'], context.scene['longitude']) = epwlatilongi(context.scene, self) if self.loc == '1' and self.weather else (self.lat, self.long)
 
-#    (filepath, filename, filedir, newdir, filebase, objfilebase, nodetree, nproc, rm , cp, cat, fold) = (bpy.props.StringProperty() for x in range(12))
     epwpath = os.path.dirname(inspect.getfile(inspect.currentframe()))+'/EPFiles/Weather/'
     weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]
     weather = bpy.props.EnumProperty(items = weatherlist, name="", description="Weather for this project", update = updatelatlong)
@@ -541,8 +537,7 @@ class ViLoc(bpy.types.Node, ViNodes):
         self['nodeid'] = nodeid(self, bpy.data.node_groups)
         bpy.data.node_groups[self['nodeid'].split('@')[1]].use_fake_user = True
         self.outputs.new('ViLoc', 'Location out')
-        bpy.context.scene['latitude'] = self.lat
-        bpy.context.scene['longitude'] = self.long
+        bpy.context.scene['latitude'], bpy.context.scene['longitude'] = self.lat, self.long
 
     def update(self):
         socklink(self.outputs[0], self['nodeid'].split('@')[1])
@@ -701,9 +696,7 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
          if self.inputs['Context in'].is_linked:
-            row = layout.row()
-            row.label(text = 'Results name:')
-            row.prop(self, 'resname')
+            newrow(layout, 'Results name:', 'resname')
             row = layout.row()
             row.operator("node.ensim", text = 'Calculate').nodeid = self['nodeid']
 
@@ -813,7 +806,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
             layout.operator("node.chart", text = 'Create plot').nodeid = self['nodeid']
 
     def update(self):
-        if self.inputs['X-axis'].is_linked == False:
+        if not self.inputs['X-axis'].links:
             class ViEnRXIn(bpy.types.NodeSocket):
                 '''Energy geometry out socket'''
                 bl_idname = 'ViEnRXIn'
@@ -823,13 +816,11 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     return (0.0, 1.0, 0.0, 0.75)
                 def draw(self, context, layout, node, text):
                     layout.label('X-axis')
-
         else:
-#            xrtype, xctype, xztype, xzrtype, xltype, xlrtype = [], [], [], [], [], []
-            try:
-                innode = self.inputs['X-axis'].links[0].from_node
-            except:
-                return
+#            try:
+            innode = self.inputs['X-axis'].links[0].from_node
+#            except:
+#                return
             self["_RNA_UI"] = {"Start": {"min":innode.dsdoy, "max":innode.dedoy}, "End": {"min":innode.dsdoy, "max":innode.dedoy}}
             self['Start'], self['End'] = innode.dsdoy, innode.dedoy
             xrtype = [(restype, restype, "Plot "+restype) for restype in innode['rtypes']]
@@ -861,7 +852,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 def draw(self, context, layout, node, text):
                     row = layout.row()
                     row.prop(self, "rtypemenu", text = text)
-                    if self.is_linked == True:
+                    if self.links:
                         typedict = {"Time": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"), "Linkage":("linkmenu", "linkrmenu")}
                         for rtype in typedict[self.rtypemenu]:
                             row.prop(self, rtype)
@@ -877,7 +868,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
             bpy.utils.register_class(ViEnRXIn)
 
         if self.inputs.get('Y-axis 1'):
-            if self.inputs['Y-axis 1'].is_linked == False:
+            if not self.inputs['Y-axis 1'].links:
                 class ViEnRY1In(bpy.types.NodeSocket):
                     '''Energy geometry out socket'''
                     bl_idname = 'ViEnRY1In'
@@ -893,26 +884,19 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     self.inputs['Y-axis 2'].hide = True
 
             else:
-                y1rtype, y1ctype, y1ztype, y1zrtype, y1ltype, y1lrtype = [], [], [], [], [], []
                 innode = self.inputs['Y-axis 1'].links[0].from_node
-                for restype in innode['rtypes']:
-                    y1rtype.append((restype, restype, "Plot "+restype))
-                for clim in innode['ctypes']:
-                    y1ctype.append((clim, clim, "Plot "+clim))
-                for zone in innode['ztypes']:
-                    y1ztype.append((zone, zone, "Plot "+zone))
-                for zoner in innode['zrtypes']:
-                    y1zrtype.append((zoner, zoner, "Plot "+zoner))
-                for link in innode['ltypes']:
-                    y1ltype.append((link, link, "Plot "+link))
-                for linkr in innode['lrtypes']:
-                    y1lrtype.append((linkr, linkr, "Plot "+linkr))
+                y1rtype = [(restype, restype, "Plot "+restype) for restype in innode['rtypes']]
+                y1ctype = [(clim, clim, "Plot "+clim) for clim in innode['ctypes']]
+                y1ztype = [(zone, zone, "Plot "+zone) for zone in innode['ztypes']]
+                y1zrtype = [(zoner, zoner, "Plot "+zoner) for zoner in innode['zrtypes']]
+                y1ltype = [(link, link, "Plot "+link) for link in innode['ltypes']]
+                y1lrtype = [(linkr, linkr, "Plot "+linkr) for linkr in innode['lrtypes']]
 
                 class ViEnRY1In(bpy.types.NodeSocket):
                     '''Energy geometry out socket'''
                     bl_idname = 'ViEnRY1In'
                     bl_label = 'Y-axis1'
-                    if len(innode['rtypes']) > 0:
+                    if innode['rtypes']:
                         rtypemenu = bpy.props.EnumProperty(items=y1rtype, name="", description="Data type", default = y1rtype[0][0])
                         if 'Climate' in innode['rtypes']:
                             climmenu = bpy.props.EnumProperty(items=y1ctype, name="", description="Climate type", default = y1ctype[0][0])
@@ -924,11 +908,10 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                             linkrmenu = bpy.props.EnumProperty(items=y1lrtype, name="", description="Flow linkage result", default = y1lrtype[0][0])
                         statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Result statistic", default = 'Average')
 
-
                     def draw(self, context, layout, node, text):
                         row = layout.row()
                         row.prop(self, "rtypemenu", text = text)
-                        if self.is_linked:
+                        if self.links:
                             typedict = {"Time": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"), "Linkage":("linkmenu", "linkrmenu")}
                             for rtype in typedict[self.rtypemenu]:
                                 row.prop(self, rtype)
@@ -944,7 +927,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 self.inputs['Y-axis 2'].hide = False
 
         if self.inputs.get('Y-axis 2'):
-            if self.inputs['Y-axis 2'].is_linked == False:
+            if not self.inputs['Y-axis 2'].links:
                 class ViEnRY2In(bpy.types.NodeSocket):
                     '''Energy geometry out socket'''
                     bl_idname = 'ViEnRY2In'
@@ -960,20 +943,20 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     self.inputs['Y-axis 3'].hide = True
 
             else:
-                y2rtype, y2ctype, y2ztype, y2zrtype, y2ltype, y2lrtype = [], [], [], [], [], []
+#                y2rtype, y2ctype, y2ztype, y2zrtype, y2ltype, y2lrtype = [], [], [], [], [], []
                 innode = self.inputs[2].links[0].from_node
-                for restype in innode['rtypes']:
-                    y2rtype.append((restype, restype, "Plot "+restype))
-                for clim in innode['ctypes']:
-                    y2ctype.append((clim, clim, "Plot "+clim))
-                for zone in innode['ztypes']:
-                    y2ztype.append((zone, zone, "Plot "+zone))
-                for zoner in innode['zrtypes']:
-                    y2zrtype.append((zoner, zoner, "Plot "+zoner))
-                for link in innode['ltypes']:
-                    y2ltype.append((link, link, "Plot "+link))
-                for linkr in innode['lrtypes']:
-                    y2lrtype.append((linkr, linkr, "Plot "+linkr))
+                y2rtype = [(restype, restype, "Plot "+restype) for restype in innode['rtypes']]
+#                    y2rtype.append((restype, restype, "Plot "+restype))
+                y2ctype = [(clim, clim, "Plot "+clim) for clim in innode['ctypes']]
+#                    y2ctype.append((clim, clim, "Plot "+clim))
+                y2ztype = [(zone, zone, "Plot "+zone) for zone in innode['ztypes']]
+#                    y2ztype.append((zone, zone, "Plot "+zone))
+                y2zrtype = [(zoner, zoner, "Plot "+zoner) for zoner in innode['zrtypes']]
+#                    y2zrtype.append((zoner, zoner, "Plot "+zoner))
+                y2ltype = [(link, link, "Plot "+link) for link in innode['ltypes']]
+#                    y2ltype.append((link, link, "Plot "+link))
+                y2lrtype = [(linkr, linkr, "Plot "+linkr) for linkr in innode['lrtypes']]
+#                    y2lrtype.append((linkr, linkr, "Plot "+linkr))
 
                 class ViEnRY2In(bpy.types.NodeSocket):
                     '''Energy geometry out socket'''
@@ -994,7 +977,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     def draw(self, context, layout, node, text):
                         row = layout.row()
                         row.prop(self, "rtypemenu", text = text)
-                        if self.is_linked:
+                        if self.links:
                             typedict = {"Time": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"), "Linkage":("linkmenu", "linkrmenu")}
                             for rtype in typedict[self.rtypemenu]:
                                 row.prop(self, rtype)
@@ -1011,7 +994,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 bpy.utils.register_class(ViEnRY2In)
 
         if self.inputs.get('Y-axis 3'):
-            if self.inputs['Y-axis 3'].is_linked == False:
+            if not self.inputs['Y-axis 3'].links:
                 class ViEnRY3In(bpy.types.NodeSocket):
                     '''Energy geometry out socket'''
                     bl_idname = 'ViEnRY3In'
@@ -1023,20 +1006,20 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                         layout.label('Y-axis 3')
                 bpy.utils.register_class(ViEnRY3In)
             else:
-                y3rtype, y3ctype, y3ztype, y3zrtype, y3ltype, y3lrtype = [], [], [], [], [], []
+#                y3rtype, y3ctype, y3ztype, y3zrtype, y3ltype, y3lrtype = [], [], [], [], [], []
                 innode = self.inputs[3].links[0].from_node
-                for restype in innode['rtypes']:
-                    y3rtype.append((restype, restype, "Plot "+restype))
-                for clim in innode['ctypes']:
-                    y3ctype.append((clim, clim, "Plot "+clim))
-                for zone in innode['ztypes']:
-                    y3ztype.append((zone, zone, "Plot "+zone))
-                for zoner in innode['zrtypes']:
-                    y3zrtype.append((zoner, zoner, "Plot "+zoner))
-                for link in innode['ltypes']:
-                    y3ltype.append((link, link, "Plot "+link))
-                for linkr in innode['lrtypes']:
-                    y3lrtype.append((linkr, linkr, "Plot "+linkr))
+                y3rtype = [(restype, restype, "Plot "+restype) for restype in innode['rtypes']]
+#                    y3rtype.append((restype, restype, "Plot "+restype))
+                y3ctype = [(clim, clim, "Plot "+clim) for clim in innode['ctypes']]
+#                    y3ctype.append((clim, clim, "Plot "+clim))
+                y3ztype = [(zone, zone, "Plot "+zone) for zone in innode['ztypes']]
+#                    y3ztype.append((zone, zone, "Plot "+zone))
+                y3zrtype = [(zoner, zoner, "Plot "+zoner) for zoner in innode['zrtypes']]
+#                    y3zrtype.append((zoner, zoner, "Plot "+zoner))
+                y3ltype = [(link, link, "Plot "+link) for link in innode['ltypes']]
+#                    y3ltype.append((link, link, "Plot "+link))
+                y3lrtype = [(linkr, linkr, "Plot "+linkr) for linkr in innode['lrtypes']]
+#                    y3lrtype.append((linkr, linkr, "Plot "+linkr))
 
                 class ViEnRY3In(bpy.types.NodeSocket):
                     '''Energy geometry out socket'''
@@ -1057,7 +1040,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     def draw(self, context, layout, node, text):
                         row = layout.row()
                         row.prop(self, "rtypemenu", text = text)
-                        if self.is_linked:
+                        if self.links:
                             typedict = {"Time": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"), "Linkage":("linkmenu", "linkrmenu")}
                             for rtype in typedict[self.rtypemenu]:
                                 row.prop(self, rtype)
@@ -1231,8 +1214,6 @@ class ViGenNode(bpy.types.Node, ViNodes):
     direction = bpy.props.EnumProperty(items=[("0", "Positive", "Increase/positive direction"),("1", "Negative", "Decrease/negative direction")],  name="", description="Manipulation direction", default="0")
     extent = bpy.props.FloatProperty(name = '', min = 0, max = 360, default = 0)
     steps = bpy.props.IntProperty(name = '', min = 1, max = 100, default = 1)
-
-    #    buildstorey = bpy.props.EnumProperty(items=[("0", "Single", "Single storey building"),("1", "Multi", "Multi-storey building")], name="", description="Building storeys", default="0", update = nodeupdate)
 
     def init(self, context):
         self.inputs.new('ViGen', 'Generative in')

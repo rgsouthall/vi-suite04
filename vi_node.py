@@ -407,7 +407,8 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             name="", description="Custom Radiance simulation parameters", default="")
     numbasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.001, 0.0001, 0.00002), ("-lr", 2, 3, 4))
     numadvance = (("-ab", 3, 5), ("-ad", 2048, 4096), ("-as", 1024, 2048), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 0.0001, 0.00002), ("-lr", 3, 5))
-
+    run = bpy.props.IntProperty(default = 0)
+    
     def init(self, context):
         self.inputs.new('ViLiC', 'Context in')
         self.outputs.new('LiViWOut', 'Data out')
@@ -416,21 +417,28 @@ class ViLiSNode(bpy.types.Node, ViNodes):
         
     def draw_buttons(self, context, layout):
         if nodeinputs(self):
+            connode = self.inputs['Context in'].links[0].from_node
             row = layout.row()
             row.label("Accuracy:")
-            if self.inputs['Context in'].links[0].from_node.bl_label == 'LiVi Basic':
+            if connode.bl_label == 'LiVi Basic':
                 row.prop(self, 'simacc')
-            elif self.inputs['Context in'].links[0].from_node.bl_label == 'LiVi Compliance':
+            elif connode.bl_label == 'LiVi Compliance':
                 row.prop(self, 'csimacc')
-            elif self.inputs['Context in'].links[0].from_node.bl_label == 'LiVi CBDM':
+            elif connode.bl_label == 'LiVi CBDM':
                 row.prop(self, 'csimacc')
 
             if (self.simacc == '3' and self.inputs['Context in'].links[0].from_node.bl_label == 'LiVi Basic') or (self.csimacc == '0' and self.inputs['Context in'].links[0].from_node.bl_label in ('LiVi Compliance', 'LiVi CBDM')):
                newrow(layout, "Radiance parameters:", self, 'cusacc')
-
-            row = layout.row()
-            row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']
-            row.operator("node.livicalc", text = 'Calculate').nodeid = self['nodeid']
+            if self.run:
+                row = layout.row()
+                row.label('Calculating'+(self.run%10 *'-'))
+            else:
+                row = layout.row()
+                row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']
+                if connode.bl_label == 'LiVi Basic' and connode.analysismenu == '3':
+                    row.operator("node.liviglare", text = 'Calculate').nodeid = self['nodeid']
+                else:
+                    row.operator("node.livicalc", text = 'Calculate').nodeid = self['nodeid']
             
     def export(self):
         connode = self.inputs['Context in'].links[0].from_node 

@@ -358,10 +358,10 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
                 simnode['Animation'] = 'Animated' if scene.gfe > 0 or scene.cfe > 0 else 'Static'
                 li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
                 scene.vi_display = 1
-            else:
-                simnode['Animation'] = 'Animated' if scene.gfe > 0 or scene.cfe > 0 else 'Static'
-                li_glare(self, simnode, connode, geonode)
-                scene.vi_display = 0
+#            else:
+#                simnode['Animation'] = 'Animated' if scene.gfe > 0 or scene.cfe > 0 else 'Static'
+#                li_glare(self, simnode, connode, geonode)
+#                scene.vi_display = 0
         else:
             simnode['Animation'] = 'Animated' if scene.gfe > 0 or scene.cfe > 0 else 'Static'
             scene.fs = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
@@ -546,37 +546,59 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
     nodeid = bpy.props.StringProperty()
     
     def modal(self, context, event):
-        if self.esim.poll() is not None:
-            if 'EnergyPlus Terminated--Error(s) Detected' in self.esimrun.stderr.read():
-                self.report({'ERROR'}, "There was an error in the input IDF file. Chect the *.err file in Blender's text editor.")
-                return {'CANCELLED'}
-            processf(self, simnode)            
-            if self.simnode.resname+".err" not in [im.name for im in bpy.data.texts]:
-                bpy.data.texts.load(os.path.join(scene['viparams']['newdir'], simnode.resname+".err"))
-            self.report({'INFO'}, "Calculation is finished.")  
-    #        envi_sim(self, node, connode)
-            self.simnode.outputs['Results out'].hide = False
-            if self.simnode.outputs[0].is_linked:
-                socket1, socket2  = self.simnode.outputs[0], self.simnode.outputs[0].links[0].to_socket
-                bpy.data.node_groups[self.nodeid.split('@')[1]].links.remove(self.simnode.outputs[0].links[0])
-                bpy.data.node_groups[self.nodeid.split('@')[1]].links.new(socket1, socket2)
+        if event.type == 'TIMER':
             scene = context.scene
-            viparams(scene)
-            scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 2, 0, 0, 0, 0
-            for fname in os.listdir('.'):
-                if fname.split(".")[0] == self.simnode.resname:
-                    os.remove(os.path.join(scene['viparams']['newdir'], fname))
-            for fname in os.listdir('.'):
-                if fname.split(".")[0] == "eplusout":
-                    rename(os.path.join(scene['viparams']['newdir'], fname), os.path.join(scene['viparams']['newdir'],fname.replace("eplusout", simnode.resname)))
-            return {'FINISHED'}
-                
+            if self.esimrun.poll() is None:
+                nodecolour(self.simnode, 1)
+                try:
+                    with open(os.path.join(scene['viparams']['newdir'], 'eplusout.eso'), 'r') as resfile:                    
+                        for line in resfile.readlines()[::-1]:  
+                            if line.split(',')[0] == '2' and len(line.split(',')) == 9:
+                                self.simnode.run = int(100 * int(line.split(',')[1])/(self.simnode.dedoy - self.simnode.dsdoy))
+                                break
+                    return {'RUNNING_MODAL'}
+                except Exception as e:
+                    print(e)
+                    return {'RUNNING_MODAL'} 
+            else:
+                for fname in os.listdir('.'):
+                    if fname.split(".")[0] == self.simnode.resname:
+                        os.remove(os.path.join(scene['viparams']['newdir'], fname))
+                for fname in os.listdir('.'):
+                    if fname.split(".")[0] == "eplusout":
+                        rename(os.path.join(scene['viparams']['newdir'], fname), os.path.join(scene['viparams']['newdir'],fname.replace("eplusout", self.simnode.resname)))
+                if self.simnode.resname+".err" not in [im.name for im in bpy.data.texts]:
+                    bpy.data.texts.load(os.path.join(scene['viparams']['newdir'], self.simnode.resname+".err"))
+                if 'EnergyPlus Terminated--Error(s) Detected' in self.esimrun.stderr.read().decode():
+                    self.report({'ERROR'}, "There was an error in the input IDF file. Check the *.err file in Blender's text editor.")
+                    nodecolour(self.simnode, 0)
+                    self.simnode.run = -1
+                    return {'CANCELLED'}
+                else:
+                    self.simnode.run = -1
+                    nodecolour(self.simnode, 0)
+                    processf(self, self.simnode)
+                    self.report({'INFO'}, "Calculation is finished.") 
+                    self.simnode.outputs['Results out'].hide = False
+                    if self.simnode.outputs[0].is_linked:
+                        socket1, socket2  = self.simnode.outputs[0], self.simnode.outputs[0].links[0].to_socket
+                        bpy.data.node_groups[self.nodeid.split('@')[1]].links.remove(self.simnode.outputs[0].links[0])
+                        bpy.data.node_groups[self.nodeid.split('@')[1]].links.new(socket1, socket2)
+                    viparams(scene)
+                    scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 2, 0, 0, 0, 0                    
+                    return {'FINISHED'}
+        else:
+            return {'PASS_THROUGH'}
+            
     def invoke(self, context, event):
+        scene = context.scene
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(1, context.window)
+        wm.modal_handler_add(self)
         self.simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         self.connode = self.simnode.inputs['Context in'].links[0].from_node
-        self.simnode.dsdoy = self.connode.sdoy # (locnode.startmonthnode.sdoy
-        self.simnode.dedoy = self.connode.edoy
-        scene, err = context.scene, 0
+        self.simnode.resfilename = os.path.join(scene['viparams']['newdir'], self.simnode.resname+'.eso')
+        self.simnode.dsdoy, self.simnode.dedoy, self.simnode.run = self.connode.sdoy, self.connode.edoy, 0 # (locnode.startmonthnode.sdoy       
         os.chdir(scene['viparams']['newdir'])
         if scene['viparams'].get('hvactemplate'):
             ehtempcmd = "ExpandObjects in.idf"
@@ -584,9 +606,8 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
             Popen('{} {} {}'.format(scene['viparams']['cp'], 'expanded.idf', 'in.idf'), shell = True)
         esimcmd = "EnergyPlus in.idf in.epw" 
         self.esimrun = Popen(esimcmd.split(), stdout = PIPE, stderr = PIPE)
-        
-        if err:
-            return
+        return {'RUNNING_MODAL'}
+
         
 
 class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):

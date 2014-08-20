@@ -102,7 +102,7 @@ def register():
     
 # EnVi HVAC Template definitions
     Object.envi_hvact = bprop("Template:", "", False)
-    Object.envi_hvacht = fprop("", "Heating temperature:", 10, 60, 50)
+    Object.envi_hvacht = fprop("", "Heating temperature:", 1, 99, 50)
     Object.envi_hvacct = fprop("", "Cooling temperature:", -10, 20, 13)
     Object.envi_hvachlt = eprop([('0', 'LimitFlowRate', 'LimitFlowRate'), ('1', 'LimitCapacity', 'LimitCapacity'), ('2', 'LimitFlowRateAndCapacity', 'LimitFlowRateAndCapacity'), ('3', 'NoLimit', 'NoLimit'), ('4', 'None', 'No heating')], '', "Heating limit type", '4')    
     Object.envi_hvachaf = fprop("", "Heating air flow rate", 0, 60, 1)

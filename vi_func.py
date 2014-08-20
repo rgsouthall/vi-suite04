@@ -9,6 +9,7 @@ except:
     mp = 0
 
 dtdf = datetime.date.fromordinal
+s = 60
 
 def radmat(self, scene, ui):
     radname, radtype = self.name.replace(" ", "_"), ''
@@ -702,8 +703,6 @@ def nodecolour(node, prob):
     return not prob
 
 def remlink(node, links):
-#    for ng in bpy.data.node_groups:
-#    if node in .nodes[:]:
     for link in links:
         bpy.data.node_groups[node['nodeid'].split('@')[1]].links.remove(link)
 

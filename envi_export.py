@@ -121,10 +121,10 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 elif layer == "2" and mat.envi_con_type == "Window":
                     mats = (mat.envi_export_lo_name, mat.envi_export_l1_name, mat.envi_export_l2_name, mat.envi_export_l3_name, mat.envi_export_l4_name)[l]
                     if l in (0, 2, 4):
-                        params = [(("Glazing", mat.envi_export_lo_odt, mat.envi_export_lo_sds, mat.envi_export_lo_thi, mat.envi_export_lo_stn, mat.envi_export_lo_fsn, mat.envi_export_lo_bsn, mat.envi_export_lo_vtn, mat.envi_export_lo_fvrn, mat.envi_export_lo_bvrn, mat.envi_export_lo_itn, mat.envi_export_lo_fie, mat.envi_export_lo_bie, mat.envi_export_lo_tc),"",\
-                    ("Glazing",  mat.envi_export_l2_odt, mat.envi_export_l2_sds, mat.envi_export_l2_thi, mat.envi_export_l2_stn, mat.envi_export_l2_fsn, mat.envi_export_l2_bsn, mat.envi_export_l2_vtn, mat.envi_export_l2_fvrn, mat.envi_export_l2_bvrn, mat.envi_export_l2_itn, mat.envi_export_l2_fie, mat.envi_export_l2_bie, mat.envi_export_l2_tc), "",\
-                    ("Glazing",  mat.envi_export_l4_odt, mat.envi_export_l4_sds, mat.envi_export_l4_thi, mat.envi_export_l4_stn, mat.envi_export_l4_fsn, mat.envi_export_l4_bsn, mat.envi_export_l4_vtn, mat.envi_export_l4_fvrn, mat.envi_export_l4_bvrn, mat.envi_export_l4_itn, mat.envi_export_l4_fie, mat.envi_export_l4_bie, mat.envi_export_l4_tc))[l]]
-                        em.tmat_write(en_idf, mats+"-"+str(matcount.count(mats)), params, str(thicklist[l]/1000))
+                        params = (["Glazing", mat.envi_export_lo_odt, mat.envi_export_lo_sds, mat.envi_export_lo_thi, mat.envi_export_lo_stn, mat.envi_export_lo_fsn, mat.envi_export_lo_bsn, mat.envi_export_lo_vtn, mat.envi_export_lo_fvrn, mat.envi_export_lo_bvrn, mat.envi_export_lo_itn, mat.envi_export_lo_fie, mat.envi_export_lo_bie, mat.envi_export_lo_tc],"",\
+                    ["Glazing",  mat.envi_export_l2_odt, mat.envi_export_l2_sds, mat.envi_export_l2_thi, mat.envi_export_l2_stn, mat.envi_export_l2_fsn, mat.envi_export_l2_bsn, mat.envi_export_l2_vtn, mat.envi_export_l2_fvrn, mat.envi_export_l2_bvrn, mat.envi_export_l2_itn, mat.envi_export_l2_fie, mat.envi_export_l2_bie, mat.envi_export_l2_tc], "",\
+                    ["Glazing",  mat.envi_export_l4_odt, mat.envi_export_l4_sds, mat.envi_export_l4_thi, mat.envi_export_l4_stn, mat.envi_export_l4_fsn, mat.envi_export_l4_bsn, mat.envi_export_l4_vtn, mat.envi_export_l4_fvrn, mat.envi_export_l4_bvrn, mat.envi_export_l4_itn, mat.envi_export_l4_fie, mat.envi_export_l4_bie, mat.envi_export_l4_tc])[l]
+                        em.tmat_write(en_idf, '{}-{}'.format(mats, matcount.count(mats)), params, str(thicklist[l]/1000))
                     else:
                         params = [("", ("Gas", mat.envi_export_wgaslist_l1), "", ("Gas", mat.envi_export_wgaslist_l1))[l]]
                         em.gmat_write(en_idf, mats+"-"+str(matcount.count(mats)), params, str(thicklist[l]/1000))
@@ -308,6 +308,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 
 def pregeo(op):
     scene = bpy.context.scene
+    bpy.data.scenes[0].layers[0:2] = True, False
     for obj in [obj for obj in scene.objects if obj.layers[1] == True]:
         scene.objects.unlink(obj)
         bpy.data.objects.remove(obj)
@@ -320,12 +321,8 @@ def pregeo(op):
 
     for obj in [obj for obj in scene.objects if obj.envi_type in ('1', '2') and obj.layers[0] == True and obj.hide == False]:
         if obj.envi_type == '1':
-            if 'EnVi Network' not in bpy.data.node_groups.keys():
-                enng = bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network")
-                bpy.data.node_groups['EnVi Network'].use_fake_user = 1
-            else:
-                enng = bpy.data.node_groups['EnVi Network']
-
+            enng = bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network") if 'EnVi Network' not in bpy.data.node_groups.keys() else bpy.data.node_groups['EnVi Network']                
+            bpy.data.node_groups['EnVi Network'].use_fake_user = 1
         for mats in obj.data.materials:
             if 'en_'+mats.name not in [mat.name for mat in bpy.data.materials]:
                 mats.copy().name = 'en_'+mats.name
@@ -349,23 +346,27 @@ def pregeo(op):
         for poly in en_obj.data.polygons:
             if en_obj.data.materials[poly.material_index].envi_con_type == 'None':
                 poly.select = True
-#                poly.hide = True
+
         bpy.ops.object.mode_set(mode = "EDIT")
         bpy.ops.mesh.delete(type = 'FACE')
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.mesh.remove_doubles()
         bpy.ops.object.mode_set(mode = 'OBJECT')
-#        obj.active = True
-#        bpy.ops.object.make_links_data(type='OBDATA')
         en_obj.select = False
         en_obj["volume"] = objvol(op, obj)
 
-        if en_obj.envi_type =='1' and en_obj.name not in [node.zone for node in enng.nodes if hasattr(node, 'zone')] :
-            enng.nodes.new(type = 'EnViZone').zone = en_obj.name
-        elif en_obj.envi_type == '1':
+        if any([mat.envi_afsurface for mat in en_obj.data.materials]):
+            if en_obj.envi_type =='1' and en_obj.name not in [node.zone for node in enng.nodes if hasattr(node, 'zone')]:
+                enng.nodes.new(type = 'EnViZone').zone = en_obj.name
+            elif en_obj.envi_type == '1':
+                for node in enng.nodes:
+                    if hasattr(node, 'zone') and node.zone == en_obj.name:
+                        node.zupdate(bpy.context)
+        elif en_obj.name in [node.zone for node in enng.nodes if hasattr(node, 'zone')]:
             for node in enng.nodes:
                 if hasattr(node, 'zone') and node.zone == en_obj.name:
-                    node.zupdate(bpy.context)
+                    enng.nodes.remove(node)
+            
         bpy.data.scenes[0].layers[0:2] = (True, False)
         obj.select = True
         scene.objects.active = obj
@@ -564,9 +565,12 @@ class hcoiwrite(object):
 
 def writeafn(exp_op, en_idf, enng):
     enng['enviparams'] = {'wpca': 0, 'wpcn': 0, 'crref': 0}
-    if not len([enode for enode in enng.nodes if enode.bl_idname == 'AFNCon']):
+    if not [enode for enode in enng.nodes if enode.bl_idname == 'AFNCon'] and [enode for enode in enng.nodes if enode.bl_idname == 'EnViZone']:
         enng.nodes.new(type = 'AFNCon')
-    en_idf.write([enode for enode in enng.nodes if enode.bl_idname == 'AFNCon'][0].epwrite(exp_op, enng))
+        en_idf.write([enode for enode in enng.nodes if enode.bl_idname == 'AFNCon'][0].epwrite(exp_op, enng))
+    else:
+        print('hi')
+        [enng.nodes.remove(enode) for enode in enng.nodes if enode.bl_idname == 'AFNCon']
     if [enode for enode in enng.nodes if enode.bl_idname == 'EnViCrRef']:
         en_idf.write([enode for enode in enng.nodes if enode.bl_idname == 'EnViCrRef'][0].epwrite())
         enng['enviparams']['crref'] = 1

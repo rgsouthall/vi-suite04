@@ -78,15 +78,6 @@ class envi_materials(object):
         self.matdat = OrderedDict()
         for dat in (self.brick_dat, self.cladding_dat, self.concrete_dat, self.gas_dat, self.insulation_dat, self.metal_dat, self.stone_dat, self.wood_dat, self.glass_dat, self.wgas_dat):
             self.matdat.update(dat)
-#        self.matdat.update(self.cladding_dat)
-#        self.matdat.update(self.concrete_dat)
-#        self.matdat.update(self.gas_dat)
-#        self.matdat.update(self.insulation_dat)
-#        self.matdat.update(self.metal_dat)
-#        self.matdat.update(self.stone_dat)
-#        self.matdat.update(self.wood_dat)
-#        self.matdat.update(self.glass_dat)
-#        self.matdat.update(self.wgas_dat)
         
     def omat_write(self, idf_file, name, stringmat, thickness):
         params = ('Name', 'Roughness', 'Thickness (m)', 'Conductivity (W/m-K)', 'Density (kg/m3)', 'Specific Heat Capacity (J/kg-K)', 'Thermal Absorptance', 'Solar Absorptance', 'Visible Absorptance')
@@ -102,7 +93,7 @@ class envi_materials(object):
         params = ('Name', 'Optical Data Type', 'Window Glass Spectral Data Set Name', 'Thickness (m)', 'Solar Transmittance at Normal Incidence', 'Front Side Solar Reflectance at Normal Incidence',
                   'Back Side Solar Reflectance at Normal Incidence', 'Visible Transmittance at Normal Incidence', 'Front Side Visible Reflectance at Normal Incidence', 'Back Side Visible Reflectance at Normal Incidence',
                   'Infrared Transmittance at Normal Incidence', 'Front Side Infrared Hemispherical Emissivity', 'Back Side Infrared Hemispherical Emissivity', 'Conductivity (W/m-K)')
-        paramvs = [name] + stringmat[1:3] + [thickness] + stringmat[4:]
+        paramvs = [name] + stringmat[1:3] + [thickness] + ['{:.3f}'.format(sm) for sm in stringmat[4:]]
         idf_file.write(epentry("WindowMaterial:{}".format(stringmat[0]), params, paramvs))
     
     def gmat_write(self, idf_file, name, stringmat, thickness):  

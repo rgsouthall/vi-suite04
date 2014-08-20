@@ -407,7 +407,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             name="", description="Custom Radiance simulation parameters", default="")
     numbasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.001, 0.0001, 0.00002), ("-lr", 2, 3, 4))
     numadvance = (("-ab", 3, 5), ("-ad", 2048, 4096), ("-as", 1024, 2048), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 0.0001, 0.00002), ("-lr", 3, 5))
-    run = bpy.props.IntProperty(default = 0)
+    run = bpy.props.IntProperty(default = -1)
     
     def init(self, context):
         self.inputs.new('ViLiC', 'Context in')
@@ -686,7 +686,7 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
         self.outputs.new('ViEnR', 'Results out')
         self.outputs['Results out'].hide = True
         self['nodeid'] = nodeid(self, bpy.data.node_groups)
-
+        
     def nodeupdate(self, context):
         self.exported = False
         self.bl_label = '*EnVi Simulation'
@@ -696,15 +696,14 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
 
     resname = bpy.props.StringProperty(name="", description="Base name for the results files", default="results", update = nodeupdate)
     resfilename = bpy.props.StringProperty(name = "", default = 'results')
-    dsdoy, dedoy  = bpy.props.IntProperty(), bpy.props.IntProperty()
-
-    def update(self):
-        if self.inputs['Context in'].links:
-            self.resfilename = os.path.join(self.inputs['Context in'].links[0].from_node.newdir, self.resname+'.eso')
+    dsdoy, dedoy, run  = bpy.props.IntProperty(), bpy.props.IntProperty(), bpy.props.IntProperty(min = -1, default = -1)
 
     def draw_buttons(self, context, layout):
-         if self.inputs['Context in'].is_linked:
-            newrow(layout, 'Results name:', 'resname')
+        if self.run > -1:
+            row = layout.row()
+            row.label('Calculating {}%'.format(self.run))
+        elif self.inputs['Context in'].is_linked:
+            newrow(layout, 'Results name:', self, 'resname')
             row = layout.row()
             row.operator("node.ensim", text = 'Calculate').nodeid = self['nodeid']
 

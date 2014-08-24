@@ -204,7 +204,6 @@ def clearscene(scene, op):
 
 def processf(pro_op, node):
     rtypes, ctypes, ztypes, zrtypes, ltypes, lrtypes = [], [], [], [], [], []
-    resfile = open(node.resfilename, 'r')
 
     envdict = {'Site Outdoor Air Drybulb Temperature [C] !Hourly': "Temperature ("+ u'\u00b0'+"C)",
                'Site Outdoor Air Relative Humidity [%] !Hourly': 'Humidity (%)',
@@ -222,65 +221,74 @@ def processf(pro_op, node):
                 'Zone Mean Radiant Temperature [C] !Hourly' :'Mean Radiant ({})'.format(u'\u00b0'),
                 'Zone Thermal Comfort Fanger Model PPD [%] !Hourly' :'PPD',
                 'Zone Thermal Comfort Fanger Model PMV [] !Hourly' :'PMV',
-                'AFN Node CO2 Concentration [ppm] !Hourly': 'CO2'}
+                'AFN Node CO2 Concentration [ppm] !Hourly': 'CO2',
+                'Zone Air CO2 Concentration [ppm] !Hourly': 'CO2',
+                'Zone Mean Radiant Temperature [C] !Hourly': 'MRT', 'Zone People Occupant Count [] !Hourly': 'Occupancy'}
     lresdict = {'AFN Linkage Node 1 to Node 2 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow 1 to 2',
                 'AFN Linkage Node 2 to Node 1 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow 2 to 1',
                 'AFN Surface Venting Window or Door Opening Factor [] !Hourly': 'Opening Factor'}
     resdict = {}
-
+    allresdict = {}
     connode = node.inputs['Context in'].links[0].from_node
-
     objlist = [obj.name.upper() for obj in bpy.data.objects if obj.envi_type == '1' and obj.layers[1] == True] if connode.bl_idname != 'ViEnInNode' else connode['oblist']
 
-    for line in resfile.readlines():
-        linesplit = line.strip('\n').split(',')
+    with open(node.resfilename, 'r') as resfile:
+        intro = 1    
+        for line in resfile.readlines():
+            linesplit = line.strip('\n').split(',')
+            if intro:
+                if len(linesplit) == 1:
+                    intro = 0
+                elif linesplit[1] == '1' and '!Hourly' in linesplit[-1]:
+                    allresdict[linesplit[0]] = ['{} {}'.format(linesplit[2], linesplit[-1].strip(' !Hourly'))]
+            elif not intro and len(linesplit) == 2:
+                allresdict[linesplit[0]].append(linesplit[1])
+                    
+            if linesplit[0] in resdict:
+                resdict[linesplit[0]].append(linesplit[1])
+                if linesplit[0] == dos:
+                    resdict['Month'].append(linesplit[2])
+                    resdict['Day'].append(linesplit[3])
+                    resdict['Hour'].append(linesplit[5])
+    
+            elif len(linesplit) > 3 and linesplit[2] == 'Day of Simulation[]':
+                resdict[linesplit[0]], resdict['Month'],  resdict['Day'], resdict['Hour'], dos, node['rtypes'] = ['Day of Simulation'], [], [], [], linesplit[0], ['Time']
+    
+            elif len(linesplit) > 3 and linesplit[2] == 'Environment':
+                if 'Climate' not in node['rtypes']:
+                    node['rtypes']+= ['Climate']
+                try:
+                    resdict[linesplit[0]] = ['Climate', envdict[linesplit[3]]]
+                    ctypes.append(envdict[linesplit[3]])
+                except:
+                    pass
+    
+            elif len(linesplit) > 3 and linesplit[2] in objlist:
+                if 'Zone' not in node['rtypes']:
+                   node['rtypes'] += ['Zone']
+                try:
+                    resdict[linesplit[0]] = [linesplit[2], zresdict[linesplit[3]]]
+                    if linesplit[2] not in ztypes:
+                        ztypes.append(linesplit[2])
+                    if zresdict[linesplit[3]] not in zrtypes:
+                        zrtypes.append(zresdict[linesplit[3]])
+                except:
+                    pass
+    
+            elif len(linesplit) > 3 and linesplit[3] in lresdict:
+                if 'Linkage' not in node['rtypes']:
+                   node['rtypes'] += ['Linkage']
+                try:
+                    resdict[linesplit[0]] = [linesplit[2], lresdict[linesplit[3]]]
+                    if linesplit[2] not in ltypes:
+                        ltypes.append(linesplit[2])
+                    if lresdict[linesplit[3]] not in lrtypes:
+                        lrtypes.append(lresdict[linesplit[3]])
+                except:
+                    pass
 
-        if linesplit[0] in resdict:
-            resdict[linesplit[0]].append(linesplit[1])
-            if linesplit[0] == dos:
-                resdict['Month'].append(linesplit[2])
-                resdict['Day'].append(linesplit[3])
-                resdict['Hour'].append(linesplit[5])
-
-        elif len(linesplit) > 3 and linesplit[2] == 'Day of Simulation[]':
-            resdict[linesplit[0]], resdict['Month'],  resdict['Day'], resdict['Hour'], dos, node['rtypes'] = ['Day of Simulation'], [], [], [], linesplit[0], ['Time']
-
-        elif len(linesplit) > 3 and linesplit[2] == 'Environment':
-            if 'Climate' not in node['rtypes']:
-                node['rtypes']+= ['Climate']
-            try:
-                resdict[linesplit[0]] = ['Climate', envdict[linesplit[3]]]
-                ctypes.append(envdict[linesplit[3]])
-            except:
-                pass
-
-        elif len(linesplit) > 3 and linesplit[2] in objlist:
-            if 'Zone' not in node['rtypes']:
-               node['rtypes'] += ['Zone']
-            try:
-                resdict[linesplit[0]] = [linesplit[2], zresdict[linesplit[3]]]
-                if linesplit[2] not in ztypes:
-                    ztypes.append(linesplit[2])
-                if zresdict[linesplit[3]] not in zrtypes:
-                    zrtypes.append(zresdict[linesplit[3]])
-            except:
-                pass
-
-        elif len(linesplit) > 3 and linesplit[3] in lresdict:
-            if 'Linkage' not in node['rtypes']:
-               node['rtypes'] += ['Linkage']
-            try:
-                resdict[linesplit[0]] = [linesplit[2], lresdict[linesplit[3]]]
-                if linesplit[2] not in ltypes:
-                    ltypes.append(linesplit[2])
-                if lresdict[linesplit[3]] not in lrtypes:
-                    lrtypes.append(lresdict[linesplit[3]])
-            except:
-                pass
-
-    resfile.close()
     node['dos'], node['resdict'], node['ctypes'], node['ztypes'], node['zrtypes'], node['ltypes'], node['lrtypes'], node.dsdoy, node.dedoy = dos, resdict, ctypes, ztypes, zrtypes, ltypes, lrtypes, int(resdict[dos][1]), int(resdict[dos][-1])
-
+    node['allresdict'] = allresdict
 def iprop(iname, idesc, imin, imax, idef):
     return(IntProperty(name = iname, description = idesc, min = imin, max = imax, default = idef))
 def eprop(eitems, ename, edesc, edef):
@@ -728,7 +736,6 @@ def socklink(sock, ng):
         pass
 
 def epschedwrite(name, stype, ts, fs, us):
-    print(ts, fs, us)
     params = ['Name', 'Schedule Type Limits Name']
     paramvs = [name, stype]
     for t in range(len(ts)):

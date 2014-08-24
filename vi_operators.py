@@ -483,6 +483,38 @@ class NODE_OT_IDFSelect(bpy.types.Operator, io_utils.ImportHelper):
     def invoke(self,context,event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
+        
+class NODE_OT_CSVExport(bpy.types.Operator, io_utils.ExportHelper):
+    bl_idname = "node.csvexport"
+    bl_label = "Export a CSV file"
+    bl_description = "Select the CSV file to export"
+    filename = ""
+    filename_ext = ".csv"
+    filter_glob = bpy.props.StringProperty(default="*.csv", options={'HIDDEN'})
+    bl_register = True
+    bl_undo = True
+
+    nodeid = bpy.props.StringProperty()
+
+    def draw(self,context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Specify the CSV export file with the file browser", icon='WORLD_DATA')
+
+    def execute(self, context):
+        resnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].inputs['Results in'].links[0].from_node
+        resstring, reslist = '', [['Month'] + resnode['resdict']['Month']] + [['Day'] + resnode['resdict']['Day']] + [['Hour'] + resnode['resdict']['Hour']] + resnode['allresdict'].values()
+        for rline in zip(*reslist):
+            for r in rline:
+                resstring += '{},'.format(r)
+            resstring += '\n'
+        with open(self.filepath, 'w') as csvfile:
+            csvfile.write(resstring)
+        return {'FINISHED'}
+
+    def invoke(self,context,event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
 class NODE_OT_EnGExport(bpy.types.Operator):
     bl_idname = "node.engexport"
@@ -557,20 +589,25 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
                                 self.simnode.run = int(100 * int(line.split(',')[1])/(self.simnode.dedoy - self.simnode.dsdoy))
                                 break
                     return {'RUNNING_MODAL'}
-                except Exception as e:
-                    print(e)
+                except:
                     return {'RUNNING_MODAL'} 
             else:
-                for fname in os.listdir('.'):
-                    if fname.split(".")[0] == self.simnode.resname:
-                        os.remove(os.path.join(scene['viparams']['newdir'], fname))
-                for fname in os.listdir('.'):
-                    if fname.split(".")[0] == "eplusout":
-                        rename(os.path.join(scene['viparams']['newdir'], fname), os.path.join(scene['viparams']['newdir'],fname.replace("eplusout", self.simnode.resname)))
+                ofns = [fname for fname in os.listdir('.') if fname.split(".")[0] == self.simnode.resname]                
+                for fname in ofns:
+                    os.remove(os.path.join(scene['viparams']['newdir'], fname))
+                
+                nfns = [fname for fname in os.listdir('.') if fname.split(".")[0] == "eplusout"]                
+                for fname in nfns:
+                    rename(os.path.join(scene['viparams']['newdir'], fname), os.path.join(scene['viparams']['newdir'],fname.replace("eplusout", self.simnode.resname)))
+
                 if self.simnode.resname+".err" not in [im.name for im in bpy.data.texts]:
                     bpy.data.texts.load(os.path.join(scene['viparams']['newdir'], self.simnode.resname+".err"))
-                if 'EnergyPlus Terminated--Error(s) Detected' in self.esimrun.stderr.read().decode():
-                    self.report({'ERROR'}, "There was an error in the input IDF file. Check the *.err file in Blender's text editor.")
+
+                if 'EnergyPlus Terminated--Error(s) Detected' in self.esimrun.stderr.read().decode() or not [f for f in nfns if f.split(".")[1] == "eso"]:
+                    if not [f for f in nfns if f.split(".")[1] == "eso"]:
+                        self.report({'ERROR'}, "There is no results file. Check you have selected results outputs and that there are no errors in the .err file in the Blender text editor.")
+                    if 'EnergyPlus Terminated--Error(s) Detected' in self.esimrun.stderr.read().decode():
+                        self.report({'ERROR'}, "There was an error in the input IDF file. Check the *.err file in Blender's text editor.")
                     nodecolour(self.simnode, 0)
                     self.simnode.run = -1
                     return {'CANCELLED'}
@@ -623,7 +660,7 @@ class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         Sdate = dt.fromordinal(dt(dt.now().year, 1, 1).toordinal() + node['Start'] -1) + datetime.timedelta(hours = node.dsh - 1)
         Edate = dt.fromordinal(dt(dt.now().year, 1, 1).toordinal() + node['End'] -1 ) + datetime.timedelta(hours = node.deh - 1)
-        innodes = list(OrderedDict.fromkeys([inputs.links[0].from_node for inputs in node.inputs if inputs.is_linked]))
+        innodes = list(OrderedDict.fromkeys([inputs.links[0].from_node for inputs in node.inputs if inputs.links]))
         chart_disp(self, node, innodes, Sdate, Edate)
         return {'FINISHED'}
 

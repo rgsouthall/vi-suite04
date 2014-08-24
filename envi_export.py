@@ -198,7 +198,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     paramvs = ("Temperature", -60, 200, "CONTINUOUS", "Temperature")
     en_idf.write(epentry('ScheduleTypeLimits', params, paramvs))
     params = ('Name', 'Lower Limit Value', 'Upper Limit Value', 'Numeric Type')
-    paramvs = ("ControlType", 0, 4, "DISCRETE")
+    paramvs = ("Control Type", 0, 4, "DISCRETE")
     en_idf.write(epentry('ScheduleTypeLimits', params, paramvs))
     params = ('Name', 'Lower Limit Value', 'Upper Limit Value', 'Numeric Type')
     paramvs = ("Fraction", 0, 1, "CONTINUOUS")
@@ -274,7 +274,8 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                    "Output:Variable,*,Zone Air System Sensible Heating Rate,hourly;\n": node.restwh, "Output:Variable,*,Zone Air System Sensible Cooling Rate,hourly;\n": node.restwc,
                    "Output:Variable,*,Zone Thermal Comfort Fanger Model PMV,hourly;\n": node.rescpm, "Output:Variable,*,Zone Thermal Comfort Fanger Model PPD,hourly;\n": node.rescpp, "Output:Variable,*,AFN Zone Infiltration Volume, hourly;\n":node.resim,
                    "Output:Variable,*,AFN Zone Infiltration Air Change Rate, hourly;\n": node.resiach, "Output:Variable,*,Zone Windows Total Transmitted Solar Radiation Rate [W],hourly;\n": node.reswsg,
-                   "Output:Variable,*,AFN Node CO2 Concentration,hourly;\n": node.resco2}
+                   "Output:Variable,*,AFN Node CO2 Concentration,hourly;\n": node.resco2 and enng['enviparams']['afn'], "Output:Variable,*,Zone Air CO2 Concentration,hourly;\n": node.resco2 and not enng['enviparams']['afn'],
+                   "Output:Variable,*,Zone Mean Radiant Temperature,hourly;\n": node.resmrt, "Output:Variable,*,Zone People Occupant Count,hourly;": node.resocc}
     for ep in epentrydict:
         if epentrydict[ep]:
             en_idf.write(ep)
@@ -417,7 +418,7 @@ class hcoiwrite(object):
         return epentry('ZoneControl:Thermostat', params, paramvs)
 
     def consched(self):
-        return epschedwrite(self.obj.name + '_thermocontrol', 'Control type', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(self.ctdict[self.hc])]]]])
+        return epschedwrite(self.obj.name + '_thermocontrol', 'Control Type', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(self.ctdict[self.hc])]]]])
 
     def ec(self):
         params = ('Zone Name', 'Zone Conditioning Equipment List Name', 'Zone Air Inlet Node or NodeList Name', 'Zone Air Exhaust Node or NodeList Name',
@@ -564,18 +565,20 @@ class hcoiwrite(object):
             return epschedwrite(self.obj.name + '_infilsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(1)]]]])
 
 def writeafn(exp_op, en_idf, enng):
-    enng['enviparams'] = {'wpca': 0, 'wpcn': 0, 'crref': 0}
+    enng['enviparams'] = {'wpca': 0, 'wpcn': 0, 'crref': 0, 'afn': 0}
     if not [enode for enode in enng.nodes if enode.bl_idname == 'AFNCon'] and [enode for enode in enng.nodes if enode.bl_idname == 'EnViZone']:
         enng.nodes.new(type = 'AFNCon')
-        en_idf.write([enode for enode in enng.nodes if enode.bl_idname == 'AFNCon'][0].epwrite(exp_op, enng))
-    else:
-        print('hi')
+    elif [enode for enode in enng.nodes if enode.bl_idname == 'AFNCon'] and not [enode for enode in enng.nodes if enode.bl_idname == 'EnViZone']:
         [enng.nodes.remove(enode) for enode in enng.nodes if enode.bl_idname == 'AFNCon']
-    if [enode for enode in enng.nodes if enode.bl_idname == 'EnViCrRef']:
-        en_idf.write([enode for enode in enng.nodes if enode.bl_idname == 'EnViCrRef'][0].epwrite())
+    for connode in [enode for enode in enng.nodes if enode.bl_idname == 'AFNCon']:
+         en_idf.write(connode.epwrite(exp_op, enng))        
+    for crnode in [enode for enode in enng.nodes if enode.bl_idname == 'EnViCrRef']:
+        en_idf.write(crnode.epwrite())
         enng['enviparams']['crref'] = 1
     extnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViExt']
     zonenodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViZone']
+    if zonenodes:
+        enng['enviparams']['afn'] = 1
     ssafnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViSSFlow']
     safnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViSFlow']
 

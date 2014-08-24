@@ -93,7 +93,7 @@ class envi_materials(object):
         params = ('Name', 'Optical Data Type', 'Window Glass Spectral Data Set Name', 'Thickness (m)', 'Solar Transmittance at Normal Incidence', 'Front Side Solar Reflectance at Normal Incidence',
                   'Back Side Solar Reflectance at Normal Incidence', 'Visible Transmittance at Normal Incidence', 'Front Side Visible Reflectance at Normal Incidence', 'Back Side Visible Reflectance at Normal Incidence',
                   'Infrared Transmittance at Normal Incidence', 'Front Side Infrared Hemispherical Emissivity', 'Back Side Infrared Hemispherical Emissivity', 'Conductivity (W/m-K)')
-        paramvs = [name] + stringmat[1:3] + [thickness] + ['{:.3f}'.format(sm) for sm in stringmat[4:]]
+        paramvs = [name] + stringmat[1:3] + [thickness] + ['{:.3f}'.format(float(sm)) for sm in stringmat[4:]]
         idf_file.write(epentry("WindowMaterial:{}".format(stringmat[0]), params, paramvs))
     
     def gmat_write(self, idf_file, name, stringmat, thickness):  

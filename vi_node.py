@@ -634,9 +634,11 @@ class ViExEnNode(bpy.types.Node, ViNodes):
                     '9': ("Solar Gain", "Window Solar Gain (Watts)"), '10': ("PPD", "Percentage Proportion Dissatisfied"), '11': ("PMV", "Predicted Mean Vote"),
                     '12': ("Ventilation (l/s)", "Zone Ventilation rate (l/s)"), '13': (u'Ventilation (m\u00b3/h)', u'Zone Ventilation rate (m\u00b3/h)'), 
                     '14': (u'Infiltration (m\u00b3)',  u'Zone Infiltration (m\u00b3)'), '15': ('Infiltration (ACH)', 'Zone Infiltration rate (ACH)'), '16': (u'CO\u2082 (ppm)', u'Zone CO\u2082 concentration (ppm)'), 
-                    '17': ("Heat loss (W)", "Ventilation Heat Loss (W)"), '18': (u'Flow (m\u00b3/s)', u'Linkage flow (m\u00b3/s)'), '19': ('Opening factor', 'Linkage Opening Factor')}  
-        return [bpy.props.BoolProperty(name = rnu[str(rnum)][0], description = rnu[str(rnum)][1], default = False) for rnum in range(20)]                      
-    (resat, resaws, resawd, resah, resasb, resasd, restt, restwh, restwc, reswsg, rescpp, rescpm, resvls, resvmh, resim, resiach, resco2, resihl, resl12ms, reslof) = resnameunits()
+                    '17': ("Heat loss (W)", "Ventilation Heat Loss (W)"), '18': (u'Flow (m\u00b3/s)', u'Linkage flow (m\u00b3/s)'), '19': ('Opening factor', 'Linkage Opening Factor'),
+                    '20': ("MRT (K)", "Mean Radiant Temperature (K)"), '21': ('Occupancy', 'Occupancy count')}  
+        return [bpy.props.BoolProperty(name = rnu[str(rnum)][0], description = rnu[str(rnum)][1], default = False) for rnum in range(len(rnu))]                      
+    (resat, resaws, resawd, resah, resasb, resasd, restt, restwh, restwc, reswsg, rescpp, rescpm, resvls, resvmh, resim, resiach, resco2, resihl, resl12ms, 
+     reslof, resmrt, resocc) = resnameunits()
         
     def init(self, context):
         self.inputs.new('ViEnG', 'Geometry in')
@@ -658,7 +660,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
         col = row.column()
         col.prop(self, "restype")
         resdict = {'0': (0, "resat", "resaws", 0, "resawd", "resah", 0, "resasb", "resasd"), '1': (0, "restt", "restwh", 0, "restwc", "reswsg"),\
-        '2': (0, "rescpp", "rescpm"), '3': (0, "resim", "resiach", 0, "resco2", "resihl"), '4': (0, "resl12ms", "reslof")}
+        '2': (0, "rescpp", "rescpm", 0, 'resmrt', 'resocc'), '3': (0, "resim", "resiach", 0, "resco2", "resihl"), '4': (0, "resl12ms", "reslof")}
         for rprop in resdict[self.restype]:
             if not rprop:
                 row = layout.row()
@@ -824,10 +826,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 def draw(self, context, layout, node, text):
                     layout.label('X-axis')
         else:
-#            try:
             innode = self.inputs['X-axis'].links[0].from_node
-#            except:
-#                return
             self["_RNA_UI"] = {"Start": {"min":innode.dsdoy, "max":innode.dedoy}, "End": {"min":innode.dsdoy, "max":innode.dedoy}}
             self['Start'], self['End'] = innode.dsdoy, innode.dedoy
             xrtype = [(restype, restype, "Plot "+restype) for restype in innode['rtypes']]
@@ -1160,7 +1159,7 @@ class ViEnG(bpy.types.NodeSocket):
         return (0.0, 0.0, 1.0, 0.75)
 
 class ViEnR(bpy.types.NodeSocket):
-    '''Energy results out socket'''
+    '''Energy results socket'''
     bl_idname = 'ViEnR'
     bl_label = 'EnVi results'
 
@@ -1270,6 +1269,23 @@ class ViTarNode(bpy.types.Node, ViNodes):
         newrow(layout, 'Above/Below:', self, 'ab')
         newrow(layout, 'Statistic:', self, 'stat')
         newrow(layout, 'Value:', self, 'value')
+        
+class ViCSVExport(bpy.types.Node, ViNodes):
+    '''CSV Export Node'''
+    bl_idname = 'ViCSV'
+    bl_label = 'VI CSV Export'
+    bl_icon = 'LAMP'
+    
+    def init(self, context):
+        self.inputs.new('ViEnR', 'Results in')
+        self['nodeid'] = nodeid(self, bpy.data.node_groups)
+    
+    def draw_buttons(self, context, layout):
+        if self.inputs['Results in'].links:
+            row = layout.row()
+            row.operator('node.csvexport', text = 'Export CSV file').nodeid = self['nodeid']
+            
+        
 
 viexnodecat = [NodeItem("ViLoc", label="VI Location"), NodeItem("ViGExLiNode", label="LiVi Geometry"), NodeItem("ViLiNode", label="LiVi Basic"), NodeItem("ViLiCNode", label="LiVi Compliance"), NodeItem("ViLiCBNode", label="LiVi CBDM"), NodeItem("ViGExEnNode", label="EnVi Geometry"), NodeItem("ViExEnNode", label="EnVi Export")]
 
@@ -1278,7 +1294,7 @@ vinodecat = [NodeItem("ViLiSNode", label="LiVi Simulation"),\
 
 vigennodecat = [NodeItem("ViGenNode", label="VI-Suite Generative"), NodeItem("ViTarNode", label="VI-Suite Target")]
 
-vidisnodecat = [NodeItem("ViChNode", label="VI-Suite Chart")]
+vidisnodecat = [NodeItem("ViChNode", label="VI-Suite Chart"), NodeItem("ViCSV", label="VI-Suite CSV")]
 viinnodecat = [NodeItem("ViEnInNode", label="EnergyPlus input file"), NodeItem("ViEnRFNode", label="EnergyPlus result file")]
 
 vinode_categories = [ViNodeCategory("Input", "Input Nodes", items=viinnodecat), ViNodeCategory("Display", "Display Nodes", items=vidisnodecat), ViNodeCategory("Generative", "Generative Nodes", items=vigennodecat), ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat), ViNodeCategory("Export", "Export Nodes", items=viexnodecat)]
@@ -1449,21 +1465,26 @@ class AFNCon(bpy.types.Node, EnViNodes):
         self.inputs.new('EnViWPCSocket', 'WPC Array')
 
     def draw_buttons(self, context, layout):
-        newrow(layout, 'Name:', self, 'afnname')
-        newrow(layout, 'Type:', self, 'afntype')
-        newrow(layout, 'WPC type:', self, 'wpctype')
-        if self.wpctype == 'Input':
-            newrow(layout, 'WPC height', self, 'wpchs')
-        elif self.wpctype == 'SurfaceAverageCalculation':
-            newrow(layout, 'Build type:', self, 'buildtype')
-        newrow(layout, 'Max iter:', self, 'maxiter')
-        newrow(layout, 'Init method:', self, 'initmet')
-        newrow(layout, 'Rel Converge:', self, 'rcontol')
-        newrow(layout, 'Abs Converge:', self, 'acontol')
-        newrow(layout, 'Converge Lim:', self, 'conal')
-        if self.wpctype == 'SurfaceAverageCalculation':
-            newrow(layout, 'Azimuth:', self, 'aalax')
-            newrow(layout, 'Axis ratio:', self, 'rsala')
+        yesno = (1, 1, 1, self.wpctype == 'Input', self.wpctype != 'Input' and self.wpctype == 'SurfaceAverageCalculation', 1, 1, 1, 1, 1, self.wpctype == 'SurfaceAverageCalculation', self.wpctype == 'SurfaceAverageCalculation')
+        vals = (('Name:', 'afnname'), ('Type:', 'afntype'), ('WPC type:', 'wpctype'), ('WPC height', 'wpchs'), ('Build type:', 'buildtype'), ('Max iter:','maxiter'), ('Init method:', 'initmet'), 
+         ('Rel Converge:', 'rcontol'), ('Abs Converge:', 'acontol'), ('Converge Lim:', 'conal'), ('Azimuth:', 'aalax'), ('Axis ratio:', 'rsala'))
+        [newrow(layout, val[0], self, val[1]) for v, val in enumerate(vals) if yesno[v]]
+        
+#        newrow(layout, 'Name:', self, 'afnname')
+#        newrow(layout, 'Type:', self, 'afntype')
+#        newrow(layout, 'WPC type:', self, 'wpctype')
+#        if self.wpctype == 'Input':
+#            newrow(layout, 'WPC height', self, 'wpchs')
+#        elif self.wpctype == 'SurfaceAverageCalculation':
+#            newrow(layout, 'Build type:', self, 'buildtype')
+#        newrow(layout, 'Max iter:', self, 'maxiter')
+#        newrow(layout, 'Init method:', self, 'initmet')
+#        newrow(layout, 'Rel Converge:', self, 'rcontol')
+#        newrow(layout, 'Abs Converge:', self, 'acontol')
+#        newrow(layout, 'Converge Lim:', self, 'conal')
+#        if self.wpctype == 'SurfaceAverageCalculation':
+#            newrow(layout, 'Azimuth:', self, 'aalax')
+#            newrow(layout, 'Axis ratio:', self, 'rsala')
 
     def epwrite(self, exp_op, enng):
         wpcaentry = ''
@@ -1511,9 +1532,11 @@ class EnViCrRef(bpy.types.Node, EnViNodes):
     refh = bpy.props.FloatProperty(name = '', min = 0, max = 10, default = 0, description = 'Reference Humidity Ratio (kgWater/kgDryAir)')
 
     def draw_buttons(self, context, layout):
-        newrow(layout, 'Temperature:', self, 'reft')
-        newrow(layout, 'Pressure:', self, 'refp')
-        newrow(layout, 'Humidity', self, 'refh')
+        vals = (('Temperature:' ,'reft'), ('Pressure:', 'refp'), ('Humidity', 'refh'))
+        [newrow(layout, val[0], self, val[1]) for val in vals]
+#        newrow(layout, 'Temperature:', self, 'reft')
+#        newrow(layout, 'Pressure:', self, 'refp')
+#        newrow(layout, 'Humidity', self, 'refh')
 
     def epwrite(self):
         params = ('Name', 'Reference Temperature', 'Reference Pressure', 'Reference Humidity Ratio')
@@ -1567,7 +1590,6 @@ class EnViZone(bpy.types.Node, EnViNodes):
         if self.control != 'Temperature' and self.inputs['TSPSchedule'].is_linked:
             remlink(self, self.inputs['TSPSchedule'].links)
 
-
         self.inputs['TSPSchedule'].hide = False if self.control == 'Temperature' else True
         nodecolour(self, self.control == 'Temperature' and not self.inputs['TSPSchedule'].is_linked)
 
@@ -1598,12 +1620,15 @@ class EnViZone(bpy.types.Node, EnViNodes):
     def draw_buttons(self, context, layout):
         row=layout.row()
         row.prop(self, "zone")
-        newrow(layout, "Volume:", self, "zonevolume")
-        newrow(layout, "Control type:", self, "control")
-        if self.control == 'Temperature':
-            newrow(layout, "Minimum OF:", self, "mvof")
-            newrow(layout, "Lower:", self, "lowerlim")
-            newrow(layout, "Upper:", self, "upperlim")
+        yesno = (1, 1, self.control == 'Temperature', self.control == 'Temperature', self.control == 'Temperature')
+        vals = (("Volume:", "zonevolume"), ("Control type:", "control"), ("Minimum OF:", "mvof"), ("Lower:", "lowerlim"), ("Upper:", "upperlim"))
+        [newrow(layout, val[0], self, val[1]) for v, val in enumerate(vals) if yesno[v]]
+#        newrow(layout, "Volume:", self, "zonevolume")
+#        newrow(layout, "Control type:", self, "control")
+#        if self.control == 'Temperature':
+#            newrow(layout, "Minimum OF:", self, "mvof")
+#            newrow(layout, "Lower:", self, "lowerlim")
+#            newrow(layout, "Upper:", self, "upperlim")
 
     def epwrite(self):
         (tempschedname, mvof, lowerlim, upperlim) = (self.inputs['TSPSchedule'].links[0].from_node.name, self.mvof, self.lowerlim, self.upperlim) if self.inputs['TSPSchedule'].is_linked else ('', '', '', '')
@@ -1627,9 +1652,6 @@ class EnViSSFlowNode(bpy.types.Node, EnViNodes):
     bl_icon = 'SOUND'
 
     def supdate(self, context):
-#        if self.linkmenu not in ('Crack', 'EF') and self.inputs['Reference'].is_linked:
-#            remlink(self, self.inputs['Reference'].links)
-#        self.inputs['Reference'].hide = False if self.linkmenu in ('Crack', 'EF') else True
         if self.linkmenu in ('Crack', 'EF', 'ELA') or self.controls != 'Temperature':
             if self.inputs['TSPSchedule'].is_linked:
                 remlink(self, self.inputs['TSPSchedule'].links)
@@ -1816,16 +1838,10 @@ class EnViSFlowNode(bpy.types.Node, EnViNodes):
     bl_label = 'Envi surface flow'
     bl_icon = 'SOUND'
 
-    def supdate(self, context):
-#        remlink(self, self.inputs['TSPSchedule'].links)
-#        self.inputs['Fan Schedule'].hide = False if self.linkmenu == 'EF' else True
-        pass
-
     linktype = [("Crack", "Crack", "Crack aperture used for leakage calculation"),
         ("ELA", "ELA", "Effective leakage area")]
-        #("EF", "Exhaust fan", "Exhaust fan")]
 
-    linkmenu = bpy.props.EnumProperty(name="Type", description="Linkage type", items=linktype, default='ELA', update = supdate)
+    linkmenu = bpy.props.EnumProperty(name="Type", description="Linkage type", items=linktype, default='ELA')
     of = bpy.props.FloatProperty(default = 0.1, min = 0.001, max = 1, name = "", description = 'Opening Factor 1 (dimensionless)')
     ecl = bpy.props.FloatProperty(default = 0.0, min = 0, name = '', description = 'Extra Crack Length or Height of Pivoting Axis (m)')
     dcof = bpy.props.FloatProperty(default = 1, min = 0, max = 1, name = '', description = 'Discharge Coefficient')
@@ -2002,29 +2018,36 @@ class EnViSched(bpy.types.Node, EnViNodes):
     bl_icon = 'SOUND'
 
     def tupdate(self, context):
+        err = 0
         if self.t2 <= self.t1:
             self.t2 = self.t1 + 1
         if self.t3 <= self.t2:
             self.t3 = self.t2 + 1
         if self.t4 != 365:
             self.t4 = 365
-        for f in (self.f1, self.f2, self.f3, self.f4):
+            
+        if max((self.t1, self.t2, self.t3, self.t4)) != 365:
+            err = 1
+        tn = (self.t1, self.t2, self.t3, self.t4).index(365) + 1
+        if any([not f for f in (self.f1, self.f2, self.f3, self.f4)[:tn]]):
+            err = 1
+        if any([not u or len(u.split(';')) != len((self.f1, self.f2, self.f3, self.f4)[i].split(' ')) for i, u in enumerate((self.u1, self.u2, self.u3, self.u4)[:tn])]):
+            err = 1
+        
+        for f in (self.f1, self.f2, self.f3, self.f4)[:tn]:
             for fd in f.split(' '):
                 if fd and fd.upper() not in ("ALLDAYS", "WEEKDAYS", "WEEKEND", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY", "ALLOTHERDAYS"):
-                    nodecolour(self, 1)
-                    return
-        for u in (self.u1, self.u2, self.u3, self.u4):
-            if u:
-                for uf in u.split(';'):
-                    for ud in uf.split(','):
-                        if len(ud.split(' ')[0].split(':')) != 2 or int(ud.split(' ')[0].split(':')[0]) not in range(1, 25):
-                            nodecolour(self, 1)
-                            return
-                        if len(ud.split(' ')[0].split(':')) != 2 or not ud.split(' ')[0].split(':')[1].isdigit() or int(ud.split(' ')[0].split(':')[1]) not in range(0, 60):
-                            nodecolour(self, 1)
-                            return
-        nodecolour(self, 0)
-
+                    err = 1
+        for u in (self.u1, self.u2, self.u3, self.u4)[:tn]:
+            for uf in u.split(';'):
+                for ud in uf.split(','):
+                    if len(ud.split()[0].split(':')) != 2 or int(ud.split()[0].split(':')[0]) not in range(1, 25) or len(ud.split()[0].split(':')) != 2 or not ud.split()[0].split(':')[1].isdigit() or int(ud.split()[0].split(':')[1]) not in range(0, 60):
+                        err = 1
+        if err:
+            nodecolour(self, 1)
+        else:
+            nodecolour(self, 0)
+        
     (u1, u2, u3, u4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)", update = tupdate)] * 4
     (f1, f2, f3, f4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays", update = tupdate)] * 4
     (t1, t2, t3, t4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365, update = tupdate)] * 4
@@ -2067,11 +2090,12 @@ class EnViFanNode(bpy.types.Node, EnViNodes):
     fantype = [("Volume", "Constant Volume", "Constant volume flow fan component")]
     fantypeprop = bpy.props.EnumProperty(name="Type", description="Linkage type", items=fantype, default='Volume')
     fname = bpy.props.StringProperty(default = "", name = "")
-    feff = bpy.props.FloatProperty(default = 0.7, name = "")
-    fpr = bpy.props.FloatProperty(default = 600.0, name = "")
-    fmfr = bpy.props.FloatProperty(default = 1.9, name = "")
-    fmeff = bpy.props.FloatProperty(default = 0.9, name = "")
-    fmaf = bpy.props.FloatProperty(default = 1.0, name = "")
+    (feff, fpr, fmfr, fmeff, fmaf) = [bpy.props.FloatProperty(default = d, name = "") for d in (0.7, 600.0, 1.9, 0.9, 1.0)]
+#    feff = bpy.props.FloatProperty(default = 0.7, name = "")
+#    fpr = bpy.props.FloatProperty(default = 600.0, name = "")
+#    fmfr = bpy.props.FloatProperty(default = 1.9, name = "")
+#    fmeff = bpy.props.FloatProperty(default = 0.9, name = "")
+#    fmaf = bpy.props.FloatProperty(default = 1.0, name = "")
 
     def init(self, context):
         self.inputs.new('EnViCAirSocket', 'Extract from')
@@ -2093,12 +2117,14 @@ class EnViFanNode(bpy.types.Node, EnViNodes):
     def draw_buttons(self, context, layout):
         layout.prop(self, 'fantypeprop')
         if self.fantypeprop == "Volume":
-            newrow(layout, "Name:", self, 'fname')
-            newrow(layout, "Efficiency:", self, 'feff')
-            newrow(layout, "Pressure Rise (Pa):", self, 'fpr')
-            newrow(layout, "Max flow rate:", self, 'fmfr')
-            newrow(layout, "Motor efficiency:", self, 'fmeff')
-            newrow(layout, "Airstream fraction:", self, 'fmaf')
+            vals = (("Name:", 'fname'), ("Efficiency:", 'feff'), ("Pressure Rise (Pa):", 'fpr'), ("Max flow rate:", 'fmfr'), ("Motor efficiency:", 'fmeff'), ("Airstream fraction:",'fmaf'))
+            [newrow(layout, val[0], self, val[1]) for val in vals]
+#            newrow(layout, "Name:", self, 'fname')
+#            newrow(layout, "Efficiency:", self, 'feff')
+#            newrow(layout, "Pressure Rise (Pa):", self, 'fpr')
+#            newrow(layout, "Max flow rate:", self, 'fmfr')
+#            newrow(layout, "Motor efficiency:", self, 'fmeff')
+#            newrow(layout, "Airstream fraction:", self, 'fmaf')
 
 #class HVACTILS(bpy.types.Node, EnViNodes):
 #    '''Node describing an ideal load system HVAC template'''

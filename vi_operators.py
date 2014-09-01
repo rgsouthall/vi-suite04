@@ -1,7 +1,7 @@
 import bpy, bpy_extras, sys, datetime, mathutils, os, shlex, time
 from os import rename
 import bpy_extras.io_utils as io_utils
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, call
 
 try:
     import numpy
@@ -549,8 +549,8 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         locnode = node.inputs['Location in'].links[0].from_node
         if bpy.data.filepath:
-            if bpy.context.object:
-                if bpy.context.object.type == 'MESH':
+            if bpy.context.active_object and not bpy.context.active_object.hide:
+                if bpy.context.active_object.type == 'MESH':
                     bpy.ops.object.mode_set(mode = 'OBJECT')
             if " " not in scene['viparams']['filedir'] and " " not in scene['viparams']['filename']:
                 enpolymatexport(self, node, locnode, envi_mats, envi_cons)
@@ -584,19 +584,18 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
                 nodecolour(self.simnode, 1)
                 try:
                     with open(os.path.join(scene['viparams']['newdir'], 'eplusout.eso'), 'r') as resfile:                    
-                        for line in resfile.readlines()[::-1]:  
-                            if line.split(',')[0] == '2' and len(line.split(',')) == 9:
-                                self.simnode.run = int(100 * int(line.split(',')[1])/(self.simnode.dedoy - self.simnode.dsdoy))
-                                break
+                        for line in [line for line in resfile.readlines()[::-1] if line.split(',')[0] == '2' and len(line.split(',')) == 9]:  
+#                            if line.split(',')[0] == '2' and len(line.split(',')) == 9:
+                            self.simnode.run = int(100 * int(line.split(',')[1])/(self.simnode.dedoy - self.simnode.dsdoy))
+                            break
                     return {'RUNNING_MODAL'}
                 except:
                     return {'RUNNING_MODAL'} 
             else:
-                ofns = [fname for fname in os.listdir('.') if fname.split(".")[0] == self.simnode.resname]                
-                for fname in ofns:
+                for fname in [fname for fname in os.listdir('.') if fname.split(".")[0] == self.simnode.resname]:                
                     os.remove(os.path.join(scene['viparams']['newdir'], fname))
                 
-                nfns = [fname for fname in os.listdir('.') if fname.split(".")[0] == "eplusout"]                
+                nfns = [fname for fname in os.listdir('.') if fname.split(".")[0] == "eplusout"]
                 for fname in nfns:
                     rename(os.path.join(scene['viparams']['newdir'], fname), os.path.join(scene['viparams']['newdir'],fname.replace("eplusout", self.simnode.resname)))
 
@@ -604,10 +603,8 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
                     bpy.data.texts.load(os.path.join(scene['viparams']['newdir'], self.simnode.resname+".err"))
 
                 if 'EnergyPlus Terminated--Error(s) Detected' in self.esimrun.stderr.read().decode() or not [f for f in nfns if f.split(".")[1] == "eso"]:
-                    if not [f for f in nfns if f.split(".")[1] == "eso"]:
-                        self.report({'ERROR'}, "There is no results file. Check you have selected results outputs and that there are no errors in the .err file in the Blender text editor.")
-                    if 'EnergyPlus Terminated--Error(s) Detected' in self.esimrun.stderr.read().decode():
-                        self.report({'ERROR'}, "There was an error in the input IDF file. Check the *.err file in Blender's text editor.")
+                    errtext = "There is no results file. Check you have selected results outputs and that there are no errors in the .err file in the Blender text editor." if not [f for f in nfns if f.split(".")[1] == "eso"] else "There was an error in the input IDF file. Check the *.err file in Blender's text editor."
+                    self.report({'ERROR'}, errtext)
                     nodecolour(self.simnode, 0)
                     self.simnode.run = -1
                     return {'CANCELLED'}
@@ -617,7 +614,7 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
                     processf(self, self.simnode)
                     self.report({'INFO'}, "Calculation is finished.") 
                     self.simnode.outputs['Results out'].hide = False
-                    if self.simnode.outputs[0].is_linked:
+                    if self.simnode.outputs[0].links:
                         socket1, socket2  = self.simnode.outputs[0], self.simnode.outputs[0].links[0].to_socket
                         bpy.data.node_groups[self.nodeid.split('@')[1]].links.remove(self.simnode.outputs[0].links[0])
                         bpy.data.node_groups[self.nodeid.split('@')[1]].links.new(socket1, socket2)
@@ -637,15 +634,9 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
         self.simnode.resfilename = os.path.join(scene['viparams']['newdir'], self.simnode.resname+'.eso')
         self.simnode.dsdoy, self.simnode.dedoy, self.simnode.run = self.connode.sdoy, self.connode.edoy, 0 # (locnode.startmonthnode.sdoy       
         os.chdir(scene['viparams']['newdir'])
-        if scene['viparams'].get('hvactemplate'):
-            ehtempcmd = "ExpandObjects in.idf"
-            Popen(ehtempcmd.split())
-            Popen('{} {} {}'.format(scene['viparams']['cp'], 'expanded.idf', 'in.idf'), shell = True)
         esimcmd = "EnergyPlus in.idf in.epw" 
         self.esimrun = Popen(esimcmd.split(), stdout = PIPE, stderr = PIPE)
         return {'RUNNING_MODAL'}
-
-        
 
 class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
     bl_idname = "node.chart"
@@ -695,19 +686,22 @@ class NODE_OT_SunPath(bpy.types.Operator):
         scene, scene.resnode, scene.restree = context.scene, node.name, self.nodeid.split('@')[1]
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 1, 0, 0, 0, 0, 0
         bpy.context.scene.cursor_location = (0.0, 0.0, 0.0)
-
-        if 'SolEquoRings' not in [mat.name for mat in bpy.data.materials]:
-            bpy.data.materials.new('SolEquoRings')
-            bpy.data.materials['SolEquoRings'].diffuse_color = (1, 0, 0)
-        if 'HourRings' not in [mat.name for mat in bpy.data.materials]:
-            bpy.data.materials.new('HourRings')
-            bpy.data.materials['HourRings'].diffuse_color = (1, 1, 0)
-        if 'SPBase' not in [mat.name for mat in bpy.data.materials]:
-            bpy.data.materials.new('SPBase')
-            bpy.data.materials['SPBase'].diffuse_color = (1, 1, 1)
-        if 'Sun' not in [mat.name for mat in bpy.data.materials]:
-            bpy.data.materials.new('Sun')
-            bpy.data.materials['Sun'].diffuse_color = (1, 1, 1)
+        matdict = {'SolEquoRings': (1, 0, 0), 'HourRings': (1, 1, 0), 'SPBase': (1, 1, 1), 'Sun': (1, 1, 1)}
+        for mat in [mat for mat in matdict.items() if mat[0] not in bpy.data.materials]:
+            bpy.data.materials.new(mat[0])
+            bpy.data.materials[mat[0]].diffuse_color = mat[1]
+#        if 'SolEquoRings' not in [mat.name for mat in bpy.data.materials]:
+#            bpy.data.materials.new('SolEquoRings')
+#            bpy.data.materials['SolEquoRings'].diffuse_color = (1, 0, 0)
+#        if 'HourRings' not in [mat.name for mat in bpy.data.materials]:
+#            bpy.data.materials.new('HourRings')
+#            bpy.data.materials['HourRings'].diffuse_color = (1, 1, 0)
+#        if 'SPBase' not in [mat.name for mat in bpy.data.materials]:
+#            bpy.data.materials.new('SPBase')
+#            bpy.data.materials['SPBase'].diffuse_color = (1, 1, 1)
+#        if 'Sun' not in [mat.name for mat in bpy.data.materials]:
+#            bpy.data.materials.new('Sun')
+#            bpy.data.materials['Sun'].diffuse_color = (1, 1, 1)
         if 'SUN' in [ob.data.type for ob in context.scene.objects if ob.data == 'LAMP' and ob.hide == False]:
             [ob.data.type for ob in context.scene.objects if ob.data == 'LAMP' and ob.data.type == 'SUN'][0]['VIType'] = 'Sun'
 
@@ -764,13 +758,13 @@ class NODE_OT_SunPath(bpy.types.Operator):
         for v in range(24, len(spathmesh.vertices)):
             if spathmesh.vertices[v].co.z > 0 or spathmesh.vertices[v - 24].co.z > 0:
                 spathmesh.edges.add(1)
-                spathmesh.edges[-1].vertices[0] = v
-                spathmesh.edges[-1].vertices[1] = v - 24
+                spathmesh.edges[-1].vertices[0:2] = (v, v - 24)
+#                spathmesh.edges[-1].vertices[1] = v - 24
             if v in range(1224, 1248):
                 if spathmesh.vertices[v].co.z > 0 or spathmesh.vertices[v - 1224].co.z > 0:
                     spathmesh.edges.add(1)
-                    spathmesh.edges[-1].vertices[0] = v
-                    spathmesh.edges[-1].vertices[1] = v - 1224
+                    spathmesh.edges[-1].vertices[0:2] = (v, v - 1224)
+#                    spathmesh.edges[-1].vertices[1] = v - 1224
 
         for doy in (79, 172, 355):
             for hour in range(1, 25):
@@ -783,32 +777,33 @@ class NODE_OT_SunPath(bpy.types.Operator):
                     if spathmesh.vertices[-2].co.z > 0 or spathmesh.vertices[-1].co.z > 0:
                         spathmesh.edges.add(1)
                         solringnum += 1
-                        spathmesh.edges[-1].vertices[0] = spathmesh.vertices[-2].index
-                        spathmesh.edges[-1].vertices[1] = spathmesh.vertices[-1].index
+                        spathmesh.edges[-1].vertices = (spathmesh.vertices[-2].index, spathmesh.vertices[-1].index)
+#                        spathmesh.edges[-1].vertices[1] = spathmesh.vertices[-1].index
                 if hour == 24:
                     if spathmesh.vertices[-24].co.z > 0 or spathmesh.vertices[-1].co.z > 0:
                         spathmesh.edges.add(1)
                         solringnum += 1
-                        spathmesh.edges[-1].vertices[0] = spathmesh.vertices[-24].index
-                        spathmesh.edges[-1].vertices[1] = spathmesh.vertices[-1].index
+                        spathmesh.edges[-1].vertices = (spathmesh.vertices[-24].index, spathmesh.vertices[-1].index)
+#                        spathmesh.edges[-1].vertices[1] = spathmesh.vertices[-1].index
 
         for edge in spathmesh.edges:
             intersect = mathutils.geometry.intersect_line_plane(spathmesh.vertices[edge.vertices[0]].co, spathmesh.vertices[edge.vertices[1]].co, mathutils.Vector((0,0,0)), mathutils.Vector((0,0,1)))
-
-            if spathmesh.vertices[edge.vertices[0]].co.z < 0:
-                spathmesh.vertices[edge.vertices[0]].co = intersect
-            if spathmesh.vertices[edge.vertices[1]].co.z < 0:
-                spathmesh.vertices[edge.vertices[1]].co = intersect
+            for vert in [vert for vert in (spathmesh.vertices[edge.vertices[0]], spathmesh.vertices[edge.vertices[0]]) if vert.co.z < 0]:
+                vert.co = intersect
+#            if spathmesh.vertices[edge.vertices[0]].co.z < 0:
+#                spathmesh.vertices[edge.vertices[0]].co = intersect
+#            if spathmesh.vertices[edge.vertices[1]].co.z < 0:
+#                spathmesh.vertices[edge.vertices[1]].co = intersect
 
         bpy.ops.object.convert(target='CURVE')
-        spathob.data.bevel_depth = 0.08
-        spathob.data.bevel_resolution = 6
+        spathob.data.bevel_depth, spathob.data.bevel_resolution = 0.08, 6
+#        spathob.data.bevel_resolution = 6
         bpy.context.object.data.fill_mode = 'FULL'
         bpy.ops.object.convert(target='MESH')
 
         bpy.ops.object.material_slot_add()
-        spathob.material_slots[0].material = bpy.data.materials['HourRings']
-        spathob['numpos'] = numpos
+        spathob.material_slots[0].material, spathob['numpos'] = bpy.data.materials['HourRings'], numpos
+#        spathob['numpos'] = numpos
 
         for vert in spathob.data.vertices[0:16 * (solringnum + 3)]:
             vert.select = True
@@ -834,9 +829,9 @@ class NODE_OT_SunPath(bpy.types.Operator):
         for c in range(8):
             bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=((-4, -8)[c%2], sd*1.025, 0.0), rotation=(0.0, 0.0, 0.0))
             txt = bpy.context.active_object
-            txt.scale = (10, 10, 10)
-            txt.data.extrude = 0.1
-            txt.data.body = ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')[c]
+            txt.scale, txt.data.extrude, txt.data.body  = (10, 10, 10), 0.1, ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')[c]
+#            txt.data.extrude = 0.1
+#            txt.data.body = ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')[c]
             bpy.ops.object.convert(target='MESH')
             bpy.ops.object.material_slot_add()
             txt.material_slots[0].material = bpy.data.materials['SPBase']
@@ -851,10 +846,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         bpy.ops.object.join()
 
         for ob in (spathob, sunob):
-            spathob.cycles_visibility.diffuse = False
-            spathob.cycles_visibility.shadow = False
-            spathob.cycles_visibility.glossy = False
-            spathob.cycles_visibility.transmission = False
+            spathob.cycles_visibility.diffuse, spathob.cycles_visibility.shadow, spathob.cycles_visibility.glossy, spathob.cycles_visibility.transmission = [False] * 4
 
         if cyfc1 not in bpy.app.handlers.frame_change_pre:
             bpy.app.handlers.frame_change_pre.append(cyfc1)
@@ -928,7 +920,6 @@ class NODE_OT_WindRose(bpy.types.Operator):
             if simnode.wrtype == '4':
                 ax.contour(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
 
-#            if scene['viparams'].get['newdir']:
             if str(sys.platform) != 'win32':
                 plt.savefig(scene['viparams']['newdir']+'/disp_wind.png', dpi = (150), transparent=False)
                 if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
@@ -936,6 +927,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
                 else:
                     bpy.data.images['disp_wind.png'].filepath = scene['viparams']['newdir']+'/disp_wind.png'
                     bpy.data.images['disp_wind.png'].reload()
+
             # Below is a workaround for the matplotlib/blender png bug
             else:
                 canvas = FigureCanvasAgg(fig)
@@ -951,7 +943,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
                 if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
                     wrim = bpy.data.images.new('disp_wind.png', height = h, width = w)
                     wrim.file_format = 'PNG'
-                    wrim.filepath = locnode.newdir+os.sep+wrim.name
+                    wrim.filepath = os.path.join(locnode.newdir, wrim.name)
                     wrim.save()
                 else:
                     wrim = bpy.data.images['disp_wind.png']
@@ -1031,15 +1023,16 @@ class NODE_OT_Shadow(bpy.types.Operator):
         if simnode.starthour > simnode.endhour:
             self.report({'ERROR'},"End hour is before start hour.")
             return{'FINISHED'}
-        scene.resnode = simnode.name
-        direcs, obcalclist = [], []
-        simnode['Animation'] = simnode.animmenu
+        scene.resnode, direcs, obcalclist, simnode['Animation'] = simnode.name, [], [], simnode.animmenu
+
         if simnode['Animation'] == 'Static':
             scmaxres, scminres, scavres, scene.fs = [0], [100], [0], scene.frame_current
         else:
-            scmaxres = [0 for f in range(scene.frame_end - scene.frame_start + 1)]
-            scminres = [100 for f in range(scene.frame_end - scene.frame_start + 1)]
-            scavres = [0 for f in range(scene.frame_end - scene.frame_start + 1)]
+#            (scmaxres, scminres, scacres) = zip([0], [100], [0] for f in range(scene.frame_end - scene.frame_start + 1))
+            (scmaxres, scminres, scavres) = [[x] * scene.frame_end - scene.frame_start + 1 for x in (0, 100, 0)]
+#            scmaxres = [0 for f in range(scene.frame_end - scene.frame_start + 1)]
+#            scminres = [100 for f in range(scene.frame_end - scene.frame_start + 1)]
+#            scavres = [0 for f in range(scene.frame_end - scene.frame_start + 1)]
 
         fdiff =  1 if simnode['Animation'] == 'Static' else scene.frame_end - scene.frame_start + 1
         locnode = simnode.inputs[0].links[0].from_node

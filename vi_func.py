@@ -212,6 +212,7 @@ def processf(pro_op, node):
                 'Site Diffuse Solar Radiation Rate per Area [W/m2] !Hourly': "Diffuse Solar (W/m"+u'\u00b2'+")",
                 'Site Direct Solar Radiation Rate per Area [W/m2] !Hourly': "Direct Solar (W/m"+u'\u00b2'+")"}
     zresdict = {'Zone Air Temperature [C] !Hourly': "Temperature ({}C)".format(u'\u00b0'),
+                'Zone Air Relative Humidity [%] !Hourly': 'Humidity (%)',
                 'Zone Air System Sensible Heating Rate [W] !Hourly': 'Zone heating (W)',
                 'Zone Air System Sensible Cooling Rate [W] !Hourly': 'Zone cooling (W)',
                 'Zone Windows Total Transmitted Solar Radiation Rate [W] !Hourly': 'Solar gain (W)',

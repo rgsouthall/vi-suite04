@@ -110,11 +110,12 @@ def register():
     Object.envi_hvacclt = eprop([('0', 'LimitFlowRate', 'LimitFlowRate'), ('1', 'LimitCapacity', 'LimitCapacity'), ('2', 'LimitFlowRateAndCapacity', 'LimitFlowRateAndCapacity'), ('3', 'NoLimit', 'NoLimit'), ('4', 'None', 'No cooling')], '', "Cooling limit type", '4')
     Object.envi_hvaccaf = fprop("", "Heating air flow rate", 0, 60, 1)
     Object.envi_hvacscc = fprop("", "Sensible cooling capacity", 0, 10000, 1000)
-    Object.envi_hvacoam = eprop([('0', 'None', 'None'), ('1', 'Flow/Zone', 'Flow/Zone'), ('2', 'Flow/Person', 'Flow/Person'), ('3', 'Flow/Area', 'Flow/Area'), ('4', 'Sum', 'Sum'), ('5', 'Maximum ', 'Maximum'), ('6', 'DetailedSpecification ', 'DetailedSpecification')], '', "Cooling limit type", '2')
+    Object.envi_hvacoam = eprop([('0', 'None', 'None'), ('1', 'Flow/Zone', 'Flow/Zone'), ('2', 'Flow/Person', 'Flow/Person'), ('3', 'Flow/Area', 'Flow/Area'), ('4', 'Sum', 'Sum'), ('5', 'Maximum ', 'Maximum'), ('6', 'ACH/Detailed', 'ACH/Detailed')], '', "Cooling limit type", '2')
+#    Object.envi_hvacof = fprop("", "Outdoor air flow rate", 0, 10, 0.008)
     Object.envi_hvacfrp = fprop("", "Flow rate per person", 0, 1, 0.008)
     Object.envi_hvacfrzfa = fprop("", "Flow rate per zone area", 0, 1, 0.008)
     Object.envi_hvacfrz = fprop("", "Flow rate per zone", 0, 100, 0.1)
-    
+    Object.envi_hvacfach = fprop("", "ACH", 0, 10, 1)
 # Heating defintions
     Object.envi_heat = bprop("Heating", 'Turn on zone heating', 0)
     Object.envi_htsp = iprop(u'\u00b0'+"C", "Temperature", 0, 50, 20)
@@ -134,7 +135,7 @@ def register():
     (Object.occu1, Object.occu2, Object.occu3, Object.occu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
     (Object.occf1, Object.occf2, Object.occf3, Object.occf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.occt1, Object.occt2, Object.occt3, Object.occt4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
-    Object.envi_occwatts = iprop("W/p", "Watts per person", 70, 800, 90)
+    Object.envi_occwatts = iprop("W/p", "Watts per person", 1, 800, 90)
     Object.envi_asched = bprop("Schedule", "Create an activity level schedule", False)
     (Object.aoccu1, Object.aoccu2, Object.aoccu3, Object.aoccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
     (Object.aoccf1, Object.aoccf2, Object.aoccf3, Object.aoccf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4

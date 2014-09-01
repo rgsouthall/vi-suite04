@@ -193,6 +193,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 paramvs = ['{}_{}'.format(obj.name, poly.index), '', len(poly.vertices)] + ['{0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}'.format(obm * odv[poly.vertices[v]].co) for v in range(len(poly.vertices))]
                 en_idf.write(epentry('Shading:Building:Detailed', params, paramvs))
 
+    co2 = 0
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: SCHEDULES ===========\n\n")
     params = ('Name', 'Lower Limit Value', 'Upper Limit Value', 'Numeric Type', 'Unit Type')
     paramvs = ("Temperature", -60, 200, "CONTINUOUS", "Temperature")
@@ -208,7 +209,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     en_idf.write(epentry('ScheduleTypeLimits', params, paramvs))
 
     hcoiobjs = [hcoiwrite(obj) for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type == '1']
-
+    bpy.context.scene['viparams']['hvactemplate'] = 0
     for hcoiobj in hcoiobjs:
         if hcoiobj.h:
             en_idf.write(hcoiobj.htspwrite())
@@ -223,8 +224,9 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 en_idf.write(hcoiobj.weschedwrite())
                 en_idf.write(hcoiobj.avschedwrite())
                 en_idf.write(hcoiobj.clschedwrite())
-                if hcoiobj.obj.envi_co2:
+                if hcoiobj.obj.envi_co2 and not co2:
                     en_idf.write(hcoiobj.co2sched())
+                    co2 = 1
 
         if (hcoiobj.obj.envi_occtype == "1" and hcoiobj.obj.envi_occinftype != 0) or (hcoiobj.obj.envi_occtype != "1" and hcoiobj.obj.envi_inftype != 0):
             en_idf.write(hcoiobj.zisched())
@@ -244,6 +246,8 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: HVAC ===========\n\n")
     for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc and not hcoiobj.obj.envi_hvact]:
         en_idf.write(hcoiobj.zh())
+        if hcoiobj.obj.envi_hvacoam != '0': 
+            en_idf.write(hcoiobj.zhoa())
     for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc and hcoiobj.obj.envi_hvact]:
         en_idf.write(hcoiobj.zht())
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: OCCUPANCY ===========\n\n")
@@ -268,14 +272,15 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     writeafn(exp_op, en_idf, enng)
 
     en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: REPORT VARIABLE ===========\n\n")
-    epentrydict = {"Output:Variable,*,Site Outdoor Air Drybulb Temperature,Hourly;\n": node.resat, "Output:Variable,*,Site Outdoor Air Drybulb Temperature,Hourly;\n": node.resaws,
+    epentrydict = {"Output:Variable,*,Site Outdoor Air Drybulb Temperature,Hourly;\n": node.resat, "Output:Variable,*,Site Wind Speed,Hourly;\n": node.resaws,
                    "Output:Variable,*,Site Wind Direction,Hourly;\n": node.resawd, "Output:Variable,*,Site Outdoor Air Relative Humidity,hourly;\n": node.resah,
                    "Output:Variable,*,Site Direct Solar Radiation Rate per Area,hourly;\n": node.resasb, "Output:Variable,*,Zone Air Temperature,hourly;\n": node.restt,
                    "Output:Variable,*,Zone Air System Sensible Heating Rate,hourly;\n": node.restwh, "Output:Variable,*,Zone Air System Sensible Cooling Rate,hourly;\n": node.restwc,
                    "Output:Variable,*,Zone Thermal Comfort Fanger Model PMV,hourly;\n": node.rescpm, "Output:Variable,*,Zone Thermal Comfort Fanger Model PPD,hourly;\n": node.rescpp, "Output:Variable,*,AFN Zone Infiltration Volume, hourly;\n":node.resim,
                    "Output:Variable,*,AFN Zone Infiltration Air Change Rate, hourly;\n": node.resiach, "Output:Variable,*,Zone Windows Total Transmitted Solar Radiation Rate [W],hourly;\n": node.reswsg,
                    "Output:Variable,*,AFN Node CO2 Concentration,hourly;\n": node.resco2 and enng['enviparams']['afn'], "Output:Variable,*,Zone Air CO2 Concentration,hourly;\n": node.resco2 and not enng['enviparams']['afn'],
-                   "Output:Variable,*,Zone Mean Radiant Temperature,hourly;\n": node.resmrt, "Output:Variable,*,Zone People Occupant Count,hourly;": node.resocc}
+                   "Output:Variable,*,Zone Mean Radiant Temperature,hourly;\n": node.resmrt, "Output:Variable,*,Zone People Occupant Count,hourly;\n": node.resocc,
+                   "Output:Variable,*,Zone Air Relative Humidity,hourly;\n": node.resh}
     for ep in epentrydict:
         if epentrydict[ep]:
             en_idf.write(ep)
@@ -296,6 +301,12 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     en_idf.write("Output:Table:SummaryReports,\
     AllSummary;              !- Report 1 Name")
     en_idf.close()
+    
+    if scene['viparams'].get('hvactemplate'):
+        os.chdir(scene['viparams']['newdir'])
+        ehtempcmd = "ExpandObjects {}".format(os.path.join(scene['viparams']['newdir'], 'in.idf'))
+        subprocess.call(ehtempcmd.split())
+        subprocess.call('{} {} {}'.format(scene['viparams']['cp'], os.path.join(scene['viparams']['newdir'], 'expanded.idf'), os.path.join(scene['viparams']['newdir'], 'in.idf')), shell = True)
 
     if 'in.idf' not in [im.name for im in bpy.data.texts]:
         bpy.data.texts.load(scene['viparams']['idf_file'])
@@ -443,8 +454,16 @@ class hcoiwrite(object):
         paramvs = ('{}_Air'.format(self.obj.name), '', '{}_supairnode'.format(self.obj.name), '', self.obj.envi_hvacht, self.obj.envi_hvacct, 0.015, 0.009, self.limittype[self.obj.envi_hvachlt],
                    self.obj.envi_hvachaf if self.obj.envi_hvachlt in ('0', '2') else '', self.obj.envi_hvacshc if self.obj.envi_hvachlt in ('1', '2') else '', self.limittype[self.obj.envi_hvacclt],
                    self.obj.envi_hvaccaf if self.obj.envi_hvacclt in ('0', '2') else '', self.obj.envi_hvacscc if self.obj.envi_hvacclt in ('1', '2') else '',
-                   '', '', 'ConstantSupplyHumidityRatio', '', 'ConstantSupplyHumidityRatio', '', '', '', '', '', '', '')
+                   '', '', 'ConstantSupplyHumidityRatio', '', 'ConstantSupplyHumidityRatio', (self.obj.name + ' Outdoor Air', '')[self.obj.envi_hvacoam == '0'], '', '', '', '', '', '')
         return epentry('ZoneHVAC:IdealLoadsAirSystem', params, paramvs)
+    
+    def zhoa(self):
+        oam = {'0':'None', '1':'Flow/Zone', '2':'Flow/Person', '3':'Flow/Area', '4':'Sum', '5':'Maximum', '6':'AirChanges/Hour'}
+        params = ('Name', 'Outdoor Air  Method', 'Outdoor Air Flow per Person (m3/s)', 'Outdoor Air Flow per Zone Floor Area (m3/s-m2)', 'Outdoor Air  Flow per Zone',
+        'Outdoor Air Flow Air Changes per Hour', 'Outdoor Air Flow Rate Fraction Schedule Name')
+        paramvs =(self.obj.name + ' Outdoor Air', oam[self.obj.envi_hvacoam], self.obj.envi_hvacfrp if self.obj.envi_hvacoam in ('2', '4', '5') else '',
+                    self.obj.envi_hvacfrzfa if self.obj.envi_hvacoam in ('3', '4', '5') else '', self.obj.envi_hvacfrz if self.obj.envi_hvacoam in ('1', '4', '5') else '', self.obj.envi_hvacfach if self.obj.envi_hvacoam in ('4', '5', '6') else '', '')          
+        return epentry('DesignSpecification:OutdoorAir', params, paramvs)
 
     def zht(self):
         oam = {'0':'None', '1':'Flow/Zone', '2':'Flow/Person', '3':'Flow/Area', '4':'Sum', '5':'Maximum', '6':'DetailedSpecification'}

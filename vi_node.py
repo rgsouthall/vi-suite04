@@ -38,6 +38,28 @@ class ViNodes:
     @classmethod
     def poll(cls, ntree):
         return ntree.bl_idname == 'ViN'
+        
+class ViASCImport(bpy.types.Node, ViNodes):
+    '''Node describing a LiVi geometry export node'''
+    bl_idname = 'ViASCImport'
+    bl_label = 'Vi ASC Import'
+    bl_icon = 'LAMP'
+    
+    splitmesh = bpy.props.BoolProperty()
+    single = bpy.props.BoolProperty(default = False)
+    ascfile = bpy.props.StringProperty()
+    
+    def init(self, context):
+        self['nodeid'] = nodeid(self, bpy.data.node_groups)
+    
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.prop(self, 'single')
+        if not self.single:
+            row = layout.row()
+            row.prop(self, 'splitmesh')
+        row = layout.row()
+        row.operator('node.ascimport', text = 'Import ASC').nodeid = self['nodeid']     
 
 class ViGExLiNode(bpy.types.Node, ViNodes):
     '''Node describing a LiVi geometry export node'''
@@ -626,7 +648,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
     edoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeupdate)
     timesteps = bpy.props.IntProperty(name = "", description = "Time steps per hour", min = 1, max = 4, default = 1, update = nodeupdate)
     restype= bpy.props.EnumProperty(items = [("0", "Ambient", "Ambient Conditions"), ("1", "Zone Thermal", "Thermal Results"), ("2", "Comfort", "Comfort Results"), ("3", "Zone Ventilation", "Zone Ventilation Results"), ("4", "Ventilation Link", "ZoneVentilation Results")],
-                                   name="", description="Specify the EnVi results catagory", default="0", update = nodeupdate)
+                                   name="", description="Specify the EnVi results category", default="0", update = nodeupdate)
     def resnameunits():
         rnu = {'0': ("Temperature", "Ambient Temperature (K)"),'1': ("Wind Speed", "Ambient Wind Speed (m/s)"), '2': ("Wind Direction", "Ambient Wind Direction (degrees from North)"),
                     '3': ("Humidity", "Ambient Humidity"),'4': ("Direct Solar", u'Direct Solar Radiation (W/m\u00b2K)'), '5': ("Diffuse Solar", u'Diffuse Solar Radiation (W/m\u00b2K)'), 
@@ -656,7 +678,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
         col.prop(self, "terrain")
         newrow(layout, 'Time-steps/hour)', self, "timesteps")
         row = layout.row()
-        row.label(text = 'Results Catagory:')
+        row.label(text = 'Results Category:')
         col = row.column()
         col.prop(self, "restype")
         resdict = {'0': (0, "resat", "resaws", 0, "resawd", "resah", 0, "resasb", "resasd"), '1': (0, "restt", "resh", 0, "restwh", "restwc", 0, "reswsg"),\
@@ -784,7 +806,8 @@ class ViEnRNode(bpy.types.Node, ViNodes):
     deh = bpy.props.IntProperty(name = "End", description = "", min = 1, max = 24, default = 24)
     charttype = bpy.props.EnumProperty(items = ctypes, name = "Chart Type", default = "0")
     timemenu = bpy.props.EnumProperty(items=[("0", "Hourly", "Hourly results"),("1", "Daily", "Daily results"), ("2", "Monthly", "Monthly results")],
-                                                      name="", description="Results frequency", default="0")
+                name="", description="Results frequency", default="0")
+    bl_width_max = 800                            
 
     def init(self, context):
         self['nodeid'] = nodeid(self, bpy.data.node_groups)
@@ -1295,7 +1318,7 @@ vinodecat = [NodeItem("ViLiSNode", label="LiVi Simulation"),\
 vigennodecat = [NodeItem("ViGenNode", label="VI-Suite Generative"), NodeItem("ViTarNode", label="VI-Suite Target")]
 
 vidisnodecat = [NodeItem("ViChNode", label="VI-Suite Chart"), NodeItem("ViCSV", label="VI-Suite CSV")]
-viinnodecat = [NodeItem("ViEnInNode", label="EnergyPlus input file"), NodeItem("ViEnRFNode", label="EnergyPlus result file")]
+viinnodecat = [NodeItem("ViEnInNode", label="EnergyPlus input file"), NodeItem("ViEnRFNode", label="EnergyPlus result file"), NodeItem("ViASCImport", label="Import ESRI Grid file")]
 
 vinode_categories = [ViNodeCategory("Input", "Input Nodes", items=viinnodecat), ViNodeCategory("Display", "Display Nodes", items=vidisnodecat), ViNodeCategory("Generative", "Generative Nodes", items=vigennodecat), ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat), ViNodeCategory("Export", "Export Nodes", items=viexnodecat)]
 

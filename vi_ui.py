@@ -157,7 +157,11 @@ class VIMatPanel(bpy.types.Panel):
                             row = layout.row()
 
                 elif cm.envi_layero == '2' and cm.envi_con_type == 'Window':
-                    for end in ('name', 0, 'thi', 'tc', 0, 'odt', 0, 'sds', 0, 'stn', 'fsn', 'bsn', 0, 'vtn', 'fvrn', 'bvrn', 0, 'itn', 'fie', 'bie'):
+                    newrow(layout, "Name:", cm, "envi_export_lo_name")
+                    newrow(layout, "Optical data type:", cm, "envi_export_lo_odt")
+                    newrow(layout, "Construction Make-up:", cm, "envi_export_lo_sds")
+                    newrow(layout, "Translucent:", cm, "envi_export_lo_sdiff")
+                    for end in (0, 'thi', 'tc', 0, 'stn', 'fsn', 'bsn', 0, 'vtn', 'fvrn', 'bvrn', 0, 'itn', 'fie', 'bie'):
                         if end:
                             row.prop(cm, '{}{}'.format("envi_export_lo_", end))
                         else:
@@ -210,7 +214,11 @@ class VIMatPanel(bpy.types.Panel):
                                     row = layout.row()
 
                         elif cm.envi_layer2 == '2' and cm.envi_con_type == 'Window':
-                            for end in ('name', 0, 'thi', 'tc', 0, 'odt', 0, 'sds', 0, 'stn', 'fsn', 'bsn', 0, 'vtn', 'fvrn', 'bvrn', 0, 'itn', 'fie', 'bie'):
+                            newrow(layout, "Name:", cm, "envi_export_l2_name")
+                            newrow(layout, "Optical data type:", cm, "envi_export_l2_odt")
+                            newrow(layout, "Construction Make-up:", cm, "envi_export_l2_sds")
+                            newrow(layout, "Translucent:", cm, "envi_export_l2_sdiff")
+                            for end in (0, 'thi', 'tc', 0, 'stn', 'fsn', 'bsn', 0, 'vtn', 'fvrn', 'bvrn', 0, 'itn', 'fie', 'bie'):
                                 if end:
                                     row.prop(cm, '{}{}'.format("envi_export_l2_", end))
                                 else:
@@ -275,7 +283,11 @@ class VIMatPanel(bpy.types.Panel):
                                             row = layout.row()
 
                                 elif cm.envi_layer4 == '2' and cm.envi_con_type == 'Window':
-                                    for end in ('name', 0, 'thi', 'tc', 0, 'odt', 0, 'sds', 0, 'stn', 'fsn', 'bsn', 0, 'vtn', 'fvrn', 'bvrn', 0, 'itn', 'fie', 'bie'):
+                                    newrow(layout, "Name:", cm, "envi_export_l4_name")
+                                    newrow(layout, "Optical data type:", cm, "envi_export_l4_odt")
+                                    newrow(layout, "Construction Make-up:", cm, "envi_export_l4_sds")
+                                    newrow(layout, "Translucent:", cm, "envi_export_l4_sdiff")
+                                    for end in (0, 'thi', 'tc', 0, 'stn', 'fsn', 'bsn', 0, 'vtn', 'fvrn', 'bvrn', 0, 'itn', 'fie', 'bie'):
                                         if end:
                                             row.prop(cm, '{}{}'.format("envi_export_l4_", end))
                                         else:

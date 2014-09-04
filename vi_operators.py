@@ -483,6 +483,63 @@ class NODE_OT_IDFSelect(bpy.types.Operator, io_utils.ImportHelper):
     def invoke(self,context,event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
+
+class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
+    bl_idname = "node.ascimport"
+    bl_label = "Select ESRI Grid file"
+    bl_description = "Select the ESRI Grid file to process"
+    filename = ""
+    filename_ext = ".asc"
+    filter_glob = bpy.props.StringProperty(default="*.asc", options={'HIDDEN'})
+    bl_register = True
+    bl_undo = True
+
+    nodeid = bpy.props.StringProperty()
+    
+    def draw(self,context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Open an asc file with the file browser", icon='WORLD_DATA')
+
+    def execute(self, context):
+        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        startxs, startys, vpos, faces, vlen = [], [], [], [], 0
+        ascfiles = [self.filepath] if node.single else [os.path.join(os.path.dirname(os.path.realpath(self.filepath)), file) for file in os.listdir(os.path.dirname(os.path.realpath(self.filepath))) if file.endswith('.asc')] 
+
+        for file in ascfiles:
+            with open(file, 'r') as ascfile:
+                lines = ascfile.readlines()
+                [startx, starty] = [eval(lines[i].split()[1]) for i in (2, 3)]
+                startxs.append(startx)
+                startys.append(starty)
+        minstartx,  minstarty = min(startxs), min(startys)
+
+        for file in ascfiles:
+            with open(file, 'r') as ascfile:
+                lines = ascfile.readlines()
+                (vpos, faces) = [[], []] if node.splitmesh else [vpos, faces]
+                xy = [eval(lines[i].split()[1]) for i in (2, 3)]
+                [ostartx, ostarty] = xy
+                [mstartx, mstarty] = [0, 0] if node.splitmesh else xy
+                [cols, rows, size, nodat] = [eval(lines[i].split()[1]) for i in (0, 1, 4, 5)]
+                vpos += [(mstartx + (size * ci), mstarty + (size * (rows - ri)), (float(h), 0)[h == nodat]) for ri, height in enumerate([line.split() for line in lines[6:]]) for ci, h in enumerate(height)] 
+                faces += [(i, i+1, i+rows + 1, i+rows) for i in range((vlen, 0)[node.splitmesh], len(vpos)-cols) if (i+1)%cols]
+                vlen += cols*rows
+        
+                if node.splitmesh or file == ascfiles[-1]:  
+                    (basename, vpos) = (file.split(os.sep)[-1].split('.')[0], vpos) if node.splitmesh else ('Terrain', [(v[0] - minstartx, v[1] - minstarty, v[2]) for v in vpos])
+                    me = bpy.data.meshes.new("{} mesh".format(basename)) 
+                    me.from_pydata(vpos,[],faces)
+                    me.update(calc_edges=True)
+                    dir(me)
+                    ob = bpy.data.objects.new(basename, me)
+                    ob.location = (ostartx - minstartx, ostarty - minstarty, 0) if node.splitmesh else (0, 0, 0)   # position object at 3d-cursor
+                    bpy.context.scene.objects.link(ob) 
+        return {'FINISHED'}
+
+    def invoke(self,context,event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
         
 class NODE_OT_CSVExport(bpy.types.Operator, io_utils.ExportHelper):
     bl_idname = "node.csvexport"
@@ -788,7 +845,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
         for edge in spathmesh.edges:
             intersect = mathutils.geometry.intersect_line_plane(spathmesh.vertices[edge.vertices[0]].co, spathmesh.vertices[edge.vertices[1]].co, mathutils.Vector((0,0,0)), mathutils.Vector((0,0,1)))
-            for vert in [vert for vert in (spathmesh.vertices[edge.vertices[0]], spathmesh.vertices[edge.vertices[0]]) if vert.co.z < 0]:
+            for vert in [vert for vert in (spathmesh.vertices[edge.vertices[0]], spathmesh.vertices[edge.vertices[1]]) if vert.co.z < 0]:
                 vert.co = intersect
 #            if spathmesh.vertices[edge.vertices[0]].co.z < 0:
 #                spathmesh.vertices[edge.vertices[0]].co = intersect

@@ -150,7 +150,7 @@ def register():
     (Object.avoccu1, Object.avoccu2, Object.avoccu3, Object.avoccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
     (Object.avoccf1, Object.avoccf2, Object.avoccf3, Object.avoccf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.avocct1, Object.avocct2, Object.avocct3, Object.avocct4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
-    Object.envi_cloth = fprop("Clothing", "Clothing level", 0, 1, 0.5)
+    Object.envi_cloth = fprop("Clothing", "Clothing level", 0, 10, 0.5)
     Object.envi_clsched = bprop("Schedule", "Create an clothing level schedule", False)
     (Object.coccu1, Object.coccu2, Object.coccu3, Object.coccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
     (Object.coccf1, Object.coccf2, Object.coccf3, Object.coccf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
@@ -231,7 +231,7 @@ def register():
     (Material.envi_export_wgaslist_lo, Material.envi_export_wgaslist_l1, Material.envi_export_wgaslist_l2, Material.envi_export_wgaslist_l3, Material.envi_export_wgaslist_l4) = \
     [eprop(wgaslist, "", "", wgaslist[0][0])] * conlayers
     (Material.envi_export_lo_name, Material.envi_export_l1_name, Material.envi_export_l2_name, Material.envi_export_l3_name, Material.envi_export_l4_name) = \
-    [sprop("Layer name", "Layer name", 0, "")] * conlayers    
+    [sprop("", "Layer name", 0, "")] * conlayers    
     (Material.envi_export_lo_tc, Material.envi_export_l1_tc, Material.envi_export_l2_tc, Material.envi_export_l3_tc, Material.envi_export_l4_tc) = \
     [fprop("Conductivity", "Thermal Conductivity", 0, 10, 0.5)] * conlayers
     (Material.envi_export_lo_rough, Material.envi_export_l1_rough, Material.envi_export_l2_rough, Material.envi_export_l3_rough, Material.envi_export_l1_rough) = \
@@ -252,9 +252,9 @@ def register():
     (Material.envi_export_lo_vab, Material.envi_export_l1_vab, Material.envi_export_l2_vab, Material.envi_export_l3_vab, Material.envi_export_l4_vab) = \
     [fprop("VA", "Visible Absorptance", 0, 1, 0.6)] * conlayers
     (Material.envi_export_lo_odt, Material.envi_export_l1_odt, Material.envi_export_l2_odt, Material.envi_export_l3_odt, Material.envi_export_l4_odt) = \
-    [eprop([("SpectralAverage", "SpectralAverage", "Optical Data Type")], "Optical Data Type", "Optical Data Type", "SpectralAverage")] * conlayers
+    [eprop([("SpectralAverage", "SpectralAverage", "Optical Data Type")], "", "Optical Data Type", "SpectralAverage")] * conlayers
     (Material.envi_export_lo_sds, Material.envi_export_l1_sds, Material.envi_export_l2_sds, Material.envi_export_l3_sds, Material.envi_export_l4_sds) = \
-    [eprop([("0", "", "Window Glass Spectral Data Set Name")], "Window Glass Spectral Data Set Name", "Window Glass Spectral Data Set Name", "0")] * conlayers
+    [eprop([("0", "", "Window Glass Spectral Data Set Name")], "", "Window Glass Spectral Data Set Name", "0")] * conlayers
     (Material.envi_export_lo_stn, Material.envi_export_l1_stn, Material.envi_export_l2_stn, Material.envi_export_l3_stn, Material.envi_export_l4_stn) = \
     [fprop("STN", "Solar Transmittance at Normal Incidence", 0, 1, 0.9)] * conlayers
     (Material.envi_export_lo_fsn, Material.envi_export_l1_fsn, Material.envi_export_l2_fsn, Material.envi_export_l3_fsn, Material.envi_export_l4_fsn) = \
@@ -273,6 +273,8 @@ def register():
     [fprop("FIE", "Front Side Infrared Hemispherical Emissivity", 0, 1, 0.84)] * conlayers
     (Material.envi_export_lo_bie, Material.envi_export_l1_bie, Material.envi_export_l2_bie, Material.envi_export_l3_bie, Material.envi_export_l4_bie) = \
     [fprop("BIE", "Back Side Infrared Hemispherical Emissivity", 0, 1, 0.84)] * conlayers
+    (Material.envi_export_lo_sdiff, Material.envi_export_l1_sdiff, Material.envi_export_l2_sdiff, Material.envi_export_l3_sdiff, Material.envi_export_l4_sdiff) = \
+    [bprop("", "", 0)] * conlayers
     Material.envi_shad_att = bprop("Attached", "Flag to specify shading attached to the building",False)
 
     # Scene parameters

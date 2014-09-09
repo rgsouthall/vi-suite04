@@ -1,5 +1,5 @@
 import bpy, os, itertools, subprocess, datetime, sys, mathutils
-from .vi_func import epentry, objvol, ceilheight, selobj, triarea, boundpoly, rettimes, epschedwrite
+from .vi_func import epentry, objvol, ceilheight, selobj, facearea, boundpoly, rettimes, epschedwrite
 dtdf = datetime.date.fromordinal
 
 def enpolymatexport(exp_op, node, locnode, em, ec):
@@ -164,7 +164,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 
     for obj in [obj for obj in bpy.data.objects if obj.layers[1] and obj.type == 'MESH' and obj.envi_type != '0']:
         obm, odv = obj.matrix_world, obj.data.vertices
-        obj["floorarea"] = sum([triarea(obj, face) for face in obj.data.polygons if obj.data.materials[face.material_index].envi_con_type =='floor'])
+        obj["floorarea"] = sum([facearea(obj, face) for face in obj.data.polygons if obj.data.materials[face.material_index].envi_con_type =='floor'])
         for poly in obj.data.polygons:
             mat = obj.data.materials[poly.material_index]
             (obc, obco, se, we) = boundpoly(obj, mat, poly, enng)

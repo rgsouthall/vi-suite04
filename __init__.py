@@ -33,10 +33,7 @@ matpath, epwpath, envi_mats, envi_cons, conlayers  = addonpath+'/EPFiles/Materia
 
 if str(sys.platform) == 'darwin':
     if not hasattr(os.environ, 'RAYPATH'):
-        if platform.architecture() == "64bit":
-            os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/osx/64:/Applications/EnergyPlus-{}/bin".format(addonpath, epversion)
-        else:
-             os.environ["PATH"] = os.environ["PATH"] + ":/usr/local/radiance/bin:{}/osx:/Applications/EnergyPlus-{}/bin".format(addonpath, epversion)
+        os.environ["PATH"] = os.environ["PATH"] + (":/usr/local/radiance/bin:{}/osx:/Applications/EnergyPlus-{}/bin".format(addonpath, epversion), ":/usr/local/radiance/bin:{}/osx/64:/Applications/EnergyPlus-{}/bin".format(addonpath, epversion))[platform.architecture() == "64bit"] 
         os.environ["RAYPATH"] = "/usr/local/radiance/lib:{}/lib".format(addonpath)
 
 if str(sys.platform) == 'linux':
@@ -95,7 +92,7 @@ def register():
     Object.ies_strength = fprop("", "Strength of IES lamp", 0, 1, 1)
     Object.ies_unit = eprop([("m", "Meters", ""), ("c", "Centimeters", ""), ("f", "Feet", ""), ("i", "Inches", "")], "", "Specify the IES file measurement unit", "m")
     Object.ies_colour = fvprop(3, "IES Colour",'IES Colour', [1.0, 1.0, 1.0], 'COLOR', 0, 1)
-    (Object.licalc, Object.lires, Object.limerr, Object.manip) = [bprop("", "", False)] * 4
+    (Object.licalc, Object.lires, Object.limerr, Object.manip, Object.lila) = [bprop("", "", False)] * 5
 
 # EnVi zone definitions
     Object.envi_type = eprop([("0", "None", "None"), ("1", "Thermal", "Thermal Zone"), ("2", "Shading", "Shading Object")], "EnVi object type", "Specify the EnVi object type", "0")
@@ -141,7 +138,7 @@ def register():
     (Object.aoccf1, Object.aoccf2, Object.aoccf3, Object.aoccf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.aocct1, Object.aocct2, Object.aocct3, Object.aocct4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
     Object.envi_weff = fprop("Efficiency", "Work efficiency", 0, 1, 0.0)
-    Object.envi_wsched = bprop("Schedule", "Create an activity level schedule", False)
+    Object.envi_wsched = bprop("Schedule", "Create a work efficiency schedule", False)
     (Object.woccu1, Object.woccu2, Object.woccu3, Object.woccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
     (Object.woccf1, Object.woccf2, Object.woccf3, Object.woccf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.wocct1, Object.wocct2, Object.wocct3, Object.wocct4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4

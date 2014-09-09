@@ -328,24 +328,27 @@ class IESPanel(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if context.lamp or 'lightarray' in context.object.name:
+        if context.lamp or context.mesh:
             return True
 
     def draw(self, context):
         layout, lamp = self.layout, context.active_object
-        row = layout.row()
-        row.operator("livi.ies_select")
-        row.prop(lamp, "ies_name")
-        newrow(layout, 'IES Dimension:', lamp, "ies_unit")
-        newrow(layout, 'IES Strength:', lamp, "ies_strength")
-        row = layout.row()
-        row.prop(lamp, "ies_colour")
-
+        if lamp.type != 'LAMP': 
+            newrow(layout, 'Light Array', lamp, 'lila')
+        if lamp.type == 'LAMP' or lamp.lila: 
+            row = layout.row()
+            row.operator("livi.ies_select")
+            row.prop(lamp, "ies_name")
+            newrow(layout, 'IES Dimension:', lamp, "ies_unit")
+            newrow(layout, 'IES Strength:', lamp, "ies_strength")
+            row = layout.row()
+            row.prop(lamp, "ies_colour")
+                
 class EnZonePanel(bpy.types.Panel):
     bl_label = "EnVi Zone Definition"
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
-    bl_context = "object"
+    bl_context = "data"
 
     @classmethod
     def poll(cls, context):

@@ -98,10 +98,11 @@ def nodestate(self, opstate):
             self.bl_label = self.bl_label[1:-1]
 
 def face_centre(ob, obresnum, f):
-    vsum = mathutils.Vector((0, 0, 0))
-    for v in f.vertices:
-        vsum = ob.active_shape_key.data[v].co + vsum if obresnum > 0 else ob.data.vertices[v].co + vsum
-    return(vsum/len(f.vertices))
+#    vsum = mathutils.Vector((0, 0, 0))
+#    for v in f.vertices:
+#        vsum = ob.active_shape_key.data[v].co + vsum if obresnum > 0 else ob.data.vertices[v].co + vsum
+#    return(vsum/len(face.vertices))
+    return(ob.matrix_world * f.center)
 
 def v_pos(ob, v):
     return(ob.active_shape_key.data[v].co if ob.lires else ob.data.vertices[v].co)
@@ -374,7 +375,28 @@ def ceilheight(obj, vertz):
     floor = [min((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) for poly in mesh.polygons if min((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) < zmin + 0.1 * (zmax - zmin)]
     return(sum(ceiling)/len(ceiling)-sum(floor)/len(floor))
 
-def triarea(obj, face):
+def vertarea(obj, vert):
+    omw = obj.matrix_world
+    area = 0
+    faces = [face for face in obj.data.polygons if vert.index in face.vertices]    
+    for f, face in enumerate(faces):
+        ovs = []
+        fvs = [fv for fv in face.vertices if (vert.index, fv) in face.edge_keys or (fv, vert.index) in face.edge_keys]
+        ofaces = [oface for oface in faces if len([v for v in oface.vertices if v in face.vertices]) == 2]    
+        for oface in ofaces:
+            ovs.append([i for i in face.vertices if i in oface.vertices])
+        if len(ovs) == 1:
+            sedgevs = (vert.index, [v for v in fvs if v not in ovs][0])
+            sedgemp = mathutils.Vector([((omw*obj.data.vertices[sedgevs[0]].co)[i] + (omw*obj.data.vertices[sedgevs[1]].co)[i])/2 for i in range(3)])
+            eps = [omw * mathutils.geometry.intersect_line_line(face.center, ofaces[0].center, obj.data.vertices[ovs[0][0]].co, obj.data.vertices[ovs[0][1]].co)[1]] + [sedgemp]
+        elif len(ovs) == 2:
+            eps = [omw * mathutils.geometry.intersect_line_line(face.center, ofaces[i].center, obj.data.vertices[ovs[i][0]].co, obj.data.vertices[ovs[i][1]].co)[1] for i in range(2)]
+        else:
+            print('no edge')
+        area += mathutils.geometry.area_tri(omw*vert.co, *eps) + mathutils.geometry.area_tri(omw*face.center, *eps)
+    return area
+
+def facearea(obj, face):
     omw = obj.matrix_world
     vs = [omw*mathutils.Vector(face.center)] + [omw*obj.data.vertices[v].co for v in face.vertices] + [omw*obj.data.vertices[face.vertices[0]].co]
     return(vsarea(obj, vs))
@@ -542,14 +564,14 @@ def frameindex(scene, anim):
 def retobjs(otypes):
     scene = bpy.context.scene
     if otypes == 'livig':
-        return([geo for geo in scene.objects if geo.type == 'MESH' and len(geo.data.materials) > 0 and not geo.children  and 'lightarray' not in geo.name \
+        return([geo for geo in scene.objects if geo.type == 'MESH' and len(geo.data.materials) and not (geo.parent and os.path.isfile(geo.iesname)) and not geo.lila \
         and geo.hide == False and geo.layers[scene.active_layer] == True and geo.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane')])
     elif otypes == 'livigengeo':
         return([geo for geo in scene.objects if geo.type == 'MESH' and not any([m.livi_sense for m in geo.data.materials])])
     elif otypes == 'livigengeosel':
         return([geo for geo in scene.objects if geo.type == 'MESH' and geo.select == True and not any([m.livi_sense for m in geo.data.materials])])
     elif otypes == 'livil':
-        return([geo for geo in scene.objects if (geo.ies_name != "" or 'lightarray' in geo.name) and geo.hide == False and geo.layers[scene.active_layer] == True])
+        return([geo for geo in scene.objects if (geo.type == 'LAMP' or geo.lila) and os.path.isfile(geo.ies_name) and geo.hide == False and geo.layers[scene.active_layer] == True])
     elif otypes == 'livic':
         return([geo for geo in scene.objects if geo.type == 'MESH' and geo.get('licalc') and geo.lires == 0 and geo.hide == False and geo.layers[scene.active_layer] == True])
     elif otypes == 'livir':
@@ -565,6 +587,14 @@ def viewdesc(context):
     mid_x, mid_y = width/2, height/2
     return(mid_x, mid_y, width, height)
 
+def selmesh(sel):
+    bpy.ops.object.mode_set(mode = 'EDIT')
+    if sel == 'selenm':
+        bpy.ops.mesh.select_mode(type="EDGE")
+        bpy.ops.mesh.select_non_manifold()
+    elif sel == 'desel':
+        bpy.ops.mesh.select_all(action='DESELECT')
+    bpy.ops.object.mode_set(mode = 'OBJECT')
 
 def draw_index(context, leg, mid_x, mid_y, width, height, index, vec):
     vec = mathutils.Vector((vec[0] / vec[3], vec[1] / vec[3], vec[2] / vec[3]))
@@ -572,6 +602,11 @@ def draw_index(context, leg, mid_x, mid_y, width, height, index, vec):
     blf.position(0, x, y, 0)
     if (leg == 1 and (x > 120 or y < height - 530)) or leg == 0:
         blf.draw(0, str(index))
+        
+def edgelen(ob, edge):
+    omw = ob.matrix_world
+    vdiff = omw * (ob.data.vertices[edge.vertices[0]].co - ob.data.vertices[edge.vertices[1]].co)
+    mathutils.Vector(vdiff).length
 
 def sunpath1(self, context):
     sunpath()
@@ -702,8 +737,8 @@ def selobj(scene, geo):
         ob.select = True if ob == geo else False
     scene.objects.active = geo
 
-def nodeid(node, ngs):
-    for ng in ngs:
+def nodeid(node):
+    for ng in bpy.data.node_groups:
         if node in ng.nodes[:]:
             return node.name+'@'+ng.name
 

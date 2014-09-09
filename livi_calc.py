@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, subprocess, colorsys, datetime
+import bpy, os, subprocess, colorsys, datetime, mathutils
 from subprocess import PIPE, Popen, STDOUT
 from . import vi_func
 from . import livi_export
@@ -48,19 +48,19 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                     subprocess.call("{} {}-{}.af".format(scene['viparams']['rm'], scene['viparams']['filebase'], frame), shell=True)
                 rtcmd = "rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct  < {2}.rtrace {4}".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                 rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)                
-                for l,line in enumerate(rtrun.stdout):
-                    res[findex][l] = float(line.decode())
-                with open(os.path.join(scene['viparams']['newdir'], connode['resname']+"-"+str(frame)+".res"), 'w') as resfile:
-                    resfile.write(rtrun.stdout)
+                with open(os.path.join(scene['viparams']['newdir'], connode['resname']+"-{}.res".format(frame)), 'w') as resfile:
+                    for l,line in enumerate(rtrun.stdout):
+                        res[findex][l] = eval(line.decode())                
+                        resfile.write(line.decode())
                 
             if connode.bl_label == 'LiVi Compliance' and connode.analysismenu in ('0', '1'):
                 if connode.analysismenu in ('0', '1'):
                     svcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(scene['viparams']['nproc'], '-ab 1 -ad 8192 -aa 0 -ar 512 -as 1024 -lw 0.0002', scene['viparams']['filebase'], frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                     svrun = Popen(svcmd, shell = True, stdout=PIPE, stderr=STDOUT)                  
-                    for sv,line in enumerate(svrun.stdout):
-                        svres[findex][sv] = float(line.decode())
                     with open(os.path.join(scene['viparams']['newdir'],'skyview'+"-"+str(frame)+".res"), 'w') as svresfile:
-                        svresfile.write("{}".format(svrun.stdout))
+                        for sv,line in enumerate(svrun.stdout):
+                            svres[findex][sv] = eval(line.decode())
+                            svresfile.write(line.decode())
 
             if connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) > 1:
                 if connode.sourcemenu == '1':
@@ -69,53 +69,37 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                 sensarray = [[0 for x in range(146)] for y in range(geonode['reslen'])] if np == 0 else numpy.zeros([geonode['reslen'], 146])
                 oconvcmd = "oconv -w - > {0}-ws.oct".format(scene['viparams']['filebase'])
                 Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = (connode['whitesky']+geonode['radfiles'][frame]).encode('utf-8'))
-                senscmd = scene['viparams']['cat']+scene['viparams']['filebase']+".rtrace | rcontrib -w  -h -I -fo -bn 146 "+simnode['radparams']+" -n "+scene['viparams']['nproc']+" -f tregenza.cal -b tbin -m sky_glow "+scene['viparams']['filebase']+"-ws.oct"
+                senscmd = scene['viparams']['cat']+scene['viparams']['filebase']+".rtrace | rcontrib -w  -h -I -fo -bn 146 {} -n {} -f tregenza.cal -b tbin -m sky_glow {}-ws.oct".format(simnode['radparams'], scene['viparams']['nproc'], scene['viparams']['filebase'])
                 sensrun = Popen(senscmd, shell = True, stdout=PIPE)
-
+                
                 for li, line in enumerate(sensrun.stdout):
                     decline = [float(ld) for ld in line.decode().split('\t') if ld != '\n']
-                    for v in range(0, 438, 3):
-                        if connode.analysismenu in ('2', '4'):
-                            sensarray[li][v/3] = 179*((decline[v]*0.265)+ (decline[v+1]*0.67) + (decline[v+2]*0.065))
-                        elif connode.analysismenu == '3':
-                            sensarray[li][v/3] = sum(decline[v:v+3])
+                    if connode.analysismenu in ('2', '4'):
+                        sensarray[li] = [179*((decline[v]*0.265)+ (decline[v+1]*0.67) + (decline[v+2]*0.065)) for v in range(0, 438, 3)]
+                    elif connode.analysismenu == '3':
+                        sensarray[li] = [sum(decline[v:v+3]) for v in range(0, 438, 3)]
 
                 for l, readings in enumerate(connode['vecvals']):
                     if connode.analysismenu == '3' or (connode.cbdm_start_hour <= readings[:][0] < connode.cbdm_end_hour and readings[:][1] < connode['wd']):
-                        finalillu = [0 for x in range(geonode['reslen'])] if np == 0 else numpy.zeros((geonode['reslen']))
-                        for f, fi in enumerate(finalillu):
-                            finalillu[f] = numpy.sum([numpy.multiply(sensarray[f], readings[2:])]) if np == 1 else sum([a*b for a,b in zip(sensarray[f],readings[2:])])
+                        finalillu = [numpy.sum([numpy.multiply(sensarray[f], readings[2:])]) for f in range(geonode['reslen'])] if np == 1 else [sum([a*b for a,b in zip(sensarray[f],readings[2:])]) for f in range(geonode['reslen'])]
                         hours += 1
-
                         if connode.analysismenu == '2':
-                            if np == 1:
-                                target = [reading >= connode.dalux for reading in finalillu]
-                                res[findex] = numpy.sum([res[findex], target], axis = 0)
-                            else:
-                                res[findex] = [res[findex][k] + (0, 1)[finalillu[k] >= connode.dalux] for k in range(len(finalillu))]
+                            res[findex] = numpy.sum([res[findex], [reading >= connode.dalux for reading in finalillu]], axis = 0) if np == 1 else [res[findex][k] + (0, 1)[finalillu[k] >= connode.dalux] for k in range(len(finalillu))]
 
                         elif connode.analysismenu == '3':
                             if np ==1:
                                 if hours == 1:
                                     reswatt = numpy.zeros((len(frames), len(connode['vecvals']), geonode['reslen'])) 
                                 reswatt[findex][l] = finalillu
-                                for i in range(len(finalillu)):
-                                    numpy.append(res[findex][i], finalillu[i])                                
+                                [numpy.append(res[findex][i], finalillu[i]) for i in range(len(finalillu))]                                
                             else:
-                                res[findex].append(finalillu)
-                            
+                                res[findex].append(finalillu)             
                         elif connode.analysismenu == '4':
-                            if np == 1:
-                                target = [connode.daauto >= reading >= connode.dasupp for reading in finalillu]
-                                res[findex] = numpy.sum([res[findex], target], axis = 0)
-                            else:
-                                res[findex] = [res[findex][k] + (0, 1)[connode.daauto >= finalillu[k] >= connode.dasupp] for k in range(len(finalillu))]
+                            res[findex] = numpy.sum([res[findex], [connode.daauto >= reading >= connode.dasupp for reading in finalillu]], axis = 0) if np == 1 else [res[findex][k] + (0, 1)[connode.daauto >= finalillu[k] >= connode.dasupp] for k in range(len(finalillu))]
                 
                 if connode.analysismenu in ('2', '4'):
-                    if np == 1 and hours != 0:
-                        res[findex] = res[frame]*100/hours
-                    elif  np == 0 and hours != 0:
-                        res[findex] = [rf*100/hours for rf in res[findex][0]]
+                    if hours != 0:
+                        res[findex] = res[frame]*100/hours if np == 1 else [rf*100/hours for rf in res[findex][0]]
                     with open(os.path.join(scene['viparams']['newdir'], connode['resname']+"-"+str(frame)+".res"), "w") as daresfile:
                         [daresfile.write("{:.2f}\n".format(r)) for r in res[findex]]
                 
@@ -123,30 +107,26 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                     res = reswatt
 
             if connode.analysismenu != '3' or connode.bl_label != 'LiVi CBDM':
-                fi, vi = 0, 0       
+                fi, vi = 0, 0
                 for geo in vi_func.retobjs('livic'):
-                    obcalcverts, obres, weightres, sensefaces = [], [], 0, [face for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense]
-                    geoarea = sum([vi_func.triarea(geo, face) for face in sensefaces])
-                    if not geoarea:
+                    lenv, lenf, sensefaces = len(geo['cverts']), len(geo['cfaces']), [face for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense]
+                    sensearea = sum([vi_func.facearea(geo, face) for face in sensefaces])
+                    if not sensearea:
                         calc_op.report({'INFO'}, geo.name+" has a livi sensor material associated with, but not assigned to any faces")
                     else: 
-                        for face in sensefaces:
-                            if geonode.cpoint == '1':
-                                for v,vert in enumerate(face.vertices):
-                                    if geo.data.vertices[vert] not in obcalcverts:
-                                        weightres += res[findex][vi] 
-                                        obres.append(res[findex][vi])
-                                        obcalcverts.append(geo.data.vertices[vert])
-                                        vi += 1
-                            else:
-                                weightres += vi_func.triarea(geo, face) * res[findex][fi]/geoarea
-                                obres.append(res[findex][fi])
-                                fi += 1
-            
+                        if geonode.cpoint == '1':
+                            weightres = sum([res[findex][ri] * area for ri, area in zip(range(vi, vi+lenv), geo['lisenseareas'])])
+                            obres = res[findex][vi:vi+lenv]
+                            vi += lenv
+                        else:
+                            weightres = sum([res[findex][ri] * area for ri, area in zip(range(fi, fi+lenf), geo['lisenseareas'])])
+                            obres = res[findex][fi:fi+lenf]
+                            fi += lenf
+                                                                   
                         if (frame == scene.fs and not kwargs.get('genframe')) or (kwargs.get('genframe') and kwargs['genframe'] == scene.frame_start):
                             geo['oave'], geo['omax'], geo['omin'], geo['oreslist'] = {}, {}, {}, {}
     
-                        geo['oave'][str(frame)] = weightres/(1, len(obcalcverts))[geonode.cpoint == '1'] 
+                        geo['oave'][str(frame)] = weightres/sensearea
                         geo['omax'][str(frame)] = max(obres)
                         geo['omin'][str(frame)] = min(obres)
                         geo['oreslist'][str(frame)] = obres 
@@ -189,7 +169,7 @@ def resapply(calc_op, res, svres, simnode, connode, geonode):
             for geo in vi_func.retobjs('livic'):
                 bpy.ops.object.select_all(action = 'DESELECT')
                 scene.objects.active = None
-                geoarea = sum([vi_func.triarea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
+                geoarea = sum([vi_func.facearea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
                 geofaces = [face for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense]
 
                 if geo.get('wattres'):
@@ -308,13 +288,13 @@ def resapply(calc_op, res, svres, simnode, connode, geonode):
                                 
                             if c[2] == 'PDF':
                                 dfpass[frame] = 1
-                                dfpassarea = sum([vi_func.triarea(geo, face) for fa, face in enumerate(geofaces) if res[frame][fa + fstart] > c[3]])
+                                dfpassarea = sum([vi_func.facearea(geo, face) for fa, face in enumerate(geofaces) if res[frame][fa + fstart] > c[3]])
                                 comps[frame] = [1] if dfpassarea > c[1]*geoarea/100 else [0]
                                 comps[frame].append(100*dfpassarea/geoarea)
                                 dftotarea += geoarea
 
                             elif c[2] == 'Skyview':
-                                passarea = sum([vi_func.triarea(geo, face) for fa, face in enumerate(geofaces) if svres[frame][fa + fstart] > 0])
+                                passarea = sum([vi_func.facearea(geo, face) for fa, face in enumerate(geofaces) if svres[frame][fa + fstart] > 0])
                                 comps[frame] = [1] if passarea >= c[1]*geoarea/100 else [0]
                                 comps[frame].append(100*passarea/geoarea)
                                 passarea = 0
@@ -328,8 +308,8 @@ def resapply(calc_op, res, svres, simnode, connode, geonode):
                             comps[frame].append(min(res[frame][fstart:fend])/(sum(res[frame])/(fend - fstart)))
 
                         elif c[0] == 'Average':
-                            comps[frame] = [1] if sum([vi_func.triarea(geo, face) * res[frame][fa+fstart] for fa, face in enumerate(geofaces)])/geoarea > c[3] else [0]
-                            comps[frame].append(sum([vi_func.triarea(geo, face) * res[frame][fa+fstart] for fa, face in enumerate(geofaces)])/geoarea)
+                            comps[frame] = [1] if sum([vi_func.facearea(geo, face) * res[frame][fa+fstart] for fa, face in enumerate(geofaces)])/geoarea > c[3] else [0]
+                            comps[frame].append(sum([vi_func.facearea(geo, face) * res[frame][fa+fstart] for fa, face in enumerate(geofaces)])/geoarea)
 
                     for e in ecrit:
                         if e[0] == 'Percent':
@@ -341,13 +321,13 @@ def resapply(calc_op, res, svres, simnode, connode, geonode):
                                 
                             if e[2] == 'PDF':
                                 edfpass[frame] = 1
-                                edfpassarea = sum([vi_func.triarea(geo, face) for fa, face in enumerate(geofaces) if res[frame][fa + fstart] > e[3]])      
+                                edfpassarea = sum([vi_func.facearea(geo, face) for fa, face in enumerate(geofaces) if res[frame][fa + fstart] > e[3]])      
                                 ecomps[frame] = [1] if dfpassarea > e[1]*geoarea/100 else [0]
                                 ecomps[frame].append(100*edfpassarea/geoarea)
                                 edftotarea += geoarea
 
                             elif e[2] == 'Skyview':
-                                passarea = sum([vi_func.triarea(geo, face) for fa, face in enumerate(geofaces) if svres[frame][fa] > 0])
+                                passarea = sum([vi_func.facearea(geo, face) for fa, face in enumerate(geofaces) if svres[frame][fa] > 0])
                                 ecomps[frame] = [1] if passarea >= e[1] * geoarea/100 else [0]
                                 ecomps[frame].append(100*passarea/geoarea)
                                 passarea = 0
@@ -381,15 +361,15 @@ def resapply(calc_op, res, svres, simnode, connode, geonode):
             sof, eof = 0, 0
             for geo in vi_func.retobjs('livic'):
                 bpy.ops.object.select_all(action = 'DESELECT')
-                scene.objects.active = None
-                geoarea = sum([vi_func.triarea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
+                eof, hours, scene.objects.active = sof + len(geo['cfaces']), len(res[0]), None
+                geoarea = sum([vi_func.facearea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
                 geofaces = [face for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense]
                 geo['wattres'] = {str(frame):[0 for x in range(len(res[0]))]}
-                faceareas = [vi_func.triarea(geo, fa) for fa in geofaces[sof:eof+len(geofaces)]]
-                for i in range(len(res[0])):
-                    geo['wattres'][str(frame)][i] = sum([res[fr][i][sof:eof+len(geofaces)][j] * faceareas[j] for j in range(sof, eof+len(geofaces))])
-                sof = len(geofaces)
-                eof += len(geofaces)
+                faceareas = [vi_func.facearea(geo, fa) for fa in geofaces[sof:eof]]
+                for i in range(hours):
+                    geo['wattres'][str(frame)][i] = sum([res[fr][i][sof:eof][j] * faceareas[j] for j in range(sof, eof)])
+                sof = eof
+#                eof = sof + len(geofaces)
         simnode.outputs['Data out'].hide = False
             
     calc_op.report({'INFO'}, "Calculation is finished.")

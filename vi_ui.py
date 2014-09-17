@@ -33,9 +33,6 @@ class Vi3DPanel(bpy.types.Panel):
                 row.prop(scene, "vi_disp_3d")
                 row = layout.row()
                 row.operator("view3d.lidisplay", text="Shadow Display") if scene.resnode == 'VI Shadow Study' else row.operator("view3d.lidisplay", text="Radiance Display")
-#                    
-#                else:
-#                    row.operator("view3d.lidisplay", text="Radiance Display")
 
                 if scene.ss_disp_panel == 2 or scene.li_disp_panel == 2:
                     row = layout.row()
@@ -55,12 +52,7 @@ class Vi3DPanel(bpy.types.Panel):
                         propdict = OrderedDict([('Enable', "vi_display_rp"), ("Selected only:", "vi_display_sel_only"), ("Visible only:", "vi_display_vis_only"), ("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_fsh")])
                         for prop in propdict.items():
                             newrow(layout, prop[0], scene, prop[1])
-#                        newrow(layout, "Enable:", scene, "vi_display_rp")
-#                        newrow(layout, "Selected only:", scene, "vi_display_sel_only")
-#                        newrow(layout, "Visible only:", scene, "vi_display_vis_only")
-#                        newrow(layout, "Font size:", scene, "vi_display_rp_fs")
-#                        newrow(layout, "Font colour:", scene, "vi_display_rp_fc")
-#                        newrow(layout, "Font shadow:", scene, "vi_display_rp_fsh")
+
                         row = layout.row()
                         row.label(text="{:-<60}".format(""))
 
@@ -68,11 +60,7 @@ class Vi3DPanel(bpy.types.Panel):
                         propdict = OrderedDict([("Compliance Panel", "li_compliance"), ("Asessment organisation:", "li_assorg"), ("Assesment individiual:", "li_assind"), ("Job number:", "li_jobno"), ("Project name:", "li_projname")])
                         for prop in propdict.items():
                             newrow(layout, prop[0], scene, prop[1])
-#                        newrow(layout, "Compliance Panel", scene, "li_compliance")
-#                        newrow(layout, "Asessment organisation:", scene, "li_assorg")
-#                        newrow(layout, "Assesment individiual:", scene, "li_assind")
-#                        newrow(layout, "Job number:", scene, "li_jobno")
-#                        newrow(layout, "Project name:", scene, "li_projname")
+
             newrow(layout, 'Display active', scene, 'vi_display')
 
 class VIMatPanel(bpy.types.Panel):
@@ -121,12 +109,20 @@ class VIMatPanel(bpy.types.Panel):
 
         row = layout.row()
         row.label('LiVi Radiance type:')
-        radentry = cm.radmat(context.scene, 1)
+        row.prop(cm, 'radmatmenu')
+#        radmatdict = {'0': ['radcolour', 0, 'radrough', 'radspec'], '1': ['radcolour'], '2': ['radcolour', 0, 'ior'], '3': ['radcolour', 0, 'radspec', 'radrough', 0, 'radtrans',  'radtranspec'], '4': ['radcolour'], '5': ['radcolour'], '6': ['radcolour', 0, 'radrough', 'radspec'], '7': []}
         row = layout.row()
-        for line in radentry.splitlines():
-            row = layout.row()
-            row.label('    '+line)
-        layout = self.layout
+        for prop in cm.radmatdict[cm.radmatmenu]:
+            if prop:
+                 row.prop(cm, prop)
+            else:
+                row = layout.row()
+  #      radentry = cm.radmat(context.scene, 1)
+#        row = layout.row()
+#        for line in radentry.splitlines():
+#            row = layout.row()
+#            row.label('    '+line)
+#        layout = self.layout
         row = layout.row()
         row.label("-----------------------------------------")
         newrow(layout, "EnVi Construction Type:", cm, "envi_con_type")

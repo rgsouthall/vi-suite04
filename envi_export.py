@@ -268,8 +268,9 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
             en_idf.write(hcoiobj.zi())
 
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: AIRFLOW NETWORK ===========\n\n")
-
-    writeafn(exp_op, en_idf, enng)
+    
+    if enng:
+        writeafn(exp_op, en_idf, enng)
 
     en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: REPORT VARIABLE ===========\n\n")
     epentrydict = {"Output:Variable,*,Site Outdoor Air Drybulb Temperature,Hourly;\n": node.resat, "Output:Variable,*,Site Wind Speed,Hourly;\n": node.resaws,

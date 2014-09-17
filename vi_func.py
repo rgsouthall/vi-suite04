@@ -11,67 +11,79 @@ except:
 dtdf = datetime.date.fromordinal
 s = 60
 
-def radmat(self, scene, ui):
-    radname, radtype = self.name.replace(" ", "_"), ''
-    if scene.render.engine == 'CYCLES' and hasattr(self.node_tree, 'nodes'):
-        cycmattypes = ('Diffuse BSDF', 'Glass BSDF', 'Glossy BSDF', 'Ambient Occlusion', 'Emission', 'Transparent BSDF')
-        matnode = [link.from_node for link in self.node_tree.nodes['Material Output'].inputs['Surface'].links]
-        mixnodes = [link.from_node for link in matnode[0].inputs[1].links + matnode[0].inputs[2].links] if matnode[0].bl_label == 'Mix Shader' else matnode
-        if mixnodes:            
-            if len(mixnodes) == 2:
-                trlnode = [node for node in mixnodes if node.bl_label == 'Translucent BSDF']
-                glossnode = [node for node in mixnodes if node.bl_label == 'Glossy BSDF']
-                transpnode = [node for node in mixnodes if node.bl_label == 'Transparent BSDF']
-                diffnode = [node for node in mixnodes if node.bl_label == 'Diffuse BSDF']
-                if trlnode and glossnode:
-                    radtype, radnums = 'trans', '7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f} {0[3]:.3f} {3:.3f}'.format(trlnode[0].inputs[0].default_value, matnode[0].inputs[0].default_value, glossnode[0].inputs[1].default_value, 1 - glossnode[0].inputs[0].default_value[3])
-                if transpnode and diffnode:
-                    radtype, radnums = 'antimatter', ''
-                    
-            elif len(mixnodes) == 1:     
-                matindex = cycmattypes.index(mixnodes[0].bl_label) if mixnodes[0].bl_label in cycmattypes else 0
-                matcol, matior, matrough, matemit  = mixnodes[0].inputs[0].default_value, mixnodes[0].inputs[2].default_value if matindex == 1 else 1.52, \
-                    mixnodes[0].inputs[1].default_value if matindex == 0 else 0,  mixnodes[0].inputs[1].default_value if matindex == 5 else 0
-                radtype = ('plastic', 'glass', 'mirror', 'antimatter', 'light', 'glass')[matindex]
-                radnums = ('5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format(matcol, '0', matrough),\
-                '4 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.3f}'.format(matcol, matior), \
-                '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}'.format(matcol), \
-                '', \
-                '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n'.format([c * matemit for c in matcol]), \
-                '4 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.3f}'.format(matcol, matior))[matindex]
-                
-    elif scene.render.engine == 'BLENDER_RENDER':
-        matcol = [i * self.diffuse_intensity for i in self.diffuse_color]
-        matior = self.raytrace_transparency.ior
-        matrough = 1.0-self.specular_hardness/511.0
-        matemit = self.emit
-
-        if self.use_shadeless == 1 or self.livi_compliance:
-            radtype, radnums = 'antimatter', ''
-        elif self.emit > 0:
-            radtype, radnums = 'light', '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n'.format([c * matemit for c in matcol])
-        elif self.use_transparency == False and self.raytrace_mirror.use == True and self.raytrace_mirror.reflect_factor >= 0.99:
-            radtype, radnums = 'mirror', '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}'.format(self.mirror_color)
-        elif self.use_transparency == True and self.transparency_method == 'RAYTRACE' and self.alpha < 1.0 and self.translucency == 0:
-            radtype = 'glass'
-            if "{:.2f}".format(self.raytrace_transparency.ior) == "1.52":
-                radnums = '3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}'.format([c * (1.0 - self.alpha) for c in matcol])
-            else:
-                radnums = '4 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f}'.format([c * (1.0 - self.alpha) for c in matcol], matior)
-        elif self.use_transparency == True and self.transparency_method == 'RAYTRACE' and self.alpha < 1.0 and self.translucency > 0.001:
-            radtype, radnums  = 'trans', '7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2} {3} {4}'.format(matcol, self.specular_intensity, 1.0 - self.specular_hardness/511.0, 1.0 - self.alpha, 1.0 - self.translucency)
-        elif self.use_transparency == False and self.raytrace_mirror.use == True and self.raytrace_mirror.reflect_factor < 0.99:
-            radtype, radnums  = 'metal', '5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2}'.format(matcol, self.specular_intensity, 1.0-self.specular_hardness/511.0)
-        else:
-            radtype, radnums  = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.2f} {2:.2f}'.format(matcol, self.specular_intensity, 1.0-self.specular_hardness/511.0)
-        
-    if not radtype:
-        radtype, radnums = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format((0.8, 0.8, 0.8), 0, 0)
+def radmat(self, scene):
+    radname = self.name.replace(" ", "_")
+#    radtypeline = ('plastic', 'glass', 'dielectric', 'translucent', 'mirror', 'light', 'metal', 'antimatter')[int(self.radtype)] + ' material {}\n'.format(radname)
     
-    radentry = '# {0} material\nvoid {0} {1}\n0\n0\n{2}\n\n'.format(radtype, radname, radnums) if radtype != 'antimatter' \
-                    else '# {0} material\nvoid {0} {1}\n1 void\n0\n0\n\n'.format(radtype, radname)
-    if ui == 0:
-        self['radentry'] = radentry
+    radentry = '# ' + ('plastic', 'glass', 'dielectric', 'translucent', 'mirror', 'light', 'metal', 'antimatter')[int(self.radmatmenu)] + ' material\n' + \
+            'void {} {}\n'.format(('plastic', 'glass', 'dielectric', 'trans', 'mirror', 'light', 'metal', 'antimatter')[int(self.radmatmenu)], radname) + \
+           {'0': '0\n0\n5 {0[0]} {0[1]} {0[2]} {1} {2}\n'.format(self.radcolour, self.radspec, self.radrough), 
+            '1': '0\n0\n3 {0[0]} {0[1]} {0[2]}\n'.format(self.radcolour), 
+            '2': '0\n0\n4 {0[0]} {0[1]} {0[2]} {1}\n'.format(self.radcolour, self.radior),
+            '3': '0\n0\n7 {0[0]} {0[1]} {0[2]} {1} {2} {3} {4}\n'.format(self.radcolour, self.radspec, self.radrough, self.radtrans, self.radtranspec), 
+            '4': '0\n0\n3 {0[0]} {0[1]} {0[2]}\n'.format(self.radcolour),
+            '5': '0\n0\n3 {0[0]} {0[1]} {0[2]}\n'.format(self.radcolour), 
+            '6': '0\n0\n5 {0[0]} {0[1]} {0[2]} {1} {2}\n'.format(self.radcolour, self.radspec, self.radrough), 
+            '7': '1 void\n0\n0\n'}[self.radmatmenu] + '\n'
+#    if scene.render.engine == 'CYCLES' and hasattr(self.node_tree, 'nodes'):
+#        cycmattypes = ('Diffuse BSDF', 'Glass BSDF', 'Glossy BSDF', 'Ambient Occlusion', 'Emission', 'Transparent BSDF')
+#        matnode = [link.from_node for link in self.node_tree.nodes['Material Output'].inputs['Surface'].links]
+#        mixnodes = [link.from_node for link in matnode[0].inputs[1].links + matnode[0].inputs[2].links] if matnode[0].bl_label == 'Mix Shader' else matnode
+#        if mixnodes:            
+#            if len(mixnodes) == 2:
+#                trlnode = [node for node in mixnodes if node.bl_label == 'Translucent BSDF']
+#                glossnode = [node for node in mixnodes if node.bl_label == 'Glossy BSDF']
+#                transpnode = [node for node in mixnodes if node.bl_label == 'Transparent BSDF']
+#                diffnode = [node for node in mixnodes if node.bl_label == 'Diffuse BSDF']
+#                if trlnode and glossnode:
+#                    radtype, radnums = 'trans', '7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f} {0[3]:.3f} {3:.3f}'.format(trlnode[0].inputs[0].default_value, matnode[0].inputs[0].default_value, glossnode[0].inputs[1].default_value, 1 - glossnode[0].inputs[0].default_value[3])
+#                if transpnode and diffnode:
+#                    radtype, radnums = 'antimatter', ''
+#                    
+#            elif len(mixnodes) == 1:     
+#                matindex = cycmattypes.index(mixnodes[0].bl_label) if mixnodes[0].bl_label in cycmattypes else 0
+#                matcol, matior, matrough, matemit  = mixnodes[0].inputs[0].default_value, mixnodes[0].inputs[2].default_value if matindex == 1 else 1.52, \
+#                    mixnodes[0].inputs[1].default_value if matindex == 0 else 0,  mixnodes[0].inputs[1].default_value if matindex == 5 else 0
+#                radtype = ('plastic', 'glass', 'mirror', 'antimatter', 'light', 'glass')[matindex]
+#                radnums = ('5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format(matcol, '0', matrough),\
+#                '4 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.3f}'.format(matcol, matior), \
+#                '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}'.format(matcol), \
+#                '', \
+#                '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n'.format([c * matemit for c in matcol]), \
+#                '4 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.3f}'.format(matcol, matior))[matindex]
+#                
+#    elif scene.render.engine == 'BLENDER_RENDER':
+#        matcol = [i * self.diffuse_intensity for i in self.diffuse_color]
+#        matior = self.raytrace_transparency.ior
+#        matrough = 1.0-self.specular_hardness/511.0
+#        matemit = self.emit
+#
+#        if self.use_shadeless == 1 or self.livi_compliance:
+#            radtype, radnums = 'antimatter', ''
+#        elif self.emit > 0:
+#            radtype, radnums = 'light', '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}\n'.format([c * matemit for c in matcol])
+#        elif self.use_transparency == False and self.raytrace_mirror.use == True and self.raytrace_mirror.reflect_factor >= 0.99:
+#            radtype, radnums = 'mirror', '3 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f}'.format(self.mirror_color)
+#        elif self.use_transparency == True and self.transparency_method == 'RAYTRACE' and self.alpha < 1.0 and self.translucency == 0:
+#            radtype = 'glass'
+#            if "{:.2f}".format(self.raytrace_transparency.ior) == "1.52":
+#                radnums = '3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}'.format([c * (1.0 - self.alpha) for c in matcol])
+#            else:
+#                radnums = '4 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f}'.format([c * (1.0 - self.alpha) for c in matcol], matior)
+#        elif self.use_transparency == True and self.transparency_method == 'RAYTRACE' and self.alpha < 1.0 and self.translucency > 0.001:
+#            radtype, radnums  = 'trans', '7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2} {3} {4}'.format(matcol, self.specular_intensity, 1.0 - self.specular_hardness/511.0, 1.0 - self.alpha, 1.0 - self.translucency)
+#        elif self.use_transparency == False and self.raytrace_mirror.use == True and self.raytrace_mirror.reflect_factor < 0.99:
+#            radtype, radnums  = 'metal', '5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1} {2}'.format(matcol, self.specular_intensity, 1.0-self.specular_hardness/511.0)
+#        else:
+#            radtype, radnums  = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1:.2f} {2:.2f}'.format(matcol, self.specular_intensity, 1.0-self.specular_hardness/511.0)
+#        
+#    if not radtype:
+#        radtype, radnums = 'plastic', '5 {0[0]:.2f} {0[1]:.2f} {0[2]:.2f} {1} {2:.2f}'.format((0.8, 0.8, 0.8), 0, 0)
+#    
+#    radentry = '# {0} material\nvoid {0} {1}\n0\n0\n{2}\n\n'.format(radtype, radname, radnums) if radtype != 'antimatter' \
+#                    else '# {0} material\nvoid {0} {1}\n1 void\n0\n0\n\n'.format(radtype, radname)
+  #  if ui == 0:
+    self['radentry'] = radentry
     return(radentry)
 
 def viparams(scene):
@@ -98,14 +110,20 @@ def nodestate(self, opstate):
             self.bl_label = self.bl_label[1:-1]
 
 def face_centre(ob, obresnum, f):
-#    vsum = mathutils.Vector((0, 0, 0))
-#    for v in f.vertices:
-#        vsum = ob.active_shape_key.data[v].co + vsum if obresnum > 0 else ob.data.vertices[v].co + vsum
-#    return(vsum/len(face.vertices))
-    return(ob.matrix_world * f.center)
+    if obresnum:
+        vsum = mathutils.Vector((0, 0, 0))
+        for v in f.vertices:
+            vsum = ob.active_shape_key.data[v].co + vsum
+        return(vsum/len(f.vertices))
+    else:
+        return(f.center)
 
 def v_pos(ob, v):
     return(ob.active_shape_key.data[v].co if ob.lires else ob.data.vertices[v].co)
+    
+#def bc(persp, ):
+#    total_mat*ob.data.polygons[fi].center)[2] > 0
+    
 
 def newrow(layout, s1, root, s2):
     row = layout.row()
@@ -131,9 +149,9 @@ def retmesh(name, fr, node, scene):
 def nodeinputs(node):
     try:
         ins = [i for i in node.inputs if not i.hide]
-        if ins and not all([i.is_linked for i in ins]):
+        if ins and not all([i.links for i in ins]):
             return 0
-        elif ins and not all([i.links[0].from_node.exported for i in ins if i.is_linked]):
+        elif ins and any([i.links[0].from_node.use_custom_color for i in ins if i.links]):
             return 0
         else:
             inodes = [i.links[0].from_node for i in ins if i.links[0].from_node.inputs]
@@ -141,7 +159,7 @@ def nodeinputs(node):
                 iins = [i for i in inode.inputs if not i.hide]
                 if iins and not all([i.is_linked for i in iins]):
                     return 0
-                elif iins and not all([i.links[0].from_node.exported for i in iins if i.is_linked]):
+                elif iins and not all([i.links[0].from_node.use_custom_color for i in iins if i.is_linked]):
                     return 0
         return 1
     except:
@@ -391,7 +409,7 @@ def vertarea(obj, vert):
             eps = [omw * mathutils.geometry.intersect_line_line(face.center, ofaces[0].center, obj.data.vertices[ovs[0][0]].co, obj.data.vertices[ovs[0][1]].co)[1]] + [sedgemp]
         elif len(ovs) == 2:
             eps = [omw * mathutils.geometry.intersect_line_line(face.center, ofaces[i].center, obj.data.vertices[ovs[i][0]].co, obj.data.vertices[ovs[i][1]].co)[1] for i in range(2)]
-        else:
+        elif len(ofaces) == 0:
             print('no edge')
         area += mathutils.geometry.area_tri(omw*vert.co, *eps) + mathutils.geometry.area_tri(omw*face.center, *eps)
     return area
@@ -508,9 +526,9 @@ def drawfont(text, fi, lencrit, height, x1, y1):
     blf.position(fi, x1, height - y1 - lencrit*26, 0)
     blf.draw(fi, text)
 
-def mtx2vals(mtxlines, fwd, locnode):
-    if locnode:
-        records = (datetime.datetime(datetime.datetime.now().year, locnode.endmonth, 1) - datetime.datetime(datetime.datetime.now().year, locnode.startmonth, 1)).days*24
+def mtx2vals(mtxlines, fwd, node):
+    if node:
+        records = (datetime.datetime(datetime.datetime.now().year, node.endmonth, 1) - datetime.datetime(datetime.datetime.now().year, node.startmonth, 1)).days*24
     else:
         for records, line in enumerate(mtxlines):
             if line == '\n':
@@ -565,7 +583,7 @@ def retobjs(otypes):
     scene = bpy.context.scene
     if otypes == 'livig':
         return([geo for geo in scene.objects if geo.type == 'MESH' and len(geo.data.materials) and not (geo.parent and os.path.isfile(geo.iesname)) and not geo.lila \
-        and geo.hide == False and geo.layers[scene.active_layer] == True and geo.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane')])
+        and geo.hide == False and geo.layers[scene.active_layer] == True and geo.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')])
     elif otypes == 'livigengeo':
         return([geo for geo in scene.objects if geo.type == 'MESH' and not any([m.livi_sense for m in geo.data.materials])])
     elif otypes == 'livigengeosel':
@@ -573,17 +591,18 @@ def retobjs(otypes):
     elif otypes == 'livil':
         return([geo for geo in scene.objects if (geo.type == 'LAMP' or geo.lila) and os.path.isfile(geo.ies_name) and geo.hide == False and geo.layers[scene.active_layer] == True])
     elif otypes == 'livic':
-        return([geo for geo in scene.objects if geo.type == 'MESH' and geo.get('licalc') and geo.lires == 0 and geo.hide == False and geo.layers[scene.active_layer] == True])
+        return([geo for geo in scene.objects if geo.type == 'MESH' and geo.licalc and geo.lires == 0 and geo.hide == False and geo.layers[scene.active_layer] == True])
     elif otypes == 'livir':
-        return([geo for geo in bpy.data.objects if geo.type == 'MESH' and True in [m.livi_sense for m in geo.data.materials] and geo.get('licalc') and geo.layers[scene.active_layer] == True])
+        return([geo for geo in bpy.data.objects if geo.type == 'MESH' and True in [m.livi_sense for m in geo.data.materials] and geo.licalc and geo.layers[scene.active_layer] == True])
     elif otypes == 'envig':
         return([geo for geo in scene.objects if geo.type == 'MESH' and geo.hide == False and geo.layers[0] == True])
     elif otypes == 'ssc':
-        return([geo for geo in scene.objects if geo.type == 'MESH' and geo.get('licalc') and geo.lires == 0 and geo.hide == False and geo.layers[scene.active_layer] == True])
+        return([geo for geo in scene.objects if geo.type == 'MESH' and geo.licalc and geo.lires == 0 and geo.hide == False and geo.layers[scene.active_layer] == True])
 
 def viewdesc(context):
     region = context.region
-    (width, height) = [getattr(region, s) for s in ('width', 'height')]
+#    (width, height) = [getattr(region, s) for s in ('width', 'height')]
+    width, height = region.width, region.height
     mid_x, mid_y = width/2, height/2
     return(mid_x, mid_y, width, height)
 
@@ -763,13 +782,11 @@ def sockhide(node, lsocknames):
         print(e)
 
 def socklink(sock, ng):
-    try:
-        for link in sock.links:
-            lsock = (link.from_socket, link.to_socket)[sock.is_output]
-            if sock.is_linked and sock.draw_color(bpy.context, sock.node) != lsock.draw_color(bpy.context, lsock.node):
-                bpy.data.node_groups[ng].links.remove(link)
-    except:
-        pass
+    valid1 = sock.valid if not sock.get('valid') else sock['valid']
+    for link in sock.links:
+        valid2 = link.to_socket.valid if not link.to_socket.get('valid') else link.to_socket['valid'] 
+        if not set(valid1)&set(valid2):
+            bpy.data.node_groups[ng].links.remove(link)
 
 def epschedwrite(name, stype, ts, fs, us):
     params = ['Name', 'Schedule Type Limits Name']
@@ -785,11 +802,7 @@ def epschedwrite(name, stype, ts, fs, us):
                 paramvs.append(us[t][f][u][0])
     return epentry('Schedule:Compact', params, paramvs)
     
-def non_block_read(output):
-    fd = output.fileno()
-    fl = fcntl.fcntl(fd, fcntl.F_GETFL)
-    fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
-    try:
-        return output.read()
-    except:
-        return ""
+def li_calcob(ob, li):
+    ob.licalc = 1 if [face.index for face in ob.data.polygons if (ob.data.materials[face.material_index].vi_shadow, ob.data.materials[face.material_index].livi_sense)[li == 'livi']] else 0
+    return ob.licalc
+    

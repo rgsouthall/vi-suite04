@@ -1,5 +1,5 @@
 bl_info = {
-    "name": "VI-Suite",
+    "name": "VI-Suite Test",
     "author": "Ryan Southall",
     "version": (0, 2, 0),
     "blender": (2, 7, 1),
@@ -173,6 +173,19 @@ def register():
 
 # LiVi material definitions
     Material.radmat = vi_func.radmat
+    Material.radmatdict = {'0': ['radcolour', 0, 'radrough', 'radspec'], '1': ['radcolour'], '2': ['radcolour', 0, 'ior'], '3': ['radcolour', 0, 'radspec', 'radrough', 0, 'radtrans',  'radtranspec'], '4': ['radcolour'], '5': ['radcolour'], '6': ['radcolour', 0, 'radrough', 'radspec'], '7': []}
+
+    radtypes = [('0', 'Plastic', 'Plastic Radiance material'), ('1', 'Glass', 'Glass Radiance material'), ('2', 'Dielectric', 'Dialectric Radiance material'),
+                ('3', 'Translucent', 'Translucent Radiance material'), ('4', 'Mirror', 'Mirror Radiance material'), ('5', 'Light', 'Emission Radiance material'),
+                ('6', 'Metal', 'Metal Radiance material'), ('7', 'Anti-matter', 'Antimatter Radiance material')]
+    Material.radmatmenu = eprop(radtypes, "", "Type of Radiance material", '0')
+    Material.radcolour = fvprop(3, "Material Colour",'Material Colour', [1.0, 1.0, 1.0], 'COLOR', 0, 1)
+    Material.radrough = fprop("Roughness", "Material roughness", 0, 1, 0.1)
+    Material.radspec = fprop("Specularity", "Material specularity", 0, 1, 0.1)
+#    Material.radspec = fprop("Transmissivity", "Material specularity", 0, 1, 0.1)
+    Material.radtrans = fprop("Specular trans.", "Material transmissivity", 0, 1, 0.1)
+    Material.radtranspec  = fprop("Specularity", "Material specular transmission", 0, 1, 0.1)
+    Material.radior  = fprop("IOR", "Material index of refractionn", 0, 5, 1.5)
     Material.vi_shadow = bprop("VI Shadow", "Flag to signify whether the material represents a VI Shadow sensing surface", False)
     Material.livi_sense = bprop("LiVi Sensor", "Flag to signify whether the material represents a LiVi sensing surface", False)
     Material.livi_compliance = bprop("LiVi Compliance Surface", "Flag to siginify whether the material represents a LiVi compliance surface", False)

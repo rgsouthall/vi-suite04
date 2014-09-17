@@ -132,6 +132,7 @@ def spnumdisplay(disp_op, context, simnode):
 
 def linumdisplay(disp_op, context, simnode, connode, geonode):
     scene = context.scene
+    
     if not scene.vi_display:
         return
     try:
@@ -144,23 +145,16 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
     if (scene.li_disp_panel != 2 and scene.ss_disp_panel != 2) or scene.vi_display_rp != True \
          or (bpy.context.active_object not in (obcalclist+obreslist) and scene.vi_display_sel_only == True)  \
          or (bpy.context.active_object and bpy.context.active_object.mode == 'EDIT'):
-        print('1return')
         return
     
-    if not context.space_data.region_3d.is_perspective:
-        disp_op.report({'ERROR'},"Switch to prespective view mode for number display")
-        print('2return')
-        return
+#    if not context.space_data.region_3d.is_perspective:
+#        disp_op.report({'ERROR'},"Switch to prespective view mode for number display")
+#        return
     if scene.frame_current not in range(scene.fs, scene.fe + 1) and scene.vi_display:
         disp_op.report({'ERROR'},"Outside result frame range")
-        print('3return')
         return
     
-    vi_func.objmode()
-#    if bpy.context.active_object:
-#        if bpy.context.active_object.type == 'MESH' and bpy.context.active_object.mode != 'OBJECT':
-#             bpy.context.active_object.mode = 'OBJECT'
-    
+    vi_func.objmode()    
     blf.enable(0, 4)
     blf.shadow(0, 5, scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])
     bgl.glColor4f(*scene.vi_display_rp_fc[:])
@@ -169,7 +163,18 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
     cp = geonode.cpoint if geonode else simnode.cpoint
     fn = context.scene.frame_current - scene.fs
     mid_x, mid_y, width, height = vi_func.viewdesc(context)
-
+    view_mat = context.space_data.region_3d.perspective_matrix
+    maxval, minval = max(simnode['maxres']), min(simnode['minres'])
+        
+    if not context.space_data.region_3d.is_perspective:
+        view_pivot = bpy.context.active_object.location if bpy.context.active_object and context.user_preferences.view.use_rotate_around_active else context.region_data.view_location
+        vw =  mathutils.Vector((0.0, 0.0, 1.0))
+        vw.rotate(bpy.context.region_data.view_rotation)
+        view_location = view_pivot + vw.normalized()*bpy.context.region_data.view_distance*10        
+    else:
+        vw = mathutils.Vector((view_mat.inverted()[0][3], view_mat.inverted()[1][3], view_mat.inverted()[2][3])).normalized()
+        view_location = mathutils.Vector([vmi*bpy.context.region_data.view_distance/2 for vmi in vw])
+    
     if scene.vi_display_sel_only == False:
         obd = obreslist if len(obreslist) > 0 else obcalclist
     else:
@@ -181,47 +186,38 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
             ob.active_shape_key_index = [sk.name for sk in ob.data.shape_keys.key_blocks].index(str(fn))
 
         obm = ob.data
-        ob_mat = ob.matrix_world
-        view_mat = context.space_data.region_3d.perspective_matrix
-        view_pos = [vmi*scene['cs'] * 2 for vmi in (view_mat.inverted()[0][3], view_mat.inverted()[1][3], view_mat.inverted()[2][3])]
+        omw = ob.matrix_world
+        total_mat = view_mat * omw
+        # This detects if point is in front of camera but only works in perspective mode (total_mat*ob.data.polygons[fi].center)[2] > 0
+        faces = [f for f in ob.data.polygons if f.select and not f.hide]  if ob.lires else [ob.data.polygons[fi] for fi in ob['cfaces'] if not ob.data.polygons[fi].hide]
 
         if cp == "0" or not geonode:
-            faces = [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons if ob.data.materials[f.material_index].vi_shadow] if simnode.bl_label == 'VI Shadow Study' else [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons if ob.data.materials[f.material_index].livi_sense]
+     #       if simnode.bl_label == 'VI Shadow Study' else [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons if ob.data.materials[f.material_index].livi_sense]
             if scene.vi_display_vis_only:
-                faces = [f for f in faces if not scene.ray_cast(ob_mat*((vi_func.face_centre(ob, len(obreslist), f)))+ 0.01*(ob_mat*f.normal-ob.location), view_pos)[0]]
-        else:
-            fverts = set(sum([list(f.vertices[:]) for f in ob.data.polygons if f.select], []))
-            verts = [ob.data.vertices[v] for v in fverts if not scene.ray_cast(ob_mat*vi_func.v_pos(ob, v) + 0.01*ob_mat*ob.data.vertices[v].normal,view_pos)[0]] if scene.vi_display_vis_only else [ob.data.vertices[v] for v in fverts] 
-            loops = []
-            for v in verts:
-                for f in [f for f in ob.data.polygons if f.select == True]:
-                    if v.index in f.vertices:
-                        loops.append(f.loop_indices[list(f.vertices).index(v.index)])
-                        break
+                faces = [f for f in faces if not scene.ray_cast(omw*((vi_func.face_centre(ob, len(obreslist), f)) + 0.001 * f.normal), view_location)[0]]
+                
+            fcs = [total_mat*vi_func.face_centre(ob, ob.lires, face).to_4d() for face in faces]
+            li = [face.loop_indices[0] for face in faces]
 
-        total_mat = view_mat*ob_mat
-        if cp == "0" or not geonode:            
-            for f in faces:
-                vsum = mathutils.Vector((0, 0, 0))
-                for v in f.vertices:
-                    vsum = ob.active_shape_key.data[v].co + vsum if len(obreslist) > 0 else ob.data.vertices[v].co + vsum
-                fc = vsum/len(f.vertices)
-                if not f.hide:
-                    loop_index = f.loop_indices[0]
-                    if len(set(obm.vertex_colors[fn].data[loop_index].color[:])) > 0:
-                        if (total_mat*fc)[2] > 0:
-                            col, maxval, minval = obm.vertex_colors[fn].data[loop_index].color, max(simnode['maxres']), min(simnode['minres'])
-                            if geonode:
-                                val = abs(min(simnode['minres']) + (1 - (1.333333*colorsys.rgb_to_hsv(*[col[i]/255 for i in range(3)])[0]))*(maxval - minval))
-                                vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, ('{:.1f}', '{:.0f}')[val > 100].format(val), total_mat*fc.to_4d())
-                            else:
-                                vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, '{:.0f}'.format(abs(col[0]*100)), total_mat*fc.to_4d())
-        elif cp == "1":
-            for v, vert in enumerate(verts):
-                vpos = ob.active_shape_key.data[vert.index].co if len(obreslist) > 0 else vert.co
-                if len(set(obm.vertex_colors[fn].data[vert.index].color[:])) > 0:
-                    if (total_mat*vpos)[2] > 0:
-                        vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, ('{:.1f}', '{:.0f}')[max(simnode['maxres']) > 100].format(abs(min(simnode['minres']) + int((1 - (1.333333*colorsys.rgb_to_hsv(obm.vertex_colors[fn].data[loops[v]].color[0]/255, obm.vertex_colors[fn].data[loops[v]].color[1]/255, obm.vertex_colors[fn].data[loops[v]].color[2]/255)[0]))*(max(simnode['maxres']) - min(simnode['minres']))))), total_mat*vpos.to_4d())
+            if geonode:
+                vals = [abs(min(simnode['minres']) + (1 - (1.333333*colorsys.rgb_to_hsv(*[obm.vertex_colors[fn].data[li[f]].color[i]/255 for i in range(3)])[0]))*(maxval - minval)) for f in range(len(fcs))]
+                for f in range(len(fcs)):
+                    vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, ('{:.1f}', '{:.0f}')[vals[f] > 100].format(vals[f]), fcs[f])
+            else:
+                vals = [obm.vertex_colors[fn].data[li[f]].color for f in range(len(fcs))]
+                for f in range(len(fcs)):
+                    vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, '{:.0f}'.format(abs(vals[f][0]*100)), fcs[f])
+        else:
+            fverts = set(sum([list(f.vertices[:]) for f in faces if f.select], [])) if ob.lires else ob['cverts']
+            verts = [ob.data.vertices[v] for v in fverts if not scene.ray_cast(omw*(vi_func.v_pos(ob, v) + 0.01 * ob.data.vertices[v].normal), view_location)[0]] if scene.vi_display_vis_only else [ob.data.vertices[v] for v in fverts]
+            
+            for v in verts:
+                for f, face in enumerate(faces):
+                    if v.index in face.vertices:
+                        loop = face.loop_indices[list(face.vertices).index(v.index)]
+                        vpos = vi_func.v_pos(ob, v.index)
+                        vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, ('{:.1f}', '{:.0f}')[maxval > 100].format(abs(minval + int((1 - (1.333333*colorsys.rgb_to_hsv(*[obm.vertex_colors[fn].data[loop].color[i]/255 for i in range(3)])[0]))*(maxval - minval)))), total_mat*vpos.to_4d())
+                        break
     blf.disable(0, 4)
 
 def li3D_legend(self, context, simnode, connode, geonode):
@@ -396,7 +392,7 @@ def li_compliance(self, context, connode):
             titles = ('Zone Metric', 'Target', 'Achieved', 'PASS/FAIL')
             tables = [[] for c in range(lencrit -1)]
             etables = [[] for e in range(len(geo['ecrit']))]
-
+            
             for c, cr in enumerate(geo['crit']):
                 if cr[0] == 'Percent':
                     if cr[2] == 'Skyview':
@@ -552,4 +548,14 @@ def rendview(i):
                             bpy.context.scene['cs'] = space.clip_start
 
 
-
+def draw_index(r, g, b, total_mat, index, center):
+        
+        vec = total_mat * center # order is important
+        # dehomogenise
+        vec = mathutils.Vector((vec[0] / vec[3], vec[1] / vec[3], vec[2] / vec[3]))
+        x = int(mid_x + vec[0] * width / 2)
+        y = int(mid_y + vec[1] * height / 2)
+        
+#        bgl.glColor3f(r, g, b)
+        blf.position(0, x, y, 0)
+        blf.draw(0, str(index))

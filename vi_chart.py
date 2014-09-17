@@ -1,11 +1,4 @@
-#import sys
-#from multiprocessing import Process
-try:
-    import matplotlib.pyplot as plt
-    mp = 1
-except:
-    mp = 0
-        
+import bpy, os
 def label(cat, stat, time, metric):
     catdict = {'Climate': 'Ambient', 'Zone': 'Zone', 'Linkage': 'Linkage'} 
     st = stat if time != '0' else ''
@@ -23,9 +16,10 @@ def timedata(datastring, timetype, stattype, months, days, dos, dnode, si, ei, S
     if timetype == '0':
         return([float(x) for x in datastring])        
     else:
-        if timetype == '1':
+        if timetype == '1':            
             res = [[] for d in range(dnode['Start'], dnode['End']+1)]
             for h, val in enumerate([float(val) for val in datastring]):
+                print(h, si)
                 res[int(dos[1:][si+h]) - dnode['Start']].append(val)
 
         elif timetype == '2':
@@ -34,10 +28,7 @@ def timedata(datastring, timetype, stattype, months, days, dos, dnode, si, ei, S
                 res[int(months[si+h]) - Sdate.month].append(val)
         return(statdata(res, stattype))
 
-def chart_disp(chart_op, dnode, rnodes, Sdate, Edate):
-    if not mp:
-        chart_op.report({'ERROR'},"Matplotlib cannot be found by the Pyhton installation used by Blender")
-        return
+def chart_disp(plt, dnode, rnodes, Sdate, Edate):
     rn = dnode.inputs['X-axis'].links[0].from_node
     rd = rn['resdict']
     sm, sd, sh, em, ed, eh = Sdate.month, Sdate.day, Sdate.hour, Edate.month, Edate.day, Edate.hour
@@ -77,22 +68,24 @@ def chart_disp(chart_op, dnode, rnodes, Sdate, Edate):
     rn = dnode.inputs['Y-axis 1'].links[0].from_node
     for rd in rn['resdict']:
         if dnode.inputs['Y-axis 1'].rtypemenu == 'Climate':
+            print(rn['resdict'][rd][0:2], [dnode.inputs['Y-axis 1'].rtypemenu, dnode.inputs['Y-axis 1'].climmenu])
             if rn['resdict'][rd][0:2] == [dnode.inputs['Y-axis 1'].rtypemenu, dnode.inputs['Y-axis 1'].climmenu]:
                 y1data = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'], rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate) 
+                print(y1data)
                 ylabel = label('Climate', dnode.inputs['Y-axis 1'].statmenu, dnode.timemenu, dnode.inputs['Y-axis 1'].climmenu)
-                line, =plt.plot(xdata, y1data, color='k', label='Ambient ' + (" ("+dnode.inputs['Y-axis 1'].statmenu + ")", "")[dnode.timemenu == '0'])    
+                line, = plt.plot(xdata, y1data, color='k', linewidth = 0.2, label='Ambient ' + (" ("+dnode.inputs['Y-axis 1'].statmenu + ")", "")[dnode.timemenu == '0'])    
 
         elif dnode.inputs['Y-axis 1'].rtypemenu == 'Zone':
             if (dnode.inputs['Y-axis 1'].rtypemenu, rn['resdict'][rd][0:2]) == ('Zone', [dnode.inputs['Y-axis 1'].zonemenu, dnode.inputs['Y-axis 1'].zonermenu]):
                 y1data = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'], rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
                 ylabel = label('Zone', dnode.inputs['Y-axis 1'].statmenu, dnode.timemenu, dnode.inputs['Y-axis 1'].zonermenu)
-                line, =plt.plot(xdata, y1data, color='k', label=rn['resdict'][rd][0] + (" ("+dnode.inputs['Y-axis 1'].statmenu + ")", "")[dnode.timemenu == '0'])
+                line, = plt.plot(xdata, y1data, color='k', label=rn['resdict'][rd][0] + (" ("+dnode.inputs['Y-axis 1'].statmenu + ")", "")[dnode.timemenu == '0'])
 
         elif dnode.inputs['Y-axis 1'].rtypemenu == 'Linkage':
             if (dnode.inputs['Y-axis 1'].rtypemenu, rn['resdict'][rd][0:2]) == ('Linkage', [dnode.inputs['Y-axis 1'].linkmenu, dnode.inputs['Y-axis 1'].linkrmenu]):
                 y1data = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'], rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
                 ylabel = label('Linkage', dnode.inputs['Y-axis 1'].statmenu, dnode.timemenu, dnode.inputs['Y-axis 1'].linkrmenu)
-                line, =plt.plot(xdata, y1data, color='k', label=rn['resdict'][rd][0] + (" ("+dnode.inputs['Y-axis 1'].statmenu + ")", "")[dnode.timemenu == '0']) 
+                line, = plt.plot(xdata, y1data, color='k', label=rn['resdict'][rd][0] + (" ("+dnode.inputs['Y-axis 1'].statmenu + ")", "")[dnode.timemenu == '0']) 
     
     if dnode.inputs['Y-axis 2'].is_linked:
         rn = dnode.inputs['Y-axis 2'].links[0].from_node
@@ -124,12 +117,13 @@ def chart_disp(chart_op, dnode, rnodes, Sdate, Edate):
             elif dnode.inputs['Y-axis 3'].rtypemenu == 'Linkage':
                 if (dnode.inputs['Y-axis 3'].rtypemenu, rn['resdict'][rd][0:2]) == ('Linkage', [dnode.inputs['Y-axis 3'].linkmenu, dnode.inputs['Y-axis 3'].linkrmenu]):
                     y3data = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 3'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'], rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate)
-                    line, =plt.plot(xdata, y3data, color='k', label=rn['resdict'][rd][0] + (" ("+dnode.inputs['Y-axis 3'].statmenu + ")", "")[dnode.timemenu == '0'])
+                    line, = plt.plot(xdata, y3data, color='k', label=rn['resdict'][rd][0] + (" ("+dnode.inputs['Y-axis 3'].statmenu + ")", "")[dnode.timemenu == '0'])
     
     plt.xlabel(xlabel)    
     plt.ylabel(ylabel)
     plt.legend()
     plt.grid(True)
+    plt.savefig(os.path.join(bpy.context.scene['viparams']['newdir'], 'disp_wind.png'), dpi = (150), transparent=True)
     plt.show()
 
     def plot_graph(*args):

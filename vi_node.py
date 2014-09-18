@@ -490,7 +490,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             name="", description="Simulation accuracy", default="1")
     cusacc = bpy.props.StringProperty(
             name="", description="Custom Radiance simulation parameters", default="")
-    numbasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.000002), ("-lr", 2, 3, 4))
+    numbasic = (("-ab", 1, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.001, 0.00001, 0.000002), ("-lr", 2, 3, 4))
     numadvance = (("-ab", 3, 5), ("-ad", 2048, 4096), ("-as", 1024, 2048), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 0.00001, 0.000002), ("-lr", 3, 5))
     run = bpy.props.IntProperty(default = 0)
     edit_file = bpy.props.BoolProperty(name = '', default = False)

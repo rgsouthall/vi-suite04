@@ -244,9 +244,8 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
             self.report({'ERROR'}, "Current frame is not within the exported frame range")
             return {'CANCELLED'}
         if not simnode.edit_file:
-            print('deit')
             createradfile(scene, frame, self, connode, geonode)
-        createoconv(scene, frame, self, connode, geonode)
+        createoconv(scene, frame, self)
 
         if os.path.isfile("{}-{}.rad".format(scene['viparams']['filebase'], scene.frame_current)):
             cam = scene.camera
@@ -336,7 +335,7 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
             for frame in range(self.scene.fs, self.scene.fe + 1):
                 if not self.simnode.edit_file:
                     createradfile(self.scene, frame, self.connode, self.geonode)
-                createoconv(self.scene, frame, self, self.connode, self.geonode)
+                createoconv(self.scene, frame, self)
 
             rpictcmd = "rpict -w -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame)               
             glarerun = Popen(rpictcmd.split(), stdout = PIPE)
@@ -365,7 +364,7 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
         for frame in range(scene.fs, scene.fe + 1):
             if not simnode.edit_file:
                 createradfile(scene, frame, self, connode, geonode)
-            createoconv(scene, frame, self, connode, geonode)
+            createoconv(scene, frame, self)
         scene['LiViContext'] = connode.bl_label
        
         if connode.bl_label == 'LiVi Basic':
@@ -416,7 +415,6 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
         scene = bpy.context.scene
         simnode = bpy.data.node_groups[scene.restree].nodes[scene.resnode]
         (connode, geonode) = (0, 0) if simnode.bl_label == 'VI Shadow Study' else (simnode.export())
-#        geonode = 0 if simnode.bl_label == 'VI Shadow Study' else simnode.inputs['Geometry in'].links[0].from_node
         li_display(simnode, connode, geonode)
         scene.li_disp_panel, scene.ss_disp_panel = 2, 2
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')

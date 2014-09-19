@@ -239,7 +239,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
         objmode()
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         simnode, frame = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]], scene.frame_current
-        connode, geonode =  simnode.export() 
+        connode, geonode =  simnode.export(self.bl_label) 
         if frame not in range(scene.fs, scene.fe + 1):
             self.report({'ERROR'}, "Current frame is not within the exported frame range")
             return {'CANCELLED'}
@@ -330,7 +330,7 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
         self.cam = self.scene.camera
         if self.cam:
             self.simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-            self.connode, self.geonode = self.simnode.export()
+            self.connode, self.geonode = self.simnode.export(self.bl_label)
             self.frame = self.scene.fs
             for frame in range(self.scene.fs, self.scene.fe + 1):
                 if not self.simnode.edit_file:
@@ -348,7 +348,7 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
 
 class NODE_OT_LiViCalc(bpy.types.Operator):
     bl_idname = "node.livicalc"
-    bl_label = "Radiance Export and Simulation"
+    bl_label = "Radiance Simulation"
 
     nodeid = bpy.props.StringProperty()
 
@@ -359,7 +359,7 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         clearscene(scene, self)
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        connode, geonode = simnode.export()
+        connode, geonode = simnode.export(self.bl_label)
         
         for frame in range(scene.fs, scene.fe + 1):
             if not simnode.edit_file:

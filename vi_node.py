@@ -296,9 +296,6 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         self.sm = (self.sourcemenu, self.sourcemenu2)[int(self.analysismenu) < 2]
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.analysismenu, self.animmenu, self.weekdays, self.cbdm_start_hour, self.cbdm_end_hour, self.dalux, self.damin, self.dasupp, 
         self.daauto, self.fromnode, self.sourcemenu, self.sourcemenu2, self.mtxname, self.hdrname, self.hdr, self.startmonth, self.endmonth)])
-#        if self.sm != '0' and self.inputs['Location in'].is_linked:
-#            bpy.data.node_groups[self['nodeid'].split('@')[1]].links.remove(self.inputs['Location in'].links[0])
-#        self.inputs['Location in'].hide = False if self.sm == '0' else True
 
     analysistype = [('0', "Light Exposure", "LuxHours Calculation"), ('1', "Radiation Exposure", "kWh/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Autonomy", "DA (%) Calculation"), ('3', "Hourly irradiance", "Irradiance for each simulation time step"), ('4', "UDI", "Useful Daylight Illuminance")]
     analysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = analysistype, default = '0', update = nodeupdate)
@@ -308,7 +305,6 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
     sourcetype2 = [('0', "EPW", "EnergyPlus weather file"), ('2', "HDR", "HDR sky file")]
     sourcemenu = bpy.props.EnumProperty(name="", description="Source type", items=sourcetype, default = '0', update = nodeupdate)
     sourcemenu2 = bpy.props.EnumProperty(name="", description="Source type", items=sourcetype2, default = '0', update = nodeupdate)
-#    simalg = bpy.props.StringProperty(name="", description="Algorithm to run on the radiance results", default=" |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/1000' ")
     hdrname = bpy.props.StringProperty(
             name="", description="Name of the composite HDR sky file", default="", update = nodeupdate)
     mtxname = bpy.props.StringProperty(
@@ -421,8 +417,6 @@ class ViLiCNode(bpy.types.Node, ViNodes):
 
     interval = 0
     TZ = bpy.props.StringProperty(default = 'GMT')
-#    simalg = bpy.props.StringProperty(name="", description="Calculation algorithm", default=" |  rcalc  -e '$1=(47.4*$1+120*$2+11.6*$3)/100' " if str(sys.platform) != 'win32' else ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" ')
-#    resname = bpy.props.StringProperty()
     unit = bpy.props.StringProperty()
     hdr = bpy.props.BoolProperty(name="HDR", description="Export HDR panoramas", default=False, update = nodeupdate)
     analysistype = [('0', "BREEAM", "BREEAM HEA1 calculation"), ('1', "CfSH", "Code for Sustainable Homes calculation")] #, ('2', "LEED", "LEED EQ8.1 calculation"), ('3', "Green Star", "Green Star Calculation")]
@@ -490,8 +484,11 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             name="", description="Simulation accuracy", default="1")
     cusacc = bpy.props.StringProperty(
             name="", description="Custom Radiance simulation parameters", default="")
-    numbasic = (("-ab", 1, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.001, 0.00001, 0.000002), ("-lr", 2, 3, 4))
-    numadvance = (("-ab", 3, 5), ("-ad", 2048, 4096), ("-as", 1024, 2048), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 0.00001, 0.000002), ("-lr", 3, 5))
+    rtracebasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.000002), ("-lr", 2, 3, 4))
+    rtraceadvance = (("-ab", 3, 5), ("-ad", 2048, 4096), ("-as", 1024, 2048), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 0.00001, 0.000002), ("-lr", 3, 5))
+    rvubasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 0.00001, 0.000002), ("-lr", 3, 5))
+    rvuadvance = (("-ab", 3, 5), ("-ad", 2048, 4096), ("-as", 1024, 2048), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 0.00001, 0.000002), ("-lr", 3, 5))
+   
     run = bpy.props.IntProperty(default = 0)
     edit_file = bpy.props.BoolProperty(name = '', default = False)
     
@@ -538,13 +535,20 @@ class ViLiSNode(bpy.types.Node, ViNodes):
         cn = self.inputs['Context in'].links[0].from_node if self.inputs['Context in'].links and not self.inputs['Context in'].links[0].from_node.use_custom_color else ''
         return cn
            
-    def export(self):
+    def export(self, op):
         connode = self.connodes()
         geonode = self.geonodes()
-        if connode.bl_label == 'LiVi Basic':
-            self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.numbasic], [n[int(self.simacc)+1] for n in self.numbasic]))
+        if op == 'Radiance Simulation':
+            if connode.bl_label == 'LiVi Basic':
+                self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rtracebasic], [n[int(self.simacc)+1] for n in self.rtracebasic]))
+            else:
+                self['radparams'] = self.cusacc if self.csimacc == '0' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rtraceadvance], [n[int(self.csimacc)] for n in self.rtraceadvance]))
         else:
-            self['radparams'] = self.cusacc if self.csimacc == '0' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.numadvance], [n[int(self.csimacc)] for n in self.numadvance]))
+            if connode.bl_label == 'LiVi Basic':
+                self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]}  {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]}".format([n[0] for n in self.rvubasic], [n[int(self.simacc)+1] for n in self.rvubasic]))
+            else:
+                self['radparams'] = self.cusacc if self.csimacc == '0' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]}".format([n[0] for n in self.rvuadvance], [n[int(self.csimacc)] for n in self.rvuadvance]))
+
         self['exportstate'] = [str(x) for x in (self.cusacc, self.simacc, self.csimacc)]
         nodecolour(self, 0)
         return connode, geonode
@@ -578,8 +582,6 @@ class ViSSNode(bpy.types.Node, ViNodes):
     starthour = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 24, description = 'Start hour')
     endhour = bpy.props.IntProperty(name = '', default = 24, min = 1, max = 24, description = 'End hour')
     interval = bpy.props.FloatProperty(name = '', default = 1, min = 0.1, max = 24, description = 'Interval')
-#    cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
-#            name="", description="Specify the calculation point geometry", default="0")
 
     def init(self, context):
         self.inputs.new('ViLoc', 'Location in')
@@ -627,8 +629,6 @@ class ViWRNode(bpy.types.Node, ViNodes):
             
     def export(self):
         nodecolour(self, 0)
-
-
 
 class ViGExEnNode(bpy.types.Node, ViNodes):
     '''Node describing an EnVi Geometry Export'''
@@ -851,9 +851,6 @@ class ViEnInNode(bpy.types.Node, ViNodes):
         row.operator('node.idfselect', text = 'Select IDF file').nodeid = self['nodeid']
         row = layout.row()
         row.prop(self, 'idffilename')
-#        newrow(layout, 'Start day:', self, 'sdoy')
-#        newrow(layout, 'End day:', self, 'edoy')
-#        row.operator("node.fileprocess", text = 'Process file').nodeid = self['nodeid']
         
     def update(self):
         socklink(self.outputs['Context out'], self['nodeid'].split('@')[1])
@@ -979,7 +976,6 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     def draw(self, context, layout, node, text):
                         layout.label('Y-axis 1')
 
-#                bpy.utils.register_class(ViEnRY1In)
                 if self.inputs.get('Y-axis 2'):
                     self.inputs['Y-axis 2'].hide = True
 
@@ -1044,7 +1040,6 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     def draw(self, context, layout, node, text):
                         layout.label('Y-axis 2')
 
-#                bpy.utils.register_class(ViEnRY2In)
                 if self.inputs.get('Y-axis 3'):
                     self.inputs['Y-axis 3'].hide = True
 
@@ -1104,7 +1099,6 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                         return (0.0, 1.0, 0.0, 0.75)
                     def draw(self, context, layout, node, text):
                         layout.label('Y-axis 3')
-#                bpy.utils.register_class(ViEnRY3In)
             else:
                 innode = self.inputs[3].links[0].from_node
                 y3rtype = [(restype, restype, "Plot "+restype) for restype in innode['rtypes']]

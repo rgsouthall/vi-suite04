@@ -64,16 +64,15 @@ def radgexport(export_op, node, **kwargs):
             gframe = scene.frame_current if node['frames']['Geometry'] > 0 else 0
             mframe = scene.frame_current if node['frames']['Material'] > 0 else 0
             gradfile = "# Geometry \n\n"
-            for o in retobjs('livig'):
+            for o in retobjs('livig'):                
                 if not o.get('merr'):
                     if not kwargs.get('mo') or (kwargs.get('mo') and o in kwargs['mo']):
                         selobj(scene, o)
                         selmesh('selenm')                        
                         if [edge for edge in o.data.edges if edge.select]:
                             export_op.report({'INFO'}, o.name+" has a non-manifold mesh. Basic export routine used with no modifiers.")
-                            o['merr'] = 1
-                            
-                        if not o.get('merr'):
+                            o['merr'] = 1                            
+                        if not o.get('merr'):                            
                             if node.animmenu in ('Geometry', 'Material'):# or export_op.nodeid.split('@')[0] == 'LiVi Simulation':
                                 bpy.ops.export_scene.obj(filepath=retobj(o.name, gframe, node, scene), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
                                 objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, retobj(o.name, gframe, node, scene), retmesh(o.name, max(gframe, mframe), node, scene)) 
@@ -86,6 +85,7 @@ def radgexport(export_op, node, **kwargs):
                                     objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, retobj(o.name, scene.frame_current, node, scene), retmesh(o.name, scene.frame_current, node, scene))
                                 else:
                                     objcmd = ''
+                            
                             objrun = Popen(objcmd, shell = True, stdout = PIPE, stderr=STDOUT)                        
                             for line in objrun.stdout:
                                 if 'non-triangle' in line.decode():
@@ -93,14 +93,11 @@ def radgexport(export_op, node, **kwargs):
                                     o['merr'] = 1
                                     break
     
-                            o.select = False
-        
-                    if not o.get('merr'):
-                        gradfile += "void mesh id \n1 "+retmesh(o.name, max(gframe, mframe), node, scene)+"\n0\n0\n\n"
-                else:
+                            o.select = False                            
+                            gradfile += "void mesh id \n1 "+retmesh(o.name, max(gframe, mframe), node, scene)+"\n0\n0\n\n"
+
+                if o.get('merr'):
                     export_op.report({'INFO'}, o.name+" has an antimatter material or could not be converted into a Radiance mesh and simpler export routine has been used. No un-applied object modifiers will be exported.")
-                    if o.get('merr'):
-                        del o['merr']
                     geomatrix = o.matrix_world
                     try:
                         for face in [face for face in o.data.polygons if o.data.materials and face.material_index < len(o.data.materials) and o.data.materials[face.material_index]['radentry'].split(' ')[1] != 'antimatter']:
@@ -118,7 +115,8 @@ def radgexport(export_op, node, **kwargs):
                     except Exception as e:
                         print(e)
                         export_op.report({'ERROR'},"Make sure your object "+o.name+" has an associated material for all faces")
-
+                if o.get('merr'):
+                    del o['merr']
         # Lights export routine
         if frame in range(node['frames']['Lights'] + 1):
             lradfile = "# Lights \n\n"    

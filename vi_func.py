@@ -610,6 +610,7 @@ def selmesh(sel):
     bpy.ops.object.mode_set(mode = 'EDIT')
     if sel == 'selenm':
         bpy.ops.mesh.select_mode(type="EDGE")
+        bpy.ops.mesh.select_all(action='DESELECT')
         bpy.ops.mesh.select_non_manifold()
     elif sel == 'desel':
         bpy.ops.mesh.select_all(action='DESELECT')

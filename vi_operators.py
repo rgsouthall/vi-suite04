@@ -414,7 +414,7 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
     def invoke(self, context, event):
         scene = bpy.context.scene
         simnode = bpy.data.node_groups[scene.restree].nodes[scene.resnode]
-        (connode, geonode) = (0, 0) if simnode.bl_label == 'VI Shadow Study' else (simnode.export())
+        (connode, geonode) = (0, 0) if simnode.bl_label == 'VI Shadow Study' else (simnode.export(self.bl_label))
         li_display(simnode, connode, geonode)
         scene.li_disp_panel, scene.ss_disp_panel = 2, 2
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')

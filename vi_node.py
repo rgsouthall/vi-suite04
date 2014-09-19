@@ -871,15 +871,14 @@ class ViEnRNode(bpy.types.Node, ViNodes):
     def init(self, context):
         self['nodeid'] = nodeid(self)
         self.inputs.new("ViEnRXIn", "X-axis")
-        self.inputs['valid'] = ['EnVi Results']
-        self['Start'] = 1
-        self['End'] = 365
         self.inputs.new("ViEnRY1In", "Y-axis 1")
         self.inputs["Y-axis 1"].hide = True
         self.inputs.new("ViEnRY2In", "Y-axis 2")
         self.inputs["Y-axis 2"].hide = True
         self.inputs.new("ViEnRY3In", "Y-axis 3")
         self.inputs["Y-axis 3"].hide = True
+        self['Start'] = 1
+        self['End'] = 365
         self.update()
 
     def draw_buttons(self, context, layout):
@@ -895,7 +894,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
         row.prop(self, "charttype")
         row.prop(self, "timemenu")
 
-        if self.inputs['X-axis'].links and self.inputs['Y-axis 1'].links:
+        if self.inputs['X-axis'].links and self.inputs['Y-axis 1'].links and 'NodeSocketUndefined' not in [sock.bl_label for sock in self.inputs]:
             layout.operator("node.chart", text = 'Create plot').nodeid = self['nodeid']
         row = layout.row()
         row.label("------------------")
@@ -991,7 +990,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 class ViEnRY1In(bpy.types.NodeSocket):
                     '''Energy geometry out socket'''
                     bl_idname = 'ViEnRY1In'
-                    bl_label = 'Y-axis1'
+                    bl_label = 'Y-axis 1'
                     
                     valid = ['EnVi Results']
                     
@@ -1024,7 +1023,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                         return (0.0, 1.0, 0.0, 0.75)
                 
                 self.inputs['Y-axis 2'].hide = False
-        bpy.utils.register_class(ViEnRY1In)
+            bpy.utils.register_class(ViEnRY1In)
 
         if self.inputs.get('Y-axis 2'):
             if not self.inputs['Y-axis 2'].links:
@@ -1084,7 +1083,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                         return (0.0, 1.0, 0.0, 0.75)
 
                     self.inputs['Y-axis 3'].hide = False
-        bpy.utils.register_class(ViEnRY2In)
+            bpy.utils.register_class(ViEnRY2In)
 
         if self.inputs.get('Y-axis 3'):
             if not self.inputs['Y-axis 3'].links:
@@ -1142,7 +1141,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     def color(self):
                         return (0.0, 1.0, 0.0, 0.75)
 
-        bpy.utils.register_class(ViEnRY3In)
+            bpy.utils.register_class(ViEnRY3In)
 
 class ViNodeCategory(NodeCategory):
     @classmethod

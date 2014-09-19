@@ -16,11 +16,11 @@ def timedata(datastring, timetype, stattype, months, days, dos, dnode, si, ei, S
     if timetype == '0':
         return([float(x) for x in datastring])        
     else:
-        if timetype == '1':            
+        if timetype == '1':     
+            print(dos[:])
             res = [[] for d in range(dnode['Start'], dnode['End']+1)]
             for h, val in enumerate([float(val) for val in datastring]):
-                print(h, si)
-                res[int(dos[1:][si+h]) - dnode['Start']].append(val)
+                res[int(dos[si+h]) - dnode['Start']].append(val)
 
         elif timetype == '2':
             res = [[] for m in range(Sdate.month, Edate.month + 1)]

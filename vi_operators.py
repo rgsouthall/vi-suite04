@@ -1007,7 +1007,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
                 if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
                     wrim = bpy.data.images.new('disp_wind.png', height = h, width = w)
                     wrim.file_format = 'PNG'
-                    wrim.filepath = os.path.join(locnode.newdir, wrim.name)
+                    wrim.filepath = os.path.join(scene['viparams']['newdir'], wrim.name)
                     wrim.save()
                 else:
                     wrim = bpy.data.images['disp_wind.png']

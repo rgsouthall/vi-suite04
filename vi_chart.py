@@ -122,7 +122,6 @@ def chart_disp(plt, dnode, rnodes, Sdate, Edate):
     plt.ylabel(ylabel)
     plt.legend()
     plt.grid(True)
-    plt.savefig(os.path.join(bpy.context.scene['viparams']['newdir'], 'disp_wind.png'), dpi = (150), transparent=True)
     plt.show()
 
     def plot_graph(*args):

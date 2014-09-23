@@ -186,24 +186,21 @@ class ViLiNode(bpy.types.Node, ViNodes):
     ehour = bpy.props.FloatProperty(name="", description="Hour of simulation", min=1, max=24, default=12, update = nodeupdate)
     edoy = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=365, default=1, update = nodeupdate)
     interval = bpy.props.FloatProperty(name="", description="Site Latitude", min=0.25, max=24, default=1, update = nodeupdate)
-    exported = bpy.props.BoolProperty(default=False)
+#    exported = bpy.props.BoolProperty(default=False)
     hdr = bpy.props.BoolProperty(name="", description="Export HDR panoramas", default=False, update = nodeupdate)
     hdrname = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="", update = nodeupdate)
     skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="", update = nodeupdate)
-#    skynum = bpy.props.IntProperty()
     resname = bpy.props.StringProperty()
     rp_display = bpy.props.BoolProperty(default = False)
     needloc = bpy.props.BoolProperty(default = True)
     ready = bpy.props.BoolProperty(default = False)
-    exported = bpy.props.BoolProperty(default = False)
-#    starttimet = datetime.datetime(datetime.datetime.now().year, 1, 1, 12, 0)
-#    endtimet = datetime.datetime(datetime.datetime.now().year, 1, 1, 12, 0)
+#    exported = bpy.props.BoolProperty(default = False)
 
     def init(self, context):
+        self['nodeid'] = nodeid(self)
         self.inputs.new('ViLoc', 'Location in')
         self.inputs.new('ViTar', 'Target in')
-        self.outputs.new('ViLiC', 'Context out')
-        self['nodeid'] = nodeid(self)
+        self.outputs.new('ViLiC', 'Context out')        
         self.starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, 12, 0)
         self.endtime = datetime.datetime(datetime.datetime.now().year, 1, 1, 12, 0)
         self['hours'], self['frames'], self['resname'], self['unit'] = 0, {'Time':0}, 'illumout', "Lux"
@@ -247,7 +244,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
         if self.skymenu not in ('4', '6'):
             newrow(layout, 'HDR:', self, 'hdr')
 
-        if self.geonodes() and self.locnodes():
+        if self.locnodes():
             row = layout.row()
             if context.scene.gfe == 0 or self['frames']['Time'] == 0:
                 row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
@@ -316,8 +313,8 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
     damin = bpy.props.IntProperty(name = '', default = 100, min = 1, max = 2000, update = nodeupdate)
     dasupp = bpy.props.IntProperty(name = '', default = 300, min = 1, max = 2000, update = nodeupdate)
     daauto = bpy.props.IntProperty(name = '', default = 3000, min = 1, max = 5000, update = nodeupdate)
-    startmonth = bpy.props.IntProperty(name = 'Start Month', default = 1, min = 1, max = 12, description = 'Start Month', update = nodeupdate)
-    endmonth = bpy.props.IntProperty(name = 'End Month', default = 12, min = 1, max = 12, description = 'End Month', update = nodeupdate)
+    startmonth = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 12, description = 'Start Month', update = nodeupdate)
+    endmonth = bpy.props.IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month', update = nodeupdate)
     sm = bpy.props.StringProperty(name = '', default = '0')
     exported = bpy.props.BoolProperty(name = '', default = False)
     hdr = bpy.props.BoolProperty(name = '', default = False)
@@ -332,17 +329,14 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         self['frames'] = {'Time':0}
         self['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
         self['exportstate'] = ''
-#        self['export'] = 0
         nodecolour(self, 1)
         
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.label("Analysis Type:")
         row.prop(self, 'analysismenu')
-        row = layout.row()
-        row.prop(self, "startmonth")
-        row = layout.row()
-        row.prop(self, "endmonth") 
+        newrow(layout, 'Start month:', self, "startmonth")
+        newrow(layout, 'End month:', self, "endmonth") 
         if self.analysismenu in ('2', '4'):
            newrow(layout, 'Weekdays only:', self, 'weekdays')
            newrow(layout, 'Start hour:', self, 'cbdm_start_hour')
@@ -386,7 +380,8 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
             row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
     
     def update(self):
-        socklink(self.outputs['Context out'], self['nodeid'].split('@')[1])
+        if self.outputs.get('Context out') and self.get('nodeid'):
+            socklink(self.outputs['Context out'], self['nodeid'].split('@')[1])
     
     def locnodes(self):
         ln = self.inputs['Location in'].links[0].from_node if self.inputs['Location in'].links and not self.inputs['Location in'].links[0].from_node.use_custom_color else 0
@@ -440,7 +435,7 @@ class ViLiCNode(bpy.types.Node, ViNodes):
         self['export'] = 0
 
     def draw_buttons(self, context, layout):
-        newrow(layout, "Compliance standard:", self, 'analysismenu')
+        newrow(layout, "Standard:", self, 'analysismenu')
         if self.analysismenu == '0':
             newrow(layout, "Building type:", self, 'bambuildmenu')
             newrow(layout, "Storeys:", self, 'buildstorey')
@@ -575,31 +570,38 @@ class ViSSNode(bpy.types.Node, ViNodes):
     bl_icon = 'LAMP'
 
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [self.animmenu, self.starthour, self.endhour, self.interval])
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.animmenu, self.startmonth, self.endmonth, self.starthour, self.endhour, self.interval, self.cpoint)])
 
     animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis")]
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeupdate)
     starthour = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 24, description = 'Start hour')
     endhour = bpy.props.IntProperty(name = '', default = 24, min = 1, max = 24, description = 'End hour')
     interval = bpy.props.FloatProperty(name = '', default = 1, min = 0.1, max = 24, description = 'Interval')
+    startmonth = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 12, description = 'Start Month', update = nodeupdate)
+    endmonth = bpy.props.IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month', update = nodeupdate)
+    cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
+            name="", description="Specify the calculation point geometry", default="1", update = nodeupdate)
 
     def init(self, context):
         self.inputs.new('ViLoc', 'Location in')
         self['nodeid'] = nodeid(self)
-        self['exportstate'] = [str(x) for x in (self.animmenu, self.starthour, self.endhour, self.interval)]
         nodecolour(self, 1)
         
     def draw_buttons(self, context, layout):
         if nodeinputs(self):
             newrow(layout, 'Animation:', self, "animmenu")
+            newrow(layout, 'Start month:', self, "startmonth")
+            newrow(layout, 'End month:', self, "endmonth")
             newrow(layout, 'Start hour:', self, "starthour")
             newrow(layout, 'End hour:', self, "endhour")
             newrow(layout, 'Interval:', self, "interval")
+            newrow(layout, 'Result point:', self, "cpoint")
             row = layout.row()
             row.operator("node.shad", text = 'Calculate').nodeid = self['nodeid']
             
     def export(self):
         nodecolour(self, 0)
+        self['exportstate'] = [str(x) for x in (self.animmenu, self.startmonth, self.endmonth, self.starthour, self.endhour, self.interval, self.cpoint)]
 
 class ViWRNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite wind rose generator'''
@@ -608,19 +610,22 @@ class ViWRNode(bpy.types.Node, ViNodes):
     bl_icon = 'LAMP'
 
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [self.wrtype])
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.wrtype, self.startmonth, self.endmonth)])
         
     wrtype = bpy.props.EnumProperty(items = [("0", "Hist 1", "Stacked histogram"), ("1", "Hist 2", "Stacked Histogram 2"), ("2", "Cont 1", "Filled contour"), ("3", "Cont 2", "Edged contour"), ("4", "Cont 3", "Lined contour")], name = "", default = '0', update = nodeupdate)
+    startmonth = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 12, description = 'Start Month', update = nodeupdate)
+    endmonth = bpy.props.IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month', update = nodeupdate)
 
     def init(self, context):
         self.inputs.new('ViLoc', 'Location in')
         self['nodeid'] = nodeid(self)
         nodecolour(self, 1)
-        self['exportstate'] = [self.wrtype]
 
     def draw_buttons(self, context, layout):
         if nodeinputs(self) and self.inputs[0].links[0].from_node.loc == '1':
-            newrow(layout, 'Type', self, "wrtype")
+            newrow(layout, 'Type:', self, "wrtype")
+            newrow(layout, 'Start month :', self, "startmonth")
+            newrow(layout, 'End month:', self, "endmonth")
             row = layout.row()
             row.operator("node.windrose", text="Create Wind Rose").nodeid = self['nodeid']
         else:
@@ -629,6 +634,7 @@ class ViWRNode(bpy.types.Node, ViNodes):
             
     def export(self):
         nodecolour(self, 0)
+        self['exportstate'] = [str(x) for x in (self.wrtype, self.startmonth, self.endmonth)]
 
 class ViGExEnNode(bpy.types.Node, ViNodes):
     '''Node describing an EnVi Geometry Export'''
@@ -669,11 +675,8 @@ class ViExEnNode(bpy.types.Node, ViNodes):
     bl_label = 'EnVi Export'
     bl_icon = 'LAMP'
 
-#    exported = bpy.props.BoolProperty()
-
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.loc, self.timesteps)])
-        self.outputs['Context out'].hide = self.use_custom_color
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.loc, self.terrain, self.timesteps)])
 
     loc = bpy.props.StringProperty(name="", description="Identifier for this project", default="", update = nodeupdate)
     terrain = bpy.props.EnumProperty(items=[("0", "City", "Towns, city outskirts, centre of large cities"),
@@ -683,6 +686,8 @@ class ViExEnNode(bpy.types.Node, ViNodes):
 
     addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
     matpath = addonpath+'/EPFiles/Materials/Materials.data'
+    startmonth = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 12, description = 'Start Month', update = nodeupdate)
+    endmonth = bpy.props.IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month', update = nodeupdate)
     sdoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeupdate)
     edoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeupdate)
     timesteps = bpy.props.IntProperty(name = "", description = "Time steps per hour", min = 1, max = 4, default = 1, update = nodeupdate)
@@ -703,21 +708,22 @@ class ViExEnNode(bpy.types.Node, ViNodes):
      reslof, resmrt, resocc, resh) = resnameunits()
         
     def init(self, context):
-        self.inputs.new('ViEnG', 'Geometry in')
-        self.inputs.new('ViLoc', 'Location in')
-        self.outputs.new('ViEnC', 'Context out')
-        self.outputs['Context out'].hide = True
         self['nodeid'] = nodeid(self)
-        self['exportstate'] = [str(x) for x in (self.loc, self.timesteps)]
+        self.outputs.new('ViEnC', 'Context out')
+        self.inputs.new('ViEnG', 'Geometry in')
+        self.inputs.new('ViLoc', 'Location in')      
+        self['exportstate'] = ''
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
-        newrow(layout, "Project name/location", self, "loc")
+        newrow(layout, "Name/location", self, "loc")
         row = layout.row()
         row.label(text = 'Terrain:')
         col = row.column()
         col.prop(self, "terrain")
-        newrow(layout, 'Time-steps/hour)', self, "timesteps")
+        newrow(layout, 'Start month:', self, "startmonth")
+        newrow(layout, 'End month:', self, "endmonth")
+        newrow(layout, 'Time-steps/hour', self, "timesteps")
         row = layout.row()
         row.label(text = 'Results Category:')
         col = row.column()
@@ -729,19 +735,16 @@ class ViExEnNode(bpy.types.Node, ViNodes):
                 row = layout.row()
             else:
                 row.prop(self, rprop)
-        if all([s.is_linked for s in self.inputs]) and self.inputs['Location in'].links[0].from_node.loc == '1':
+        if all([s.links for s in self.inputs]) and not any([s.links[0].from_node.use_custom_color for s in self.inputs]):
             row = layout.row()
             row.operator("node.enexport", text = 'Export').nodeid = self['nodeid']
 
-    def update(self):        
-        nodecolour(self, not self.inputs['Geometry in'].links or not self.inputs['Location in'].links)
-        for link in self.inputs['Location in'].links:
-            nodecolour(link.from_node, link.from_node.loc != '1')
+    def update(self):  
         socklink(self.outputs['Context out'], self['nodeid'].split('@')[1])
         
     def export(self):
         nodecolour(self, 0)
-        self['exportstate'] = [str(x) for x in (self.loc, self.timesteps)]
+        self['exportstate'] = [str(x) for x in (self.loc, self.terrain, self.timesteps)]
 
 class ViEnSimNode(bpy.types.Node, ViNodes):
     '''Node describing an EnergyPlus simulation'''
@@ -750,15 +753,15 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
     bl_icon = 'LAMP'
 
     def init(self, context):
+        self['nodeid'] = nodeid(self)
         self.inputs.new('ViEnC', 'Context in')
         self.outputs.new('ViEnR', 'Results out')
-        self.outputs['Results out'].hide = True
-        self['nodeid'] = nodeid(self)
-        self['exportstate'] = [self.resname, self.resfilename]
+        self.outputs['Results out'].hide = True   
+        self['exportstate'] = ''
         nodecolour(self, 1) 
         
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [self.resname, self.resfilename])
+        nodecolour(self, self['exportstate'] != [self.resname])
         self.outputs['Results out'].hide = True
         if self.inputs['Context in'].is_linked:
             self.resfilename = os.path.join(self.inputs['Context in'].links[0].from_node.newdir, self.resname+'.eso')
@@ -771,7 +774,7 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
         if self.run > -1:
             row = layout.row()
             row.label('Calculating {}%'.format(self.run))
-        elif self.inputs['Context in'].is_linked:
+        elif self.inputs['Context in'].links and not self.inputs['Context in'].links[0].from_node.use_custom_color:
             newrow(layout, 'Results name:', self, 'resname')
             row = layout.row()
             row.operator("node.ensim", text = 'Calculate').nodeid = self['nodeid']
@@ -894,8 +897,8 @@ class ViEnRNode(bpy.types.Node, ViNodes):
         row.prop(self, "charttype")
         row.prop(self, "timemenu")
 
-        if self.inputs['X-axis'].links and self.inputs['Y-axis 1'].links and 'NodeSocketUndefined' not in [sock.bl_label for sock in self.inputs]:
-            layout.operator("node.chart", text = 'Create plot').nodeid = self['nodeid']
+        if self.inputs['X-axis'].links and self.inputs['Y-axis 1'].links and 'NodeSocketUndefined' not in [sock.bl_idname for sock in self.inputs if sock.links]:
+            layout.operator("node.chart", text = 'Create plot').nodeid = self['nodeid']        
         row = layout.row()
         row.label("------------------")
 

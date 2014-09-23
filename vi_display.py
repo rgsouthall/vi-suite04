@@ -31,7 +31,7 @@ def ss_display():
     pass
 
 def li_display(simnode, connode, geonode):
-    cp = '0' if not geonode else geonode.cpoint
+    cp = simnode.cpoint if not geonode else geonode.cpoint
     scene = bpy.context.scene
     vi_func.clearscene(scene, '@')
     obreslist = []
@@ -89,7 +89,7 @@ def li_display(simnode, connode, geonode):
             
         for obres in obreslist:
             vi_func.selobj(scene, obres)
-            if cp == '0' or not geonode:
+            if cp == '0':
                 if len(obres.data.polygons) > 1:
                     bpy.ops.object.mode_set(mode = 'EDIT')
                     bpy.ops.mesh.select_all(action = 'SELECT')
@@ -190,11 +190,10 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         total_mat = view_mat * omw
         # This detects if point is in front of camera but only works in perspective mode (total_mat*ob.data.polygons[fi].center)[2] > 0
         faces = [f for f in ob.data.polygons if f.select and not f.hide]  if ob.lires else [ob.data.polygons[fi] for fi in ob['cfaces'] if not ob.data.polygons[fi].hide]
-
-        if cp == "0" or not geonode:
-     #       if simnode.bl_label == 'VI Shadow Study' else [f for f in ob.data.polygons if f.select == True] if ob.lires else [f for f in ob.data.polygons if ob.data.materials[f.material_index].livi_sense]
+        fcs = [total_mat*vi_func.face_centre(ob, ob.lires, face).to_4d() for face in faces]
+        if cp == "0":
             if scene.vi_display_vis_only:
-                faces = [f for f in faces if not scene.ray_cast(omw*((vi_func.face_centre(ob, len(obreslist), f)) + 0.001 * f.normal), view_location)[0]]
+                faces = [f for f in faces if not scene.ray_cast(omw*((vi_func.face_centre(ob, len(obreslist), f)) + scene.vi_display_rp_off * f.normal), view_location)[0]]
                 
             fcs = [total_mat*vi_func.face_centre(ob, ob.lires, face).to_4d() for face in faces]
             li = [face.loop_indices[0] for face in faces]
@@ -210,13 +209,16 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         else:
             fverts = set(sum([list(f.vertices[:]) for f in faces if f.select], [])) if ob.lires else ob['cverts']
             verts = [ob.data.vertices[v] for v in fverts if not scene.ray_cast(omw*(vi_func.v_pos(ob, v) + 0.01 * ob.data.vertices[v].normal), view_location)[0]] if scene.vi_display_vis_only else [ob.data.vertices[v] for v in fverts]
-            
+
             for v in verts:
                 for f, face in enumerate(faces):
                     if v.index in face.vertices:
                         loop = face.loop_indices[list(face.vertices).index(v.index)]
                         vpos = vi_func.v_pos(ob, v.index)
-                        vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, ('{:.1f}', '{:.0f}')[maxval > 100].format(abs(minval + int((1 - (1.333333*colorsys.rgb_to_hsv(*[obm.vertex_colors[fn].data[loop].color[i]/255 for i in range(3)])[0]))*(maxval - minval)))), total_mat*vpos.to_4d())
+                        if geonode:
+                            vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, ('{:.1f}', '{:.0f}')[maxval > 100].format(abs(minval + int((1 - (1.333333*colorsys.rgb_to_hsv(*[obm.vertex_colors[fn].data[loop].color[i]/255 for i in range(3)])[0]))*(maxval - minval)))), total_mat*vpos.to_4d())
+                        else:
+                            vi_func.draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, ('{:.1f}', '{:.0f}')[maxval > 100].format(abs(minval + (obm.vertex_colors[fn].data[loop].color[0])*(maxval - minval))), total_mat*vpos.to_4d())
                         break
     blf.disable(0, 4)
 
@@ -284,38 +286,41 @@ def viwr_legend(self, context, simnode):
     if scene.vi_leg_display != True or scene.vi_display == 0:
         return
     else:
-        resvals = ['{0:.0f} to {1:.0f}'.format(2*i, 2*(i+1)) for i in range(simnode['nbins'])]
-        resvals[-1] = resvals[-1][:-int(len('{:.0f}'.format(simnode['maxres'])))] + u"\u221E"
-        height, lenres, font_id = context.region.height, len(resvals[-1]), 0
-        vi_func.drawpoly(20, height - 40, 70 + lenres*8, height - (simnode['nbins']+6)*20)
-        vi_func.drawloop(19, height - 40, 70 + lenres*8, height - (simnode['nbins']+6)*20)
-        cm = matplotlib.cm.jet if simnode.wrtype in ('0', '1') else matplotlib.cm.hot
-        for i in range(simnode['nbins']):
-            bgl.glColor4f(*cm(i * 1/(simnode['nbins']-1), 1))
-            bgl.glBegin(bgl.GL_POLYGON)
-            bgl.glVertex2i(20, height - 70 - (simnode['nbins'] * 20) + (i*20))
-            bgl.glVertex2i(60, height - 70 - (simnode['nbins'] * 20) + (i*20))
-            bgl.glVertex2i(60, height - 50 - (simnode['nbins'] * 20) + (i*20))
-            bgl.glVertex2i(20, height - 50 - (simnode['nbins'] * 20) + (i*20))
-            bgl.glEnd()
+        try:
+            resvals = ['{0:.0f} to {1:.0f}'.format(2*i, 2*(i+1)) for i in range(simnode['nbins'])]
+            resvals[-1] = resvals[-1][:-int(len('{:.0f}'.format(simnode['maxres'])))] + u"\u221E"
+            height, lenres, font_id = context.region.height, len(resvals[-1]), 0
+            vi_func.drawpoly(20, height - 40, 70 + lenres*8, height - (simnode['nbins']+6)*20)
+            vi_func.drawloop(19, height - 40, 70 + lenres*8, height - (simnode['nbins']+6)*20)
+            cm = matplotlib.cm.jet if simnode.wrtype in ('0', '1') else matplotlib.cm.hot
+            for i in range(simnode['nbins']):
+                bgl.glColor4f(*cm(i * 1/(simnode['nbins']-1), 1))
+                bgl.glBegin(bgl.GL_POLYGON)
+                bgl.glVertex2i(20, height - 70 - (simnode['nbins'] * 20) + (i*20))
+                bgl.glVertex2i(60, height - 70 - (simnode['nbins'] * 20) + (i*20))
+                bgl.glVertex2i(60, height - 50 - (simnode['nbins'] * 20) + (i*20))
+                bgl.glVertex2i(20, height - 50 - (simnode['nbins'] * 20) + (i*20))
+                bgl.glEnd()
+                blf.size(font_id, 20, 48)
+                bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+                blf.position(font_id, 65, height - 65 - (simnode['nbins'] * 20) + (i*20), 0)
+                blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
+    
+            blf.size(font_id, 20, 56)
+            cu = 'Speed (m/s)'
+            vi_func.drawfont(cu, font_id, 0, height, 25, 57)
+            bgl.glLineWidth(1)
+            bgl.glDisable(bgl.GL_BLEND)
+            height = context.region.height
+            font_id = 0
+            bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
             blf.size(font_id, 20, 48)
-            bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-            blf.position(font_id, 65, height - 65 - (simnode['nbins'] * 20) + (i*20), 0)
-            blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
-
-        blf.size(font_id, 20, 56)
-        cu = 'Speed (m/s)'
-        vi_func.drawfont(cu, font_id, 0, height, 25, 57)
-        bgl.glLineWidth(1)
-        bgl.glDisable(bgl.GL_BLEND)
-        height = context.region.height
-        font_id = 0
-        bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
-        blf.size(font_id, 20, 48)
-        vi_func.drawfont("Ave: {:.1f}".format(simnode['avres']), font_id, 0, height, 22, simnode['nbins']*20 + 85)
-        vi_func.drawfont("Max: {:.1f}".format(simnode['maxres']), font_id, 0, height, 22, simnode['nbins']*20 + 100)
-        vi_func.drawfont("Min: {:.1f}".format(simnode['minres']), font_id, 0, height, 22, simnode['nbins']*20 + 115)
-
+            vi_func.drawfont("Ave: {:.1f}".format(simnode['avres']), font_id, 0, height, 22, simnode['nbins']*20 + 85)
+            vi_func.drawfont("Max: {:.1f}".format(simnode['maxres']), font_id, 0, height, 22, simnode['nbins']*20 + 100)
+            vi_func.drawfont("Min: {:.1f}".format(simnode['minres']), font_id, 0, height, 22, simnode['nbins']*20 + 115)
+        except:
+            scene.vi_display = 0
+            
 def li_compliance(self, context, connode):
     height, scene = context.region.height, context.scene
     if not scene.get('li_compliance') or scene.frame_current not in range(scene.fs, scene.fe + 1) or scene.vi_display == 0:

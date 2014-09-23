@@ -109,8 +109,8 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
             if connode.analysismenu != '3' or connode.bl_label != 'LiVi CBDM':
                 fi, vi = 0, 0
                 for geo in vi_func.retobjs('livic'):
-                    lenv, lenf, sensefaces = len(geo['cverts']), len(geo['cfaces']), [face for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense]
-                    sensearea = sum([vi_func.facearea(geo, face) for face in sensefaces])
+                    lenv, lenf = len(geo['cverts']), len(geo['cfaces'])
+                    sensearea = sum(geo['lisenseareas'])
                     if not sensearea:
                         calc_op.report({'INFO'}, geo.name+" has a livi sensor material associated with, but not assigned to any faces")
                     else: 
@@ -363,18 +363,20 @@ def resapply(calc_op, res, svres, simnode, connode, geonode):
     else:
         for fr, frame in enumerate(range(scene.fs, scene.fe + 1)):
             scene.frame_set(frame)
-            sof, eof = 0, 0
+            sof, sov = 0, 0
             for geo in vi_func.retobjs('livic'):
                 bpy.ops.object.select_all(action = 'DESELECT')
-                eof, hours, scene.objects.active = sof + len(geo['cfaces']), len(res[0]), None
-                geoarea = sum([vi_func.facearea(geo, face) for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense])
+                eof, eov, hours, scene.objects.active = sof + len(geo['cfaces']), sov + len(geo['cverts']), len(res[0]), None
+                geoarea = sum(geo['lisenseareas'])
                 geofaces = [face for face in geo.data.polygons if geo.data.materials[face.material_index].livi_sense]
                 geo['wattres'] = {str(frame):[0 for x in range(len(res[0]))]}
-                faceareas = [vi_func.facearea(geo, fa) for fa in geofaces[sof:eof]]
                 for i in range(hours):
-                    geo['wattres'][str(frame)][i] = sum([res[fr][i][sof:eof][j] * faceareas[j] for j in range(sof, eof)])
-                sof = eof
-#                eof = sof + len(geofaces)
+                    if geonode.cpoint == '0':
+                        geo['wattres'][str(frame)][i] = sum([res[fr][i][sof:eof][j] * geo['lisenseareas'][j] for j in range(sof, eof)])
+                    else:
+                        geo['wattres'][str(frame)][i] = sum([res[fr][i][sov:eov][j] * geo['lisenseareas'][j] for j in range(sov, eov)])
+                sov, sof = eov, eof
+
         simnode.outputs['Data out'].hide = False
             
     calc_op.report({'INFO'}, "Calculation is finished.")

@@ -1,5 +1,5 @@
-import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf
-from math import sin, cos, asin, acos, pi
+import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, numpy
+from math import sin, cos, asin, acos, pi, isnan
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
 try:
     import matplotlib.pyplot as plt
@@ -198,6 +198,8 @@ def clearscene(scene, op):
                 scene.objects.unlink(sunob)
 
     for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
+        selobj(scene, ob)
+        bpy.ops.object.mode_set(mode = 'OBJECT')
         if ob.lires == 1:
             scene.objects.unlink(ob)
         if ob.licalc == 1:
@@ -396,23 +398,27 @@ def ceilheight(obj, vertz):
 def vertarea(obj, vert):
     omw = obj.matrix_world
     area = 0
-    faces = [face for face in obj.data.polygons if vert.index in face.vertices]    
-    for f, face in enumerate(faces):
-        ovs = []
-        fvs = [fv for fv in face.vertices if (vert.index, fv) in face.edge_keys or (fv, vert.index) in face.edge_keys]
-        ofaces = [oface for oface in faces if len([v for v in oface.vertices if v in face.vertices]) == 2]    
-        for oface in ofaces:
-            ovs.append([i for i in face.vertices if i in oface.vertices])
-        if len(ovs) == 1:
-            sedgevs = (vert.index, [v for v in fvs if v not in ovs][0])
-            sedgemp = mathutils.Vector([((omw*obj.data.vertices[sedgevs[0]].co)[i] + (omw*obj.data.vertices[sedgevs[1]].co)[i])/2 for i in range(3)])
-            eps = [omw * mathutils.geometry.intersect_line_line(face.center, ofaces[0].center, obj.data.vertices[ovs[0][0]].co, obj.data.vertices[ovs[0][1]].co)[1]] + [sedgemp]
-        elif len(ovs) == 2:
-            eps = [omw * mathutils.geometry.intersect_line_line(face.center, ofaces[i].center, obj.data.vertices[ovs[i][0]].co, obj.data.vertices[ovs[i][1]].co)[1] for i in range(2)]
-        elif len(ofaces) == 0:
-            print('no edge')
-        area += mathutils.geometry.area_tri(omw*vert.co, *eps) + mathutils.geometry.area_tri(omw*face.center, *eps)
-    return area
+    faces = [face for face in obj.data.polygons if vert.index in face.vertices] 
+    if len (faces) > 1:
+        for f, face in enumerate(faces):
+            ovs = []
+            fvs = [fv for fv in face.vertices if (vert.index, fv) in face.edge_keys or (fv, vert.index) in face.edge_keys]
+            ofaces = [oface for oface in faces if len([v for v in oface.vertices if v in face.vertices]) == 2]    
+            for oface in ofaces:
+                ovs.append([i for i in face.vertices if i in oface.vertices])
+            if len(ovs) == 1:
+                sedgevs = (vert.index, [v for v in fvs if v not in ovs][0])
+                sedgemp = mathutils.Vector([((omw*obj.data.vertices[sedgevs[0]].co)[i] + (omw*obj.data.vertices[sedgevs[1]].co)[i])/2 for i in range(3)])
+                eps = [omw * mathutils.geometry.intersect_line_line(face.center, ofaces[0].center, obj.data.vertices[ovs[0][0]].co, obj.data.vertices[ovs[0][1]].co)[1]] + [sedgemp]
+            elif len(ovs) == 2:
+                eps = [omw * mathutils.geometry.intersect_line_line(face.center, ofaces[i].center, obj.data.vertices[ovs[i][0]].co, obj.data.vertices[ovs[i][1]].co)[1] for i in range(2)]
+            area += mathutils.geometry.area_tri(omw*vert.co, *eps) + mathutils.geometry.area_tri(omw*face.center, *eps)
+    elif len(faces) == 1:
+        fvs = [fv for fv in faces[0].vertices if (vert.index, fv) in faces[0].edge_keys or (fv, vert.index) in faces[0].edge_keys] 
+        eps = [omw*(vert.co + obj.data.vertices[fv].co)/2 for fv in fvs]
+        eangle = (vert.co - obj.data.vertices[fvs[0]].co).angle(vert.co - obj.data.vertices[fvs[1]].co)
+        area = mathutils.geometry.area_tri(omw*vert.co, *eps) + mathutils.geometry.area_tri(omw*faces[0].center, *eps) * 2*pi/eangle
+    return area       
 
 def facearea(obj, face):
     omw = obj.matrix_world
@@ -527,45 +533,28 @@ def drawfont(text, fi, lencrit, height, x1, y1):
     blf.draw(fi, text)
 
 def mtx2vals(mtxlines, fwd, node):
-    if node:
-        records = (datetime.datetime(datetime.datetime.now().year, node.endmonth, 1) - datetime.datetime(datetime.datetime.now().year, node.startmonth, 1)).days*24
-    else:
-        for records, line in enumerate(mtxlines):
-            if line == '\n':
-                break
-    try:
-        import numpy
-        np = 1
-    except:
-        np = 0
+    for m, mtxline in enumerate(mtxlines):
+        if 'NROWS' in mtxline:
+            patches = int(mtxline.split('=')[1])
+        elif 'NCOLS' in mtxline:
+            hours = int(mtxline.split('=')[1])
+        elif mtxline == '\n':
+            startline = m + 1
+            break
 
-    vecvals = numpy.array([[x%24, (fwd+int(x/24))%7] + [0 for p in range(146)] for x in range(0,records)]) if np ==1 else [[x%24, (fwd+int(x/24))%7] + [0 for p in range(146)] for x in range(0,records)]
-    vals = numpy.zeros((146)) if np ==1 else [0 for x in range(146)]
-#    vals =  numpy.array([[0,1,2] for x in range(146)]) if np ==1 else [[0,1,2] for x in range(146)]
-
-    hour = 0
-    patch = 2
-    for fvals in mtxlines:
-        try:
-            sumvals = sum([float(lv) for lv in fvals.split(" ")])/3
-#            indvals = [float(lv) for lv in fvals.split(" ")]
+    vecvals, vals, hour, patch = numpy.array([[x%24, (fwd+int(x/24))%7] + [0 for p in range(patches)] for x in range(hours)]), numpy.zeros((patches)), 0, 2
+    
+    for fvals in mtxlines[startline:]:
+        if fvals == '\n':
+            patch += 1
+            hour = 0
+        else:
+            sumvals = sum([float(lv) for lv in fvals.split(" ") if not isnan(eval(lv))])/3
             if sumvals > 0:
                 vals[patch - 2] += sumvals
-#                for i, v in enumerate(vals[patch - 2]):
-#                    vals[patch - 2][i] += indvals[i]
-
                 vecvals[hour][patch] = sumvals
             hour += 1
-        except:
-            if fvals != "\n":
-                hour += 1
-            else:
-                patch += 1
-                hour = 0
-    if np == 1:
-        return(vecvals.tolist(), vals)
-    else:
-        return(vecvals, vals)
+    return(vecvals.tolist(), vals)
 
 def framerange(scene, anim):
     if anim == 'Static':
@@ -804,6 +793,9 @@ def epschedwrite(name, stype, ts, fs, us):
     return epentry('Schedule:Compact', params, paramvs)
     
 def li_calcob(ob, li):
-    ob.licalc = 1 if [face.index for face in ob.data.polygons if (ob.data.materials[face.material_index].vi_shadow, ob.data.materials[face.material_index].livi_sense)[li == 'livi']] else 0
-    return ob.licalc
+    if not ob.data.materials:
+        return False
+    else:
+        ob.licalc = 1 if [face.index for face in ob.data.polygons if (ob.data.materials[face.material_index].vi_shadow, ob.data.materials[face.material_index].livi_sense)[li == 'livi']] else 0
+        return ob.licalc
     

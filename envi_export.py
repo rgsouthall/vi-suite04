@@ -8,8 +8,8 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         scene.update()
     en_epw = open(locnode.weather, "r")
     en_idf = open(scene['viparams']['idf_file'], 'w')
-    node.sdoy = datetime.datetime(datetime.datetime.now().year, locnode.startmonth, 1).timetuple().tm_yday
-    node.edoy = (datetime.date(datetime.datetime.now().year, locnode.endmonth + (1, -11)[locnode.endmonth == 12], 1) - datetime.timedelta(days = 1)).timetuple().tm_yday
+    node.sdoy = datetime.datetime(datetime.datetime.now().year, node.startmonth, 1).timetuple().tm_yday
+    node.edoy = (datetime.date(datetime.datetime.now().year, node.endmonth + (1, -11)[node.endmonth == 12], 1) - datetime.timedelta(days = 1)).timetuple().tm_yday
     enng = [ng for ng in bpy.data.node_groups if 'EnVi Network' in ng.bl_label][0] if [ng for ng in bpy.data.node_groups if 'EnVi Network' in ng.bl_label] else 0
 
     en_idf.write("!- Blender -> EnergyPlus\n!- Using the EnVi export scripts\n!- Author: Ryan Southall\n!- Date: {}\n\nVERSION,8.1.0;\n\n".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M")))
@@ -27,7 +27,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 
     params = ('Name', 'Begin Month', 'Begin Day', 'End Month', 'End Day', 'Day of Week for Start Day', 'Use Weather File Holidays and Special Days', 'Use Weather File Daylight Saving Period',\
     'Apply Weekend Holiday Rule', 'Use Weather File Rain Indicators', 'Use Weather File Snow Indicators', 'Number of Times Runperiod to be Repeated')
-    paramvs = (node.loc, locnode.startmonth, '1', locnode.endmonth, ((datetime.date(datetime.datetime.now().year, locnode.endmonth + (1, -11)[locnode.endmonth == 12], 1) - datetime.timedelta(days = 1)).day), "UseWeatherFile", "Yes", "Yes", "No", "Yes", "Yes", "1")
+    paramvs = (node.loc, node.startmonth, '1', node.endmonth, ((datetime.date(datetime.datetime.now().year, node.endmonth + (1, -11)[node.endmonth == 12], 1) - datetime.timedelta(days = 1)).day), "UseWeatherFile", "Yes", "Yes", "No", "Yes", "Yes", "1")
     en_idf.write(epentry('RunPeriod', params, paramvs))
 
 #    en_idf.write("Site:Location,\n")

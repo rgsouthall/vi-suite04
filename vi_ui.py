@@ -49,7 +49,7 @@ class Vi3DPanel(bpy.types.Panel):
                     if context.mode != "EDIT":
                         row = layout.row()
                         row.label(text="{:-<48}".format("Point visualisation "))
-                        propdict = OrderedDict([('Enable', "vi_display_rp"), ("Selected only:", "vi_display_sel_only"), ("Visible only:", "vi_display_vis_only"), ("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_fsh")])
+                        propdict = OrderedDict([('Enable', "vi_display_rp"), ("Selected only:", "vi_display_sel_only"), ("Visible only:", "vi_display_vis_only"), ("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_fsh"), ("Position offset:", "vi_display_rp_off")])
                         for prop in propdict.items():
                             newrow(layout, prop[0], scene, prop[1])
 
@@ -110,19 +110,12 @@ class VIMatPanel(bpy.types.Panel):
         row = layout.row()
         row.label('LiVi Radiance type:')
         row.prop(cm, 'radmatmenu')
-#        radmatdict = {'0': ['radcolour', 0, 'radrough', 'radspec'], '1': ['radcolour'], '2': ['radcolour', 0, 'ior'], '3': ['radcolour', 0, 'radspec', 'radrough', 0, 'radtrans',  'radtranspec'], '4': ['radcolour'], '5': ['radcolour'], '6': ['radcolour', 0, 'radrough', 'radspec'], '7': []}
         row = layout.row()
         for prop in cm.radmatdict[cm.radmatmenu]:
             if prop:
                  row.prop(cm, prop)
             else:
                 row = layout.row()
-  #      radentry = cm.radmat(context.scene, 1)
-#        row = layout.row()
-#        for line in radentry.splitlines():
-#            row = layout.row()
-#            row.label('    '+line)
-#        layout = self.layout
         row = layout.row()
         row.label("-----------------------------------------")
         newrow(layout, "EnVi Construction Type:", cm, "envi_con_type")

@@ -117,6 +117,7 @@ def radgexport(export_op, node, **kwargs):
                         export_op.report({'ERROR'},"Make sure your object "+o.name+" has an associated material for all faces")
                 if o.get('merr'):
                     del o['merr']
+
         # Lights export routine
         if frame in range(node['frames']['Lights'] + 1):
             lradfile = "# Lights \n\n"    
@@ -183,7 +184,7 @@ def radgexport(export_op, node, **kwargs):
     for frame in range(scene.fs, scene.fe + 1):
         createradfile(scene, frame, export_op, connode, node)
 
-    node.export = 1
+#    node.export = 1
 
 def radcexport(export_op, node, locnode, geonode):
     skyfileslist, scene, scene.li_disp_panel, scene.vi_display = [], bpy.context.scene, 0, 0
@@ -253,7 +254,7 @@ def radcexport(export_op, node, locnode, geonode):
             if node['source'] == '0':
                 if node.inputs['Location in'].is_linked:
                     mtxlines = mtxfile.readlines()
-                    vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), 1, 1).weekday(), node)
+                    vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), node.startmonth, 1).weekday(), node)
                     mtxfile.close()
                     node['vecvals'] = vecvals
                     node['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
@@ -265,15 +266,14 @@ def radcexport(export_op, node, locnode, geonode):
                         subprocess.call("pcomb -h  "+pcombfiles+"> "+os.path.join(scene['viparams']['newdir'], epwbase[0]+".hdr"), shell = True)
                         [os.remove(os.path.join(scene['viparams']['newdir'], 'p{}.hdr'.format(i))) for i in range (146)]
                         [os.remove(os.path.join(scene['viparams']['newdir'], 'ps{}.hdr'.format(i))) for i in range (146)]
-                        node.hdrname = os.path.join(scene['viparams']['newdir'], epwbase[0]+".hdr")
-                    
+                        node.hdrname = os.path.join(scene['viparams']['newdir'], epwbase[0]+".hdr")                    
                     if node.hdr:
                         Popen("oconv -w - > {}.oct".format(os.path.join(scene['viparams']['newdir'], epwbase[0])), shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = hdrsky(os.path.join(scene['viparams']['newdir'], epwbase[0]+".hdr").encode('utf-8')))
                         subprocess.call('cnt 750 1500 | rcalc -f "'+os.path.join(scene.vipath, 'lib', 'latlong.cal')+'" -e "XD=1500;YD=750;inXD=0.000666;inYD=0.001333" | rtrace -af pan.af -n {} -x 1500 -y 750 -fac "{}{}{}.oct" > '.format(scene['viparams']['nproc'], os.path.join(scene['viparams']['newdir'], epwbase[0])) + '"'+os.path.join(scene['viparams']['newdir'], epwbase[0]+'p.hdr')+'"', shell=True)
                 else:
                     export_op.report({'ERROR'}, "No location node connected")
                     return
-            if node.hdrname not in bpy.data.images:
+            if node.hdrname and os.path.isfile(node.hdrname) and node.hdrname not in bpy.data.images:
                 bpy.data.images.load(node.hdrname)
             
             if int(node.analysismenu) < 2:
@@ -281,13 +281,11 @@ def radcexport(export_op, node, locnode, geonode):
     
     scene.fe = max(scene.cfe, scene.gfe)
     scene.frame_set(scene.fs)
-
-    simnode = node.outputs['Context out'].links[0].to_node if node.outputs['Context out'].links else 0
-    geonode = simnode.geonodes() if simnode else 0
+#    simnode = node.outputs['Context out'].links[0].to_node if node.outputs['Context out'].links else 0
+#    geonode = simnode.geonodes() if simnode else 0
     
     for frame in range(scene.fs, scene.fe + 1):
         createradfile(scene, frame, export_op, node, geonode)
-#    node.export = 1
 
 def sunexport(scene, node, locnode, frame): 
     if locnode:
@@ -335,9 +333,12 @@ def hdrsky(skyfile):
 def createradfile(scene, frame, export_op, connode, geonode, **kwargs):    
     if not connode or not connode.get('skyfiles'):
         radtext = geonode['radfiles'][0] if scene.gfe == 0 else geonode['radfiles'][frame]
-    elif connode:
+    elif not geonode:
         skyframe = frame if scene.cfe > 0 else 0
-        radtext = geonode['radfiles'][0] + connode['skyfiles'][skyframe] if len(geonode['radfiles']) == 1 else geonode['radfiles'][frame] + connode['skyfiles'][0]
+        radtext = connode['skyfiles'][skyframe]
+    elif geonode and connode: 
+        skyframe = frame if scene.cfe > 0 else 0
+        radtext = geonode['radfiles'][frame] + connode['skyfiles'][skyframe] if len(geonode['radfiles']) == 1 else geonode['radfiles'][frame] + connode['skyfiles'][0]
 
     with open("{}-{}.rad".format(scene['viparams']['filebase'], frame), 'w') as radfile:
         radfile.write(radtext)
@@ -358,7 +359,6 @@ def cyfc1(self):
     if 'LiVi' in scene.resnode or 'Shadow' in scene.resnode:
         for material in [m for m in bpy.data.materials if m.use_nodes and (m.livi_sense or m.vi_shadow)]:
             try:
-                print([node.bl_label == 'Attribute' for node in material.node_tree.nodes])
                 if any([node.bl_label == 'Attribute' for node in material.node_tree.nodes]):
                     material.node_tree.nodes["Attribute"].attribute_name = str(scene.frame_current)
             except Exception as e:

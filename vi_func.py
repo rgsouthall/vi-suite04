@@ -181,8 +181,7 @@ def nodeexported(self):
     self.exported = 0
 
 def negneg(x):
-    if float(x) < 0:
-        x = 0
+    x = 0 if float(x) < 0 else x        
     return float(x)
 
 def clearscene(scene, op):
@@ -199,7 +198,8 @@ def clearscene(scene, op):
 
     for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
         selobj(scene, ob)
-        bpy.ops.object.mode_set(mode = 'OBJECT')
+        if ob.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode = 'OBJECT')
         if ob.lires == 1:
             scene.objects.unlink(ob)
         if ob.licalc == 1:
@@ -251,10 +251,19 @@ def processf(pro_op, node):
                 'AFN Surface Venting Window or Door Opening Factor [] !Hourly': 'Opening Factor'}
     resdict = {}
     allresdict = {}
-    connode = node.inputs['Context in'].links[0].from_node
-    objlist = [obj.name.upper() for obj in bpy.data.objects if obj.envi_type == '1' and obj.layers[1] == True] if connode.bl_idname != 'ViEnInNode' else connode['oblist']
-
+    objlist = []
+    
     with open(node.resfilename, 'r') as resfile:
+#        
+#        if node.bl_label != 'EnVi Results File':
+#            connode = node.inputs['Context in'].links[0].from_node
+#            objlist = [obj.name.upper() for obj in bpy.data.objects if obj.envi_type == '1' and obj.layers[1] == True] if connode.bl_idname != 'ViEnInNode' else connode['oblist']
+#        else:
+#            for line in [line.strip('\n').split(',') for line in resfile.readlines() if len(line.strip('\n').split(',')) > 3]:
+#                print(line[3])
+#                if line[3] in zresdict:
+#                    objlist.append(line[2])
+#            print(objlist)
         intro = 1    
         for line in resfile.readlines():
             linesplit = line.strip('\n').split(',')
@@ -262,6 +271,9 @@ def processf(pro_op, node):
                 if len(linesplit) == 1:
                     intro = 0
                 elif linesplit[1] == '1' and '!Hourly' in linesplit[-1]:
+                    if linesplit[3] in zresdict and linesplit[2] not in objlist:
+                        objlist.append(linesplit[2])
+                    
                     allresdict[linesplit[0]] = ['{} {}'.format(linesplit[2], linesplit[-1].strip(' !Hourly'))]
             elif not intro and len(linesplit) == 2:
                 allresdict[linesplit[0]].append(linesplit[1])
@@ -275,6 +287,7 @@ def processf(pro_op, node):
     
             elif len(linesplit) > 3 and linesplit[2] == 'Day of Simulation[]':
                 resdict[linesplit[0]], resdict['Month'],  resdict['Day'], resdict['Hour'], dos, node['rtypes'] = ['Day of Simulation'], [], [], [], linesplit[0], ['Time']
+                print(dos)
     
             elif len(linesplit) > 3 and linesplit[2] == 'Environment':
                 if 'Climate' not in node['rtypes']:
@@ -311,6 +324,7 @@ def processf(pro_op, node):
 
     node['dos'], node['resdict'], node['ctypes'], node['ztypes'], node['zrtypes'], node['ltypes'], node['lrtypes'], node.dsdoy, node.dedoy = dos, resdict, ctypes, ztypes, zrtypes, ltypes, lrtypes, int(resdict[dos][1]), int(resdict[dos][-1])
     node['allresdict'] = allresdict
+    
 def iprop(iname, idesc, imin, imax, idef):
     return(IntProperty(name = iname, description = idesc, min = imin, max = imax, default = idef))
 def eprop(eitems, ename, edesc, edef):
@@ -772,11 +786,14 @@ def sockhide(node, lsocknames):
         print(e)
 
 def socklink(sock, ng):
-    valid1 = sock.valid if not sock.get('valid') else sock['valid']
-    for link in sock.links:
-        valid2 = link.to_socket.valid if not link.to_socket.get('valid') else link.to_socket['valid'] 
-        if not set(valid1)&set(valid2):
-            bpy.data.node_groups[ng].links.remove(link)
+    try:
+        valid1 = sock.valid if not sock.get('valid') else sock['valid']
+        for link in sock.links:
+            valid2 = link.to_socket.valid if not link.to_socket.get('valid') else link.to_socket['valid'] 
+            if not set(valid1)&set(valid2):
+                bpy.data.node_groups[ng].links.remove(link)
+    except:
+        pass
 
 def epschedwrite(name, stype, ts, fs, us):
     params = ['Name', 'Schedule Type Limits Name']

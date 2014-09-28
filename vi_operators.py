@@ -229,7 +229,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
         scene = context.scene
         viparams(scene)
         objmode()
-        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
+#        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         simnode, frame = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]], scene.frame_current
         connode, geonode =  simnode.export(self.bl_label) 
         if frame not in range(scene.fs, scene.fe + 1):
@@ -354,7 +354,7 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
         scene = context.scene
         viparams(scene)
         objmode()
-        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
+        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel, scene.li_disp_count = 0, 0, 0, 0, 0, 0, 0, 0
         clearscene(scene, self)
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         connode, geonode = simnode.export(self.bl_label)
@@ -369,15 +369,14 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
         scene['LiViContext'] = connode.bl_label
        
         if connode.bl_label == 'LiVi Basic':
-            geogennode = geonode.inputs['Generative in'].links[0].to_node if geonode.inputs['Generative in'].links and not geonode.inputs['Generative in'].links[0].to_node.use_custom_color else 0
-            tarnode = connode.inputs['Target in'].links[0].to_node if connode.inputs['Target in'].is_linked else 0
+            geogennode = geonode.inputs['Generative in'].links[0].from_node if geonode.inputs['Generative in'].links else 0
+            tarnode = connode.inputs['Target in'].links[0].from_node if connode.inputs['Target in'].is_linked else 0
             if geogennode and tarnode:
                 simnode['Animation'] = 'Animated'
                 vigen(self, li_calc, resapply, geonode, connode, simnode, geogennode, tarnode)
             elif connode.analysismenu != '3':
                 simnode['Animation'] = 'Animated' if scene.gfe > 0 or scene.cfe > 0 else 'Static'
                 li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
-#            scene.vi_display = 1
         else:
             simnode['Animation'] = 'Animated' if scene.gfe > 0 or scene.cfe > 0 else 'Static'
             scene.fs = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
@@ -398,9 +397,10 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
     bl_undo = True
 
     _handle = None
-
+    disp =  bpy.props.IntProperty(default = 1)
+    
     def modal(self, context, event):
-        if context.scene.li_disp_panel != 2 and context.scene.ss_disp_panel != 2:
+        if (context.scene.li_disp_panel < 2 and context.scene.ss_disp_panel < 2) or self.disp != context.scene.li_disp_count:            
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
             if context.scene.get('LiViContext') == 'LiVi Compliance':
@@ -412,19 +412,21 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
             return {'CANCELLED'}
         return {'PASS_THROUGH'}
 
-    def invoke(self, context, event):
-        scene = bpy.context.scene
+    def execute(self, context):        
+        scene = context.scene 
+        scene.li_disp_count += 1
+        self.disp = scene.li_disp_count
         simnode = bpy.data.node_groups[scene.restree].nodes[scene.resnode]
         (connode, geonode) = (0, 0) if simnode.bl_label == 'VI Shadow Study' else (simnode.export(self.bl_label))
         li_display(simnode, connode, geonode)
         scene.li_disp_panel, scene.ss_disp_panel = 2, 2
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')
         self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(li3D_legend, (self, context, simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')
-        if context.scene.get('LiViContext') == 'LiVi Compliance':
-            self._handle_comp = bpy.types.SpaceView3D.draw_handler_add(li_compliance, (self, context, connode), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
+        if context.scene.get('LiViContext') == 'LiVi Compliance':
+            self._handle_comp = bpy.types.SpaceView3D.draw_handler_add(li_compliance, (self, context, connode), 'WINDOW', 'POST_PIXEL')        
         return {'RUNNING_MODAL'}
-
+        
 class IES_Select(bpy.types.Operator, io_utils.ImportHelper):
     bl_idname = "livi.ies_select"
     bl_label = "Select IES file"
@@ -460,7 +462,7 @@ class NODE_OT_ESOSelect(bpy.types.Operator, io_utils.ImportHelper):
     bl_undo = True
 
     nodeid = bpy.props.StringProperty()
-
+    
     def draw(self,context):
         layout = self.layout
         row = layout.row()
@@ -658,7 +660,6 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
                 try:
                     with open(os.path.join(scene['viparams']['newdir'], 'eplusout.eso'), 'r') as resfile:                    
                         for line in [line for line in resfile.readlines()[::-1] if line.split(',')[0] == '2' and len(line.split(',')) == 9]:  
-#                            if line.split(',')[0] == '2' and len(line.split(',')) == 9:
                             self.simnode.run = int(100 * int(line.split(',')[1])/(self.simnode.dedoy - self.simnode.dsdoy))
                             break
                     return {'RUNNING_MODAL'}
@@ -686,7 +687,6 @@ class NODE_OT_EnSim(bpy.types.Operator, io_utils.ExportHelper):
                     nodecolour(self.simnode, 0)
                     processf(self, self.simnode)
                     self.report({'INFO'}, "Calculation is finished.") 
-                    self.simnode.outputs['Results out'].hide = False
                     if self.simnode.outputs[0].links:
                         socket1, socket2  = self.simnode.outputs[0], self.simnode.outputs[0].links[0].to_socket
                         bpy.data.node_groups[self.nodeid.split('@')[1]].links.remove(self.simnode.outputs[0].links[0])
@@ -722,8 +722,6 @@ class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
 
     def invoke(self, context, event):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-#        if 'NodeSocketUndefined' in [sock.bl_idname for sock in node.inputs if sock.links]:
-#            node.update()
         Sdate = dt.fromordinal(dt(dt.now().year, 1, 1).toordinal() + node['Start'] -1) + datetime.timedelta(hours = node.dsh - 1)
         Edate = dt.fromordinal(dt(dt.now().year, 1, 1).toordinal() + node['End'] -1 ) + datetime.timedelta(hours = node.deh - 1)
         innodes = list(OrderedDict.fromkeys([inputs.links[0].from_node for inputs in node.inputs if inputs.links]))
@@ -745,8 +743,7 @@ class NODE_OT_FileProcess(bpy.types.Operator, io_utils.ExportHelper):
     def invoke(self, context, event):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         processf(self, node)
-        node.outputs['Context out'].hide = False
-        node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
+        node.export()
         return {'FINISHED'}
 
 class NODE_OT_SunPath(bpy.types.Operator):
@@ -761,6 +758,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
     def invoke(self, context, event):
         solringnum, sd, numpos, ordinals = 0, 100, {}, []
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        node.export()
         scene, scene.resnode, scene.restree = context.scene, node.name, self.nodeid.split('@')[1]
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 1, 0, 0, 0, 0, 0
         bpy.context.scene.cursor_location = (0.0, 0.0, 0.0)
@@ -825,12 +823,10 @@ class NODE_OT_SunPath(bpy.types.Operator):
             if spathmesh.vertices[v].co.z > 0 or spathmesh.vertices[v - 24].co.z > 0:
                 spathmesh.edges.add(1)
                 spathmesh.edges[-1].vertices[0:2] = (v, v - 24)
-#                spathmesh.edges[-1].vertices[1] = v - 24
             if v in range(1224, 1248):
                 if spathmesh.vertices[v].co.z > 0 or spathmesh.vertices[v - 1224].co.z > 0:
                     spathmesh.edges.add(1)
                     spathmesh.edges[-1].vertices[0:2] = (v, v - 1224)
-#                    spathmesh.edges[-1].vertices[1] = v - 1224
 
         for doy in (79, 172, 355):
             for hour in range(1, 25):
@@ -844,22 +840,16 @@ class NODE_OT_SunPath(bpy.types.Operator):
                         spathmesh.edges.add(1)
                         solringnum += 1
                         spathmesh.edges[-1].vertices = (spathmesh.vertices[-2].index, spathmesh.vertices[-1].index)
-#                        spathmesh.edges[-1].vertices[1] = spathmesh.vertices[-1].index
                 if hour == 24:
                     if spathmesh.vertices[-24].co.z > 0 or spathmesh.vertices[-1].co.z > 0:
                         spathmesh.edges.add(1)
                         solringnum += 1
                         spathmesh.edges[-1].vertices = (spathmesh.vertices[-24].index, spathmesh.vertices[-1].index)
-#                        spathmesh.edges[-1].vertices[1] = spathmesh.vertices[-1].index
 
         for edge in spathmesh.edges:
             intersect = mathutils.geometry.intersect_line_plane(spathmesh.vertices[edge.vertices[0]].co, spathmesh.vertices[edge.vertices[1]].co, mathutils.Vector((0,0,0)), mathutils.Vector((0,0,1)))
             for vert in [vert for vert in (spathmesh.vertices[edge.vertices[0]], spathmesh.vertices[edge.vertices[1]]) if vert.co.z < 0]:
                 vert.co = intersect
-#            if spathmesh.vertices[edge.vertices[0]].co.z < 0:
-#                spathmesh.vertices[edge.vertices[0]].co = intersect
-#            if spathmesh.vertices[edge.vertices[1]].co.z < 0:
-#                spathmesh.vertices[edge.vertices[1]].co = intersect
 
         bpy.ops.object.convert(target='CURVE')
         spathob.data.bevel_depth, spathob.data.bevel_resolution = 0.08, 6
@@ -893,8 +883,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
             bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=((-4, -8)[c%2], sd*1.025, 0.0), rotation=(0.0, 0.0, 0.0))
             txt = bpy.context.active_object
             txt.scale, txt.data.extrude, txt.data.body  = (10, 10, 10), 0.1, ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')[c]
-#            txt.data.extrude = 0.1
-#            txt.data.body = ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')[c]
             bpy.ops.object.convert(target='MESH')
             bpy.ops.object.material_slot_add()
             txt.material_slots[0].material = bpy.data.materials['SPBase']
@@ -965,7 +953,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
                     self.report({'ERROR'},"Start month is later than end month")
                     return {'FINISHED'}
                 else:
-                    wvals = [line.split(",")[20:22] for l, line in enumerate(epwfile.readlines()) if l > 7 and simnode.startmonth <= int(line.split(",")[1]) < simnode.endmonth]
+                    wvals = [line.split(",")[20:22] for l, line in enumerate(epwfile.readlines()) if l > 7 and simnode.startmonth <= int(line.split(",")[1]) <= simnode.endmonth]
                     simnode['maxres'], simnode['minres'],  simnode['avres']= max([float(w[1]) for w in wvals]), min([float(w[1]) for w in wvals]), sum([float(w[1]) for w in wvals])/len(wvals)
 
             awd, aws, (fig, ax) = [float(val[0]) for val in wvals], [float(val[1]) for val in wvals], wr_axes()
@@ -1000,15 +988,13 @@ class NODE_OT_WindRose(bpy.types.Operator):
                 [w, h] = [int(d) for d in fig.bbox.bounds[2:]]
                 pixarray = numpy.frombuffer(pixbuffer, numpy.uint8)
                 pixarray.shape = h, w, 4
-                for hi in reversed(pixarray):
-                    for wi in hi:
-                        pixels += [p/255 for p in wi]
+                pixels = pixarray[::-1].flatten()/255
 
                 if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
                     wrim = bpy.data.images.new('disp_wind.png', height = h, width = w)
                     wrim.file_format = 'PNG'
                     wrim.filepath = os.path.join(scene['viparams']['newdir'], wrim.name)
-                    wrim.save()
+#                    wrim.save()
                 else:
                     wrim = bpy.data.images['disp_wind.png']
                 wrim.pixels = pixels

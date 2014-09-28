@@ -194,7 +194,8 @@ def register():
     rspacetype = [('0', "Kitchen", "Kitchen space"), ('1', "Living/Dining/Study", "Living/Dining/Study area"), ('2', "Communal", "Non-residential or communal area")]
     respacetype = [('0', "Sales", "Sales space"), ('1', "Occupied", "Occupied space")]
     Material.hspacemenu = eprop(hspacetype, "", "Type of healthcare space", '0')
-    Material.rspacemenu = eprop(rspacetype, "", "Type of residential space", '0')
+    Material.brspacemenu = eprop(rspacetype, "", "Type of residential space", '0')
+    Material.crspacemenu = eprop(rspacetype[:2], "", "Type of residential space", '0')
     Material.respacemenu = eprop(respacetype, "", "Type of retail space", '0')
 
 # EnVi material definitions
@@ -298,6 +299,7 @@ def register():
 #    Scene.latitude = bpy.props.FloatProperty(name="Latitude", description="Site Latitude", min=-90, max=90, default=52)
 #    Scene.longitude = bpy.props.FloatProperty(name="Longitude", description="Site Longitude", min=-180, max=180, default=0)
     Scene.li_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
+    Scene.li_disp_count = iprop("", "", 0, 1000, 0)
     Scene.vi_disp_3d = bprop("VI 3D display", "Boolean for 3D results display",  False)
     Scene.vi_disp_3dlevel = bpy.props.FloatProperty(name = "", description = "Level of 3D result plane extrusion", min = 0, max = 500, default = 0, update = eupdate)
     Scene.ss_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
@@ -312,7 +314,7 @@ def register():
     Scene.li_assind = sprop("", "Name of the assessing individual", 1024, '')
     Scene.li_jobno = sprop("", "Project job number", 1024, '')
     Scene.resnode = sprop("", "", 0, "")
-    Scene.restree = sprop("", "", 0, "")    
+    Scene.restree = sprop("", "", 0, "")   
 
     nodeitems_utils.register_node_categories("Vi Nodes", vinode_categories)
     nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)

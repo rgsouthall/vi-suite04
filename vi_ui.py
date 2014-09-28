@@ -82,30 +82,24 @@ class VIMatPanel(bpy.types.Panel):
         row.prop(cm, "livi_sense")
         row = layout.row()
 
-        if bpy.data.node_groups.get(context.scene.restree):
-            ng = bpy.data.node_groups[context.scene.restree]
-            if ng.nodes.get(context.scene.resnode):
-                node = ng.nodes[context.scene.resnode]
-                if 'LiVi' in node.bl_label:
-                    if node.inputs['Context in'].is_linked:
-                        connode = node.inputs['Context in'].links[0].from_node
-                        if 'LiVi Compliance' in connode.bl_label:
-                            if cm.livi_sense:
-                                if connode.analysismenu == '0':
-                                    if connode.bambuildmenu == '2':
-                                        newrow(layout, "Space type:", cm, 'hspacemenu')
-                                    elif connode.bambuildmenu == '3':
-                                        newrow(layout, "Space type:", cm, 'rspacemenu')
-                                        if cm.rspacemenu == '2':
-                                            row = layout.row()
-                                            row.prop(cm, 'gl_roof')
-                                    elif connode.bambuildmenu == '4':
-                                        newrow(layout, "Space type:", cm, 'respacemenu')
-                                elif connode.analysismenu == '1':
-                                    newrow(layout, "Space type:", cm, 'rspacemenu')
-                                    if cm.rspacemenu == '2':
-                                        row = layout.row()
-                                        row.label('Warning: Not an assessable CfSH space')
+        if context.scene.get('liviparams'):
+            connode = bpy.data.node_groups[context.scene['liviparams']['compnode'].split('@')[1]].nodes[context.scene['liviparams']['compnode'].split('@')[0]]
+            if cm.livi_sense:
+                if connode.analysismenu == '0':
+                    if connode.bambuildmenu == '2':
+                        newrow(layout, "Space type:", cm, 'hspacemenu')
+                    elif connode.bambuildmenu == '3':
+                        newrow(layout, "Space type:", cm, 'brspacemenu')
+                        if cm.rspacemenu == '2':
+                            row = layout.row()
+                            row.prop(cm, 'gl_roof')
+                    elif connode.bambuildmenu == '4':
+                        newrow(layout, "Space type:", cm, 'respacemenu')
+                elif connode.analysismenu == '1':
+                    newrow(layout, "Space type:", cm, 'crspacemenu')
+#                    if cm.rspacemenu == '2':
+#                        row = layout.row()
+#                        row.label('Warning: Not an assessable CfSH space')
 
         row = layout.row()
         row.label('LiVi Radiance type:')

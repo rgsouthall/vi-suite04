@@ -67,11 +67,6 @@ def li_display(simnode, connode, geonode):
             for cf in geo["cfaces"]:
                 geo.data.polygons[int(cf)].select = True
 
-#            if len(geo["cverts"]) > 0:
-#                bpy.context.tool_settings.mesh_select_mode = [True, False, False]
-#                for cv in geo["cverts"]:
-#                    geo.data.vertices[int(cv)].select = True
-
             bpy.ops.object.mode_set(mode = 'EDIT')
             bpy.ops.mesh.duplicate()
             bpy.ops.mesh.separate()
@@ -131,8 +126,7 @@ def spnumdisplay(disp_op, context, simnode):
         return
 
 def linumdisplay(disp_op, context, simnode, connode, geonode):
-    scene = context.scene
-    
+    scene = context.scene    
     if not scene.vi_display:
         return
     try:
@@ -147,9 +141,6 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
          or (bpy.context.active_object and bpy.context.active_object.mode == 'EDIT'):
         return
     
-#    if not context.space_data.region_3d.is_perspective:
-#        disp_op.report({'ERROR'},"Switch to prespective view mode for number display")
-#        return
     if scene.frame_current not in range(scene.fs, scene.fe + 1) and scene.vi_display:
         disp_op.report({'ERROR'},"Outside result frame range")
         return
@@ -165,16 +156,16 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
     mid_x, mid_y, width, height = vi_func.viewdesc(context)
     view_mat = context.space_data.region_3d.perspective_matrix
     maxval, minval = max(simnode['maxres']), min(simnode['minres'])
-        
+    view_pivot = bpy.context.active_object.location if bpy.context.active_object and context.user_preferences.view.use_rotate_around_active else context.region_data.view_location
+
     if not context.space_data.region_3d.is_perspective:
-        view_pivot = bpy.context.active_object.location if bpy.context.active_object and context.user_preferences.view.use_rotate_around_active else context.region_data.view_location
         vw =  mathutils.Vector((0.0, 0.0, 1.0))
         vw.rotate(bpy.context.region_data.view_rotation)
         view_location = view_pivot + vw.normalized()*bpy.context.region_data.view_distance*10        
     else:
         vw = mathutils.Vector((view_mat.inverted()[0][3], view_mat.inverted()[1][3], view_mat.inverted()[2][3])).normalized()
-        view_location = mathutils.Vector([vmi*bpy.context.region_data.view_distance/2 for vmi in vw])
-    
+        view_location = vw*bpy.context.region_data.view_distance
+
     if scene.vi_display_sel_only == False:
         obd = obreslist if len(obreslist) > 0 else obcalclist
     else:
@@ -188,8 +179,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         obm = ob.data
         omw = ob.matrix_world
         total_mat = view_mat * omw
-        # This detects if point is in front of camera but only works in perspective mode (total_mat*ob.data.polygons[fi].center)[2] > 0
-        faces = [f for f in ob.data.polygons if f.select and not f.hide]  if ob.lires else [ob.data.polygons[fi] for fi in ob['cfaces'] if not ob.data.polygons[fi].hide]
+        faces = [f for f in ob.data.polygons if f.select and not f.hide and (vi_func.face_centre(ob, ob.lires, f) - view_location)*vw < 0]  if ob.lires else [ob.data.polygons[fi] for fi in ob['cfaces'] if not ob.data.polygons[fi].hide and ((omw * ob.data.polygons[fi].center) - view_location)*vw < 0]
         fcs = [total_mat*vi_func.face_centre(ob, ob.lires, face).to_4d() for face in faces]
         if cp == "0":
             if scene.vi_display_vis_only:
@@ -362,11 +352,11 @@ def li_compliance(self, context, connode):
             pfs.append(pf)
 
             if connode.analysismenu == '1':
-                cfshpfsdict[('totkit', 'totliv')[mat.rspacemenu == '1']] += 1
+                cfshpfsdict[('totkit', 'totliv')[mat.crspacemenu == '1']] += 1
                 if geo['cr4'][0] == 'pass':
-                    cfshpfsdict[('kitdf', 'livdf')[mat.rspacemenu == '1']] += 1
+                    cfshpfsdict[('kitdf', 'livdf')[mat.crspacemenu == '1']] += 1
                 if geo['cr4'][1] == 'pass':
-                    cfshpfsdict[('kitsv', 'livsv')[mat.rspacemenu == '1']] += 1
+                    cfshpfsdict[('kitsv', 'livsv')[mat.crspacemenu == '1']] += 1
 
             if connode.analysismenu == '0':
                 ecrit = geo['ecrit']
@@ -390,9 +380,9 @@ def li_compliance(self, context, connode):
             vi_func.drawloop(100, height - 70, 900, height - 70  - (lencrit)*25)
             mat = [m for m in bpy.context.active_object.data.materials if m.livi_sense][0]
             if connode.analysismenu == '0':
-                buildspace = ('', '', (' - Public/Staff', ' - Patient')[int(mat.hspacemenu)], (' - Kitchen', ' - Living/Dining/Study', ' - Communal')[int(mat.rspacemenu)], (' - Sales', ' - Office')[int(mat.respacemenu)], '')[int(connode.bambuildmenu)]
+                buildspace = ('', '', (' - Public/Staff', ' - Patient')[int(mat.hspacemenu)], (' - Kitchen', ' - Living/Dining/Study', ' - Communal')[int(mat.brspacemenu)], (' - Sales', ' - Office')[int(mat.respacemenu)], '')[int(connode.bambuildmenu)]
             elif connode.analysismenu == '1':
-                buildspace = (' - Kitchen', ' - Living/Dining/Study')[int(mat.rspacemenu)]
+                buildspace = (' - Kitchen', ' - Living/Dining/Study')[int(mat.crspacemenu)]
 
             titles = ('Zone Metric', 'Target', 'Achieved', 'PASS/FAIL')
             tables = [[] for c in range(lencrit -1)]

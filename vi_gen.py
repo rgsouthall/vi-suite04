@@ -21,7 +21,7 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
             manipobs = [ob for ob in vi_func.retobjs('livig') if ob.select == True and ob not in vi_func.retobjs('livic')]
         else:
             manipobs = [ob for ob in vi_func.retobjs('livig') if ob.select == False and ob not in vi_func.retobjs('livic')]   
-    
+        
     elif geogennode.geomenu == 'Mesh':  
         if geogennode.oselmenu == 'All':
             manipobs = [ob for ob in vi_func.retobjs('livig')]

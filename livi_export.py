@@ -78,7 +78,7 @@ def radgexport(export_op, node, **kwargs):
                                 objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, retobj(o.name, gframe, node, scene), retmesh(o.name, max(gframe, mframe), node, scene)) 
                             elif export_op.nodeid.split('@')[0] == 'LiVi Simulation':
                                 bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_start, node, scene), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
-                                objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, retobj(o.name, scene.frame_start, node), retmesh(o.name, scene.frame_start, node, scene))
+                                objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, retobj(o.name, scene.frame_start, node, scene), retmesh(o.name, scene.frame_start, node, scene))
                             else:
                                 if frame == scene.fs:                        
                                     bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_current, node, scene), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
@@ -337,8 +337,9 @@ def createradfile(scene, frame, export_op, connode, geonode, **kwargs):
         skyframe = frame if scene.cfe > 0 else 0
         radtext = connode['skyfiles'][skyframe]
     elif geonode and connode: 
+        geoframe = frame if scene.gfe > 0 else 0
         skyframe = frame if scene.cfe > 0 else 0
-        radtext = geonode['radfiles'][frame] + connode['skyfiles'][skyframe] if len(geonode['radfiles']) == 1 else geonode['radfiles'][frame] + connode['skyfiles'][0]
+        radtext = geonode['radfiles'][geoframe] + connode['skyfiles'][skyframe]# if len(geonode['radfiles']) == 1 else geonode['radfiles'][geoframe] + connode['skyfiles'][0]
 
     with open("{}-{}.rad".format(scene['viparams']['filebase'], frame), 'w') as radfile:
         radfile.write(radtext)
@@ -373,6 +374,7 @@ def cyfc1(self):
             nt = bpy.data.worlds[0].node_tree
             if nt and nt.nodes.get('Sky Texture'):
                 bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
+        
         for ob in [o for o in scene.objects if o.get('VIType') == 'Sun']:
             if ob.get('VIType') == 'Sun':
                 ob.rotation_euler = pi * 0.5 - beta, 0, -phi

@@ -97,9 +97,6 @@ class VIMatPanel(bpy.types.Panel):
                         newrow(layout, "Space type:", cm, 'respacemenu')
                 elif connode.analysismenu == '1':
                     newrow(layout, "Space type:", cm, 'crspacemenu')
-#                    if cm.rspacemenu == '2':
-#                        row = layout.row()
-#                        row.label('Warning: Not an assessable CfSH space')
 
         row = layout.row()
         row.label('LiVi Radiance type:')
@@ -279,17 +276,27 @@ class VIMatPanel(bpy.types.Panel):
             elif cm.envi_con_makeup == '0':
                 thicklist = ("envi_export_lo_thi", "envi_export_l1_thi", "envi_export_l2_thi", "envi_export_l3_thi", "envi_export_l4_thi")
                 propdict = {'Wall': (envi_cons.wall_con, 'envi_export_wallconlist', cm.envi_export_wallconlist), 'Floor': (envi_cons.floor_con, 'envi_export_floorconlist', cm.envi_export_floorconlist), 
-                'Roof': (envi_cons.roof_con, 'envi_export_roofconlist', cm.envi_export_roofconlist), 'Door': (envi_cons.door_con, 'envi_export_doorconlist', cm.envi_export_doorconlist)} 
+                'Roof': (envi_cons.roof_con, 'envi_export_roofconlist', cm.envi_export_roofconlist), 'Door': (envi_cons.door_con, 'envi_export_doorconlist', cm.envi_export_doorconlist), 'Window': (envi_cons.glaze_con, 'envi_export_glazeconlist', cm.envi_export_glazeconlist)} 
                 
                 row = layout.row()                
                 row.prop(cm, propdict[cm.envi_con_type][1])
-                row = layout.row()
+                
                 for l, layername in enumerate(propdict[cm.envi_con_type][0][propdict[cm.envi_con_type][2]]):
+                    row = layout.row()
                     row.label(text = layername)
-                    if layername not in envi_mats.gas_dat:
+                    if layername in envi_mats.wgas_dat:
+                        row.prop(cm, thicklist[l])
+                        row.label(text = "default: 14mm")
+                    elif layername in envi_mats.gas_dat:
+                        row.prop(cm, thicklist[l])
+                        row.label(text = "default: 20-50mm")
+                    elif layername in envi_mats.glass_dat:
+                        row.prop(cm, thicklist[l])
+                        row.label(text = "default: "+str(float(envi_mats.matdat[layername][3])*1000)+"mm")
+                    else:
                         row.prop(cm, thicklist[l])
                         row.label(text = "default: "+str(envi_mats.matdat[layername][7])+"mm")
-                    row = layout.row()
+
 
 #                if cm.envi_con_type == 'Door':
 #                    row.prop(cm, "envi_export_doorconlist")
@@ -300,8 +307,8 @@ class VIMatPanel(bpy.types.Panel):
 #                        row.label(text = "default: "+str(envi_mats.matdat[layername][7])+"mm")
 #                        row = layout.row()
 
-                if cm.envi_con_type == 'Window':
-                    row.prop(cm, "envi_export_glazeconlist")
+#                if cm.envi_con_type == 'Window':
+#                    row.prop(cm, "envi_export_glazeconlist")
 
 class IESPanel(bpy.types.Panel):
     bl_label = "LiVi IES file"

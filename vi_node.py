@@ -133,8 +133,9 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     def draw_buttons(self, context, layout):
         newrow(layout, 'Animation:', self, 'animmenu')
         newrow(layout, 'Result point:', self, 'cpoint')
-        row = layout.row()
-        row.operator("node.ligexport", text = "Export").nodeid = self['nodeid']
+        if (self.inputs['Generative in'].links and not self.inputs['Generative in'].links[0].from_node.use_custom_color) or not self.inputs['Generative in'].links:
+            row = layout.row()
+            row.operator("node.ligexport", text = "Export").nodeid = self['nodeid']
 
     def update(self):
         socklink(self.outputs['Geometry out'], self['nodeid'].split('@')[1])
@@ -752,7 +753,7 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
         self['nodeid'] = nodeid(self)
         self.inputs.new('ViEnC', 'Context in')
         self.outputs.new('ViEnR', 'Results out')
-        self.outputs['Results out'].hide = True   
+#        self.outputs['Results out'].hide = True   
         self['exportstate'] = ''
         nodecolour(self, 1) 
         
@@ -1303,12 +1304,12 @@ class ViGenNode(bpy.types.Node, ViNodes):
     omanmenu = bpy.props.EnumProperty(name="", description="Manipulation type", items=omantype, default = '0')
     mmantype = [('0', "Move", "Move geometry"), ('1', "Rotate", "Only unselected geometry"), ('2', "Scale", "Scale geometry"), ('3', "Extrude", "Extrude geometry")]
     mmanmenu = bpy.props.EnumProperty(name="", description="Manipulation type", items=mmantype, default = '0')
-    (x, y, z) = [bpy.props.FloatProperty(name = i, min = 0, max = 1, default = 1) for i in ('X', 'Y', 'Z')]
+    (x, y, z) = [bpy.props.FloatProperty(name = i, min = -1, max = 1, default = 1) for i in ('X', 'Y', 'Z')]
 #    y = bpy.props.FloatProperty(name = 'Y', min = 0, max = 1, default = 0)
 #    z = bpy.props.FloatProperty(name = 'Z', min = 0, max = 1, default = 0)
     normal = bpy.props.BoolProperty(name = '', default = False)
-    direction = bpy.props.EnumProperty(items=[("0", "Positive", "Increase/positive direction"),("1", "Negative", "Decrease/negative direction")],  name="", description="Manipulation direction", default="0")
-    extent = bpy.props.FloatProperty(name = '', min = 0, max = 360, default = 0)
+#    direction = bpy.props.EnumProperty(items=[("0", "Positive", "Increase/positive direction"),("1", "Negative", "Decrease/negative direction")],  name="", description="Manipulation direction", default="0")
+    extent = bpy.props.FloatProperty(name = '', min = -360, max = 360, default = 0)
     steps = bpy.props.IntProperty(name = '', min = 1, max = 100, default = 1)
 
     def init(self, context):
@@ -1337,7 +1338,8 @@ class ViGenNode(bpy.types.Node, ViNodes):
                subrow.prop(self, 'x')
                subrow.prop(self, 'y')
                subrow.prop(self, 'z')
-        newrow(layout, 'Direction:', self, 'direction')
+#        if self.mmanmenu != '2':
+#            newrow(layout, 'Direction:', self, 'direction')
         newrow(layout, 'Extent:', self, 'extent')
         newrow(layout, 'Increment:', self, 'steps')
         
@@ -1361,8 +1363,8 @@ class ViTarNode(bpy.types.Node, ViNodes):
         self['nodeid'] = nodeid(self)
 
     def draw_buttons(self, context, layout):
-        newrow(layout, 'Above/Below:', self, 'ab')
         newrow(layout, 'Statistic:', self, 'stat')
+        newrow(layout, 'Above/Below:', self, 'ab')
         newrow(layout, 'Value:', self, 'value')
         
 class ViCSVExport(bpy.types.Node, ViNodes):

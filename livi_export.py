@@ -30,6 +30,38 @@ except:
 def radgexport(export_op, node, **kwargs):
     scene = bpy.context.scene
     radfiles = []
+    geogennode = node.inputs['Generative in'].links[0].from_node if node.inputs['Generative in'].links else 0
+    if not kwargs:
+        geooblist, caloblist = retobjs('livig'), retobjs('livic')
+        mableobs = set(geooblist + caloblist)
+        scene['livig'], scene['livic'] = [o.name for o in geooblist], [o.name for o in caloblist]
+        if geogennode:
+            for o in mableobs: 
+                if geogennode.oselmenu == 'All':
+                    o.manip = 1
+                elif geogennode.oselmenu == 'Selected':  
+                    o.manip = 1 if o.select == True else 0
+                else:
+                    o.manip = 1 if o.select == False else 0   
+    
+                if geogennode.geomenu == 'Mesh':
+                    selobj(scene, o)
+                    bpy.ops.object.mode_set(mode = 'EDIT')
+                    if o.vertex_groups.get('genfaces'):            
+                        bpy.ops.mesh.select_all(action='SELECT')
+                        bpy.ops.mesh.remove_doubles()
+                        bpy.ops.mesh.select_all(action='DESELECT')
+                    else:
+                        o.vertex_groups.new('genfaces')
+                        o.vertex_groups.active = o.vertex_groups['genfaces']
+                        if geogennode.mselmenu == 'Not Selected':
+                            bpy.ops.mesh.select_all(action='INVERT')    
+                        elif geogennode.mselmenu == 'All':
+                            bpy.ops.mesh.select_all(action='SELECT') 
+                        bpy.ops.object.vertex_group_assign()
+                    bpy.ops.object.mode_set(mode = 'OBJECT')
+                    o['vgi'] = o.vertex_groups['genfaces'].index
+            scene['livim'] = [o.name for o in mableobs if o.manip]
 
     if export_op.nodeid.split('@')[0] == 'LiVi Geometry':
         clearscene(scene, export_op)
@@ -44,7 +76,7 @@ def radgexport(export_op, node, **kwargs):
         
         if frame in range(node['frames']['Material'] + 1):
             mradfile, matnames = "# Materials \n\n", []
-            for o in retobjs('livig'): 
+            for o in [bpy.data.objects[on] for on in scene['livig']]: 
                 for mat in [m for m in o.data.materials if m.name not in matnames]:
                     mradfile += mat.radmat(scene)
                     matnames.append(mat.name)
@@ -60,13 +92,14 @@ def radgexport(export_op, node, **kwargs):
                 
         # Geometry export routine
         
-        if frame in range(max(node['frames']['Geometry'], node['frames']['Material']) + 1):
+        if frame in range(scene.fs, max(node['frames']['Geometry'], node['frames']['Material']) + 1):
             gframe = scene.frame_current if node['frames']['Geometry'] > 0 else 0
             mframe = scene.frame_current if node['frames']['Material'] > 0 else 0
             gradfile = "# Geometry \n\n"
-            for o in retobjs('livig'):                
-                if not o.get('merr'):
-                    if not kwargs.get('mo') or (kwargs.get('mo') and o in kwargs['mo']):
+            
+            for o in [bpy.data.objects[on] for on in scene['livig']]:
+                if not kwargs.get('mo') or (kwargs.get('mo') and o in kwargs['mo']):
+                    if not o.get('merr'):                    
                         selobj(scene, o)
                         selmesh('selenm')                        
                         if [edge for edge in o.data.edges if edge.select]:
@@ -95,28 +128,31 @@ def radgexport(export_op, node, **kwargs):
     
                             o.select = False                            
                             gradfile += "void mesh id \n1 "+retmesh(o.name, max(gframe, mframe), node, scene)+"\n0\n0\n\n"
-
-                if o.get('merr'):
-                    export_op.report({'INFO'}, o.name+" has an antimatter material or could not be converted into a Radiance mesh and simpler export routine has been used. No un-applied object modifiers will be exported.")
-                    geomatrix = o.matrix_world
-                    try:
-                        for face in [face for face in o.data.polygons if o.data.materials and face.material_index < len(o.data.materials) and o.data.materials[face.material_index]['radentry'].split(' ')[1] != 'antimatter']:
-                            vertices = face.vertices[:]
-                            gradfile += "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(o.data.materials[face.material_index].name.replace(" ", "_"), o.name.replace(" ", "_"), face.index, 3*len(face.vertices))
-                            if o.data.shape_keys and o.data.shape_keys.key_blocks[0] and o.data.shape_keys.key_blocks[1]:
-                                for vertindex in vertices:
-                                    sk0, sk1 = o.data.shape_keys.key_blocks[0:2]
-                                    sk0co, sk1co = geomatrix*sk0.data[vertindex].co, geomatrix*sk1.data[vertindex].co
-                                    gradfile += " {} {} {}\n".format(sk0co[0]+(sk1co[0]-sk0co[0])*sk1.value, sk0co[1]+(sk1co[1]-sk0co[1])*sk1.value, sk0co[2]+(sk1co[2]-sk0co[2])*sk1.value)
-                            else:
-                                for vertindex in vertices:
-                                    gradfile += " {0[0]} {0[1]} {0[2]}\n".format(geomatrix*o.data.vertices[vertindex].co)
-                            gradfile += "\n"
-                    except Exception as e:
-                        print(e)
-                        export_op.report({'ERROR'},"Make sure your object "+o.name+" has an associated material for all faces")
-                if o.get('merr'):
-                    del o['merr']
+    
+                    if o.get('merr'):
+                        export_op.report({'INFO'}, o.name+" has an antimatter material or could not be converted into a Radiance mesh and simpler export routine has been used. No un-applied object modifiers will be exported.")
+                        geomatrix = o.matrix_world
+                        genframe = gframe + 1 if not kwargs else kwargs['genframe']
+                            
+                        try:
+                            for face in [face for face in o.data.polygons if o.data.materials and face.material_index < len(o.data.materials) and o.data.materials[face.material_index]['radentry'].split(' ')[1] != 'antimatter']:
+                                vertices = face.vertices[:]
+                                gradfile += "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(o.data.materials[face.material_index].name.replace(" ", "_"), o.name.replace(" ", "_"), face.index, 3*len(face.vertices))
+                                if o.data.shape_keys and o.data.shape_keys.key_blocks[0] and o.data.shape_keys.key_blocks[genframe]:
+                                    for vertindex in vertices:
+                                        sk0, sk1 = o.data.shape_keys.key_blocks[0], o.data.shape_keys.key_blocks[genframe]
+                                        sk0co, sk1co = geomatrix*sk0.data[vertindex].co, geomatrix*sk1.data[vertindex].co
+                                        gradfile += " {} {} {}\n".format(sk0co[0]+(sk1co[0]-sk0co[0])*sk1.value, sk0co[1]+(sk1co[1]-sk0co[1])*sk1.value, sk0co[2]+(sk1co[2]-sk0co[2])*sk1.value)
+                                else:
+                                    for vertindex in vertices:
+                                        gradfile += " {0[0]} {0[1]} {0[2]}\n".format(geomatrix*o.data.vertices[vertindex].co)
+                                gradfile += "\n"
+                        except Exception as e:
+                            print(e)
+                            export_op.report({'ERROR'},"Make sure your object "+o.name+" has an associated material for all faces")
+                    if o.get('merr'):
+                        del o['merr']
+            
 
         # Lights export routine
         if frame in range(node['frames']['Lights'] + 1):
@@ -140,38 +176,29 @@ def radgexport(export_op, node, **kwargs):
 # rtrace export routine
     
     reslen, rtpoints = 0, ''
-    geos = retobjs('livig') if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else retobjs('livic')    
-    for o, geo in enumerate(geos):
-        if geo.data.materials:
-            if li_calcob(geo, 'livi'):
-                cverts, csfi, scene.objects.active, geo['cfaces'] = [], [], geo, []                 
-                selmesh('desel')
-                mesh = geo.to_mesh(scene, True, 'PREVIEW', calc_tessface=False)
-                mesh.transform(geo.matrix_world)
-                scene.objects.active = geo
-                csf = [face for face in mesh.polygons if mesh.materials[face.material_index].livi_sense]
-                csfi = [f.index for f in csf]
-                if node.cpoint == '0':                      
-                    reslen += len(csfi)
-                    for f in csf:
-                        fc = f.center
-                        rtpoints += '{0[0]} {0[1]} {0[2]} {1[0]} {1[1]} {1[2]} \n'.format(fc, f.normal.normalized()[:])
-                elif node.cpoint == '1':        
-                    csfvi = [item for sublist in [face.vertices[:] for face in mesh.polygons if mesh.materials[face.material_index].livi_sense] for item in sublist]
-                    cverts = [v for (i,v) in enumerate(csfvi) if v not in csfvi[0:i]]
-                    reslen += len(cverts)
-                    for vert in cverts:
-                        rtpoints += '{0[0]} {0[1]} {0[2]} {1[0]} {1[1]} {1[2]} \n'.format(mesh.vertices[vert].co[:], (mesh.vertices[vert].normal*geo.matrix_world.inverted()).normalized()[:])
+    for o, geo in enumerate([bpy.data.objects[on] for on in scene['livic']]):
+        cverts, csfi, scene.objects.active, geo['cfaces'] = [], [], geo, []                 
+        selmesh('desel')
+        mesh = geo.to_mesh(scene, True, 'PREVIEW', calc_tessface=False)
+        mesh.transform(geo.matrix_world)
+        scene.objects.active = geo
+        csf = [face for face in mesh.polygons if mesh.materials[face.material_index].livi_sense]
+        csfi = [f.index for f in csf]
+        if node.cpoint == '0':                      
+            reslen += len(csfi)
+            for f in csf:
+                fc = f.center
+                rtpoints += '{0[0]} {0[1]} {0[2]} {1[0]} {1[1]} {1[2]} \n'.format(fc, f.normal.normalized()[:])
+        elif node.cpoint == '1':        
+            csfvi = [item for sublist in [face.vertices[:] for face in mesh.polygons if mesh.materials[face.material_index].livi_sense] for item in sublist]
+            cverts = [v for (i,v) in enumerate(csfvi) if v not in csfvi[0:i]]
+            reslen += len(cverts)
+            for vert in cverts:
+                rtpoints += '{0[0]} {0[1]} {0[2]} {1[0]} {1[1]} {1[2]} \n'.format(mesh.vertices[vert].co[:], (mesh.vertices[vert].normal*geo.matrix_world.inverted()).normalized()[:])
 
-                (geo['cverts'], geo['cfaces'], geo['lisenseareas']) = (cverts, csfi, [vertarea(geo, mesh.vertices[vert]) for vert in cverts]) if node.cpoint == '1' else ([], csfi, [facearea(geo, f) for f in csf])      
-                
-                bpy.data.meshes.remove(mesh)
-            else:
-                for mat in geo.material_slots:
-                    mat.material.use_transparent_shadows = True
-        else:
-            node.export = 0
-            export_op.report({'ERROR'},"Make sure your object "+geo.name+" has an associated material")
+        (geo['cverts'], geo['cfaces'], geo['lisenseareas']) = (cverts, csfi, [vertarea(geo, mesh.vertices[vert]) for vert in cverts]) if node.cpoint == '1' else ([], csfi, [facearea(geo, f) for f in csf])      
+        
+        bpy.data.meshes.remove(mesh)
         node['reslen'] = reslen
     
     with open(scene['viparams']['filebase']+".rtrace", "w") as rtrace:
@@ -183,8 +210,9 @@ def radgexport(export_op, node, **kwargs):
 
     for frame in range(scene.fs, scene.fe + 1):
         createradfile(scene, frame, export_op, connode, node)
-
-#    node.export = 1
+        if kwargs:
+            createoconv(scene, frame, export_op)
+            
 
 def radcexport(export_op, node, locnode, geonode):
     skyfileslist, scene, scene.li_disp_panel, scene.vi_display = [], bpy.context.scene, 0, 0
@@ -330,17 +358,17 @@ def skyexport(node, rad_sky):
 def hdrsky(skyfile):
     return("# Sky material\nvoid colorpict hdr_env\n7 red green blue {} angmap.cal sb_u sb_v\n0\n0\n\nhdr_env glow env_glow\n0\n0\n4 1 1 1 0\n\nenv_glow bubble sky\n0\n0\n4 0 0 0 5000\n\n".format(skyfile))
 
-def createradfile(scene, frame, export_op, connode, geonode, **kwargs):    
+def createradfile(scene, frame, export_op, connode, geonode):    
     if not connode or not connode.get('skyfiles'):
         radtext = geonode['radfiles'][0] if scene.gfe == 0 else geonode['radfiles'][frame]
     elif not geonode:
         skyframe = frame if scene.cfe > 0 else 0
         radtext = connode['skyfiles'][skyframe]
     elif geonode and connode: 
-        geoframe = frame if scene.gfe > 0 else 0
-        skyframe = frame if scene.cfe > 0 else 0
+        geoframe = frame if scene.gfe > 0 and not geonode.inputs['Generative in'].links else 0
+        skyframe = frame if scene.cfe > 0 and not geonode.inputs['Generative in'].links else 0
         radtext = geonode['radfiles'][geoframe] + connode['skyfiles'][skyframe]# if len(geonode['radfiles']) == 1 else geonode['radfiles'][geoframe] + connode['skyfiles'][0]
-
+    
     with open("{}-{}.rad".format(scene['viparams']['filebase'], frame), 'w') as radfile:
         radfile.write(radtext)
    

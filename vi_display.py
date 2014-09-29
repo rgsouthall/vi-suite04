@@ -142,7 +142,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         return
     
     if scene.frame_current not in range(scene.fs, scene.fe + 1) and scene.vi_display:
-        disp_op.report({'ERROR'},"Outside result frame range")
+        disp_op.report({'INFO'},"Outside result frame range")
         return
     
     vi_func.objmode()    

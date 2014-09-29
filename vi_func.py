@@ -383,9 +383,9 @@ def objvol(op, obj):
     bm.from_object(obj, bpy.context.scene)
     for f in mesh.polygons:
         if obj.data.materials[f.material_index].envi_con_type == 'Floor':
-            floor.append((triarea(obj, f), (obj.matrix_world*mathutils.Vector(f.center))[2]))
+            floor.append((facearea(obj, f), (obj.matrix_world*mathutils.Vector(f.center))[2]))
         elif obj.data.materials[f.material_index].envi_con_type == 'Roof':
-            roof.append((triarea(obj, f), (obj.matrix_world*mathutils.Vector(f.center))[2]))
+            roof.append((facearea(obj, f), (obj.matrix_world*mathutils.Vector(f.center))[2]))
     zfloor = list(zip(*floor))
     if not zfloor and op:
         op.report({'INFO'},"Zone has no floor area")
@@ -586,7 +586,7 @@ def retobjs(otypes):
     scene = bpy.context.scene
     if otypes == 'livig':
         return([geo for geo in scene.objects if geo.type == 'MESH' and len(geo.data.materials) and not (geo.parent and os.path.isfile(geo.iesname)) and not geo.lila \
-        and geo.hide == False and geo.layers[scene.active_layer] == True and geo.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')])
+        and geo.hide == False and geo.layers[scene.active_layer] == True and geo.lires == 0 and geo.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')])
     elif otypes == 'livigengeo':
         return([geo for geo in scene.objects if geo.type == 'MESH' and not any([m.livi_sense for m in geo.data.materials])])
     elif otypes == 'livigengeosel':
@@ -594,7 +594,7 @@ def retobjs(otypes):
     elif otypes == 'livil':
         return([geo for geo in scene.objects if (geo.type == 'LAMP' or geo.lila) and os.path.isfile(geo.ies_name) and geo.hide == False and geo.layers[scene.active_layer] == True])
     elif otypes == 'livic':
-        return([geo for geo in scene.objects if geo.type == 'MESH' and geo.licalc and geo.lires == 0 and geo.hide == False and geo.layers[scene.active_layer] == True])
+        return([geo for geo in scene.objects if geo.type == 'MESH' and li_calcob(geo, 'livi') and geo.lires == 0 and geo.hide == False and geo.layers[scene.active_layer] == True])
     elif otypes == 'livir':
         return([geo for geo in bpy.data.objects if geo.type == 'MESH' and True in [m.livi_sense for m in geo.data.materials] and geo.licalc and geo.layers[scene.active_layer] == True])
     elif otypes == 'envig':

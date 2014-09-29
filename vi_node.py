@@ -50,9 +50,9 @@ class ViLoc(bpy.types.Node, ViNodes):
         nodecolour(self, any([link.to_node.bl_label in ('LiVi CBDM', 'EnVi Export') and self.loc != "1" for link in self.outputs['Location out'].links]))
         if self.loc == '1' and self.weather:
             resdict, self['rtypes'], self['dos'], ctypes = {}, ['Time', 'Climate'], '0', []
-            resdict['0'] = []
+            resdict['0'] = ['Day of Simulation']
             for d in range(1, 366):
-                resdict['0'] += [d for x in range(1,25)]                
+                resdict['0'] += [str(d) for x in range(1,25)]  
             for rtype in ('ztypes', 'zrtypes', 'ltypes', 'lrtypes'):
                 self[rtype] = []
             with open(self.weather, 'r') as epwfile:
@@ -65,12 +65,12 @@ class ViLoc(bpy.types.Node, ViNodes):
                           'Wind Direction (deg)': 20, 'Wind Speed (m/s)': 21}.items(): 
                     resdict[str(c[1])] = ['Climate', c[0]] + list(epwcolumns[c[1]])
                     ctypes.append(c[0])
-                self['resdict'], self['ctypes'] = resdict, ctypes
+                self['resdict'] = resdict 
+                self['ctypes'] = ctypes
             self.outputs['Location out']['valid'] = ['Location', 'EnVi Results']
         else:
             self.outputs['Location out']['valid'] = ['Location'] 
         socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])
-                
 
     epwpath = os.path.dirname(inspect.getfile(inspect.currentframe()))+'/EPFiles/Weather/'
     weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]

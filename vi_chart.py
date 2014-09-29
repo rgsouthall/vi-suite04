@@ -1,4 +1,3 @@
-import bpy, os
 def label(cat, stat, time, metric):
     catdict = {'Climate': 'Ambient', 'Zone': 'Zone', 'Linkage': 'Linkage'} 
     st = stat if time != '0' else ''
@@ -19,7 +18,7 @@ def timedata(datastring, timetype, stattype, months, days, dos, dnode, si, ei, S
         if timetype == '1':     
             res = [[] for d in range(dnode['Start'], dnode['End']+1)]
             for h, val in enumerate([float(val) for val in datastring]):
-                res[int(dos[si+h]) - dnode['Start']].append(val)
+                res[int(dos[si+1+h]) - dnode['Start']].append(val)
 
         elif timetype == '2':
             res = [[] for m in range(Sdate.month, Edate.month + 1)]
@@ -67,10 +66,8 @@ def chart_disp(plt, dnode, rnodes, Sdate, Edate):
     rn = dnode.inputs['Y-axis 1'].links[0].from_node
     for rd in rn['resdict']:
         if dnode.inputs['Y-axis 1'].rtypemenu == 'Climate':
-            print(rn['resdict'][rd][0:2], [dnode.inputs['Y-axis 1'].rtypemenu, dnode.inputs['Y-axis 1'].climmenu])
             if rn['resdict'][rd][0:2] == [dnode.inputs['Y-axis 1'].rtypemenu, dnode.inputs['Y-axis 1'].climmenu]:
                 y1data = timedata(rn['resdict'][rd][si+2:ei+3], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, rn['resdict']['Month'], rn['resdict']['Day'], rn['resdict'][rn['dos']], dnode, si, ei, Sdate, Edate) 
-                print(y1data)
                 ylabel = label('Climate', dnode.inputs['Y-axis 1'].statmenu, dnode.timemenu, dnode.inputs['Y-axis 1'].climmenu)
                 line, = plt.plot(xdata, y1data, color='k', linewidth = 0.2, label='Ambient ' + (" ("+dnode.inputs['Y-axis 1'].statmenu + ")", "")[dnode.timemenu == '0'])    
 

@@ -79,7 +79,6 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 elif presetmat in em.gas_dat:
                     em.amat_write(en_idf, matname[-1], [em.matdat[presetmat][2]])
                 elif mat.envi_con_type =='Window' and em.matdat[presetmat][0] == 'Glazing':
-                    print( matname[-1], list(em.matdat[presetmat]), str(thicklist[pm]/1000))
                     em.tmat_write(en_idf, matname[-1], list(em.matdat[presetmat]), str(thicklist[pm]/1000))
                 elif mat.envi_con_type =='Window' and em.matdat[presetmat][0] == 'Gas':
                     em.gmat_write(en_idf, matname[-1], list(em.matdat[presetmat]), str(thicklist[pm]/1000))

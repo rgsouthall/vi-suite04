@@ -49,8 +49,9 @@ class ViLoc(bpy.types.Node, ViNodes):
         (context.scene['latitude'], context.scene['longitude']) = epwlatilongi(context.scene, self) if self.loc == '1' and self.weather else (self.lat, self.long)
         nodecolour(self, any([link.to_node.bl_label in ('LiVi CBDM', 'EnVi Export') and self.loc != "1" for link in self.outputs['Location out'].links]))
         if self.loc == '1' and self.weather:
-            resdict, self['rtypes'], self['dos'], ctypes = {}, ['Time', 'Climate'], '0', []
+            allresdict, resdict, self['rtypes'], self['dos'], ctypes = {}, {}, ['Time', 'Climate'], '0', []
             resdict['0'] = ['Day of Simulation']
+#            allresdict[linesplit[0]] = ['{} {}'.format(linesplit[2], linesplit[-1].strip(' !Hourly'))]
             for d in range(1, 366):
                 resdict['0'] += [str(d) for x in range(1,25)]  
             for rtype in ('ztypes', 'zrtypes', 'ltypes', 'lrtypes'):
@@ -61,11 +62,13 @@ class ViLoc(bpy.types.Node, ViNodes):
                 epwzip = zip(*epwmatrix)
                 epwcolumns = list(epwzip)
                 resdict['Month'], resdict['Day'], resdict['Hour'] = [epwcolumns[c] for c in range(1,4)]
-                for c in {"Temperature ("+ u'\u00b0'+"C)": 6, 'Humidity (%)': 8, "Direct Solar (W/m"+u'\u00b2'+")": 14, "Diffuse Solar (W/m"+u'\u00b2'+")": 15, 
-                          'Wind Direction (deg)': 20, 'Wind Speed (m/s)': 21}.items(): 
-                    resdict[str(c[1])] = ['Climate', c[0]] + list(epwcolumns[c[1]])
-                    ctypes.append(c[0])
+                for cl, clim in enumerate({"Temperature ("+ u'\u00b0'+"C)": 6, 'Humidity (%)': 8, "Direct Solar (W/m"+u'\u00b2'+")": 14, "Diffuse Solar (W/m"+u'\u00b2'+")": 15, 
+                          'Wind Direction (deg)': 20, 'Wind Speed (m/s)': 21}.items()): 
+                    resdict[str(clim[1])] = ['Climate', clim[0]] + list(epwcolumns[clim[1]])
+                    allresdict[str(cl+1)] = [clim[0]] + list(epwcolumns[clim[1]])
+                    ctypes.append(clim[0])
                 self['resdict'] = resdict 
+                self['allresdict'] = allresdict
                 self['ctypes'] = ctypes
             self.outputs['Location out']['valid'] = ['Location', 'EnVi Results']
         else:
@@ -479,11 +482,11 @@ class ViLiSNode(bpy.types.Node, ViNodes):
     edit_file = bpy.props.BoolProperty(name = '', default = False)
     
     def init(self, context):
+        self['nodeid'] = nodeid(self)
         self.inputs.new('ViLiG', 'Geometry in')
         self.inputs.new('ViLiC', 'Context in')
         self.outputs.new('LiViWOut', 'Data out')
-        self.outputs['Data out'].hide = True
-        self['nodeid'] = nodeid(self)
+        self.outputs['Data out'].hide = True        
         nodecolour(self, 1)
         self['exportstate'] = ''
         
@@ -842,13 +845,13 @@ class ViEnInNode(bpy.types.Node, ViNodes):
     newdir = bpy.props.StringProperty()
 
     def init(self, context):
+        self['nodeid'] = nodeid(self)
         self.outputs.new('ViEnC', 'Context out')
         self.outputs['Context out'].hide = True
-        self['nodeid'] = nodeid(self, bpy.data.node_groups)
 
     def draw_buttons(self, context, layout):
         row = layout.row()
-        row.label('ESO file:')
+        row.label('IDF file:')
         row.operator('node.idfselect', text = 'Select IDF file').nodeid = self['nodeid']
         row = layout.row()
         row.prop(self, 'idffilename')
@@ -1374,9 +1377,9 @@ class ViCSVExport(bpy.types.Node, ViNodes):
     bl_icon = 'LAMP'
     
     def init(self, context):
+        self['nodeid'] = nodeid(self)
         self.inputs.new('ViEnR', 'Results in')
-        self['nodeid'] = nodeid(self, bpy.data.node_groups)
-    
+            
     def draw_buttons(self, context, layout):
         if self.inputs['Results in'].links:
             row = layout.row()
@@ -1392,7 +1395,7 @@ vigennodecat = [NodeItem("ViGenNode", label="VI-Suite Generative"), NodeItem("Vi
 vidisnodecat = [NodeItem("ViChNode", label="VI-Suite Chart"), NodeItem("ViCSV", label="VI-Suite CSV")]
 viinnodecat = [NodeItem("ViEnInNode", label="EnergyPlus input file"), NodeItem("ViEnRFNode", label="EnergyPlus result file"), NodeItem("ViASCImport", label="Import ESRI Grid file")]
 
-vinode_categories = [ViNodeCategory("Input", "Input Nodes", items=viinnodecat), ViNodeCategory("Display", "Display Nodes", items=vidisnodecat), ViNodeCategory("Generative", "Generative Nodes", items=vigennodecat), ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat), ViNodeCategory("Export", "Export Nodes", items=viexnodecat)]
+vinode_categories = [ViNodeCategory("Import", "Import Nodes", items=viinnodecat), ViNodeCategory("Display", "Display Nodes", items=vidisnodecat), ViNodeCategory("Generative", "Generative Nodes", items=vigennodecat), ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat), ViNodeCategory("Export", "Export Nodes", items=viexnodecat)]
 
 
 ####################### EnVi ventilation network ##############################
@@ -2260,7 +2263,7 @@ class ViASCImport(bpy.types.Node, ViNodes):
     ascfile = bpy.props.StringProperty()
     
     def init(self, context):
-        self['nodeid'] = nodeid(self, bpy.data.node_groups)
+        self['nodeid'] = nodeid(self)
     
     def draw_buttons(self, context, layout):
         row = layout.row()

@@ -44,8 +44,8 @@ def li_display(simnode, connode, geonode):
 
     bpy.ops.object.select_all(action = 'DESELECT')
 
-    if len(bpy.app.handlers.frame_change_pre) == 0:
-        bpy.app.handlers.frame_change_pre.append(livi_export.cyfc1)
+    if len(bpy.app.handlers.frame_change_post) == 0:
+        bpy.app.handlers.frame_change_post.append(livi_export.cyfc1)
         
     for geo in scene.objects:
         if geo.type == "MESH" and geo.get('licalc') and geo.hide == False:

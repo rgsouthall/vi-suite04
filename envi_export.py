@@ -79,7 +79,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 elif presetmat in em.gas_dat:
                     em.amat_write(en_idf, matname[-1], [em.matdat[presetmat][2]])
                 elif mat.envi_con_type =='Window' and em.matdat[presetmat][0] == 'Glazing':
-                    em.tmat_write(en_idf, matname[-1], list(em.matdat[presetmat]), str(thicklist[pm]/1000))
+                    em.tmat_write(en_idf, matname[-1], list(em.matdat[presetmat]) + [0], str(thicklist[pm]/1000))
                 elif mat.envi_con_type =='Window' and em.matdat[presetmat][0] == 'Gas':
                     em.gmat_write(en_idf, matname[-1], list(em.matdat[presetmat]), str(thicklist[pm]/1000))
 
@@ -105,7 +105,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 elif layer == "1" and mat.envi_con_type == "Window":
                     mats = ((mat.envi_export_glasslist_lo, mat.envi_export_wgaslist_l1, mat.envi_export_glasslist_l2, mat.envi_export_wgaslist_l3, mat.envi_export_glasslist_l4)[l])
                     if l in (0, 2, 4):
-                        em.tmat_write(en_idf, '{}-{}'.format(mats, matcount.count(mats)), list(em.matdat[mats]) + [(mat.envi_export_lo_sdiff, '', mat.envi_export_l2_sdiff, '', mat.envi_export_l2_sdiff)[l]], str(thicklist[l]/1000))
+                        em.tmat_write(en_idf, '{}-{}'.format(mats, matcount.count(mats)), list(em.matdat[mats]) + [(mat.envi_export_lo_sdiff, '', mat.envi_export_l2_sdiff, '', mat.envi_export_l4_sdiff)[l]], str(thicklist[l]/1000))
                     else:
                         em.gmat_write(en_idf, '{}-{}'.format(mats, matcount.count(mats)), list(em.matdat[mats]), str(thicklist[l]/1000))
 

@@ -539,7 +539,7 @@ class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
                 [ostartx, ostarty] = xy
                 [mstartx, mstarty] = [0, 0] if node.splitmesh else xy
                 [cols, rows, size, nodat] = [eval(lines[i].split()[1]) for i in (0, 1, 4, 5)]
-                vpos += [(mstartx + (size * ci), mstarty + (size * (rows - ri)), (float(h), 0)[h == nodat]) for ri, height in enumerate([line.split() for line in lines[6:]]) for ci, h in enumerate(height)] 
+                vpos += [(mstartx + (size * ci), mstarty + (size * (rows - ri)), (eval(h), 0)[eval(h) == nodat]) for ri, height in enumerate([line.split() for line in lines[6:]]) for ci, h in enumerate(height)] 
                 faces += [(i, i+1, i+rows + 1, i+rows) for i in range((vlen, 0)[node.splitmesh], len(vpos)-cols) if (i+1)%cols]
                 vlen += cols*rows
         
@@ -548,10 +548,10 @@ class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
                     me = bpy.data.meshes.new("{} mesh".format(basename)) 
                     me.from_pydata(vpos,[],faces)
                     me.update(calc_edges=True)
-                    dir(me)
                     ob = bpy.data.objects.new(basename, me)
                     ob.location = (ostartx - minstartx, ostarty - minstarty, 0) if node.splitmesh else (0, 0, 0)   # position object at 3d-cursor
                     bpy.context.scene.objects.link(ob) 
+        vlen, faces = [], []
         return {'FINISHED'}
 
     def invoke(self,context,event):
@@ -899,8 +899,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
         for ob in (spathob, sunob):
             spathob.cycles_visibility.diffuse, spathob.cycles_visibility.shadow, spathob.cycles_visibility.glossy, spathob.cycles_visibility.transmission = [False] * 4
 
-        if cyfc1 not in bpy.app.handlers.frame_change_pre:
-            bpy.app.handlers.frame_change_pre.append(cyfc1)
+        if cyfc1 not in bpy.app.handlers.frame_change_post:
+            bpy.app.handlers.frame_change_post.append(cyfc1)
         bpy.ops.view3d.spnumdisplay('INVOKE_DEFAULT')
         return {'FINISHED'}
 

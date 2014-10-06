@@ -1,12 +1,12 @@
 bl_info = {
-    "name": "VI-Suite Test",
+    "name": "VI-Suite",
     "author": "Ryan Southall",
     "version": (0, 2, 0),
-    "blender": (2, 7, 1),
+    "blender": (2, 7, 2),
     "api":"",
     "location": "Node Editor & 3D View > Properties Panel",
     "description": "Radiance/EnergyPlus exporter and results visualiser",
-    "warning": "This is a beta script. Some functionality is buggy",
+    "warning": "This is a beta script. Some functionality is buggy, very buggy",
     "wiki_url": "",
     "tracker_url": "",
     "category": "Import-Export"}
@@ -27,7 +27,7 @@ else:
 
 import sys, os, platform, inspect, bpy, nodeitems_utils
 
-epversion = "8-1-0"
+epversion = "8-2-0"
 addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
 matpath, epwpath, envi_mats, envi_cons, conlayers  = addonpath+'/EPFiles/Materials/Materials.data', addonpath+'/EPFiles/Weather/', envi_materials(), envi_constructions(), 5
 

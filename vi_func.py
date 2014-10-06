@@ -287,7 +287,6 @@ def processf(pro_op, node):
     
             elif len(linesplit) > 3 and linesplit[2] == 'Day of Simulation[]':
                 resdict[linesplit[0]], resdict['Month'],  resdict['Day'], resdict['Hour'], dos, node['rtypes'] = ['Day of Simulation'], [], [], [], linesplit[0], ['Time']
-                print(dos)
     
             elif len(linesplit) > 3 and linesplit[2] == 'Environment':
                 if 'Climate' not in node['rtypes']:
@@ -661,12 +660,12 @@ def sunpath():
                     bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
             if sun.data.node_tree:
                 for blnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Blackbody']:
-                    blnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5 if beta > 0 else 2000
+                    blnode.inputs[0].default_value = 3000 + 3500*sin(beta)**0.5 if beta > 0 else 0
                 for emnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Emission']:
-                    emnode.inputs[1].default_value = 5 * sin(beta) if beta > 0 else 0
+                    emnode.inputs[1].default_value = 10 * sin(beta) if beta > 0 else 0
             if sunob.data.materials[0].node_tree:
                 for smblnode in [node for node in sunob.data.materials[0].node_tree.nodes if sunob.data.materials and node.bl_label == 'Blackbody']:
-                    smblnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5 if beta > 0 else 2000
+                    smblnode.inputs[0].default_value = 3000 + 3500*sin(beta)**0.5 if beta > 0 else 0
             if skysphere and not skysphere.hide and skysphere.data.materials[0].node_tree:
                 if 'Sky Texture' in [no.bl_label for no in skysphere.data.materials[0].node_tree.nodes]:
                     skysphere.data.materials[0].node_tree.nodes['Sky Texture'].sun_direction = sin(phi), -cos(phi), sin(beta)

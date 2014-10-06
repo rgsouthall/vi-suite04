@@ -403,14 +403,14 @@ def cyfc1(self):
             if nt and nt.nodes.get('Sky Texture'):
                 bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
         
-        for ob in [o for o in scene.objects if o.get('VIType') == 'Sun']:
+        for ob in [o for o in scene.objects if o.get('VIType') in ('Sun', 'SPathMesh', 'SkyMesh', 'SunMesh')]:
             if ob.get('VIType') == 'Sun':
                 ob.rotation_euler = pi * 0.5 - beta, 0, -phi
                 if ob.data.node_tree:
                     for blnode in [blnode for blnode in ob.data.node_tree.nodes if blnode.bl_label == 'Blackbody']:
-                        blnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
+                        blnode.inputs[0].default_value = 3000 + 3500*sin(beta)**0.5 if sin(beta) > 0 else 0
                     for emnode in [emnode for emnode in ob.data.node_tree.nodes if emnode.bl_label == 'Emission']:
-                        emnode.inputs[1].default_value = 5 * sin(beta)
+                        emnode.inputs[1].default_value = 10 * sin(beta) if sin(beta) > 0 else 0
             
             elif ob.get('VIType') == 'SPathMesh':
                 ob.scale = 3 * [scene.soldistance/100]
@@ -427,6 +427,6 @@ def cyfc1(self):
                 ob.location.y = spoblist['Sun'].location.y = spoblist['SPathMesh'].location.y -(scene.soldistance**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5 * cos(phi)
                 if ob.data.materials[0].node_tree:
                     for smblnode in [smblnode for smblnode in ob.data.materials[0].node_tree.nodes if ob.data.materials and smblnode.bl_label == 'Blackbody']:
-                        smblnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
+                        smblnode.inputs[0].default_value = 3000 + 3500*sin(beta)**0.5 if sin(beta) > 0 else 0
     else:
         return

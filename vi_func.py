@@ -654,7 +654,7 @@ def draw_index(context, leg, mid_x, mid_y, width, height, posis, res):
     vecs = [mathutils.Vector((vec[0] / vec[3], vec[1] / vec[3], vec[2] / vec[3])) for vec in posis]
     xs = [int(mid_x + vec[0] * mid_x) for vec in vecs]
     ys = [int(mid_y + vec[1] * mid_y) for vec in vecs]
-    [(blf.position(0, xs[ri], ys[ri], 0), blf.draw(0, ('{:.1f}', '{:.0f}')[r > 100].format(r))) for ri, r in enumerate(res) if (leg == 1 and (xs[ri] > 120 or ys[ri] < height - 530)) or leg == 0]
+    [(blf.position(0, xs[ri], ys[ri], 0), blf.draw(0, ('{:.1f}', '{:.0f}')[r > 100 or context.scene.resnode == 'VI Sun Path'].format(r))) for ri, r in enumerate(res) if (leg == 1 and (xs[ri] > 120 or ys[ri] < height - 530)) or leg == 0]
         
 def edgelen(ob, edge):
     omw = ob.matrix_world

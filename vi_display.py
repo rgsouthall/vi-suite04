@@ -159,17 +159,17 @@ def spnumdisplay(disp_op, context, simnode):
             view_mat = context.space_data.region_3d.perspective_matrix
             view_pivot = bpy.context.active_object.location if bpy.context.active_object and context.user_preferences.view.use_rotate_around_active else context.region_data.view_location
 
-            if not context.space_data.region_3d.is_perspective:
+            if context.space_data.region_3d.is_perspective:
+                vw = mathutils.Vector((-view_mat[3][0], -view_mat[3][1], -view_mat[3][2])).normalized()
+                view_location = view_pivot + vw.normalized() * bpy.context.region_data.view_distance        
+            else:
                 vw =  mathutils.Vector((0.0, 0.0, 1.0))
                 vw.rotate(bpy.context.region_data.view_rotation)
-                view_pos = view_pivot + vw.normalized()*bpy.context.region_data.view_distance       
-            else:
-                vw = mathutils.Vector((view_mat.inverted()[0][3], view_mat.inverted()[1][3], view_mat.inverted()[2][3])).normalized()
-                view_pos = view_pivot + vw*bpy.context.region_data.view_distance
+                view_location = view_pivot + vw.normalized()*bpy.context.region_data.view_distance*10 
 
             ob_mat = ob.matrix_world
             total_mat = view_mat * ob_mat
-            posis = [total_mat*mathutils.Vector(co).to_4d() for co in ob['numpos'].values() if (ob_mat*mathutils.Vector(co) - view_pos)*vw < 0 and not scene.ray_cast(0.95*ob_mat*mathutils.Vector(co), view_pos)[0]]
+            posis = [total_mat*mathutils.Vector(co).to_4d() for co in ob['numpos'].values() if mathutils.Vector.angle(vw, view_location - ob_mat*mathutils.Vector(co)) < pi * 0.5 and not scene.ray_cast(0.95*ob_mat*mathutils.Vector(co), view_location)[0]]
             hs = [int(t.split('-')[1]) for t in ob['numpos'].keys() if total_mat*mathutils.Vector(ob['numpos'][t]).to_4d() in posis]
             draw_index(context, leg, mid_x, mid_y, width, height, posis, hs)
             blf.disable(0, 4)
@@ -204,8 +204,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
 
     if context.space_data.region_3d.is_perspective:
         vw = mathutils.Vector((-view_mat[3][0], -view_mat[3][1], -view_mat[3][2])).normalized()
-        view_location = view_pivot + vw*bpy.context.region_data.view_distance
-        
+        view_location = view_pivot + vw.normalized() * bpy.context.region_data.view_distance        
     else:
         vw =  mathutils.Vector((0.0, 0.0, 1.0))
         vw.rotate(bpy.context.region_data.view_rotation)
@@ -247,11 +246,11 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         else:
             livires = bm.verts.layers.float['res{}'.format(scene.frame_current)]              
             if not scene.vi_disp_3d:
-                verts = [v for v in bm.verts if not v.hide and (v.co - view_location)*vw < 0]
+                verts = [v for v in bm.verts if not v.hide and mathutils.Vector.angle(vw, view_location - v.co) < pi * 0.5]
                 verts = [v for v in verts if not scene.ray_cast(v.co + scene.vi_display_rp_off * v.normal, view_location)[0]] if scene.vi_display_vis_only else verts
                 vcs = [view_mat*v.co.to_4d() for v in verts]                
             else:
-                verts = [v for v in bm.verts if not v.hide and (omw*(ob.data.shape_keys.key_blocks[str(scene.frame_current)].data[v.index].co) - view_location)*vw < 0]
+                verts = [v for v in bm.verts if not v.hide and mathutils.Vector.angle(view_location - omw*(ob.data.shape_keys.key_blocks[str(scene.frame_current)].data[v.index].co)) < pi * 0.5]
                 verts = [v for v in verts if not scene.ray_cast(omw*(ob.data.shape_keys.key_blocks[str(scene.frame_current)].data[v.index].co) + scene.vi_display_rp_off * v.normal, view_location)[0]] if scene.vi_display_vis_only else verts
                 vcs = [total_mat*ob.data.shape_keys.key_blocks[str(scene.frame_current)].data[v.index].co.to_4d() for v in verts]
             res = [v[livires] for v in verts]

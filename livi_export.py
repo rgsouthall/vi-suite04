@@ -16,71 +16,75 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, math, subprocess, datetime
+import bpy, os, math, subprocess, datetime, bmesh
 from math import sin, cos, tan, pi
 from subprocess import PIPE, Popen, STDOUT
-from .vi_func import retsky, retobj, retmesh, clearscene, solarPosition, mtx2vals, retobjs, selobj, face_centre, selmesh, vertarea, facearea, li_calcob
-
-try:
-    import numpy
-    np = 1
-except:
-    np = 0
+from .vi_func import retsky, retobj, retmesh, clearscene, solarPosition, mtx2vals, retobjs, selobj, selmesh, vertarea, radpoints
 
 def radgexport(export_op, node, **kwargs):
-    scene = bpy.context.scene
+    scene = bpy.context.scene  
+    export = 'geoexport' if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else 'genexport'
+    if bpy.context.active_object and not bpy.context.active_object.layers[scene.active_layer]:
+        export_op.report({'INFO'}, "Active geometry is not on the active layer. You may need to lock layers.")
     radfiles = []
     geogennode = node.inputs['Generative in'].links[0].from_node if node.inputs['Generative in'].links else 0
+    geooblist, caloblist, lightlist = retobjs('livig'), retobjs('livic'), retobjs('livil')    
     if not kwargs:
-        geooblist, caloblist = retobjs('livig'), retobjs('livic')
         mableobs = set(geooblist + caloblist)
-        scene['livig'], scene['livic'] = [o.name for o in geooblist], [o.name for o in caloblist]
-        if geogennode:
+        scene['livig'], scene['livic'], scene['livil'] = [o.name for o in geooblist], [o.name for o in caloblist], [o.name for o in lightlist]
+        if geogennode:            
             for o in mableobs: 
-                if geogennode.oselmenu == 'All':
-                    o.manip = 1
-                elif geogennode.oselmenu == 'Selected':  
-                    o.manip = 1 if o.select == True else 0
-                else:
-                    o.manip = 1 if o.select == False else 0   
-    
+                seldict = {'ALL': True, 'Selected': (False, True)[o.select], 'Not Selected': (True, False)[o.select]}
+                o.manip = seldict[geogennode.oselmenu]
+#                if geogennode.oselmenu == 'All':
+#                    o.manip = 1
+#                elif geogennode.oselmenu == 'Selected':  
+#                    o.manip = 1 if o.select == True else 0
+#                else:
+#                    o.manip = 1 if o.select == False else 0   
+
+            for o in mableobs:
                 if geogennode.geomenu == 'Mesh':
                     selobj(scene, o)
-                    bpy.ops.object.mode_set(mode = 'EDIT')
-                    if o.vertex_groups.get('genfaces'):            
-                        bpy.ops.mesh.select_all(action='SELECT')
-                        bpy.ops.mesh.remove_doubles()
-                        bpy.ops.mesh.select_all(action='DESELECT')
+                    if o.vertex_groups.get('genfaces'):
+                        selmesh('df')
+#                    bpy.ops.object.mode_set(mode = 'EDIT')
+#                    if o.vertex_groups.get('genfaces'):            
+#                        bpy.ops.mesh.select_all(action='SELECT')
+#                        bpy.ops.mesh.remove_doubles()
+#                        bpy.ops.mesh.select_all(action='DESELECT')
                     else:
                         o.vertex_groups.new('genfaces')
                         o.vertex_groups.active = o.vertex_groups['genfaces']
-                        if geogennode.mselmenu == 'Not Selected':
-                            bpy.ops.mesh.select_all(action='INVERT')    
-                        elif geogennode.mselmenu == 'All':
-                            bpy.ops.mesh.select_all(action='SELECT') 
+                        mseldict = {'Not Selected': 'INVERT', 'All': 'SELECT'}
+#                        if geogennode.mselmenu == 'Not Selected':
+                        bpy.ops.mesh.select_all(action=mseldict[geogennode.mselmenu])    
+#                        elif geogennode.mselmenu == 'All':
+#                            bpy.ops.mesh.select_all(action='SELECT') 
                         bpy.ops.object.vertex_group_assign()
-                    bpy.ops.object.mode_set(mode = 'OBJECT')
+                        bpy.ops.object.mode_set(mode = 'OBJECT')
                     o['vgi'] = o.vertex_groups['genfaces'].index
             scene['livim'] = [o.name for o in mableobs if o.manip]
-
-    if export_op.nodeid.split('@')[0] == 'LiVi Geometry':
+    
+    if export == 'geoexport':
         clearscene(scene, export_op)
         scene.fs = scene.frame_start if node.animmenu != 'Static' else 0
     else:
         (scene.fs, scene.gfe, node['frames']['Material'], node['frames']['Geometry'], node['frames']['Lights']) = [kwargs['genframe']] * 5 if kwargs.get('genframe') else (0, 0, 0, 0, 0)
         scene.cfe = 0
         
-    for frame in range(scene.fs, scene.gfe + 1):        
-        if export_op.nodeid.split('@')[0] == 'LiVi Geometry':
+    for frame in range(scene.fs, scene.gfe + 1): 
+        rti, rtpoints = 1, ''
+        if export == 'geoexport':
             scene.frame_set(frame)
         
         if frame in range(node['frames']['Material'] + 1):
             mradfile, matnames = "# Materials \n\n", []
             for o in [bpy.data.objects[on] for on in scene['livig']]: 
+                mradfile +=  ''.join([m.radmat(scene) for m in o.data.materials if m.name not in matnames])
+                matnames = set([mat.name for mat in o.data.materials])
                 for mat in [m for m in o.data.materials if m.name not in matnames]:
-                    mradfile += mat.radmat(scene)
                     matnames.append(mat.name)
-                    mat.use_vertex_color_paint = 1 if mat.livi_sense else 0
                     if mat['radentry'].split(' ')[1] in ('light', 'mirror', 'antimatter'):
                         export_op.report({'INFO'}, o.name+" has an antimatter, emission or mirror material. Basic export routine used with no modifiers.")
                         o['merr'] = 1 
@@ -96,110 +100,119 @@ def radgexport(export_op, node, **kwargs):
             gframe = scene.frame_current if node['frames']['Geometry'] > 0 else 0
             mframe = scene.frame_current if node['frames']['Material'] > 0 else 0
             gradfile = "# Geometry \n\n"
+            lradfile = "# Lights \n\n" 
             
-            for o in [bpy.data.objects[on] for on in scene['livig']]:
-                if not kwargs.get('mo') or (kwargs.get('mo') and o in kwargs['mo']):
-                    if not o.get('merr'):                    
-                        selobj(scene, o)
-                        selmesh('selenm')                        
-                        if [edge for edge in o.data.edges if edge.select]:
-                            export_op.report({'INFO'}, o.name+" has a non-manifold mesh. Basic export routine used with no modifiers.")
-                            o['merr'] = 1                            
-                        if not o.get('merr'):                            
-                            if node.animmenu in ('Geometry', 'Material'):# or export_op.nodeid.split('@')[0] == 'LiVi Simulation':
-                                bpy.ops.export_scene.obj(filepath=retobj(o.name, gframe, node, scene), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
-                                objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, retobj(o.name, gframe, node, scene), retmesh(o.name, max(gframe, mframe), node, scene)) 
-                            elif export_op.nodeid.split('@')[0] == 'LiVi Simulation':
-                                bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_start, node, scene), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
-                                objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, retobj(o.name, scene.frame_start, node, scene), retmesh(o.name, scene.frame_start, node, scene))
-                            else:
-                                if frame == scene.fs:                        
-                                    bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_current, node, scene), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
-                                    objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, retobj(o.name, scene.frame_current, node, scene), retmesh(o.name, scene.frame_current, node, scene))
+            for o in set(geooblist + caloblist):                
+                bm = bmesh.new()
+                bm.from_mesh(o.data)
+                bm.transform(o.matrix_world)
+                if o.name in scene['livig']:
+                    if not kwargs.get('mo') or (kwargs.get('mo') and o in kwargs['mo']):
+                        if not o.get('merr'):                    
+                            selobj(scene, o)
+                            selmesh('selenm')                        
+                            if [edge for edge in o.data.edges if edge.select]:
+                                export_op.report({'INFO'}, o.name+" has a non-manifold mesh. Basic export routine used with no modifiers.")
+                                o['merr'] = 1                            
+                            if not o.get('merr'):                            
+                                if node.animmenu in ('Geometry', 'Material'):# or export_op.nodeid.split('@')[0] == 'LiVi Simulation':
+                                    bpy.ops.export_scene.obj(filepath=retobj(o.name, gframe, node, scene), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
+                                    objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, retobj(o.name, gframe, node, scene), retmesh(o.name, max(gframe, mframe), node, scene)) 
+                                elif export_op.nodeid.split('@')[0] == 'LiVi Simulation':
+                                    bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_start, node, scene), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
+                                    objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, retobj(o.name, scene.frame_start, node, scene), retmesh(o.name, scene.frame_start, node, scene))
                                 else:
-                                    objcmd = ''
-                            
-                            objrun = Popen(objcmd, shell = True, stdout = PIPE, stderr=STDOUT)                        
-                            for line in objrun.stdout:
-                                if 'non-triangle' in line.decode():
-                                    export_op.report({'INFO'}, o.name+" has an incompatible mesh. Doing a simplified export")
-                                    o['merr'] = 1
-                                    break
-    
-                            o.select = False                            
-                            gradfile += "void mesh id \n1 "+retmesh(o.name, max(gframe, mframe), node, scene)+"\n0\n0\n\n"
-    
-                    if o.get('merr'):
-                        export_op.report({'INFO'}, o.name+" has an antimatter material or could not be converted into a Radiance mesh and simpler export routine has been used. No un-applied object modifiers will be exported.")
-                        geomatrix = o.matrix_world
-                        genframe = gframe + 1 if not kwargs else kwargs['genframe']
-                            
-                        try:
-                            for face in [face for face in o.data.polygons if o.data.materials and face.material_index < len(o.data.materials) and o.data.materials[face.material_index]['radentry'].split(' ')[1] != 'antimatter']:
-                                vertices = face.vertices[:]
-                                gradfile += "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(o.data.materials[face.material_index].name.replace(" ", "_"), o.name.replace(" ", "_"), face.index, 3*len(face.vertices))
-                                if o.data.shape_keys and o.data.shape_keys.key_blocks[0] and o.data.shape_keys.key_blocks[genframe]:
-                                    for vertindex in vertices:
-                                        sk0, sk1 = o.data.shape_keys.key_blocks[0], o.data.shape_keys.key_blocks[genframe]
-                                        sk0co, sk1co = geomatrix*sk0.data[vertindex].co, geomatrix*sk1.data[vertindex].co
-                                        gradfile += " {} {} {}\n".format(sk0co[0]+(sk1co[0]-sk0co[0])*sk1.value, sk0co[1]+(sk1co[1]-sk0co[1])*sk1.value, sk0co[2]+(sk1co[2]-sk0co[2])*sk1.value)
-                                else:
-                                    for vertindex in vertices:
-                                        gradfile += " {0[0]} {0[1]} {0[2]}\n".format(geomatrix*o.data.vertices[vertindex].co)
-                                gradfile += "\n"
-                        except Exception as e:
-                            print(e)
-                            export_op.report({'ERROR'},"Make sure your object "+o.name+" has an associated material for all faces")
-                    if o.get('merr'):
-                        del o['merr']
-            
-
-        # Lights export routine
-        if frame in range(node['frames']['Lights'] + 1):
-            lradfile = "# Lights \n\n"    
-            for geo in [g for g in retobjs('livil')]:
-                iesname = os.path.splitext(os.path.basename(geo.ies_name))[0]
-                subprocess.call("ies2rad -t default -m {0} -c {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} -l / -p {2} -d{3} -o {4}-{5} {6}".format(geo.ies_strength, geo.ies_colour, scene['viparams']['newdir'], geo.ies_unit, iesname, frame, geo.ies_name), shell=True)
-                if geo.type == 'LAMP':
-                    if geo.parent:
-                        geo = geo.parent
-                    lradfile += "!xform -rx {0} -ry {1} -rz {2} -t {3[0]} {3[1]} {3[2]} {4}.rad\n\n".format((180/pi)*geo.rotation_euler[0] - 180, (180/pi)*geo.rotation_euler[1], (180/pi)*geo.rotation_euler[2], geo.location, os.path.join(scene['viparams']['newdir'], iesname+"-{}".format(frame)))
-                elif geo.type == 'MESH' and geo.lila:
-                    rotation = geo.rotation_euler
-                    for face in geo.data.polygons:
-                        (fx, fy, fz) = face_centre(geo, 0, face)
-                        lradfile += "!xform -rx {:.3f} -ry {:.3f} -rz {:.3f} -t {:.3f} {:.3f} {:.3f} {}{}".format((180/pi)*rotation[0], (180/pi)*rotation[1], (180/pi)*rotation[2], fx, fy, fz, os.path.join(scene['viparams']['newdir'], iesname+"-{}.rad".format(frame)), ('\n', '\n\n')[face == geo.data.polygons[-1]])
-        sradfile = "# Sky \n\n"
-        radfiles.append(mradfile+gradfile+lradfile+sradfile)
-    node['radfiles'] = radfiles
-
-# rtrace export routine
-    
-    reslen, rtpoints = 0, ''
-    for o, geo in enumerate([bpy.data.objects[on] for on in scene['livic']]):
-        cverts, csfi, scene.objects.active, geo['cfaces'] = [], [], geo, []                 
-        selmesh('desel')
-        mesh = geo.to_mesh(scene, True, 'PREVIEW', calc_tessface=False)
-        mesh.transform(geo.matrix_world)
-        scene.objects.active = geo
-        csf = [face for face in mesh.polygons if mesh.materials[face.material_index].livi_sense]
-        csfi = [f.index for f in csf]
-        if node.cpoint == '0':                      
-            reslen += len(csfi)
-            for f in csf:
-                fc = f.center
-                rtpoints += '{0[0]} {0[1]} {0[2]} {1[0]} {1[1]} {1[2]} \n'.format(fc, f.normal.normalized()[:])
-        elif node.cpoint == '1':        
-            csfvi = [item for sublist in [face.vertices[:] for face in mesh.polygons if mesh.materials[face.material_index].livi_sense] for item in sublist]
-            cverts = [v for (i,v) in enumerate(csfvi) if v not in csfvi[0:i]]
-            reslen += len(cverts)
-            for vert in cverts:
-                rtpoints += '{0[0]} {0[1]} {0[2]} {1[0]} {1[1]} {1[2]} \n'.format(mesh.vertices[vert].co[:], (mesh.vertices[vert].normal*geo.matrix_world.inverted()).normalized()[:])
-
-        (geo['cverts'], geo['cfaces'], geo['lisenseareas']) = (cverts, csfi, [vertarea(geo, mesh.vertices[vert]) for vert in cverts]) if node.cpoint == '1' else ([], csfi, [facearea(geo, f) for f in csf])      
+                                    if frame == scene.fs:                        
+                                        bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_current, node, scene), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
+                                        objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, retobj(o.name, scene.frame_current, node, scene), retmesh(o.name, scene.frame_current, node, scene))
+                                    else:
+                                        objcmd = ''
+                                
+                                objrun = Popen(objcmd, shell = True, stdout = PIPE, stderr=STDOUT)                        
+                                for line in objrun.stdout:
+                                    if 'non-triangle' in line.decode():
+                                        export_op.report({'INFO'}, o.name+" has an incompatible mesh. Doing a simplified export")
+                                        o['merr'] = 1
+                                        break
         
-        bpy.data.meshes.remove(mesh)
-        node['reslen'] = reslen
+                                o.select = False                            
+                                gradfile += "void mesh id \n1 "+retmesh(o.name, max(gframe, mframe), node, scene)+"\n0\n0\n\n"
+        
+                        if o.get('merr'):
+                            export_op.report({'INFO'}, o.name+" has an antimatter material or could not be converted into a Radiance mesh and simpler export routine has been used. No un-applied object modifiers will be exported.")
+                            genframe = gframe + 1 if not kwargs else kwargs['genframe']  
+                            if o.data.shape_keys and o.data.shape_keys.key_blocks[0] and o.data.shape_keys.key_blocks[genframe]:
+                                skv0, skv1 = o.data.shape_keys.key_blocks[0].value, o.data.shape_keys.key_blocks[genframe].value
+                                sk0, sk1 = bm.verts.layers.shape.keys()[0], bm.verts.layers.shape.keys()[genframe]
+                                skl0, skl1 = bm.verts.layers.shape[sk0], bm.verts.layers.shape[sk1]
+                                gradfile += radpoints(o, [face for face in bm.faces if o.data.materials and face.material_index < len(o.data.materials) and o.data.materials[face.material_index]['radentry'].split(' ')[1] != 'antimatter'], (skv0, skv1, skl0, skl1))            
+                            else:
+                                gradfile += radpoints(o, [face for face in bm.faces if o.data.materials and face.material_index < len(o.data.materials) and o.data.materials[face.material_index]['radentry'].split(' ')[1] != 'antimatter'], 0)
+
+                        if o.get('merr'):
+                            del o['merr']
+                            
+                # rtrace export routine
+        
+                if o.name in scene['livic']:
+                    cverts, csfi, scene.objects.active, o['cfaces'] = [], [], o, []               
+                    selmesh('desel')
+                    scene.objects.active = o
+            
+                    if node.cpoint == '0':               
+                        if bm.verts.layers.int.get('cindex'):
+                            bm.verts.layers.int.remove(bm.verts.layers.int['cindex'])
+                        if bm.faces.layers.int.get('cindex'):
+                            bm.faces.layers.int.remove(bm.faces.layers.int['cindex'])
+                        bm.faces.layers.int.new('cindex')
+                        cindex = bm.faces.layers.int['cindex'] 
+                        csf = [face for face in bm.faces if o.data.materials[face.material_index].mattype == '1']
+                        csfc = [face.calc_center_median() for face in bm.faces if o.data.materials[face.material_index].mattype == '1']
+                        csfi = [face.index for face in bm.faces if o.data.materials[face.material_index].mattype == '1']
+                        
+                        for fi, f in enumerate(csf):
+                            rtpoints += '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([csfc[fi][i] + node.offset * f.normal.normalized()[i] for i in range(3)], f.normal.normalized()[:])
+                            f[cindex] = rti
+                            rti+= 1
+                            
+                    elif node.cpoint == '1': 
+                        if bm.faces.layers.int.get('cindex'):
+                            bm.faces.layers.int.remove(bm.faces.layers.int['cindex'])
+                        if bm.verts.layers.int.get('cindex'):
+                            bm.verts.layers.int.remove(bm.verts.layers.int['cindex'])
+                        bm.verts.layers.int.new('cindex')
+                        cindex = bm.verts.layers.int['cindex']
+                        cverts = set([item for sublist in [face.verts[:] for face in bm.faces if o.data.materials[face.material_index].mattype == '1'] for item in sublist])
+                        for vert in cverts:
+                            rtpoints += '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([vert.co[i] + node.offset * vert.normal.normalized()[i] for i in range(3)], (vert.normal.normalized()[:]))
+                            vert[cindex] = rti
+                            rti += 1
+                    (o['cverts'], o['cfaces'], o['lisenseareas']) = ([cv.index for cv in cverts], csfi, [vertarea(bm, vert) for vert in cverts]) if scene['liparams']['cp'] == '1' else ([], csfi, [f.calc_area() for f in csf])      
+                bm.transform(o.matrix_world.inverted())
+                bm.to_mesh(o.data)
+                bm.free()
+                            
+    # Lights export routine
+
+            for o in lightlist:
+                if frame in range(node['frames']['Lights'] + 1):
+                    iesname = os.path.splitext(os.path.basename(o.ies_name))[0]
+                    if os.path.isfile(o.ies_name):
+                        subprocess.call("ies2rad -t default -m {0} -c {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} -p {2} -d{3} -o {4}-{5} {6}".format(o.ies_strength, o.ies_colour, scene['viparams']['newdir'], o.ies_unit, iesname, frame, o.ies_name), shell=True)
+                        if o.type == 'LAMP':
+                            if o.parent:
+                                o = o.parent
+                            lradfile += "!xform -rx {0[0]} -ry {0[1]} -rz {0[2]} -t {1[0]} {1[1]} {1[2]} {2}.rad\n\n".format([(180/pi)*o.rotation_euler[i] for i in range(3)], o.location, os.path.join(scene['viparams']['newdir'], iesname+"-{}".format(frame)))
+                        elif o.type == 'MESH':
+                            for face in o.data.polygons:
+                                lradfile += "!xform -rx {0[0]:.3f} -ry {0[1]:.3f} -rz {0[2]:.3f} -t {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} {2}{3}".format([(180/pi)*o.rotation_euler[i] for i in range(3)], o.matrix_world * face.center, os.path.join(scene['viparams']['newdir'], iesname+"-{}.rad".format(frame)), ('\n', '\n\n')[face == o.data.polygons[-1]])
+                    elif iesname:
+                        export_op.report({'ERROR'}, 'The IES file associated with {} cannot be found'.format(o.name))
+            
+            sradfile = "# Sky \n\n"
+        radfiles.append(mradfile+gradfile+lradfile+sradfile)
+    node['reslen'] = rti
+    node['radfiles'] = radfiles
     
     with open(scene['viparams']['filebase']+".rtrace", "w") as rtrace:
         rtrace.write(rtpoints)
@@ -213,7 +226,6 @@ def radgexport(export_op, node, **kwargs):
         if kwargs:
             createoconv(scene, frame, export_op)
             
-
 def radcexport(export_op, node, locnode, geonode):
     skyfileslist, scene, scene.li_disp_panel, scene.vi_display = [], bpy.context.scene, 0, 0
     clearscene(scene, export_op)
@@ -224,7 +236,7 @@ def radcexport(export_op, node, locnode, geonode):
                 sunexport(scene, node, locnode, frame - scene.fs)
                 if node['skynum'] < 2 and node.analysismenu != '2':
                     if frame == scene.frame_start:
-                        if 'Sun' in [ob for ob in scene.objects if ob.get('VIType')]:
+                        if 'SUN' in [ob.data.type for ob in scene.objects if ob.type == 'LAMP' and ob.get('VIType')]:
                             sun = [ob for ob in scene.objects if ob.get('VIType') == 'Sun'][0]
                         else:
                             bpy.ops.object.lamp_add(type='SUN')
@@ -264,17 +276,13 @@ def radcexport(export_op, node, locnode, geonode):
                     with open(locnode.weather, "r") as epwfile:
                         epwlines = epwfile.readlines()
                         epwyear = epwlines[8].split(",")[0]
-                        with open(os.path.join(scene['viparams']['newdir'], "{}.wea".format(epwbase[0])), "w") as wea:
-                            wea.write("place {0[1]}\nlatitude {0[6]}\nlongitude {0[7]}\ntime_zone {0[8]}\nsite_elevation {0[9]}weather_data_file_units 1\n".format(epwlines[0].split(",")))
-                            for epwline in epwlines[8:]:
-                                if int(epwline.split(",")[1]) in range(node.startmonth, node.endmonth + 1):
-                                    wea.write("{0[1]} {0[2]} {0[3]} {0[14]} {0[15]} \n".format(epwline.split(",")))
+                        subprocess.call("epw2wea {} {}".format(locnode.weather, os.path.join(scene['viparams']['newdir'], "{}.wea".format(epwbase[0]))), shell=True)
                         subprocess.call("gendaymtx -m 1 {0} {1}.wea > {1}.mtx".format(('', '-O1')[node.analysismenu in ('1', '3')], os.path.join(scene['viparams']['newdir'], epwbase[0])), shell=True)                       
                 else:
                     export_op.report({'ERROR'}, "Not a valid EPW file")
                     return
     
-                mtxfile = open(scene['viparams']['newdir']+os.path.sep+epwbase[0]+".mtx", "r")
+                mtxfile = open(os.path.join(scene['viparams']['newdir'], epwbase[0]+".mtx"), "r")
             
             elif node['source'] == '1' and int(node.analysismenu) > 1:
                 mtxfile = open(node.mtxname, "r")
@@ -297,7 +305,7 @@ def radcexport(export_op, node, locnode, geonode):
                         node.hdrname = os.path.join(scene['viparams']['newdir'], epwbase[0]+".hdr")                    
                     if node.hdr:
                         Popen("oconv -w - > {}.oct".format(os.path.join(scene['viparams']['newdir'], epwbase[0])), shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = hdrsky(os.path.join(scene['viparams']['newdir'], epwbase[0]+".hdr").encode('utf-8')))
-                        subprocess.call('cnt 750 1500 | rcalc -f "'+os.path.join(scene.vipath, 'lib', 'latlong.cal')+'" -e "XD=1500;YD=750;inXD=0.000666;inYD=0.001333" | rtrace -af pan.af -n {} -x 1500 -y 750 -fac "{}{}{}.oct" > '.format(scene['viparams']['nproc'], os.path.join(scene['viparams']['newdir'], epwbase[0])) + '"'+os.path.join(scene['viparams']['newdir'], epwbase[0]+'p.hdr')+'"', shell=True)
+                        subprocess.call('cnt 750 1500 | rcalc -f "'+os.path.join(scene.vipath, 'Radfiles', 'lib', 'latlong.cal')+'" -e "XD=1500;YD=750;inXD=0.000666;inYD=0.001333" | rtrace -af pan.af -n {} -x 1500 -y 750 -fac "{}{}{}.oct" > '.format(scene['viparams']['nproc'], os.path.join(scene['viparams']['newdir'], epwbase[0])) + '"'+os.path.join(scene['viparams']['newdir'], epwbase[0]+'p.hdr')+'"', shell=True)
                 else:
                     export_op.report({'ERROR'}, "No location node connected")
                     return
@@ -309,8 +317,6 @@ def radcexport(export_op, node, locnode, geonode):
     
     scene.fe = max(scene.cfe, scene.gfe)
     scene.frame_set(scene.fs)
-#    simnode = node.outputs['Context out'].links[0].to_node if node.outputs['Context out'].links else 0
-#    geonode = simnode.geonodes() if simnode else 0
     
     for frame in range(scene.fs, scene.fe + 1):
         createradfile(scene, frame, export_op, node, geonode)
@@ -326,7 +332,7 @@ def sunexport(scene, node, locnode, frame):
 def hdrexport(scene, frame, node):
     subprocess.call("oconv {} > {}-{}sky.oct".format(retsky(frame, node, scene), scene['viparams']['filebase'], frame), shell=True)
     subprocess.call("rpict -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -x 1500 -y 1500 {0}-{1}sky.oct > ".format(scene['viparams']['filebase'], frame) + os.path.join(scene['viparams']['newdir'], str(frame)+".hdr"), shell=True)
-    subprocess.call('cnt 750 1500 | rcalc -f "'+os.path.join(scene.vipath, 'lib', 'latlong.cal"')+' -e "XD=1500;YD=750;inXD=0.000666;inYD=0.001333" | rtrace -af pan.af -n {0} -x 1500 -y 750 -fac "{1}-{2}sky.oct" > '.format(scene['viparams']['nproc'], scene['viparams']['filebase'], frame) + '"'+os.path.join(scene['viparams']['newdir'], str(frame)+'p.hdr')+'"', shell=True)
+    subprocess.call('cnt 750 1500 | rcalc -f "'+os.path.join(scene.vipath, 'Radfiles', 'lib', 'latlong.cal"')+' -e "XD=1500;YD=750;inXD=0.000666;inYD=0.001333" | rtrace -af pan.af -n {0} -x 1500 -y 750 -fac "{1}-{2}sky.oct" > '.format(scene['viparams']['nproc'], scene['viparams']['filebase'], frame) + '"'+os.path.join(scene['viparams']['newdir'], str(frame)+'p.hdr')+'"', shell=True)
     if '{}p.hdr'.format(frame) not in bpy.data.images:
         bpy.data.images.load(os.path.join(scene['viparams']['newdir'], "{}p.hdr".format(frame)))
     else:
@@ -380,13 +386,13 @@ def createradfile(scene, frame, export_op, connode, geonode):
 
 def createoconv(scene, frame, export_op, **kwargs):
     oconvcmd = "oconv {0}-{1}.rad > {0}-{1}.oct".format(scene['viparams']['filebase'], frame)
-    oconvrun = Popen(oconvcmd, shell = True, stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate()
+    subprocess.call(oconvcmd, shell = True)
     export_op.report({'INFO'},"Export is finished")
 
 def cyfc1(self):
     scene = bpy.context.scene
     if 'LiVi' in scene.resnode or 'Shadow' in scene.resnode:
-        for material in [m for m in bpy.data.materials if m.use_nodes and (m.livi_sense or m.vi_shadow)]:
+        for material in [m for m in bpy.data.materials if m.use_nodes and m.mattype in ('1', '2')]:
             try:
                 if any([node.bl_label == 'Attribute' for node in material.node_tree.nodes]):
                     material.node_tree.nodes["Attribute"].attribute_name = str(scene.frame_current)
@@ -403,14 +409,14 @@ def cyfc1(self):
             if nt and nt.nodes.get('Sky Texture'):
                 bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
         
-        for ob in [o for o in scene.objects if o.get('VIType') in ('Sun', 'SPathMesh', 'SkyMesh', 'SunMesh')]:
+        for ob in [o for o in scene.objects if o.get('VIType') == 'Sun']:
             if ob.get('VIType') == 'Sun':
                 ob.rotation_euler = pi * 0.5 - beta, 0, -phi
                 if ob.data.node_tree:
                     for blnode in [blnode for blnode in ob.data.node_tree.nodes if blnode.bl_label == 'Blackbody']:
-                        blnode.inputs[0].default_value = 3000 + 3500*sin(beta)**0.5 if sin(beta) > 0 else 0
+                        blnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
                     for emnode in [emnode for emnode in ob.data.node_tree.nodes if emnode.bl_label == 'Emission']:
-                        emnode.inputs[1].default_value = 10 * sin(beta) if sin(beta) > 0 else 0
+                        emnode.inputs[1].default_value = 5 * sin(beta)
             
             elif ob.get('VIType') == 'SPathMesh':
                 ob.scale = 3 * [scene.soldistance/100]
@@ -427,6 +433,6 @@ def cyfc1(self):
                 ob.location.y = spoblist['Sun'].location.y = spoblist['SPathMesh'].location.y -(scene.soldistance**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5 * cos(phi)
                 if ob.data.materials[0].node_tree:
                     for smblnode in [smblnode for smblnode in ob.data.materials[0].node_tree.nodes if ob.data.materials and smblnode.bl_label == 'Blackbody']:
-                        smblnode.inputs[0].default_value = 3000 + 3500*sin(beta)**0.5 if sin(beta) > 0 else 0
+                        smblnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
     else:
         return

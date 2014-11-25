@@ -31,20 +31,23 @@ class Vi3DPanel(bpy.types.Panel):
             if scene.ss_disp_panel in (1,2) or scene.li_disp_panel in (1,2):
                 row = layout.row()
                 row.prop(scene, "vi_disp_3d")
+                if scene['visimcontext'] == 'LiVi Compliance':
+                    newrow(layout, 'Sky view:', scene, 'vi_disp_sk')
                 row = layout.row()
-                row.operator("view3d.lidisplay", text="Shadow Display") if scene.resnode == 'VI Shadow Study' else row.operator("view3d.lidisplay", text="Radiance Display")
+                row.operator("view3d.lidisplay", text="Shadow Display") if scene['visimcontext'] == 'Shadow' else row.operator("view3d.lidisplay", text="Radiance Display")
 
                 if scene.ss_disp_panel == 2 or scene.li_disp_panel == 2:
                     row = layout.row()
                     row.prop(view, "show_only_render")
                     newrow(layout, 'Legend', scene, "vi_leg_display")
-
-                    if scene.render.engine == 'BLENDER_RENDER' and context.active_object and context.active_object.type == 'MESH':
-                        row = layout.row()
-                        row.prop(context.active_object, "show_wire")
-
+                    if scene.vi_leg_display and not scene.lic_disp_panel:
+                        newrow(layout, 'Legend max', scene, "vi_leg_max")
+                        newrow(layout, 'Legend min.', scene, "vi_leg_min")
+                    if context.active_object and context.active_object.type == 'MESH':
+                        newrow(layout, 'Draw wire:', scene, 'vi_disp_wire')                    
                     if int(context.scene.vi_disp_3d) == 1:
-                        newrow(layout, "3D Level", scene, "vi_disp_3dlevel")
+                        newrow(layout, "3D Level", scene, "vi_disp_3dlevel")                        
+                    newrow(layout, "Transparency", scene, "vi_disp_trans")
 
                     if context.mode != "EDIT":
                         row = layout.row()
@@ -52,15 +55,13 @@ class Vi3DPanel(bpy.types.Panel):
                         propdict = OrderedDict([('Enable', "vi_display_rp"), ("Selected only:", "vi_display_sel_only"), ("Visible only:", "vi_display_vis_only"), ("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_fsh"), ("Position offset:", "vi_display_rp_off")])
                         for prop in propdict.items():
                             newrow(layout, prop[0], scene, prop[1])
-
                         row = layout.row()
                         row.label(text="{:-<60}".format(""))
 
-                    if scene.lic_disp_panel == 1:
+                    if scene.lic_disp_panel == 1:                        
                         propdict = OrderedDict([("Compliance Panel", "li_compliance"), ("Asessment organisation:", "li_assorg"), ("Assesment individiual:", "li_assind"), ("Job number:", "li_jobno"), ("Project name:", "li_projname")])
                         for prop in propdict.items():
                             newrow(layout, prop[0], scene, prop[1])
-
             newrow(layout, 'Display active', scene, 'vi_display')
 
 class VIMatPanel(bpy.types.Panel):
@@ -76,15 +77,11 @@ class VIMatPanel(bpy.types.Panel):
     def draw(self, context):
         cm = context.material
         layout = self.layout
+        newrow(layout, 'Material type', cm, "mattype")
         row = layout.row()
-        row.prop(cm, "vi_shadow")
-        row = layout.row()
-        row.prop(cm, "livi_sense")
-        row = layout.row()
-
         if context.scene.get('liviparams'):
             connode = bpy.data.node_groups[context.scene['liviparams']['compnode'].split('@')[1]].nodes[context.scene['liviparams']['compnode'].split('@')[0]]
-            if cm.livi_sense:
+            if cm.mattype == '1':
                 if connode.analysismenu == '0':
                     if connode.bambuildmenu == '2':
                         newrow(layout, "Space type:", cm, 'hspacemenu')
@@ -148,6 +145,8 @@ class VIMatPanel(bpy.types.Panel):
                             row = layout.row()
 
                 if cm.envi_layero != '0':
+                    row = layout.row()
+                    row.label("----------------")
                     newrow(layout, "2nd layer:", cm, "envi_layer1")
                     row = layout.row()
                     if cm.envi_layer1 == '1':
@@ -169,11 +168,14 @@ class VIMatPanel(bpy.types.Panel):
                                 row = layout.row()
 
                     elif cm.envi_layer1 == '2' and cm.envi_con_type == 'Window':
-                        row.prop(cm, "envi_export_l1_name")
+                        newrow(layout, "Name:", cm, "envi_export_l1_name")
                         newrow(layout, "Gas Type:", cm, "envi_export_wgaslist_l1")
+                        row = layout.row()
                         row.prop(cm, "envi_export_l1_thi")
 
                     if cm.envi_layer1 != '0':
+                        row = layout.row()
+                        row.label("----------------")
                         row = layout.row()
                         row.label("3rd layer:")
                         row.prop(cm, "envi_layer2")
@@ -206,6 +208,8 @@ class VIMatPanel(bpy.types.Panel):
 
                         if cm.envi_layer2 != '0':
                             row = layout.row()
+                            row.label("----------------")
+                            row = layout.row()
                             row.label("4th layer:")
                             row.prop(cm, "envi_layer3")
                             row = layout.row()
@@ -231,13 +235,16 @@ class VIMatPanel(bpy.types.Panel):
                                         row = layout.row()
 
                             elif cm.envi_layer3 == '2' and cm.envi_con_type == 'Window':
-                                row.prop(cm, "envi_export_l1_name")
+                                newrow(layout, "Name:", cm, "envi_export_l3_name")
                                 row = layout.row()
                                 row.label("Gas Type:")
                                 row.prop(cm, "envi_export_wgaslist_l3")
+                                row = layout.row()
                                 row.prop(cm, "envi_export_l3_thi")
 
                             if cm.envi_layer3 != '0':
+                                row = layout.row()
+                                row.label("----------------")
                                 row = layout.row()
                                 row.label("5th layer:")
                                 row.prop(cm, "envi_layer4")
@@ -343,7 +350,7 @@ class EnZonePanel(bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         if context.object and context.object.type == 'MESH':
-            return len(context.object.data.materials)
+            return True
 
     def draw(self, context):
         obj = bpy.context.active_object
@@ -353,8 +360,16 @@ class EnZonePanel(bpy.types.Panel):
         row = layout.row()
         if obj.envi_type == '1':
             row = layout.row()
-            row.label('HVAC --------------')
-            row.prop(obj, 'envi_hvact')
+            row.label('HVAC Template:')
+            row.prop(obj, 'envi_hvact')            
+            row = layout.row()
+            newrow(layout, 'HVAC schedule:', obj, 'envi_hvacsched')
+            if obj.envi_hvacsched:
+                uvals, u = (1, obj.hvacu1, obj.hvacu2, obj.hvacu3, obj.hvacu4), 0
+                tvals = (0, obj.hvact1, obj.hvact2, obj.hvact3, obj.hvact4)
+                while uvals[u] and tvals[u] < 365:
+                    [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'hvact'+str(u+1)), ('Fors:', 'hvacf'+str(u+1)), ('Untils:', 'hvacu'+str(u+1)))]
+                    u += 1
             row = layout.row()
             row.label('Heating -----------')
             newrow(layout, 'Heating limit:', obj, 'envi_hvachlt')
@@ -459,7 +474,24 @@ class EnZonePanel(bpy.types.Panel):
                             [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'cocct'+str(u+1)), ('Fors:', 'coccf'+str(u+1)), ('Untils:', 'coccu'+str(u+1)))]
                             u += 1
                     newrow(layout, 'CO2:', obj, 'envi_co2')
-
+            
+            row = layout.row()
+            row.label('-------------------------------------')
+            row = layout.row()
+            row.label('Equipment:')
+            row.prop(obj, "envi_equiptype")
+            if obj.envi_equiptype != '0':
+                row = layout.row()
+                row.label('Level:')
+                row.prop(obj, "envi_equipmax")
+                newrow(layout, 'Schedule:', obj, 'envi_equipsched')
+                if obj.envi_equipsched:
+                    uvals, u = (1, obj.equipu1, obj.equipu2, obj.occu3, obj.equipu4), 0
+                    tvals = (0, obj.equipt1, obj.equipt2, obj.equipt3, obj.equipt4)
+                    while uvals[u] and tvals[u] < 365:
+                        [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'equipt'+str(u+1)), ('Fors:', 'equipf'+str(u+1)), ('Untils:', 'equipu'+str(u+1)))]
+                        u += 1
+                        
             row = layout.row()
             row.label('---------------------------------------')
 
@@ -471,10 +503,9 @@ class EnZonePanel(bpy.types.Panel):
             if obj.envi_occtype != "0" and obj.envi_occinftype == '6':
                 newrow(layout, 'Level:', obj, "envi_inflevel")
             if (obj.envi_occtype == "0" and obj.envi_inftype != '0') or (obj.envi_occtype == "1" and obj.envi_occinftype not in ('0', '6')):
+                newrow(layout, 'Level:', obj, "envi_inflevel")
                 newrow(layout, 'Schedule:', obj, 'envi_infsched')
-                if not obj.envi_infsched:
-                    newrow(layout, 'Level:', obj, "envi_inflevel")
-                else:
+                if obj.envi_infsched:
                     uvals, u = (1, obj.infu1, obj.infu2, obj.infu3, obj.infu4), 0
                     tvals = (0, obj.inft1, obj.inft2, obj.inft3, obj.inft4)
                     while uvals[u] and tvals[u] < 365:

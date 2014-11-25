@@ -90,7 +90,6 @@ class envi_materials(object):
         idf_file.write(epentry("Material:AirGap", params, paramvs))
     
     def tmat_write(self, idf_file, name, stringmat, thickness):
-        print(len(stringmat))
         params = ('Name', 'Optical Data Type', 'Window Glass Spectral Data Set Name', 'Thickness (m)', 'Solar Transmittance at Normal Incidence', 'Front Side Solar Reflectance at Normal Incidence',
                   'Back Side Solar Reflectance at Normal Incidence', 'Visible Transmittance at Normal Incidence', 'Front Side Visible Reflectance at Normal Incidence', 'Back Side Visible Reflectance at Normal Incidence',
                   'Infrared Transmittance at Normal Incidence', 'Front Side Infrared Hemispherical Emissivity', 'Back Side Infrared Hemispherical Emissivity', 'Conductivity (W/m-K)', 
@@ -98,7 +97,7 @@ class envi_materials(object):
         paramvs = [name] + stringmat[1:3] + [thickness] + ['{:.3f}'.format(float(sm)) for sm in stringmat[4:-1]] + [1, ('No', 'Yes')[stringmat[-1]]]
         idf_file.write(epentry("WindowMaterial:{}".format(stringmat[0]), params, paramvs))
     
-    def gmat_write(self, idf_file, name, stringmat, thickness):  
+    def gmat_write(self, idf_file, name, stringmat, thickness): 
         params = ('Name', 'Gas Type', 'Thickness')
         paramvs = [name] + [stringmat[1]] + [thickness]
         idf_file.write(epentry("WindowMaterial:Gas", params, paramvs)) 

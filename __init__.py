@@ -1,12 +1,12 @@
 bl_info = {
-    "name": "VI-Suite",
+    "name": "VI-Suite v02",
     "author": "Ryan Southall",
     "version": (0, 2, 0),
     "blender": (2, 7, 2),
     "api":"",
     "location": "Node Editor & 3D View > Properties Panel",
     "description": "Radiance/EnergyPlus exporter and results visualiser",
-    "warning": "This is a beta script. Some functionality is buggy, very buggy",
+    "warning": "This is a beta script. Some functionality is buggy",
     "wiki_url": "",
     "tracker_url": "",
     "category": "Import-Export"}
@@ -22,37 +22,33 @@ else:
     from .vi_node import vinode_categories, envinode_categories
     from .envi_mat import envi_materials, envi_constructions
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1
+    from .vi_display import li_display
     from .vi_operators import *
     from .vi_ui import *
 
-import sys, os, platform, inspect, bpy, nodeitems_utils
+import sys, os, inspect, bpy, nodeitems_utils, bmesh, shutil
 
 epversion = "8-2-0"
-addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
+addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 matpath, epwpath, envi_mats, envi_cons, conlayers  = addonpath+'/EPFiles/Materials/Materials.data', addonpath+'/EPFiles/Weather/', envi_materials(), envi_constructions(), 5
 
-if str(sys.platform) == 'darwin':
-    if not hasattr(os.environ, 'RAYPATH'):
-        os.environ["PATH"] = os.environ["PATH"] + (":/usr/local/radiance/bin:{}/osx:/Applications/EnergyPlus-{}/bin".format(addonpath, epversion), ":/usr/local/radiance/bin:{}/osx/64:/Applications/EnergyPlus-{}/bin".format(addonpath, epversion))[platform.architecture() == "64bit"] 
-        os.environ["RAYPATH"] = "/usr/local/radiance/lib:{}/lib".format(addonpath)
+rplatbdict = {'linux': ('/usr/share/radiance/bin', '/usr/local/radiance/bin'), 'win32': (r"C:\Program Files (x86)\Radiance\bin", r"C:\Program Files\Radiance\bin"), 'darwin': ['/usr/local/radiance/bin']}
+rplatldict = {'linux': ('/usr/share/radiance/lib', '/usr/local/radiance/lib'), 'win32': (r"C:\Program Files (x86)\Radiance\lib", r"C:\Program Files\Radiance\lib"), 'darwin': ['/usr/local/radiance/lib']}
+eplatbdict = {'linux': ('/usr/local/EnergyPlus-{}'.format(epversion)), 'win32': 'C:\EnergyPlusV{}'.format(epversion), 'darwin': '/Applications/EnergyPlus-{}'.format(epversion)}
+platdict = {'linux': 'linux', 'win32': 'windows', 'darwin': 'osx'}
+evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
 
-if str(sys.platform) == 'linux':
-    if not hasattr(os.environ, 'RAYPATH'):
-        raddir =  '/usr/share/radiance' if os.path.isdir('/usr/share/radiance') else '/usr/local/radiance'
-        os.environ["PATH"] = os.environ["PATH"] + ":{}/bin:{}/linux:/usr/local/EnergyPlus-{}".format(raddir, addonpath, epversion)
-        os.environ["RAYPATH"] = "{}/lib:{}/lib".format(raddir, addonpath)
 
-elif str(sys.platform) == 'win32':
-    if not hasattr(os.environ, 'RAYPATH'):
-        if os.path.isdir(r"C:\Program Files (x86)\Radiance"):
-            os.environ["PATH"] = os.environ["PATH"] + r";C:\Program Files (x86)\Radiance\bin;{}\windows;C:\EnergyPlusV{}".format(addonpath,epversion)
-            os.environ["RAYPATH"] = r"C:\Program Files (x86)\Radiance\lib;{}\lib".format(addonpath)
-        elif os.path.isdir(r"C:\Program Files\Radiance"):
-            os.environ["PATH"] = os.environ["PATH"] + r";C:\Program Files\Radiance\bin;{}\windows;C:\EnergyPlusV{}".format(addonpath, epversion)
-            os.environ["RAYPATH"] = "C:\Program Files\Radiance\lib;{}\lib".format(addonpath)
-        else:
-            print("Cannot find a valid Radiance directory. Please check that you have Radiance installed in either C:\Program Files(x86) (64bit windows) \
-or C:\Program Files (32bit windows)")
+if not hasattr(os.environ, 'RAYPATH'):
+    radldir = [d for d in rplatldict[str(sys.platform)] if os.path.isdir(d)]
+    radbdir = [d for d in rplatbdict[str(sys.platform)] if os.path.isdir(d)]
+    epdir = eplatbdict[str(sys.platform)] if os.path.isdir(eplatbdict[str(sys.platform)]) else os.path.join('{}'.format(addonpath), 'EPFiles', 'bin',  platdict[str(sys.platform)])
+    if epdir == eplatbdict[str(sys.platform)] and os.path.isfile(os.path.join(eplatbdict[str(sys.platform)], 'Energy+.idd')):
+        shutil.copyfile(os.path.join(eplatbdict[str(sys.platform)], 'Energy+.idd'), os.path.join('{}'.format(addonpath), 'EPFiles', 'Energy+.idd'))            
+    if not radldir:
+        radbdir, radldir = [os.path.join('{}'.format(addonpath), 'Radfiles', 'bin', platdict[str(sys.platform)])], [os.path.join('{}'.format(addonpath), 'Radfiles', 'lib')]
+    os.environ["PATH"] = os.environ["PATH"] + "{0}{1}{0}{2}".format(evsep[str(sys.platform)], radbdir[0], epdir)
+    os.environ["RAYPATH"] = radldir[0]
 
 def matfunc(i):
     matfuncdict = {'0': envi_mats.brick_dat.keys(), '1': envi_mats.stone_dat.keys(), '2': envi_mats.metal_dat.keys(), '3': envi_mats.wood_dat.keys(), '4': envi_mats.gas_dat.keys(),
@@ -71,17 +67,59 @@ def eupdate(self, context):
     inv = 0        
     for frame in range(context.scene.frame_start, context.scene.frame_end + 1):
         for o in [obj for obj in bpy.data.objects if obj.lires == 1]:
+            maxo, mino = max(o['omax'].values()), min(o['omin'].values())
+            bm = bmesh.new()
+            bm.from_mesh(o.data)  
+            bm.transform(o.matrix_world)
             if str(frame) in o['omax'].keys():
-                maxo, mino = max(o['omax'].values()), min(o['omin'].values())
-                if len(o['cverts']) == 0:
-                    for i, fli in enumerate([(face, face.loop_indices) for face in o.data.polygons if face.select == True]):
-                        for li in fli[1]:
-                            vi = o.data.loops[li].vertex_index
-                            o.data.shape_keys.key_blocks[str(frame)].data[vi].co = o.data.shape_keys.key_blocks['Basis'].data[vi].co + context.scene.vi_disp_3dlevel * (abs(inv - (o['oreslist'][str(frame)][i]-mino)/(maxo - mino)) * fli[0].normal)
-                for vn, v in enumerate(o['cverts']):
-                    o.data.shape_keys.key_blocks[str(frame)].data[v].co = o.data.shape_keys.key_blocks['Basis'].data[v].co + context.scene.vi_disp_3dlevel * (abs(inv - (o['oreslist'][str(frame)][vn]-mino)/(maxo - mino)) * o.data.vertices[v].normal)
+                if bm.faces.layers.float.get('res{}'.format(frame)):
+                    res = bm.faces.layers.float['res{}'.format(frame)] #if context.scene['cp'] == '0' else bm.verts.layers.float['res{}'.format(frame)]                
+                    for f in [f for f in bm.faces if f.select]:
+                        vplus = context.scene.vi_disp_3dlevel * (abs(inv - (f[res]-mino)/(maxo - mino)) * f.normal)
+                        for v in f.verts:
+                            o.data.shape_keys.key_blocks[str(frame)].data[v.index].co = o.data.shape_keys.key_blocks['Basis'].data[v.index].co + vplus
+                elif bm.verts.layers.float.get('res{}'.format(frame)):
+                    res = bm.verts.layers.float['res{}'.format(frame)]
+                    for v in bm.verts:
+                        o.data.shape_keys.key_blocks[str(frame)].data[v.index].co = o.data.shape_keys.key_blocks['Basis'].data[v.index].co + context.scene.vi_disp_3dlevel * (abs(inv - (v[res]-mino)/(maxo - mino)) * v.normal)
                 o.data.update()
+            bm.free()
 
+def tupdate(self, context):
+    for o in [o for o in context.scene.objects if o.type == 'MESH'  and 'lightarray' not in o.name and o.hide == False and o.layers[context.scene.active_layer] == True and o.get('lires')]:
+        o.show_transparent = 1
+    for mat in [bpy.data.materials['{}#{}'.format(('livi', 'shad')['Shadow' in context.scene.resnode], index)] for index in range(20)]:
+        mat.use_transparency, mat.transparency_method, mat.alpha = 1, 'MASK', context.scene.vi_disp_trans
+        
+def wupdate(self, context):
+    o = context.active_object
+    if o and o.type == 'MESH':
+        (o.show_wire, o.show_all_edges) = (1, 1) if context.scene.vi_disp_wire else (0, 0)
+        
+def legupdate(self, context):
+    scene = context.scene
+#    frame = scene.frame_current
+    simnode = bpy.data.node_groups[scene.restree].nodes[scene.resnode]
+    for frame in range(scene.fs, scene.fe + 1):
+        simnode['maxres'][str(frame)], simnode['minres'][str(frame)] = scene.vi_leg_max, scene.vi_leg_min
+    for frame in range(scene.fs, scene.fe + 1):
+        for i, o in enumerate([o for o in scene.objects if o.get('lires')]):
+            bm = bmesh.new()
+            bm.from_mesh(o.data)
+            livires = bm.faces.layers.float['res{}'.format(frame)] if bm.faces.layers.float.get('res{}'.format(frame)) else bm.verts.layers.float['res{}'.format(frame)]
+            try:
+                vals = array([(f[livires] - scene.vi_leg_min)/(scene.vi_leg_max - scene.vi_leg_min) for f in bm.faces]) if scene['liparams']['cp'] == '0' else \
+            ([(sum([vert[livires] for vert in f.verts])/len(f.verts) - scene.vi_leg_min)/(scene.vi_leg_max - scene.vi_leg_min) for f in bm.faces])
+            except:
+                vals = array([0 for f in bm.faces])
+            bm.free()
+            bins = array([0.05*i for i in range(1, 20)])
+            nmatis = digitize(vals, bins)
+            for fi, f in enumerate(o.data.polygons):
+                f.material_index = nmatis[fi]
+                f.keyframe_insert('material_index', frame=frame)
+    scene.frame_set(scene.frame_current)
+            
 def register():
     bpy.utils.register_module(__name__)
     Object, Scene, Material = bpy.types.Object, bpy.types.Scene, bpy.types.Material
@@ -98,7 +136,8 @@ def register():
     Object.envi_type = eprop([("0", "None", "None"), ("1", "Thermal", "Thermal Zone"), ("2", "Shading", "Shading Object")], "EnVi object type", "Specify the EnVi object type", "0")
     
 # EnVi HVAC Template definitions
-    Object.envi_hvact = bprop("Template:", "", False)
+    Object.envi_hvacsched = bprop("", "Create a system level schedule", False)
+    Object.envi_hvact = bprop("", "", False)
     Object.envi_hvacht = fprop("", "Heating temperature:", 1, 99, 50)
     Object.envi_hvacct = fprop("", "Cooling temperature:", -10, 20, 13)
     Object.envi_hvachlt = eprop([('0', 'LimitFlowRate', 'LimitFlowRate'), ('1', 'LimitCapacity', 'LimitCapacity'), ('2', 'LimitFlowRateAndCapacity', 'LimitFlowRateAndCapacity'), ('3', 'NoLimit', 'NoLimit'), ('4', 'None', 'No heating')], '', "Heating limit type", '4')    
@@ -111,45 +150,49 @@ def register():
 #    Object.envi_hvacof = fprop("", "Outdoor air flow rate", 0, 10, 0.008)
     Object.envi_hvacfrp = fprop("", "Flow rate per person", 0, 1, 0.008)
     Object.envi_hvacfrzfa = fprop("", "Flow rate per zone area", 0, 1, 0.008)
-    Object.envi_hvacfrz = fprop("", "Flow rate per zone", 0, 100, 0.1)
+    Object.envi_hvacfrz = fprop('m{}/s'.format(u'\u00b3'), "Flow rate per zone", 0, 100, 0.1)
     Object.envi_hvacfach = fprop("", "ACH", 0, 10, 1)
+    (Object.hvacu1, Object.hvacu2, Object.hvacu3, Object.hvacu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
+    (Object.hvacf1, Object.hvacf2, Object.hvacf3, Object.hvacf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.hvact1, Object.hvact2, Object.hvact3, Object.hvact4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
+
 # Heating defintions
     Object.envi_heat = bprop("Heating", 'Turn on zone heating', 0)
-    Object.envi_htsp = iprop(u'\u00b0'+"C", "Temperature", 0, 50, 20)
+    Object.envi_htsp = fprop(u'\u00b0'+"C", "Temperature", 0, 50, 20)
     Object.envi_htspsched = bprop("Schedule", "Create a thermostat level schedule", False)
-    (Object.htspu1, Object.htspu2, Object.htspu3, Object.htspu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
+    (Object.htspu1, Object.htspu2, Object.htspu3, Object.htspu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
     (Object.htspf1, Object.htspf2, Object.htspf3, Object.htspf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.htspt1, Object.htspt2, Object.htspt3, Object.htspt4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
 # Cooling definitions
     Object.envi_cool = bprop("Cooling", "Turn on zone cooling", 0)
-    Object.envi_ctsp = iprop(u'\u00b0'+"C", "Temperature", 0, 50, 20)
+    Object.envi_ctsp = fprop(u'\u00b0'+"C", "Temperature", 0, 50, 20)
     Object.envi_ctspsched = bprop("Schedule", "Create a thermostat level schedule", False)
-    (Object.ctspu1, Object.ctspu2, Object.ctspu3, Object.ctspu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
+    (Object.ctspu1, Object.ctspu2, Object.ctspu3, Object.ctspu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
     (Object.ctspf1, Object.ctspf2, Object.ctspf3, Object.ctspf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.ctspt1, Object.ctspt2, Object.ctspt3, Object.ctspt4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
 #Occupancy definitions
     Object.envi_occsched = bprop("Schedule", "Create an occupancy level schedule", False)
-    (Object.occu1, Object.occu2, Object.occu3, Object.occu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
+    (Object.occu1, Object.occu2, Object.occu3, Object.occu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
     (Object.occf1, Object.occf2, Object.occf3, Object.occf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.occt1, Object.occt2, Object.occt3, Object.occt4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
     Object.envi_occwatts = iprop("W/p", "Watts per person", 1, 800, 90)
     Object.envi_asched = bprop("Schedule", "Create an activity level schedule", False)
-    (Object.aoccu1, Object.aoccu2, Object.aoccu3, Object.aoccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
+    (Object.aoccu1, Object.aoccu2, Object.aoccu3, Object.aoccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
     (Object.aoccf1, Object.aoccf2, Object.aoccf3, Object.aoccf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.aocct1, Object.aocct2, Object.aocct3, Object.aocct4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
     Object.envi_weff = fprop("Efficiency", "Work efficiency", 0, 1, 0.0)
     Object.envi_wsched = bprop("Schedule", "Create a work efficiency schedule", False)
-    (Object.woccu1, Object.woccu2, Object.woccu3, Object.woccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
+    (Object.woccu1, Object.woccu2, Object.woccu3, Object.woccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
     (Object.woccf1, Object.woccf2, Object.woccf3, Object.woccf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.wocct1, Object.wocct2, Object.wocct3, Object.wocct4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
     Object.envi_airv = fprop("Air velocity", "Average air velocity", 0, 1, 0.1)
     Object.envi_avsched = bprop("Schedule", "Create an air velocity schedule", False)
-    (Object.avoccu1, Object.avoccu2, Object.avoccu3, Object.avoccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
+    (Object.avoccu1, Object.avoccu2, Object.avoccu3, Object.avoccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
     (Object.avoccf1, Object.avoccf2, Object.avoccf3, Object.avoccf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.avocct1, Object.avocct2, Object.avocct3, Object.avocct4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
     Object.envi_cloth = fprop("Clothing", "Clothing level", 0, 10, 0.5)
     Object.envi_clsched = bprop("Schedule", "Create an clothing level schedule", False)
-    (Object.coccu1, Object.coccu2, Object.coccu3, Object.coccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
+    (Object.coccu1, Object.coccu2, Object.coccu3, Object.coccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
     (Object.coccf1, Object.coccf2, Object.coccf3, Object.coccf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.cocct1, Object.cocct2, Object.cocct3, Object.cocct4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
     Object.envi_occtype = eprop([("0", "None", "No occupancy"),("1", "Occupants", "Actual number of people"), ("2", "Person/m"+ u'\u00b2', "Number of people per squared metre floor area"),
@@ -158,13 +201,24 @@ def register():
     Object.envi_comfort = bprop("Comfort", "Enable comfort calculations for this space", False)
     Object.envi_co2 = bprop("C02", "Enable CO2 concentration calculations", False)
     
+# Equipment definitions
+    Object.envi_equiptype = eprop([("0", "None", "No equipment"),("1", "EquipmentLevel", "Overall equpiment gains"), ("2", "Watts/Area", "Equipment gains per square metre floor area"),
+                                              ("3", "Watts/Person", "Equipment gains per occupant")], "", "The type of zone equipment gain specification", "0")
+    Object.envi_equipmax = fprop("Max", "Maximum level of equipment gain", 1, 50000, 1)
+
+    Object.envi_equipsched = bprop("Schedule", "Create an equipment gains schedule", False)
+    (Object.equipu1, Object.equipu2, Object.equipu3, Object.equipu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
+    (Object.equipf1, Object.equipf2, Object.equipf3, Object.equipf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.equipt1, Object.equipt2, Object.equipt3, Object.equipt4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
+
+    
 # Infiltration definitions
     Object.envi_inftype = eprop([("0", "None", "No infiltration"), ("1", 'Flow/Zone', "Absolute flow rate in m{}/s".format(u'\u00b3')), ("2", "Flow/Area", 'Flow in m{}/s per m{} floor area'.format(u'\u00b3', u'\u00b2')), 
                                  ("3", "Flow/ExteriorArea", 'Flow in m{}/s per m{} external surface area'.format(u'\u00b3', u'\u00b2')), ("4", "Flow/ExteriorWallArea", 'Flow in m{}/s per m{} external wall surface area'.format(u'\u00b3', u'\u00b2')), 
                                  ("4", "ACH", "ACH flow rate")], "", "The type of zone infiltration specification", "0")
     Object.envi_inflevel = fprop("Level", "Level of Infiltration", 0, 500, 0.001)
     Object.envi_infsched = bprop("Schedule", "Create an infiltration schedule", False)
-    (Object.infu1, Object.infu2, Object.infu3, Object.infu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)")] * 4
+    (Object.infu1, Object.infu2, Object.infu3, Object.infu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
     (Object.inff1, Object.inff2, Object.inff3, Object.inff4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.inft1, Object.inft2, Object.inft3, Object.inft4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
     Object.envi_occinftype = eprop([("0", "None", "No infiltration"), ("1", 'Flow/Zone', "Absolute flow rate in m{}/s".format(u'\u00b3')), ("2", "Flow/Area", 'Flow in m{}/s per m{} floor area'.format(u'\u00b3', u'\u00b2')), 
@@ -173,7 +227,7 @@ def register():
 
 # LiVi material definitions
     Material.radmat = vi_func.radmat
-    Material.radmatdict = {'0': ['radcolour', 0, 'radrough', 'radspec'], '1': ['radcolour'], '2': ['radcolour', 0, 'ior'], '3': ['radcolour', 0, 'radspec', 'radrough', 0, 'radtrans',  'radtranspec'], '4': ['radcolour'], '5': ['radcolour'], '6': ['radcolour', 0, 'radrough', 'radspec'], '7': []}
+    Material.radmatdict = {'0': ['radcolour', 0, 'radrough', 'radspec'], '1': ['radcolour'], '2': ['radcolour', 0, 'radior'], '3': ['radcolour', 0, 'radspec', 'radrough', 0, 'radtrans',  'radtranspec'], '4': ['radcolour'], '5': ['radcolour'], '6': ['radcolour', 0, 'radrough', 'radspec'], '7': []}
 
     radtypes = [('0', 'Plastic', 'Plastic Radiance material'), ('1', 'Glass', 'Glass Radiance material'), ('2', 'Dielectric', 'Dialectric Radiance material'),
                 ('3', 'Translucent', 'Translucent Radiance material'), ('4', 'Mirror', 'Mirror Radiance material'), ('5', 'Light', 'Emission Radiance material'),
@@ -182,10 +236,10 @@ def register():
     Material.radcolour = fvprop(3, "Material Colour",'Material Colour', [1.0, 1.0, 1.0], 'COLOR', 0, 1)
     Material.radrough = fprop("Roughness", "Material roughness", 0, 1, 0.1)
     Material.radspec = fprop("Specularity", "Material specularity", 0, 1, 0.1)
-#    Material.radspec = fprop("Transmissivity", "Material specularity", 0, 1, 0.1)
-    Material.radtrans = fprop("Specular trans.", "Material transmissivity", 0, 1, 0.1)
-    Material.radtranspec  = fprop("Specularity", "Material specular transmission", 0, 1, 0.1)
+    Material.radtrans = fprop("Transmission", "Material transmissivity", 0, 1, 0.1)
+    Material.radtranspec  = fprop("Trans spec", "Material specular transmission", 0, 1, 0.1)
     Material.radior  = fprop("IOR", "Material index of refractionn", 0, 5, 1.5)
+    Material.mattype = eprop([("0", "Geometry", "Geometry"), ("1", 'LiVi sensor', "LiVi sensing material".format(u'\u00b3')), ("2", "Shadow sensor", 'Shadow sensing material')], "", "VI-Suite material type", "0")
     Material.vi_shadow = bprop("VI Shadow", "Flag to signify whether the material represents a VI Shadow sensing surface", False)
     Material.livi_sense = bprop("LiVi Sensor", "Flag to signify whether the material represents a LiVi sensing surface", False)
     Material.livi_compliance = bprop("LiVi Compliance Surface", "Flag to siginify whether the material represents a LiVi compliance surface", False)
@@ -296,8 +350,6 @@ def register():
     Scene.solhour = bpy.props.FloatProperty(name = "", description = "Time of day", min = 0, max = 24, default = 12, update=sunpath1)
     Scene.soldistance = bpy.props.IntProperty(name = "", description = "Sun path scale", min = 1, max = 5000, default = 100, update=sunpath1)
     (Scene.hourdisp, Scene.spupdate) = [bprop("", "",0)] * 2
-#    Scene.latitude = bpy.props.FloatProperty(name="Latitude", description="Site Latitude", min=-90, max=90, default=52)
-#    Scene.longitude = bpy.props.FloatProperty(name="Longitude", description="Site Longitude", min=-180, max=180, default=0)
     Scene.li_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
     Scene.li_disp_count = iprop("", "", 0, 1000, 0)
     Scene.vi_disp_3d = bprop("VI 3D display", "Boolean for 3D results display",  False)
@@ -305,16 +357,22 @@ def register():
     Scene.ss_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
     (Scene.lic_disp_panel, Scene.vi_display, Scene.sp_disp_panel, Scene.wr_disp_panel, Scene.ss_leg_display, Scene.en_disp_panel, Scene.li_compliance, Scene.vi_display_rp, Scene.vi_leg_display, 
      Scene.vi_display_sel_only, Scene.vi_display_vis_only) = [bprop("", "", False)] * 11
+    Scene.vi_leg_max = bpy.props.FloatProperty(name = "", description = "Legend maximum", min = 0, max = 100000, default = 1000, update=legupdate)
+    Scene.vi_leg_min = bpy.props.FloatProperty(name = "", description = "Legend minimum", min = 0, max = 100000, default = 0, update=legupdate)
     Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 48, 9)
     Scene.vi_display_rp_fc = fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     Scene.vi_display_rp_fsh = fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     Scene.vi_display_rp_off = fprop("", "Surface offset for number display", 0, 1, 0.001)
+    Scene.vi_disp_trans = bpy.props.FloatProperty(name = "", description = "Sensing material transparency", min = 0, max = 1, default = 1, update = tupdate)
+    Scene.vi_disp_wire = bpy.props.BoolProperty(name = "", description = "Draw wire frame", default = 0, update=wupdate)
+    Scene.vi_disp_sk = bprop("", "Boolean for skyview display",  False)
     Scene.li_projname = sprop("", "Name of the building project", 1024, '')
     Scene.li_assorg = sprop("", "Name of the assessing organisation", 1024, '')
     Scene.li_assind = sprop("", "Name of the assessing individual", 1024, '')
     Scene.li_jobno = sprop("", "Project job number", 1024, '')
     Scene.resnode = sprop("", "", 0, "")
-    Scene.restree = sprop("", "", 0, "")   
+    Scene.restree = sprop("", "", 0, "") 
+    Scene.epversion = sprop("", "EnergyPlus version", 1024, epversion.replace('-', '.'))
 
     nodeitems_utils.register_node_categories("Vi Nodes", vinode_categories)
     nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)

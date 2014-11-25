@@ -58,7 +58,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
             rn['resdict'][rd]
             if dnode.inputs['X-axis'].rtypemenu == 'Climate':
                 if dnode.inputs['X-axis'].links[0].from_node['resdict'][rd][0:2] == [dnode.inputs['X-axis'].rtypemenu, dnode.inputs['X-axis'].climmenu]:
-                    xdata = timedata(ard[rd][si:ei], dnode.timemenu, dnode.inputs['X-axis'].statmenu, ard['Month'], ard['Day'], ard['dos'], dnode, si, ei, Sdate, Edate)
+                    xdata = timedata(ard[rd][si:ei + 1], dnode.timemenu, dnode.inputs['X-axis'].statmenu, ard['Month'], ard['Day'], ard['dos'], dnode, si, ei, Sdate, Edate)
                     xlabel = label('Climate', dnode.inputs['X-axis'].statmenu, dnode.timemenu, dnode.inputs['X-axis'].climmenu)
             else:
                 if (dnode.inputs['X-axis'].links[0].from_node['resdict'][rd][0:2]) == menus:

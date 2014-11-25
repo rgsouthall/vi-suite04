@@ -81,7 +81,7 @@ class envi_materials(object):
         
     def omat_write(self, idf_file, name, stringmat, thickness):
         params = ('Name', 'Roughness', 'Thickness (m)', 'Conductivity (W/m-K)', 'Density (kg/m3)', 'Specific Heat Capacity (J/kg-K)', 'Thermal Absorptance', 'Solar Absorptance', 'Visible Absorptance')
-        paramvs = [name, stringmat[0], thickness] + stringmat[1:-1]        
+        paramvs = [name, stringmat[0], thickness] + stringmat[1:8]        
         idf_file.write(epentry("Material", params, paramvs))
 
     def amat_write(self, idf_file, name, stringmat): 

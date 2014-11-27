@@ -250,7 +250,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
                 verts = [v for v in verts if not scene.ray_cast(v.co + scene.vi_display_rp_off * v.normal, view_location)[0]] if scene.vi_display_vis_only else verts
                 vcs = [view_mat*v.co.to_4d() for v in verts]                
             else:
-                verts = [v for v in bm.verts if not v.hide and mathutils.Vector.angle(view_location - omw*(ob.data.shape_keys.key_blocks[str(scene.frame_current)].data[v.index].co)) < pi * 0.5]
+                verts = [v for v in bm.verts if not v.hide and mathutils.Vector.angle(vw, view_location - omw*(ob.data.shape_keys.key_blocks[str(scene.frame_current)].data[v.index].co)) < pi * 0.5]
                 verts = [v for v in verts if not scene.ray_cast(omw*(ob.data.shape_keys.key_blocks[str(scene.frame_current)].data[v.index].co) + scene.vi_display_rp_off * v.normal, view_location)[0]] if scene.vi_display_vis_only else verts
                 vcs = [total_mat*ob.data.shape_keys.key_blocks[str(scene.frame_current)].data[v.index].co.to_4d() for v in verts]
             res = [v[livires] for v in verts]

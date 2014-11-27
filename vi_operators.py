@@ -173,7 +173,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
         if viparams(self, scene):
             return {'CANCELLED'}
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        locnode = 0 if node.bl_label == 'LiVi Compliance' else node.inputs['Location in'].links[0].from_node
+        locnode = 0 if node.bl_label == 'LiVi Compliance' or (node.bl_label == 'LiVi CBDM' and node.sm != '0') else node.inputs['Location in'].links[0].from_node
         geonode = node.outputs['Context out'].links[0].to_node.inputs['Geometry in'].links[0].from_node if node.bl_label == 'LiVi CBDM' else 0
         node.export(context)        
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
@@ -186,7 +186,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
                 node.endtime = datetime.datetime(2013, 1, 1, int(node.ehour), int((node.ehour - int(node.ehour))*60)) + datetime.timedelta(node.edoy - 1)
         if bpy.data.filepath:
             objmode()
-            scene.li_compliance = 1 if node.bl_label == 'LiVi Compliance' else 0
+#            scene.li_compliance = 1 if node.bl_label == 'LiVi Compliance' else 0
             radcexport(self, node, locnode, geonode)
             node.export(context)
             return {'FINISHED'}
@@ -400,7 +400,7 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
         if (context.scene.li_disp_panel < 2 and context.scene.ss_disp_panel < 2) or self.disp != context.scene.li_disp_count:            
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
-            if context.scene.get('LiViContext') == 'LiVi Compliance':
+            if context.scene['liparams']['type'] == 'LiVi Compliance':
                 try:
                     bpy.types.SpaceView3D.draw_handler_remove(self._handle_comp, 'WINDOW')
                 except:

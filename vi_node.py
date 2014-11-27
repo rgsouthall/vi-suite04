@@ -261,7 +261,6 @@ class ViLiNode(bpy.types.Node, ViNodes):
         self['hours'] = 0 if self.animmenu == 'Static' or int(self.skymenu) > 2  else (self.endtime-self.starttime).days*24 + (self.endtime-self.starttime).seconds/3600
         self['frames']['Time'] = context.scene.cfe = context.scene.fs + int(self['hours']/self.interval)
         self['resname'] = ("illumout", "irradout", "dfout", '')[int(self.analysismenu)]
-        context.scene['liparams']['unit'] = ("Lux", "W/m"+ u'\u00b2', "DF %", '')[int(self.analysismenu)]
         quotes = ('"') if sys.platform == 'win32' else ("'")
         self['simalg'] = (" |  rcalc  -e {0}$1=47.4*$1+120*$2+11.6*$3{0} ".format(quotes), " |  rcalc  -e {0}$1=$1{0} ".format(quotes), " |  rcalc  -e {0}$1=(47.4*$1+120*$2+11.6*$3)/100{0} ".format(quotes), '')[int(self.analysismenu)] 
         if int(self.skymenu) < 4:
@@ -365,7 +364,7 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
             row.label('Export HDR:')
             row.prop(self, 'hdr')
 
-        if self.geonodes() and self.locnodes():
+        if self.geonodes() and (self.locnodes() or self.sm != '0'):
             row = layout.row()
             row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
     
@@ -388,7 +387,6 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         " |  rcalc  -e {0}$1=(47.4*$1+120*$2+11.6*$3){0} ".format(quotes), " |  rcalc  -e {0}$1=($1+$2+$3)/3{0} ".format(quotes), " |  rcalc  -e {0}$1=(47.4*$1+120*$2+11.6*$3){0} ".format(quotes))[int(self.analysismenu)]
         self['wd'] = (7, 5)[self.weekdays]
         self['resname'] = ('kluxhours', 'cumwatth', 'dayauto', 'hourrad', 'udi')[int(self.analysismenu)]
-        context.scene['liparams']['unit'] = ('kLuxHours', 'kWh', 'DA (%)', '', 'UDI-a (%)')[int(self.analysismenu)]
         self['exportstate'] = [str(x) for x in (self.analysismenu, self.animmenu, self.weekdays, self.cbdm_start_hour, self.cbdm_end_hour, self.dalux, self.damin, self.dasupp, 
         self.daauto, self.fromnode, self.sourcemenu, self.sourcemenu2, self.mtxname, self.hdrname, self.hdr, self.startmonth, self.endmonth)]
         nodecolour(self, 0)
@@ -444,7 +442,6 @@ class ViLiCNode(bpy.types.Node, ViNodes):
         nodecolour(self, 0)
         context.scene.cfe = 0
         context.scene['liparams']['compnode'] = self['nodeid']
-        context.scene['liparams']['unit'] = 'DF (%)'
 
 class ViLiSNode(bpy.types.Node, ViNodes):
     '''Node describing a LiVi simulation'''
@@ -516,6 +513,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
     def export(self, op):
         connode = self.connodes()
         geonode = self.geonodes()
+        unitdict = {'LiVi Basic': ("Lux", "W/m"+ u'\u00b2', "DF %", '')[int(connode.analysismenu)], 'LiVi Compliance': 'DF (%)', 'LiVi CBDM': ('kLuxHours', 'kWh', 'DA (%)', '', 'UDI-a (%)')[int(connode.analysismenu)]}
         if op == 'Radiance Simulation':
             if connode.bl_label == 'LiVi Basic':
                 self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rtracebasic], [n[int(self.simacc)+1] for n in self.rtracebasic]))
@@ -528,6 +526,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
                 self['radparams'] = self.cusacc if self.csimacc == '0' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]}".format([n[0] for n in self.rvuadvance], [n[int(self.csimacc)] for n in self.rvuadvance]))
 
         self['exportstate'] = [str(x) for x in (self.cusacc, self.simacc, self.csimacc)]
+        bpy.context.scene['liparams']['unit'], bpy.context.scene['liparams']['type'] =  unitdict[connode.bl_label], connode.bl_label
         nodecolour(self, 0)
         return connode, geonode
         

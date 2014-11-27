@@ -382,6 +382,7 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         
     def export(self, context):
         self['skynum'] = 4
+        context.scene.cfe = 0
         quotes = ('"') if sys.platform == 'win32' else ("'")
         self['simalg'] = (" |  rcalc  -e {0}$1=(47.4*$1+120*$2+11.6*$3)/1000{0} ".format(quotes), " |  rcalc  -e {0}$1=($1+$2+$3)/3000{0} ".format(quotes), 
         " |  rcalc  -e {0}$1=(47.4*$1+120*$2+11.6*$3){0} ".format(quotes), " |  rcalc  -e {0}$1=($1+$2+$3)/3{0} ".format(quotes), " |  rcalc  -e {0}$1=(47.4*$1+120*$2+11.6*$3){0} ".format(quotes))[int(self.analysismenu)]

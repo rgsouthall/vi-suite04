@@ -67,7 +67,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                 sensrun = Popen(senscmd, shell = True, stdout=PIPE)
                 
                 for li, line in enumerate(sensrun.stdout):
-                    decline = [float(ld) for ld in line.decode().split('\t') if ld != '\n']
+                    decline = [float(ld) for ld in line.decode().split('\t') if ld not in ('\n', '\r\n')]
                     if connode.analysismenu in ('2', '4'):
                         sensarray[li] = [179*((decline[v]*0.265)+ (decline[v+1]*0.67) + (decline[v+2]*0.065)) for v in range(0, 438, 3)]
                     elif connode.analysismenu == '3':

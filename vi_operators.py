@@ -186,7 +186,6 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
                 node.endtime = datetime.datetime(2013, 1, 1, int(node.ehour), int((node.ehour - int(node.ehour))*60)) + datetime.timedelta(node.edoy - 1)
         if bpy.data.filepath:
             objmode()
-#            scene.li_compliance = 1 if node.bl_label == 'LiVi Compliance' else 0
             radcexport(self, node, locnode, geonode)
             node.export(context)
             return {'FINISHED'}

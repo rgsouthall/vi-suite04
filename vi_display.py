@@ -110,9 +110,9 @@ def li_display(simnode, connode, geonode):
                 sv = bm.faces.layers.float['sv{}'.format(frame)] if scene['liparams']['cp'] == '0' else bm.verts.layers.float['sv{}'.format(frame)]
                 for fi, f in enumerate(ores.data.polygons):
                     if scene['liparams']['cp'] == '0':
-                        f.material_index = 11 if f[sv] > 0 else 19
+                        f.material_index = 11 if bm.faces[fi][sv] > 0 else 19
                     if scene['liparams']['cp'] == '1':
-                        faceres = sum([v[sv] for v in bm.verts])/len(f.verts)
+                        faceres = sum([v[sv] for v in bm.verts])/len(f.vertices)
                         f.material_index = 11 if faceres > 0 else 19
                 oreslist = [f[sv] for f in bm.faces] if scene['liparams']['cp'] == '0' else [v[sv] for v in bm.verts]
             else:

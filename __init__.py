@@ -99,9 +99,9 @@ def wupdate(self, context):
 def legupdate(self, context):
     scene = context.scene
 #    frame = scene.frame_current
-    simnode = bpy.data.node_groups[scene.restree].nodes[scene.resnode]
-    for frame in range(scene.fs, scene.fe + 1):
-        simnode['maxres'][str(frame)], simnode['minres'][str(frame)] = scene.vi_leg_max, scene.vi_leg_min
+#    simnode = bpy.data.node_groups[scene.restree].nodes[scene.resnode]
+ #   for frame in range(scene.fs, scene.fe + 1):
+ #       simnode['maxres'][str(frame)], simnode['minres'][str(frame)] = scene.vi_leg_max, scene.vi_leg_min
     for frame in range(scene.fs, scene.fe + 1):
         for i, o in enumerate([o for o in scene.objects if o.get('lires')]):
             bm = bmesh.new()

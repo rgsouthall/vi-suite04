@@ -99,7 +99,6 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                     (mat.envi_export_bricklist_l4, mat.envi_export_claddinglist_l4, mat.envi_export_concretelist_l4, mat.envi_export_metallist_l4, mat.envi_export_stonelist_l4, mat.envi_export_woodlist_l4, mat.envi_export_gaslist_l4, mat.envi_export_insulationlist_l4))\
                     [l][int((mat.envi_layeroto, mat.envi_layer1to, mat.envi_layer2to, mat.envi_layer3to, mat.envi_layer4to)[l])]
                     if mats not in em.gas_dat:
-                        print(mats)
                         em.omat_write(en_idf, '{}-{}'.format(mats, matcount.count(mats.upper())), list(em.matdat[mats]), str(thicklist[l]/1000))
                     else:
                         em.amat_write(en_idf, '{}-{}'.format(mats, matcount.count(mats.upper())), [em.matdat[mats][2]])

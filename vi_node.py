@@ -461,7 +461,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             name="", description="Custom Radiance simulation parameters", default="")
     rtracebasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.000002), ("-lr", 2, 3, 4))
     rtraceadvance = (("-ab", 3, 5), ("-ad", 2048, 4096), ("-as", 1024, 2048), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 0.00001, 0.000002), ("-lr", 3, 5))
-    rvubasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 0.00001, 0.000002), ("-lr", 3, 5))
+    rvubasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0.5, 0.15, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.0000002), ("-lr", 3, 3, 4))
     rvuadvance = (("-ab", 3, 5), ("-ad", 2048, 4096), ("-as", 1024, 2048), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 0.00001, 0.000002), ("-lr", 3, 5))
    
     run = bpy.props.IntProperty(default = 0)
@@ -515,7 +515,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
         connode = self.connodes()
         geonode = self.geonodes()
         unitdict = {'LiVi Basic': ("Lux", "W/m"+ u'\u00b2', "DF %", '')[int(connode.analysismenu)], 'LiVi Compliance': 'DF (%)', 'LiVi CBDM': ('kLuxHours', 'kWh', 'DA (%)', '', 'UDI-a (%)')[int(connode.analysismenu)]}
-        if op == 'Radiance Simulation':
+        if op == 'LiVi simulation':
             if connode.bl_label == 'LiVi Basic':
                 self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rtracebasic], [n[int(self.simacc)+1] for n in self.rtracebasic]))
             else:

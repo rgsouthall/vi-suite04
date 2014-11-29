@@ -227,7 +227,7 @@ def register():
 
 # LiVi material definitions
     Material.radmat = vi_func.radmat
-    Material.radmatdict = {'0': ['radcolour', 0, 'radrough', 'radspec'], '1': ['radcolour'], '2': ['radcolour', 0, 'radior'], '3': ['radcolour', 0, 'radspec', 'radrough', 0, 'radtrans',  'radtranspec'], '4': ['radcolour'], '5': ['radcolour'], '6': ['radcolour', 0, 'radrough', 'radspec'], '7': []}
+    Material.radmatdict = {'0': ['radcolour', 0, 'radrough', 'radspec'], '1': ['radcolour'], '2': ['radcolour', 0, 'radior'], '3': ['radcolour', 0, 'radspec', 'radrough', 0, 'radtrans',  'radtranspec'], '4': ['radcolour'], '5': ['radcolour', 0, 'radintensity'], '6': ['radcolour', 0, 'radrough', 'radspec'], '7': []}
 
     radtypes = [('0', 'Plastic', 'Plastic Radiance material'), ('1', 'Glass', 'Glass Radiance material'), ('2', 'Dielectric', 'Dialectric Radiance material'),
                 ('3', 'Translucent', 'Translucent Radiance material'), ('4', 'Mirror', 'Mirror Radiance material'), ('5', 'Light', 'Emission Radiance material'),
@@ -239,6 +239,7 @@ def register():
     Material.radtrans = fprop("Transmission", "Material transmissivity", 0, 1, 0.1)
     Material.radtranspec  = fprop("Trans spec", "Material specular transmission", 0, 1, 0.1)
     Material.radior  = fprop("IOR", "Material index of refractionn", 0, 5, 1.5)
+    Material.radintensity = fprop("Intensity", u"Material radiance (W/sr/m\u00b2)", 0, 100, 1)    
     Material.mattype = eprop([("0", "Geometry", "Geometry"), ("1", 'LiVi sensor', "LiVi sensing material".format(u'\u00b3')), ("2", "Shadow sensor", 'Shadow sensing material')], "", "VI-Suite material type", "0")
     Material.vi_shadow = bprop("VI Shadow", "Flag to signify whether the material represents a VI Shadow sensing surface", False)
     Material.livi_sense = bprop("LiVi Sensor", "Flag to signify whether the material represents a LiVi sensing surface", False)

@@ -892,9 +892,9 @@ class NODE_OT_SunPath(bpy.types.Operator):
         bpy.ops.object.mode_set(mode='OBJECT')
 
         for c in range(8):
-            bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=((-4, -8)[c%2], sd*1.025, 0.0), rotation=(0.0, 0.0, 0.0))
+            bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(0, sd*1.025, 0.0), rotation=(0.0, 0.0, 0.0))
             txt = bpy.context.active_object
-            txt.scale, txt.data.extrude, txt.data.body  = (10, 10, 10), 0.1, ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')[c]
+            txt.scale, txt.data.extrude, txt.data.body, txt.data.align  = (10, 10, 10), 0.01, ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')[c], 'CENTER'
             bpy.ops.object.convert(target='MESH')
             bpy.ops.object.material_slot_add()
             txt.material_slots[0].material = bpy.data.materials['SPBase']

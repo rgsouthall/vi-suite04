@@ -352,7 +352,7 @@ def pregeo(op):
             slots.material.envi_export = True
 
             dcdict = {'Wall':(1,1,1), 'Partition':(0.5,0.5,0.5), 'Window':(0,1,1), 'Roof':(0,1,0), 'Ceiling':(0, 0.5, 0), 'Floor':(0.44,0.185,0.07), 'Ground':(0.22, 0.09, 0.04), 'Shading':(1, 0, 0), 'Aperture':(0, 0, 1)}
-            if slots.material.envi_con_type in dcdict.keys():
+            if slots.material.envi_con_type in dcdict:
                 slots.material.diffuse_color = dcdict[slots.material.envi_con_type]
 
         for poly in en_obj.data.polygons:

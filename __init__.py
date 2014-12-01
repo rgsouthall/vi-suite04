@@ -39,7 +39,7 @@ platdict = {'linux': 'linux', 'win32': 'windows', 'darwin': 'osx'}
 evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
 
 
-if 'RAYPATH' not in os.environ.keys():
+if 'RAYPATH' not in os.environ:
     radldir = [d for d in rplatldict[str(sys.platform)] if os.path.isdir(d)]
     radbdir = [d for d in rplatbdict[str(sys.platform)] if os.path.isdir(d)]
     epdir = eplatbdict[str(sys.platform)] if os.path.isdir(eplatbdict[str(sys.platform)]) else os.path.join('{}'.format(addonpath), 'EPFiles', 'bin',  platdict[str(sys.platform)])
@@ -71,7 +71,7 @@ def eupdate(self, context):
             bm = bmesh.new()
             bm.from_mesh(o.data)  
             bm.transform(o.matrix_world)
-            if str(frame) in o['omax'].keys():
+            if str(frame) in o['omax']:
                 if bm.faces.layers.float.get('res{}'.format(frame)):
                     res = bm.faces.layers.float['res{}'.format(frame)] #if context.scene['cp'] == '0' else bm.verts.layers.float['res{}'.format(frame)]                
                     for f in [f for f in bm.faces if f.select]:

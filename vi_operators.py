@@ -1072,24 +1072,28 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
     def invoke(self, context, event):
         scene = context.scene
-        ocalclist = [ob for ob in scene.objects if ob.type == 'MESH' and not ob.hide and len([f for f in ob.data.polygons if ob.data.materials[f.material_index].mattype == '2'])]
+        scene['shadc'] = [ob.name for ob in scene.objects if ob.type == 'MESH' and not ob.hide and len([f for f in ob.data.polygons if ob.data.materials[f.material_index].mattype == '2'])]
         
-        if not ocalclist:
+        if not scene['shadc']:
             self.report({'ERROR'},"No objects have a VI Shadow material attached.")
-            return
+            return {'CANCELLED'}
             
         scene.restree = self.nodeid.split('@')[1]
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 1, 0
         clearscene(scene, self)
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        scene['shadc'], scene['visimcontext'] = [o.name for o in ocalclist], 'Shadow'
+        scene['visimcontext'] = 'Shadow'
+        if not scene.get('liparams'):
+           scene['liparams'] = {} 
+#        else:
+        scene['liparams']['cp'], scene['liparams']['unit'] = simnode.cpoint, '% Sunlit'
         simnode.export(scene)
         (scene.fs, scene.fe) = (scene.frame_current, scene.frame_current) if simnode.animmenu == 'Static' else (scene.frame_start, scene.frame_end)
         cmap('grey')
 
         if simnode.starthour > simnode.endhour:
             self.report({'ERROR'},"End hour is before start hour.")
-            return{'FINISHED'}
+            return{'CANCELLED'}
         scene.resnode, simnode['Animation'] = simnode.name, simnode.animmenu
 
         if simnode['Animation'] == 'Static':
@@ -1106,7 +1110,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         sps = [solarPosition(t.timetuple().tm_yday, t.hour+t.minute/60, scene['latitude'], scene['longitude'])[2:] for t in times]
         direcs = [mathutils.Vector((-sin(sp[1]), -cos(sp[1]), tan(sp[0]))) for sp in sps if sp[0] > 0]
 
-        for o in ocalclist:
+        for o in [scene.objects[on] for on in scene['shadc']]:
             o['omin'], o['omax'], o['oave'] = [0] * fdiff, [100] * fdiff, [100] * fdiff
             ci = 1
             bm = bmesh.new()
@@ -1149,10 +1153,13 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     for v in cverts:
                         v[shadres] = 100 * (1 - sum([bpy.data.scenes[0].ray_cast(v.co + simnode.offset*v.normal, v.co + 10000*direc)[0] for direc in direcs])/len(direcs))
                     o['omin'][fi], o['omax'][fi], o['oave'][fi] = min([v[shadres] for v in cverts]), max([v[shadres] for v in cverts]) , obcalcarea * sum([v[shadres]/vertarea(bm,v) for v in cverts])/len(cverts)
-                simnode['minres']['{}'.format(frame)], simnode['maxres']['{}'.format(frame)], simnode['avres']['{}'.format(frame)] = 0, 100, sum([scene.objects[on]['oave'][fi] for on in scene['shadc']])/len(scene['shadc'])
             bm.transform(o.matrix_world.inverted())
             bm.to_mesh(o.data)
             bm.free()
+        
+        for fi, frame in enumerate(frange):
+            simnode['minres']['{}'.format(frame)], simnode['maxres']['{}'.format(frame)], simnode['avres']['{}'.format(frame)] = 0, 100, sum([scene.objects[on]['oave'][fi] for on in scene['shadc']])/len(scene['shadc'])
+        scene.vi_leg_max, scene.vi_leg_max = 100, 0
 
         scene.frame_set(scene.fs)
         return {'FINISHED'}

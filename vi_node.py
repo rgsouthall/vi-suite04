@@ -567,7 +567,7 @@ class ViSSNode(bpy.types.Node, ViNodes):
     startmonth = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 12, description = 'Start Month', update = nodeupdate)
     endmonth = bpy.props.IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month', update = nodeupdate)
     cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
-            name="", description="Specify the calculation point geometry", default="1", update = nodeupdate)
+            name="", description="Specify the calculation point geometry", default="0", update = nodeupdate)
     offset = bpy.props.FloatProperty(name="", description="Calc point offset", min=0.001, max=1, default=0.01, update = nodeupdate)
 
     def init(self, context):
@@ -593,7 +593,6 @@ class ViSSNode(bpy.types.Node, ViNodes):
         nodecolour(self, 0)
         self['exportstate'] = [str(x) for x in (self.animmenu, self.startmonth, self.endmonth, self.starthour, self.endhour, self.interval, self.cpoint, self.offset)]
         self['minres'], self['maxres'], self['avres'] = {}, {}, {}
-        scene['cp'] = self.cpoint
 
 class ViWRNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite wind rose generator'''
@@ -1316,8 +1315,8 @@ class ViGenNode(bpy.types.Node, ViNodes):
     steps = bpy.props.IntProperty(name = '', min = 1, max = 100, default = 1)
 
     def init(self, context):
-        self.outputs.new('ViGen', 'Generative out')
         self['nodeid'] = nodeid(self)
+        self.outputs.new('ViGen', 'Generative out')
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Geometry:', self, 'geomenu')
@@ -1361,8 +1360,8 @@ class ViTarNode(bpy.types.Node, ViNodes):
     value = bpy.props.FloatProperty(name = '', min = 0, max = 100000, default = 0, description="Desired value")
 
     def init(self, context):
-        self.outputs.new('ViTar', 'Target out')
         self['nodeid'] = nodeid(self)
+        self.outputs.new('ViTar', 'Target out')
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Statistic:', self, 'stat')
@@ -1384,6 +1383,9 @@ class ViCSVExport(bpy.types.Node, ViNodes):
             row = layout.row()
             row.operator('node.csvexport', text = 'Export CSV file').nodeid = self['nodeid']
             
+
+####################### Vi Nodes Catagories ##############################
+
 viexnodecat = [NodeItem("ViLoc", label="VI Location"), NodeItem("ViGExLiNode", label="LiVi Geometry"), NodeItem("ViLiNode", label="LiVi Basic"), NodeItem("ViLiCNode", label="LiVi Compliance"), NodeItem("ViLiCBNode", label="LiVi CBDM"), NodeItem("ViGExEnNode", label="EnVi Geometry"), NodeItem("ViExEnNode", label="EnVi Export")]
 
 vinodecat = [NodeItem("ViLiSNode", label="LiVi Simulation"),\

@@ -78,7 +78,6 @@ class VIMatPanel(bpy.types.Panel):
         cm, scene = context.material, context.scene
         layout = self.layout
         newrow(layout, 'Material type', cm, "mattype")
-        row = layout.row()
         if scene.get('liparams'):
             connode = bpy.data.node_groups[scene['liparams']['compnode'].split('@')[1]].nodes[scene['liparams']['compnode'].split('@')[0]]
             if cm.mattype == '1':
@@ -87,7 +86,7 @@ class VIMatPanel(bpy.types.Panel):
                         newrow(layout, "Space type:", cm, 'hspacemenu')
                     elif connode.bambuildmenu == '3':
                         newrow(layout, "Space type:", cm, 'brspacemenu')
-                        if cm.rspacemenu == '2':
+                        if cm.brspacemenu == '2':
                             row = layout.row()
                             row.prop(cm, 'gl_roof')
                     elif connode.bambuildmenu == '4':

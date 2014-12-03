@@ -1674,11 +1674,9 @@ class EnViZone(bpy.types.Node, EnViNodes):
                 self.inputs.new('EnViSSFlowSocket', sock).sn = sock.split('_')[-2]
 
     def supdate(self, context):
-        if self.control != 'Temperature' and self.inputs['TSPSchedule'].is_linked:
-            remlink(self, self.inputs['TSPSchedule'].links)
-
-        self.inputs['TSPSchedule'].hide = False if self.control == 'Temperature' else True
-        nodecolour(self, self.control == 'Temperature' and not self.inputs['TSPSchedule'].is_linked)
+        self.update()
+#        if not self.use_custom_color:
+#            nodecolour(self, self.control == 'Temperature' and not self.inputs['TSPSchedule'].is_linked)
 
     zone = bpy.props.StringProperty(update = zupdate)
     controltype = [("NoVent", "None", "No ventilation control"), ("Constant", "Constant", "From vent availability schedule"), ("Temperature", "Temperature", "Temperature control")]
@@ -1690,12 +1688,17 @@ class EnViZone(bpy.types.Node, EnViNodes):
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
+        self['tsps'] = 1
         self.inputs.new('EnViSchedSocket', 'TSPSchedule')
         self.inputs['TSPSchedule'].hide = True
         self.inputs.new('EnViSchedSocket', 'VASchedule')
 
     def update(self):
         [bi, si, ssi, bo, so , sso] = [1, 1, 1, 1, 1, 1]
+        if self.control != 'Temperature' and self.inputs['TSPSchedule'].is_linked:
+            remlink(self, self.inputs['TSPSchedule'].links)
+        self.inputs['TSPSchedule'].hide = False if self.control == 'Temperature' else True
+
         try:
             for inp in [inp for inp in self.inputs if inp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
                 self.outputs[inp.name].hide = True if inp.is_linked and self.outputs[inp.name].bl_idname == inp.bl_idname else False                

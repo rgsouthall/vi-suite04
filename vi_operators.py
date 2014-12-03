@@ -357,7 +357,7 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
             li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
         scene.vi_display = 1 if connode.analysismenu != '3' or connode.bl_label != 'LiVi CBDM' else 0  
         context.scene.fe = framerange(context.scene, simnode['Animation'])[-1]
-        (scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel) = (0, 1, 1, 0, 0, 0) if connode.bl_label == 'LiVi Compliance'  else (0, 1, 0, 0, 0, 0)
+        (scene.li_disp_panel, scene.lic_disp_panel) = (1, 1) if connode.bl_label == 'LiVi Compliance'  else (1, 0)
         context.scene.resnode = simnode.name
         context.scene.restree = self.nodeid.split('@')[1]
         return {'FINISHED'}
@@ -373,38 +373,39 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
     disp =  bpy.props.IntProperty(default = 1)
     
     def modal(self, context, event):
+        scene = context.scene
         if context.region:
             height = context.region.height
             if event.mouse_region_x in range(100) and event.mouse_region_y in range(height - 100, height):
                 if event.type == 'WHEELUPMOUSE':
-                    context.scene.vi_leg_max += 10
+                    scene.vi_leg_max += 10
                     return {'RUNNING_MODAL'}
                 if event.type == 'WHEELDOWNMOUSE':
-                    if context.scene.vi_leg_max >= 10:
-                        context.scene.vi_leg_max -= 10
+                    if scene.vi_leg_max >= 10:
+                        scene.vi_leg_max -= 10
                     else:
-                        context.scene.vi_leg_max = 0
+                        scene.vi_leg_max = 0
                     return {'RUNNING_MODAL'}
             elif event.mouse_region_x in range(100) and event.mouse_region_y in range(height - 520, height - 420):
                 if event.type == 'WHEELUPMOUSE':
-                    context.scene.vi_leg_min += 10
+                    scene.vi_leg_min += 10
                     return {'RUNNING_MODAL'}
                 if event.type == 'WHEELDOWNMOUSE':
-                    if context.scene.vi_leg_min >= 10:
-                        context.scene.vi_leg_min -= 10
+                    if scene.vi_leg_min >= 10:
+                        scene.vi_leg_min -= 10
                     else:
-                        context.scene.vi_leg_min = 0
+                        scene.vi_leg_min = 0
                     return {'RUNNING_MODAL'}
             
-        if (context.scene.li_disp_panel < 2 and context.scene.ss_disp_panel < 2) or self.disp != context.scene.li_disp_count:            
+        if (scene.li_disp_panel < 2 and scene.ss_disp_panel < 2) or self.disp != scene.li_disp_count:            
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
-            if context.scene['liparams']['type'] == 'LiVi Compliance':
+            if scene['liparams']['type'] == 'LiVi Compliance':
                 try:
                     bpy.types.SpaceView3D.draw_handler_remove(self._handle_comp, 'WINDOW')
                 except:
                     pass
-                context.scene.li_compliance = 0
+                scene.li_compliance = 0
             return {'CANCELLED'}
         return {'PASS_THROUGH'}
 
@@ -416,8 +417,8 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
         self.disp = scene.li_disp_count
         self.simnode = bpy.data.node_groups[scene.restree].nodes[scene.resnode]
         (connode, geonode) = (0, 0) if self.simnode.bl_label == 'VI Shadow Study' else (self.simnode.export(self.bl_label))
+        (scene.li_disp_panel, scene.ss_disp_panel) = (0, 2) if self.simnode.bl_label == 'VI Shadow Study' else (2, 0)
         li_display(self.simnode, connode, geonode)
-        scene.li_disp_panel, scene.ss_disp_panel = 2, 2
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, self.simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')
         self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(li3D_legend, (self, context, self.simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)

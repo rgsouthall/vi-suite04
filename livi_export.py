@@ -45,7 +45,7 @@ def radgexport(export_op, node, **kwargs):
                     else:                        
                         o.vertex_groups.new('genfaces')
                         o.vertex_groups.active = o.vertex_groups['genfaces']
-                        mseldict = {'Not Selected': 'INVERT', 'All': 'SELECT', 'Selected': ''}
+                        mseldict = {'Not Selected': 'INVERT', 'All': 'SELECT', 'Selected': 'PASS'}
                         selmesh(mseldict[geogennode.mselmenu])
                     o['vgi'] = o.vertex_groups['genfaces'].index
             scene['livim'] = [o.name for o in mableobs if o.manip]

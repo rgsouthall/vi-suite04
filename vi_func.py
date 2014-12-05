@@ -644,13 +644,10 @@ def selmesh(sel):
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.mesh.remove_doubles()
         bpy.ops.mesh.select_all(action='DESELECT')
-    elif sel in ('SELECT', 'INVERT'):
-        bpy.ops.mesh.select_all(action=sel)    
+    elif sel in ('SELECT', 'INVERT', 'PASS'):
+        if sel in ('SELECT', 'INVERT'):
+            bpy.ops.mesh.select_all(action=sel)    
         bpy.ops.object.vertex_group_assign()
-#    elif sel == 'rd':
-#        bpy.ops.mesh.select_all(action='SELECT')
-#        bpy.ops.mesh.remove_doubles()
-#        bpy.ops.mesh.select_all(action='DESELECT')
     bpy.ops.object.mode_set(mode = 'OBJECT')
 
 def draw_index(context, leg, mid_x, mid_y, width, height, posis, res):

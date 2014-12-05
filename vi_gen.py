@@ -12,14 +12,7 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
     else:
         liviom = scene['livim']
             
-    clearanim(scene, [bpy.data.objects[on] for on in scene['livim']])
-#        vi_func.selobj(scene, o)
-#        o.animation_data_clear()
-#        o.data.animation_data_clear()        
-#        while o.data.shape_keys:
-#            bpy.context.object.active_shape_key_index = 0
-#            bpy.ops.object.shape_key_remove(all=True)
-    
+    clearanim(scene, [bpy.data.objects[on] for on in scene['livim']])    
     scene.frame_set(scene.frame_start)                    
     radgexport(calc_op, geonode, genframe = scene.frame_current)
     res = [li_calc(calc_op, simnode, connode, geonode, livisimacc(simnode, connode), genframe = scene.frame_current)]

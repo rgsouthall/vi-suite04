@@ -78,7 +78,7 @@ class VIMatPanel(bpy.types.Panel):
         cm, scene = context.material, context.scene
         layout = self.layout
         newrow(layout, 'Material type', cm, "mattype")
-        if scene.get('liparams'):
+        if scene.get('liparams') and scene['liparams'].get('compnode'):
             connode = bpy.data.node_groups[scene['liparams']['compnode'].split('@')[1]].nodes[scene['liparams']['compnode'].split('@')[0]]
             if cm.mattype == '1':
                 if connode.analysismenu == '0':

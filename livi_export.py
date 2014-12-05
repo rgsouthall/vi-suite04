@@ -36,33 +36,17 @@ def radgexport(export_op, node, **kwargs):
             for o in mableobs: 
                 seldict = {'ALL': True, 'Selected': (False, True)[o.select], 'Not Selected': (True, False)[o.select]}
                 o.manip = seldict[geogennode.oselmenu]
-#                if geogennode.oselmenu == 'All':
-#                    o.manip = 1
-#                elif geogennode.oselmenu == 'Selected':  
-#                    o.manip = 1 if o.select == True else 0
-#                else:
-#                    o.manip = 1 if o.select == False else 0   
 
             for o in mableobs:
                 if geogennode.geomenu == 'Mesh':
                     selobj(scene, o)
                     if o.vertex_groups.get('genfaces'):
-                        selmesh('df')
-#                    bpy.ops.object.mode_set(mode = 'EDIT')
-#                    if o.vertex_groups.get('genfaces'):            
-#                        bpy.ops.mesh.select_all(action='SELECT')
-#                        bpy.ops.mesh.remove_doubles()
-#                        bpy.ops.mesh.select_all(action='DESELECT')
-                    else:
+                        selmesh('rd')
+                    else:                        
                         o.vertex_groups.new('genfaces')
                         o.vertex_groups.active = o.vertex_groups['genfaces']
-                        mseldict = {'Not Selected': 'INVERT', 'All': 'SELECT'}
-#                        if geogennode.mselmenu == 'Not Selected':
-                        bpy.ops.mesh.select_all(action=mseldict[geogennode.mselmenu])    
-#                        elif geogennode.mselmenu == 'All':
-#                            bpy.ops.mesh.select_all(action='SELECT') 
-                        bpy.ops.object.vertex_group_assign()
-                        bpy.ops.object.mode_set(mode = 'OBJECT')
+                        mseldict = {'Not Selected': 'INVERT', 'All': 'SELECT', 'Selected': ''}
+                        selmesh(mseldict[geogennode.mselmenu])
                     o['vgi'] = o.vertex_groups['genfaces'].index
             scene['livim'] = [o.name for o in mableobs if o.manip]
     

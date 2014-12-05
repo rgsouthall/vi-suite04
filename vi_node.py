@@ -2141,7 +2141,7 @@ class EnViSched(bpy.types.Node, EnViNodes):
             
             for f in (self.f1, self.f2, self.f3, self.f4)[:tn]:
                 for fd in f.split(' '):
-                    if not fd or (fd and fd.upper() not in ("ALLDAYS", "WEEKDAYS", "WEEKEND", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY", "ALLOTHERDAYS")):
+                    if not fd or (fd and fd.upper() not in ("ALLDAYS", "WEEKDAYS", "WEEKENDS", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY", "ALLOTHERDAYS")):
                         err = 1
 
             for u in (self.u1, self.u2, self.u3, self.u4)[:tn]:
@@ -2150,16 +2150,19 @@ class EnViSched(bpy.types.Node, EnViNodes):
                         if len(ud.split()[0].split(':')) != 2 or int(ud.split()[0].split(':')[0]) not in range(1, 25) or len(ud.split()[0].split(':')) != 2 or not ud.split()[0].split(':')[1].isdigit() or int(ud.split()[0].split(':')[1]) not in range(0, 60):
                             err = 1
             nodecolour(self, err)
+            
         except:
-           nodecolour(self, 1) 
+            nodecolour(self, 1) 
         
     (u1, u2, u3, u4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for each day, space separated for each time value pair)", update = tupdate)] * 4
     (f1, f2, f3, f4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays", update = tupdate)] * 4
     (t1, t2, t3, t4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365, update = tupdate)] * 4
 
     def init(self, context):
+        self['nodeid'] = nodeid(self)
         self.outputs.new('EnViSchedSocket', 'Schedule')
         self['scheddict'] = {'TSPSchedule': 'Any Number', 'VASchedule': 'Fraction', 'Fan Schedule': 'Fraction'}
+        self.tupdate(context)
 
     def draw_buttons(self, context, layout):
         uvals, u = (1, self.u1, self.u2, self.u3, self.u4), 0

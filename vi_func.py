@@ -569,11 +569,11 @@ def mtx2vals(mtxlines, fwd, node):
 def bres(scene, o):
     bm = bmesh.new()
     bm.from_mesh(o.data)
-    if scene['cp'] == '1':
+    if scene['liparams']['cp'] == '1':
         rtlayer = bm.verts.layers.int['cindex']
         reslayer = bm.verts.layers.float['res{}'.format(scene.frame_current)]
         res = [v[reslayer] for v in bm.verts if v[rtlayer] > 0]
-    elif scene['cp'] == '0':
+    elif scene['liparams']['cp'] == '0':
         rtlayer = bm.faces.layers.int['cindex']
         reslayer = bm.faces.layers.float['res{}'.format(scene.frame_current)]
         res = [f[reslayer] for f in bm.faces if f[rtlayer] > 0]
@@ -644,6 +644,9 @@ def selmesh(sel):
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.mesh.remove_doubles()
         bpy.ops.mesh.select_all(action='DESELECT')
+    elif sel in ('SELECT', 'INVERT'):
+        bpy.ops.mesh.select_all(action=sel)    
+        bpy.ops.object.vertex_group_assign()
 #    elif sel == 'rd':
 #        bpy.ops.mesh.select_all(action='SELECT')
 #        bpy.ops.mesh.remove_doubles()

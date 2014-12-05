@@ -161,6 +161,15 @@ def negneg(x):
     x = 0 if float(x) < 0 else x        
     return float(x)
 
+def clearanim(scene, obs):
+    for o in obs:
+        selobj(scene, o)
+        o.animation_data_clear()
+        o.data.animation_data_clear()        
+        while o.data.shape_keys:
+            bpy.context.object.active_shape_key_index = 0
+            bpy.ops.object.shape_key_remove(all=True)
+            
 def clearscene(scene, op):
     for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
         if ob.mode != 'OBJECT':

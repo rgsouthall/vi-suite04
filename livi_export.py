@@ -19,7 +19,7 @@
 import bpy, os, math, subprocess, datetime, bmesh
 from math import sin, cos, tan, pi
 from subprocess import PIPE, Popen, STDOUT
-from .vi_func import retsky, retobj, retmesh, clearscene, solarPosition, mtx2vals, retobjs, selobj, selmesh, vertarea, radpoints
+from .vi_func import retsky, retobj, retmesh, clearscene, solarPosition, mtx2vals, retobjs, selobj, selmesh, vertarea, radpoints, clearanim
 
 def radgexport(export_op, node, **kwargs):
     scene = bpy.context.scene  
@@ -36,7 +36,6 @@ def radgexport(export_op, node, **kwargs):
             for o in mableobs: 
                 seldict = {'ALL': True, 'Selected': (False, True)[o.select], 'Not Selected': (True, False)[o.select]}
                 o.manip = seldict[geogennode.oselmenu]
-
             for o in mableobs:
                 if geogennode.geomenu == 'Mesh':
                     selobj(scene, o)
@@ -49,6 +48,7 @@ def radgexport(export_op, node, **kwargs):
                         selmesh(mseldict[geogennode.mselmenu])
                     o['vgi'] = o.vertex_groups['genfaces'].index
             scene['livim'] = [o.name for o in mableobs if o.manip]
+            clearanim(scene, [bpy.data.objects[on] for on in scene['livim']])
     
     if export == 'geoexport':
         clearscene(scene, export_op)

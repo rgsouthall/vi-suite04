@@ -109,7 +109,7 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     bl_icon = 'LAMP'
 
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [self.animmenu, self.cpoint, self.offset])
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.animmenu, self.cpoint, self.offset)])
         if self.inputs['Generative in'].links:
             self.inputs['Generative in'].links[0].from_node.update()
 

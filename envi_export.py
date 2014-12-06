@@ -330,11 +330,6 @@ def pregeo(op):
     for materials in bpy.data.materials:
         if materials.users == 0:
             bpy.data.materials.remove(materials)
-            
-    if not len([ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network']):
-        bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network")
-    enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]              
-    enng.use_fake_user = 1
 
     for obj in [obj for obj in scene.objects if obj.envi_type in ('1', '2') and obj.layers[0] == True and obj.hide == False]:
         for mats in obj.data.materials:
@@ -366,9 +361,15 @@ def pregeo(op):
         bm.transform(en_obj.matrix_world)
         en_obj["volume"] = bm.calc_volume()
         bm.free()
-#        en_obj["volume"] = objvol(op, obj)
 
         if any([mat.envi_afsurface for mat in en_obj.data.materials]):
+            if not len([ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network']):
+                bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network")
+            enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0] 
+            enng['enviparams'] = {'wpca': 0, 'wpcn': 0, 'crref': 0, 'afn': 0}
+            if 'Control' not in [node.bl_label for node in enng.nodes]:
+                enng.nodes.new(type = 'AFNCon')         
+                enng.use_fake_user = 1
             if en_obj.envi_type =='1' and en_obj.name not in [node.zone for node in enng.nodes if hasattr(node, 'zone')]:
                 enng.nodes.new(type = 'EnViZone').zone = en_obj.name
             elif en_obj.envi_type == '1':
@@ -618,10 +619,7 @@ def writeafn(exp_op, en_idf, enng):
     for node in badnodes:
         node.hide = 0
         exp_op.report({'ERROR'}, 'Bad {} node in the airflow network. Delete the node if not needed or make valid connections'.format(node.name))
-    enng['enviparams'] = {'wpca': 0, 'wpcn': 0, 'crref': 0, 'afn': 0}
-    if not [enode for enode in enng.nodes if enode.bl_idname == 'AFNCon'] and [enode for enode in enng.nodes if enode.bl_idname == 'EnViZone']:
-        enng.nodes.new(type = 'AFNCon')
-    elif [enode for enode in enng.nodes if enode.bl_idname == 'AFNCon'] and not [enode for enode in enng.nodes if enode.bl_idname == 'EnViZone']:
+    if [enode for enode in enng.nodes if enode.bl_idname == 'AFNCon'] and not [enode for enode in enng.nodes if enode.bl_idname == 'EnViZone']:
         [enng.nodes.remove(enode) for enode in enng.nodes if enode.bl_idname == 'AFNCon']
     for connode in [enode for enode in enng.nodes if enode.bl_idname == 'AFNCon']:
          en_idf.write(connode.epwrite(exp_op, enng))        

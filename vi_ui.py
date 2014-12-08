@@ -40,7 +40,7 @@ class Vi3DPanel(bpy.types.Panel):
                     row = layout.row()
                     row.prop(view, "show_only_render")
                     newrow(layout, 'Legend', scene, "vi_leg_display")
-                    if scene.vi_leg_display and not scene.lic_disp_panel and not scene.ss_disp_panel:
+                    if scene.vi_leg_display and not scene.ss_disp_panel:
                         newrow(layout, 'Legend max', scene, "vi_leg_max")
                         newrow(layout, 'Legend min.', scene, "vi_leg_min")
                     if context.active_object and context.active_object.type == 'MESH':

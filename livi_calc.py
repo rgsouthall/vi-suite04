@@ -102,11 +102,8 @@ def resapply(calc_op, res, svres, simnode, connode, geonode, frames):
             simnode['maxres'][str(f)] = numpy.amax(res[i])
             simnode['minres'][str(f)] = numpy.amin(res[i])
             simnode['avres'][str(f)] = numpy.average(res[i])
-            if scene['liparams']['unit'] == 'DF (%)':
-                scene.vi_leg_max, scene.vi_leg_min = 100, 0
-            else:
-                scene.vi_leg_max = max(simnode['maxres'].values())
-                scene.vi_leg_min = min(simnode['minres'].values())
+            scene.vi_leg_max = max(simnode['maxres'].values())
+            scene.vi_leg_min = min(simnode['minres'].values())
             
         crits = []
         dfpass = [0 for f in frames]

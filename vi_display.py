@@ -200,15 +200,16 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
     fn = context.scene.frame_current - scene.fs
     mid_x, mid_y, width, height = viewdesc(context)
     view_mat = context.space_data.region_3d.perspective_matrix
-    view_pivot = bpy.context.active_object.location if bpy.context.active_object and context.user_preferences.view.use_rotate_around_active else context.region_data.view_location
+#    view_pivot = context.region_data.view_location bpy.context.active_object.location if bpy.context.active_object and context.user_preferences.view.use_rotate_around_active else context.region_data.view_location
+    view_pivot = context.region_data.view_location
 
     if context.space_data.region_3d.is_perspective:
         vw = mathutils.Vector((-view_mat[3][0], -view_mat[3][1], -view_mat[3][2])).normalized()
-        view_location = view_pivot + vw.normalized() * bpy.context.region_data.view_distance        
+        view_location = view_pivot + (vw * bpy.context.region_data.view_distance)    
     else:
         vw =  mathutils.Vector((0.0, 0.0, 1.0))
         vw.rotate(bpy.context.region_data.view_rotation)
-        view_location = view_pivot + vw.normalized()*bpy.context.region_data.view_distance*10        
+        view_location = view_pivot + vw.normalized()*bpy.context.region_data.view_distance * 100       
 
     if scene.vi_display_sel_only == False:
         obd = obreslist

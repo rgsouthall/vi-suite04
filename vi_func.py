@@ -46,7 +46,7 @@ def radpoints(o, faces, sks):
             ventries = ''.join([" {0[0]} {0[1]} {0[2]}\n".format((o.matrix_world*mathutils.Vector((v[skl0][0]+(v[skl1][0]-v[skl0][0])*skv1, v[skl0][1]+(v[skl1][1]-v[skl0][1])*skv1, v[skl0][2]+(v[skl1][2]-v[skl0][2])*skv1)))) for v in face.verts])
         else:
             ventries = ''.join([" {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n".format(v.co) for v in face.verts])
-        fentries[f] = ''.join((fentry, ventries))        
+        fentries[f] = ''.join((fentry, ventries+'\n'))        
     return ''.join(fentries)
                        
 def viparams(op, scene):

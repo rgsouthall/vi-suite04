@@ -58,7 +58,7 @@ def radgexport(export_op, node, **kwargs):
         scene.cfe = 0
         
     for frame in range(scene.fs, scene.gfe + 1): 
-        rti, rtpoints = 1, ''
+        rti, rtpoints = 0, ''
         if export == 'geoexport':
             scene.frame_set(frame)
         

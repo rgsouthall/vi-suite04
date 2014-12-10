@@ -171,7 +171,7 @@ def clearanim(scene, obs):
             bpy.ops.object.shape_key_remove(all=True)
             
 def clearscene(scene, op):
-    for ob in [ob for ob in scene.objects if ob.type == 'MESH']:
+    for ob in [ob for ob in scene.objects if ob.type == 'MESH' and ob.layers[scene.active_layer]]:
         if ob.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode = 'OBJECT')
         if ob.get('lires'):

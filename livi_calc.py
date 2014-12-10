@@ -43,16 +43,16 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                 rtcmd = "rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct  < {2}.rtrace {4}".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                 rtrun = Popen(rtcmd, shell = True, stdout=PIPE, stderr=STDOUT)                
                 with open(os.path.join(scene['viparams']['newdir'], connode['resname']+"-{}.res".format(frame)), 'w') as resfile:
-                    for l,line in enumerate(rtrun.stdout):
-                        res[findex][l] = eval(line.decode())                
+                    for l, line in enumerate([line.decode() for line in rtrun.stdout]):
+                        res[findex][l] = eval(line)                
                         resfile.write(line)
                 
             if connode.bl_label == 'LiVi Compliance' and connode.analysismenu in ('0', '1'):
                 svcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(scene['viparams']['nproc'], '-ab 1 -ad 8192 -aa 0 -ar 512 -as 1024 -lw 0.0002', scene['viparams']['filebase'], frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                 svrun = Popen(svcmd, shell = True, stdout=PIPE, stderr=STDOUT)                  
                 with open(os.path.join(scene['viparams']['newdir'],'skyview'+"-"+str(frame)+".res"), 'w') as svresfile:
-                    for sv,line in enumerate(svrun.stdout):
-                        svres[findex][sv] = eval(line.decode())
+                    for sv,line in enumerate([line.decode() for lin in svrun.stdout]):
+                        svres[findex][sv] = eval(line)
                         svresfile.write(line)
 
             if connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) > 1:

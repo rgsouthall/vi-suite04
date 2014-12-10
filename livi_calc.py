@@ -51,7 +51,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                 svcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct  < {2}.rtrace {4}".format(scene['viparams']['nproc'], '-ab 1 -ad 8192 -aa 0 -ar 512 -as 1024 -lw 0.0002', scene['viparams']['filebase'], frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                 svrun = Popen(svcmd, shell = True, stdout=PIPE, stderr=STDOUT)                  
                 with open(os.path.join(scene['viparams']['newdir'],'skyview'+"-"+str(frame)+".res"), 'w') as svresfile:
-                    for sv,line in enumerate([line.decode() for lin in svrun.stdout]):
+                    for sv,line in enumerate([line.decode() for line in svrun.stdout]):
                         svres[findex][sv] = eval(line)
                         svresfile.write(line)
 

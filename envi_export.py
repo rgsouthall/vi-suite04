@@ -9,11 +9,11 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     en_epw = open(locnode.weather, "r")
     en_idf = open(scene['viparams']['idf_file'], 'w')
     
-    try:
-        enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]
-    except:
-        exp_op.report({'ERROR'}, 'No EnVi node tree found. Have you exported the EnVi Geometry?')
-        return
+#    try:
+    enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0] if [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'] else 0
+#    except:
+#        exp_op.report({'ERROR'}, 'No EnVi node tree found. Have you exported the EnVi Geometry?')
+#        return
     en_idf.write("!- Blender -> EnergyPlus\n!- Using the EnVi export scripts\n!- Author: Ryan Southall\n!- Date: {}\n\nVERSION,{};\n\n".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), scene.epversion))
 
     params = ('Name', 'North Axis (deg)', 'Terrain', 'Loads Convergence Tolerance Value', 'Temperature Convergence Tolerance Value (deltaC)',
@@ -330,8 +330,12 @@ def pregeo(op):
     for materials in bpy.data.materials:
         if materials.users == 0:
             bpy.data.materials.remove(materials)
-
-    for obj in [obj for obj in scene.objects if obj.envi_type in ('1', '2') and obj.layers[0] == True and obj.hide == False]:
+    
+    enviobjs = [obj for obj in scene.objects if obj.envi_type in ('1', '2') and obj.layers[0] == True and obj.hide == False]
+    envings = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network']
+    enng = envings[0] if envings else 0
+                
+    for obj in enviobjs:
         for mats in obj.data.materials:
             if 'en_'+mats.name not in [mat.name for mat in bpy.data.materials]:
                 mats.copy().name = 'en_'+mats.name
@@ -362,10 +366,8 @@ def pregeo(op):
         en_obj["volume"] = bm.calc_volume()
         bm.free()
 
-        if any([mat.envi_afsurface for mat in en_obj.data.materials]):
-            if not len([ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network']):
-                bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network")
-            enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0] 
+        if any([(mat.envi_afsurface or mat.envi_boundary) for mat in en_obj.data.materials]):
+            enng = bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network") if not len([ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network']) else [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]                
             enng['enviparams'] = {'wpca': 0, 'wpcn': 0, 'crref': 0, 'afn': 0}
             if 'Control' not in [node.bl_label for node in enng.nodes]:
                 enng.nodes.new(type = 'AFNCon')         
@@ -376,7 +378,7 @@ def pregeo(op):
                 for node in enng.nodes:
                     if hasattr(node, 'zone') and node.zone == en_obj.name:
                         node.zupdate(bpy.context)
-        elif en_obj.name in [node.zone for node in enng.nodes if hasattr(node, 'zone')]:
+        elif enng and en_obj.name in [node.zone for node in enng.nodes if hasattr(node, 'zone')]:
             for node in enng.nodes:
                 if hasattr(node, 'zone') and node.zone == en_obj.name:
                     enng.nodes.remove(node)

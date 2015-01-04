@@ -17,7 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, glob, os, inspect, sys, datetime
+import bpy, glob, os, inspect, sys, datetime, time
 from subprocess import Popen
 from nodeitems_utils import NodeCategory, NodeItem
 from .vi_func import objvol, facearea, socklink, newrow, epwlatilongi, nodeid, nodeinputs, remlink, rettimes, epentry, sockhide, nodecolour, epschedwrite, retelaarea
@@ -1595,8 +1595,8 @@ class AFNCon(bpy.types.Node, EnViNodes):
         simentry = epentry('AirflowNetwork:SimulationControl', params, paramvs)
 
         if self.inputs['WPC Array'].is_linked:
-            (wpcaentry, wpcnum) = self.inputs['WPC Array'].links[0].from_node.epwrite() if wpctype == 1 else ('', 0)
-            enng['enviparams']['wpca'], enng['enviparams']['wpcn'] = 1, wpcnum
+            (wpcaentry, enng['enviparams']['wpcn']) = self.inputs['WPC Array'].links[0].from_node.epwrite() if wpctype == 1 else ('', 0)
+            enng['enviparams']['wpca'] = 1
         self.legal()
         return simentry + wpcaentry
 
@@ -1609,6 +1609,36 @@ class AFNCon(bpy.types.Node, EnViNodes):
         for node in [node for node in bpy.data.node_groups[self['nodeid'].split('@')[1]].nodes if node.bl_idname in ('EnViSFlow', 'EnViSSFlow')]:
             node.legal()
 
+class EnViWPCA(bpy.types.Node, EnViNodes):
+    '''Node describing Wind Pressure Coefficient array'''
+    bl_idname = 'EnViWPCA'
+    bl_label = 'Envi WPCA'
+    bl_icon = 'SOUND'
+
+    (ang1, ang2, ang3, ang4, ang5, ang6, ang7, ang8, ang9, ang10, ang11, ang12) = [bpy.props.IntProperty(name = '', default = 0, min = 0, max = 360) for x in range(12)]
+
+    def init(self, context):
+        self['nodeid'] = nodeid(self)
+        self.outputs.new('EnViWPCSocket', 'WPC values')
+
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.label('WPC Angles')
+        for w in range(1, 13):
+            row = layout.row()
+            row.prop(self, 'ang{}'.format(w))
+            
+    def update(self):
+        socklink(self.outputs['WPC values'], self['nodeid'].split('@')[1])
+        bpy.data.node_groups[self['nodeid'].split('@')[1]].interface_update(bpy.context)
+
+    def epwrite(self):
+        angs = (self.ang1,self.ang2, self.ang3, self.ang4, self.ang5, self.ang6, self.ang7, self.ang8, self.ang9, self.ang10, self.ang11, self.ang12)
+        aparamvs = ['WPC Array'] + [wd for w, wd in enumerate(angs) if wd not in angs[:w]]
+#        bpy.data.node_groups[self['nodeid'].split('@')[1]]['enviparams']['wpcn'] = len(aparamvs) - 1 
+        aparams = ['Name'] + ['Wind Direction {} (deg)'.format(w + 1) for w in range(len(aparamvs) - 1)]
+        return (epentry('AirflowNetwork:MultiZone:WindPressureCoefficientArray', aparams, aparamvs), len(aparamvs) - 1)
+        
 class EnViCrRef(bpy.types.Node, EnViNodes):
     '''Node describing reference crack conditions'''
     bl_idname = 'EnViCrRef'
@@ -1637,8 +1667,6 @@ class EnViZone(bpy.types.Node, EnViNodes):
     def zupdate(self, context):
         obj = bpy.data.objects[self.zone]
         odm = obj.data.materials
-#        omw = obj.matrix_world
-#        self.location = (400 * (omw*obj.location)[0], ((omw*obj.location)[2] + (omw*obj.location)[1])*25)
         self.zonevolume = objvol('', obj)
         bsocklist = ['{}_{}_b'.format(odm[face.material_index].name, face.index)  for face in obj.data.polygons if odm[face.material_index].envi_boundary == 1 and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViBoundSocket']]
         ssocklist = ['{}_{}_s'.format(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type not in ('Window', 'Door') and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViSFlowSocket']]
@@ -1675,8 +1703,6 @@ class EnViZone(bpy.types.Node, EnViNodes):
 
     def supdate(self, context):
         self.update()
-#        if not self.use_custom_color:
-#            nodecolour(self, self.control == 'Temperature' and not self.inputs['TSPSchedule'].is_linked)
 
     zone = bpy.props.StringProperty(update = zupdate)
     controltype = [("NoVent", "None", "No ventilation control"), ("Constant", "Constant", "From vent availability schedule"), ("Temperature", "Temperature", "Temperature control")]
@@ -1829,19 +1855,18 @@ class EnViSSFlowNode(bpy.types.Node, EnViNodes):
     def update(self):
         if self.get('layoutdict'):
             for sock in self.inputs[:] + self.outputs[:]:
-                socklink(sock, self['nodeid'].split('@')[1])
-            sockhide(self, ('Node 1', 'Node 2'))
-            
+                socklink(sock, self['nodeid'].split('@')[1])            
             if self.linkmenu == 'ELA':
-                retelaarea(self)
-    
+                retelaarea(self)    
             self.extnode = 0
             for sock in self.inputs[:] + self.outputs[:]:
                 for l in sock.links:
                     if (l.from_node, l.to_node)[sock.is_output].bl_idname == 'EnViExt':
                         self.extnode = 1
+            if self.outputs.get('Node 2'):
+                sockhide(self, ('Node 1', 'Node 2'))
             self.legal()
-
+            
     def draw_buttons(self, context, layout):
         layout.prop(self, 'linkmenu')
         if self.linkmenu in ('SO', 'DO', 'HO'):
@@ -1933,6 +1958,9 @@ class EnViSSFlowNode(bpy.types.Node, EnViNodes):
 
     def legal(self):
         nodecolour(self, 1) if (self.controls == 'Temperature' and not self.inputs['TSPSchedule'].is_linked) or (bpy.data.node_groups[self['nodeid'].split('@')[1]]['enviparams']['wpca'] and not self.extnode) else nodecolour(self, 0)
+        for sock in self.inputs[:] + self.outputs[:]:
+            sock.hide = sock.hide
+        bpy.data.node_groups[self['nodeid'].split('@')[1]].interface_update(bpy.context)   
 
 class EnViSFlowNode(bpy.types.Node, EnViNodes):
     '''Node describing a surface airflow component'''
@@ -1957,7 +1985,6 @@ class EnViSFlowNode(bpy.types.Node, EnViNodes):
     dhtc = bpy.props.FloatProperty(default = 0.772, name = "")
     dmtc = bpy.props.FloatProperty(default = 0.0001, name = "")
     cf = bpy.props.FloatProperty(default = 1, min = 0, max = 1, name = "")
-#    ela = bpy.props.FloatProperty(default = 0.1, min = 0, max = 100, name = "")
     rpd = bpy.props.FloatProperty(default = 4, min = 0.1, max = 50, name = "")
     fe = bpy.props.FloatProperty(default = 4, min = 0.1, max = 1, name = "", description = 'Fan Efficiency')
     pr = bpy.props.IntProperty(default = 500, min = 1, max = 10000, name = "", description = 'Fan Pressure Rise')
@@ -1974,18 +2001,18 @@ class EnViSFlowNode(bpy.types.Node, EnViNodes):
         
     def update(self):
         for sock in (self.inputs[:] + self.outputs[:]):
-            socklink(sock, self['nodeid'].split('@')[1])
-        if self.outputs.get('Node 2'):
-            sockhide(self, ('Node 1', 'Node 2'))
+            socklink(sock, self['nodeid'].split('@')[1])                
         if self.linkmenu == 'ELA':
             retelaarea(self)
         self.extnode = 0
         for sock in self.inputs[:] + self.outputs[:]:
             for l in sock.links:
                 if (l.from_node, l.to_node)[sock.is_output].bl_idname == 'EnViExt':
-                    self.extnode = 1
+                    self.extnode = 1        
+        if self.outputs.get('Node 2'):
+            sockhide(self, ('Node 1', 'Node 2'))
         self.legal()
-
+        
     def draw_buttons(self, context, layout):
         layout.prop(self, 'linkmenu')
         layoutdict = {'Crack':(('Coefficient', 'amfc'), ('Exponent', 'amfe')), 'ELA':(('ELA', '["ela"]'), ('DC', 'dcof'), ('PA diff', 'rpd'), ('FE', 'amfe')),
@@ -1998,7 +2025,7 @@ class EnViSFlowNode(bpy.types.Node, EnViNodes):
         for sock in (self.inputs[:] + self.outputs[:]):
             for link in sock.links:
                 othernode = (link.from_node, link.to_node)[sock.is_output]
-                if othernode.bl_idname == 'EnViExt' and enng['wpca'] == 1:
+                if othernode.bl_idname == 'EnViExt' and enng['enviparams']['wpca'] == 1:
                     en = othernode.name
 
         if self.linkmenu == 'ELA':
@@ -2041,7 +2068,8 @@ class EnViSFlowNode(bpy.types.Node, EnViNodes):
 
     def legal(self):
         nodecolour(self, 1) if not self.extnode and bpy.data.node_groups[self['nodeid'].split('@')[1]]['enviparams']['wpca'] else nodecolour(self, 0)
-
+        bpy.data.node_groups[self['nodeid'].split('@')[1]].interface_update(bpy.context)
+        
 class EnViExtNode(bpy.types.Node, EnViNodes):
     '''Node describing an EnVi external node'''
     bl_idname = 'EnViExt'
@@ -2069,9 +2097,9 @@ class EnViExtNode(bpy.types.Node, EnViNodes):
 
     def update(self):
         for sock in self.inputs[:] + self.outputs[:]:
-            sockhide(self, ('Sub surface', 'Surface'))
-        for sock in self.outputs:
             socklink(sock, self['nodeid'].split('@')[1])
+        sockhide(self, ('Sub surface', 'Surface'))
+        
 
     def epwrite(self, enng):
         enentry, wpcname, wpcentry = '', '', ''
@@ -2086,33 +2114,6 @@ class EnViExtNode(bpy.types.Node, EnViNodes):
                 paramvs = [self.name, self.height, wpcname]
                 enentry = epentry('AirflowNetwork:MultiZone:ExternalNode', params, paramvs)
         return enentry + wpcentry
-
-class EnViWPCA(bpy.types.Node, EnViNodes):
-    '''Node describing Wind Pressure Coefficient array'''
-    bl_idname = 'EnViWPCA'
-    bl_label = 'Envi WPCA'
-    bl_icon = 'SOUND'
-
-    (ang1, ang2, ang3, ang4, ang5, ang6, ang7, ang8, ang9, ang10, ang11, ang12) = [bpy.props.IntProperty(name = '', default = 0, min = 0, max = 360) for x in range(12)]
-
-    def init(self, context):
-        self.outputs.new('EnViWPCSocket', 'WPC values')
-
-    def draw_buttons(self, context, layout):
-        row = layout.row()
-        row.label('WPC Angles')
-        for w in range(1, 13):
-            row = layout.row()
-            row.prop(self, 'ang{}'.format(w))
-            
-    def update(self):
-        socklink(self.outputs['EnViWPCSocket'], self['nodeid'].split('@')[1])
-
-    def epwrite(self):
-        angs = (self.ang1,self.ang2, self.ang3, self.ang4, self.ang5, self.ang6, self.ang7, self.ang8, self.ang9, self.ang10, self.ang11, self.ang12)
-        aparamvs = ['WPC Array'] + [wd for w, wd in enumerate(angs) if wd not in angs[:w]]
-        aparams = ['Name'] + ['Wind Direction {} (deg)'.format(w + 1) for w in range(len(aparamvs) - 1)]
-        return epentry ('AirflowNetwork:MultiZone:WindPressureCoefficientArray', aparams, aparamvs)
 
 class EnViSched(bpy.types.Node, EnViNodes):
     '''Node describing a schedule'''
@@ -2172,11 +2173,12 @@ class EnViSched(bpy.types.Node, EnViNodes):
 
     def update(self):
         schedtype = ''
+        socklink(self.outputs['Schedule'], self['nodeid'].split('@')[1])
         for tosock in [link.to_socket for link in self.outputs['Schedule'].links]:
             nodecolour(self, schedtype and schedtype != self['scheddict'][tosock.name])
             schedtype = self['scheddict'][tosock.name]
-        socklink(self.outputs['Schedule'], self['nodeid'].split('@')[1])
-
+        bpy.data.node_groups[self['nodeid'].split('@')[1]].interface_update(bpy.context)
+        
     def epwrite(self):
         schedtext = ''
         for tosock in [link.to_socket for link in self.outputs['Schedule'].links]:

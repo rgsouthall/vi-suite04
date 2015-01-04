@@ -105,8 +105,8 @@ def retobj(name, fr, node, scene):
 def retelaarea(node):
     inlinks = [sock.links[0] for sock in node.inputs if sock.bl_idname in ('EnViSSFlowSocket', 'EnViSFlowSocket') and sock.links]
     outlinks = [sock.links[:] for sock in node.outputs if sock.bl_idname in ('EnViSSFlowSocket', 'EnViSFlowSocket') and sock.links]
-    inosocks = [link.from_socket for link in inlinks if inlinks]
-    outosocks = [link.to_socket for x in outlinks for link in x]
+    inosocks = [link.from_socket for link in inlinks if inlinks and link.from_socket.node.get('zone')]
+    outosocks = [link.to_socket for x in outlinks for link in x if link.to_socket.node.get('zone')]
     if outosocks or inosocks:
         elaarea = max([facearea(bpy.data.objects[sock.node.zone], bpy.data.objects[sock.node.zone].data.polygons[int(sock.sn)]) for sock in outosocks + inosocks])
         node["_RNA_UI"] = {"ela": {"max":elaarea}}
@@ -825,8 +825,8 @@ def socklink(sock, ng):
             valid2 = link.to_socket.valid if not link.to_socket.get('valid') else link.to_socket['valid'] 
             if not set(valid1)&set(valid2):
                 bpy.data.node_groups[ng].links.remove(link)
-    except:
-        pass
+    except Exception as e:
+        print(e)
     
 def rettimes(ts, fs, us):
     tot = range(min(len(ts), len(fs), len(us)))

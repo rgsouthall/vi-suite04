@@ -92,7 +92,6 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                         [daresfile.write("{:.2f}\n".format(r)) for r in res[findex]]
           
         resapply(calc_op, res, svres, simnode, connode, geonode, frames)
-        print(res)
         return(res[0])
    
 def resapply(calc_op, res, svres, simnode, connode, geonode, frames):

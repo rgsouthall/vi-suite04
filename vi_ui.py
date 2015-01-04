@@ -22,7 +22,7 @@ class Vi3DPanel(bpy.types.Panel):
                 newrow(layout, 'Legend', scene, "vi_leg_display")
 
             if scene.sp_disp_panel == 1:
-                for i in (("Day of year:", "solday"), ("Hour of year:", "solhour"), ("Sunpath scale:", "soldistance"), ("Display hours:", "hourdisp")):
+                for i in (("Day of year:", "solday"), ("Time of day:", "solhour"), ("Sunpath scale:", "soldistance"), ("Display hours:", "hourdisp")):
                     newrow(layout, i[0], scene, i[1])
                 if scene.hourdisp:
                     for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_fsh")):
@@ -121,9 +121,8 @@ class VIMatPanel(bpy.types.Panel):
                         newrow(layout, "Glass Type:", cm, "envi_export_glasslist_lo")
                     elif cm.envi_con_type in ("Wall", "Roof", "Floor", "Door"):
                         newrow(layout, "Outer layer type:", cm, "envi_layeroto")
-                        newrow(layout, "Outer layer cm:", cm, ("envi_export_bricklist_lo", "envi_export_claddinglist_lo", "envi_export_concretelist_lo", "envi_export_metallist_lo", "envi_export_stonelist_lo", "envi_export_woodlist_lo", "envi_export_gaslist_lo", "envi_export_insulationlist_lo")[int(cm.envi_layeroto)])
-                        row = layout.row()
-                        row.prop(cm, "envi_export_lo_thi")
+                        newrow(layout, "Outer layer material:", cm, ("envi_export_bricklist_lo", "envi_export_claddinglist_lo", "envi_export_concretelist_lo", "envi_export_metallist_lo", "envi_export_stonelist_lo", "envi_export_woodlist_lo", "envi_export_gaslist_lo", "envi_export_insulationlist_lo")[int(cm.envi_layeroto)])
+                        newrow(layout, "Outer layer thickness:", cm, "envi_export_lo_thi")
 
                 elif cm.envi_layero == '2' and cm.envi_con_type != 'Window':
                     for end in ('name', 0, 'thi', 'tc', 0, 'rho', 'shc', 0, 'tab', 'sab', 0, 'vab', 'rough'):
@@ -156,9 +155,9 @@ class VIMatPanel(bpy.types.Panel):
                         elif cm.envi_con_type in ("Wall", "Roof", "Floor", "Door"):
                             row.label("2nd layer type:")
                             row.prop(cm, "envi_layer1to")
-                            newrow(layout, "2nd layer cm:", cm, ("envi_export_bricklist_l1", "envi_export_claddinglist_l1", "envi_export_concretelist_l1", "envi_export_metallist_l1", "envi_export_stonelist_l1", "envi_export_woodlist_l1", "envi_export_gaslist_l1", "envi_export_insulationlist_l1")[int(cm.envi_layer1to)])
-                            row = layout.row()
-                            row.prop(cm, "envi_export_l1_thi")
+                            newrow(layout, "2nd layer material:", cm, ("envi_export_bricklist_l1", "envi_export_claddinglist_l1", "envi_export_concretelist_l1", "envi_export_metallist_l1", "envi_export_stonelist_l1", "envi_export_woodlist_l1", "envi_export_gaslist_l1", "envi_export_insulationlist_l1")[int(cm.envi_layer1to)])
+                            newrow(layout, "2nd layer thickness:", cm, "envi_export_l1_thi")
+                    
                     elif cm.envi_layer1 == '2' and cm.envi_con_type != 'Window':
                         for end in ('name', 0, 'thi', 'tc', 0, 'rho', 'shc', 0, 'tab', 'sab', 0, 'vab', 'rough'):
                             if end:
@@ -169,8 +168,7 @@ class VIMatPanel(bpy.types.Panel):
                     elif cm.envi_layer1 == '2' and cm.envi_con_type == 'Window':
                         newrow(layout, "Name:", cm, "envi_export_l1_name")
                         newrow(layout, "Gas Type:", cm, "envi_export_wgaslist_l1")
-                        row = layout.row()
-                        row.prop(cm, "envi_export_l1_thi")
+                        newrow(layout, "Gas thickness:", cm, "envi_export_l1_thi")
 
                     if cm.envi_layer1 != '0':
                         row = layout.row()
@@ -183,9 +181,8 @@ class VIMatPanel(bpy.types.Panel):
                                 newrow(layout, "Glass Type:", cm, ("envi_export_glasslist_l2"))
                             elif cm.envi_con_type in ("Wall", "Roof", "Floor", "Door"):
                                 newrow(layout, "3rd layer type:", cm, "envi_layer2to")
-                                newrow(layout, "3rd layer cm:", cm, ("envi_export_bricklist_l2", "envi_export_claddinglist_l2", "envi_export_concretelist_l2", "envi_export_metallist_l2", "envi_export_stonelist_l2", "envi_export_woodlist_l2", "envi_export_gaslist_l2", "envi_export_insulationlist_l2")[int(cm.envi_layer2to)])
-                                row = layout.row()
-                                row.prop(cm, "envi_export_l2_thi")
+                                newrow(layout, "3rd layer material:", cm, ("envi_export_bricklist_l2", "envi_export_claddinglist_l2", "envi_export_concretelist_l2", "envi_export_metallist_l2", "envi_export_stonelist_l2", "envi_export_woodlist_l2", "envi_export_gaslist_l2", "envi_export_insulationlist_l2")[int(cm.envi_layer2to)])
+                                newrow(layout, "3rd layer thickness:", cm, "envi_export_l2_thi")
 
                         elif cm.envi_layer2 == '2'and cm.envi_con_type != 'Window':
                             for end in ('name', 0, 'thi', 'tc', 0, 'rho', 'shc', 0, 'tab', 'sab', 0, 'vab', 'rough'):
@@ -221,10 +218,9 @@ class VIMatPanel(bpy.types.Panel):
                                     row.label("4th layer type:")
                                     row.prop(cm, "envi_layer3to")
                                     row = layout.row()
-                                    row.label("4th layer cm:")
+                                    row.label("4th layer material:")
                                     row.prop(cm, ("envi_export_bricklist_l3", "envi_export_claddinglist_l3", "envi_export_concretelist_l3", "envi_export_metallist_l3", "envi_export_stonelist_l3", "envi_export_woodlist_l3", "envi_export_gaslist_l3", "envi_export_insulationlist_l3")[int(cm.envi_layer3to)])
-                                    row = layout.row()
-                                    row.prop(cm, "envi_export_l3_thi")
+                                    newrow(layout, "3rd layer thickness:", cm, "envi_export_l3_thi")
 
                             elif cm.envi_layer3 == '2'and cm.envi_con_type != 'Window':
                                 for end in ('name', 0, 'thi', 'tc', 0, 'rho', 'shc', 0, 'tab', 'sab', 0, 'vab', 'rough'):
@@ -238,8 +234,7 @@ class VIMatPanel(bpy.types.Panel):
                                 row = layout.row()
                                 row.label("Gas Type:")
                                 row.prop(cm, "envi_export_wgaslist_l3")
-                                row = layout.row()
-                                row.prop(cm, "envi_export_l3_thi")
+                                newrow(layout, "3rd layer thickness:", cm, "envi_export_l3_thi")
 
                             if cm.envi_layer3 != '0':
                                 row = layout.row()
@@ -256,10 +251,9 @@ class VIMatPanel(bpy.types.Panel):
                                         row.label("5th layer type:")
                                         row.prop(cm, "envi_layer4to")
                                         row = layout.row()
-                                        row.label("5th layer cm:")
+                                        row.label("5th layer material:")
                                         row.prop(cm, ("envi_export_bricklist_l4", "envi_export_claddinglist_l4", "envi_export_concretelist_l4", "envi_export_metallist_l4", "envi_export_stonelist_l4", "envi_export_woodlist_l4", "envi_export_gaslist_l4", "envi_export_insulationlist_l4")[int(cm.envi_layer4to)])
-                                        row = layout.row()
-                                        row.prop(cm, "envi_export_l4_thi")
+                                        newrow(layout, "4th layer thickness:", cm, "envi_export_l4_thi")
 
                                 elif cm.envi_layer4 == '2' and cm.envi_con_type != 'Window':
                                     for end in ('name', 0, 'thi', 'tc', 0, 'rho', 'shc', 0, 'tab', 'sab', 0, 'vab', 'rough'):

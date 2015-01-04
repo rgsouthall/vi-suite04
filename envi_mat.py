@@ -21,13 +21,14 @@ class envi_materials(object):
         self.brick_dat = OrderedDict(sorted(self.brick_datd.items()))
         
         self.cladding_datd = {'Stucco': ('Smooth', '0.692', '1858', '836.00', '0.900000', '0.9200000', '0.920000', '25'),
-                              'Plaster board': ('Smooth', '0.7264', '1602', '836.00', '0.900000', '0.9200000', '0.920000', '20')}
+                              'Plaster board': ('Smooth', '0.7264', '1602', '836.00', '0.900000', '0.9200000', '0.920000', '20'),
+                              'Plaster': ('Smooth', '1.5', '1900', '840.00', '0.300000', '0.300000', '0.30000', '5')}
         self.cladding_dat = OrderedDict(sorted(self.cladding_datd.items()))
         
         self.concrete_datd = {'Light mix concrete': ('MediumRough', '0.38', '1200.0', '653', '0.9', '0.65', '0.65', '100'),
                         'Aerated concrete block': ('Rough', '0.24', '750.0', '1000', '0.9', '0.65', '0.65', '100'),
                         'Inner concrete block': ('Rough', '0.51', '1400.0', '1000', '0.9', '0.65', '0.65', '100'),
-                        'Heavy mix concrete': ('Rough', '1.4', '2100.0', '653.0', '0.90', '0.65', '0.65', '100'),
+                        'Heavy mix concrete': ('Rough', '1.4', '2100.0', '840.0', '0.90', '0.65', '0.65', '100'),
                         'Concrete Floor slab': ('MediumRough', '1.73', '2242.6', '836.0', '0.90', '0.65', '0.65', '100')}
         self.concrete_dat = OrderedDict(sorted(self.concrete_datd.items()))
         
@@ -69,7 +70,7 @@ class envi_materials(object):
                         'Roofing felt': ('Rough', '0.19', '960.0', '837.0', '0.90', '0.9', '0.9', '6'),
                         'Wilton wool carpet': ('Rough', '0.06', '186.0', '1360.0', '0.90', '0.60', '0.60', '5'),
                         'Thermawall TW50': ('MediumSmooth', '0.022', '32.000', '1500', '0.900000', '0.600000', '0.600000', '200'),
-                        'Stramit': ('Rough', '0.102', '380.0', '645.2', '0.900000', '0.600000', '0.600000', '50')}
+                        'Stramit': ('Rough', '0.1', '380.0', '2100', '0.900000', '0.600000', '0.600000', '50')}
         self.insulation_dat = OrderedDict(sorted(self.insulation_datd.items()))
         
         self.namedict = OrderedDict()

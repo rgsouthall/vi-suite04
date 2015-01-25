@@ -92,6 +92,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                         [daresfile.write("{:.2f}\n".format(r)) for r in res[findex]]
           
         resapply(calc_op, res, svres, simnode, connode, geonode, frames)
+        print(res)
         return(res[0])
    
 def resapply(calc_op, res, svres, simnode, connode, geonode, frames):
@@ -119,7 +120,7 @@ def resapply(calc_op, res, svres, simnode, connode, geonode, frames):
             for o in [o for o in scene.objects if o.name in scene['livic']]:                
                 bpy.ops.object.select_all(action = 'DESELECT')
                 scene.objects.active = None
-                oareas = o['lisenseareas']
+                o['liviresults'], oareas = {}, o['lisenseareas']
                 oarea = sum(oareas)
                 
                 if o.get('wattres'):
@@ -142,6 +143,7 @@ def resapply(calc_op, res, svres, simnode, connode, geonode, frames):
                         v[livires] = res[fr][v[cindex] - 1]
                         if connode.bl_label == 'LiVi Compliance':
                             v[sv] = svres[fr][v[cindex] - 1]
+                    o['liviresults']['Sum'] = sum([v[livires] for v in bm.verts if v[cindex] > 0])
     
                 elif geonode.cpoint == '0':
                     cindex = bm.faces.layers.int['cindex']
@@ -154,8 +156,10 @@ def resapply(calc_op, res, svres, simnode, connode, geonode, frames):
                         f[livires] = res[fr][f[cindex] - 1]
                         if connode.bl_label == 'LiVi Compliance':
                             f[sv] = svres[fr][f[cindex] - 1]
+                    o['liviresults']['Sum'] = sum([f[livires] for f in bm.faces if f[cindex] > 0])
                 bm.to_mesh(o.data)
                 bm.free()
+                
 
                 if connode.bl_label == 'LiVi Compliance':
                     o['compmat'] = mat.name
@@ -306,7 +310,6 @@ def resapply(calc_op, res, svres, simnode, connode, geonode, frames):
                 bpy.ops.object.select_all(action = 'DESELECT')
                 eof, eov, hours, scene.objects.active = sof + len(geo['cfaces']), sov + len(geo['cverts']), len(res[0]), None
                 oarea = sum(geo['lisenseareas'])
-#                ofaces = [face for face in geo.data.polygons if geo.data.materials[face.material_index].mattype == '1']
                 geo['wattres'] = {str(frame):[0 for x in range(len(res[0]))]}
                 for i in range(hours):
                     if geonode.cpoint == '0':

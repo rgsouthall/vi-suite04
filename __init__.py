@@ -1,8 +1,8 @@
 bl_info = {
-    "name": "VI-Suite v03",
+    "name": "VI-Suite v02",
     "author": "Ryan Southall",
     "version": (0, 3, 0),
-    "blender": (2, 7, 2),
+    "blender": (2, 7, 3),
     "api":"",
     "location": "Node Editor & 3D View > Properties Panel",
     "description": "Radiance/EnergyPlus exporter and results visualiser",
@@ -21,12 +21,12 @@ if "bpy" in locals():
 else:
     from .vi_node import vinode_categories, envinode_categories
     from .envi_mat import envi_materials, envi_constructions
-    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1
-    from .vi_display import li_display
+    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, radmat
     from .vi_operators import *
     from .vi_ui import *
 
 import sys, os, inspect, bpy, nodeitems_utils, bmesh, shutil
+from numpy import array, digitize
 
 epversion = "8-2-0"
 addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -101,7 +101,7 @@ def wupdate(self, context):
 def legupdate(self, context):
     scene = context.scene
     for frame in range(scene.fs, scene.fe + 1):
-        for i, o in enumerate([o for o in scene.objects if o.get('lires')]):
+        for o in [o for o in scene.objects if o.get('lires')]:
             bm = bmesh.new()
             bm.from_mesh(o.data)
             livires = bm.faces.layers.float['res{}'.format(frame)] if bm.faces.layers.float.get('res{}'.format(frame)) else bm.verts.layers.float['res{}'.format(frame)]
@@ -145,7 +145,6 @@ def register():
     Object.envi_hvaccaf = fprop("", "Heating air flow rate", 0, 60, 1)
     Object.envi_hvacscc = fprop("", "Sensible cooling capacity", 0, 10000, 1000)
     Object.envi_hvacoam = eprop([('0', 'None', 'None'), ('1', 'Flow/Zone', 'Flow/Zone'), ('2', 'Flow/Person', 'Flow/Person'), ('3', 'Flow/Area', 'Flow/Area'), ('4', 'Sum', 'Sum'), ('5', 'Maximum ', 'Maximum'), ('6', 'ACH/Detailed', 'ACH/Detailed')], '', "Cooling limit type", '2')
-#    Object.envi_hvacof = fprop("", "Outdoor air flow rate", 0, 10, 0.008)
     Object.envi_hvacfrp = fprop("", "Flow rate per person", 0, 1, 0.008)
     Object.envi_hvacfrzfa = fprop("", "Flow rate per zone area", 0, 1, 0.008)
     Object.envi_hvacfrz = fprop('m{}/s'.format(u'\u00b3'), "Flow rate per zone", 0, 100, 0.1)
@@ -224,7 +223,7 @@ def register():
                                  ("5", "ACH", "ACH flow rate"), ("6", "l/s/p", 'Litres per second per person')], "", "The type of zone infiltration specification", "0")
 
 # LiVi material definitions
-    Material.radmat = vi_func.radmat
+    Material.radmat = radmat
     Material.radmatdict = {'0': ['radcolour', 0, 'radrough', 'radspec'], '1': ['radcolour'], '2': ['radcolour', 0, 'radior'], '3': ['radcolour', 0, 'radspec', 'radrough', 0, 'radtrans',  'radtranspec'], '4': ['radcolour'], '5': ['radcolour', 0, 'radintensity'], '6': ['radcolour', 0, 'radrough', 'radspec'], '7': []}
 
     radtypes = [('0', 'Plastic', 'Plastic Radiance material'), ('1', 'Glass', 'Glass Radiance material'), ('2', 'Dielectric', 'Dialectric Radiance material'),
@@ -308,13 +307,13 @@ def register():
     (Material.envi_export_lo_shc, Material.envi_export_l1_shc, Material.envi_export_l2_shc, Material.envi_export_l3_shc, Material.envi_export_l4_shc) = \
     [fprop("SHC", "Specific Heat Capacity (J/kgK)", 0, 10000, 1000)] * conlayers
     (Material.envi_export_lo_thi, Material.envi_export_l1_thi, Material.envi_export_l2_thi, Material.envi_export_l3_thi, Material.envi_export_l4_thi) = \
-    [fprop("mm", "Thickness (mm)", 0, 10000, 100)] * conlayers
+    [fprop("mm", "Thickness (mm)", 1, 10000, 100)] * conlayers
     (Material.envi_export_lo_tab, Material.envi_export_l1_tab, Material.envi_export_l2_tab, Material.envi_export_l3_tab, Material.envi_export_l4_tab) = \
-    [fprop("TA", "Thermal Absorptance", 0, 1, 0.8)] * conlayers
+    [fprop("TA", "Thermal Absorptance", 0.001, 1, 0.8)] * conlayers
     (Material.envi_export_lo_sab, Material.envi_export_l1_sab, Material.envi_export_l2_sab, Material.envi_export_l3_sab, Material.envi_export_l4_sab) = \
-    [fprop("SA", "Solar Absorptance", 0, 1, 0.6)] * conlayers
+    [fprop("SA", "Solar Absorptance", 0.001, 1, 0.6)] * conlayers
     (Material.envi_export_lo_vab, Material.envi_export_l1_vab, Material.envi_export_l2_vab, Material.envi_export_l3_vab, Material.envi_export_l4_vab) = \
-    [fprop("VA", "Visible Absorptance", 0, 1, 0.6)] * conlayers
+    [fprop("VA", "Visible Absorptance", 0.001, 1, 0.6)] * conlayers
     (Material.envi_export_lo_odt, Material.envi_export_l1_odt, Material.envi_export_l2_odt, Material.envi_export_l3_odt, Material.envi_export_l4_odt) = \
     [eprop([("SpectralAverage", "SpectralAverage", "Optical Data Type")], "", "Optical Data Type", "SpectralAverage")] * conlayers
     (Material.envi_export_lo_sds, Material.envi_export_l1_sds, Material.envi_export_l2_sds, Material.envi_export_l3_sds, Material.envi_export_l4_sds) = \

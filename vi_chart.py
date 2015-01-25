@@ -31,7 +31,6 @@ def timedata(datastring, timetype, stattype, months, days, dos, dnode, si, ei, S
 
 def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     rn = dnode.inputs['X-axis'].links[0].from_node
-    rd = rn['resdict']
     ard = rn['allresdict']
     sm, sd, sh, em, ed, eh = Sdate.month, Sdate.day, Sdate.hour, Edate.month, Edate.day, Edate.hour
     (dm, dd, dh) = ([int(x) for x in ard['Month']], [int(x) for x in ard['Day']], [int(x) for x in ard['Hour']])
@@ -66,6 +65,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
                     xlabel = label(dnode.inputs['X-axis'].rtypemenu, dnode.inputs['X-axis'].statmenu, dnode.timemenu, menus[1])
                     
     rn = dnode.inputs['Y-axis 1'].links[0].from_node
+    ard = rn['allresdict']
     for rd in rn['resdict']:
         if dnode.inputs['Y-axis 1'].rtypemenu == 'Climate':
             if rn['resdict'][rd][0:2] == [dnode.inputs['Y-axis 1'].rtypemenu, dnode.inputs['Y-axis 1'].climmenu]:
@@ -82,6 +82,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
 
     if dnode.inputs['Y-axis 2'].links:
         rn = dnode.inputs['Y-axis 2'].links[0].from_node 
+        ard = rn['allresdict']
         menus = retmenu(dnode, 'Y-axis 2', dnode.inputs['Y-axis 2'].rtypemenu)
         for rd in rn['resdict']:
             if dnode.inputs['Y-axis 2'].rtypemenu == 'Climate':
@@ -95,6 +96,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
 
     if dnode.inputs['Y-axis 3'].links:
         rn = dnode.inputs['Y-axis 3'].links[0].from_node
+        ard = rn['allresdict']
         menus = retmenu(dnode, 'Y-axis 3', dnode.inputs['Y-axis 3'].rtypemenu)
         for rd in rn['resdict']:
             if dnode.inputs['Y-axis 3'].rtypemenu == 'Climate':
@@ -111,8 +113,8 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
         plt.legend()
         plt.grid(True)
         plt.show(block = str(sys.platform) not in ('win32', 'darwin'))
-    except:
-        chart_op.report({'ERROR'}, 'Invalid data for this component')
+    except Exception as e:
+        chart_op.report({'ERROR'}, '{} Invalid data for this component'.format(e))
         
 
     def plot_graph(*args):

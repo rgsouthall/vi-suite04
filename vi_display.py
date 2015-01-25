@@ -33,10 +33,7 @@ def ss_display():
     pass
 
 def li_display(simnode, connode, geonode):
-#    cp = simnode.cpoint if not geonode else geonode.cpoint
-    scene = bpy.context.scene
-    obreslist = []
-    obcalclist = []
+    scene, obreslist, obcalclist = bpy.context.scene, [], []
     (rcol, mtype) =  ('hot', 'livi') if 'LiVi' in simnode.bl_label else ('grey', 'shad')
     cmap(rcol)
 

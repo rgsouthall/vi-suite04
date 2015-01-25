@@ -1,6 +1,6 @@
 import bpy, bpy_extras, sys, datetime, mathutils, os, time, bmesh, shutil
 from os import rename
-from numpy import arange, array, digitize, frombuffer, uint8
+from numpy import arange, frombuffer, uint8
 import bpy_extras.io_utils as io_utils
 from subprocess import Popen, PIPE
 from collections import OrderedDict
@@ -20,7 +20,7 @@ from .livi_calc  import li_calc, resapply
 from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
-from .vi_func import processf, livisimacc, solarPosition, skframe, wr_axes, clearscene, framerange, viparams, selobj, objmode, nodecolour, li_calcob, cmap, vertarea
+from .vi_func import processf, livisimacc, solarPosition, wr_axes, clearscene, framerange, viparams, objmode, nodecolour, cmap, vertarea, wind_rose
 from .vi_chart import chart_disp
 from .vi_gen import vigen
 
@@ -581,8 +581,9 @@ class NODE_OT_CSVExport(bpy.types.Operator, io_utils.ExportHelper):
 
     def execute(self, context):
         resnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].inputs['Results in'].links[0].from_node
-        resstring, reslist = '', [['Month'] + resnode['resdict']['Month']] + [['Day'] + resnode['resdict']['Day']] + [['Hour'] + resnode['resdict']['Hour']] + resnode['allresdict'].values()
-        for rline in zip(*reslist):
+        resstring = ' '.join(['Month,', 'Day,', 'Hour,'] + ['{} {},'.format(resnode['resdict'][k][0], resnode['resdict'][k][1]) for k in sorted(resnode['resdict'].keys(), key=lambda x: float(x)) if len(resnode['resdict'][k]) == 2] + ['\n'])
+        resdata = [resnode['allresdict']['Month'], resnode['allresdict']['Day'], resnode['allresdict']['Hour']] + [list(resnode['allresdict'][k]) for k in sorted(resnode['resdict'].keys(), key=lambda x: float(x)) if k in resnode['allresdict']]
+        for rline in zip(*resdata):
             for r in rline:
                 resstring += '{},'.format(r)
             resstring += '\n'
@@ -633,26 +634,15 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
         shutil.copyfile(locnode.weather, os.path.join(scene['viparams']['newdir'], "in.epw"))
         shutil.copyfile(os.path.join(os.path.dirname(os.path.abspath(os.path.realpath( __file__ ))), "EPFiles", "Energy+.idd"), os.path.join(scene['viparams']['newdir'], "Energy+.idd"))
 
-#        if bpy.data.filepath:
         if bpy.context.active_object and not bpy.context.active_object.hide:
             if bpy.context.active_object.type == 'MESH':
                 bpy.ops.object.mode_set(mode = 'OBJECT')
-#            if " " not in scene['viparams']['filedir'] and " " not in scene['viparams']['filename']:
+
         enpolymatexport(self, node, locnode, envi_mats, envi_cons)
         node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
-        node.exported = True
-        node.outputs['Context out'].hide = False
-#            elif " " in str(node.filedir):
-#                self.report({'ERROR'},"The directory path containing the Blender file has a space in it.")
-#                return {'FINISHED'}
-#            elif " " in str(node.filename):
-#                self.report({'ERROR'},"The Blender filename has a space in it.")
-#                return {'FINISHED'}
+        node.exported, node.outputs['Context out'].hide = True, False
         node.export()
         return {'FINISHED'}
-#        else:
-#            self.report({'ERROR'},"Save the Blender file before exporting")
-#            return {'FINISHED'}
 
 class NODE_OT_EnSim(bpy.types.Operator):
     bl_idname = "node.ensim"
@@ -669,9 +659,9 @@ class NODE_OT_EnSim(bpy.types.Operator):
             if self.esimrun.poll() is None:
                 nodecolour(self.simnode, 1)
                 try:
-                    with open(os.path.join(scene['viparams']['newdir'], 'eplusout.eso'), 'r') as resfile:                    
-                        for line in [line for line in resfile.readlines()[::-1] if line.split(',')[0] == '2' and len(line.split(',')) == 9]:  
-                            self.simnode.run = int(100 * int(line.split(',')[1])/(self.simnode.dedoy - self.simnode.dsdoy))
+                    with open(os.path.join(scene['viparams']['newdir'], 'eplusout.eso'), 'r') as resfile: 
+                        for resline in [line for line in resfile.readlines()[::-1] if line.split(',')[0] == '2' and len(line.split(',')) == 9]: 
+                            self.simnode.run = int(100 * int(resline.split(',')[1])/(self.simnode.dedoy - self.simnode.dsdoy))
                             break
                     return {'PASS_THROUGH'}
                 except:
@@ -687,21 +677,18 @@ class NODE_OT_EnSim(bpy.types.Operator):
                 if self.simnode.resname+".err" not in [im.name for im in bpy.data.texts]:
                     bpy.data.texts.load(os.path.join(scene['viparams']['newdir'], self.simnode.resname+".err"))
 
-                if 'EnergyPlus Terminated--Error(s) Detected' in self.esimrun.stderr.read().decode() or not [f for f in nfns if f.split(".")[1] == "eso"]:
+                if 'EnergyPlus Terminated--Error(s) Detected' in self.esimrun.stderr.read().decode() or not [f for f in nfns if f.split(".")[1] == "eso"] or self.simnode.run == 0:
                     errtext = "There is no results file. Check you have selected results outputs and that there are no errors in the .err file in the Blender text editor." if not [f for f in nfns if f.split(".")[1] == "eso"] else "There was an error in the input IDF file. Check the *.err file in Blender's text editor."
-                    self.report({'ERROR'}, errtext)
+                    self.report({'ERROR'}, errtext) 
                     self.simnode.run = -1
                     return {'CANCELLED'}
-                else:
-                    self.simnode.run = -1
+                else: 
                     nodecolour(self.simnode, 0)
                     processf(self, self.simnode)
                     self.report({'INFO'}, "Calculation is finished.") 
-#                    if self.simnode.outputs[0].links:
-#                        self.simnode.outputs[0].links[0].to_node.update()
-                    
                     scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0                    
-                    return {'FINISHED'}
+                    self.simnode.run = -1
+                    return {'FINISHED'}                
         else:
             return {'PASS_THROUGH'}
             
@@ -714,12 +701,13 @@ class NODE_OT_EnSim(bpy.types.Operator):
         self._timer = wm.event_timer_add(1, context.window)
         wm.modal_handler_add(self)
         self.simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        self.simnode.sim()
         self.connode = self.simnode.inputs['Context in'].links[0].from_node
         self.simnode.resfilename = os.path.join(scene['viparams']['newdir'], self.simnode.resname+'.eso')
-#        self.simnode.dsdoy, self.simnode.dedoy, self.simnode.run = self.connode.sdoy, self.connode.edoy, 0 # (locnode.startmonthnode.sdoy  
         os.chdir(scene['viparams']['newdir'])
         esimcmd = "EnergyPlus" 
         self.esimrun = Popen(esimcmd.split(), stderr = PIPE, shell = True)
+        self.simnode.run = 0
         return {'RUNNING_MODAL'}
 
 class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
@@ -829,12 +817,15 @@ class NODE_OT_SunPath(bpy.types.Operator):
         spathob.location, spathob.name,  spathob['VIType'], spathmesh = (0, 0, 0), "SPathMesh", "SPathMesh", spathob.data
         bm = bmesh.new()
         bm.from_mesh(spathmesh)
+
         for doy in range(0, 363):
             if (doy-4)%7 == 0:
                 for hour in range(1, 25):
                     ([solalt, solazi]) = solarPosition(doy, hour, scene['latitude'], scene['longitude'])[2:]
                     bm.verts.new().co = [-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
         for v in range(24, len(bm.verts)):
+            if hasattr(bm.verts, "ensure_lookup_table"):
+                bm.verts.ensure_lookup_table()
             if bm.verts[v].co.z > 0 or bm.verts[v - 24].co.z > 0:                
                 bm.edges.new((bm.verts[v], bm.verts[v - 24]))
             if v in range(1224, 1248):
@@ -842,9 +833,11 @@ class NODE_OT_SunPath(bpy.types.Operator):
                     bm.edges.new((bm.verts[v], bm.verts[v - 1224]))
                     
         for doy in (79, 172, 355):
-            for hour in range(1, 25):
+            for hour in range(1, 25):                
                 ([solalt, solazi]) = solarPosition(doy, hour, scene['latitude'], scene['longitude'])[2:]                
                 bm.verts.new().co = [-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
+                if hasattr(bm.verts, "ensure_lookup_table"):
+                    bm.verts.ensure_lookup_table()
                 if bm.verts[-1].co.z >= 0 and doy in (172, 355):
                     numpos['{}-{}'.format(doy, hour)] = bm.verts[-1].co[:]
                 if hour != 1:
@@ -951,94 +944,94 @@ class NODE_OT_WindRose(bpy.types.Operator):
 
     def invoke(self, context, event):
         scene = context.scene
+        simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         if viparams(self, scene):
             return {'CANCELLED'}
-        if mp == 1:
-            simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-            simnode.export()
-            locnode = simnode.inputs['Location in'].links[0].from_node
-            scene.resnode, scene.restree = simnode.name, self.nodeid.split('@')[1]            
-            scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 0, 1
-            context.scene['visimcontext'] = 'Wind'
-
-            with open(locnode.weather, "r") as epwfile:
-                if simnode.startmonth > simnode.endmonth:
-                    self.report({'ERROR'},"Start month is later than end month")
-                    return {'FINISHED'}
-                else:
-                    wvals = [line.split(",")[20:22] for l, line in enumerate(epwfile.readlines()) if l > 7 and simnode.startmonth <= int(line.split(",")[1]) <= simnode.endmonth]
-                    simnode['maxres'], simnode['minres'],  simnode['avres']= max([float(w[1]) for w in wvals]), min([float(w[1]) for w in wvals]), sum([float(w[1]) for w in wvals])/len(wvals)
-
-            awd, aws, (fig, ax) = [float(val[0]) for val in wvals], [float(val[1]) for val in wvals], wr_axes()
-            binvals = arange(0,int(ceil(max(aws))),2)
-            simnode['nbins'] = len(binvals)
-
-            if simnode.wrtype == '0':
-                ax.bar(awd, aws, bins=binvals, normed=True, opening=0.8, edgecolor='white')
-            if simnode.wrtype == '1':
-                ax.box(awd, aws, bins=binvals, normed=True)
-            if simnode.wrtype == '2':
-                ax.contourf(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
-            if simnode.wrtype == '3':
-                ax.contourf(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
-                ax.contour(awd, aws, bins=binvals, normed=True, colors='black')
-            if simnode.wrtype == '4':
-                ax.contour(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
-
-            if str(sys.platform) != 'win32':
-                plt.savefig(scene['viparams']['newdir']+'/disp_wind.png', dpi = (150), transparent=False)
-                if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
-                    bpy.data.images.load(scene['viparams']['newdir']+'/disp_wind.png')
-                else:
-                    bpy.data.images['disp_wind.png'].filepath = scene['viparams']['newdir']+'/disp_wind.png'
-                    bpy.data.images['disp_wind.png'].reload()
-
-            # Below is a workaround for the matplotlib/blender png bug
-            else:
-                canvas = FigureCanvasAgg(fig)
-                canvas.draw()
-                pixbuffer, pixels = canvas.buffer_rgba(), []
-                [w, h] = [int(d) for d in fig.bbox.bounds[2:]]
-                pixarray = frombuffer(pixbuffer, uint8)
-                pixarray.shape = h, w, 4
-                pixels = pixarray[::-1].flatten()/255
-
-                if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
-                    wrim = bpy.data.images.new('disp_wind.png', height = h, width = w)
-                    wrim.file_format = 'PNG'
-                    wrim.filepath = os.path.join(scene['viparams']['newdir'], wrim.name)
-                else:
-                    wrim = bpy.data.images['disp_wind.png']
-                wrim.pixels = pixels
-                wrim.update()
-                wrim.save()
-                wrim.reload()
-
-            plt.savefig(scene['viparams']['newdir']+'/disp_wind.svg')
-
-            if 'Wind_Plane' not in [ob.get('VIType') for ob in bpy.context.scene.objects]:
-                bpy.ops.mesh.primitive_plane_add(enter_editmode=False, location=(0.0, 0.0, 0.0))
-                bpy.context.active_object['VIType'] = 'Wind_Plane'
-                wind_mat = bpy.data.materials.new('Wind_Rose')
-                tex = bpy.data.textures.new(type = 'IMAGE', name = 'Wind_Tex')
-                tex.image = bpy.data.images['disp_wind.png']
-                wind_mat.texture_slots.add()
-                wind_mat.texture_slots[0].texture = tex
-                wind_mat.texture_slots[0].use_map_alpha = True
-                bpy.context.active_object.name = "Wind_Plane"
-                bpy.ops.object.material_slot_add()
-                bpy.context.active_object.material_slots[0].material = wind_mat
-                bpy.context.active_object.data.uv_textures.new()
-                bpy.context.active_object.data.uv_textures[0].data[0].image = bpy.data.images['disp_wind.png']
-                bpy.context.active_object.scale = (100, 100, 100)
-                wind_mat.use_transparency = False
-                wind_mat.transparency_method = 'Z_TRANSPARENCY'
-                wind_mat.alpha = 0.0
-            bpy.ops.view3d.wrlegdisplay('INVOKE_DEFAULT')
-            return {'FINISHED'}
-        else:
+        if simnode.startmonth > simnode.endmonth:
+            self.report({'ERROR'},"Start month is later than end month")
+            return {'CANCELLED'}
+        if not mp:
             self.report({'ERROR'},"There is something wrong with your matplotlib installation")
-            return {'FINISHED'}
+            return {'FINISHED'}        
+           
+        simnode.export()
+        locnode = simnode.inputs['Location in'].links[0].from_node
+        scene.resnode, scene.restree = simnode.name, self.nodeid.split('@')[1]            
+        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 0, 1
+        context.scene['visimcontext'] = 'Wind'
+        mon = [int(mo) for mo in locnode['allresdict']['Month']]
+        awd = [float(wd) for mi, wd in enumerate(locnode['allresdict']['20']) if simnode.startmonth <= mon[mi] <= simnode.endmonth]
+        aws = [float(ws) for mi, ws in enumerate(locnode['allresdict']['21']) if simnode.startmonth <= mon[mi] <= simnode.endmonth]
+        simnode['maxres'], simnode['minres'], simnode['avres']= max(aws), min(aws), sum(aws)/len(aws)
+        (fig, ax) = wr_axes()
+        binvals = arange(0,int(ceil(max(aws))),2)
+        simnode['nbins'] = len(binvals)
+
+        if simnode.wrtype == '0':
+            ax.bar(awd, aws, bins=binvals, normed=True, opening=0.8, edgecolor='white')
+        if simnode.wrtype == '1':
+            ax.box(awd, aws, bins=binvals, normed=True)
+        if simnode.wrtype == '2':
+            ax.contourf(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
+        if simnode.wrtype == '3':
+            ax.contourf(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
+            ax.contour(awd, aws, bins=binvals, normed=True, colors='black')
+        if simnode.wrtype == '4':
+            ax.contour(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
+
+        if str(sys.platform) != 'win32':
+            plt.savefig(scene['viparams']['newdir']+'/disp_wind.png', dpi = (150), transparent=False)
+            if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
+                bpy.data.images.load(scene['viparams']['newdir']+'/disp_wind.png')
+            else:
+                bpy.data.images['disp_wind.png'].filepath = scene['viparams']['newdir']+'/disp_wind.png'
+                bpy.data.images['disp_wind.png'].reload()
+
+        # Below is a workaround for the matplotlib/blender png bug
+        else:
+            canvas = FigureCanvasAgg(fig)
+            canvas.draw()
+            pixbuffer, pixels = canvas.buffer_rgba(), []
+            [w, h] = [int(d) for d in fig.bbox.bounds[2:]]
+            pixarray = frombuffer(pixbuffer, uint8)
+            pixarray.shape = h, w, 4
+            pixels = pixarray[::-1].flatten()/255
+
+            if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
+                wrim = bpy.data.images.new('disp_wind.png', height = h, width = w)
+                wrim.file_format = 'PNG'
+                wrim.filepath = os.path.join(scene['viparams']['newdir'], wrim.name)
+            else:
+                wrim = bpy.data.images['disp_wind.png']
+            wrim.pixels = pixels
+            wrim.update()
+            wrim.save()
+            wrim.reload()
+
+        plt.savefig(scene['viparams']['newdir']+'/disp_wind.svg')
+#        wind_rose(simnode['maxres'], scene['viparams']['newdir']+'/disp_wind.svg')
+
+        if 'Wind_Plane' not in [ob.get('VIType') for ob in bpy.context.scene.objects]:
+            bpy.ops.mesh.primitive_plane_add(enter_editmode=False, location=(0.0, 0.0, 0.0))
+            bpy.context.active_object['VIType'] = 'Wind_Plane'
+            wind_mat = bpy.data.materials.new('Wind_Rose')
+            tex = bpy.data.textures.new(type = 'IMAGE', name = 'Wind_Tex')
+            tex.image = bpy.data.images['disp_wind.png']
+            wind_mat.texture_slots.add()
+            wind_mat.texture_slots[0].texture = tex
+            wind_mat.texture_slots[0].use_map_alpha = True
+            bpy.context.active_object.name = "Wind_Plane"
+            bpy.ops.object.material_slot_add()
+            bpy.context.active_object.material_slots[0].material = wind_mat
+            bpy.context.active_object.data.uv_textures.new()
+            bpy.context.active_object.data.uv_textures[0].data[0].image = bpy.data.images['disp_wind.png']
+            bpy.context.active_object.scale = (100, 100, 100)
+            wind_mat.use_transparency = False
+            wind_mat.transparency_method = 'Z_TRANSPARENCY'
+            wind_mat.alpha = 0.0
+        bpy.ops.view3d.wrlegdisplay('INVOKE_DEFAULT')
+        return {'FINISHED'}
+
 
 class VIEW3D_OT_WRLegDisplay(bpy.types.Operator):
     '''Display results legend and stats in the 3D View'''
@@ -1086,8 +1079,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         scene['visimcontext'] = 'Shadow'
         if not scene.get('liparams'):
            scene['liparams'] = {} 
-#        else:
-        scene['liparams']['cp'], scene['liparams']['unit'] = simnode.cpoint, '% Sunlit'
+        scene['liparams']['cp'], scene['liparams']['unit'], scene['liparams']['type'] = simnode.cpoint, '% Sunlit', 'VI Shadow'
         simnode.export(scene)
         (scene.fs, scene.fe) = (scene.frame_current, scene.frame_current) if simnode.animmenu == 'Static' else (scene.frame_start, scene.frame_end)
         cmap('grey')
@@ -1113,7 +1105,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
         for o in [scene.objects[on] for on in scene['shadc']]:
             o['omin'], o['omax'], o['oave'] = [0] * fdiff, [100] * fdiff, [100] * fdiff
-            ci = 1
             bm = bmesh.new()
             bm.from_mesh(o.data)
             bm.transform(o.matrix_world)  
@@ -1127,18 +1118,16 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 cindex = bm.faces.layers.int['cindex']
                 [bm.faces.layers.float.new('res{}'.format(fi)) for fi in frange]
                 cfaces = [f for f in bm.faces if o.data.materials[f.material_index].mattype == '2']
-                for f in [f for f in cfaces]:
-                    f[cindex] = ci
-                    ci+= 1
+                for ci, f in enumerate([f for f in cfaces]):
+                    f[cindex] = ci + 1
             else:               
                 bm.verts.layers.int.new('cindex')
                 cindex = bm.verts.layers.int['cindex'] 
                 bm.verts.layers.int.new('cindex')
                 [bm.verts.layers.float.new('res{}'.format(fi)) for fi in frange]
                 cverts = [v for v in bm.verts if any([o.data.materials[f.material_index].mattype == '2' for f in v.link_faces])]
-                for v in [v for v in cverts]:
+                for ci, v in enumerate([v for v in cverts]):
                     v[cindex] = ci
-                    ci+= 1
                     
             for fi, frame in enumerate(frange):
                 scene.frame_set(frame)
@@ -1160,7 +1149,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
         
         for fi, frame in enumerate(frange):
             simnode['minres']['{}'.format(frame)], simnode['maxres']['{}'.format(frame)], simnode['avres']['{}'.format(frame)] = 0, 100, sum([scene.objects[on]['oave'][fi] for on in scene['shadc']])/len(scene['shadc'])
-        scene.vi_leg_max, scene.vi_leg_max = 100, 0
-
+        scene.vi_leg_max, scene.vi_leg_min = 100, 0
         scene.frame_set(scene.fs)
         return {'FINISHED'}

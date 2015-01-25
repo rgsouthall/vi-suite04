@@ -393,7 +393,7 @@ def cyfc1(self):
             if nt and nt.nodes.get('Sky Texture'):
                 bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
         
-        for ob in [o for o in scene.objects if o.get('VIType') == 'Sun']:
+        for ob in scene.objects:
             if ob.get('VIType') == 'Sun':
                 ob.rotation_euler = pi * 0.5 - beta, 0, -phi
                 if ob.data.node_tree:
@@ -410,7 +410,7 @@ def cyfc1(self):
                 if ont and ont.nodes.get('Sky Texture'):
                     ont.nodes['Sky Texture'].sun_direction = sin(phi), -cos(phi), sin(beta)
             
-            elif ob.get('VIType') == 'SunMesh':
+            elif ob.get('VIType') == 'SunMesh':                
                 ob.scale = 3*[scene.soldistance/100]
                 ob.location.z = spoblist['Sun'].location.z = spoblist['SPathMesh'].location.z + scene.soldistance * sin(beta)
                 ob.location.x = spoblist['Sun'].location.x = spoblist['SPathMesh'].location.x -(scene.soldistance**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5  * sin(phi)

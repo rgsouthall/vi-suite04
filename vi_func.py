@@ -1,17 +1,18 @@
 import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, numpy
 from math import sin, cos, asin, acos, pi, isnan
+from mathutils import Vector, Matrix
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
 try:
     import matplotlib
     matplotlib.use('Qt4Agg', force = True)
     import matplotlib.pyplot as plt
+    import matplotlib.colors as colors
     from .windrose import WindroseAxes
     mp = 1
 except:
     mp = 0
 
 dtdf = datetime.date.fromordinal
-#s = 60
 
 def cmap(cm):
     cmdict = {'hot': 'livi', 'grey': 'shad'}
@@ -110,8 +111,6 @@ def retelaarea(node):
     if outosocks or inosocks:
         elaarea = max([facearea(bpy.data.objects[sock.node.zone], bpy.data.objects[sock.node.zone].data.polygons[int(sock.sn)]) for sock in outosocks + inosocks])
         node["_RNA_UI"] = {"ela": {"max":elaarea}}
-#    except Exception as e:
-#        print(e)
         
 def objmode():
     if bpy.context.active_object and bpy.context.active_object.type == 'MESH' and not bpy.context.active_object.hide:
@@ -238,6 +237,8 @@ def processf(pro_op, node):
                 'Zone Air Relative Humidity [%] !Hourly': 'Humidity (%)',
                 'Zone Air System Sensible Heating Rate [W] !Hourly': 'Zone heating (W)',
                 'Zone Air System Sensible Cooling Rate [W] !Hourly': 'Zone cooling (W)',
+                'Zone Ideal Loads Supply Air Sensible Heating Rate [W] !Hourly': 'Zone air heating (W)',
+                'Zone Ideal Loads Supply Air Sensible Cooling Rate [W] !Hourly': 'Zone air cooling (W)',
                 'Zone Windows Total Transmitted Solar Radiation Rate [W] !Hourly': 'Solar gain (W)',
                 'Zone Infiltration Current Density Volume Flow Rate [m3/s] !Hourly': 'Infiltration (m'+u'\u00b3'+')',
                 'Zone Infiltration Air Change Rate [ach] !Hourly': 'Infiltration (ACH)',
@@ -247,7 +248,8 @@ def processf(pro_op, node):
                 'Zone Thermal Comfort Fanger Model PMV [] !Hourly' :'PMV',               
                 'AFN Node CO2 Concentration [ppm] !Hourly': 'CO2',
                 'Zone Air CO2 Concentration [ppm] !Hourly': 'CO2',
-                'Zone Mean Radiant Temperature [C] !Hourly': 'MRT', 'Zone People Occupant Count [] !Hourly': 'Occupancy'}
+                'Zone Mean Radiant Temperature [C] !Hourly': 'MRT', 'Zone People Occupant Count [] !Hourly': 'Occupancy', 
+                'Zone Air Heat Balance Surface Convection Rate [W] !Hourly': 'Heat balance (W)'}
     enresdict = {'AFN Node CO2 Concentration [ppm] !Hourly': 'CO2'}
     lresdict = {'AFN Linkage Node 1 to Node 2 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow out',
                 'AFN Linkage Node 2 to Node 1 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow in',
@@ -264,10 +266,12 @@ def processf(pro_op, node):
                 if len(linesplit) == 1:
                     intro = 0
                 elif linesplit[1] == '1' and '!Hourly' in linesplit[-1]:
-                    if linesplit[3] in zresdict and linesplit[2].strip('_OCCUPANCY') not in objlist and 'ExtNode' not in linesplit[2]:
+                    if linesplit[3] in zresdict and linesplit[2][-10:] == '_OCCUPANCY' and linesplit[2].strip('_OCCUPANCY') not in objlist and 'ExtNode' not in linesplit[2]:
                         objlist.append(linesplit[2].strip('_OCCUPANCY'))
-                    
-#                    allresdict[linesplit[0]] = ['{} {}'.format(linesplit[2], linesplit[-1].strip(' !Hourly'))]
+                    elif linesplit[3] in zresdict and linesplit[2][-4:] == '_AIR' and linesplit[2].strip('_AIR') not in objlist and 'ExtNode' not in linesplit[2]:
+                        objlist.append(linesplit[2].strip('_AIR'))
+                    elif linesplit[3] in zresdict and linesplit[2] not in objlist and 'ExtNode' not in linesplit[2]:
+                        objlist.append(linesplit[2])
                     allresdict[linesplit[0]] = []
             elif not intro and len(linesplit) == 2:
                 allresdict[linesplit[0]].append(float(linesplit[1]))
@@ -277,14 +281,7 @@ def processf(pro_op, node):
                     allresdict['Day'].append(int(linesplit[3]))
                     allresdict['Hour'].append(int(linesplit[5]))
                     allresdict['dos'].append(int(linesplit[1]))
-                    
-#            if linesplit[0] in resdict:
-#                resdict[linesplit[0]].append(linesplit[1])
-#                if linesplit[0] == dos:
-#                    resdict['Month'].append(int(linesplit[2]))
-#                    resdict['Day'].append(int(linesplit[3]))
-#                    resdict['Hour'].append(int(linesplit[5]))
-    
+                        
             elif len(linesplit) > 3 and linesplit[2] == 'Day of Simulation[]':
                 resdict[linesplit[0]], allresdict['Month'],  allresdict['Day'], allresdict['Hour'], allresdict['dos'], dos, node['rtypes'] = ['Day of Simulation'], [], [], [], [], linesplit[0], ['Time']
     
@@ -297,18 +294,42 @@ def processf(pro_op, node):
                 except:
                     pass
     
-            elif len(linesplit) > 3 and linesplit[2].strip('_OCCUPANCY') in objlist:
+            elif len(linesplit) > 3 and linesplit[2][-10:] == '_OCCUPANCY' and linesplit[2][:-10] in objlist:
                 if 'Zone' not in node['rtypes']:
                    node['rtypes'] += ['Zone']
                 try:
-                    resdict[linesplit[0]] = [linesplit[2].strip('_OCCUPANCY'), zresdict[linesplit[3]]]
-                    if linesplit[2].strip('_OCCUPANCY') not in ztypes:
-                        ztypes.append(linesplit[2].strip('_OCCUPANCY'))
+                    resdict[linesplit[0]] = [linesplit[2][:-10], zresdict[linesplit[3]]]
+                    if linesplit[2][:-10] not in ztypes:
+                        ztypes.append(linesplit[2][:-10])
                     if zresdict[linesplit[3]] not in zrtypes:
                         zrtypes.append(zresdict[linesplit[3]])
                 except:
                     pass
-    
+            
+            elif len(linesplit) > 3 and linesplit[2][-4:] == '_AIR' and linesplit[2][:-4] in objlist:
+                if 'Zone' not in node['rtypes']:
+                   node['rtypes'] += ['Zone']
+                try:
+                    resdict[linesplit[0]] = [linesplit[2][:-4], zresdict[linesplit[3]]]
+                    if linesplit[2][:-4] not in ztypes:
+                        ztypes.append(linesplit[2][:-4])
+                    if zresdict[linesplit[3]] not in zrtypes:
+                        zrtypes.append(zresdict[linesplit[3]])
+                except:
+                    pass
+            
+            elif len(linesplit) > 3 and linesplit[2] in objlist:
+                if 'Zone' not in node['rtypes']:
+                   node['rtypes'] += ['Zone']
+                try:
+                    resdict[linesplit[0]] = [linesplit[2], zresdict[linesplit[3]]]
+                    if linesplit[2] not in ztypes:
+                        ztypes.append(linesplit[2])
+                    if zresdict[linesplit[3]] not in zrtypes:
+                        zrtypes.append(zresdict[linesplit[3]])
+                except:
+                    pass
+            
             elif len(linesplit) > 3 and linesplit[3] in lresdict:
                 if 'Linkage' not in node['rtypes']:
                    node['rtypes'] += ['Linkage']
@@ -332,14 +353,24 @@ def processf(pro_op, node):
                         enrtypes.append(enresdict[linesplit[3]])
                 except Exception as e:
                     print('ext', e)
-    
+            
     node.dsdoy = datetime.datetime(datetime.datetime.now().year, allresdict['Month'][0], allresdict['Day'][0]).timetuple().tm_yday
     node.dedoy = datetime.datetime(datetime.datetime.now().year, allresdict['Month'][-1], allresdict['Day'][-1]).timetuple().tm_yday
     node['dos'], node['resdict'], node['ctypes'], node['ztypes'], node['zrtypes'], node['ltypes'], node['lrtypes'], node['entypes'], node['enrtypes'] = dos, resdict, ctypes, ztypes, zrtypes, ltypes, lrtypes, entypes, enrtypes
     node['allresdict'] = allresdict
     if node.outputs['Results out'].links:
        node.outputs['Results out'].links[0].to_node.update() 
-    
+
+    for o in bpy.data.objects:
+        if 'EN_'+o.name.upper() in objlist:
+            o['enviresults'] = {}
+    for zres in resdict.items():
+        for o in bpy.data.objects:
+            if ['EN_'+o.name.upper(), 'Zone air heating (W)'] == zres[1]:            
+                o['enviresults']['Zone air heating (kWh)'] = sum(allresdict[zres[0]])*0.001
+            elif ['EN_'+o.name.upper(), 'Zone air cooling (W)'] == zres[1]:            
+                o['enviresults']['Zone air cooling (kWh)'] = sum(allresdict[zres[0]])*0.001
+
 def iprop(iname, idesc, imin, imax, idef):
     return(IntProperty(name = iname, description = idesc, min = imin, max = imax, default = idef))
 def eprop(eitems, ename, edesc, edef):
@@ -367,7 +398,6 @@ def nfvprop(fvname, fvattr, fvdef, fvsub):
 
 def boundpoly(obj, mat, poly, enng):
     if mat.envi_boundary:
-#        polyloc = obj.matrix_world*mathutils.Vector(poly.center)
         nodes = [node for node in enng.nodes if hasattr(node, 'zone') and node.zone == obj.name]
         for node in nodes:
             insock = node.inputs['{}_{}_b'.format(mat.name, poly.index)]
@@ -375,26 +405,20 @@ def boundpoly(obj, mat, poly, enng):
             if insock.links:
                 bobj = bpy.data.objects[insock.links[0].from_node.zone]
                 bpoly = bobj.data.polygons[int(insock.links[0].from_socket.name.split('_')[-2])]
-#                bpolyloc = bobj.matrix_world*mathutils.Vector(bpoly.center)
                 if bobj.data.materials[bpoly.material_index] == mat:# and max(bpolyloc - polyloc) < 0.001 and abs(bpoly.area - poly.area) < 0.01:
                     return(("Surface", node.inputs['{}_{}_b'.format(mat.name, poly.index)].links[0].from_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
         
             elif outsock.links:
                 bobj = bpy.data.objects[outsock.links[0].to_node.zone]
                 bpoly = bobj.data.polygons[int(outsock.links[0].to_socket.name.split('_')[-2])]
-#                bpolyloc = bobj.matrix_world*mathutils.Vector(bpoly.center)
                 if bobj.data.materials[bpoly.material_index] == mat:# and max(bpolyloc - polyloc) < 0.001 and abs(bpoly.area - poly.area) < 0.01:
                     return(("Surface", node.outputs['{}_{}_b'.format(mat.name, poly.index)].links[0].to_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
-#            except Exception as e:
-#                print(e)
             return(("Outdoors", "", "SunExposed", "WindExposed"))
-#        else:
-#            return(("Outdoors", "", "SunExposed", "WindExposed"))
+
     elif mat.envi_thermalmass:
         return(("Adiabatic", "", "NoSun", "NoWind"))
     else:
         return(("Outdoors", "", "SunExposed", "WindExposed"))
-
 
 def objvol(op, obj):
     bm , floor, roof, mesh = bmesh.new(), [], [], obj.data
@@ -407,16 +431,8 @@ def objvol(op, obj):
     zfloor = list(zip(*floor))
     if not zfloor and op:
         op.report({'INFO'},"Zone has no floor area")
-#    else:
-#        taf = sum(zfloor[0])
-#    avhf = sum([(zfloor[0][i]*zfloor[1][i])/taf for i in range(len(zfloor[0]))])
-#    zroof = list(zip(*roof))
-#    tar = sum(zroof[0])
-#    avhr = sum([(zroof[0][i]*zroof[1][i])/tar for i in range(len(zroof[0]))])
 
     return(bm.calc_volume()*obj.scale[0]*obj.scale[1]*obj.scale[2])
-#    return((avhr - avhf)*(taf+tar)*obj.scale[0]*obj.scale[1]*obj.scale[2]/2)
-
 
 def ceilheight(obj, vertz):
     mesh = obj.data
@@ -438,6 +454,8 @@ def vertarea(mesh, vert):
             for oface in ofaces:
                 ovs.append([i for i in face.verts if i in oface.verts])
             if len(ovs) == 1:
+                if hasattr(mesh.verts, "ensure_lookup_table"):
+                    mesh.verts.ensure_lookup_table()
                 sedgevs = (vert.index, [v.index for v in fvs if v not in ovs][0])
                 sedgemp = mathutils.Vector([((mesh.verts[sedgevs[0]].co)[i] + (mesh.verts[sedgevs[1]].co)[i])/2 for i in range(3)])
                 eps = [mathutils.geometry.intersect_line_line(face.calc_center_median(), ofaces[0].calc_center_median(), ovs[0][0].co, ovs[0][1].co)[1]] + [sedgemp]
@@ -467,6 +485,150 @@ def vsarea(obj, vs):
             i += 1
         return(area)
 
+def wind_rose(maxws, wrsvg):
+    pa, cpos, lpos, scene, verts = 0, [], [], bpy.context.scene, []
+    bm = bmesh.new()
+    wrme = bpy.data.meshes.new("Wind_rose")   
+    wro = bpy.data.objects.new('Wind_rose', wrme)
+    scene.objects.link(wro)
+    scene.objects.active = wro
+    wro.select = True
+    with open(wrsvg, 'r') as svgfile:  
+        svglines = svgfile.readlines()     
+        for line in svglines:
+            if "<svg height=" in line:
+                dimen = int(line.split('"')[1].strip('pt'))
+                loc = (dimen*0.0005, -dimen*0.0005, 0)
+                scale = 0.81*dimen*0.0005
+                print(scale)
+    
+            if '/>' in line:
+                lcolsplit = line.split(';')
+                for lcol in lcolsplit: 
+                    if 'style="fill:#' in lcol and lcol[-6:] != 'ffffff':
+                        fillrgb = colors.hex2color(lcol[-7:])
+                        if 'wr-{}'.format(lcol[-6:]) not in [mat.name for mat in bpy.data.materials]:
+                            bpy.data.materials.new('wr-{}'.format(lcol[-6:]))
+                        bpy.data.materials['wr-{}'.format(lcol[-6:])].diffuse_color = fillrgb
+                        if 'wr-{}'.format(lcol[-6:]) not in [mat.name for mat in wro.data.materials]:
+                            bpy.ops.object.material_slot_add()
+                            wro.material_slots[-1].material = bpy.data.materials['wr-{}'.format(lcol[-6:])]        
+        for line in svglines:
+            linesplit = line.split(' ')
+            if '<path' in line:
+                pa = 1
+            if pa and line[0] == 'M':
+                spos = [(float(linesplit[0][1:])*0.001, float(linesplit[1])*-0.001, 0)]
+            if pa and line[0] == 'C':
+                cpos.append((linesplit[0][1:], linesplit[1], 0, linesplit[2], linesplit[3], 0))
+            if pa and line[0] == 'L':
+                lpos.append((float(linesplit[0][1:])*0.001, float(linesplit[1].strip('"'))*-0.001, 0))
+            if pa and '/>' in line:
+                lcolsplit = line.split(';')
+                for lcol in lcolsplit:                
+                    if 'style="fill:#' in lcol and lcol[-6:] != 'ffffff':
+                        fillrgb = colors.hex2color(lcol[-7:])
+                        for pos in spos + lpos:
+                            verts.append(bm.verts.new(pos))
+                        if len(verts) > 2:
+                            bm.faces.new(verts)
+                            bm.faces.ensure_lookup_table()
+                            bm.faces[-1].material_index = wro.data.materials[:].index(wro.data.materials['wr-{}'.format(lcol[-6:])])
+                    if 'stroke:#' in lcol:
+                        strokergb = colors.hex2color(lcol[-7:])
+                        if 'wr-000000' not in [mat.name for mat in bpy.data.materials]:
+                            bpy.data.materials.new('wr-000000')
+                            bpy.data.materials['wr-000000'].diffuse_color = strokergb
+                        if 'wr-000000' not in [mat.name for mat in wro.data.materials]:
+                            bpy.ops.object.material_slot_add()
+                            wro.material_slots[-1].material = bpy.data.materials['wr-000000']
+                pa, cpos, lpos, verts = 0, [], [], []  
+    
+    bm.to_mesh(wro.data)
+    bm.free()
+    
+    bpy.ops.object.mode_set(mode = 'EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.inset(thickness = 0.0001, use_even_offset=True, use_relative_offset=False)
+    bpy.ops.object.mode_set(mode = 'OBJECT')
+    for face in wro.data.polygons:
+        if not face.select:
+            face.material_index = wro.data.materials[:].index(wro.data.materials['wr-000000']) 
+    
+#    windnum(maxws, loc, scale, compass(loc, scale, wro))
+    compass(loc, scale, wro)
+def compass(loc, scale, wro):
+    print(scale)
+    txts, rings = [], []
+    for i in range(1, 11):
+        bpy.ops.mesh.primitive_circle_add(vertices=132, radius = scale * i/10, fill_type='NOTHING', view_align=False, enter_editmode=True, location=loc, 
+        rotation=(0, 0, pi/12))
+        ring = bpy.context.active_object
+        rings.append(ring)
+        bpy.ops.mesh.select_mode(use_extend=False, use_expand=False, type='EDGE')
+        bpy.ops.object.editmode_toggle()
+        for edge in ring.data.edges:
+            edge.select = 0 if edge.index % 3 or i == 10 else 1            
+        bpy.ops.object.editmode_toggle()
+        bpy.ops.mesh.delete(type='EDGE')
+        bpy.ops.mesh.select_all(action='TOGGLE')
+#        bpy.ops.mesh.extrude_edges_move(MESH_OT_extrude_edges_indiv=None, TRANSFORM_OT_translate=None)
+        bpy.ops.mesh.extrude_edges_indiv()
+        bpy.ops.transform.resize(value=(1.005, 1.005, 1.005))
+        bpy.ops.object.editmode_toggle()
+        
+    bpy.ops.mesh.primitive_circle_add(vertices=8, radius=scale * 0.005, fill_type='NGON', view_align=False, enter_editmode=True, location=loc, rotation = (0, 0, -pi/8))
+    bpy.ops.mesh.select_all(action='TOGGLE')
+    bpy.ops.object.editmode_toggle()
+    spoke = bpy.context.active_object
+        
+    matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
+    tmatrot = Matrix.Rotation(0, 4, 'Z')
+    direc = Vector((0, 1, 0))
+    for i in range(8):  
+        bpy.context.scene.objects.active = spoke
+        for edge in spoke.data.edges:
+            edge.select = edge.index == i
+        bpy.ops.object.editmode_toggle()
+        for j in range(42):
+            bpy.ops.mesh.extrude_edges_move(MESH_OT_extrude_edges_indiv=None, TRANSFORM_OT_translate= {"value":(scale*0.025, scale*0.0075)[j == 0]*(tmatrot*direc), "constraint_orientation":"GLOBAL"})
+         
+        bpy.ops.object.editmode_toggle() 
+        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + scale*1.05*(tmatrot*direc), rotation=tmatrot.to_euler())
+        txt = bpy.context.active_object
+        txts.append(txt)
+        txt.scale, txt.data.body, txt.data.align  = (scale*0.1, scale*0.1, scale*0.1), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER'
+        bpy.ops.object.convert(target='MESH')
+        bpy.ops.object.material_slot_add()
+        txt.material_slots[-1].material = bpy.data.materials['wr-000000']
+        tmatrot = tmatrot * matrot
+       
+    bpy.ops.object.select_all(action='DESELECT')
+    for txt in txts + rings + [spoke] + [wro]:
+        txt.select = True
+    bpy.ops.object.join()
+    return bpy.context.active_object
+
+def windnum(maxws, loc, scale, wr):
+    txts = []
+    matrot = Matrix.Rotation(-pi*0.125, 4, 'Z')
+    direc = Vector((0, 1, 0))
+    for i in range(5):
+        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + ((i+1)/5)*scale*(matrot*direc))
+        txt = bpy.context.active_object
+        txt.data.body = '{:.1f}'.format((i+1)*maxws/5)
+        txt.scale = (scale*0.05, scale*0.05, scale*0.05)
+        bpy.ops.object.convert(target='MESH')
+        bpy.ops.object.material_slot_add()
+        txt.material_slots[-1].material = bpy.data.materials['wr-000000']
+        txts.append(txt)
+    bpy.ops.object.select_all(action='DESELECT')
+    for txt in txts + [wr]:
+        txt.select = True
+    bpy.ops.object.join()
+    bpy.context.active_object.name = 'Wind Rose'
+    bpy.context.active_object['VIType'] = 'Wind_Plane'
+    
 def windcompass():
     rad1 = 1.4
     dep = 2.8
@@ -623,7 +785,6 @@ def retobjs(otypes):
 
 def viewdesc(context):
     region = context.region
-#    (width, height) = [getattr(region, s) for s in ('width', 'height')]
     width, height = region.width, region.height
     mid_x, mid_y = width/2, height/2
     return(mid_x, mid_y, width, height)
@@ -637,7 +798,6 @@ def skfpos(o, frame, vis):
     maxz = max([vco[2] for vco in vcos])
     minz = min([vco[2] for vco in vcos])
     return mathutils.Vector(((maxx + minx) * 0.5, (maxy + miny) * 0.5, (maxz + minz) * 0.5))
-#    return mathutils.Vector((sum([vco[0] for vco in vcos])/len(vcos), sum([vco[1] for vco in vcos])/len(vcos), sum([vco[2] for vco in vcos])/len(vcos)))
 
 def selmesh(sel):
     bpy.ops.object.mode_set(mode = 'EDIT')

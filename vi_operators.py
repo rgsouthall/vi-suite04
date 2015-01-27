@@ -1,6 +1,7 @@
 import bpy, bpy_extras, sys, datetime, mathutils, os, time, bmesh, shutil
 from os import rename
-from numpy import arange, frombuffer, uint8
+import numpy
+from numpy import arange, frombuffer, uint8, digitize, histogram
 import bpy_extras.io_utils as io_utils
 from subprocess import Popen, PIPE
 from collections import OrderedDict
@@ -20,7 +21,7 @@ from .livi_calc  import li_calc, resapply
 from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
-from .vi_func import processf, livisimacc, solarPosition, wr_axes, clearscene, framerange, viparams, objmode, nodecolour, cmap, vertarea, wind_rose
+from .vi_func import processf, livisimacc, solarPosition, wr_axes, clearscene, framerange, viparams, objmode, nodecolour, cmap, vertarea, wind_rose, compass, windnum
 from .vi_chart import chart_disp
 from .vi_gen import vigen
 
@@ -877,30 +878,31 @@ class NODE_OT_SunPath(bpy.types.Operator):
         spathob.material_slots[-1].material = bpy.data.materials['SPBase']
         spathob.active_material_index = 2
 
-        for i in range(1, 6):
-            bpy.ops.mesh.primitive_torus_add(major_radius=i*sd*0.2, minor_radius=i*0.1*0.2, major_segments=64, minor_segments=8, location=(0.0, 0.0, 0.0), rotation=(0.0, 0.0, 0.0))
-            bpy.ops.object.material_slot_assign()
-        for j in range(5):
-            bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=(2-j%2)*0.04, depth=2.05*sd, end_fill_type='NGON', view_align=False, location=(0.0, 0.0, 0.0), rotation=(pi/2, 0.0, j*pi/4))
-            bpy.ops.object.material_slot_assign()
-        bpy.ops.object.mode_set(mode='OBJECT')
-
-        for c in range(8):
-            bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(0, sd*1.025, 0.0), rotation=(0.0, 0.0, 0.0))
-            txt = bpy.context.active_object
-            txt.scale, txt.data.extrude, txt.data.body, txt.data.align  = (10, 10, 10), 0.01, ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')[c], 'CENTER'
-            bpy.ops.object.convert(target='MESH')
-            bpy.ops.object.material_slot_add()
-            txt.material_slots[0].material = bpy.data.materials['SPBase']
-            bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
-            txt.rotation_euler=(0, 0, -c*pi*0.25)
-            ordinals.append(txt)
-
-        for o in ordinals:
-            o.select = True
+#        for i in range(1, 6):
+#            bpy.ops.mesh.primitive_torus_add(major_radius=i*sd*0.2, minor_radius=i*0.1*0.2, major_segments=64, minor_segments=8, location=(0.0, 0.0, 0.0), rotation=(0.0, 0.0, 0.0))
+#            bpy.ops.object.material_slot_assign()
+#        for j in range(5):
+#            bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=(2-j%2)*0.04, depth=2.05*sd, end_fill_type='NGON', view_align=False, location=(0.0, 0.0, 0.0), rotation=(pi/2, 0.0, j*pi/4))
+#            bpy.ops.object.material_slot_assign()
+#        bpy.ops.object.mode_set(mode='OBJECT')
+#
+#        for c in range(8):
+#            bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(0, sd*1.025, 0.0), rotation=(0.0, 0.0, 0.0))
+#            txt = bpy.context.active_object
+#            txt.scale, txt.data.extrude, txt.data.body, txt.data.align  = (10, 10, 10), 0.01, ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')[c], 'CENTER'
+#            bpy.ops.object.convert(target='MESH')
+#            bpy.ops.object.material_slot_add()
+#            txt.material_slots[0].material = bpy.data.materials['SPBase']
+#            bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+#            txt.rotation_euler=(0, 0, -c*pi*0.25)
+#            ordinals.append(txt)
+#
+#        for o in ordinals:
+#            o.select = True
         spathob.select = True
         bpy.context.scene.objects.active = spathob
-        bpy.ops.object.join()
+        spathob = compass((spathob.location, sd, spathob, bpy.data.materials['SPBase']))
+#        bpy.ops.object.join()
 
         for ob in (spathob, sunob):
             spathob.cycles_visibility.diffuse, spathob.cycles_visibility.shadow, spathob.cycles_visibility.glossy, spathob.cycles_visibility.transmission = [False] * 4
@@ -962,74 +964,66 @@ class NODE_OT_WindRose(bpy.types.Operator):
         mon = [int(mo) for mo in locnode['allresdict']['Month']]
         awd = [float(wd) for mi, wd in enumerate(locnode['allresdict']['20']) if simnode.startmonth <= mon[mi] <= simnode.endmonth]
         aws = [float(ws) for mi, ws in enumerate(locnode['allresdict']['21']) if simnode.startmonth <= mon[mi] <= simnode.endmonth]
-        simnode['maxres'], simnode['minres'], simnode['avres']= max(aws), min(aws), sum(aws)/len(aws)
+        taws = [float(ws) for ws in locnode['allresdict']['21']]
+        simnode['maxres'], simnode['minres'], simnode['avres']= max(taws), min(taws), sum(taws)/len(taws)
         (fig, ax) = wr_axes()
-        binvals = arange(0,int(ceil(max(aws))),2)
-        simnode['nbins'] = len(binvals)
+        sbinvals = arange(0,int(ceil(max(taws))),2)
+        dbinvals = arange(-11.25,372.25,22.5)
+        dfreq = histogram(awd, bins=dbinvals)[0]
+        dfreq[0] = dfreq[0] + dfreq[-1]
+        dfreq = dfreq[:-1]
+        simnode['maxfreq'] = 100*numpy.max(dfreq)/len(awd)
+        simnode['nbins'] = len(sbinvals)
 
         if simnode.wrtype == '0':
-            ax.bar(awd, aws, bins=binvals, normed=True, opening=0.8, edgecolor='white')
+            ax.bar(awd, aws, bins=sbinvals, normed=True, opening=0.8, edgecolor='white')
         if simnode.wrtype == '1':
-            ax.box(awd, aws, bins=binvals, normed=True)
-        if simnode.wrtype == '2':
-            ax.contourf(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
-        if simnode.wrtype == '3':
-            ax.contourf(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
-            ax.contour(awd, aws, bins=binvals, normed=True, colors='black')
-        if simnode.wrtype == '4':
-            ax.contour(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
+            ax.box(awd, aws, bins=sbinvals, normed=True)
+        if simnode.wrtype in ('2', '3', '4'):
+            ax.contourf(awd, aws, bins=sbinvals, normed=True, cmap=cm.hot)
+#        if simnode.wrtype in ('3', '4'):
+#            ax.contourf(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
+#            ax.contour(awd, aws, bins=binvals, normed=True, colors='black')
 
-        if str(sys.platform) != 'win32':
-            plt.savefig(scene['viparams']['newdir']+'/disp_wind.png', dpi = (150), transparent=False)
-            if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
-                bpy.data.images.load(scene['viparams']['newdir']+'/disp_wind.png')
-            else:
-                bpy.data.images['disp_wind.png'].filepath = scene['viparams']['newdir']+'/disp_wind.png'
-                bpy.data.images['disp_wind.png'].reload()
 
-        # Below is a workaround for the matplotlib/blender png bug
-        else:
-            canvas = FigureCanvasAgg(fig)
-            canvas.draw()
-            pixbuffer, pixels = canvas.buffer_rgba(), []
-            [w, h] = [int(d) for d in fig.bbox.bounds[2:]]
-            pixarray = frombuffer(pixbuffer, uint8)
-            pixarray.shape = h, w, 4
-            pixels = pixarray[::-1].flatten()/255
-
-            if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
-                wrim = bpy.data.images.new('disp_wind.png', height = h, width = w)
-                wrim.file_format = 'PNG'
-                wrim.filepath = os.path.join(scene['viparams']['newdir'], wrim.name)
-            else:
-                wrim = bpy.data.images['disp_wind.png']
-            wrim.pixels = pixels
-            wrim.update()
-            wrim.save()
-            wrim.reload()
+#        if str(sys.platform) != 'win32':
+#            plt.savefig(scene['viparams']['newdir']+'/disp_wind.png', dpi = (150), transparent=False)
+#            if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
+#                bpy.data.images.load(scene['viparams']['newdir']+'/disp_wind.png')
+#            else:
+#                bpy.data.images['disp_wind.png'].filepath = scene['viparams']['newdir']+'/disp_wind.png'
+#                bpy.data.images['disp_wind.png'].reload()
+#
+#        # Below is a workaround for the matplotlib/blender png bug
+#        else:
+#            canvas = FigureCanvasAgg(fig)
+#            canvas.draw()
+#            pixbuffer, pixels = canvas.buffer_rgba(), []
+#            [w, h] = [int(d) for d in fig.bbox.bounds[2:]]
+#            pixarray = frombuffer(pixbuffer, uint8)
+#            pixarray.shape = h, w, 4
+#            pixels = pixarray[::-1].flatten()/255
+#
+#            if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
+#                wrim = bpy.data.images.new('disp_wind.png', height = h, width = w)
+#                wrim.file_format = 'PNG'
+#                wrim.filepath = os.path.join(scene['viparams']['newdir'], wrim.name)
+#            else:
+#                wrim = bpy.data.images['disp_wind.png']
+#            wrim.pixels = pixels
+#            wrim.update()
+#            wrim.save()
+#            wrim.reload()
 
         plt.savefig(scene['viparams']['newdir']+'/disp_wind.svg')
-#        wind_rose(simnode['maxres'], scene['viparams']['newdir']+'/disp_wind.svg')
-
-        if 'Wind_Plane' not in [ob.get('VIType') for ob in bpy.context.scene.objects]:
-            bpy.ops.mesh.primitive_plane_add(enter_editmode=False, location=(0.0, 0.0, 0.0))
-            bpy.context.active_object['VIType'] = 'Wind_Plane'
-            wind_mat = bpy.data.materials.new('Wind_Rose')
-            tex = bpy.data.textures.new(type = 'IMAGE', name = 'Wind_Tex')
-            tex.image = bpy.data.images['disp_wind.png']
-            wind_mat.texture_slots.add()
-            wind_mat.texture_slots[0].texture = tex
-            wind_mat.texture_slots[0].use_map_alpha = True
-            bpy.context.active_object.name = "Wind_Plane"
-            bpy.ops.object.material_slot_add()
-            bpy.context.active_object.material_slots[0].material = wind_mat
-            bpy.context.active_object.data.uv_textures.new()
-            bpy.context.active_object.data.uv_textures[0].data[0].image = bpy.data.images['disp_wind.png']
-            bpy.context.active_object.scale = (100, 100, 100)
-            wind_mat.use_transparency = False
-            wind_mat.transparency_method = 'Z_TRANSPARENCY'
-            wind_mat.alpha = 0.0
+        (wro, scale) = wind_rose(simnode['maxres'], scene['viparams']['newdir']+'/disp_wind.svg', simnode.wrtype)
+        wro['maxres'], wro['minres'], wro['avres'] = max(aws), min(aws), sum(aws)/len(aws)
+        windnum(simnode['maxfreq'], (0,0,0), scale, compass((0,0,0), scale, wro, wro.data.materials['wr-000000']))
         bpy.ops.view3d.wrlegdisplay('INVOKE_DEFAULT')
+        if simnode.wrtype == '4':
+            (fig, ax) = wr_axes()
+            ax.contour(awd, aws, bins=sbinvals, normed=True, cmap=cm.hot)
+            plt.savefig(scene['viparams']['newdir']+'/disp_wind.svg')
         return {'FINISHED'}
 
 

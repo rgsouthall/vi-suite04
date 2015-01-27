@@ -316,40 +316,42 @@ def viwr_legend(self, context, simnode):
     if scene.vi_leg_display != True or scene.vi_display == 0:
         return
     else:
-        try:
-            resvals = ['{0:.0f} to {1:.0f}'.format(2*i, 2*(i+1)) for i in range(simnode['nbins'])]
-            resvals[-1] = resvals[-1][:-int(len('{:.0f}'.format(simnode['maxres'])))] + u"\u221E"
-            height, lenres, font_id = context.region.height, len(resvals[-1]), 0
-            drawpoly(20, height - 40, 70 + lenres*8, height - (simnode['nbins']+6)*20)
-            drawloop(19, height - 40, 70 + lenres*8, height - (simnode['nbins']+6)*20)
-            cm = matplotlib.cm.jet if simnode.wrtype in ('0', '1') else matplotlib.cm.hot
-            for i in range(simnode['nbins']):
-                bgl.glColor4f(*cm(i * 1/(simnode['nbins']-1), 1))
-                bgl.glBegin(bgl.GL_POLYGON)
-                bgl.glVertex2i(20, height - 70 - (simnode['nbins'] * 20) + (i*20))
-                bgl.glVertex2i(60, height - 70 - (simnode['nbins'] * 20) + (i*20))
-                bgl.glVertex2i(60, height - 50 - (simnode['nbins'] * 20) + (i*20))
-                bgl.glVertex2i(20, height - 50 - (simnode['nbins'] * 20) + (i*20))
-                bgl.glEnd()
-                blf.size(font_id, 20, 48)
-                bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-                blf.position(font_id, 65, height - 65 - (simnode['nbins'] * 20) + (i*20), 0)
-                blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
-    
-            blf.size(font_id, 20, 56)
-            cu = 'Speed (m/s)'
-            drawfont(cu, font_id, 0, height, 25, 57)
-            bgl.glLineWidth(1)
-            bgl.glDisable(bgl.GL_BLEND)
-            height = context.region.height
-            font_id = 0
-            bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
+#        try:
+        resvals = ['{0:.0f} to {1:.0f}'.format(2*i, 2*(i+1)) for i in range(simnode['nbins'])]
+        resvals[-1] = resvals[-1][:-int(len('{:.0f}'.format(simnode['maxres'])))] + u"\u221E"
+        height, lenres, font_id = context.region.height, len(resvals[-1]), 0
+        drawpoly(20, height - 40, 70 + lenres*8, height - (simnode['nbins']+6)*20)
+        drawloop(19, height - 40, 70 + lenres*8, height - (simnode['nbins']+6)*20)
+        cm = matplotlib.cm.jet if simnode.wrtype in ('0', '1') else matplotlib.cm.hot
+        for i in range(simnode['nbins']):
+            bgl.glColor4f(*cm(i * 1/(simnode['nbins']-1), 1))
+            bgl.glBegin(bgl.GL_POLYGON)
+            bgl.glVertex2i(20, height - 70 - (simnode['nbins'] * 20) + (i*20))
+            bgl.glVertex2i(60, height - 70 - (simnode['nbins'] * 20) + (i*20))
+            bgl.glVertex2i(60, height - 50 - (simnode['nbins'] * 20) + (i*20))
+            bgl.glVertex2i(20, height - 50 - (simnode['nbins'] * 20) + (i*20))
+            bgl.glEnd()
             blf.size(font_id, 20, 48)
-            drawfont("Ave: {:.1f}".format(simnode['avres']), font_id, 0, height, 22, simnode['nbins']*20 + 85)
-            drawfont("Max: {:.1f}".format(simnode['maxres']), font_id, 0, height, 22, simnode['nbins']*20 + 100)
-            drawfont("Min: {:.1f}".format(simnode['minres']), font_id, 0, height, 22, simnode['nbins']*20 + 115)
-        except:
-            scene.vi_display = 0
+            bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+            blf.position(font_id, 65, height - 65 - (simnode['nbins'] * 20) + (i*20), 0)
+            blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
+
+        blf.size(font_id, 20, 56)
+        cu = 'Speed (m/s)'
+        drawfont(cu, font_id, 0, height, 25, 57)
+        bgl.glLineWidth(1)
+        bgl.glDisable(bgl.GL_BLEND)
+        height = context.region.height
+        font_id = 0
+        bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
+        blf.size(font_id, 20, 48)
+        datasource = context.active_object if context.active_object and bpy.context.active_object.get('VIType') == 'Wind_Plane' else simnode                
+        drawfont("Ave: {:.1f}".format(datasource['avres']), font_id, 0, height, 22, simnode['nbins']*20 + 85)
+        drawfont("Max: {:.1f}".format(datasource['maxres']), font_id, 0, height, 22, simnode['nbins']*20 + 100)
+        drawfont("Min: {:.1f}".format(datasource['minres']), font_id, 0, height, 22, simnode['nbins']*20 + 115)
+#        except Exception as e:
+#            print(e)
+#            scene.vi_display = 0
             
 def li_compliance(self, context, connode):
     height, scene = context.region.height, context.scene

@@ -116,6 +116,14 @@ def objmode():
     if bpy.context.active_object and bpy.context.active_object.type == 'MESH' and not bpy.context.active_object.hide:
         bpy.ops.object.mode_set(mode = 'OBJECT')
 
+def objoin(obs):
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in obs:
+        o.select = True
+    bpy.context.scene.objects.active = obs[-1]
+    bpy.ops.object.join()
+    return bpy.context.active_object
+    
 def retmesh(name, fr, node, scene):
     if node.animmenu in ("Geometry", "Material"):
         return(scene['viparams']['objfilebase']+"-{}-{}.mesh".format(name.replace(" ", "_"), fr))
@@ -485,23 +493,21 @@ def vsarea(obj, vs):
             i += 1
         return(area)
 
-def wind_rose(maxws, wrsvg):
-    pa, cpos, lpos, scene, verts = 0, [], [], bpy.context.scene, []
+def wind_rose(maxws, wrsvg, wrtype):
+    pa, zp, lpos, scene, vs = 0, 0, [], bpy.context.scene, []    
     bm = bmesh.new()
     wrme = bpy.data.meshes.new("Wind_rose")   
-    wro = bpy.data.objects.new('Wind_rose', wrme)
+    wro = bpy.data.objects.new('Wind_rose', wrme)     
     scene.objects.link(wro)
     scene.objects.active = wro
     wro.select = True
+    
     with open(wrsvg, 'r') as svgfile:  
         svglines = svgfile.readlines()     
         for line in svglines:
             if "<svg height=" in line:
                 dimen = int(line.split('"')[1].strip('pt'))
-                loc = (dimen*0.0005, -dimen*0.0005, 0)
                 scale = 0.81*dimen*0.0005
-                print(scale)
-    
             if '/>' in line:
                 lcolsplit = line.split(';')
                 for lcol in lcolsplit: 
@@ -512,122 +518,121 @@ def wind_rose(maxws, wrsvg):
                         bpy.data.materials['wr-{}'.format(lcol[-6:])].diffuse_color = fillrgb
                         if 'wr-{}'.format(lcol[-6:]) not in [mat.name for mat in wro.data.materials]:
                             bpy.ops.object.material_slot_add()
-                            wro.material_slots[-1].material = bpy.data.materials['wr-{}'.format(lcol[-6:])]        
+                            wro.material_slots[-1].material = bpy.data.materials['wr-{}'.format(lcol[-6:])]  
+                
         for line in svglines:
             linesplit = line.split(' ')
             if '<path' in line:
                 pa = 1
             if pa and line[0] == 'M':
-                spos = [(float(linesplit[0][1:])*0.001, float(linesplit[1])*-0.001, 0)]
-            if pa and line[0] == 'C':
-                cpos.append((linesplit[0][1:], linesplit[1], 0, linesplit[2], linesplit[3], 0))
+                spos = [((float(linesplit[0][1:])- dimen/2) * 0.001, (float(linesplit[1]) - dimen/2) * -0.001, 0.001*scale)]
             if pa and line[0] == 'L':
-                lpos.append((float(linesplit[0][1:])*0.001, float(linesplit[1].strip('"'))*-0.001, 0))
+                lpos.append(((float(linesplit[0][1:]) - dimen/2) * 0.001, (float(linesplit[1].strip('"')) - dimen/2) *-0.001, 0.001*scale))
             if pa and '/>' in line:
                 lcolsplit = line.split(';')
                 for lcol in lcolsplit:                
                     if 'style="fill:#' in lcol and lcol[-6:] != 'ffffff':
-                        fillrgb = colors.hex2color(lcol[-7:])
                         for pos in spos + lpos:
-                            verts.append(bm.verts.new(pos))
-                        if len(verts) > 2:
-                            bm.faces.new(verts)
-                            bm.faces.ensure_lookup_table()
-                            bm.faces[-1].material_index = wro.data.materials[:].index(wro.data.materials['wr-{}'.format(lcol[-6:])])
-                    if 'stroke:#' in lcol:
-                        strokergb = colors.hex2color(lcol[-7:])
-                        if 'wr-000000' not in [mat.name for mat in bpy.data.materials]:
-                            bpy.data.materials.new('wr-000000')
-                            bpy.data.materials['wr-000000'].diffuse_color = strokergb
-                        if 'wr-000000' not in [mat.name for mat in wro.data.materials]:
-                            bpy.ops.object.material_slot_add()
-                            wro.material_slots[-1].material = bpy.data.materials['wr-000000']
-                pa, cpos, lpos, verts = 0, [], [], []  
-    
+                            vs.append(bm.verts.new(pos))                        
+                        if len(vs) > 2:
+                            nf = bm.faces.new(vs)
+                            nf.material_index = wro.data.materials[:].index(wro.data.materials['wr-{}'.format(lcol[-6:])])                            
+                            if wrtype in ('2', '3', '4'):
+                                zp += 0.0005 * scale 
+                                for vert in nf.verts:
+                                    vert.co[2] = zp
+                            bmesh.ops.remove_doubles(bm, verts=vs, dist = scale * 0.0001)
+                                
+                if 'wr-000000' not in [mat.name for mat in bpy.data.materials]:
+                    bpy.data.materials.new('wr-000000')
+                bpy.data.materials['wr-000000'].diffuse_color = (0, 0, 0)
+                if 'wr-000000' not in [mat.name for mat in wro.data.materials]:
+                    bpy.ops.object.material_slot_add()
+                    wro.material_slots[-1].material = bpy.data.materials['wr-000000']
+                pa, lpos, vs = 0, [], []  
+
+    if wrtype in ('0', '1', '3', '4'):            
+        thick = scale * 0.005 if wrtype == '4' else scale * 0.0025
+        faces = bmesh.ops.inset_individual(bm, faces=bm.faces, thickness = thick, use_even_offset = True)['faces']
+        if wrtype == '4':
+            [bm.faces.remove(f) for f in bm.faces if f not in faces]
+        else:
+            for face in faces:
+                face.material_index = wro.data.materials[:].index(wro.data.materials['wr-000000'])
+
     bm.to_mesh(wro.data)
     bm.free()
     
-    bpy.ops.object.mode_set(mode = 'EDIT')
-    bpy.ops.mesh.select_all(action='SELECT')
-    bpy.ops.mesh.inset(thickness = 0.0001, use_even_offset=True, use_relative_offset=False)
-    bpy.ops.object.mode_set(mode = 'OBJECT')
-    for face in wro.data.polygons:
-        if not face.select:
-            face.material_index = wro.data.materials[:].index(wro.data.materials['wr-000000']) 
+    bpy.ops.mesh.primitive_circle_add(vertices = 132, fill_type='NGON', radius=scale*1.2, view_align=False, enter_editmode=False, location=(0, 0, 0))
+    wrbo = bpy.context.active_object
+    if 'wr-base'not in [mat.name for mat in bpy.data.materials]:
+        bpy.data.materials.new('wr-base')
+        bpy.data.materials['wr-base'].diffuse_color = (1,1,1)
+    bpy.ops.object.material_slot_add()
+    wrbo.material_slots[-1].material = bpy.data.materials['wr-base']
+    return (objoin((wrbo, wro)), scale)
     
-#    windnum(maxws, loc, scale, compass(loc, scale, wro))
-    compass(loc, scale, wro)
-def compass(loc, scale, wro):
-    print(scale)
-    txts, rings = [], []
+
+def compass(loc, scale, wro, mat):
+    txts = []
+    come = bpy.data.meshes.new("Compass")   
+    coo = bpy.data.objects.new('Compass', come)
+    bpy.context.scene.objects.link(coo)
+    bpy.context.scene.objects.active = coo
+    bpy.ops.object.material_slot_add()
+    coo.material_slots[-1].material = mat
+    bm = bmesh.new()
+    matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
+    
     for i in range(1, 11):
-        bpy.ops.mesh.primitive_circle_add(vertices=132, radius = scale * i/10, fill_type='NOTHING', view_align=False, enter_editmode=True, location=loc, 
-        rotation=(0, 0, pi/12))
-        ring = bpy.context.active_object
-        rings.append(ring)
-        bpy.ops.mesh.select_mode(use_extend=False, use_expand=False, type='EDGE')
-        bpy.ops.object.editmode_toggle()
-        for edge in ring.data.edges:
-            edge.select = 0 if edge.index % 3 or i == 10 else 1            
-        bpy.ops.object.editmode_toggle()
-        bpy.ops.mesh.delete(type='EDGE')
-        bpy.ops.mesh.select_all(action='TOGGLE')
-#        bpy.ops.mesh.extrude_edges_move(MESH_OT_extrude_edges_indiv=None, TRANSFORM_OT_translate=None)
-        bpy.ops.mesh.extrude_edges_indiv()
-        bpy.ops.transform.resize(value=(1.005, 1.005, 1.005))
-        bpy.ops.object.editmode_toggle()
-        
-    bpy.ops.mesh.primitive_circle_add(vertices=8, radius=scale * 0.005, fill_type='NGON', view_align=False, enter_editmode=True, location=loc, rotation = (0, 0, -pi/8))
-    bpy.ops.mesh.select_all(action='TOGGLE')
-    bpy.ops.object.editmode_toggle()
-    spoke = bpy.context.active_object
-        
+        bmesh.ops.create_circle(bm, cap_ends=False, diameter=scale*i*0.1, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')*Matrix.Translation((0, 0, scale*0.01)))
+    
+    for edge in bm.edges:
+        edge.select_set(False) if edge.index % 3 or edge.index > 1187 else edge.select_set(True)
+    
+    bmesh.ops.delete(bm, geom = [edge for edge in bm.edges if edge.select], context = 2)
+    newgeo = bmesh.ops.extrude_edge_only(bm, edges = bm.edges, use_select_history=False)
+    
+    for v, vert in enumerate(newgeo['geom'][:1320]):
+        vert.co = vert.co + (vert.co - coo.location).normalized() * scale * (0.0025, 0.005)[v > 1187]
+        vert.co[2] = scale*0.01
+           
+    bmesh.ops.create_circle(bm, cap_ends=True, diameter=scale *0.005, segments=8, matrix=Matrix.Rotation(-pi/8, 4, 'Z')*Matrix.Translation((0, 0, scale*0.01)))
     matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
     tmatrot = Matrix.Rotation(0, 4, 'Z')
     direc = Vector((0, 1, 0))
-    for i in range(8):  
-        bpy.context.scene.objects.active = spoke
-        for edge in spoke.data.edges:
-            edge.select = edge.index == i
-        bpy.ops.object.editmode_toggle()
-        for j in range(42):
-            bpy.ops.mesh.extrude_edges_move(MESH_OT_extrude_edges_indiv=None, TRANSFORM_OT_translate= {"value":(scale*0.025, scale*0.0075)[j == 0]*(tmatrot*direc), "constraint_orientation":"GLOBAL"})
-         
-        bpy.ops.object.editmode_toggle() 
-        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + scale*1.05*(tmatrot*direc), rotation=tmatrot.to_euler())
+    for i, edge in enumerate(bm.edges[-8:]):
+        verts = bmesh.ops.extrude_edge_only(bm, edges = [edge], use_select_history=False)['geom'][:2]
+        for vert in verts:
+            vert.co = 1.5*vert.co + 1.025*scale*(tmatrot*direc)
+            vert.co[2] = scale*0.01
+        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=scale*1.05*(tmatrot*direc), rotation=tmatrot.to_euler())
         txt = bpy.context.active_object
-        txts.append(txt)
-        txt.scale, txt.data.body, txt.data.align  = (scale*0.1, scale*0.1, scale*0.1), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER'
+        txt.scale, txt.data.body, txt.data.align, txt.location[2]  = (scale*0.1, scale*0.1, scale*0.1), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER', scale*0.01
         bpy.ops.object.convert(target='MESH')
         bpy.ops.object.material_slot_add()
         txt.material_slots[-1].material = bpy.data.materials['wr-000000']
+        txts.append(txt)
         tmatrot = tmatrot * matrot
-       
-    bpy.ops.object.select_all(action='DESELECT')
-    for txt in txts + rings + [spoke] + [wro]:
-        txt.select = True
-    bpy.ops.object.join()
-    return bpy.context.active_object
+    bm.to_mesh(come)
+    bm.free()
+
+    return objoin(txts + [coo] + [wro])
 
 def windnum(maxws, loc, scale, wr):
     txts = []
     matrot = Matrix.Rotation(-pi*0.125, 4, 'Z')
     direc = Vector((0, 1, 0))
     for i in range(5):
-        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + ((i+1)/5)*scale*(matrot*direc))
+        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=((i+1)/5)*scale*(matrot*direc))
         txt = bpy.context.active_object
-        txt.data.body = '{:.1f}'.format((i+1)*maxws/5)
-        txt.scale = (scale*0.05, scale*0.05, scale*0.05)
+        txt.data.body, txt.scale, txt.location[2] = '{:.1f}'.format((i+1)*maxws/5), (scale*0.05, scale*0.05, scale*0.05), scale*0.01
         bpy.ops.object.convert(target='MESH')
         bpy.ops.object.material_slot_add()
         txt.material_slots[-1].material = bpy.data.materials['wr-000000']
         txts.append(txt)
-    bpy.ops.object.select_all(action='DESELECT')
-    for txt in txts + [wr]:
-        txt.select = True
-    bpy.ops.object.join()
-    bpy.context.active_object.name = 'Wind Rose'
-    bpy.context.active_object['VIType'] = 'Wind_Plane'
+    objoin(txts + [wr]).name = 'Wind Rose'
+    bpy.context.active_object['VIType']  = 'Wind_Plane'
     
 def windcompass():
     rad1 = 1.4

@@ -400,7 +400,7 @@ def cyfc1(self):
                     for blnode in [blnode for blnode in ob.data.node_tree.nodes if blnode.bl_label == 'Blackbody']:
                         blnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5
                     for emnode in [emnode for emnode in ob.data.node_tree.nodes if emnode.bl_label == 'Emission']:
-                        emnode.inputs[1].default_value = 5 * sin(beta)
+                        emnode.inputs[1].default_value = 10 * sin(beta)
             
             elif ob.get('VIType') == 'SPathMesh':
                 ob.scale = 3 * [scene.soldistance/100]

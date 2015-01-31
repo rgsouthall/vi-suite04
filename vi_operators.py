@@ -820,46 +820,36 @@ class NODE_OT_SunPath(bpy.types.Operator):
         bm.from_mesh(spathmesh)
 
         for doy in range(0, 363):
-            if (doy-4)%7 == 0:
-                for hour in range(1, 25):
-                    ([solalt, solazi]) = solarPosition(doy, hour, scene['latitude'], scene['longitude'])[2:]
-                    bm.verts.new().co = [-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
+            for hour in range(1, 25):
+                ([solalt, solazi]) = solarPosition(doy, hour, scene['latitude'], scene['longitude'])[2:]
+                bm.verts.new().co = [-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
         for v in range(24, len(bm.verts)):
             if hasattr(bm.verts, "ensure_lookup_table"):
-                bm.verts.ensure_lookup_table()
-            if bm.verts[v].co.z > 0 or bm.verts[v - 24].co.z > 0:                
-                bm.edges.new((bm.verts[v], bm.verts[v - 24]))
-            if v in range(1224, 1248):
-                if bm.verts[v].co.z > 0 or bm.verts[v - 1224].co.z > 0:
-                    bm.edges.new((bm.verts[v], bm.verts[v - 1224]))
+                bm.verts.ensure_lookup_table()               
+            bm.edges.new((bm.verts[v], bm.verts[v - 24]))
+            if v in range(8568, 8736):
+                bm.edges.new((bm.verts[v], bm.verts[v - 8568]))
                     
         for doy in (79, 172, 355):
-            for hour in range(1, 25):                
-                ([solalt, solazi]) = solarPosition(doy, hour, scene['latitude'], scene['longitude'])[2:]                
+            for hour in range(1, 241):                
+                ([solalt, solazi]) = solarPosition(doy, hour*0.1, scene['latitude'], scene['longitude'])[2:]                
                 bm.verts.new().co = [-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
                 if hasattr(bm.verts, "ensure_lookup_table"):
                     bm.verts.ensure_lookup_table()
-                if bm.verts[-1].co.z >= 0 and doy in (172, 355):
-                    numpos['{}-{}'.format(doy, hour)] = bm.verts[-1].co[:]
+                if bm.verts[-1].co.z >= 0 and doy in (172, 355) and not hour%10:
+                    numpos['{}-{}'.format(doy, int(hour*0.1))] = bm.verts[-1].co[:]
                 if hour != 1:
-                    if bm.verts[-2].co.z > 0 or bm.verts[-1].co.z > 0:
-                        bm.edges.new((bm.verts[-2], bm.verts[-1]))
-                        solringnum += 1
-                if hour == 24:
-                    if bm.verts[-24].co.z > 0 or bm.verts[-1].co.z > 0:
-                        bm.edges.new((bm.verts[-24], bm.verts[-1]))
-                        solringnum += 1
-
-        for edge in bm.edges:
-            intersect = mathutils.geometry.intersect_line_plane(edge.verts[0].co, edge.verts[1].co, mathutils.Vector((0,0,0)), mathutils.Vector((0,0,1)))
-            for vert in [vert for vert in edge.verts if vert.co.z < 0]:
-                vert.co = intersect
+                    bm.edges.new((bm.verts[-2], bm.verts[-1]))
+                    solringnum += 1
+                if hour == 240:
+                    bm.edges.new((bm.verts[-240], bm.verts[-1]))
+                    solringnum += 1
 
         bm.to_mesh(spathmesh)
         bm.free()
 
         bpy.ops.object.convert(target='CURVE')
-        spathob.data.bevel_depth, spathob.data.bevel_resolution = 0.08, 6
+        spathob.data.bevel_depth, spathob.data.bevel_resolution = 0.15, 6
         bpy.context.object.data.fill_mode = 'FULL'
         bpy.ops.object.convert(target='MESH')
         bpy.ops.object.material_slot_add()
@@ -870,39 +860,14 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
         bpy.ops.object.material_slot_add()
         spathob.material_slots[-1].material = bpy.data.materials['SolEquoRings']
-        spathob.active_material_index = 1
+        spathob.active_material_index = 1        
         bpy.ops.object.mode_set(mode='EDIT')
-        bpy.context.tool_settings.mesh_select_mode = [True, False, False]
         bpy.ops.object.material_slot_assign()
-        bpy.ops.object.material_slot_add()
-        spathob.material_slots[-1].material = bpy.data.materials['SPBase']
-        spathob.active_material_index = 2
-
-#        for i in range(1, 6):
-#            bpy.ops.mesh.primitive_torus_add(major_radius=i*sd*0.2, minor_radius=i*0.1*0.2, major_segments=64, minor_segments=8, location=(0.0, 0.0, 0.0), rotation=(0.0, 0.0, 0.0))
-#            bpy.ops.object.material_slot_assign()
-#        for j in range(5):
-#            bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=(2-j%2)*0.04, depth=2.05*sd, end_fill_type='NGON', view_align=False, location=(0.0, 0.0, 0.0), rotation=(pi/2, 0.0, j*pi/4))
-#            bpy.ops.object.material_slot_assign()
-#        bpy.ops.object.mode_set(mode='OBJECT')
-#
-#        for c in range(8):
-#            bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(0, sd*1.025, 0.0), rotation=(0.0, 0.0, 0.0))
-#            txt = bpy.context.active_object
-#            txt.scale, txt.data.extrude, txt.data.body, txt.data.align  = (10, 10, 10), 0.01, ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')[c], 'CENTER'
-#            bpy.ops.object.convert(target='MESH')
-#            bpy.ops.object.material_slot_add()
-#            txt.material_slots[0].material = bpy.data.materials['SPBase']
-#            bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
-#            txt.rotation_euler=(0, 0, -c*pi*0.25)
-#            ordinals.append(txt)
-#
-#        for o in ordinals:
-#            o.select = True
-        spathob.select = True
-        bpy.context.scene.objects.active = spathob
-        spathob = compass((spathob.location, sd, spathob, bpy.data.materials['SPBase']))
-#        bpy.ops.object.join()
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.mesh.bisect(plane_co=(0.0, 0.0, 0.0), plane_no=(0.0, 0.0, 1.0), use_fill=True, clear_inner=True, clear_outer=False)
+        bpy.ops.object.mode_set(mode='OBJECT')       
+        bpy.ops.object.select_all(action='DESELECT')
+        compass((0,0,-sd*0.01), sd, spathob, bpy.data.materials['SPBase'])
 
         for ob in (spathob, sunob):
             spathob.cycles_visibility.diffuse, spathob.cycles_visibility.shadow, spathob.cycles_visibility.glossy, spathob.cycles_visibility.transmission = [False] * 4

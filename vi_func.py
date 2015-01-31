@@ -577,6 +577,7 @@ def compass(loc, scale, wro, mat):
     txts = []
     come = bpy.data.meshes.new("Compass")   
     coo = bpy.data.objects.new('Compass', come)
+    coo.location = loc
     bpy.context.scene.objects.link(coo)
     bpy.context.scene.objects.active = coo
     bpy.ops.object.material_slot_add()
@@ -585,7 +586,7 @@ def compass(loc, scale, wro, mat):
     matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
     
     for i in range(1, 11):
-        bmesh.ops.create_circle(bm, cap_ends=False, diameter=scale*i*0.1, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')*Matrix.Translation((0, 0, scale*0.01)))
+        bmesh.ops.create_circle(bm, cap_ends=False, diameter=scale*i*0.0999, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')*Matrix.Translation((0, 0, scale*0.01)))
     
     for edge in bm.edges:
         edge.select_set(False) if edge.index % 3 or edge.index > 1187 else edge.select_set(True)
@@ -606,12 +607,13 @@ def compass(loc, scale, wro, mat):
         for vert in verts:
             vert.co = 1.5*vert.co + 1.025*scale*(tmatrot*direc)
             vert.co[2] = scale*0.01
-        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=scale*1.05*(tmatrot*direc), rotation=tmatrot.to_euler())
+        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + scale*1.05*(tmatrot*direc), rotation=tmatrot.to_euler())
         txt = bpy.context.active_object
-        txt.scale, txt.data.body, txt.data.align, txt.location[2]  = (scale*0.1, scale*0.1, scale*0.1), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER', scale*0.01
+        txt.scale, txt.data.body, txt.data.align, txt.location[2]  = (scale*0.1, scale*0.1, scale*0.1), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER', txt.location[2] + scale*0.01
+        
         bpy.ops.object.convert(target='MESH')
         bpy.ops.object.material_slot_add()
-        txt.material_slots[-1].material = bpy.data.materials['wr-000000']
+        txt.material_slots[-1].material = mat
         txts.append(txt)
         tmatrot = tmatrot * matrot
     bm.to_mesh(come)
@@ -867,7 +869,7 @@ def sunpath():
                 for blnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Blackbody']:
                     blnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5 if beta > 0 else 2000
                 for emnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Emission']:
-                    emnode.inputs[1].default_value = 5 * sin(beta) if beta > 0 else 0
+                    emnode.inputs[1].default_value = 10 * sin(beta) if beta > 0 else 0
             if sunob.data.materials[0].node_tree:
                 for smblnode in [node for node in sunob.data.materials[0].node_tree.nodes if sunob.data.materials and node.bl_label == 'Blackbody']:
                     smblnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5 if beta > 0 else 2000

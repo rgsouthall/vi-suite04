@@ -122,6 +122,9 @@ def register():
     bpy.utils.register_module(__name__)
     Object, Scene, Material = bpy.types.Object, bpy.types.Scene, bpy.types.Material
 
+# VI-Suite object definitions
+    Object.vi_type = eprop([("0", "None", "Not a VI-Suite zone"), ("1", "EnVi Zone", "Designates an EnVi Thermal zone"), ("2", "CFD Domain", "Specifies an OpenFoam BlockMesh")], "", "Specify the type of VI-Suite zone", "0")
+
 # LiVi object properties
     Object.livi_merr = bprop("LiVi simple mesh export", "Boolean for simple mesh export", False)
     Object.ies_name = sprop("", "IES File", 1024, "")
@@ -131,7 +134,7 @@ def register():
     (Object.licalc, Object.lires, Object.limerr, Object.manip, Object.lila) = [bprop("", "", False)] * 5
 
 # EnVi zone definitions
-    Object.envi_type = eprop([("0", "None", "None"), ("1", "Thermal", "Thermal Zone"), ("2", "Shading", "Shading Object")], "EnVi object type", "Specify the EnVi object type", "0")
+    Object.envi_type = eprop([("0", "Thermal", "Thermal Zone"), ("1", "Shading", "Shading Object")], "EnVi object type", "Specify the EnVi object type", "0")
     
 # EnVi HVAC Template definitions
     Object.envi_hvacsched = bprop("", "Create a system level schedule", False)
@@ -221,7 +224,14 @@ def register():
     Object.envi_occinftype = eprop([("0", "None", "No infiltration"), ("1", 'Flow/Zone', "Absolute flow rate in m{}/s".format(u'\u00b3')), ("2", "Flow/Area", 'Flow in m{}/s per m{} floor area'.format(u'\u00b3', u'\u00b2')), 
                                  ("3", "Flow/ExteriorArea", 'Flow in m{}/s per m{} external surface area'.format(u'\u00b3', u'\u00b2')), ("4", "Flow/ExteriorWallArea", 'Flow in m{}/s per m{} external wall surface area'.format(u'\u00b3', u'\u00b2')), 
                                  ("5", "ACH", "ACH flow rate"), ("6", "l/s/p", 'Litres per second per person')], "", "The type of zone infiltration specification", "0")
+# FloVi object definitions
+    Object.bm_xres = iprop("X resolution", "Blockmesh X resolution", 0, 1000, 10)   
+    Object.bm_yres = iprop("X resolution", "Blockmesh X resolution", 0, 1000, 10) 
+    Object.bm_zres = iprop("X resolution", "Blockmesh X resolution", 0, 1000, 10)                
 
+# Vi_suite material definitions
+    Material.mattype = eprop([("0", "Geometry", "Geometry"), ("1", 'LiVi sensor', "LiVi sensing material".format(u'\u00b3')), ("2", "Shadow sensor", 'Shadow sensing material'), ("3", "FloVi boundary", 'FloVi blockmesh boundary')], "", "VI-Suite material type", "0")
+                                 
 # LiVi material definitions
     Material.radmat = radmat
     Material.radmatdict = {'0': ['radcolour', 0, 'radrough', 'radspec'], '1': ['radcolour'], '2': ['radcolour', 0, 'radior'], '3': ['radcolour', 0, 'radspec', 'radrough', 0, 'radtrans',  'radtranspec'], '4': ['radcolour'], '5': ['radcolour', 0, 'radintensity'], '6': ['radcolour', 0, 'radrough', 'radspec'], '7': []}
@@ -237,7 +247,6 @@ def register():
     Material.radtranspec  = fprop("Trans spec", "Material specular transmission", 0, 1, 0.1)
     Material.radior  = fprop("IOR", "Material index of refractionn", 0, 5, 1.5)
     Material.radintensity = fprop("Intensity", u"Material radiance (W/sr/m\u00b2)", 0, 100, 1)    
-    Material.mattype = eprop([("0", "Geometry", "Geometry"), ("1", 'LiVi sensor', "LiVi sensing material".format(u'\u00b3')), ("2", "Shadow sensor", 'Shadow sensing material')], "", "VI-Suite material type", "0")
     Material.vi_shadow = bprop("VI Shadow", "Flag to signify whether the material represents a VI Shadow sensing surface", False)
     Material.livi_sense = bprop("LiVi Sensor", "Flag to signify whether the material represents a LiVi sensing surface", False)
     Material.livi_compliance = bprop("LiVi Compliance Surface", "Flag to siginify whether the material represents a LiVi compliance surface", False)
@@ -339,6 +348,9 @@ def register():
     (Material.envi_export_lo_sdiff, Material.envi_export_l1_sdiff, Material.envi_export_l2_sdiff, Material.envi_export_l3_sdiff, Material.envi_export_l4_sdiff) = \
     [bprop("", "", 0)] * conlayers
     Material.envi_shad_att = bprop("Attached", "Flag to specify shading attached to the building",False)
+
+# FloVi material definitions
+    Material.flovi_bmb_type = eprop([("0", "Wall", "Wall boundary"), ("1", "Inlet", "Inlet boundary"), ("2", "Outlet", "Outlet boundary"), ("3", "Empty", "Empty boundary")], "", "FloVi blockmesh boundary type", "0")
 
     # Scene parameters
     Scene.fs = iprop("Frame start", "Starting frame",0, 1000, 0)

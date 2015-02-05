@@ -1,7 +1,7 @@
-import bpy, bpy_extras, sys, datetime, mathutils, os, time, bmesh, shutil
+import bpy, datetime, mathutils, os, time, bmesh, shutil
 from os import rename
 import numpy
-from numpy import arange, frombuffer, uint8, digitize, histogram
+from numpy import arange, histogram
 import bpy_extras.io_utils as io_utils
 from subprocess import Popen, PIPE
 from collections import OrderedDict
@@ -9,7 +9,6 @@ from datetime import datetime as dt
 from math import cos, sin, pi, ceil, tan, modf
 
 try:
-    from matplotlib.backends.backend_agg import FigureCanvasAgg
     import matplotlib.pyplot as plt
     import matplotlib.cm as cm
     mp = 1
@@ -44,129 +43,93 @@ class NODE_OT_LiGExport(bpy.types.Operator):
         scene.frame_start, bpy.data.node_groups[self.nodeid.split('@')[1]].use_fake_user = 0, 1
         scene.frame_set(0)
         radgexport(self, node)
-        node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
-        node.outputs['Geometry out'].hide = False
         return {'FINISHED'}
+        
+class NODE_OT_FileSelect(bpy.types.Operator, io_utils.ImportHelper):
+    bl_idname = "node.fileselect"
+    bl_label = "Select file"
+    filename = ""
+    bl_register = True
+    bl_undo = True
+    
+    def draw(self,context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Import {} file with the file browser".format(self.filename), icon='WORLD_DATA')
+        row = layout.row()
+
+    def execute(self, context):
+        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        print(self.filepath[1])
+        if self.filepath.split(".")[-1] in self.fextlist:
+            if self.nodeprop == 'epwname':
+                node.epwname = self.filepath
+            elif self.nodeprop == 'hdrname':
+                node.hdrname = self.filepath
+            elif self.nodeprop == 'skyname':
+                node.skyname = self.filepath
+            elif self.nodeprop == 'mtxname':
+                node.mtxname = self.filepath
+            elif self.nodeprop == 'resfilename':
+                node.resfilename = self.filepath
+        if " " in self.filepath:
+            self.report({'ERROR'}, "There is a space either in the filename or its directory location. Remove this space and retry opening the file.")
+        return {'FINISHED'}
+
+    def invoke(self,context,event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+class NODE_OT_HdrSelect(NODE_OT_FileSelect):
+    bl_idname = "node.hdrselect"
+    bl_label = "Select HDR/VEC file"
+    bl_description = "Select the HDR sky image or vector file"
+    filename_ext = ".HDR;.hdr;"
+    filter_glob = bpy.props.StringProperty(default="*.HDR;*.hdr;", options={'HIDDEN'})
+    nodeprop = 'hdrname'
+    filepath = bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+    fextlist = ("HDR", "hdr")
+    nodeid = bpy.props.StringProperty()
+        
+class NODE_OT_SkySelect(NODE_OT_FileSelect):
+    bl_idname = "node.skyselect"
+    bl_label = "Select RAD file"
+    bl_description = "Select the Radiance sky file"
+    filename_ext = ".rad;.RAD;"
+    filter_glob = bpy.props.StringProperty(default="*.RAD;*.rad;", options={'HIDDEN'})
+    nodeprop = 'skyname'
+    filepath = bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+    fextlist = ("RAD", "rad")
+    nodeid = bpy.props.StringProperty()
+    
+class NODE_OT_MtxSelect(NODE_OT_FileSelect):
+    bl_idname = "node.mtxselect"
+    bl_label = "Select MTX file"
+    bl_description = "Select the matrix file"
+    filename_ext = ".MTX;.mtx;"
+    filter_glob = bpy.props.StringProperty(default="*.MTX;*.mtx;", options={'HIDDEN'})
+    nodeprop = 'mtxname'
+    filepath = bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+    fextlist = ("MTX", "mtx")
+    nodeid = bpy.props.StringProperty()
 
 class NODE_OT_EpwSelect(bpy.types.Operator, io_utils.ImportHelper):
     bl_idname = "node.epwselect"
     bl_label = "Select EPW file"
     bl_description = "Select the EnergyPlus weather file"
-    filename = ""
     filename_ext = ".HDR;.hdr;.epw;.EPW;"
     filter_glob = bpy.props.StringProperty(default="*.HDR;*.hdr;*.epw;*.EPW;", options={'HIDDEN'})
-    bl_register = True
-    bl_undo = True
+    nodeprop = 'epwname'
+    filepath = bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+    fextlist = ("epw", "EPW", "HDR", "hdr")
     nodeid = bpy.props.StringProperty()
-
-    def draw(self,context):
-        layout = self.layout
-        row = layout.row()
-        row.label(text="Import EPW File with FileBrowser", icon='WORLD_DATA')
-        row = layout.row()
-
-    def execute(self, context):
-        if self.filepath.split(".")[-1] in ("epw", "EPW", "HDR", "hdr"):
-            bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].epwname = self.filepath
-        if " " in self.filepath:
-            self.report({'ERROR'}, "There is a space either in the EPW filename or its directory location. Remove this space and retry opening the file.")
-        return {'FINISHED'}
-
-    def invoke(self,context,event):
-        context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}
-
-class NODE_OT_HdrSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
-    bl_idname = "node.hdrselect"
-    bl_label = "Select HDR/VEC file"
-    bl_description = "Select the HDR sky image or vector file"
-    filename = ""
-    filename_ext = ".HDR;.hdr;"
-    filter_glob = bpy.props.StringProperty(default="*.HDR;*.hdr;", options={'HIDDEN'})
-    bl_register = True
-    bl_undo = True
-    nodeid = bpy.props.StringProperty()
-
-    def draw(self,context):
-        layout = self.layout
-        row = layout.row()
-        row.label(text="Import HDR image file with FileBrowser", icon='WORLD_DATA')
-        row = layout.row()
-
-    def execute(self, context):
-        if self.filepath.split(".")[-1] in ("HDR", "hdr"):
-            bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].hdrname = self.filepath
-        if " " in self.filepath:
-            self.report({'ERROR'}, "There is a space either in the HDR filename or its directory location. Remove this space and retry opening the file.")
-        return {'FINISHED'}
-
-    def invoke(self,context,event):
-        context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}
-
-class NODE_OT_MtxSelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
-    bl_idname = "node.mtxselect"
-    bl_label = "Select MTX file"
-    bl_description = "Select the matrix file"
-    filename = ""
-    filename_ext = ".MTX;.mtx;"
-    filter_glob = bpy.props.StringProperty(default="*.MTX;*.mtx;", options={'HIDDEN'})
-    bl_register = True
-    bl_undo = True
-    nodeid = bpy.props.StringProperty()
-
-    def draw(self,context):
-        layout = self.layout
-        row = layout.row()
-        row.label(text="Import MTX file with FileBrowser", icon='WORLD_DATA')
-        row = layout.row()
-
-    def execute(self, context):
-        if self.filepath.split(".")[-1] in ("MTX", "mtx"):
-            bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].mtxname = self.filepath
-        if " " in self.filepath:
-            self.report({'ERROR'}, "There is a space either in the matrix filename or its directory location. Remove this space and retry opening the file.")
-        return {'FINISHED'}
-
-    def invoke(self,context,event):
-        context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}
-
-class NODE_OT_SkySelect(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
-    bl_idname = "node.skyselect"
-    bl_label = "Select RAD file"
-    bl_description = "Select the Radiance sky file"
-    filename = ""
-    filename_ext = ".rad;.RAD;"
-    filter_glob = bpy.props.StringProperty(default="*.RAD;*.rad;", options={'HIDDEN'})
-    bl_register = True
-    bl_undo = True
-    nodeid = bpy.props.StringProperty()
-
-    def draw(self,context):
-        layout = self.layout
-        row = layout.row()
-        row.label(text="Import a Radiance sky file with the fileBrowser", icon='WORLD_DATA')
-        row = layout.row()
-
-    def execute(self, context):
-        if self.filepath.split(".")[-1] in ("RAD", "rad"):
-            bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].skyname = self.filepath
-        if " " in self.filepath:
-            self.report({'ERROR'}, "There is a space either in the Radiance sky filename or its directory location. Remove this space and retry opening the file.")
-        return {'FINISHED'}
-
-    def invoke(self,context,event):
-        context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}
-
+        
 class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
     bl_idname = "node.liexport"
     bl_label = "LiVi context export"
     bl_description = "Export the scene to the Radiance file format"
     bl_register = True
     bl_undo = True
-
     nodeid = bpy.props.StringProperty()
     
     def invoke(self, context, event):
@@ -197,7 +160,6 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
     bl_description = "Prevew the scene with Radiance"
     bl_register = True
     bl_undo = True
-
     nodeid = bpy.props.StringProperty()
         
     def invoke(self, context, event):
@@ -248,8 +210,7 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
     bl_label = "LiVi glare"
     bl_description = "Create a glare fisheye image from the Blender camera perspective"
     bl_register = True
-    bl_undo = True
-    
+    bl_undo = True    
     nodeid = bpy.props.StringProperty()
     
     def modal(self, context, event):
@@ -320,7 +281,6 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
 class NODE_OT_LiViCalc(bpy.types.Operator):
     bl_idname = "node.livicalc"
     bl_label = "LiVi simulation"
-
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
@@ -369,7 +329,6 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
     bl_description = "Display the results on the sensor surfaces"
     bl_register = True
     bl_undo = True
-
     _handle = None
     disp =  bpy.props.IntProperty(default = 1)
     
@@ -455,56 +414,28 @@ class IES_Select(bpy.types.Operator, io_utils.ImportHelper):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
-class NODE_OT_ESOSelect(bpy.types.Operator, io_utils.ImportHelper):
+class NODE_OT_ESOSelect(NODE_OT_FileSelect):
     bl_idname = "node.esoselect"
     bl_label = "Select EnVi results file"
     bl_description = "Select the EnVi results file to process"
-    filename = ""
     filename_ext = ".eso"
     filter_glob = bpy.props.StringProperty(default="*.eso", options={'HIDDEN'})
-    bl_register = True
-    bl_undo = True
-
+    nodeprop = 'resfilename'
+    filepath = bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+    fextlist = ("eso")
     nodeid = bpy.props.StringProperty()
-    
-    def draw(self,context):
-        layout = self.layout
-        row = layout.row()
-        row.label(text="Open an eso results file with the file browser", icon='WORLD_DATA')
 
-    def execute(self, context):
-        bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].resfilename = self.filepath
-        return {'FINISHED'}
-
-    def invoke(self,context,event):
-        context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}
-
-class NODE_OT_IDFSelect(bpy.types.Operator, io_utils.ImportHelper):
+class NODE_OT_IDFSelect(NODE_OT_FileSelect):
     bl_idname = "node.idfselect"
     bl_label = "Select EnergyPlus input file"
     bl_description = "Select the EnVi input file to process"
-    filename = ""
     filename_ext = ".idf"
     filter_glob = bpy.props.StringProperty(default="*.idf", options={'HIDDEN'})
-    bl_register = True
-    bl_undo = True
-
+    nodeprop = 'idffilename'
+    filepath = bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+    fextlist = ("idf")
     nodeid = bpy.props.StringProperty()
-
-    def draw(self,context):
-        layout = self.layout
-        row = layout.row()
-        row.label(text="Open an idf input file with the file browser", icon='WORLD_DATA')
-
-    def execute(self, context):
-        bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].idffilename = self.filepath
-        return {'FINISHED'}
-
-    def invoke(self,context,event):
-        context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}
-
+    
 class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
     bl_idname = "node.ascimport"
     bl_label = "Select ESRI Grid file"
@@ -514,7 +445,6 @@ class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
     filter_glob = bpy.props.StringProperty(default="*.asc", options={'HIDDEN'})
     bl_register = True
     bl_undo = True
-
     nodeid = bpy.props.StringProperty()
     
     def draw(self,context):
@@ -572,7 +502,6 @@ class NODE_OT_CSVExport(bpy.types.Operator, io_utils.ExportHelper):
     filter_glob = bpy.props.StringProperty(default="*.csv", options={'HIDDEN'})
     bl_register = True
     bl_undo = True
-
     nodeid = bpy.props.StringProperty()
 
     def draw(self,context):
@@ -600,7 +529,6 @@ class NODE_OT_EnGExport(bpy.types.Operator):
     bl_idname = "node.engexport"
     bl_label = "VI-Suite export"
     bl_context = "scene"
-
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
@@ -620,7 +548,6 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
     bl_description = "Export the scene to the EnergyPlus file format"
     bl_register = True
     bl_undo = True
-
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
@@ -651,7 +578,6 @@ class NODE_OT_EnSim(bpy.types.Operator):
     bl_description = "Run EnergyPlus"
     bl_register = True
     bl_undo = True
-
     nodeid = bpy.props.StringProperty()
     
     def modal(self, context, event):
@@ -717,21 +643,21 @@ class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
     bl_description = "Create a 2D graph from the results file"
     bl_register = True
     bl_undo = True
-
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         innodes = list(OrderedDict.fromkeys([inputs.links[0].from_node for inputs in node.inputs if inputs.links]))
+
         if not len(innodes[0]['allresdict']['Hour']):
             self.report({'ERROR'},"There are no results in the results file. Check the results.err file in Blender")
             return {'CANCELLED'}
         if not mp:
             self.report({'ERROR'},"Matplotlib cannot be found by the Python installation used by Blender")
             return {'CANCELLED'}
+
         Sdate = dt.fromordinal(dt(dt.now().year, 1, 1).toordinal() + node['Start'] -1) + datetime.timedelta(hours = node.dsh - 1)
-        Edate = dt.fromordinal(dt(dt.now().year, 1, 1).toordinal() + node['End'] -1 ) + datetime.timedelta(hours = node.deh - 1)
-                
+        Edate = dt.fromordinal(dt(dt.now().year, 1, 1).toordinal() + node['End'] -1 ) + datetime.timedelta(hours = node.deh - 1)                
         chart_disp(self, plt, node, innodes, Sdate, Edate)
         return {'FINISHED'}
 
@@ -741,7 +667,6 @@ class NODE_OT_FileProcess(bpy.types.Operator, io_utils.ExportHelper):
     bl_description = "Process EnergyPlus results file"
     bl_register = True
     bl_undo = True
-
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
@@ -756,11 +681,10 @@ class NODE_OT_SunPath(bpy.types.Operator):
     bl_description = "Create a Sun Path"
     bl_register = True
     bl_undo = True
-
     nodeid = bpy.props.StringProperty()
     
     def invoke(self, context, event):
-        solringnum, sd, numpos, ordinals = 0, 100, {}, []
+        solringnum, sd, numpos = 0, 100, {}
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         node.export()
         scene, scene.resnode, scene.restree = context.scene, node.name, self.nodeid.split('@')[1]
@@ -776,8 +700,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
             [ob.data.type for ob in context.scene.objects if ob.data == 'LAMP' and ob.data.type == 'SUN'][0]['VIType'] = 'Sun'
         elif 'Sun' not in [ob.get('VIType') for ob in context.scene.objects]:
             bpy.ops.object.lamp_add(type = "SUN")
-            sun = context.active_object
-            sun['VIType'] = 'Sun'
+#            sun = context.active_object
+            context.active_object['VIType'] = 'Sun'
         else:
             sun = [ob for ob in context.scene.objects if ob.get('VIType') == 'Sun'][0]
             sun.animation_data_clear()
@@ -906,7 +830,6 @@ class NODE_OT_WindRose(bpy.types.Operator):
     bl_description = "Create a Wind Rose"
     bl_register = True
     bl_undo = True
-
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
@@ -946,39 +869,6 @@ class NODE_OT_WindRose(bpy.types.Operator):
             ax.box(awd, aws, bins=sbinvals, normed=True)
         if simnode.wrtype in ('2', '3', '4'):
             ax.contourf(awd, aws, bins=sbinvals, normed=True, cmap=cm.hot)
-#        if simnode.wrtype in ('3', '4'):
-#            ax.contourf(awd, aws, bins=binvals, normed=True, cmap=cm.hot)
-#            ax.contour(awd, aws, bins=binvals, normed=True, colors='black')
-
-
-#        if str(sys.platform) != 'win32':
-#            plt.savefig(scene['viparams']['newdir']+'/disp_wind.png', dpi = (150), transparent=False)
-#            if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
-#                bpy.data.images.load(scene['viparams']['newdir']+'/disp_wind.png')
-#            else:
-#                bpy.data.images['disp_wind.png'].filepath = scene['viparams']['newdir']+'/disp_wind.png'
-#                bpy.data.images['disp_wind.png'].reload()
-#
-#        # Below is a workaround for the matplotlib/blender png bug
-#        else:
-#            canvas = FigureCanvasAgg(fig)
-#            canvas.draw()
-#            pixbuffer, pixels = canvas.buffer_rgba(), []
-#            [w, h] = [int(d) for d in fig.bbox.bounds[2:]]
-#            pixarray = frombuffer(pixbuffer, uint8)
-#            pixarray.shape = h, w, 4
-#            pixels = pixarray[::-1].flatten()/255
-#
-#            if 'disp_wind.png' not in [im.name for im in bpy.data.images]:
-#                wrim = bpy.data.images.new('disp_wind.png', height = h, width = w)
-#                wrim.file_format = 'PNG'
-#                wrim.filepath = os.path.join(scene['viparams']['newdir'], wrim.name)
-#            else:
-#                wrim = bpy.data.images['disp_wind.png']
-#            wrim.pixels = pixels
-#            wrim.update()
-#            wrim.save()
-#            wrim.reload()
 
         plt.savefig(scene['viparams']['newdir']+'/disp_wind.svg')
         (wro, scale) = wind_rose(simnode['maxres'], scene['viparams']['newdir']+'/disp_wind.svg', simnode.wrtype)
@@ -990,7 +880,6 @@ class NODE_OT_WindRose(bpy.types.Operator):
             ax.contour(awd, aws, bins=sbinvals, normed=True, cmap=cm.hot)
             plt.savefig(scene['viparams']['newdir']+'/disp_wind.svg')
         return {'FINISHED'}
-
 
 class VIEW3D_OT_WRLegDisplay(bpy.types.Operator):
     '''Display results legend and stats in the 3D View'''
@@ -1020,7 +909,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
     bl_description = "Undertake a shadow study"
     bl_register = True
     bl_undo = True
-
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
@@ -1035,6 +923,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 1, 0
         clearscene(scene, self)
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+#        simnode.running = 1
         scene['visimcontext'] = 'Shadow'
         if not scene.get('liparams'):
            scene['liparams'] = {} 
@@ -1069,37 +958,33 @@ class NODE_OT_Shadow(bpy.types.Operator):
             bm.transform(o.matrix_world)  
             obcalcarea = sum([f.calc_area() for f in bm.faces if o.data.materials[f.material_index].mattype == '2'])
             if bm.faces.layers.int.get('cindex'):
-                    bm.faces.layers.int.remove(bm.faces.layers.int['cindex'])
+                bm.faces.layers.int.remove(bm.faces.layers.int['cindex'])
             if bm.verts.layers.int.get('cindex'):
                 bm.verts.layers.int.remove(bm.verts.layers.int['cindex'])
             if simnode.cpoint == '0':  
                 bm.faces.layers.int.new('cindex')
                 cindex = bm.faces.layers.int['cindex']
                 [bm.faces.layers.float.new('res{}'.format(fi)) for fi in frange]
-                cfaces = [f for f in bm.faces if o.data.materials[f.material_index].mattype == '2']
-                for ci, f in enumerate([f for f in cfaces]):
-                    f[cindex] = ci + 1
             else:               
                 bm.verts.layers.int.new('cindex')
                 cindex = bm.verts.layers.int['cindex'] 
                 bm.verts.layers.int.new('cindex')
                 [bm.verts.layers.float.new('res{}'.format(fi)) for fi in frange]
-                cverts = [v for v in bm.verts if any([o.data.materials[f.material_index].mattype == '2' for f in v.link_faces])]
-                for ci, v in enumerate([v for v in cverts]):
-                    v[cindex] = ci
                     
             for fi, frame in enumerate(frange):
                 scene.frame_set(frame)
                 if simnode.cpoint == '0':  
                     shadres = bm.faces.layers.float['res{}'.format(frame)]  
                     cfaces = [f for f in bm.faces if o.data.materials[f.material_index].mattype == '2']
-                    for f in cfaces:
+                    for ci, f in enumerate([f for f in cfaces]):
+                        f[cindex] = ci + 1
                         f[shadres] = 100 * (1 - sum([bpy.data.scenes[0].ray_cast(f.calc_center_median() + (simnode.offset * f.normal), f.calc_center_median() + 10000*direc)[0] for direc in direcs])/len(direcs))
                     o['omin'][fi], o['omax'][fi], o['oave'][fi] = min([f[shadres] for f in cfaces]), max([f[shadres] for f in cfaces]), sum([f[shadres] for f in cfaces])/len(cfaces)
                 else:                                                       
                     shadres = bm.verts.layers.float['res{}'.format(frame)]    
                     cverts = [v for v in bm.verts if any([o.data.materials[f.material_index].mattype == '2' for f in v.link_faces])]
-                    for v in cverts:
+                    for ci, v in enumerate([v for v in cverts]):
+                        v[cindex] = ci + 1
                         v[shadres] = 100 * (1 - sum([bpy.data.scenes[0].ray_cast(v.co + simnode.offset*v.normal, v.co + 10000*direc)[0] for direc in direcs])/len(direcs))
                     o['omin'][fi], o['omax'][fi], o['oave'][fi] = min([v[shadres] for v in cverts]), max([v[shadres] for v in cverts]) , obcalcarea * sum([v[shadres]/vertarea(bm,v) for v in cverts])/len(cverts)
             bm.transform(o.matrix_world.inverted())
@@ -1110,4 +995,22 @@ class NODE_OT_Shadow(bpy.types.Operator):
             simnode['minres']['{}'.format(frame)], simnode['maxres']['{}'.format(frame)], simnode['avres']['{}'.format(frame)] = 0, 100, sum([scene.objects[on]['oave'][fi] for on in scene['shadc']])/len(scene['shadc'])
         scene.vi_leg_max, scene.vi_leg_min = 100, 0
         scene.frame_set(scene.fs)
+#        simnode.running = 0
         return {'FINISHED'}
+        
+# Openfoam operators
+        
+class NODE_OT_Blockmesh(bpy.types.Operator):
+    bl_idname = "node.blockmesh"
+    bl_label = "Blockmesh export"
+    bl_description = "Export an OPenfoam blockmesh"
+    bl_register = True
+    bl_undo = True
+    nodeid = bpy.props.StringProperty()
+    
+    def execute(self, context):
+        expnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        expnode.export(context.scene, self)
+        return {'FINISHED'}
+        
+        

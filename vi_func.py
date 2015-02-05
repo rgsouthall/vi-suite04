@@ -231,6 +231,27 @@ def retmenu(dnode, axis, mtype):
         return [dnode.inputs[axis].linkmenu, dnode.inputs[axis].linkrmenu]
     elif mtype == 'External node':
         return [dnode.inputs[axis].enmenu, dnode.inputs[axis].enrmenu]
+
+def retrmenus(innode): 
+    rtype = [(restype, restype, "Plot "+restype) for restype in innode['rtypes']]
+    ctype = [(clim, clim, "Plot "+clim) for clim in innode['ctypes']]
+    ztype = [(zone, zone, "Plot "+zone) for zone in innode['ztypes']]
+    zrtype = [(zoner, zoner, "Plot "+zoner) for zoner in innode['zrtypes']]
+    ltype = [(link, link, "Plot "+link) for link in innode['ltypes']]
+    lrtype = [(linkr, linkr, "Plot "+linkr) for linkr in innode['lrtypes']]
+    entype = [(en, en, "Plot "+en) for en in innode['entypes']]
+    enrtype = [(enr, enr, "Plot "+enr) for enr in innode['enrtypes']]
+    rtypemenu = bpy.props.EnumProperty(items=rtype, name="", description="Result types", default = rtype[0][0])
+    statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
+    valid = ['EnVi Results']    
+    climmenu = bpy.props.EnumProperty(items=ctype, name="", description="Climate type", default = ctype[0][0]) if 'Climate' in innode['rtypes'] else ''     
+    zonemenu = bpy.props.EnumProperty(items=ztype, name="", description="Zone", default = ztype[0][0]) if 'Zone' in innode['rtypes'] else ''
+    zonermenu = bpy.props.EnumProperty(items=zrtype, name="", description="Zone result", default = zrtype[0][0])  if 'Zone' in innode['rtypes'] else ''
+    linkmenu = bpy.props.EnumProperty(items=ltype, name="", description="Flow linkage result", default = ltype[0][0]) if 'Linkage' in innode['rtypes'] else ''
+    linkrmenu = bpy.props.EnumProperty(items=lrtype, name="", description="Flow linkage result", default = lrtype[0][0]) if 'Linkage' in innode['rtypes'] else ''
+    enmenu = bpy.props.EnumProperty(items=entype, name="", description="External node result", default = entype[0][0]) if 'External node' in innode['rtypes'] else ''
+    enrmenu = bpy.props.EnumProperty(items=enrtype, name="", description="External node result", default = enrtype[0][0]) if 'External node' in innode['rtypes'] else ''
+    return (valid, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu)
         
 def processf(pro_op, node):
     rtypes, ctypes, ztypes, zrtypes, ltypes, lrtypes, entypes, enrtypes = [], [], [], [], [], [], [], []

@@ -521,14 +521,14 @@ def wind_rose(maxws, wrsvg, wrtype):
     wro = bpy.data.objects.new('Wind_rose', wrme)     
     scene.objects.link(wro)
     scene.objects.active = wro
-    wro.select = True
+    wro.select, wro.location = True, (0, 0 ,0)
     
     with open(wrsvg, 'r') as svgfile:  
         svglines = svgfile.readlines()     
         for line in svglines:
             if "<svg height=" in line:
                 dimen = int(line.split('"')[1].strip('pt'))
-                scale = 0.81*dimen*0.0005
+                scale = 0.04 * dimen
             if '/>' in line:
                 lcolsplit = line.split(';')
                 for lcol in lcolsplit: 
@@ -546,9 +546,9 @@ def wind_rose(maxws, wrsvg, wrtype):
             if '<path' in line:
                 pa = 1
             if pa and line[0] == 'M':
-                spos = [((float(linesplit[0][1:])- dimen/2) * 0.001, (float(linesplit[1]) - dimen/2) * -0.001, 0.001*scale)]
+                spos = [((float(linesplit[0][1:])- dimen/2) * 0.1, (float(linesplit[1]) - dimen/2) * -0.1, 0.05)]
             if pa and line[0] == 'L':
-                lpos.append(((float(linesplit[0][1:]) - dimen/2) * 0.001, (float(linesplit[1].strip('"')) - dimen/2) *-0.001, 0.001*scale))
+                lpos.append(((float(linesplit[0][1:]) - dimen/2) * 0.1, (float(linesplit[1].strip('"')) - dimen/2) *-0.1, 0.05))
             if pa and '/>' in line:
                 lcolsplit = line.split(';')
                 for lcol in lcolsplit:                
@@ -562,15 +562,16 @@ def wind_rose(maxws, wrsvg, wrtype):
                                 zp += 0.0005 * scale 
                                 for vert in nf.verts:
                                     vert.co[2] = zp
-                            bmesh.ops.remove_doubles(bm, verts=vs, dist = scale * 0.0001)
-                                
-                if 'wr-000000' not in [mat.name for mat in bpy.data.materials]:
-                    bpy.data.materials.new('wr-000000')
-                bpy.data.materials['wr-000000'].diffuse_color = (0, 0, 0)
-                if 'wr-000000' not in [mat.name for mat in wro.data.materials]:
-                    bpy.ops.object.material_slot_add()
-                    wro.material_slots[-1].material = bpy.data.materials['wr-000000']
+                bmesh.ops.remove_doubles(bm, verts=vs, dist = scale * 0.01)
                 pa, lpos, vs = 0, [], []  
+
+            if 'wr-000000' not in [mat.name for mat in bpy.data.materials]:
+                bpy.data.materials.new('wr-000000')
+            bpy.data.materials['wr-000000'].diffuse_color = (0, 0, 0)
+            if 'wr-000000' not in [mat.name for mat in wro.data.materials]:
+                bpy.ops.object.material_slot_add()
+                wro.material_slots[-1].material = bpy.data.materials['wr-000000']
+            
 
     if wrtype in ('0', '1', '3', '4'):            
         thick = scale * 0.005 if wrtype == '4' else scale * 0.0025
@@ -607,7 +608,7 @@ def compass(loc, scale, wro, mat):
     matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
     
     for i in range(1, 11):
-        bmesh.ops.create_circle(bm, cap_ends=False, diameter=scale*i*0.0999, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')*Matrix.Translation((0, 0, scale*0.01)))
+        bmesh.ops.create_circle(bm, cap_ends=False, diameter=scale*i*0.1, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')*Matrix.Translation((0, 0, scale*0.005)))
     
     for edge in bm.edges:
         edge.select_set(False) if edge.index % 3 or edge.index > 1187 else edge.select_set(True)
@@ -617,9 +618,9 @@ def compass(loc, scale, wro, mat):
     
     for v, vert in enumerate(newgeo['geom'][:1320]):
         vert.co = vert.co + (vert.co - coo.location).normalized() * scale * (0.0025, 0.005)[v > 1187]
-        vert.co[2] = scale*0.01
+        vert.co[2] = scale*0.005
            
-    bmesh.ops.create_circle(bm, cap_ends=True, diameter=scale *0.005, segments=8, matrix=Matrix.Rotation(-pi/8, 4, 'Z')*Matrix.Translation((0, 0, scale*0.01)))
+    bmesh.ops.create_circle(bm, cap_ends=True, diameter=scale *0.005, segments=8, matrix=Matrix.Rotation(-pi/8, 4, 'Z')*Matrix.Translation((0, 0, scale*0.005)))
     matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
     tmatrot = Matrix.Rotation(0, 4, 'Z')
     direc = Vector((0, 1, 0))
@@ -627,10 +628,10 @@ def compass(loc, scale, wro, mat):
         verts = bmesh.ops.extrude_edge_only(bm, edges = [edge], use_select_history=False)['geom'][:2]
         for vert in verts:
             vert.co = 1.5*vert.co + 1.025*scale*(tmatrot*direc)
-            vert.co[2] = scale*0.01
+            vert.co[2] = scale*0.005
         bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + scale*1.05*(tmatrot*direc), rotation=tmatrot.to_euler())
         txt = bpy.context.active_object
-        txt.scale, txt.data.body, txt.data.align, txt.location[2]  = (scale*0.1, scale*0.1, scale*0.1), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER', txt.location[2] + scale*0.01
+        txt.scale, txt.data.body, txt.data.align, txt.location[2]  = (scale*0.1, scale*0.1, scale*0.1), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER', txt.location[2] + scale*0.005
         
         bpy.ops.object.convert(target='MESH')
         bpy.ops.object.material_slot_add()

@@ -786,6 +786,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         spathob.material_slots[-1].material = bpy.data.materials['SolEquoRings']
         spathob.active_material_index = 1        
         bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_mode(type="VERT")
         bpy.ops.object.material_slot_assign()
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.mesh.bisect(plane_co=(0.0, 0.0, 0.0), plane_no=(0.0, 0.0, 1.0), use_fill=True, clear_inner=True, clear_outer=False)

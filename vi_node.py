@@ -28,6 +28,7 @@ class ViNetwork(bpy.types.NodeTree):
     bl_idname = 'ViN'
     bl_label = 'Vi Network'
     bl_icon = 'LAMP_SUN'
+    viparams = {}
 
 class ViNodes:
     @classmethod
@@ -1309,6 +1310,8 @@ class ViBMExNode(bpy.types.Node, ViNodes):
                 self.blockmeshdict += "    );\n  }\n"
             self.blockmeshdict += ");\n\n" 
             self.blockmeshdict += "mergePatchPairs\n(\n);" 
+            
+#            if not os.path.is_dir
             
             print(self.blockmeshdict)
         else:

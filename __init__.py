@@ -123,7 +123,9 @@ def register():
     Object, Scene, Material = bpy.types.Object, bpy.types.Scene, bpy.types.Material
 
 # VI-Suite object definitions
-    Object.vi_type = eprop([("0", "None", "Not a VI-Suite zone"), ("1", "EnVi Zone", "Designates an EnVi Thermal zone"), ("2", "CFD Domain", "Specifies an OpenFoam BlockMesh")], "", "Specify the type of VI-Suite zone", "0")
+    Object.vi_type = eprop([("0", "None", "Not a VI-Suite zone"), ("1", "EnVi Zone", "Designates an EnVi Thermal zone"), 
+                            ("2", "CFD Domain", "Specifies an OpenFoam BlockMesh"), ("3", "CFD Geometry", "Specifies an OpenFoam geometry")], 
+                            "", "Specify the type of VI-Suite zone", "0")
 
 # LiVi object properties
     Object.livi_merr = bprop("LiVi simple mesh export", "Boolean for simple mesh export", False)
@@ -225,10 +227,7 @@ def register():
                                  ("3", "Flow/ExteriorArea", 'Flow in m{}/s per m{} external surface area'.format(u'\u00b3', u'\u00b2')), ("4", "Flow/ExteriorWallArea", 'Flow in m{}/s per m{} external wall surface area'.format(u'\u00b3', u'\u00b2')), 
                                  ("5", "ACH", "ACH flow rate"), ("6", "l/s/p", 'Litres per second per person')], "", "The type of zone infiltration specification", "0")
 # FloVi object definitions
-    Object.bm_xres = iprop("X resolution", "Blockmesh X resolution", 0, 1000, 10)   
-    Object.bm_yres = iprop("X resolution", "Blockmesh X resolution", 0, 1000, 10) 
-    Object.bm_zres = iprop("X resolution", "Blockmesh X resolution", 0, 1000, 10)                
-
+              
 # Vi_suite material definitions
     Material.mattype = eprop([("0", "Geometry", "Geometry"), ("1", 'LiVi sensor', "LiVi sensing material".format(u'\u00b3')), ("2", "Shadow sensor", 'Shadow sensing material'), ("3", "FloVi boundary", 'FloVi blockmesh boundary')], "", "VI-Suite material type", "0")
                                  
@@ -351,8 +350,30 @@ def register():
 
 # FloVi material definitions
     Material.flovi_bmb_type = eprop([("0", "Wall", "Wall boundary"), ("1", "Inlet", "Inlet boundary"), ("2", "Outlet", "Outlet boundary"), ("3", "Empty", "Empty boundary")], "", "FloVi blockmesh boundary type", "0")
+    Material.flovi_bmwp_type = eprop([("0", "Zero Gradient", "Zero gradient boundary")], "", "FloVi wall boundary type", "0")
+    Material.flovi_bmwu_type = eprop([("0", "Fixed", "Fixed value boundary")], "", "FloVi wall boundary type", "0")
+    Material.flovi_bmwnutilda_type = eprop([("0", "Fixed", "Fixed value boundary")], "", "FloVi wall boundary type", "0")
+    Material.flovi_bmwnut_type = eprop([("0", "SpaldingWF", "Fixed value boundary")], "", "FloVi wall boundary type", "0")
 
-    # Scene parameters
+    Material.flovi_bmwu_x = fprop("X", "Value in the X-direction", -1000, 1000, 0.0)
+    Material.flovi_bmwu_y = fprop("Y", "Value in the Y-direction", -1000, 1000, 0.0)
+    Material.flovi_bmwu_z = fprop("Z", "Value in the Z-direction", -1000, 1000, 0.0)
+    
+#    Material.flovi_bmwnut_y = fprop("Y", "Value in the Y-direction", -1000, 1000, 0.0)
+#    Material.flovi_bmwnut_z = fprop("Z", "Value in the Z-direction", -1000, 1000, 0.0) 
+    Material.flovi_bmiop_type = eprop([("0", "FreestreamPressure", "Free stream pressure gradient boundary")], "", "FloVi wall boundary type", "0")
+    Material.flovi_bmiou_type = eprop([("0", "FreestreamPressure", "Free stream pressure gradient boundary")], "", "FloVi wall boundary type", "0")
+    Material.flovi_bmionut_type = eprop([("0", "Freestream", "Free stream value boundary")], "", "FloVi wall boundary type", "0")
+    Material.flovi_bmionutilda_type = eprop([("0", "Freestream", "Free stream value boundary")], "", "FloVi wall boundary type", "0")    
+    Material.flovi_bmiou_x = fprop("X", "Value in the X-direction", -1000, 1000, 0.0)
+    Material.flovi_bmiou_y = fprop("Y", "Value in the Y-direction", -1000, 1000, 0.0)
+    Material.flovi_bmiou_z = fprop("Z", "Value in the Z-direction", -1000, 1000, 0.0)
+    Material.flovi_bmnut = fprop("", "nuTilda value", -1000, 1000, 0.0)
+#    Material.flovi_bmionut = fprop("Value", "nuTilda value", -1000, 1000, 0.0)
+#    Material.flovi_bmionut_y = fprop("Y", "Value in the Y-direction", -1000, 1000, 0.0)
+#    Material.flovi_bmionut_z = fprop("Z", "Value in the Z-direction", -1000, 1000, 0.0)   
+    
+# Scene parameters
     Scene.fs = iprop("Frame start", "Starting frame",0, 1000, 0)
     (Scene.fe, Scene.gfe, Scene.cfe) = [iprop("Frame start", "End frame",0, 50000, 0)] * 3
     Scene.vipath = sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)

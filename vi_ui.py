@@ -300,21 +300,39 @@ class VIMatPanel(bpy.types.Panel):
         
         elif cm.mattype == '3':
             newrow(layout, "Type:", cm, "flovi_bmb_type")
-            
-            
-
-#                if cm.envi_con_type == 'Door':
-#                    row.prop(cm, "envi_export_doorconlist")
-#                    row = layout.row()
-#                    for l, layername in enumerate(envi_cons.door_con[cm.envi_export_doorconlist]):
-#                        row.label(text = layername)
-#                        row.prop(cm, thicklist[l])
-#                        row.label(text = "default: "+str(envi_mats.matdat[layername][7])+"mm")
-#                        row = layout.row()
-
-#                if cm.envi_con_type == 'Window':
-#                    row.prop(cm, "envi_export_glazeconlist")
-
+            if cm.flovi_bmb_type == '0':
+                newrow(layout, "Pressure type:", cm, "flovi_bmwp_type")
+                newrow(layout, "Velocity type:", cm, "flovi_bmwu_type")
+                split = layout.split()
+                col = split.column(align=True)
+                col.label(text="Velocity:")
+                col.prop(cm, "flovi_bmwu_x")
+                col.prop(cm, "flovi_bmwu_y")
+                col.prop(cm, "flovi_bmwu_z")
+                newrow(layout, "nut type:", cm, "flovi_bmwnut_type")
+                newrow(layout, "nut:", cm, "flovi_bmnut")
+                newrow(layout, "nuTilda type:", cm, "flovi_bmwnutilda_type")
+#                newrow(layout, "nuTilda:", cm, "flovi_bmnutilda")
+#                split = layout.split()
+#                col = split.column(align=True)
+#                col.label(text="nuTilda:")
+#                col.prop(cm, "flovi_bmnut")
+#                col.prop(cm, "flovi_bmwnut_y")
+#                col.prop(cm, "flovi_bmwnut_z")
+            elif cm.flovi_bmb_type in ('1', '2'):
+                newrow(layout, "Pressure sub-type:", cm, "flovi_bmiop_type")
+                newrow(layout, "Velocity sub-type:", cm, "flovi_bmiou_type")
+                split = layout.split()
+                col = split.column(align=True)
+                col.label(text="Velocity:")
+                col.prop(cm, "flovi_bmiou_x")
+                col.prop(cm, "flovi_bmiou_y")
+                col.prop(cm, "flovi_bmiou_z")
+                newrow(layout, "nut type:", cm, "flovi_bmionut_type")
+                newrow(layout, "nut:", cm, "flovi_bmnut")
+                newrow(layout, "nuTilda type:", cm, "flovi_bmionutilda_type")
+#                newrow(layout, "nuTilda:", cm, "flovi_bmnutilda")
+                
 class IESPanel(bpy.types.Panel):
     bl_label = "LiVi IES file"
     bl_space_type = "PROPERTIES"
@@ -512,8 +530,5 @@ class VIZonePanel(bpy.types.Panel):
                         while uvals[u] and tvals[u] < 365:
                             [newrow(layout, v[0], obj, v[1]) for v in (('End day {}:'.format(u+1), 'inft'+str(u+1)), ('Fors:', 'inff'+str(u+1)), ('Untils:', 'infu'+str(u+1)))]
                             u += 1
-        elif obj.vi_type == '2':
-            newrow(layout, 'X resolution:', obj, "bm_xres")
-            newrow(layout, 'Y resolution:', obj, "bm_yres")
-            newrow(layout, 'Z resolution:', obj, "bm_zres")
-            
+
+

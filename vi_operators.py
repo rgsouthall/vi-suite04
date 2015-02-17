@@ -3,7 +3,7 @@ from os import rename
 import numpy
 from numpy import arange, histogram
 import bpy_extras.io_utils as io_utils
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, call
 from collections import OrderedDict
 from datetime import datetime as dt
 from math import cos, sin, pi, ceil, tan, modf
@@ -20,7 +20,7 @@ from .livi_calc  import li_calc, resapply
 from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
-from .vi_func import processf, livisimacc, solarPosition, wr_axes, clearscene, framerange, viparams, objmode, nodecolour, cmap, vertarea, wind_rose, compass, windnum
+from .vi_func import processf, livisimacc, solarPosition, wr_axes, clearscene, framerange, viparams, objmode, nodecolour, cmap, vertarea, wind_rose, compass, windnum, fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite
 from .vi_chart import chart_disp
 from .vi_gen import vigen
 
@@ -1004,14 +1004,73 @@ class NODE_OT_Shadow(bpy.types.Operator):
 class NODE_OT_Blockmesh(bpy.types.Operator):
     bl_idname = "node.blockmesh"
     bl_label = "Blockmesh export"
-    bl_description = "Export an OPenfoam blockmesh"
+    bl_description = "Export an Openfoam blockmesh"
     bl_register = True
     bl_undo = True
     nodeid = bpy.props.StringProperty()
     
     def execute(self, context):
+        scene = context.scene
         expnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        expnode.export(context.scene, self)
+        for o in [ob for ob in scene.objects if ob.get('VIType') and ob['VIType'] == 'blockMesh']:
+            scene.objects.unlink(o)
+        if viparams(self, scene):
+            return {'CANCELLED'}
+        bmos = [o for o in scene.objects if o.vi_type == '2']
+        if len(bmos) != 1:
+            ({'ERROR'},"One and only one object with the CFD Domain property is allowed")
+            return {'ERROR'}
+        with open(os.path.join(scene['viparams']['ofsfilebase'], 'controlDict'), 'w') as cdfile:
+            cdfile.write(fvcdwrite("icoFoam", 0.005, 0.5))
+        with open(os.path.join(scene['viparams']['ofcpfilebase'], 'blockMeshDict'), 'w') as bmfile:
+            bmfile.write(fvbmwrite(bmos[0], expnode))
+
+        call(("blockMesh", "-case", "{}".format(scene['viparams']['offilebase'])))
+        fvblbmgen(bmos[0], open(os.path.join(scene['viparams']['ofcpfilebase'], 'faces'), 'r'), open(os.path.join(scene['viparams']['ofcpfilebase'], 'points'), 'r'), open(os.path.join(scene['viparams']['ofcpfilebase'], 'boundary'), 'r'))
+        expnode.export()
         return {'FINISHED'}
         
+class NODE_OT_Snappymesh(bpy.types.Operator):
+    bl_idname = "node.snappy"
+    bl_label = "SnappyHexMesh export"
+    bl_description = "Export an Openfoam snappyhexmesh"
+    bl_register = True
+    bl_undo = True
+    nodeid = bpy.props.StringProperty()
+    
+    def execute(self, context):
+        scene = context.scene
+        for o in scene.objects:
+            if not o.get('VIType'):
+                scene.active_object = o
+                bpy.ops.export_mesh.stl(filepath=os.path.join(scene['viparams']['ofctsfilebase'], '{}.stl'.format(o.name)), check_existing=False, filter_glob="*.stl", axis_forward='Y', axis_up='Z', global_scale=1.0, use_scene_unit=True, ascii=False, use_mesh_modifiers=True)
         
+class NODE_OT_FVSolve(bpy.types.Operator):
+    bl_idname = "node.fvsolve"
+    bl_label = "FloVi simulation"
+    bl_description = "Solve an OpenFOAM case"
+    bl_register = True
+    bl_undo = True
+    nodeid = bpy.props.StringProperty()
+    
+    def execute(self, context):
+        scene = context.scene
+        simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        bmos = [o for o in scene.objects if o.vi_type == '2']
+        with open(os.path.join(scene['viparams']['ofsfilebase'], 'controlDict'), 'w') as cdfile:
+            cdfile.write(fvcdwrite("icoFoam", 0.005, 0.5))
+        fvvarwrite(scene, bmos[0], simnode.solver)
+        with open(os.path.join(scene['viparams']['ofsfilebase'], 'fvSolution'), 'w') as fvsolfile:
+            fvsolfile.write(fvsolwrite(simnode.solver))
+        with open(os.path.join(scene['viparams']['ofsfilebase'], 'fvSchemes'), 'w') as fvschfile:
+            fvschfile.write(fvschwrite(simnode.solver))
+        with open(os.path.join(scene['viparams']['ofcfilebase'], 'transportProperties'), 'w') as fvtppfile:
+            fvtppfile.write(fvtppwrite(simnode.solver))
+        if simnode.solver != 'icoFoam':
+            with open(os.path.join(scene['viparams']['ofcfilebase'], 'RASProperties'), 'w') as fvrasfile:
+                fvrasfile.write(fvraswrite(simnode.turbulence))
+        call((simnode.solver, "-case", "{}".format(scene['viparams']['offilebase'])))
+        Popen(("paraFoam", "-case", "{}".format(scene['viparams']['offilebase'])))
+    #    fvblbmgen(bmos[0], open(os.path.join(scene['viparams']['ofcpfilebase'], 'faces'), 'r'), open(os.path.join(scene['viparams']['ofcpfilebase'], 'points'), 'r'), open(os.path.join(scene['viparams']['ofcpfilebase'], 'boundary'), 'r'))
+        simnode.export()
+        return {'FINISHED'}        

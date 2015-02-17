@@ -18,6 +18,7 @@
 
 
 import bpy, glob, os, inspect, sys, datetime
+#from pathlib import Path
 from subprocess import Popen
 from nodeitems_utils import NodeCategory, NodeItem
 from .vi_func import objvol, socklink, newrow, epwlatilongi, nodeid, nodeinputs, remlink, rettimes, epentry, sockhide, nodecolour, epschedwrite, retelaarea, retrmenus
@@ -1249,83 +1250,173 @@ class ViCSVExport(bpy.types.Node, ViNodes):
 
 # Openfoam nodes
 
+class VIOfM(bpy.types.NodeSocket):
+    '''FloVi mesh socket'''
+    bl_idname = 'VIOfM'
+    bl_label = 'FloVi Mesh socket'
+
+    valid = ['FloVi mesh']
+    link_limit = 1
+
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+
+    def draw_color(self, context, node):
+        return (0.5, 1.0, 0.0, 0.75)
+        
+#class VIOFCDS(bpy.types.NodeSocket):
+#    '''FloVi ControlDict socket'''
+#    bl_idname = 'VIOFCD'
+#    bl_label = 'FloVi ControlDict socket'
+#
+#    valid = ['FloVi Control']
+#    link_limit = 1
+#
+#    def draw(self, context, layout, node, text):
+#        layout.label(text)
+#
+#    def draw_color(self, context, node):
+#        return (0.5, 1.0, 0.0, 0.75)
+        
+#class VIOFCDN(bpy.types.Node, ViNodes):
+#    '''Openfoam Controldict export node'''
+#    bl_idname = 'VIOFCDN'
+#    bl_label = 'FloVi ControlDict'
+#    bl_icon = 'LAMP'
+#    controlD = bpy.props.StringProperty()
+#    
+#    def init(self, context):
+#        self['exportstate'] = ''
+#        self['nodeid'] = nodeid(self)
+#        self.outputs.new('VIOFCDS', 'Control out')
+#        nodecolour(self, 1)
+#        
+#    def nodeupdate(self, context):
+#        self.controlD = 
+#        nodecolour(self, self['exportstate'] != [str(x) for x in (self.bm_xres, self.bm_yres, self.bm_zres, self.bm_xgrad, self.bm_ygrad, self.bm_zgrad)])
+
+
 class ViBMExNode(bpy.types.Node, ViNodes):
     '''Openfoam blockmesh export node'''
     bl_idname = 'ViBMExNode'
-    bl_label = 'FloVi BlockMesh geometry'
+    bl_label = 'FloVi BlockMesh'
     bl_icon = 'LAMP'
     blockmeshdict = bpy.props.StringProperty()
 
-#    def nodeupdate(self, context):
-#        pass
-#        nodecolour(self, self['exportstate'] != [str(x) for x in (self.animmenu, self.cpoint, self.offset)])
-#        if self.inputs['Generative in'].links:
-#            self.inputs['Generative in'].links[0].from_node.update()
+    def nodeupdate(self, context):
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.bm_xres, self.bm_yres, self.bm_zres, self.bm_xgrad, self.bm_ygrad, self.bm_zgrad)])
 
-#    animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis"), ('Material', "Material", "Animated material analysis"), ('Lights', "Lights", "Animated artificial lighting analysis")]
-#    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeupdate)
-#    cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
-#            name="", description="Specify the calculation point geometry", default="1", update = nodeupdate)
-#    offset = bpy.props.FloatProperty(name="", description="Calc point offset", min=0.001, max=1, default=0.01, update = nodeupdate)
+    bm_xres = bpy.props.IntProperty(name = "X", description = "Blockmesh X resolution", min = 0, max = 1000, default = 10, update = nodeupdate)   
+    bm_yres = bpy.props.IntProperty(name = "Y", description = "Blockmesh Y resolution", min = 0, max = 1000, default = 10, update = nodeupdate) 
+    bm_zres = bpy.props.IntProperty(name = "Z", description = "Blockmesh Z resolution", min = 0, max = 1000, default = 10, update = nodeupdate)  
+    bm_xgrad = bpy.props.FloatProperty(name = "X", description = "Blockmesh X simple grading", min = 0, max = 10, default = 1, update = nodeupdate)   
+    bm_ygrad = bpy.props.FloatProperty(name = "Y", description = "Blockmesh Y simple grading", min = 0, max = 10, default = 1, update = nodeupdate) 
+    bm_zgrad = bpy.props.FloatProperty(name = "Z", description = "Blockmesh Z simple grading", min = 0, max = 10, default = 1, update = nodeupdate) 
+    existing =  bpy.props.BoolProperty(name = '', default = 0)
+    
+    def init(self, context):
+        self['exportstate'] = ''
+        self['nodeid'] = nodeid(self)
+        self.outputs.new('VIOfM', 'Mesh out')
+        nodecolour(self, 1)
+
+    def draw_buttons(self, context, layout):
+        split = layout.split()
+        col = split.column(align=True)
+        col.label(text="Cell resolution:")
+        col.prop(self, "bm_xres")
+        col.prop(self, "bm_yres")
+        col.prop(self, "bm_zres")
+        col = split.column(align=True)
+        col.label(text="Cell grading:")
+        col.prop(self, "bm_xgrad")
+        col.prop(self, "bm_ygrad")
+        col.prop(self, "bm_zgrad")
+        row = layout.row()
+        row.operator("node.blockmesh", text = "Export").nodeid = self['nodeid']
+        if not self.use_custom_color:
+            newrow(layout, 'Use existing', self, 'existing')
+            
+    def update(self):
+        socklink(self.outputs['Mesh out'], self['nodeid'].split('@')[1])
+
+    def export(self):
+        self.exportstate = [str(x) for x in (self.bm_xres, self.bm_yres, self.bm_zres, self.bm_xgrad, self.bm_ygrad, self.bm_zgrad)]
+        nodecolour(self, 0) 
+        
+class ViSnExNpde(bpy.types.Node, ViNodes):
+    '''Openfoam blockmesh export node'''
+    bl_idname = 'ViSnExNode'
+    bl_label = 'FloVi SnappyHexMesh'
+    bl_icon = 'LAMP'
+#    blockmeshdict = bpy.props.StringProperty()
+    
+    def nodeupdate(self, context):
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.bm_xres, self.bm_yres, self.bm_zres, self.bm_xgrad, self.bm_ygrad, self.bm_zgrad)])
+    
+    def init(self, context):
+        self['exportstate'] = ''
+        self['nodeid'] = nodeid(self)
+        self.inputs.new('VIOfM', 'Mesh in')
+        self.outputs.new('VIOfM', 'Mesh out')
+        nodecolour(self, 1)
+            
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.operator("node.snappymesh", text = "Export").nodeid = self['nodeid']
+
+class ViFVSimNode(bpy.types.Node, ViNodes):
+    '''Openfoam blockmesh export node'''
+    bl_idname = 'ViFVSimNode'
+    bl_label = 'FloVi Simulationh'
+    bl_icon = 'LAMP'
+
+    p = bpy.props.StringProperty()
+    U = bpy.props.StringProperty()
+    k = bpy.props.StringProperty()
+    episilon = bpy.props.StringProperty()
+    omega = bpy.props.StringProperty()
+    nut = bpy.props.StringProperty()
+    nuTilda = bpy.props.StringProperty()
+
+    def nodeupdate(self, context):
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.solver, self.dt, self.et, self.bouyancy, self.radiation, self.turbulence)])
+
+    solver = bpy.props.EnumProperty(items = [('simpleFoam', 'SimpleFoam', 'Steady state turbulence solver'),
+                                              ('icoFoam', 'IcoFoam', 'Transient laminar solver'), 
+                                               ('pimpleFoam', 'PimpleFoam', 'Transient turbulence solver') ], name = "", default = 'simpleFoam', update = nodeupdate)
+    dt = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.001, max = 500, default = 50, update = nodeupdate)
+    et = bpy.props.FloatProperty(name = "", description = "Simulation end time", min = 0.001, max = 5000, default = 500, update = nodeupdate)
+    bouyancy =  bpy.props.BoolProperty(name = '', default = 0, update=nodeupdate)
+    radiation =  bpy.props.BoolProperty(name = '', default = 0, update=nodeupdate)
+    turbulence =  bpy.props.EnumProperty(items = [('laminar', 'Laminar', 'Steady state turbulence solver'),
+                                              ('kEpsilon', 'k-Epsilon', 'Transient laminar solver'), 
+                                               ('kOmega', 'k-Omega', 'Transient turbulence solver'), ('SpalartAllmaras', 'Spalart-Allmaras', 'Spalart-Allmaras turbulence solver')], name = "", default = 'laminar', update = nodeupdate)
 
     def init(self, context):
         self['exportstate'] = ''
         self['nodeid'] = nodeid(self)
-        self.outputs.new('ViFloBM', 'Blockmesh out')
-#        self.inputs.new('ViGen', 'Generative in')
-#        bpy.context.scene.gfe = 0
+        self.inputs.new('VIOfM', 'Mesh in')
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
-#        newrow(layout, 'Animation:', self, 'animmenu')
-#        newrow(layout, 'Result point:', self, 'cpoint')
-#        newrow(layout, 'Offset:', self, 'offset')
-#        if (self.inputs['Generative in'].links and not self.inputs['Generative in'].links[0].from_node.use_custom_color) or not self.inputs['Generative in'].links:
+        newrow(layout, 'Solver:', self, 'solver')
+        newrow(layout, 'deltaT:', self, 'dt')
+        newrow(layout, 'End time:', self, 'et')
+        if self.solver in ('simpleFoam', 'pimpleFoam'):
+            newrow(layout, 'Turbulence:', self, 'turbulence')
+            newrow(layout, 'Bouyancy:', self, 'bouyancy')
+            newrow(layout, 'Radiation:', self, 'radiation')
+
         row = layout.row()
-        row.operator("node.blockmesh", text = "Export").nodeid = self['nodeid']
+        row.operator("node.fvsolve", text = "Calculate").nodeid = self['nodeid']
 
     def update(self):
-        socklink(self.outputs['Blockmesh out'], self['nodeid'].split('@')[1])
+        socklink(self.outputs['Mesh out'], self['nodeid'].split('@')[1])
 
-    def export(self, scene, exp_op):
-        bmos = [o for o in scene.objects if o.layers[0] and not o.hide and o.vi_type == "2"]
-        if len(bmos) == 1:
-            self.blockmeshdict = "FoamFile\n  {\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  object      blockMeshDict;\n  }\n\n" 
-        else:
-            exp_op.report({'ERROR'},"There must be one and only one object with the Blockmesh object property")
-            return 'ERROR'
-        bmovs = [vert for vert in bmos[0].data.vertices]
-        if len(bmovs) == 8:
-            self.blockmeshdict += "vertices\n(\n" + "\n".join(["{:.2f} {:.2f} {:.2f})" .format(bmov.co[0], bmov.co[2], bmov.co[1]) for bmov in bmovs]) +"\n}\n\n"
-            
-            self.blockmeshdict += "blocks\n(\n  hex (0 1 2 3 4 5 6 7) ({} {} {}) simpleGrading (1 1 1)\n);\n\n".format(bmos[0].bm_xres, bmos[0].bm_zres, bmos[0].bm_yres) 
-            self.blockmeshdict += "edges\n(\n);\n\n"  
-            self.blockmeshdict += "boundary\n(\n"#;\n\n" 
-#            self.blockmeshdict += "\n".join([mat.name + "\n{\n  type {};\n    faces\n      (\n        ({}))".format(mat.flovi_bmb_type, "\n".join(["({} {} {} ))
-            for mat in bmos[0].data.materials:
-                self.blockmeshdict += "  {}\n  {{\n    type {};\n    faces\n    (\n".format(mat.name, ("wall", "inlet", "outlet", "empty")[int(mat.flovi_bmb_type)])#;\n\n"
-                faces = [face for face in bmos[0].data.polygons if bmos[0].data.materials[face.material_index] == mat]
-                for face in faces:
-                    self.blockmeshdict += "      ("+" ".join([str(v) for v in face.vertices])+")\n"
-                self.blockmeshdict += "    );\n  }\n"
-            self.blockmeshdict += ");\n\n" 
-            self.blockmeshdict += "mergePatchPairs\n(\n);" 
-            
-#            if not os.path.is_dir
-            
-            print(self.blockmeshdict)
-        else:
-            exp_op.report({'ERROR'},"Only blockmeshes with 8 vertices are currently supported")
-            return 'ERROR'
-        
-#        nodecolour(self, 0)
-#        self['exportstate'] = [str(x) for x in (self.animmenu, self.cpoint, self.offset)]
-#        self['frames'] = {'Material': 0, 'Geometry': 0, 'Lights':0}
-#        for mglfr in self['frames']:
-#            self['frames'][mglfr] = scene.frame_end if self.animmenu == mglfr else 0
-#            scene.gfe = max(self['frames'].values())
-#        scene['liparams']['cp'], scene.vi_display_rp_off = self.cpoint, self.offset
-
+    def export(self):
+        self.exportstate = [str(x) for x in (self.solver, self.dt, self.et, self.bouyancy, self.radiation, self.turbulence)]
+        nodecolour(self, 0) 
 ####################### Vi Nodes Catagories ##############################
 
 viexnodecat = [NodeItem("ViLoc", label="VI Location"), NodeItem("ViGExLiNode", label="LiVi Geometry"), 
@@ -1333,7 +1424,7 @@ viexnodecat = [NodeItem("ViLoc", label="VI Location"), NodeItem("ViGExLiNode", l
                 NodeItem("ViLiCBNode", label="LiVi CBDM"), NodeItem("ViGExEnNode", label="EnVi Geometry"), 
                 NodeItem("ViExEnNode", label="EnVi Export"), NodeItem("ViBMExNode", label="FloVi BlockMesh")]
 
-vinodecat = [NodeItem("ViLiSNode", label="LiVi Simulation"),\
+vinodecat = [NodeItem("ViLiSNode", label="LiVi Simulation"), NodeItem("ViFVSimNode", label="FloVi Simulation"),\
              NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), NodeItem("ViEnSimNode", label="EnVi Simulation")]
 
 vigennodecat = [NodeItem("ViGenNode", label="VI-Suite Generative"), NodeItem("ViTarNode", label="VI-Suite Target")]

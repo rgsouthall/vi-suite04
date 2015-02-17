@@ -62,11 +62,20 @@ def viparams(op, scene):
         os.makedirs(os.path.join(fd, fn))
     if not os.path.isdir(os.path.join(fd, fn, 'obj')):
         os.makedirs(os.path.join(fd, fn, 'obj'))
+    if not os.path.isdir(os.path.join(fd, fn, 'Openfoam')):
+        os.makedirs(os.path.join(fd, fn, 'Openfoam'))
+        os.makedirs(os.path.join(fd, fn, 'Openfoam', "system"))
+        os.makedirs(os.path.join(fd, fn, 'Openfoam', "constant"))
+        os.makedirs(os.path.join(fd, fn, 'Openfoam', "constant", "polyMesh"))
+        os.makedirs(os.path.join(fd, fn, 'Openfoam', "constant", "triSurface"))
+        os.makedirs(os.path.join(fd, fn, 'Openfoam', "0"))
     nd = os.path.join(fd, fn)
-    fb, ofb, idf  = os.path.join(nd, fn), os.path.join(nd, 'obj', fn), os.path.join(nd, 'in.idf')
+    fb, ofb, offb, idf  = os.path.join(nd, fn), os.path.join(nd, 'obj'), os.path.join(nd, 'Openfoam'), os.path.join(nd, 'in.idf')
+    offzero, offs, offc, offcp, offcts = os.path.join(offb, '0'), os.path.join(offb, 'system'), os.path.join(offb, 'constant'), os.path.join(offb, 'constant', "polyMesh"), os.path.join(offb, 'constant', "triSurface")
     scene['viparams'] = {'rm': ('rm ', 'del ')[str(sys.platform) == 'win32'], 'cat': ('cat ', 'type ')[str(sys.platform) == 'win32'],
     'cp': ('cp ', 'copy ')[str(sys.platform) == 'win32'], 'nproc': str(multiprocessing.cpu_count()), 'filepath': bpy.data.filepath,
-    'filename': fn, 'filedir': fd, 'newdir': nd, 'objfilebase': ofb, 'idf_file': idf, 'filebase': fb}
+    'filename': fn, 'filedir': fd, 'newdir': nd, 'objfilebase': ofb, 'idf_file': idf, 'filebase': fb, 'offilebase': offb,
+    'ofsfilebase': offs, 'ofcfilebase': offc, 'ofcpfilebase': offcp, 'of0filebase': offzero, 'ofctsfilebase': offcts}
     if not scene.get('liparams'):
         scene['liparams'] = {}
 
@@ -1048,4 +1057,185 @@ def li_calcob(ob, li):
     else:
         ob.licalc = 1 if [face.index for face in ob.data.polygons if (ob.data.materials[face.material_index].mattype == '2', ob.data.materials[face.material_index].mattype == '1')[li == 'livi']] else 0
         return ob.licalc
+
+# FloVi functions
+def fvboundwrite(o):
+    boundary = ''
+    for mat in o.data.materials:        
+        boundary += "  {}\n  {{\n    type {};\n    faces\n    (\n".format(mat.name, ("wall", "inlet", "outlet", "empty")[int(mat.flovi_bmb_type)])#;\n\n"
+        faces = [face for face in o.data.polygons if o.data.materials[face.material_index] == mat]
+        for face in faces:
+            boundary += "      ("+" ".join([str(v) for v in face.vertices])+")\n"
+        boundary += "    );\n  }\n"
+#        fvvarwrite(mat, solver)
+    boundary += ");\n\nmergePatchPairs\n(\n);"
+    return boundary
+#    self.p += "}"   
+#    self.U += "}" 
     
+def fvbmwrite(o, expnode):
+    omw, bmovs = o.matrix_world, [vert for vert in o.data.vertices]
+    xvec, yvec, zvec = (omw*bmovs[3].co - omw*bmovs[0].co).normalized(), (omw*bmovs[2].co - omw*bmovs[3].co).normalized(), (omw*bmovs[4].co - omw*bmovs[0].co).normalized() 
+    ofvpos = [[(omw*bmov.co - omw*bmovs[0].co)*vec for vec in (xvec, yvec, zvec)] for bmov in bmovs]
+#    for bmov in bmovs:
+#        ofvpos.append()
+            
+    bmdict = "FoamFile\n  {\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  object      blockMeshDict;\n  }\n\nconvertToMeters 1.0;\n\n" 
+    bmdict += "vertices\n(\n" + "\n".join(["  ({0:.3f} {1:.3f} {2:.3f})" .format(*ofvpo) for ofvpo in ofvpos]) +"\n);\n\n"
+    bmdict += "blocks\n(\n  hex (0 3 2 1 4 7 6 5) ({} {} {}) simpleGrading ({} {} {})\n);\n\n".format(expnode.bm_xres, expnode.bm_yres, expnode.bm_zres, expnode.bm_xgrad, expnode.bm_ygrad, expnode.bm_zgrad) 
+    bmdict += "edges\n(\n);\n\n"  
+    bmdict += "boundary\n(\n" 
+    bmdict += fvboundwrite(o)
+    return bmdict
+    
+def fvblbmgen(oo, ffile, vfile, bfile):
+    matfacedict = {mat.name:[0, 0] for mat in oo.data.materials}
+    for line in bfile.readlines():
+        if line.strip() in matfacedict:
+            mat = line.strip()
+        if 'nFaces' in line:
+            matfacedict[mat][1] = int(line.split()[1].strip(';'))
+        if 'startFace' in line:
+            matfacedict[mat][0] = int(line.split()[1].strip(';'))
+    print(matfacedict)
+                
+#    for oldob in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'blockMesh']:
+#        bpy.context.scene.objects.unlink(oldob)
+    bpy.ops.object.add(type='MESH')
+    o = bpy.context.object
+    o.name = 'BlockMesh'
+    o['VIType'] = 'blockMesh'
+    for mat in oo.data.materials:
+        bpy.ops.object.material_slot_add()
+        o.material_slots[-1].material = mat 
+    
+    bm = bmesh.new()
+    for line in [line for line in vfile.readlines() if line[0] == '(' and len(line.split(' ')) == 3]:
+        bm.verts.new().co = [float(vpos) for vpos in line[1:-2].split(' ')]
+    if hasattr(bm.verts, "ensure_lookup_table"):
+        bm.verts.ensure_lookup_table()
+    for l, line in enumerate([line for line in ffile.readlines() if line[0] == '4' and len(line.split(' ')) == 4]):
+        bm.faces.new([bm.verts[int(fv)] for fv in line[2:-2].split(' ')])
+        for facerange in matfacedict.items():
+            if l in range(facerange[1][0], facerange[1][0] + facerange[1][1]):
+                if hasattr(bm.faces, "ensure_lookup_table"):
+                    bm.faces.ensure_lookup_table()
+                bm.faces[-1].material_index = [omat.name for omat in oo.data.materials].index(facerange[0])
+    bm.to_mesh(o.data)
+
+def fvvarwrite(scene, o, solver):
+    '''Turbulence modelling: k and epsilon required for kEpsilon, k and omega required for kOmega, nutilda required for SpalartAllmaras, nut required for all
+        Bouyancy modelling: T''' 
+    (pentry, Uentry, nutildaentry, nutentry) = ["FoamFile\n{{\n  version     2.0;\n  format      ascii;\n  class       vol{}Field;\n  object      {};\n}}\n\ndimensions [0 {} {} 0 0 0 0];\ninternalField   uniform {};\n\nboundaryField\n{{\n".format(*var) for var in (('Scalar', 'p', '2', '-2', '0'), ('Vector', 'U', '1', '-1' , '(0 0 0)'), ('Scalar', 'nuTilda', '2', '-1' , '0'), ('Scalar', 'nut', '2', '-1' , '0'))]
+    
+    for mat in o.data.materials:    
+        if mat.flovi_bmb_type == '0':
+            matbptype = ['zeroGradient'][int(mat.flovi_bmwp_type)]
+            matbUtype = ['fixedValue'][int(mat.flovi_bmwu_type)]
+            if solver != 'icoFoam':
+                matbnuttype = ['nutUSpaldingWallFunction'][int(mat.flovi_bmwnut_type)]
+                matbnutildatype = ['fixedValue'][int(mat.flovi_bmwnutilda_type)]
+        elif mat.flovi_bmb_type in ('1', '2'):
+            matbptype = ['freestreamPressure'][int(mat.flovi_bmiop_type)]
+            matbUtype = ['fixedValue'][int(mat.flovi_bmiou_type)]
+            if solver != 'icoFoam':
+                matbnuttype = ['freestream'][int(mat.flovi_bmionut_type)]
+                matbnutildatype = ['freestream'][int(mat.flovi_bmionutilda_type)]
+        elif mat.flovi_bmb_type == '3':
+            matbptype = 'empty'
+            matbUtype = 'empty'
+            if solver != 'icoFoam':
+                matbnuttype = 'empty'
+                matbnutildatype = 'empty'
+        
+
+        pentry += "  {}\n  {{\n    type    {};\n  }}\n".format(mat.name, matbptype) 
+        if matbUtype == 'empty':
+            Uentry += "  {}\n  {{\n    type    {};\n  }}\n".format(mat.name, matbUtype) 
+        else:
+            Uentry += "  {}\n  {{\n    type    {};\n    value  uniform ({} {} {});\n  }}\n".format(mat.name, matbUtype, mat.flovi_bmwu_x, mat.flovi_bmwu_y, mat.flovi_bmwu_z) 
+        if solver != 'icoFoam':
+            if matbnuttype == 'empty':
+                nutentry += "  {}\n  {{\n    type    {};\n  }}\n".format(mat.name, matbnuttype)
+                nutildaentry += "  {}\n  {{\n    type    {};\n  }}\n".format(mat.name, matbnutildatype)
+            else:
+                nutentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, ('value', 'freestreamValue')[matbnuttype == 'freestream'], mat.flovi_bmnut) 
+                nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnutildatype, ('value', 'freestreamValue')[matbnutildatype == 'freestream'], mat.flovi_bmnut) 
+            
+    pentry += '}'
+    Uentry += '}'
+    nutentry += '}'
+    with open(os.path.join(scene['viparams']['of0filebase'], 'p'), 'w') as pfile:
+        pfile.write(pentry)
+    with open(os.path.join(scene['viparams']['of0filebase'], 'U'), 'w') as Ufile:
+        Ufile.write(Uentry)
+    if solver != 'icoFoam':
+        with open(os.path.join(scene['viparams']['of0filebase'], 'nuTilda'), 'w') as nutildafile:
+            nutildafile.write(nutildaentry)
+        with open(os.path.join(scene['viparams']['of0filebase'], 'nut'), 'w') as nutfile:
+            nutfile.write(nutentry)
+        
+def fvmattype(mat, var):
+    if mat.flovi_bmb_type == '0':
+        matbptype = ['zeroGradient'][int(mat.flovi_bmwp_type)]
+        matbUtype = ['fixedValue'][int(mat.flovi_bmwu_type)]
+    elif mat.flovi_bmb_type in ('1', '2'):
+        matbptype = ['freestreamPressure'][int(mat.flovi_bmiop_type)]
+        matbUtype = ['fixedValue'][int(mat.flovi_bmiou_type)]
+    elif mat.flovi_bmb_type == '3':
+        matbptype = 'empty'
+        matbUtype = 'empty'
+    
+def fvcdwrite(solver, dt, et):
+    return 'FoamFile\n{\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  location    "system";\n  object      controlDict;\n}\n\n' + \
+            'application     {};\nstartFrom       startTime;\nstartTime       0;\nstopAt          endTime;\nendTime         {};\n'.format(solver, et)+\
+            'deltaT          {};\nwriteControl    timeStep;\nwriteInterval   {};\npurgeWrite      0;\nwriteFormat     ascii;\nwritePrecision  6;\n'.format(dt, et/dt)+\
+            'writeCompression off;\ntimeFormat      general;\ntimePrecision   6;\nrunTimeModifiable true;\n\n'
+
+def fvsolwrite(solver):
+    ofheader = 'FoamFile\n{\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  location    "system";\n  object    fvSolution;\n}\n\n'
+    if solver == 'icoFoam':
+        return ofheader + "solvers\n{\n  p\n  {\n    solver          PCG;\n    preconditioner  DIC;\n    tolerance       1e-06;\n    relTol          0;\n  }\n\n" + \
+        "  U\n  {\n    solver          smoothSolver;\n    smoother        symGaussSeidel;\n    tolerance       1e-05;\n    relTol          0;  \n  }\n}\n\n" + \
+        "PISO\n{\n  nCorrectors     2;\n  nNonOrthogonalCorrectors 0;\n  pRefCell        0;\n  pRefValue       0;\n}"
+    else:
+        return ofheader + 'solvers\n{\n    p\n    {\n        solver          GAMG;\n        tolerance       1e-06;\n        relTol          0.1;\n        smoother        GaussSeidel;\n' + \
+        '        nPreSweeps      0;\n        nPostSweeps     2;\n        cacheAgglomeration true;\n        nCellsInCoarsestLevel 10;\n        agglomerator    faceAreaPair;\n'+ \
+        '        mergeLevels     1;\n    }\n\n    U\n    {\n        solver          smoothSolver;\n        smoother        GaussSeidel;\n        nSweeps         2;\n' + \
+        '        tolerance       1e-08;\n        relTol          0.1;\n    }\n\n    nuTilda\n    {\n        solver          smoothSolver;\n        smoother        GaussSeidel;\n' + \
+        '        nSweeps         2;\n        tolerance       1e-08;\n        relTol          0.1;\n    }\n}\n\n' + \
+        'SIMPLE\n{\n    nNonOrthogonalCorrectors 0;\npRefCell        0;\n    pRefValue       0;\n\n    residualControl\n    {\n        p               1e-5;\n        U               1e-5;\n' + \
+        '        nuTilda         1e-5;\n    }\n}\n\npotentialFlow\n{\n    nNonOrthogonalCorrectors 10;\n}\n' + \
+        'relaxationFactors\n{\n    fields\n    {\n        p               0.3;\n    }\n    equations\n    {\n' + \
+        '        U               0.7;\n        k               0.7;\n        omega           0.7;\n    }\n}\n\n' + \
+        'cache\n{\n    grad(U);\n}\n'
+
+
+def fvschwrite(solver):
+    ofheader = 'FoamFile\n{\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  location    "system";\n  object    fvSchemes;\n}\n\n'
+    if solver == 'icoFoam':
+        return ofheader + 'ddtSchemes\n{\n  default         Euler;\n}\n\ngradSchemes\n{\n  default         Gauss linear;\n  grad(p)         Gauss linear;\n}\n\n' + \
+            'divSchemes\n{\n  default         none;\n  div(phi,U)      Gauss linear;\n}\n\nlaplacianSchemes\n{\n  default         Gauss linear orthogonal;\n}\n\n' + \
+            'interpolationSchemes\n{\n  default         linear;\n}\n\n' + \
+            'snGradSchemes{  default         orthogonal;}\n\nfluxRequired{  default         no;  p;\n}'
+    else:
+        return ofheader + 'ddtSchemes\n{\n    default         steadyState;\n}\n\ngradSchemes\n{\n    default         Gauss linear;\n}\n\n' + \
+        'divSchemes\n{\n    default         none;\n    div(phi,U)      bounded Gauss linearUpwind grad(U);\n    div(phi,nuTilda) bounded Gauss linearUpwind grad(nuTilda);\n' + \
+        '      div((nuEff*dev(T(grad(U))))) Gauss linear;\n}\n\nlaplacianSchemes\n{\n    default         Gauss linear corrected;\n}\n\n' + \
+        'interpolationSchemes\n{\n    default         linear;\n}\n\nsnGradSchemes\n{\n    default         corrected;\n}\n\n' + \
+        'fluxRequired\n{\n    default         no;\n    p               ;\n}\n'
+
+def fvtppwrite(solver):
+    ofheader = 'FoamFile\n{\n    version     2.0;\n    format      ascii;\n    class       dictionary;\n    location    "constant";\n    object      transportProperties;\n}\n\n'
+    if solver == 'icoFoam':
+        return ofheader + 'nu              nu [ 0 2 -1 0 0 0 0 ] 0.01;\n'
+    else:
+        return ofheader + 'transportModel  Newtonian;\n\nrho             rho [ 1 -3 0 0 0 0 0 ] 1;\n\nnu              nu [ 0 2 -1 0 0 0 0 ] 1e-05;\n\n' + \
+        'CrossPowerLawCoeffs\n{\n    nu0             nu0 [ 0 2 -1 0 0 0 0 ] 1e-06;\n    nuInf           nuInf [ 0 2 -1 0 0 0 0 ] 1e-06;\n    m               m [ 0 0 1 0 0 0 0 ] 1;\n' + \
+        '    n               n [ 0 0 0 0 0 0 0 ] 1;\n}\n\n' + \
+        'BirdCarreauCoeffs\n{\n    nu0             nu0 [ 0 2 -1 0 0 0 0 ] 1e-06;\n    nuInf           nuInf [ 0 2 -1 0 0 0 0 ] 1e-06;\n' + \
+        '    k               k [ 0 0 1 0 0 0 0 ] 0;\n    n               n [ 0 0 0 0 0 0 0 ] 1;\n}'
+        
+def fvraswrite(turb):
+    ofheader = 'FoamFile\n{\n    version     2.0;\n    format      ascii;\n    class       dictionary;\n    location    "constant";\n    object      RASProperties;\n}\n\n'
+    return ofheader + 'RASModel        {};\n\nturbulence      on;\n\nprintCoeffs     on;\n'.formay(turb)

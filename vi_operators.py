@@ -1024,9 +1024,11 @@ class NODE_OT_Blockmesh(bpy.types.Operator):
             cdfile.write(fvcdwrite("icoFoam", 0.005, 0.5))
         with open(os.path.join(scene['viparams']['ofcpfilebase'], 'blockMeshDict'), 'w') as bmfile:
             bmfile.write(fvbmwrite(bmos[0], expnode))
-
-        call(("blockMesh", "-case", "{}".format(scene['viparams']['offilebase'])))
-        fvblbmgen(bmos[0], open(os.path.join(scene['viparams']['ofcpfilebase'], 'faces'), 'r'), open(os.path.join(scene['viparams']['ofcpfilebase'], 'points'), 'r'), open(os.path.join(scene['viparams']['ofcpfilebase'], 'boundary'), 'r'))
+        if not expnode.existing:
+            call(("blockMesh", "-case", "{}".format(scene['viparams']['offilebase'])))
+            fvblbmgen(bmos[0], open(os.path.join(scene['viparams']['ofcpfilebase'], 'faces'), 'r'), open(os.path.join(scene['viparams']['ofcpfilebase'], 'points'), 'r'), open(os.path.join(scene['viparams']['ofcpfilebase'], 'boundary'), 'r'))
+        else:
+            fvrbm(bmos[0])
         expnode.export()
         return {'FINISHED'}
         

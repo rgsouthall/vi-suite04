@@ -1077,9 +1077,6 @@ def fvbmwrite(o, expnode):
     omw, bmovs = o.matrix_world, [vert for vert in o.data.vertices]
     xvec, yvec, zvec = (omw*bmovs[3].co - omw*bmovs[0].co).normalized(), (omw*bmovs[2].co - omw*bmovs[3].co).normalized(), (omw*bmovs[4].co - omw*bmovs[0].co).normalized() 
     ofvpos = [[(omw*bmov.co - omw*bmovs[0].co)*vec for vec in (xvec, yvec, zvec)] for bmov in bmovs]
-#    for bmov in bmovs:
-#        ofvpos.append()
-            
     bmdict = "FoamFile\n  {\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  object      blockMeshDict;\n  }\n\nconvertToMeters 1.0;\n\n" 
     bmdict += "vertices\n(\n" + "\n".join(["  ({0:.3f} {1:.3f} {2:.3f})" .format(*ofvpo) for ofvpo in ofvpos]) +"\n);\n\n"
     bmdict += "blocks\n(\n  hex (0 3 2 1 4 7 6 5) ({} {} {}) simpleGrading ({} {} {})\n);\n\n".format(expnode.bm_xres, expnode.bm_yres, expnode.bm_zres, expnode.bm_xgrad, expnode.bm_ygrad, expnode.bm_zgrad) 
@@ -1097,10 +1094,7 @@ def fvblbmgen(oo, ffile, vfile, bfile):
             matfacedict[mat][1] = int(line.split()[1].strip(';'))
         if 'startFace' in line:
             matfacedict[mat][0] = int(line.split()[1].strip(';'))
-    print(matfacedict)
-                
-#    for oldob in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'blockMesh']:
-#        bpy.context.scene.objects.unlink(oldob)
+
     bpy.ops.object.add(type='MESH')
     o = bpy.context.object
     o.name = 'BlockMesh'
@@ -1123,6 +1117,16 @@ def fvblbmgen(oo, ffile, vfile, bfile):
                 bm.faces[-1].material_index = [omat.name for omat in oo.data.materials].index(facerange[0])
     bm.to_mesh(o.data)
 
+def fvbmr(scene, o):
+    points = '{\n    version     2.0;\n    format      ascii;\n    class       vectorField;\n    location    "constant/polyMesh";\n    object      points;\n}\n\n{}\n(\n'.format(len(o.data.verts))
+    points += ''.join(['({} {} {})\n'.format(o.matrix_world * v.co) for v in o.data.verts]) + ')'
+    with open(os.path.join(scene['viparams']['ofcpfilebase'], 'points'), 'r') as pfile:
+        pfile.write(points)
+    faces = '{\n    version     2.0;\n    format      ascii;\n    class       faceList;\n    location    "constant/polyMesh";\n    object      faces;\n}\n\n{}\n(\n'.format(len(o.data.faces))
+    faces += ''.join(['({} {} {} {})\n'.format(f.vertices) for f in o.data.faces]) + ')'
+    with open(os.path.join(scene['viparams']['ofcpfilebase'], 'faces'), 'r') as ffile:
+        ffile.write(faces)
+    
 def fvvarwrite(scene, o, solver):
     '''Turbulence modelling: k and epsilon required for kEpsilon, k and omega required for kOmega, nutilda required for SpalartAllmaras, nut required for all
         Bouyancy modelling: T''' 

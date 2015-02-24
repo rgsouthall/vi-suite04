@@ -1356,6 +1356,12 @@ class ViSHMExNode(bpy.types.Node, ViNodes):
     
     lcells = bpy.props.IntProperty(name = "", description = "SnappyhexMesh local cells", min = 0, max = 100000, default = 1000, update = nodeupdate)
     gcells = bpy.props.IntProperty(name = "", description = "SnappyhexMesh global cells", min = 0, max = 1000000, default = 10000, update = nodeupdate)
+    layers = bpy.props.IntProperty(name = "", description = "Layer number", min = 0, max = 10, default = 0, update = nodeupdate)
+    
+    layerspec = bpy.props.EnumProperty(items = [('0', 'First & overall', 'First layer thickness and overall thickness'), ('1', 'First & ER', 'First layer thickness and expansion ratio'), 
+                                               ('2', 'Final & ER', 'Final layer thickness and expansion ratio'), ('3', 'Final & overall', 'Final layer thickness and overall thickness'),
+                                                ('4', 'Final & ER', 'Final layer thickness and expansion ratio'), ('5', 'Overall & ER', 'Overall thickness and expansion ratio')], name = "", default = '0', update = nodeupdate)
+    expansion = bpy.props.FloatProperty(name = "", description = "Exapnsion ratio", min = 1.0, max = 3.0, default = 1.0, update = nodeupdate) 
     
     def init(self, context):
         self['exportstate'] = ''
@@ -1367,6 +1373,10 @@ class ViSHMExNode(bpy.types.Node, ViNodes):
     def draw_buttons(self, context, layout):
         newrow(layout, 'Local cells:', self, 'lcells')
         newrow(layout, 'Global cells:', self, 'gcells')
+        newrow(layout, 'Layers:', self, 'layers')
+        if self.layers:
+            newrow(layout, 'Layer spec:', self, 'layerspec')
+            newrow(layout, 'Expansion:', self, 'expansion')
         row = layout.row()
         row.operator("node.snappy", text = "Export").nodeid = self['nodeid']
         

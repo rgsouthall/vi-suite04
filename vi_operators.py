@@ -1078,8 +1078,7 @@ class NODE_OT_Blockmesh(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         expnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        for o in [ob for ob in scene.objects if ob.get('VIType') and ob['VIType'] == 'blockMesh']:
-            scene.objects.unlink(o)
+        
         if viparams(self, scene):
             return {'CANCELLED'}
         bmos = [o for o in scene.objects if o.vi_type == '2']
@@ -1092,7 +1091,7 @@ class NODE_OT_Blockmesh(bpy.types.Operator):
             bmfile.write(fvbmwrite(bmos[0], expnode))
         if not expnode.existing:
             call(("blockMesh", "-case", "{}".format(scene['viparams']['offilebase'])))
-            fvblbmgen(bmos[0], open(os.path.join(scene['viparams']['ofcpfilebase'], 'faces'), 'r'), open(os.path.join(scene['viparams']['ofcpfilebase'], 'points'), 'r'), open(os.path.join(scene['viparams']['ofcpfilebase'], 'boundary'), 'r'))
+            fvblbmgen(bmos[0].data.materials, open(os.path.join(scene['viparams']['ofcpfilebase'], 'faces'), 'r'), open(os.path.join(scene['viparams']['ofcpfilebase'], 'points'), 'r'), open(os.path.join(scene['viparams']['ofcpfilebase'], 'boundary'), 'r'), 'blockMesh')
         else:
             pass
 #            fvrbm(bmos[0])
@@ -1108,20 +1107,21 @@ class NODE_OT_Snappymesh(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
     
     def execute(self, context):
-        scene = context.scene
-#        for dir in scene['viparams']['offilebase']:
-#            if dir.name not in ('0', 'constant', 'system'):
-#                rm dir
-#        for file in scene['viparams']['of0filebase']:
-#            if file.name in ('cellLevel', 'pointLevel'):
-#                rm file
+        scene, mats = context.scene, []
+        
+        for dirname in os.listdir(scene['viparams']['offilebase']):
+            if os.path.isdir(os.path.join(scene['viparams']['offilebase'], dirname)) and dirname not in ('0', 'constant', 'system'):
+                shutil.rmtree(os.path.join(scene['viparams']['offilebase'], dirname))
+        for fname in os.listdir(scene['viparams']['ofcpfilebase']):
+            if os.path.isfile(os.path.join(scene['viparams']['ofcpfilebase'], fname)) and fname in ('cellLevel', 'pointLevel', 'surfaceIndex', 'level0Edge', 'refinementHistory'): 
+                os.remove(os.path.join(scene['viparams']['ofcpfilebase'], fname))
         
         expnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         fvos = [o for o in scene.objects if o.vi_type == '3']
         if fvos:
             selobj(scene, fvos[0])
 #                bpy.ops.export_mesh.stl(filepath=os.path.join(scene['viparams']['ofctsfilebase'], '{}.obj'.format(o.name)), check_existing=False, filter_glob="*.stl", axis_forward='Y', axis_up='Z', global_scale=1.0, use_scene_unit=True, ascii=False, use_mesh_modifiers=True)
-            bpy.ops.export_scene.obj(check_existing=True, filepath=os.path.join(scene['viparams']['ofctsfilebase'], '{}.obj'.format(fvos[0].name)), axis_forward='Y', axis_up='Z', filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=True, use_smooth_groups=False, use_smooth_groups_bitflags=False, use_normals=False, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=False, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=False, global_scale=1.0, path_mode='AUTO')
+            bpy.ops.export_scene.obj(check_existing=True, filepath=os.path.join(scene['viparams']['ofctsfilebase'], '{}.obj'.format(fvos[0].name)), axis_forward='Y', axis_up='Z', filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=True, use_smooth_groups=False, use_smooth_groups_bitflags=False, use_normals=False, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=False, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=True, keep_vertex_order=False, global_scale=1.0, path_mode='AUTO')
             gmats = [mat for mat in fvos[0].data.materials if mat.flovi_ground]
 #            if gmats:
             with open(os.path.join(scene['viparams']['ofsfilebase'], 'snappyHexMeshDict'), 'w') as shmfile:
@@ -1132,6 +1132,12 @@ class NODE_OT_Snappymesh(bpy.types.Operator):
                 sfefile.write(fvsfewrite(fvos[0].name))
         call(('surfaceFeatureExtract', "-case", "{}".format(scene['viparams']['offilebase'])))
         call(('snappyHexMesh', "-overwrite", "-case", "{}".format(scene['viparams']['offilebase'])))
+        for mat in fvos[0].data.materials:
+            mats.append(mat)
+        for mat in [o for o in scene.objects if o.vi_type == '2'][0].data.materials:
+            mats.append(mat)
+        fvblbmgen(mats, open(os.path.join(scene['viparams']['ofcpfilebase'], 'faces'), 'r'), open(os.path.join(scene['viparams']['ofcpfilebase'], 'points'), 'r'), open(os.path.join(scene['viparams']['ofcpfilebase'], 'boundary'), 'r'), 'hexMesh')
+
         expnode.export()
         return {'FINISHED'}
                 

@@ -1091,8 +1091,9 @@ def fvbmwrite(o, expnode):
     bmdict += fvboundwrite(o)
     return bmdict
     
-def fvblbmgen(oo, ffile, vfile, bfile):
-    matfacedict = {mat.name:[0, 0] for mat in oo.data.materials}
+def fvblbmgen(mats, ffile, vfile, bfile, meshtype):
+    scene = bpy.context.scene
+    matfacedict = {mat.name:[0, 0] for mat in mats}
     for line in bfile.readlines():
         if line.strip() in matfacedict:
             mat = line.strip()
@@ -1100,28 +1101,37 @@ def fvblbmgen(oo, ffile, vfile, bfile):
             matfacedict[mat][1] = int(line.split()[1].strip(';'))
         if 'startFace' in line:
             matfacedict[mat][0] = int(line.split()[1].strip(';'))
+    bobs = [ob for ob in scene.objects if ob.get('VIType') and ob['VIType'] == 'FloViMesh']
+    
+    if bobs:
+        o = bobs[0]
+        selobj(scene, o)
+        while o.data.materials:
+            bpy.ops.object.material_slot_remove()
+    else:
+        bpy.ops.object.add(type='MESH')
+        o = bpy.context.object
+        o.name = meshtype
+        o['VIType'] = 'FloViMesh'
 
-    bpy.ops.object.add(type='MESH')
-    o = bpy.context.object
-    o.name = 'BlockMesh'
-    o['VIType'] = 'blockMesh'
-    for mat in oo.data.materials:
-        bpy.ops.object.material_slot_add()
-        o.material_slots[-1].material = mat 
+    for mat in mats:
+        if mat.name not in o.data.materials:
+            bpy.ops.object.material_slot_add()
+            o.material_slots[-1].material = mat 
     
     bm = bmesh.new()
     for line in [line for line in vfile.readlines() if line[0] == '(' and len(line.split(' ')) == 3]:
         bm.verts.new().co = [float(vpos) for vpos in line[1:-2].split(' ')]
     if hasattr(bm.verts, "ensure_lookup_table"):
         bm.verts.ensure_lookup_table()
-    for l, line in enumerate([line for line in ffile.readlines() if line[0] == '4' and len(line.split(' ')) == 4]):
-        bm.faces.new([bm.verts[int(fv)] for fv in line[2:-2].split(' ')])
+    for l, line in enumerate([line for line in ffile.readlines() if '(' in line and line[0].isdigit() and len(line.split(' ')) == int(line[0])]):
+        newf = bm.faces.new([bm.verts[int(fv)] for fv in line[2:-2].split(' ')])
         for facerange in matfacedict.items():
             if l in range(facerange[1][0], facerange[1][0] + facerange[1][1]):
-                if hasattr(bm.faces, "ensure_lookup_table"):
-                    bm.faces.ensure_lookup_table()
-                bm.faces[-1].material_index = [omat.name for omat in oo.data.materials].index(facerange[0])
+
+                newf.material_index = [omat.name for omat in mats].index(facerange[0])
     bm.to_mesh(o.data)
+    bm.free()
 
 def fvbmr(scene, o):
     points = '{\n    version     2.0;\n    format      ascii;\n    class       vectorField;\n    location    "constant/polyMesh";\n    object      points;\n}\n\n{}\n(\n'.format(len(o.data.verts))
@@ -1141,6 +1151,7 @@ def fvvarwrite(scene, obs, node):
     
     for o in obs:
         for mat in o.data.materials: 
+            matname = '{0}_{0}_{0}_{1}'.format(o.name, mat.name) if o.vi_type == '3' else mat.name 
             if mat.mattype == '3':
                 if mat.flovi_bmb_type == '0':
                     matbptype = ['zeroGradient'][int(mat.flovi_bmwp_type)]
@@ -1192,52 +1203,52 @@ def fvvarwrite(scene, obs, node):
                         matbotype = 'empty'
                         matbetype = 'empty'
                 
-                pentry += "  {}\n  {{\n    type    {};\n  }}\n".format(mat.name, matbptype) 
+                pentry += "  {}\n  {{\n    type    {};\n  }}\n".format(matname, matbptype) 
                 if matbUtype == 'empty':
-                    Uentry += "  {}\n  {{\n    type    {};\n  }}\n".format(mat.name, matbUtype) 
+                    Uentry += "  {}\n  {{\n    type    {};\n  }}\n".format(matname, matbUtype) 
                 else:
-                    Uentry += "  {}\n  {{\n    type    {};\n    value  uniform ({} {} {});\n  }}\n".format(mat.name, matbUtype, mat.flovi_bmwu_x, mat.flovi_bmwu_y, mat.flovi_bmwu_z) 
+                    Uentry += "  {}\n  {{\n    type    {};\n    value  uniform ({} {} {});\n  }}\n".format(matname, matbUtype, mat.flovi_bmwu_x, mat.flovi_bmwu_y, mat.flovi_bmwu_z) 
                 if node.solver != 'icoFoam':
                     if mat.flovi_bmb_type == '0':
-                        nutentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, 'value', mat.flovi_bmnut) 
+                        nutentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbnuttype, 'value', mat.flovi_bmnut) 
                         if node.turbulence ==  'SpalartAllmaras':                    
-                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnutildatype, 'value', mat.flovi_bmnut) 
+                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbnutildatype, 'value', mat.flovi_bmnut) 
                         elif node.turbulence ==  'kEpsilon':
-                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbktype, 'value', mat.flovi_bmk) 
-                            eentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbetype, 'value', mat.flovi_bme)
+                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbktype, 'value', mat.flovi_bmk) 
+                            eentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbetype, 'value', mat.flovi_bme)
                         elif node.turbulence ==  'kOmega':
-                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbktype, 'value', mat.flovi_bmk) 
-                            oentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbotype, 'value', mat.flovi_bmo)
+                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbktype, 'value', mat.flovi_bmk) 
+                            oentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbotype, 'value', mat.flovi_bmo)
                     if mat.flovi_bmb_type == '1':
-                        nutentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, 'freestreamValue', mat.flovi_bmnut) 
+                        nutentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbnuttype, 'freestreamValue', mat.flovi_bmnut) 
                         if node.turbulence ==  'SpalartAllmaras':
-                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnutildatype, 'freestreamValue', mat.flovi_bmnut) 
+                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbnutildatype, 'freestreamValue', mat.flovi_bmnut) 
                         elif node.turbulence ==  'kEpsilon':
-                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbktype, 'value', mat.flovi_bmk) 
-                            eentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbetype, 'value', mat.flovi_bme)
+                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbktype, 'value', mat.flovi_bmk) 
+                            eentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbetype, 'value', mat.flovi_bme)
                         elif node.turbulence ==  'kOmega':
-                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbktype, 'value', mat.flovi_bmk) 
-                            oentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbotype, 'value', mat.flovi_bmo)
+                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbktype, 'value', mat.flovi_bmk) 
+                            oentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbotype, 'value', mat.flovi_bmo)
                     if mat.flovi_bmb_type == '2':
-                        nutentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, 'freestreamValue', mat.flovi_bmnut)
+                        nutentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbnuttype, 'freestreamValue', mat.flovi_bmnut)
                         if node.turbulence ==  'SpalartAllmaras':
-                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnutildatype, 'freestreamValue', mat.flovi_bmnut) 
+                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbnutildatype, 'freestreamValue', mat.flovi_bmnut) 
                         elif node.turbulence ==  'kEpsilon':
-                            kentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(mat.name, matbnuttype) 
-                            eentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(mat.name, matbnutildatype)
+                            kentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(matname, matbnuttype) 
+                            eentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(matname, matbnutildatype)
                         elif node.turbulence ==  'kOmega':
-                            kentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(mat.name, matbnuttype) 
-                            oentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(mat.name, matbnutildatype)
+                            kentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(matname, matbnuttype) 
+                            oentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(matname, matbnutildatype)
                     if mat.flovi_bmb_type == '3':
-                        nutentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(mat.name)
+                        nutentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
                         if node.turbulence ==  'SpalartAllmaras':
-                            nutildaentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(mat.name)
+                            nutildaentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
                         elif node.turbulence ==  'kEpsilon':
-                            kentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(mat.name)
-                            eentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(mat.name)
+                            kentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
+                            eentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
                         elif node.turbulence ==  'kOmega':
-                            kentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(mat.name)
-                            oentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(mat.name)
+                            kentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
+                            oentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
 #            else:
 #                if node.turbulence ==  'SpalartAllmaras':
 #                    nutentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, ('value', 'freestreamValue')[matbnuttype == 'freestream'], mat.flovi_bmnut) 
@@ -1290,7 +1301,6 @@ def fvmat(self, scene):
             '5': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format([c * self.radintensity for c in self.radcolour]), 
             '6': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough), 
             '7': '1 void\n0\n0\n'}[self.radmatmenu] + '\n'
-
     self['radentry'] = radentry
     return(radentry)
         
@@ -1377,9 +1387,9 @@ def fvshmwrite(node, o, **kwargs):
     ofheader += 'castellatedMesh    {};\nsnap    {};\naddLayers    {};\ndebug    {};\n\n'.format('true', 'true', 'true', 0)
     ofheader += 'geometry\n{{\n    {0}.obj\n    {{\n        type triSurfaceMesh;\n        name {0};\n    }}\n}};\n\n'.format(o.name)
     ofheader += 'castellatedMeshControls\n{{\n  maxLocalCells {};\n  maxGlobalCells {};\n  minRefinementCells {};\n  maxLoadUnbalance 0.10;\n  nCellsBetweenLevels 3;\n'.format(node.lcells, node.gcells, int(node.gcells/100))
-    ofheader += '  features\n  (\n    {{\n      file "{}.extendedFeatureEdgeMesh";\n      level 0;\n    }}\n  );\n\n'.format(o.name)
-    ofheader += '  refinementSurfaces\n  {{\n    {}\n    {{\n      level (2 2);\n    }}\n  }}\n\n  resolveFeatureAngle 30;\n'.format(o.name)
-    ofheader += '  refinementRegions\n  {}\n\n'
+    ofheader += '  features\n  (\n    {{\n      file "{}.eMesh";\n      level 0;\n    }}\n  );\n\n'.format(o.name)
+    ofheader += '  refinementSurfaces\n  {{\n    {}\n    {{\n      level (2 2);\n    }}\n  }}\n\n  '.format(o.name) 
+    ofheader += '  resolveFeatureAngle 30;\n  refinementRegions\n  {}\n\n'
     ofheader += '  locationInMesh ({} {} {});\n  allowFreeStandingZoneFaces true;\n}}\n\n'.format(0.1, 0.1, 0.1)
     ofheader += 'snapControls\n{\n  nSmoothPatch 3;\n  tolerance 2.0;\n  nSolveIter 30;\n  nRelaxIter 5;\n  nFeatureSnapIter 10;\n  implicitFeatureSnap false;\n  explicitFeatureSnap true;\n  multiRegionFeatureSnap false;\n}\n\n'
     ofheader += 'addLayersControls\n{{\n  relativeSizes true;\n  layers\n  {{\n    "{}.*"\n    {{\n      nSurfaceLayers 1;\n    }}\n  }}\n\n'.format(layersurf)
@@ -1398,3 +1408,7 @@ def fvsfewrite(oname):
     ofheader = 'FoamFile\n{\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  object      surfaceFeatureExtractDict;\n}\n\n'
     ofheader += '{}.obj\n{{\n  extractionMethod    extractFromSurface;\n\n  extractFromSurfaceCoeffs\n  {{\n    includedAngle   150;\n  }}\n\n    writeObj\n    yes;\n}}\n'.format(oname)
     return ofheader
+
+def fvobjwrite(o):
+    pass
+    

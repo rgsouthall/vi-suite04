@@ -64,11 +64,17 @@ def viparams(op, scene):
         os.makedirs(os.path.join(fd, fn, 'obj'))
     if not os.path.isdir(os.path.join(fd, fn, 'Openfoam')):
         os.makedirs(os.path.join(fd, fn, 'Openfoam'))
+    if not os.path.isdir(os.path.join(fd, fn, 'Openfoam', 'system')):
         os.makedirs(os.path.join(fd, fn, 'Openfoam', "system"))
+    if not os.path.isdir(os.path.join(fd, fn, 'Openfoam', 'constant')):
         os.makedirs(os.path.join(fd, fn, 'Openfoam', "constant"))
+    if not os.path.isdir(os.path.join(fd, fn, 'Openfoam', 'constant', 'polyMesh')):
         os.makedirs(os.path.join(fd, fn, 'Openfoam', "constant", "polyMesh"))
+    if not os.path.isdir(os.path.join(fd, fn, 'Openfoam', 'constant', 'triSurface')):
         os.makedirs(os.path.join(fd, fn, 'Openfoam', "constant", "triSurface"))
+    if not os.path.isdir(os.path.join(fd, fn, 'Openfoam', '0')):
         os.makedirs(os.path.join(fd, fn, 'Openfoam', "0"))
+        
     nd = os.path.join(fd, fn)
     fb, ofb, offb, idf  = os.path.join(nd, fn), os.path.join(nd, 'obj'), os.path.join(nd, 'Openfoam'), os.path.join(nd, 'in.idf')
     offzero, offs, offc, offcp, offcts = os.path.join(offb, '0'), os.path.join(offb, 'system'), os.path.join(offb, 'constant'), os.path.join(offb, 'constant', "polyMesh"), os.path.join(offb, 'constant', "triSurface")
@@ -1127,57 +1133,166 @@ def fvbmr(scene, o):
     with open(os.path.join(scene['viparams']['ofcpfilebase'], 'faces'), 'r') as ffile:
         ffile.write(faces)
     
-def fvvarwrite(scene, o, solver):
+def fvvarwrite(scene, obs, node):
     '''Turbulence modelling: k and epsilon required for kEpsilon, k and omega required for kOmega, nutilda required for SpalartAllmaras, nut required for all
         Bouyancy modelling: T''' 
-    (pentry, Uentry, nutildaentry, nutentry) = ["FoamFile\n{{\n  version     2.0;\n  format      ascii;\n  class       vol{}Field;\n  object      {};\n}}\n\ndimensions [0 {} {} 0 0 0 0];\ninternalField   uniform {};\n\nboundaryField\n{{\n".format(*var) for var in (('Scalar', 'p', '2', '-2', '0'), ('Vector', 'U', '1', '-1' , '(0 0 0)'), ('Scalar', 'nuTilda', '2', '-1' , '0'), ('Scalar', 'nut', '2', '-1' , '0'))]
+    (pentry, Uentry, nutildaentry, nutentry, kentry, eentry, oentry) = ["FoamFile\n{{\n  version     2.0;\n  format      ascii;\n  class       vol{}Field;\n  object      {};\n}}\n\ndimensions [0 {} {} 0 0 0 0];\ninternalField   uniform {};\n\nboundaryField\n{{\n".format(*var) for var in (('Scalar', 'p', '2', '-2', '{}'.format(node.pval)), ('Vector', 'U', '1', '-1' , '({} {} {})'.format(*node.uval)), ('Scalar', 'nuTilda', '2', '-1' , '{}'.format(node.nutildaval)), ('Scalar', 'nut', '2', '-1' , '{}'.format(node.nutval)), 
+    ('Scalar', 'k', '2', '-2' , '{}'.format(node.kval)), ('Scalar', 'epsilon', '2', '-3' , '{}'.format(node.epval)), ('Scalar', 'omega', '0', '-1' , '{}'.format(node.oval)))]
     
-    for mat in o.data.materials:    
-        if mat.flovi_bmb_type == '0':
-            matbptype = ['zeroGradient'][int(mat.flovi_bmwp_type)]
-            matbUtype = ['fixedValue'][int(mat.flovi_bmwu_type)]
-            if solver != 'icoFoam':
-                matbnuttype = ['nutUSpaldingWallFunction'][int(mat.flovi_bmwnut_type)]
-                matbnutildatype = ['fixedValue'][int(mat.flovi_bmwnutilda_type)]
-        elif mat.flovi_bmb_type in ('1', '2'):
-            matbptype = ['freestreamPressure'][int(mat.flovi_bmiop_type)]
-            matbUtype = ['fixedValue'][int(mat.flovi_bmiou_type)]
-            if solver != 'icoFoam':
-                matbnuttype = ['freestream'][int(mat.flovi_bmionut_type)]
-                matbnutildatype = ['freestream'][int(mat.flovi_bmionutilda_type)]
-        elif mat.flovi_bmb_type == '3':
-            matbptype = 'empty'
-            matbUtype = 'empty'
-            if solver != 'icoFoam':
-                matbnuttype = 'empty'
-                matbnutildatype = 'empty'
-        
+    for o in obs:
+        for mat in o.data.materials: 
+            if mat.mattype == '3':
+                if mat.flovi_bmb_type == '0':
+                    matbptype = ['zeroGradient'][int(mat.flovi_bmwp_type)]
+                    matbUtype = ['fixedValue'][int(mat.flovi_bmwu_type)]
+                    if node.solver != 'icoFoam':
+                        matbnuttype = ['nutUSpaldingWallFunction'][int(mat.flovi_bmwnut_type)]
+                        if node.turbulence ==  'SpalartAllmaras':
+                            matbnutildatype = ['fixedValue'][int(mat.flovi_bmwnutilda_type)]
+                        elif node.turbulence ==  'kEpsilon':
+                            matbktype = ['kqRWallFunction'][int(mat.flovi_bmwk_type)]
+                            matbetype = ['epsilonWallFunction'][int(mat.flovi_bmwe_type)]
+                        elif node.turbulence ==  'kOmega':
+                            matbktype = ['kqRWallFunction'][int(mat.flovi_bmwk_type)]
+                            matbotype = ['omegaWallFunction'][int(mat.flovi_bmwe_type)]    
+                elif mat.flovi_bmb_type == '1':
+                    matbptype = ['freestreamPressure'][int(mat.flovi_bmip_type)]
+                    matbUtype = ['fixedValue'][int(mat.flovi_bmiu_type)]
+                    if node.solver != 'icoFoam':
+                        matbnuttype = ['freestream'][int(mat.flovi_bminut_type)]
+                        if node.turbulence ==  'SpalartAllmaras':
+                            matbnutildatype = ['freestream'][int(mat.flovi_bminutilda_type)]
+                        elif node.turbulence ==  'kEpsilon':
+                            matbktype = ['fixedValue'][int(mat.flovi_bmik_type)]
+                            matbetype = ['fixedValue'][int(mat.flovi_bmie_type)]
+                        elif node.turbulence ==  'kOmega':
+                            matbktype = ['fixedValue'][int(mat.flovi_bmik_type)]
+                            matbotype = ['fixedValue'][int(mat.flovi_bmio_type)]
+                elif mat.flovi_bmb_type == '2':
+                    matbptype = ['freestreamPressure'][int(mat.flovi_bmop_type)]
+                    matbUtype = ['fixedValue'][int(mat.flovi_bmou_type)]
+                    if node.solver != 'icoFoam':
+                        matbnuttype = ['freestream'][int(mat.flovi_bmonut_type)]
+                        if node.turbulence ==  'SpalartAllmaras':
+                            matbnutildatype = ['freestream'][int(mat.flovi_bmonutilda_type)]
+                        elif node.turbulence ==  'kEpsilon':
+                            matbktype = ['zeroGradient'][int(mat.flovi_bmok_type)]
+                            matbetype = ['zeroGradient'][int(mat.flovi_bmoe_type)]
+                        elif node.turbulence ==  'kOmega':
+                            matbktype = ['zeroGradient'][int(mat.flovi_bmok_type)]
+                            matbotype = ['zeroGradient'][int(mat.flovi_bmoo_type)]
+                
+                elif mat.flovi_bmb_type == '3':
+                    matbptype = 'empty'
+                    matbUtype = 'empty'
+                    if node.solver != 'icoFoam':
+                        matbnuttype = 'empty'
+                        matbnutildatype = 'empty'
+                        matbktype = 'empty'
+                        matbotype = 'empty'
+                        matbetype = 'empty'
+                
+                pentry += "  {}\n  {{\n    type    {};\n  }}\n".format(mat.name, matbptype) 
+                if matbUtype == 'empty':
+                    Uentry += "  {}\n  {{\n    type    {};\n  }}\n".format(mat.name, matbUtype) 
+                else:
+                    Uentry += "  {}\n  {{\n    type    {};\n    value  uniform ({} {} {});\n  }}\n".format(mat.name, matbUtype, mat.flovi_bmwu_x, mat.flovi_bmwu_y, mat.flovi_bmwu_z) 
+                if node.solver != 'icoFoam':
+                    if mat.flovi_bmb_type == '0':
+                        nutentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, 'value', mat.flovi_bmnut) 
+                        if node.turbulence ==  'SpalartAllmaras':                    
+                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnutildatype, 'value', mat.flovi_bmnut) 
+                        elif node.turbulence ==  'kEpsilon':
+                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbktype, 'value', mat.flovi_bmk) 
+                            eentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbetype, 'value', mat.flovi_bme)
+                        elif node.turbulence ==  'kOmega':
+                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbktype, 'value', mat.flovi_bmk) 
+                            oentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbotype, 'value', mat.flovi_bmo)
+                    if mat.flovi_bmb_type == '1':
+                        nutentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, 'freestreamValue', mat.flovi_bmnut) 
+                        if node.turbulence ==  'SpalartAllmaras':
+                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnutildatype, 'freestreamValue', mat.flovi_bmnut) 
+                        elif node.turbulence ==  'kEpsilon':
+                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbktype, 'value', mat.flovi_bmk) 
+                            eentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbetype, 'value', mat.flovi_bme)
+                        elif node.turbulence ==  'kOmega':
+                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbktype, 'value', mat.flovi_bmk) 
+                            oentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbotype, 'value', mat.flovi_bmo)
+                    if mat.flovi_bmb_type == '2':
+                        nutentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, 'freestreamValue', mat.flovi_bmnut)
+                        if node.turbulence ==  'SpalartAllmaras':
+                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnutildatype, 'freestreamValue', mat.flovi_bmnut) 
+                        elif node.turbulence ==  'kEpsilon':
+                            kentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(mat.name, matbnuttype) 
+                            eentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(mat.name, matbnutildatype)
+                        elif node.turbulence ==  'kOmega':
+                            kentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(mat.name, matbnuttype) 
+                            oentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(mat.name, matbnutildatype)
+                    if mat.flovi_bmb_type == '3':
+                        nutentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(mat.name)
+                        if node.turbulence ==  'SpalartAllmaras':
+                            nutildaentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(mat.name)
+                        elif node.turbulence ==  'kEpsilon':
+                            kentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(mat.name)
+                            eentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(mat.name)
+                        elif node.turbulence ==  'kOmega':
+                            kentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(mat.name)
+                            oentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(mat.name)
+#            else:
+#                if node.turbulence ==  'SpalartAllmaras':
+#                    nutentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, ('value', 'freestreamValue')[matbnuttype == 'freestream'], mat.flovi_bmnut) 
+#                    nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnutildatype, ('value', 'freestreamValue')[matbnutildatype == 'freestream'], mat.flovi_bmnut) 
+#                elif node.turbulence ==  'kEpsilon':
+#                    
+#                    kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, ('value', 'freestreamValue')[matbktype == 'freestream'], mat.flovi_bmnut)
+#                    eentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, ('value', 'freestreamValue')[matbnuttype == 'freestream'], mat.flovi_bmnut)
+#                elif node.turbulence ==  'kOmega':
+#                    kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, ('value', 'freestreamValue')[matbnuttype == 'freestream'], mat.flovi_bmnut)
+#                    oentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, ('value', 'freestreamValue')[matbnuttype == 'freestream'], mat.flovi_bmnut)
 
-        pentry += "  {}\n  {{\n    type    {};\n  }}\n".format(mat.name, matbptype) 
-        if matbUtype == 'empty':
-            Uentry += "  {}\n  {{\n    type    {};\n  }}\n".format(mat.name, matbUtype) 
-        else:
-            Uentry += "  {}\n  {{\n    type    {};\n    value  uniform ({} {} {});\n  }}\n".format(mat.name, matbUtype, mat.flovi_bmwu_x, mat.flovi_bmwu_y, mat.flovi_bmwu_z) 
-        if solver != 'icoFoam':
-            if matbnuttype == 'empty':
-                nutentry += "  {}\n  {{\n    type    {};\n  }}\n".format(mat.name, matbnuttype)
-                nutildaentry += "  {}\n  {{\n    type    {};\n  }}\n".format(mat.name, matbnutildatype)
-            else:
-                nutentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, ('value', 'freestreamValue')[matbnuttype == 'freestream'], mat.flovi_bmnut) 
-                nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnutildatype, ('value', 'freestreamValue')[matbnutildatype == 'freestream'], mat.flovi_bmnut) 
-            
     pentry += '}'
     Uentry += '}'
     nutentry += '}'
+    kentry += '}'
+    eentry += '}'
+    oentry += '}'
+    
     with open(os.path.join(scene['viparams']['of0filebase'], 'p'), 'w') as pfile:
         pfile.write(pentry)
     with open(os.path.join(scene['viparams']['of0filebase'], 'U'), 'w') as Ufile:
         Ufile.write(Uentry)
-    if solver != 'icoFoam':
-        with open(os.path.join(scene['viparams']['of0filebase'], 'nuTilda'), 'w') as nutildafile:
-            nutildafile.write(nutildaentry)
+    if node.solver != 'icoFoam':
         with open(os.path.join(scene['viparams']['of0filebase'], 'nut'), 'w') as nutfile:
             nutfile.write(nutentry)
+        if node.turbulence == 'SpalartAllmaras':
+            with open(os.path.join(scene['viparams']['of0filebase'], 'nuTilda'), 'w') as nutildafile:
+                nutildafile.write(nutildaentry)
+        if node.turbulence == 'kEpsilon':
+            with open(os.path.join(scene['viparams']['of0filebase'], 'k'), 'w') as kfile:
+                kfile.write(kentry)
+            with open(os.path.join(scene['viparams']['of0filebase'], 'epsilon'), 'w') as efile:
+                efile.write(eentry)
+        if node.turbulence == 'kOmega':
+            with open(os.path.join(scene['viparams']['of0filebase'], 'k'), 'w') as kfile:
+                kfile.write(kentry)
+            with open(os.path.join(scene['viparams']['of0filebase'], 'omega'), 'w') as ofile:
+                ofile.write(oentry)
+                
+def fvmat(self, scene):
+    fvname = self.name.replace(" ", "_")    
+    radentry = '# ' + ('plastic', 'glass', 'dielectric', 'translucent', 'mirror', 'light', 'metal', 'antimatter')[int(self.radmatmenu)] + ' material\n' + \
+            'void {} {}\n'.format(('plastic', 'glass', 'dielectric', 'trans', 'mirror', 'light', 'metal', 'antimatter')[int(self.radmatmenu)], fvname) + \
+           {'0': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough), 
+            '1': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(self.radcolour), 
+            '2': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} 0\n'.format(self.radcolour, self.radior),
+            '3': '0\n0\n7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f} {3:.3f} {4:.3f}\n'.format(self.radcolour, self.radspec, self.radrough, self.radtrans, self.radtranspec), 
+            '4': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(self.radcolour),
+            '5': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format([c * self.radintensity for c in self.radcolour]), 
+            '6': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough), 
+            '7': '1 void\n0\n0\n'}[self.radmatmenu] + '\n'
+
+    self['radentry'] = radentry
+    return(radentry)
         
 def fvmattype(mat, var):
     if mat.flovi_bmb_type == '0':
@@ -1191,43 +1306,55 @@ def fvmattype(mat, var):
         matbUtype = 'empty'
     
 def fvcdwrite(solver, dt, et):
+    pw = 0 if solver == 'icoFoam' else 1
     return 'FoamFile\n{\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  location    "system";\n  object      controlDict;\n}\n\n' + \
             'application     {};\nstartFrom       startTime;\nstartTime       0;\nstopAt          endTime;\nendTime         {};\n'.format(solver, et)+\
-            'deltaT          {};\nwriteControl    timeStep;\nwriteInterval   {};\npurgeWrite      0;\nwriteFormat     ascii;\nwritePrecision  6;\n'.format(dt, et/dt)+\
+            'deltaT          {};\nwriteControl    timeStep;\nwriteInterval   {};\npurgeWrite      {};\nwriteFormat     ascii;\nwritePrecision  6;\n'.format(dt, 1, pw)+\
             'writeCompression off;\ntimeFormat      general;\ntimePrecision   6;\nrunTimeModifiable true;\n\n'
 
-def fvsolwrite(solver):
-    ofheader = 'FoamFile\n{\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  location    "system";\n  object    fvSolution;\n}\n\n'
-    if solver == 'icoFoam':
-        return ofheader + "solvers\n{\n  p\n  {\n    solver          PCG;\n    preconditioner  DIC;\n    tolerance       1e-06;\n    relTol          0;\n  }\n\n" + \
-        "  U\n  {\n    solver          smoothSolver;\n    smoother        symGaussSeidel;\n    tolerance       1e-05;\n    relTol          0;  \n  }\n}\n\n" + \
-        "PISO\n{\n  nCorrectors     2;\n  nNonOrthogonalCorrectors 0;\n  pRefCell        0;\n  pRefValue       0;\n}"
-    else:
-        return ofheader + 'solvers\n{\n    p\n    {\n        solver          GAMG;\n        tolerance       1e-06;\n        relTol          0.1;\n        smoother        GaussSeidel;\n' + \
+def fvsolwrite(node):
+    ofheader = 'FoamFile\n{\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  location    "system";\n  object    fvSolution;\n}\n\n' + \
+        'solvers\n{\n  p\n  {\n    solver          PCG;\n    preconditioner  DIC;\n    tolerance       1e-06;\n    relTol          0;\n  }\n\n' + \
+        '  "(U|k|epsilon|omega|R|nuTilda)"\n  {\n    solver          smoothSolver;\n    smoother        symGaussSeidel;\n    tolerance       1e-05;\n    relTol          0;  \n  }\n}\n\n'
+    if node.solver == 'icoFoam':
+        ofheader += 'PISO\n{\n  nCorrectors     2;\n  nNonOrthogonalCorrectors 0;\n  pRefCell        0;\n  pRefValue       0;\n}\n\n' + \
+        'solvers\n{\n    p\n    {\n        solver          GAMG;\n        tolerance       1e-06;\n        relTol          0.1;\n        smoother        GaussSeidel;\n' + \
         '        nPreSweeps      0;\n        nPostSweeps     2;\n        cacheAgglomeration true;\n        nCellsInCoarsestLevel 10;\n        agglomerator    faceAreaPair;\n'+ \
         '        mergeLevels     1;\n    }\n\n    U\n    {\n        solver          smoothSolver;\n        smoother        GaussSeidel;\n        nSweeps         2;\n' + \
         '        tolerance       1e-08;\n        relTol          0.1;\n    }\n\n    nuTilda\n    {\n        solver          smoothSolver;\n        smoother        GaussSeidel;\n' + \
-        '        nSweeps         2;\n        tolerance       1e-08;\n        relTol          0.1;\n    }\n}\n\n' + \
-        'SIMPLE\n{\n    nNonOrthogonalCorrectors 0;\npRefCell        0;\n    pRefValue       0;\n\n    residualControl\n    {\n        p               1e-5;\n        U               1e-5;\n' + \
-        '        nuTilda         1e-5;\n    }\n}\n\npotentialFlow\n{\n    nNonOrthogonalCorrectors 10;\n}\n' + \
-        'relaxationFactors\n{\n    fields\n    {\n        p               0.3;\n    }\n    equations\n    {\n' + \
-        '        U               0.7;\n        k               0.7;\n        omega           0.7;\n    }\n}\n\n' + \
-        'cache\n{\n    grad(U);\n}\n'
+        '        nSweeps         2;\n        tolerance       1e-08;\n        relTol          0.1;\n    }\n}\n\n'
+    elif node.solver == 'simpleFoam':   
+        ofheader += 'SIMPLE\n{\n  nNonOrthogonalCorrectors 0;\n  pRefCell        0;\n  pRefValue       0;\n}\n\nresidualControl\n  {\n    "(p|U|k|epsilon|omega|nut|nuTilda)" 1e-4;\n  }\n\n'
+        if node.turbulence == 'kEpsilon':
+            ofheader += 'relaxationFactors\n{\n    fields\n    {\n        p               0.3;\n    }\n    equations\n    {\n' + \
+            '        U               0.7;\n        k               0.7;\n        epsilon           0.7;\n    }\n}\n\n'
+        elif node.turbulence == 'kOmega':
+            ofheader += 'relaxationFactors\n{\n    fields\n    {\n        p               0.3;\n    }\n    equations\n    {\n' + \
+            '        U               0.7;\n        k               0.7;\n        omega           0.7;\n    }\n}\n\n'
+        elif node.turbulence == 'SpalartAllmaras':
+            ofheader += 'relaxationFactors\n{\n    fields\n    {\n        p               0.3;\n    }\n    equations\n    {\n' + \
+            '        U               0.7;\n        k               0.7;\n        nuTilda           0.7;\n    }\n}\n\n'
+    return ofheader
 
-
-def fvschwrite(solver):
+def fvschwrite(node):
     ofheader = 'FoamFile\n{\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  location    "system";\n  object    fvSchemes;\n}\n\n'
-    if solver == 'icoFoam':
+    if node.solver == 'icoFoam':
         return ofheader + 'ddtSchemes\n{\n  default         Euler;\n}\n\ngradSchemes\n{\n  default         Gauss linear;\n  grad(p)         Gauss linear;\n}\n\n' + \
             'divSchemes\n{\n  default         none;\n  div(phi,U)      Gauss linear;\n}\n\nlaplacianSchemes\n{\n  default         Gauss linear orthogonal;\n}\n\n' + \
             'interpolationSchemes\n{\n  default         linear;\n}\n\n' + \
             'snGradSchemes{  default         orthogonal;}\n\nfluxRequired{  default         no;  p;\n}'
     else:
-        return ofheader + 'ddtSchemes\n{\n    default         steadyState;\n}\n\ngradSchemes\n{\n    default         Gauss linear;\n}\n\n' + \
-        'divSchemes\n{\n    default         none;\n    div(phi,U)      bounded Gauss linearUpwind grad(U);\n    div(phi,nuTilda) bounded Gauss linearUpwind grad(nuTilda);\n' + \
-        '      div((nuEff*dev(T(grad(U))))) Gauss linear;\n}\n\nlaplacianSchemes\n{\n    default         Gauss linear corrected;\n}\n\n' + \
+        ofheader += 'ddtSchemes\n{\n    default         steadyState;\n}\n\ngradSchemes\n{\n    default         Gauss linear;\n}\n\ndivSchemes\n{\n    '
+        if node.turbulence == 'kEpsilon':
+            ofheader += 'default         none;\n    div(phi,U)   bounded Gauss upwind;\n    div(phi,k)      bounded Gauss upwind;\n    div(phi,epsilon)  bounded Gauss upwind;\n    div((nuEff*dev(T(grad(U))))) Gauss linear;\n}\n\n'
+        elif node.turbulence == 'kOmega':
+            ofheader += 'default         none;\n    div(phi,U)   bounded Gauss upwind;\n    div(phi,k)      bounded Gauss upwind;\n    div(phi,omega)  bounded Gauss upwind;\n    div((nuEff*dev(T(grad(U))))) Gauss linear;\n}\n\n'
+        elif node.turbulence == 'SpalartAllmaras':
+            ofheader += 'default         none;\n    div(phi,U)   bounded Gauss linearUpwind grad(U);\n    div(phi,nuTilda)      bounded Gauss linearUpwind grad(nuTilda);\n    div((nuEff*dev(T(grad(U))))) Gauss linear;\n}\n\n'
+        ofheader += 'laplacianSchemes\n{\n    default         Gauss linear corrected;\n}\n\n' + \
         'interpolationSchemes\n{\n    default         linear;\n}\n\nsnGradSchemes\n{\n    default         corrected;\n}\n\n' + \
         'fluxRequired\n{\n    default         no;\n    p               ;\n}\n'
+    return ofheader
 
 def fvtppwrite(solver):
     ofheader = 'FoamFile\n{\n    version     2.0;\n    format      ascii;\n    class       dictionary;\n    location    "constant";\n    object      transportProperties;\n}\n\n'
@@ -1242,4 +1369,32 @@ def fvtppwrite(solver):
         
 def fvraswrite(turb):
     ofheader = 'FoamFile\n{\n    version     2.0;\n    format      ascii;\n    class       dictionary;\n    location    "constant";\n    object      RASProperties;\n}\n\n'
-    return ofheader + 'RASModel        {};\n\nturbulence      on;\n\nprintCoeffs     on;\n'.formay(turb)
+    return ofheader + 'RASModel        {};\n\nturbulence      on;\n\nprintCoeffs     on;\n'.format(turb)
+    
+def fvshmwrite(node, o, **kwargs):    
+    layersurf = '({}|{})'.format(kwargs['ground'][0].name, o.name) if kwargs and kwargs['ground'] else o.name 
+    ofheader = 'FoamFile\n{\n    version     2.0;\n    format      ascii;\n    class       dictionary;\n    object      snappyHexMeshDict;\n}\n\n'
+    ofheader += 'castellatedMesh    {};\nsnap    {};\naddLayers    {};\ndebug    {};\n\n'.format('true', 'true', 'true', 0)
+    ofheader += 'geometry\n{{\n    {0}.obj\n    {{\n        type triSurfaceMesh;\n        name {0};\n    }}\n}};\n\n'.format(o.name)
+    ofheader += 'castellatedMeshControls\n{{\n  maxLocalCells {};\n  maxGlobalCells {};\n  minRefinementCells {};\n  maxLoadUnbalance 0.10;\n  nCellsBetweenLevels 3;\n'.format(node.lcells, node.gcells, int(node.gcells/100))
+    ofheader += '  features\n  (\n    {{\n      file "{}.extendedFeatureEdgeMesh";\n      level 0;\n    }}\n  );\n\n'.format(o.name)
+    ofheader += '  refinementSurfaces\n  {{\n    {}\n    {{\n      level (2 2);\n    }}\n  }}\n\n  resolveFeatureAngle 30;\n'.format(o.name)
+    ofheader += '  refinementRegions\n  {}\n\n'
+    ofheader += '  locationInMesh ({} {} {});\n  allowFreeStandingZoneFaces true;\n}}\n\n'.format(0.1, 0.1, 0.1)
+    ofheader += 'snapControls\n{\n  nSmoothPatch 3;\n  tolerance 2.0;\n  nSolveIter 30;\n  nRelaxIter 5;\n  nFeatureSnapIter 10;\n  implicitFeatureSnap false;\n  explicitFeatureSnap true;\n  multiRegionFeatureSnap false;\n}\n\n'
+    ofheader += 'addLayersControls\n{{\n  relativeSizes true;\n  layers\n  {{\n    "{}.*"\n    {{\n      nSurfaceLayers 1;\n    }}\n  }}\n\n'.format(layersurf)
+    ofheader += '  expansionRatio 1.0;\n  finalLayerThickness 0.3;\n  minThickness 0.1;\n  nGrow 0;\n  featureAngle 60;\n  slipFeatureAngle 30;\n  nRelaxIter 3;\n  nSmoothSurfaceNormals 1;\n  nSmoothNormals 3;\n' + \
+                '  nSmoothThickness 10;\n  maxFaceThicknessRatio 0.5;\n  maxThicknessToMedialRatio 0.3;\n  minMedianAxisAngle 90;\n  nBufferCellsNoExtrude 0;\n  nLayerIter 50;\n}\n\n'
+    ofheader += 'meshQualityControls\n{\n  #include "meshQualityDict"\n  nSmoothScale 4;\n  errorReduction 0.75;\n}\n\n'
+    ofheader += 'writeFlags\n(\n  scalarLevels\n  layerSets\n  layerFields\n);\n\nmergeTolerance 1e-6;\n'
+    return ofheader
+
+def fvmqwrite():
+    ofheader = 'FoamFile\n{\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  object      meshQualityDict;\n}\n\n'
+    ofheader += '#include "$WM_PROJECT_DIR/etc/caseDicts/meshQualityDict"'
+    return ofheader
+    
+def fvsfewrite(oname):
+    ofheader = 'FoamFile\n{\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  object      surfaceFeatureExtractDict;\n}\n\n'
+    ofheader += '{}.obj\n{{\n  extractionMethod    extractFromSurface;\n\n  extractFromSurfaceCoeffs\n  {{\n    includedAngle   150;\n  }}\n\n    writeObj\n    yes;\n}}\n'.format(oname)
+    return ofheader

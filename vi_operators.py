@@ -20,7 +20,8 @@ from .livi_calc  import li_calc, resapply
 from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
-from .vi_func import processf, livisimacc, solarPosition, wr_axes, clearscene, framerange, viparams, objmode, nodecolour, cmap, vertarea, wind_rose, compass, windnum, fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite
+from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, framerange, viparams, objmode, nodecolour, cmap, vertarea, wind_rose, compass, windnum
+from .vi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite
 from .vi_chart import chart_disp
 from .vi_gen import vigen
 
@@ -636,6 +637,71 @@ class NODE_OT_EnSim(bpy.types.Operator):
         self.esimrun = Popen(esimcmd.split(), stderr = PIPE, shell = True)
         self.simnode.run = 0
         return {'RUNNING_MODAL'}
+        
+class VIEW3D_OT_EnDisplay(bpy.types.Operator):
+    bl_idname = "view3d.endisplay"
+    bl_label = "EnVi display"
+    bl_description = "Display the EnVi results"
+    bl_register = True
+    bl_undo = True
+    _handle = None
+    disp =  bpy.props.IntProperty(default = 1)
+    
+    def modal(self, context, event):
+        scene = context.scene
+#        if context.region:
+#            height = context.region.height
+#            if event.mouse_region_x in range(100) and event.mouse_region_y in range(height - 100, height):
+#                if event.type == 'WHEELUPMOUSE':
+#                    scene.vi_leg_max += 10
+#                    return {'RUNNING_MODAL'}
+#                if event.type == 'WHEELDOWNMOUSE':
+#                    if scene.vi_leg_max >= 10:
+#                        scene.vi_leg_max -= 10
+#                    else:
+#                        scene.vi_leg_max = 0
+#                    return {'RUNNING_MODAL'}
+#            elif event.mouse_region_x in range(100) and event.mouse_region_y in range(height - 520, height - 420):
+#                if event.type == 'WHEELUPMOUSE':
+#                    scene.vi_leg_min += 10
+#                    return {'RUNNING_MODAL'}
+#                if event.type == 'WHEELDOWNMOUSE':
+#                    if scene.vi_leg_min >= 10:
+#                        scene.vi_leg_min -= 10
+#                    else:
+#                        scene.vi_leg_min = 0
+#                    return {'RUNNING_MODAL'}
+#            
+#        if (scene.li_disp_panel < 2 and scene.ss_disp_panel < 2) or self.disp != scene.li_disp_count:            
+#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
+#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
+#            if scene['liparams']['type'] == 'LiVi Compliance':
+#                try:
+#                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_comp, 'WINDOW')
+#                except:
+#                    pass
+#                scene.li_compliance = 0
+#            return {'CANCELLED'}
+#        return {'PASS_THROUGH'}
+
+    def execute(self, context): 
+        scene = context.scene 
+        print(dir(context))
+        
+#        clearscene(scene, self)        
+#        scene.li_disp_count = scene.li_disp_count + 1 if scene.li_disp_count < 10 else 0
+#        scene.vi_disp_wire = 0
+#        self.disp = scene.li_disp_count
+#        self.simnode = bpy.data.node_groups[scene.restree].nodes[scene.resnode]
+#        (connode, geonode) = (0, 0) if self.simnode.bl_label == 'VI Shadow Study' else (self.simnode.export(self.bl_label))
+#        (scene.li_disp_panel, scene.ss_disp_panel) = (0, 2) if self.simnode.bl_label == 'VI Shadow Study' else (2, 0)
+#        li_display(self.simnode, connode, geonode)
+#        self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, self.simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')
+#        self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(li3D_legend, (self, context, self.simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')
+#        context.window_manager.modal_handler_add(self)
+#        if connode and connode.bl_label == 'LiVi Compliance':
+#            self._handle_comp = bpy.types.SpaceView3D.draw_handler_add(li_compliance, (self, context, connode), 'WINDOW', 'POST_PIXEL')        
+        return {'FINISHED'}
 
 class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
     bl_idname = "node.chart"
@@ -1021,14 +1087,15 @@ class NODE_OT_Blockmesh(bpy.types.Operator):
             ({'ERROR'},"One and only one object with the CFD Domain property is allowed")
             return {'ERROR'}
         with open(os.path.join(scene['viparams']['ofsfilebase'], 'controlDict'), 'w') as cdfile:
-            cdfile.write(fvcdwrite("icoFoam", 0.005, 0.5))
+            cdfile.write(fvcdwrite("simpleFoam", 0.005, 5))
         with open(os.path.join(scene['viparams']['ofcpfilebase'], 'blockMeshDict'), 'w') as bmfile:
             bmfile.write(fvbmwrite(bmos[0], expnode))
         if not expnode.existing:
             call(("blockMesh", "-case", "{}".format(scene['viparams']['offilebase'])))
             fvblbmgen(bmos[0], open(os.path.join(scene['viparams']['ofcpfilebase'], 'faces'), 'r'), open(os.path.join(scene['viparams']['ofcpfilebase'], 'points'), 'r'), open(os.path.join(scene['viparams']['ofcpfilebase'], 'boundary'), 'r'))
         else:
-            fvrbm(bmos[0])
+            pass
+#            fvrbm(bmos[0])
         expnode.export()
         return {'FINISHED'}
         
@@ -1042,11 +1109,32 @@ class NODE_OT_Snappymesh(bpy.types.Operator):
     
     def execute(self, context):
         scene = context.scene
-        for o in scene.objects:
-            if not o.get('VIType'):
-                scene.active_object = o
-                bpy.ops.export_mesh.stl(filepath=os.path.join(scene['viparams']['ofctsfilebase'], '{}.stl'.format(o.name)), check_existing=False, filter_glob="*.stl", axis_forward='Y', axis_up='Z', global_scale=1.0, use_scene_unit=True, ascii=False, use_mesh_modifiers=True)
+#        for dir in scene['viparams']['offilebase']:
+#            if dir.name not in ('0', 'constant', 'system'):
+#                rm dir
+#        for file in scene['viparams']['of0filebase']:
+#            if file.name in ('cellLevel', 'pointLevel'):
+#                rm file
         
+        expnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        fvos = [o for o in scene.objects if o.vi_type == '3']
+        if fvos:
+            selobj(scene, fvos[0])
+#                bpy.ops.export_mesh.stl(filepath=os.path.join(scene['viparams']['ofctsfilebase'], '{}.obj'.format(o.name)), check_existing=False, filter_glob="*.stl", axis_forward='Y', axis_up='Z', global_scale=1.0, use_scene_unit=True, ascii=False, use_mesh_modifiers=True)
+            bpy.ops.export_scene.obj(check_existing=True, filepath=os.path.join(scene['viparams']['ofctsfilebase'], '{}.obj'.format(fvos[0].name)), axis_forward='Y', axis_up='Z', filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=True, use_smooth_groups=False, use_smooth_groups_bitflags=False, use_normals=False, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=False, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=False, global_scale=1.0, path_mode='AUTO')
+            gmats = [mat for mat in fvos[0].data.materials if mat.flovi_ground]
+#            if gmats:
+            with open(os.path.join(scene['viparams']['ofsfilebase'], 'snappyHexMeshDict'), 'w') as shmfile:
+                shmfile.write(fvshmwrite(expnode, fvos[0], ground = gmats))
+            with open(os.path.join(scene['viparams']['ofsfilebase'], 'meshQualityDict'), 'w') as mqfile:
+                mqfile.write(fvmqwrite())
+            with open(os.path.join(scene['viparams']['ofsfilebase'], 'surfaceFeatureExtractDict'), 'w') as sfefile:
+                sfefile.write(fvsfewrite(fvos[0].name))
+        call(('surfaceFeatureExtract', "-case", "{}".format(scene['viparams']['offilebase'])))
+        call(('snappyHexMesh', "-overwrite", "-case", "{}".format(scene['viparams']['offilebase'])))
+        expnode.export()
+        return {'FINISHED'}
+                
 class NODE_OT_FVSolve(bpy.types.Operator):
     bl_idname = "node.fvsolve"
     bl_label = "FloVi simulation"
@@ -1058,14 +1146,14 @@ class NODE_OT_FVSolve(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        bmos = [o for o in scene.objects if o.vi_type == '2']
+        bmos = [o for o in scene.objects if o.vi_type in ('2', '3')]
         with open(os.path.join(scene['viparams']['ofsfilebase'], 'controlDict'), 'w') as cdfile:
-            cdfile.write(fvcdwrite("icoFoam", 0.005, 0.5))
-        fvvarwrite(scene, bmos[0], simnode.solver)
+            cdfile.write(fvcdwrite(simnode.solver, simnode.dt, simnode.et))
+        fvvarwrite(scene, bmos, simnode)
         with open(os.path.join(scene['viparams']['ofsfilebase'], 'fvSolution'), 'w') as fvsolfile:
-            fvsolfile.write(fvsolwrite(simnode.solver))
+            fvsolfile.write(fvsolwrite(simnode))
         with open(os.path.join(scene['viparams']['ofsfilebase'], 'fvSchemes'), 'w') as fvschfile:
-            fvschfile.write(fvschwrite(simnode.solver))
+            fvschfile.write(fvschwrite(simnode))
         with open(os.path.join(scene['viparams']['ofcfilebase'], 'transportProperties'), 'w') as fvtppfile:
             fvtppfile.write(fvtppwrite(simnode.solver))
         if simnode.solver != 'icoFoam':

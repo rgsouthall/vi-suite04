@@ -1344,15 +1344,18 @@ class ViBMExNode(bpy.types.Node, ViNodes):
         self.exportstate = [str(x) for x in (self.bm_xres, self.bm_yres, self.bm_zres, self.bm_xgrad, self.bm_ygrad, self.bm_zgrad)]
         nodecolour(self, 0) 
         
-class ViSnExNpde(bpy.types.Node, ViNodes):
+class ViSHMExNode(bpy.types.Node, ViNodes):
     '''Openfoam blockmesh export node'''
-    bl_idname = 'ViSnExNode'
+    bl_idname = 'ViSHMExNode'
     bl_label = 'FloVi SnappyHexMesh'
     bl_icon = 'LAMP'
 #    blockmeshdict = bpy.props.StringProperty()
     
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.bm_xres, self.bm_yres, self.bm_zres, self.bm_xgrad, self.bm_ygrad, self.bm_zgrad)])
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.lcells, self.gcells)])
+    
+    lcells = bpy.props.IntProperty(name = "", description = "SnappyhexMesh local cells", min = 0, max = 100000, default = 1000, update = nodeupdate)
+    gcells = bpy.props.IntProperty(name = "", description = "SnappyhexMesh global cells", min = 0, max = 1000000, default = 10000, update = nodeupdate)
     
     def init(self, context):
         self['exportstate'] = ''
@@ -1362,8 +1365,14 @@ class ViSnExNpde(bpy.types.Node, ViNodes):
         nodecolour(self, 1)
             
     def draw_buttons(self, context, layout):
+        newrow(layout, 'Local cells:', self, 'lcells')
+        newrow(layout, 'Global cells:', self, 'gcells')
         row = layout.row()
-        row.operator("node.snappymesh", text = "Export").nodeid = self['nodeid']
+        row.operator("node.snappy", text = "Export").nodeid = self['nodeid']
+        
+    def export(self):
+        self.exportstate = [str(x) for x in (self.lcells, self.gcells)]
+        nodecolour(self, 0) 
 
 class ViFVSimNode(bpy.types.Node, ViNodes):
     '''Openfoam blockmesh export node'''
@@ -1380,6 +1389,7 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
     nuTilda = bpy.props.StringProperty()
 
     def nodeupdate(self, context):
+        context.scene['viparams']['fvsimnode'] = nodeid(self) 
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.solver, self.dt, self.et, self.bouyancy, self.radiation, self.turbulence)])
 
     solver = bpy.props.EnumProperty(items = [('simpleFoam', 'SimpleFoam', 'Steady state turbulence solver'),
@@ -1387,12 +1397,19 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
                                                ('pimpleFoam', 'PimpleFoam', 'Transient turbulence solver') ], name = "", default = 'simpleFoam', update = nodeupdate)
     dt = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.001, max = 500, default = 50, update = nodeupdate)
     et = bpy.props.FloatProperty(name = "", description = "Simulation end time", min = 0.001, max = 5000, default = 500, update = nodeupdate)
+    pval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = -500, max = 500, default = 0.0, update = nodeupdate) 
+    uval = bpy.props.FloatVectorProperty(size = 3, name = '', attr = 'Velocity', default = [0, 0, 0], unit = 'VELOCITY', subtype = 'VELOCITY', min = -100, max = 100)
     bouyancy =  bpy.props.BoolProperty(name = '', default = 0, update=nodeupdate)
     radiation =  bpy.props.BoolProperty(name = '', default = 0, update=nodeupdate)
     turbulence =  bpy.props.EnumProperty(items = [('laminar', 'Laminar', 'Steady state turbulence solver'),
                                               ('kEpsilon', 'k-Epsilon', 'Transient laminar solver'), 
                                                ('kOmega', 'k-Omega', 'Transient turbulence solver'), ('SpalartAllmaras', 'Spalart-Allmaras', 'Spalart-Allmaras turbulence solver')], name = "", default = 'laminar', update = nodeupdate)
-
+    nutval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.0, max = 500, default = 0.0, update = nodeupdate)    
+    nutildaval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.0, max = 500, default = 0.0, update = nodeupdate)  
+    kval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.0, max = 500, default = 0.0, update = nodeupdate)    
+    epval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.1, update = nodeupdate)   
+    oval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
+                     
     def init(self, context):
         self['exportstate'] = ''
         self['nodeid'] = nodeid(self)
@@ -1403,10 +1420,22 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
         newrow(layout, 'Solver:', self, 'solver')
         newrow(layout, 'deltaT:', self, 'dt')
         newrow(layout, 'End time:', self, 'et')
+        newrow(layout, 'Pressure:', self, 'pval')
+        newrow(layout, 'Velocity:', self, 'uval')
         if self.solver in ('simpleFoam', 'pimpleFoam'):
             newrow(layout, 'Turbulence:', self, 'turbulence')
             newrow(layout, 'Bouyancy:', self, 'bouyancy')
             newrow(layout, 'Radiation:', self, 'radiation')
+            if self.turbulence != 'laminar':
+                newrow(layout, 'nut value:', self, 'nutval')
+                if self.turbulence == 'SpalartAllmaras':
+                    newrow(layout, 'nuTilda value:', self, 'nutildaval')
+                elif self.turbulence == 'kEpsilon':
+                    newrow(layout, 'k value:', self, 'kval')
+                    newrow(layout, 'epsilon value:', self, 'epval')
+                elif self.turbulence == 'kOmega':
+                    newrow(layout, 'k value:', self, 'kval')
+                    newrow(layout, 'omega value:', self, 'oval')
 
         row = layout.row()
         row.operator("node.fvsolve", text = "Calculate").nodeid = self['nodeid']
@@ -1422,7 +1451,8 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
 viexnodecat = [NodeItem("ViLoc", label="VI Location"), NodeItem("ViGExLiNode", label="LiVi Geometry"), 
                NodeItem("ViLiNode", label="LiVi Basic"), NodeItem("ViLiCNode", label="LiVi Compliance"), 
                 NodeItem("ViLiCBNode", label="LiVi CBDM"), NodeItem("ViGExEnNode", label="EnVi Geometry"), 
-                NodeItem("ViExEnNode", label="EnVi Export"), NodeItem("ViBMExNode", label="FloVi BlockMesh")]
+                NodeItem("ViExEnNode", label="EnVi Export"), NodeItem("ViBMExNode", label="FloVi BlockMesh"),
+                NodeItem("ViSHMExNode", label="FloVi SnappyHexMesh")]
 
 vinodecat = [NodeItem("ViLiSNode", label="LiVi Simulation"), NodeItem("ViFVSimNode", label="FloVi Simulation"),\
              NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), NodeItem("ViEnSimNode", label="EnVi Simulation")]

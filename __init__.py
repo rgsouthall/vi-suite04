@@ -21,7 +21,7 @@ if "bpy" in locals():
 else:
     from .vi_node import vinode_categories, envinode_categories
     from .envi_mat import envi_materials, envi_constructions
-    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, radmat
+    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, fvmat, radmat, resnameunits
     from .vi_operators import *
     from .vi_ui import *
 
@@ -232,6 +232,7 @@ def register():
     Material.mattype = eprop([("0", "Geometry", "Geometry"), ("1", 'LiVi sensor', "LiVi sensing material".format(u'\u00b3')), ("2", "Shadow sensor", 'Shadow sensing material'), ("3", "FloVi boundary", 'FloVi blockmesh boundary')], "", "VI-Suite material type", "0")
                                  
 # LiVi material definitions
+                                 
     Material.radmat = radmat
     Material.radmatdict = {'0': ['radcolour', 0, 'radrough', 'radspec'], '1': ['radcolour'], '2': ['radcolour', 0, 'radior'], '3': ['radcolour', 0, 'radspec', 'radrough', 0, 'radtrans',  'radtranspec'], '4': ['radcolour'], '5': ['radcolour', 0, 'radintensity'], '6': ['radcolour', 0, 'radrough', 'radspec'], '7': []}
 
@@ -349,50 +350,59 @@ def register():
     Material.envi_shad_att = bprop("Attached", "Flag to specify shading attached to the building",False)
 
 # FloVi material definitions
-    Material.flovi_bmb_type = eprop([("0", "Wall", "Wall boundary"), ("1", "Inlet", "Inlet boundary"), ("2", "Outlet", "Outlet boundary"), ("3", "Empty", "Empty boundary")], "", "FloVi blockmesh boundary type", "0")
-    Material.flovi_bmwp_type = eprop([("0", "Zero Gradient", "Zero gradient boundary")], "", "FloVi wall boundary type", "0")
-    Material.flovi_bmwu_type = eprop([("0", "Fixed", "Fixed value boundary")], "", "FloVi wall boundary type", "0")
-    Material.flovi_bmwnutilda_type = eprop([("0", "Fixed", "Fixed value boundary")], "", "FloVi wall boundary type", "0")
-    Material.flovi_bmwnut_type = eprop([("0", "SpaldingWF", "Fixed value boundary")], "", "FloVi wall boundary type", "0")
-    Material.flovi_bmwk_type = eprop([("0", "kqRWallFunction", "Fixed value boundary")], "", "FloVi wall boundary type", "0")
-    Material.flovi_bmwe_type = eprop([("0", "epsilonWallFunction", "Fixed value boundary")], "", "FloVi wall boundary type", "0")
-    Material.flovi_bmwo_type = eprop([("0", "omegaWallFunction", "Fixed value boundary")], "", "FloVi wall boundary type", "0")
+    Material.fvmat = fvmat
+    Material.flovi_bmb_type = eprop([("0", "Wall", "Wall boundary"), ("1", "Inlet", "Inlet boundary"), ("2", "Outlet", "Outlet boundary"), ("3", "Symmetry", "Symmetry boundary"), ("4", "Empty", "Empty boundary")], "", "FloVi blockmesh boundary type", "0")
+    Material.flovi_bmwp_type = eprop([("zeroGradient", "Zero Gradient", "Zero gradient boundary")], "", "FloVi wall boundary type", "zeroGradient")
+    Material.flovi_bmwu_type = eprop([("fixedValue", "Fixed", "Fixed value boundary"), ("slip", "Slip", "Slip boundary")], "", "FloVi wall boundary type", "fixedValue")
+    Material.flovi_bmwnutilda_type = eprop([("fixedValue", "Fixed", "Fixed value boundary")], "", "FloVi wall boundary type", "fixedValue")
+    Material.flovi_bmwnut_type = eprop([("nutUSpaldingWallFunction", "SpaldingWF", "Fixed value boundary"), ("nutkWallFunction", "k wall function", "Fixed value boundary")], "", "FloVi wall boundary type", "nutUSpaldingWallFunction")
+    Material.flovi_bmwk_type = eprop([("kqRWallFunction", "kqRWallFunction", "Fixed value boundary")], "", "FloVi wall boundary type", "kqRWallFunction")
+    Material.flovi_bmwe_type = eprop([("epsilonWallFunction", "epsilonWallFunction", "Fixed value boundary")], "", "FloVi wall boundary type", "epsilonWallFunction")
+    Material.flovi_bmwo_type = eprop([("omegaWallFunction", "omegaWallFunction", "Fixed value boundary")], "", "FloVi wall boundary type", "omegaWallFunction")
 
-    Material.flovi_bmwu_x = fprop("X", "Value in the X-direction", -1000, 1000, 0.0)
-    Material.flovi_bmwu_y = fprop("Y", "Value in the Y-direction", -1000, 1000, 0.0)
-    Material.flovi_bmwu_z = fprop("Z", "Value in the Z-direction", -1000, 1000, 0.0)
+    Material.flovi_bmu_x = fprop("X", "Value in the X-direction", -1000, 1000, 0.0)
+    Material.flovi_bmu_y = fprop("Y", "Value in the Y-direction", -1000, 1000, 0.0)
+    Material.flovi_bmu_z = fprop("Z", "Value in the Z-direction", -1000, 1000, 0.0)
     
 #    Material.flovi_bmwnut_y = fprop("Y", "Value in the Y-direction", -1000, 1000, 0.0)
 #    Material.flovi_bmwnut_z = fprop("Z", "Value in the Z-direction", -1000, 1000, 0.0) 
-    Material.flovi_bmip_type = eprop([("0", "FreestreamPressure", "Free stream pressure gradient boundary")], "", "FloVi wall boundary type", "0")
-    Material.flovi_bmop_type = eprop([("0", "FreestreamPressure", "Free stream pressure gradient boundary")], "", "FloVi wall boundary type", "0")
-    Material.flovi_bmiu_type = eprop([("0", "FreestreamPressure", "Free stream pressure gradient boundary")], "", "FloVi wall boundary type", "0")
-    Material.flovi_bmou_type = eprop([("0", "FreestreamPressure", "Free stream pressure gradient boundary")], "", "FloVi wall boundary type", "0")
-    Material.flovi_bminut_type = eprop([("0", "Freestream", "Free stream value boundary")], "", "FloVi wall boundary type", "0")
-    Material.flovi_bmonut_type = eprop([("0", "Freestream", "Free stream value boundary")], "", "FloVi wall boundary type", "0")
-    Material.flovi_bminutilda_type = eprop([("0", "Freestream", "Free stream value boundary")], "", "FloVi wall boundary type", "0")    
-    Material.flovi_bmonutilda_type = eprop([("0", "Freestream", "Free stream value boundary")], "", "FloVi wall boundary type", "0") 
-    Material.flovi_bmik_type = eprop([("0", "Zero Gradient", "Zero gradient boundary")], "", "FloVi wall boundary type", "0")
-    Material.flovi_bmok_type = eprop([("0", "Fixed", "Fixed value boundary")], "", "FloVi wall boundary type", "0")
-    Material.flovi_bmie_type = eprop([("0", "Zero Gradient", "Zero gradient boundary")], "", "FloVi wall boundary type", "0")
-    Material.flovi_bmoe_type = eprop([("0", "Fixed", "Fixed value boundary")], "", "FloVi wall boundary type", "0")
-    Material.flovi_bmio_type = eprop([("0", "Zero Gradient", "Zero gradient boundary")], "", "FloVi wall boundary type", "0")
-    Material.flovi_bmoo_type = eprop([("0", "Fixed", "Fixed value boundary")], "", "FloVi wall boundary type", "0")
-    Material.flovi_bmiou_x = fprop("X", "Value in the X-direction", -1000, 1000, 0.0)
-    Material.flovi_bmiou_y = fprop("Y", "Value in the Y-direction", -1000, 1000, 0.0)
-    Material.flovi_bmiou_z = fprop("Z", "Value in the Z-direction", -1000, 1000, 0.0)
+    Material.flovi_bmip_type = eprop([("zeroGradient", "Zero Gradient", "Zero gradient pressure boundary"), ("freestreamPressure", "Freestream Pressure", "Free stream pressure gradient boundary")], "", "FloVi wall boundary type", "zeroGradient")
+    Material.flovi_bmiop_val = fprop("X", "Pressure value", -1000, 1000, 0.0)
+    Material.flovi_bmop_type = eprop([("zeroGradient", "Zero Gradient", "Zero gradient pressure boundary"), ("freestreamPressure", "Freestream Pressure", "Free stream pressure gradient boundary"), ("fixedValue", "FixedValue", "Fixed value pressure boundary")], "", "FloVi wall boundary type", "zeroGradient")
+    Material.flovi_bmiu_type = eprop([("freestream", "Freestream velocity", "Freestream velocity boundary"), ("fixedValue", "Fixed Value", "Fixed velocity boundary")], "", "FloVi wall boundary type", "fixedValue")
+    Material.flovi_bmou_type = eprop([("freestream", "Freestream velocity", "Freestream velocity boundary"), ("zeroGradient", "Zero Gradient", "Zero gradient  boundary"), ("fixedValue", "Fixed Value", "Fixed velocity boundary")], "", "FloVi wall boundary type", "zeroGradient")
+    Material.flovi_bminut_type = eprop([("calculated", "Calculated", "Calculated value boundary")], "", "FloVi wall boundary type", "calculated")
+    Material.flovi_bmonut_type = eprop([("calculated", "Calculated", "Calculated value boundary")], "", "FloVi wall boundary type", "calculated")
+    Material.flovi_bminutilda_type = eprop([("freeStream", "Freestream", "Free stream value boundary")], "", "FloVi wall boundary type", "freeStream")    
+    Material.flovi_bmonutilda_type = eprop([("freeStream", "Freestream", "Free stream value boundary")], "", "FloVi wall boundary type", "freeStream") 
+    Material.flovi_bmik_type = eprop([("fixedValue", "Fixed Value", "Fixed value boundary")], "", "FloVi wall boundary type", "fixedValue")
+    Material.flovi_bmok_type = eprop([("inletOutlet", "Inlet/outlet", "Inlet/outlet boundary")], "", "FloVi wall boundary type", "inletOutlet")
+    Material.flovi_bmie_type = eprop([("fixedValue", "Fixed Value", "Fixed value boundary")], "", "FloVi wall boundary type", "fixedValue")
+    Material.flovi_bmoe_type = eprop([("inletOutlet", "Inlet/outlet", "Inlet/outlet boundary")], "", "FloVi wall boundary type", "inletOutlet")
+    Material.flovi_bmio_type = eprop([("zeroGradient", "Zero Gradient", "Zero gradient boundary")], "", "FloVi wall boundary type", "zeroGradient")
+    Material.flovi_bmoo_type = eprop([("fixedValue", "Fixed", "Fixed value boundary")], "", "FloVi wall boundary type", "fixedValue")
+    Material.flovi_bmiu_x = fprop("X", "Value in the X-direction", -1000, 1000, 0.0)
+    Material.flovi_bmiu_y = fprop("Y", "Value in the Y-direction", -1000, 1000, 0.0)
+    Material.flovi_bmiu_z = fprop("Z", "Value in the Z-direction", -1000, 1000, 0.0)
+    Material.flovi_bmou_x = fprop("X", "Value in the X-direction", -1000, 1000, 0.0)
+    Material.flovi_bmou_y = fprop("Y", "Value in the Y-direction", -1000, 1000, 0.0)
+    Material.flovi_bmou_z = fprop("Z", "Value in the Z-direction", -1000, 1000, 0.0)
     Material.flovi_bmnut = fprop("", "nuTilda value", -1000, 1000, 0.0)
     Material.flovi_bmk = fprop("", "k value", 0, 1000, 0.0)
     Material.flovi_bme = fprop("", "Epsilon value", 0, 1000, 0.0)
     Material.flovi_bmo = fprop("", "Omega value", 0, 1000, 0.0) 
     Material.flovi_ground = bprop("", "Ground material", False)
+    Material.flovi_b_sval = fprop("", "Scalar value", -500, 500, 0.0) 
+    Material.flovi_b_vval = fvprop(3, '', 'Vector value', [0, 0, 0], 'VELOCITY', -100, 100)
+    Material.flovi_p_field = bprop("", "Take boundary velocity from the field velocity", False)
+    Material.flovi_u_field = bprop("", "Take boundary velocity from the field velocity", False)
 #    Material.flovi_bmionut = fprop("Value", "nuTilda value", -1000, 1000, 0.0)
 #    Material.flovi_bmionut_y = fprop("Y", "Value in the Y-direction", -1000, 1000, 0.0)
 #    Material.flovi_bmionut_z = fprop("Z", "Value in the Z-direction", -1000, 1000, 0.0)   
     
 # Scene parameters
-    Scene.fs = iprop("Frame start", "Starting frame",0, 1000, 0)
-    (Scene.fe, Scene.gfe, Scene.cfe) = [iprop("Frame start", "End frame",0, 50000, 0)] * 3
+#    Scene.fs = iprop("Frame start", "Starting frame",0, 1000, 0)
+#    (Scene.fe, Scene.gfe, Scene.cfe) = [iprop("Frame start", "End frame",0, 50000, 0)] * 3
     Scene.vipath = sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
     Scene.solday = bpy.props.IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
     Scene.solhour = bpy.props.FloatProperty(name = "", description = "Time of day", min = 0, max = 24, default = 12, update=sunpath1)
@@ -418,9 +428,11 @@ def register():
     Scene.li_assorg = sprop("", "Name of the assessing organisation", 1024, '')
     Scene.li_assind = sprop("", "Name of the assessing individual", 1024, '')
     Scene.li_jobno = sprop("", "Project job number", 1024, '')
-    Scene.resnode = sprop("", "", 0, "")
-    Scene.restree = sprop("", "", 0, "") 
-    Scene.epversion = sprop("", "EnergyPlus version", 1024, epversion.replace('-', '.'))
+    (Scene.resat_disp, Scene.resaws_disp, Scene.resawd_disp, Scene.resah_disp, Scene.resasb_disp, Scene.resasd_disp, Scene.reszt_disp, Scene.reszh_disp, Scene.reszc_disp, reswsg, rescpp, rescpm, resvls, resvmh, resim, resiach, resco2, resihl, resl12ms,
+     reslof, resmrt, resocc, resh, resfhb, ressah, ressac) = resnameunits() 
+#    Scene.resnode = sprop("", "", 0, "")
+#    Scene.restree = sprop("", "", 0, "") 
+#    Scene.epversion = sprop("", "EnergyPlus version", 1024, epversion.replace('-', '.'))
 
     nodeitems_utils.register_node_categories("Vi Nodes", vinode_categories)
     nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)

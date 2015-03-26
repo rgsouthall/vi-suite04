@@ -4,38 +4,38 @@ from .livi_export import radgexport
 
 def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tarnode):
     scene = bpy.context.scene 
-    livioc = scene['livic']
+    livioc = scene['liparams']['livic']
     simnode['Animation'] = 'Animated'
-    if not scene['livim']:
+    if not scene['liparams']['livim']:
         calc_op.report({'ERROR'}, "No object has been set-up for generative manipulation")
         return
     else:
-        liviom = scene['livim']
+        liviom = scene['liparams']['livim']
             
-    clearanim(scene, [bpy.data.objects[on] for on in scene['livim']])    
+    clearanim(scene, [bpy.data.objects[on] for on in scene['liparams']['livim']])    
     scene.frame_set(scene.frame_start)                    
     radgexport(calc_op, geonode, genframe = scene.frame_current)
     res = [li_calc(calc_op, simnode, connode, geonode, livisimacc(simnode, connode), genframe = scene.frame_current)]
 
-    for o in [bpy.data.objects[on] for on in scene['livic']]:                         
-        if o.name in scene['livic']:
+    for o in [bpy.data.objects[on] for on in scene['liparams']['livic']]:                         
+        if o.name in scene['liparams']['livic']:
             selobj(scene, o)
             o.keyframe_insert(data_path='["licalc"]')
             o.keyframe_insert(data_path='["licalc"]', frame = scene.frame_current + 1)
         else:
-            scene['livim'].remove(o.name)
+            scene['liparams']['livim'].remove(o.name)
         
         if not gentarget(tarnode, bres(scene, o)):
-            scene['livic'].remove(o.name)
+            scene['liparams']['livic'].remove(o.name)
     
-    for o in [bpy.data.objects[on] for on in scene['livim']]:
+    for o in [bpy.data.objects[on] for on in scene['liparams']['livim']]:
         if o.manip == 1 and geogennode.geomenu == 'Mesh':  
             selobj(scene, o)
             bpy.ops.object.shape_key_add(from_mix = False)        
     
-    while scene.frame_current < scene.frame_start + geogennode.steps + 1 and scene['livic']:        
+    while scene.frame_current < scene.frame_start + geogennode.steps + 1 and scene['liparams']['livic']:        
         if scene.frame_current == scene.frame_start + 1 and geogennode.geomenu == 'Mesh':            
-            for o in [bpy.data.objects[on] for on in scene['livim']]:  
+            for o in [bpy.data.objects[on] for on in scene['liparams']['livim']]:  
                 selobj(scene, o)
                 for face in o.data.polygons:
                     try:
@@ -60,7 +60,7 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
             for o in [bpy.data.objects[on] for on in liviom]:
                 o.keyframe_insert(data_path='["licalc"]')
                 selobj(scene, o)  
-                if o.name in scene['livim'] and geogennode.geomenu == 'Mesh':
+                if o.name in scene['liparams']['livim'] and geogennode.geomenu == 'Mesh':
                     bpy.ops.object.shape_key_add(from_mix = False)
                     o.active_shape_key.name = 'gen-' + str(scene.frame_current)
                     modgeo(o, geogennode, scene, scene.frame_current, scene.frame_start)   
@@ -72,15 +72,15 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
                     modgeo(o, geogennode, scene, scene.frame_current, scene.frame_start)
                     o.keyframe_insert(('location', 'rotation_euler', 'scale')[int(geogennode.omanmenu)])
                                         
-            radgexport(calc_op, geonode, genframe = scene.frame_current, mo = [bpy.data.objects[on] for on in scene['livim']])
+            radgexport(calc_op, geonode, genframe = scene.frame_current, mo = [bpy.data.objects[on] for on in scene['liparams']['livim']])
             res.append(li_calc(calc_op, simnode, connode, geonode, livisimacc(simnode, connode), genframe = scene.frame_current))
             
-            for o in [bpy.data.objects[on] for on in scene['livic']]:
+            for o in [bpy.data.objects[on] for on in scene['liparams']['livic']]:
                 if not gentarget(tarnode, bres(scene, o)):
-                    scene['livic'] = scene['livic'].remove(o.name) if scene['livic'].remove(o.name) else []
+                    scene['liparams']['livic'] = scene['liparams']['livic'].remove(o.name) if scene['liparams']['livic'].remove(o.name) else []
                     
-                    if o.name in scene['livim']:
-                        scene['livim'] = scene['livim'].remove(o.name) if scene['livim'].remove(o.name) else []
+                    if o.name in scene['liparams']['livim']:
+                        scene['liparams']['livim'] = scene['liparams']['livim'].remove(o.name) if scene['liparams']['livim'].remove(o.name) else []
                 o.keyframe_insert(data_path='["licalc"]', frame = scene.frame_current + 1)
 
         scene.frame_end = scene.frame_current + 1                        
@@ -101,7 +101,7 @@ def vigen(calc_op, li_calc, resapply, geonode, connode, simnode, geogennode, tar
                         shape.keyframe_insert("value")
                                
     scene.frame_current = scene.frame_start 
-    scene['livic'] = livioc      
+    scene['liparams']['livic'] = livioc      
         
 def modgeo(o, geogennode, scene, fc, fs):            
     if geogennode.geomenu == 'Object':

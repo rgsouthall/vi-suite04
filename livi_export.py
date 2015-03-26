@@ -31,7 +31,7 @@ def radgexport(export_op, node, **kwargs):
     geooblist, caloblist, lightlist = retobjs('livig'), retobjs('livic'), retobjs('livil')    
     if not kwargs:
         mableobs = set(geooblist + caloblist)
-        scene['livig'], scene['livic'], scene['livil'] = [o.name for o in geooblist], [o.name for o in caloblist], [o.name for o in lightlist]
+        scene['liparams']['livig'], scene['liparams']['livic'], scene['liparams']['livil'] = [o.name for o in geooblist], [o.name for o in caloblist], [o.name for o in lightlist]
         if geogennode:            
             for o in mableobs: 
                 seldict = {'ALL': True, 'Selected': (False, True)[o.select], 'Not Selected': (True, False)[o.select]}
@@ -47,15 +47,16 @@ def radgexport(export_op, node, **kwargs):
                         mseldict = {'Not Selected': 'INVERT', 'All': 'SELECT', 'Selected': 'PASS'}
                         selmesh(mseldict[geogennode.mselmenu])
                     o['vgi'] = o.vertex_groups['genfaces'].index
-            scene['livim'] = [o.name for o in mableobs if o.manip]
-            clearanim(scene, [bpy.data.objects[on] for on in scene['livim']])
+            scene['liparams']['livim'] = [o.name for o in mableobs if o.manip]
+            clearanim(scene, [bpy.data.objects[on] for on in scene['liparams']['livim']])
+#            clearanim(scene, [o for o in mableobs if o.manip])
     
     if export == 'geoexport':
         clearscene(scene, export_op)
         scene.fs = scene.frame_start if node.animmenu != 'Static' else 0
     else:
-        (scene.fs, scene.gfe, node['frames']['Material'], node['frames']['Geometry'], node['frames']['Lights']) = [kwargs['genframe']] * 5 if kwargs.get('genframe') else (0, 0, 0, 0, 0)
-        scene.cfe = 0
+        (scene['liparams']['fs'], scene['liparams']['gfe'], node['frames']['Material'], node['frames']['Geometry'], node['frames']['Lights']) = [kwargs['genframe']] * 5 if kwargs.get('genframe') else (0, 0, 0, 0, 0)
+        scene['liparams']['cfe'] = 0
         
     for frame in range(scene.fs, scene.gfe + 1): 
         rti, rtpoints = 1, ''
@@ -64,7 +65,7 @@ def radgexport(export_op, node, **kwargs):
         
         if frame in range(node['frames']['Material'] + 1):
             mradfile, matnames = "# Materials \n\n", []
-            for o in [bpy.data.objects[on] for on in scene['livig']]: 
+            for o in [bpy.data.objects[on] for on in scene['liparams']['livig']]: 
                 mradfile +=  ''.join([m.radmat(scene) for m in o.data.materials if m.name not in matnames])
                 matnames = set([mat.name for mat in o.data.materials])
                 for mat in [m for m in o.data.materials if m.name not in matnames]:
@@ -80,7 +81,7 @@ def radgexport(export_op, node, **kwargs):
                 
         # Geometry export routine
         
-        if frame in range(scene.fs, max(node['frames']['Geometry'], node['frames']['Material']) + 1):
+        if frame in range(scene['liparams']['fs'], max(node['frames']['Geometry'], node['frames']['Material']) + 1):
             gframe = scene.frame_current if node['frames']['Geometry'] > 0 else 0
             mframe = scene.frame_current if node['frames']['Material'] > 0 else 0
             gradfile = "# Geometry \n\n"
@@ -90,7 +91,7 @@ def radgexport(export_op, node, **kwargs):
                 bm = bmesh.new()
                 bm.from_mesh(o.data)
                 bm.transform(o.matrix_world)
-                if o.name in scene['livig']:
+                if o.name in scene['liparams']['livig']:
                     if not kwargs.get('mo') or (kwargs.get('mo') and o in kwargs['mo']):
                         if not o.get('merr'):                    
                             selobj(scene, o)
@@ -106,7 +107,7 @@ def radgexport(export_op, node, **kwargs):
                                     bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_start, node, scene), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
                                     objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, retobj(o.name, scene.frame_start, node, scene), retmesh(o.name, scene.frame_start, node, scene))
                                 else:
-                                    if frame == scene.fs:                        
+                                    if frame == scene['liparams']['fs']:                        
                                         bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_current, node, scene), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
                                         objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, retobj(o.name, scene.frame_current, node, scene), retmesh(o.name, scene.frame_current, node, scene))
                                     else:
@@ -138,7 +139,7 @@ def radgexport(export_op, node, **kwargs):
                             
                 # rtrace export routine
         
-                if o.name in scene['livic']:
+                if o.name in scene['liparams']['livic']:
                     cverts, csfi, scene.objects.active, o['cfaces'] = [], [], o, []               
                     selmesh('desel')
                     scene.objects.active = o
@@ -171,7 +172,7 @@ def radgexport(export_op, node, **kwargs):
                             rtpoints += '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([vert.co[i] + node.offset * vert.normal.normalized()[i] for i in range(3)], (vert.normal.normalized()[:]))
                             vert[cindex] = rti
                             rti += 1
-                    (o['cverts'], o['cfaces'], o['lisenseareas']) = ([cv.index for cv in cverts], csfi, [vertarea(bm, vert) for vert in cverts]) if scene['liparams']['cp'] == '1' else ([], csfi, [f.calc_area() for f in csf])      
+                    (o['cverts'], o['cfaces'], o['lisenseareas']) = ([cv.index for cv in cverts], csfi, [vertarea(bm, vert) for vert in cverts]) if node.cpoint == '1' else ([], csfi, [f.calc_area() for f in csf])      
                 bm.transform(o.matrix_world.inverted())
                 bm.to_mesh(o.data)
                 bm.free()
@@ -201,11 +202,11 @@ def radgexport(export_op, node, **kwargs):
     with open(scene['viparams']['filebase']+".rtrace", "w") as rtrace:
         rtrace.write(rtpoints)
     
-    scene.fe = max(scene.cfe, scene.gfe)
+    scene['liparams']['fe'] = max(scene['liparams']['cfe'], scene['liparams']['gfe'])
     simnode = node.outputs['Geometry out'].links[0].to_node if node.outputs['Geometry out'].links else 0
     connode = simnode.connodes() if simnode else 0
 
-    for frame in range(scene.fs, scene.fe + 1):
+    for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
         createradfile(scene, frame, export_op, connode, node)
         if kwargs:
             createoconv(scene, frame, export_op)
@@ -216,8 +217,8 @@ def radcexport(export_op, node, locnode, geonode):
 
     if 'LiVi CBDM' not in node.bl_label:
         if node['skynum'] < 4:
-            for frame in range(scene.fs, scene.cfe + 1):
-                sunexport(scene, node, locnode, frame - scene.fs)
+            for frame in range(scene['liparams']['fs'], scene['liparams']['cfe'] + 1):
+                sunexport(scene, node, locnode, frame - scene['liparams']['fs'])
                 if node['skynum'] < 2 and node.analysismenu != '2':
                     if frame == scene.frame_start:
                         if 'SUN' in [ob.data.type for ob in scene.objects if ob.type == 'LAMP' and ob.get('VIType')]:
@@ -226,7 +227,7 @@ def radcexport(export_op, node, locnode, geonode):
                             bpy.ops.object.lamp_add(type='SUN')
                             sun = bpy.context.object
                             sun['VIType'] = 'Sun'
-                    blsunexport(scene, node, locnode, frame - scene.fs, sun)
+                    blsunexport(scene, node, locnode, frame - scene['liparams']['fs'], sun)
                 with open("{}-{}.sky".format(scene['viparams']['filebase'], frame), 'a') as skyfilea:
                     skyexport(node, skyfilea)
                 with open("{}-{}.sky".format(scene['viparams']['filebase'], frame), 'r') as skyfiler:
@@ -299,10 +300,10 @@ def radcexport(export_op, node, locnode, geonode):
             if int(node.analysismenu) < 2:
                 node['skyfiles'] = [hdrsky(node.hdrname)]
     
-    scene.fe = max(scene.cfe, scene.gfe)
-    scene.frame_set(scene.fs)
+    scene['liparams']['fe'] = max(scene['liparams']['cfe'], scene['liparams']['gfe'])
+    scene.frame_set(scene['liparams']['fs'])
     
-    for frame in range(scene.fs, scene.fe + 1):
+    for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
         createradfile(scene, frame, export_op, node, geonode)
 
 def sunexport(scene, node, locnode, frame): 
@@ -331,7 +332,7 @@ def blsunexport(scene, node, locnode, frame, sun):
             shaddict = {'0': (0.01, 5), '1': (3, 3)}
             (sun.data.shadow_soft_size, sun.data.energy) = shaddict[str(node['skynum'])] 
         sun.location, sun.rotation_euler = [x*20 for x in (-sin(phi), -cos(phi), tan(beta))], [(math.pi/2) - beta, 0, -phi]
-        if scene.render.engine == 'CYCLES' and bpy.data.worlds['World'].get('node_tree'):
+        if scene.render.engine == 'CYCLES' and bpy.data.worlds['World'].use_nodes:
             if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
                 bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)#sin(phi), -cos(phi), -2* beta/math.pi
                 bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = frame)
@@ -350,13 +351,13 @@ def hdrsky(skyfile):
 
 def createradfile(scene, frame, export_op, connode, geonode):    
     if not connode or not connode.get('skyfiles'):
-        radtext = geonode['radfiles'][0] if scene.gfe == 0 else geonode['radfiles'][frame]
+        radtext = geonode['radfiles'][0] if scene['liparams']['gfe'] == 0 else geonode['radfiles'][frame]
     elif not geonode:
-        skyframe = frame if scene.cfe > 0 else 0
+        skyframe = frame if scene['liparams']['cfe'] > 0 else 0
         radtext = connode['skyfiles'][skyframe]
     elif geonode and connode: 
-        geoframe = frame if scene.gfe > 0 and not geonode.inputs['Generative in'].links else 0
-        skyframe = frame if scene.cfe > 0 and not geonode.inputs['Generative in'].links else 0
+        geoframe = frame if scene['liparams']['gfe'] > 0 and not geonode.inputs['Generative in'].links else 0
+        skyframe = frame if scene['liparams']['cfe'] > 0 and not geonode.inputs['Generative in'].links else 0
         radtext = geonode['radfiles'][geoframe] + connode['skyfiles'][skyframe]# if len(geonode['radfiles']) == 1 else geonode['radfiles'][geoframe] + connode['skyfiles'][0]
     
     with open("{}-{}.rad".format(scene['viparams']['filebase'], frame), 'w') as radfile:

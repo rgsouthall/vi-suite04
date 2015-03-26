@@ -21,7 +21,7 @@ import bpy, glob, os, inspect, sys, datetime
 #from pathlib import Path
 from subprocess import Popen
 from nodeitems_utils import NodeCategory, NodeItem
-from .vi_func import objvol, socklink, newrow, epwlatilongi, nodeid, nodeinputs, remlink, rettimes, epentry, sockhide, nodecolour, epschedwrite, retelaarea, retrmenus
+from .vi_func import objvol, socklink, newrow, epwlatilongi, nodeid, nodeinputs, remlink, rettimes, epentry, sockhide, nodecolour, epschedwrite, retelaarea, retrmenus, resnameunits, enresprops
 
 
 class ViNetwork(bpy.types.NodeTree):
@@ -146,7 +146,7 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
         for mglfr in self['frames']:
             self['frames'][mglfr] = scene.frame_end if self.animmenu == mglfr else 0
             scene.gfe = max(self['frames'].values())
-        scene['liparams']['cp'], scene.vi_display_rp_off = self.cpoint, self.offset
+        scene.vi_display_rp_off = self.offset
 
 class ViLiNode(bpy.types.Node, ViNodes):
     '''Node describing a basic LiVi analysis'''
@@ -465,8 +465,10 @@ class ViLiSNode(bpy.types.Node, ViNodes):
         self['nodeid'] = nodeid(self)
         self.inputs.new('ViLiG', 'Geometry in')
         self.inputs.new('ViLiC', 'Context in')
-        self.outputs.new('LiViWOut', 'Data out')
-        self.outputs['Data out'].hide = True
+#        self.outputs.new('LiViWOut', 'Data out')
+        self.outputs.new('ViR', 'Results out')
+#        self.outputs['Data out'].hide = True
+        self.outputs['Results out'].hide = True
         nodecolour(self, 1)
         self['maxres'], self['minres'], self['avres'], self['exportstate'] = {}, {}, {}, ''
 
@@ -498,7 +500,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
         self.run = 0
 
     def geonodes(self):
-        gn = self.inputs['Geometry in'].links[0].from_node if self.inputs['Geometry in'].links and not self.inputs['Geometry in'].links[0].from_node.use_custom_color else 0
+        gn = self.inputs['Geometry in'].links[0].from_node if self.inputs.get['Geometry in'] and self.inputs['Geometry in'].links and not self.inputs['Geometry in'].links[0].from_node.use_custom_color else 0
         return gn
 
     def connodes(self):
@@ -522,6 +524,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
 
         self['exportstate'] = [str(x) for x in (self.cusacc, self.simacc, self.csimacc)]
         bpy.context.scene['liparams']['unit'], bpy.context.scene['liparams']['type'] =  unitdict[connode.bl_label], connode.bl_label
+        self.outputs['Results out'].hide = False
         nodecolour(self, 0)
         return connode, geonode
 
@@ -685,17 +688,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
     timesteps = bpy.props.IntProperty(name = "", description = "Time steps per hour", min = 1, max = 60, default = 1, update = nodeupdate)
     restype= bpy.props.EnumProperty(items = [("0", "Ambient", "Ambient Conditions"), ("1", "Zone Thermal", "Thermal Results"), ("2", "Comfort", "Comfort Results"), ("3", "Zone Ventilation", "Zone Ventilation Results"), ("4", "Ventilation Link", "ZoneVentilation Results")],
                                    name="", description="Specify the EnVi results category", default="0", update = nodeupdate)
-    def resnameunits():
-        rnu = {'0': ("Temperature", "Ambient Temperature (K)"),'1': ("Wind Speed", "Ambient Wind Speed (m/s)"), '2': ("Wind Direction", "Ambient Wind Direction (degrees from North)"),
-                    '3': ("Humidity", "Ambient Humidity"),'4': ("Direct Solar", u'Direct Solar Radiation (W/m\u00b2K)'), '5': ("Diffuse Solar", u'Diffuse Solar Radiation (W/m\u00b2K)'),
-                    '6': ("Temperature", "Zone Temperatures"), '7': ("Heating Watts", "Zone Heating Requirement (Watts)"), '8': ("Cooling Watts", "Zone Cooling Requirement (Watts)"),
-                    '9': ("Solar Gain", "Window Solar Gain (Watts)"), '10': ("PPD", "Percentage Proportion Dissatisfied"), '11': ("PMV", "Predicted Mean Vote"),
-                    '12': ("Ventilation (l/s)", "Zone Ventilation rate (l/s)"), '13': (u'Ventilation (m\u00b3/h)', u'Zone Ventilation rate (m\u00b3/h)'),
-                    '14': (u'Infiltration (m\u00b3)',  u'Zone Infiltration (m\u00b3)'), '15': ('Infiltration (ACH)', 'Zone Infiltration rate (ACH)'), '16': (u'CO\u2082 (ppm)', u'Zone CO\u2082 concentration (ppm)'),
-                    '17': ("Heat loss (W)", "Ventilation Heat Loss (W)"), '18': (u'Flow (m\u00b3/s)', u'Linkage flow (m\u00b3/s)'), '19': ('Opening factor', 'Linkage Opening Factor'),
-                    '20': ("MRT (K)", "Mean Radiant Temperature (K)"), '21': ('Occupancy', 'Occupancy count'), '22': ("Humidity", "Zone Humidity"),
-                    '23': ("Fabric HB (W)", "Fabric convective heat balance"), '24': ("Air Heating", "Zone air heating"), '25': ("Air Cooling", "Zone air cooling")}
-        return [bpy.props.BoolProperty(name = rnu[str(rnum)][0], description = rnu[str(rnum)][1], default = False) for rnum in range(len(rnu))]
+    
 
     (resat, resaws, resawd, resah, resasb, resasd, restt, restwh, restwc, reswsg, rescpp, rescpm, resvls, resvmh, resim, resiach, resco2, resihl, resl12ms,
      reslof, resmrt, resocc, resh, resfhb, ressah, ressac) = resnameunits()
@@ -721,8 +714,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
         row.label(text = 'Results Category:')
         col = row.column()
         col.prop(self, "restype")
-        resdict = {'0': (0, "resat", "resaws", 0, "resawd", "resah", 0, "resasb", "resasd"), '1': (0, "restt", "resh", 0, "restwh", "restwc", 0, "ressah", "ressac", 0,"reswsg", "resfhb"),\
-        '2': (0, "rescpp", "rescpm", 0, 'resmrt', 'resocc'), '3': (0, "resim", "resiach", 0, "resco2", "resihl"), '4': (0, "resl12ms", "reslof")}
+        resdict = enresprops('')
         for rprop in resdict[self.restype]:
             if not rprop:
                 row = layout.row()
@@ -748,7 +740,7 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
     def init(self, context):
         self['nodeid'] = nodeid(self)
         self.inputs.new('ViEnC', 'Context in')
-        self.outputs.new('ViEnR', 'Results out')
+        self.outputs.new('ViR', 'Results out')
         self['exportstate'] = ''
         nodecolour(self, 1)
 
@@ -792,7 +784,7 @@ class ViEnRFNode(bpy.types.Node, ViNodes):
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
-        self.outputs.new('ViEnR', 'Results out')
+        self.outputs.new('ViR', 'Results out')
         self['exportstate'] = ''
         nodecolour(self, 1)
 
@@ -852,10 +844,10 @@ class ViEnInNode(bpy.types.Node, ViNodes):
         socklink(self.outputs['Context out'], self['nodeid'].split('@')[1])
 
 class ViEnRIn(bpy.types.NodeSocket):
-    '''Energy geometry out socket'''
+    '''Results in socket'''
     bl_idname = 'ViEnRIn'
     bl_label = 'Results axis'
-    valid = ['EnVi Results']  
+    valid = ['Vi Results']  
 
     def draw(self, context, layout, node, text):
         row = layout.row()
@@ -1113,12 +1105,12 @@ class ViEnG(bpy.types.NodeSocket):
     def draw_color(self, context, node):
         return (0.0, 0.0, 1.0, 0.75)
 
-class ViEnR(bpy.types.NodeSocket):
-    '''Energy results socket'''
-    bl_idname = 'ViEnR'
-    bl_label = 'EnVi results'
+class ViR(bpy.types.NodeSocket):
+    '''Vi results socket'''
+    bl_idname = 'ViR'
+    bl_label = 'Vi results'
 
-    valid = ['EnVi Results']
+    valid = ['Vi Results']
     link_limit = 1
 
     def draw(self, context, layout, node, text):
@@ -1126,6 +1118,20 @@ class ViEnR(bpy.types.NodeSocket):
 
     def draw_color(self, context, node):
         return (0.0, 1.0, 0.0, 0.75)
+        
+#class ViLiR(bpy.types.NodeSocket):
+#    '''LiVi results socket'''
+#    bl_idname = 'ViLiR'
+#    bl_label = 'LiVi results'
+#
+#    valid = ['LiVi Results']
+#    link_limit = 1
+#
+#    def draw(self, context, layout, node, text):
+#        layout.label(text)
+#
+#    def draw_color(self, context, node):
+#        return (0.2, 1.0, 0.0, 0.75)
 
 class ViEnC(bpy.types.NodeSocket):
     '''EnVi context socket'''
@@ -1238,7 +1244,7 @@ class ViCSVExport(bpy.types.Node, ViNodes):
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
-        self.inputs.new('ViEnR', 'Results in')
+        self.inputs.new('ViR', 'Results in')
 
     def draw_buttons(self, context, layout):
         if self.inputs['Results in'].links:
@@ -1264,44 +1270,53 @@ class VIOfM(bpy.types.NodeSocket):
     def draw_color(self, context, node):
         return (0.5, 1.0, 0.0, 0.75)
         
-#class VIOFCDS(bpy.types.NodeSocket):
-#    '''FloVi ControlDict socket'''
-#    bl_idname = 'VIOFCD'
-#    bl_label = 'FloVi ControlDict socket'
-#
-#    valid = ['FloVi Control']
-#    link_limit = 1
-#
-#    def draw(self, context, layout, node, text):
-#        layout.label(text)
-#
-#    def draw_color(self, context, node):
-#        return (0.5, 1.0, 0.0, 0.75)
-        
-#class VIOFCDN(bpy.types.Node, ViNodes):
-#    '''Openfoam Controldict export node'''
-#    bl_idname = 'VIOFCDN'
-#    bl_label = 'FloVi ControlDict'
-#    bl_icon = 'LAMP'
-#    controlD = bpy.props.StringProperty()
-#    
-#    def init(self, context):
-#        self['exportstate'] = ''
-#        self['nodeid'] = nodeid(self)
-#        self.outputs.new('VIOFCDS', 'Control out')
-#        nodecolour(self, 1)
-#        
-#    def nodeupdate(self, context):
-#        self.controlD = 
-#        nodecolour(self, self['exportstate'] != [str(x) for x in (self.bm_xres, self.bm_yres, self.bm_zres, self.bm_xgrad, self.bm_ygrad, self.bm_zgrad)])
+class VIOFCDS(bpy.types.NodeSocket):
+    '''FloVi ControlDict socket'''
+    bl_idname = 'VIOFCD'
+    bl_label = 'FloVi ControlDict socket'
 
+    valid = ['FloVi Control']
+    link_limit = 1
+
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+
+    def draw_color(self, context, node):
+        return (0.5, 1.0, 0.0, 0.75)
+        
+class ViFloCdNode(bpy.types.Node, ViNodes):
+    '''Openfoam Controldict export node'''
+    bl_idname = 'VIOFCdn'
+    bl_label = 'FloVi ControlDict'
+    bl_icon = 'LAMP'
+    controlD = bpy.props.StringProperty()
+    
+    def nodeupdate(self, context):
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.solver)])
+    
+    solver = bpy.props.EnumProperty(items = [('simpleFoam', 'SimpleFoam', 'Steady state turbulence solver'),
+                                              ('icoFoam', 'IcoFoam', 'Transient laminar solver'), 
+                                               ('pimpleFoam', 'PimpleFoam', 'Transient turbulence solver') ], name = "", default = 'simpleFoam', update = nodeupdate)
+    
+    def init(self, context):
+        self['exportstate'] = ''
+        self['nodeid'] = nodeid(self)
+        self.outputs.new('VIOFCDS', 'Control out')
+        nodecolour(self, 1)
+        
+    
+    
+    def draw_buttons(self, context, layout):
+        newrow(layout, 'Solver', self, 'solver')
 
 class ViBMExNode(bpy.types.Node, ViNodes):
     '''Openfoam blockmesh export node'''
     bl_idname = 'ViBMExNode'
     bl_label = 'FloVi BlockMesh'
     bl_icon = 'LAMP'
-    blockmeshdict = bpy.props.StringProperty()
+    
+    solver = bpy.props.EnumProperty(items = [('icoFoam', 'IcoFoam', 'Transient laminar solver')], name = "", default = 'icoFoam')
+    turbulence  = bpy.props.StringProperty()
 
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.bm_xres, self.bm_yres, self.bm_zres, self.bm_xgrad, self.bm_ygrad, self.bm_zgrad)])
@@ -1349,19 +1364,28 @@ class ViSHMExNode(bpy.types.Node, ViNodes):
     bl_idname = 'ViSHMExNode'
     bl_label = 'FloVi SnappyHexMesh'
     bl_icon = 'LAMP'
-#    blockmeshdict = bpy.props.StringProperty()
+    laytypedict = {'0': (('First', 'frlayer'), ('Overall', 'olayer')), '1': (('First', 'frlayer'), ('Expansion', 'expansion')), '2': (('Final', 'fnlayer'), ('Expansion', 'expansion')), 
+                     '3': (('Final', 'fnlayer'), ('Overall', 'olayer')), '4': (('Final:', 'fnlayer'), ('Expansion:', 'expansion')), '5': (('Overall:', 'olayer'), ('Expansion:', 'expansion'))}
     
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.lcells, self.gcells)])
     
     lcells = bpy.props.IntProperty(name = "", description = "SnappyhexMesh local cells", min = 0, max = 100000, default = 1000, update = nodeupdate)
     gcells = bpy.props.IntProperty(name = "", description = "SnappyhexMesh global cells", min = 0, max = 1000000, default = 10000, update = nodeupdate)
+    level = bpy.props.IntProperty(name = "", description = "SnappyhexMesh level", min = 0, max = 6, default = 2, update = nodeupdate)
+    surflmin = bpy.props.IntProperty(name = "", description = "SnappyhexMesh level", min = 0, max = 6, default = 2, update = nodeupdate)
+    surflmax = bpy.props.IntProperty(name = "", description = "SnappyhexMesh level", min = 0, max = 6, default = 2, update = nodeupdate)
+    ncellsbl = bpy.props.IntProperty(name = "", description = "Number of cells between levels", min = 0, max = 6, default = 2, update = nodeupdate)
     layers = bpy.props.IntProperty(name = "", description = "Layer number", min = 0, max = 10, default = 0, update = nodeupdate)
     
     layerspec = bpy.props.EnumProperty(items = [('0', 'First & overall', 'First layer thickness and overall thickness'), ('1', 'First & ER', 'First layer thickness and expansion ratio'), 
                                                ('2', 'Final & ER', 'Final layer thickness and expansion ratio'), ('3', 'Final & overall', 'Final layer thickness and overall thickness'),
                                                 ('4', 'Final & ER', 'Final layer thickness and expansion ratio'), ('5', 'Overall & ER', 'Overall thickness and expansion ratio')], name = "", default = '0', update = nodeupdate)
     expansion = bpy.props.FloatProperty(name = "", description = "Exapnsion ratio", min = 1.0, max = 3.0, default = 1.0, update = nodeupdate) 
+    llayer = bpy.props.FloatProperty(name = "", description = "Last layer thickness", min = 0.01, max = 3.0, default = 1.0, update = nodeupdate) 
+    frlayer = bpy.props.FloatProperty(name = "", description = "First layer thickness", min = 0.01, max = 3.0, default = 1.0, update = nodeupdate) 
+    fnlayer = bpy.props.FloatProperty(name = "", description = "First layer thickness", min = 0.01, max = 3.0, default = 1.0, update = nodeupdate) 
+    olayer = bpy.props.FloatProperty(name = "", description = "Overall layer thickness", min = 0.01, max = 3.0, default = 1.0, update = nodeupdate) 
     
     def init(self, context):
         self['exportstate'] = ''
@@ -1373,10 +1397,15 @@ class ViSHMExNode(bpy.types.Node, ViNodes):
     def draw_buttons(self, context, layout):
         newrow(layout, 'Local cells:', self, 'lcells')
         newrow(layout, 'Global cells:', self, 'gcells')
+        newrow(layout, 'Level:', self, 'level')
+        newrow(layout, 'Max level:', self, 'surflmax')        
+        newrow(layout, 'Min level:', self, 'surflmin')
+        newrow(layout, 'CellsBL:', self, 'ncellsbl')
         newrow(layout, 'Layers:', self, 'layers')
         if self.layers:
             newrow(layout, 'Layer spec:', self, 'layerspec')
-            newrow(layout, 'Expansion:', self, 'expansion')
+            [newrow(layout, laytype[0], self, laytype[1]) for laytype in self.laytypedict[self.layerspec]]
+#                newrow(layout, laytype[0], self, laytype[1])
         row = layout.row()
         row.operator("node.snappy", text = "Export").nodeid = self['nodeid']
         
@@ -1416,9 +1445,10 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
                                                ('kOmega', 'k-Omega', 'Transient turbulence solver'), ('SpalartAllmaras', 'Spalart-Allmaras', 'Spalart-Allmaras turbulence solver')], name = "", default = 'laminar', update = nodeupdate)
     nutval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.0, max = 500, default = 0.0, update = nodeupdate)    
     nutildaval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.0, max = 500, default = 0.0, update = nodeupdate)  
-    kval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.0, max = 500, default = 0.0, update = nodeupdate)    
+    kval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.0, update = nodeupdate)    
     epval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.1, update = nodeupdate)   
     oval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
+    convergence = bpy.props.FloatProperty(name = "", description = "Convergence criteria", min = 0.0001, max = 0.01, default = 0.0001, update = nodeupdate)
                      
     def init(self, context):
         self['exportstate'] = ''
@@ -1446,6 +1476,7 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
                 elif self.turbulence == 'kOmega':
                     newrow(layout, 'k value:', self, 'kval')
                     newrow(layout, 'omega value:', self, 'oval')
+        newrow(layout, 'Convergence:', self, 'convergence')
 
         row = layout.row()
         row.operator("node.fvsolve", text = "Calculate").nodeid = self['nodeid']
@@ -1461,7 +1492,7 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
 viexnodecat = [NodeItem("ViLoc", label="VI Location"), NodeItem("ViGExLiNode", label="LiVi Geometry"), 
                NodeItem("ViLiNode", label="LiVi Basic"), NodeItem("ViLiCNode", label="LiVi Compliance"), 
                 NodeItem("ViLiCBNode", label="LiVi CBDM"), NodeItem("ViGExEnNode", label="EnVi Geometry"), 
-                NodeItem("ViExEnNode", label="EnVi Export"), NodeItem("ViBMExNode", label="FloVi BlockMesh"),
+                NodeItem("ViExEnNode", label="EnVi Export"), NodeItem("ViFloCdNode", label="FloVi Control"), NodeItem("ViBMExNode", label="FloVi BlockMesh"),
                 NodeItem("ViSHMExNode", label="FloVi SnappyHexMesh")]
 
 vinodecat = [NodeItem("ViLiSNode", label="LiVi Simulation"), NodeItem("ViFVSimNode", label="FloVi Simulation"),\

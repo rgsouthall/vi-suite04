@@ -1,5 +1,5 @@
 import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, numpy
-from math import sin, cos, asin, acos, pi, isnan
+from math import sin, cos, asin, acos, pi, isnan, tan
 from mathutils import Vector, Matrix
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
 try:
@@ -36,7 +36,66 @@ def radmat(self, scene):
 
     self['radentry'] = radentry
     return(radentry)
+    
+def fvmat(self, mn, bound):
+#    fvname = on.replace(" ", "_") + self.name.replace(" ", "_") 
+    begin = '\n  {}\n  {{\n    type    '.format(mn)  
+    end = ';\n  }\n'
+    
+    if bound == 'p':
+        val = 'uniform {}'.format(self.flovi_b_sval) if not self.flovi_p_field else '$internalField'
+        pdict = {'0': self.flovi_bmwp_type, '1': self.flovi_bmip_type, '2': self.flovi_bmop_type, '3': 'symmetryPlane', '4': 'empty'}
+        ptdict = {'zeroGradient': 'zeroGradient', 'fixedValue': 'fixedValue;\n    value    {}'.format(val), 'calculated': 'calculated;\n    value    $internalField', 
+        'freestreamPressure': 'freestreamPressure', 'symmetryPlane': 'symmetryPlane', 'empty': 'empty'}
+#        if pdict[self.flovi_bmb_type] == 'zeroGradient':
+        entry = ptdict[pdict[self.flovi_bmb_type]]            
+#        return begin + entry + end 
+    
+    elif bound == 'U':
+        val = 'uniform ({} {} {})'.format(*self.flovi_b_vval) if not self.flovi_u_field else '$internalField'
+        Udict = {'0': self.flovi_bmwu_type, '1': self.flovi_bmiu_type, '2': self.flovi_bmou_type, '3': 'symmetryPlane', '4': 'empty'}
+        Utdict = {'fixedValue': 'fixedValue;\n    value    {}'.format(val), 'slip': 'slip', 'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField',
+                  'pressureInletOutletVelocity': 'pressureInletOutletVelocity;\n    value    $internalField', 'zeroGradient': 'zeroGradient', 'symmetryPlane': 'symmetryPlane', 
+                  'freestream': 'freestream;\n    freestreamValue    $internalField','calculated': 'calculated;\n    value    $internalField', 'empty': 'empty'}
+        entry = Utdict[Udict[self.flovi_bmb_type]]            
+#        return begin + entry + end
+        
+    elif bound == 'nut':
+        ndict = {'0': self.flovi_bmwnut_type, '1': self.flovi_bminut_type, '2': self.flovi_bmonut_type, '3': 'symmetryPlane', '4': 'empty'}
+        ntdict = {'nutkWallFunction': 'nutkWallFunction;\n    value    $internalField', 'nutUSpaldingWallFunction': 'nutUSpaldingWallFunction;\n    value    $internalField', 
+        'calculated': 'calculated;\n    value    $internalField', 'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField',  'symmetryPlane': 'symmetryPlane','empty': 'empty'}
+        entry = ntdict[ndict[self.flovi_bmb_type]]            
+#        return begin + entry + end
 
+    elif bound == 'k':
+        kdict = {'0': self.flovi_bmwk_type, '1': self.flovi_bmik_type, '2': self.flovi_bmok_type, '3': 'symmetryPlane', '4': 'empty'}
+        ktdict = {'fixedValue': 'fixedValue;\n    value    $internalField', 'kqRWallFunction': 'kqRWallFunction;\n    value    $internalField', 'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField',
+        'calculated': 'calculated;\n    value    $internalField', 'symmetryPlane': 'symmetryPlane', 'empty': 'empty'}
+        entry = ktdict[kdict[self.flovi_bmb_type]]            
+#        return begin + entry + end
+        
+    elif bound == 'e':
+        edict = {'0': self.flovi_bmwe_type, '1': self.flovi_bmie_type, '2': self.flovi_bmoe_type, '3': 'symmetryPlane', '4': 'empty'}
+        etdict = {'symmetryPlane': 'symmetryPlane', 'empty': 'empty', 'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField', 'fixedValue': 'fixedValue;\n    value    $internalField', 
+                  'epsilonWallFunction': 'epsilonWallFunction;\n    value    $internalField', 'calculated': 'calculated;\n    value    $internalField', 'symmetryPlane': 'symmetryPlane', 'empty': 'empty'}
+        entry = etdict[edict[self.flovi_bmb_type]]            
+#        return begin + entry + end
+        
+    elif bound == 'o':
+        odict = {'0': self.flovi_bmwo_type, '1': self.flovi_bmio_type, '2': self.flovi_bmoo_type, '3': 'symmetryPlane', '4': 'empty'}
+        otdict = {'symmetryPlane': 'symmetryPlane', 'empty': 'empty', 'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField', 'zeroGradient': 'zeroGradient', 
+                  'omegaWallFunction': 'omegaWallFunction;\n    value    $internalField', 'fixedValue': 'fixedValue;\n    value    $internalField'}
+        entry = otdict[odict[self.flovi_bmb_type]]            
+#        return begin + entry + end
+        
+    elif bound == 'nutilda':
+        ntdict = {'0': self.flovi_bmwnutilda_type, '1': self.flovi_bminutilda_type, '2': self.flovi_bmonutilda_type, '3': 'symmetryPlane', '4': 'empty'}
+        nttdict = {'fixedValue': 'fixedValue;\n    value    $internalField', 'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField', 'empty': 'empty', 
+                   'zeroGradient': 'zeroGradient', 'freestream': 'freestream\n    freeStreamValue  $internalField\n', 'symmetryPlane': 'symmetryPlane'} 
+        entry = nttdict[ntdict[self.flovi_bmb_type]]            
+    return begin + entry + end
+        
+        
 def radpoints(o, faces, sks):
     fentries = ['']*len(faces)   
     if sks:
@@ -78,13 +137,32 @@ def viparams(op, scene):
     nd = os.path.join(fd, fn)
     fb, ofb, offb, idf  = os.path.join(nd, fn), os.path.join(nd, 'obj'), os.path.join(nd, 'Openfoam'), os.path.join(nd, 'in.idf')
     offzero, offs, offc, offcp, offcts = os.path.join(offb, '0'), os.path.join(offb, 'system'), os.path.join(offb, 'constant'), os.path.join(offb, 'constant', "polyMesh"), os.path.join(offb, 'constant', "triSurface")
-    scene['viparams'] = {'rm': ('rm ', 'del ')[str(sys.platform) == 'win32'], 'cat': ('cat ', 'type ')[str(sys.platform) == 'win32'],
-    'cp': ('cp ', 'copy ')[str(sys.platform) == 'win32'], 'nproc': str(multiprocessing.cpu_count()), 'filepath': bpy.data.filepath,
-    'filename': fn, 'filedir': fd, 'newdir': nd, 'objfilebase': ofb, 'idf_file': idf, 'filebase': fb, 'offilebase': offb,
-    'ofsfilebase': offs, 'ofcfilebase': offc, 'ofcpfilebase': offcp, 'of0filebase': offzero, 'ofctsfilebase': offcts}
-    if not scene.get('liparams'):
-        scene['liparams'] = {}
+    scene['viparams'] = {'rm': ('rm ', 'del ')[str(sys.platform) == 'win32'], 'cat': ('cat ', 'type ')[str(sys.platform) == 'win32'], 'cp': ('cp ', 'copy ')[str(sys.platform) == 'win32'], 
+    'nproc': str(multiprocessing.cpu_count()), 'filepath': bpy.data.filepath, 'filename': fn, 'filedir': fd, 'newdir': nd, 'filebase': fb}
+    
+    scene['liparams'] = {'objfilebase': ofb}
+    scene['enparams'] = {'idf_file': idf, 'epversion': '8-2-0'}
+    scene['flparams'] = {'offilebase': offb, 'ofsfilebase': offs, 'ofcfilebase': offc, 'ofcpfilebase': offcp, 'of0filebase': offzero, 'ofctsfilebase': offcts}
 
+def resnameunits():
+    rnu = {'0': ("Temperature", "Ambient Temperature (C)"),'1': ("Wind Speed", "Ambient Wind Speed (m/s)"), '2': ("Wind Direction", "Ambient Wind Direction (degrees from North)"),
+                '3': ("Humidity", "Ambient Humidity"),'4': ("Direct Solar", u'Direct Solar Radiation (W/m\u00b2K)'), '5': ("Diffuse Solar", u'Diffuse Solar Radiation (W/m\u00b2K)'),
+                '6': ("Temperature", "Zone Temperatures"), '7': ("Heating Watts", "Zone Heating Requirement (Watts)"), '8': ("Cooling Watts", "Zone Cooling Requirement (Watts)"),
+                '9': ("Solar Gain", "Window Solar Gain (Watts)"), '10': ("PPD", "Percentage Proportion Dissatisfied"), '11': ("PMV", "Predicted Mean Vote"),
+                '12': ("Ventilation (l/s)", "Zone Ventilation rate (l/s)"), '13': (u'Ventilation (m\u00b3/h)', u'Zone Ventilation rate (m\u00b3/h)'),
+                '14': (u'Infiltration (m\u00b3)',  u'Zone Infiltration (m\u00b3)'), '15': ('Infiltration (ACH)', 'Zone Infiltration rate (ACH)'), '16': (u'CO\u2082 (ppm)', u'Zone CO\u2082 concentration (ppm)'),
+                '17': ("Heat loss (W)", "Ventilation Heat Loss (W)"), '18': (u'Flow (m\u00b3/s)', u'Linkage flow (m\u00b3/s)'), '19': ('Opening factor', 'Linkage Opening Factor'),
+                '20': ("MRT (K)", "Mean Radiant Temperature (K)"), '21': ('Occupancy', 'Occupancy count'), '22': ("Humidity", "Zone Humidity"),
+                '23': ("Fabric HB (W)", "Fabric convective heat balance"), '24': ("Air Heating", "Zone air heating"), '25': ("Air Cooling", "Zone air cooling")}
+    return [bpy.props.BoolProperty(name = rnu[str(rnum)][0], description = rnu[str(rnum)][1], default = False) for rnum in range(len(rnu))]
+
+def enresprops(disp):
+    return {'0': (0, "resat{}".format(disp), "resaws{}".format(disp), 0, "resawd{}".format(disp), "resah{}".format(disp), 0, "resasb{}".format(disp), "resasd{}".format(disp)), 
+           '1': (0, "restt{}".format(disp), "resh{}".format(disp), 0, "restwh{}".format(disp), "restwc{}".format(disp), 0, "ressah{}".format(disp), "ressac{}".format(disp), 0,"reswsg{}".format(disp), "resfhb{}".format(disp)),
+            '2': (0, "rescpp{}".format(disp), "rescpm{}".format(disp), 0, 'resmrt{}'.format(disp), 'resocc{}'.format(disp)), 
+            '3': (0, "resim{}".format(disp), "resiach{}".format(disp), 0, "resco2{}".format(disp), "resihl{}".format(disp)), 
+            '4': (0, "resl12ms{}".format(disp), "reslof{}".format(disp))}
+        
 def nodestate(self, opstate):
     if self['exportstate'] !=  opstate:
         self.exported = False
@@ -269,18 +347,18 @@ def retrmenus(innode):
     return (valid, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu)
         
 def processf(pro_op, node):
-    rtypes, ctypes, ztypes, zrtypes, ltypes, lrtypes, entypes, enrtypes = [], [], [], [], [], [], [], []
+    ctypes, ztypes, zrtypes, ltypes, lrtypes, entypes, enrtypes = [], [], [], [], [], [], []
 
-    envdict = {'Site Outdoor Air Drybulb Temperature [C] !Hourly': "Temperature ("+ u'\u00b0'+"C)",
+    envdict = {'Site Outdoor Air Drybulb Temperature [C] !Hourly': "Temperature (degC)",
                'Site Outdoor Air Relative Humidity [%] !Hourly': 'Humidity (%)',
                 'Site Wind Direction [deg] !Hourly': 'Wind Direction (deg)',
                 'Site Wind Speed [m/s] !Hourly': 'Wind Speed (m/s)',
-                'Site Diffuse Solar Radiation Rate per Area [W/m2] !Hourly': "Diffuse Solar (W/m"+u'\u00b2'+")",
-                'Site Direct Solar Radiation Rate per Area [W/m2] !Hourly': "Direct Solar (W/m"+u'\u00b2'+")"}
-    zresdict = {'Zone Air Temperature [C] !Hourly': "Temperature ({}C)".format(u'\u00b0'),
+                'Site Diffuse Solar Radiation Rate per Area [W/m2] !Hourly': "Diffuse Solar (W/m^2)",
+                'Site Direct Solar Radiation Rate per Area [W/m2] !Hourly': "Direct Solar (W/m^2)"}
+    zresdict = {'Zone Air Temperature [C] !Hourly': "Temperature (degC)",
                 'Zone Air Relative Humidity [%] !Hourly': 'Humidity (%)',
-                'Zone Air System Sensible Heating Rate [W] !Hourly': 'Zone heating (W)',
-                'Zone Air System Sensible Cooling Rate [W] !Hourly': 'Zone cooling (W)',
+                'Zone Air System Sensible Heating Rate [W] !Hourly': 'Heating (W)',
+                'Zone Air System Sensible Cooling Rate [W] !Hourly': 'Cooling (W)',
                 'Zone Ideal Loads Supply Air Sensible Heating Rate [W] !Hourly': 'Zone air heating (W)',
                 'Zone Ideal Loads Supply Air Sensible Cooling Rate [W] !Hourly': 'Zone air cooling (W)',
                 'Zone Windows Total Transmitted Solar Radiation Rate [W] !Hourly': 'Solar gain (W)',
@@ -414,6 +492,8 @@ def processf(pro_op, node):
                 o['enviresults']['Zone air heating (kWh)'] = sum(allresdict[zres[0]])*0.001
             elif ['EN_'+o.name.upper(), 'Zone air cooling (W)'] == zres[1]:            
                 o['enviresults']['Zone air cooling (kWh)'] = sum(allresdict[zres[0]])*0.001
+                
+#    node['envdict'], node['zresdict'], node['enresdict'], node['lresdict'] = envdict, zresdict, enresdict, lresdict
 
 def iprop(iname, idesc, imin, imax, idef):
     return(IntProperty(name = iname, description = idesc, min = imin, max = imax, default = idef))
@@ -733,9 +813,9 @@ def rgb2h(rgb):
 def livisimacc(simnode, connode):
     return(simnode.csimacc if connode.bl_label in ('LiVi Compliance', 'LiVi CBDM') else simnode.simacc)
 
-def drawpoly(x1, y1, x2, y2):
+def drawpoly(x1, y1, x2, y2, a, r, g, b):
     bgl.glEnable(bgl.GL_BLEND)
-    bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
+    bgl.glColor4f(r, g, b, a)
     bgl.glBegin(bgl.GL_POLYGON)
     bgl.glVertex2i(x1, y2)
     bgl.glVertex2i(x2, y2)
@@ -743,6 +823,32 @@ def drawpoly(x1, y1, x2, y2):
     bgl.glVertex2i(x1, y1)
     bgl.glEnd()
     bgl.glDisable(bgl.GL_BLEND)
+    
+def drawtri(posx, posy, l, d, hscale, radius):
+    r, g, b = colorsys.hsv_to_rgb(0.75 - l * 0.75, 1.0, 1.0)
+    a = 0.9
+    bgl.glEnable(bgl.GL_BLEND)
+    bgl.glBegin(bgl.GL_POLYGON)
+    bgl.glColor4f(r, g, b, a)
+    bgl.glVertex2f(posx - l * 0.5  * hscale *(radius - 20)*sin(d*pi/180), posy - l * 0.5 * hscale * (radius - 20)*cos(d*pi/180)) 
+    bgl.glVertex2f(posx + hscale * (l**0.5) *(radius/4 - 5)*cos(d*pi/180), posy - hscale * (l**0.5) *(radius/4 - 5)*sin(d*pi/180))    
+    bgl.glVertex2f(posx + l**0.5 * hscale *(radius - 20)*sin(d*pi/180), posy + l**0.5 * hscale * (radius - 20)*cos(d*pi/180)) 
+    bgl.glVertex2f(posx - hscale * (l**0.5) *(radius/4 - 5)*cos(d*pi/180), posy + hscale * (l**0.5) *(radius/4 - 5)*sin(d*pi/180))
+    bgl.glEnd()
+    bgl.glDisable(bgl.GL_BLEND)
+    
+def drawcircle(center, radius, resolution, fill, a, r, g, b):
+    bgl.glColor4f(r, g, b, a)
+    if fill:
+        bgl.glBegin(bgl.GL_POLYGON)
+    else:
+        bgl.glBegin(bgl.GL_LINE_STRIP)
+
+    for i in range(resolution+1):
+        vec = Vector((cos(i/resolution*2*pi), sin(i/resolution*2*pi)))
+        v = vec * radius + center
+        bgl.glVertex2f(v.x, v.y)
+    bgl.glEnd()
 
 def drawloop(x1, y1, x2, y2):
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
@@ -1068,7 +1174,7 @@ def li_calcob(ob, li):
 def fvboundwrite(o):
     boundary = ''
     for mat in o.data.materials:        
-        boundary += "  {}\n  {{\n    type {};\n    faces\n    (\n".format(mat.name, ("wall", "inlet", "outlet", "empty")[int(mat.flovi_bmb_type)])#;\n\n"
+        boundary += "  {}\n  {{\n    type {};\n    faces\n    (\n".format(mat.name, ("wall", "patch", "patch", "symmetryPlane", "empty")[int(mat.flovi_bmb_type)])#;\n\n"
         faces = [face for face in o.data.polygons if o.data.materials[face.material_index] == mat]
         for face in faces:
             boundary += "      ("+" ".join([str(v) for v in face.vertices])+")\n"
@@ -1094,9 +1200,12 @@ def fvbmwrite(o, expnode):
 def fvblbmgen(mats, ffile, vfile, bfile, meshtype):
     scene = bpy.context.scene
     matfacedict = {mat.name:[0, 0] for mat in mats}
+    
     for line in bfile.readlines():
         if line.strip() in matfacedict:
             mat = line.strip()
+        elif '_' in line and line.strip().split('_')[1] in matfacedict:
+            mat = line.strip().split('_')[1]
         if 'nFaces' in line:
             matfacedict[mat][1] = int(line.split()[1].strip(';'))
         if 'startFace' in line:
@@ -1109,15 +1218,16 @@ def fvblbmgen(mats, ffile, vfile, bfile, meshtype):
         while o.data.materials:
             bpy.ops.object.material_slot_remove()
     else:
-        bpy.ops.object.add(type='MESH')
+        bpy.ops.object.add(type='MESH', layers=(False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, True))
         o = bpy.context.object
-        o.name = meshtype
         o['VIType'] = 'FloViMesh'
-
+    
+    o.name = meshtype
     for mat in mats:
         if mat.name not in o.data.materials:
             bpy.ops.object.material_slot_add()
             o.material_slots[-1].material = mat 
+    matnamedict = {mat.name: m for  m, mat in enumerate(o.data.materials)}
     
     bm = bmesh.new()
     for line in [line for line in vfile.readlines() if line[0] == '(' and len(line.split(' ')) == 3]:
@@ -1128,8 +1238,7 @@ def fvblbmgen(mats, ffile, vfile, bfile, meshtype):
         newf = bm.faces.new([bm.verts[int(fv)] for fv in line[2:-2].split(' ')])
         for facerange in matfacedict.items():
             if l in range(facerange[1][0], facerange[1][0] + facerange[1][1]):
-
-                newf.material_index = [omat.name for omat in mats].index(facerange[0])
+                newf.material_index = matnamedict[facerange[0]]
     bm.to_mesh(o.data)
     bm.free()
 
@@ -1151,104 +1260,137 @@ def fvvarwrite(scene, obs, node):
     
     for o in obs:
         for mat in o.data.materials: 
-            matname = '{0}_{0}_{0}_{1}'.format(o.name, mat.name) if o.vi_type == '3' else mat.name 
+            matname = '{}_{}'.format(o.name, mat.name) if o.vi_type == '3' else mat.name 
             if mat.mattype == '3':
-                if mat.flovi_bmb_type == '0':
-                    matbptype = ['zeroGradient'][int(mat.flovi_bmwp_type)]
-                    matbUtype = ['fixedValue'][int(mat.flovi_bmwu_type)]
-                    if node.solver != 'icoFoam':
-                        matbnuttype = ['nutUSpaldingWallFunction'][int(mat.flovi_bmwnut_type)]
-                        if node.turbulence ==  'SpalartAllmaras':
-                            matbnutildatype = ['fixedValue'][int(mat.flovi_bmwnutilda_type)]
-                        elif node.turbulence ==  'kEpsilon':
-                            matbktype = ['kqRWallFunction'][int(mat.flovi_bmwk_type)]
-                            matbetype = ['epsilonWallFunction'][int(mat.flovi_bmwe_type)]
-                        elif node.turbulence ==  'kOmega':
-                            matbktype = ['kqRWallFunction'][int(mat.flovi_bmwk_type)]
-                            matbotype = ['omegaWallFunction'][int(mat.flovi_bmwe_type)]    
-                elif mat.flovi_bmb_type == '1':
-                    matbptype = ['freestreamPressure'][int(mat.flovi_bmip_type)]
-                    matbUtype = ['fixedValue'][int(mat.flovi_bmiu_type)]
-                    if node.solver != 'icoFoam':
-                        matbnuttype = ['freestream'][int(mat.flovi_bminut_type)]
-                        if node.turbulence ==  'SpalartAllmaras':
-                            matbnutildatype = ['freestream'][int(mat.flovi_bminutilda_type)]
-                        elif node.turbulence ==  'kEpsilon':
-                            matbktype = ['fixedValue'][int(mat.flovi_bmik_type)]
-                            matbetype = ['fixedValue'][int(mat.flovi_bmie_type)]
-                        elif node.turbulence ==  'kOmega':
-                            matbktype = ['fixedValue'][int(mat.flovi_bmik_type)]
-                            matbotype = ['fixedValue'][int(mat.flovi_bmio_type)]
-                elif mat.flovi_bmb_type == '2':
-                    matbptype = ['freestreamPressure'][int(mat.flovi_bmop_type)]
-                    matbUtype = ['fixedValue'][int(mat.flovi_bmou_type)]
-                    if node.solver != 'icoFoam':
-                        matbnuttype = ['freestream'][int(mat.flovi_bmonut_type)]
-                        if node.turbulence ==  'SpalartAllmaras':
-                            matbnutildatype = ['freestream'][int(mat.flovi_bmonutilda_type)]
-                        elif node.turbulence ==  'kEpsilon':
-                            matbktype = ['zeroGradient'][int(mat.flovi_bmok_type)]
-                            matbetype = ['zeroGradient'][int(mat.flovi_bmoe_type)]
-                        elif node.turbulence ==  'kOmega':
-                            matbktype = ['zeroGradient'][int(mat.flovi_bmok_type)]
-                            matbotype = ['zeroGradient'][int(mat.flovi_bmoo_type)]
-                
-                elif mat.flovi_bmb_type == '3':
-                    matbptype = 'empty'
-                    matbUtype = 'empty'
-                    if node.solver != 'icoFoam':
-                        matbnuttype = 'empty'
-                        matbnutildatype = 'empty'
-                        matbktype = 'empty'
-                        matbotype = 'empty'
-                        matbetype = 'empty'
-                
-                pentry += "  {}\n  {{\n    type    {};\n  }}\n".format(matname, matbptype) 
-                if matbUtype == 'empty':
-                    Uentry += "  {}\n  {{\n    type    {};\n  }}\n".format(matname, matbUtype) 
-                else:
-                    Uentry += "  {}\n  {{\n    type    {};\n    value  uniform ({} {} {});\n  }}\n".format(matname, matbUtype, mat.flovi_bmwu_x, mat.flovi_bmwu_y, mat.flovi_bmwu_z) 
+                pentry += mat.fvmat(matname, 'p')
+                Uentry += mat.fvmat(matname, 'U')
                 if node.solver != 'icoFoam':
-                    if mat.flovi_bmb_type == '0':
-                        nutentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbnuttype, 'value', mat.flovi_bmnut) 
-                        if node.turbulence ==  'SpalartAllmaras':                    
-                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbnutildatype, 'value', mat.flovi_bmnut) 
-                        elif node.turbulence ==  'kEpsilon':
-                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbktype, 'value', mat.flovi_bmk) 
-                            eentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbetype, 'value', mat.flovi_bme)
-                        elif node.turbulence ==  'kOmega':
-                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbktype, 'value', mat.flovi_bmk) 
-                            oentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbotype, 'value', mat.flovi_bmo)
-                    if mat.flovi_bmb_type == '1':
-                        nutentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbnuttype, 'freestreamValue', mat.flovi_bmnut) 
-                        if node.turbulence ==  'SpalartAllmaras':
-                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbnutildatype, 'freestreamValue', mat.flovi_bmnut) 
-                        elif node.turbulence ==  'kEpsilon':
-                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbktype, 'value', mat.flovi_bmk) 
-                            eentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbetype, 'value', mat.flovi_bme)
-                        elif node.turbulence ==  'kOmega':
-                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbktype, 'value', mat.flovi_bmk) 
-                            oentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbotype, 'value', mat.flovi_bmo)
-                    if mat.flovi_bmb_type == '2':
-                        nutentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbnuttype, 'freestreamValue', mat.flovi_bmnut)
-                        if node.turbulence ==  'SpalartAllmaras':
-                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbnutildatype, 'freestreamValue', mat.flovi_bmnut) 
-                        elif node.turbulence ==  'kEpsilon':
-                            kentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(matname, matbnuttype) 
-                            eentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(matname, matbnutildatype)
-                        elif node.turbulence ==  'kOmega':
-                            kentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(matname, matbnuttype) 
-                            oentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(matname, matbnutildatype)
-                    if mat.flovi_bmb_type == '3':
-                        nutentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
-                        if node.turbulence ==  'SpalartAllmaras':
-                            nutildaentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
-                        elif node.turbulence ==  'kEpsilon':
-                            kentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
-                            eentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
-                        elif node.turbulence ==  'kOmega':
-                            kentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
-                            oentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
+                    nutentry += mat.fvmat(matname, 'nut')
+#                    matbnuttype = mat.flovi_bmwnut_type
+                    if node.turbulence ==  'SpalartAllmaras':
+                        nutildaentry += mat.fvmat(matname, 'nutilda')
+#                        matbnutildatype = mat.flovi_bmwnutilda_type
+                    elif node.turbulence ==  'kEpsilon':
+                        kentry += mat.fvmat(matname, 'k')
+                        eentry += mat.fvmat(matname, 'e')
+#                        matbktype = mat.flovi_bmwk_type
+#                        matbetype = mat.flovi_bmwe_type
+                    elif node.turbulence ==  'kOmega':
+                        kentry += mat.fvmat(matname, 'k')
+                        oentry += mat.fvmat(matname, 'o')
+#                        matbktype = mat.flovi_bmwk_type
+#                        matbotype = mat.flovi_bmwe_type
+#                if mat.flovi_bmb_type == '0':
+#                    matbptype = mat.flovi_bmwp_type
+#                    matbUtype = mat.flovi_bmwu_type
+#                    Uentry += "  {}\n  {{\n    type    {};\n    value  uniform ({} {} {});\n  }}\n".format(matname, mat.flovi_bmwu_type, mat.flovi_bmu_x, mat.flovi_bmu_y, mat.flovi_bmu_z) 
+#                    pentry += "  {}\n  {{\n    type    {};\n  }}\n".format(matname, matbptype)
+#                    if node.solver != 'icoFoam':
+#                        matbnuttype = mat.flovi_bmwnut_type
+#                        if node.turbulence ==  'SpalartAllmaras':
+#                            matbnutildatype = mat.flovi_bmwnutilda_type
+#                        elif node.turbulence ==  'kEpsilon':
+#                            matbktype = mat.flovi_bmwk_type
+#                            matbetype = mat.flovi_bmwe_type
+#                        elif node.turbulence ==  'kOmega':
+#                            matbktype = mat.flovi_bmwk_type
+#                            matbotype = mat.flovi_bmwe_type
+#                elif mat.flovi_bmb_type == '1':
+#                    matbptype = mat.flovi_bmip_type
+#                    matbUtype = mat.flovi_bmiu_type
+#                    Uentry += "  {}\n  {{\n    type    {};\n    value  uniform ({} {} {});\n  }}\n".format(matname, mat.flovi_bmiu_type, mat.flovi_bmu_x, mat.flovi_bmu_y, mat.flovi_bmu_z) 
+#                    if node.solver != 'icoFoam':
+#                        matbnuttype = mat.flovi_bminut_type
+#                        if node.turbulence ==  'SpalartAllmaras':
+#                            matbnutildatype = mat.flovi_bminutilda_type
+#                        elif node.turbulence ==  'kEpsilon':
+#                            matbktype = mat.flovi_bmik_type
+#                            matbetype = mat.flovi_bmie_type
+#                        elif node.turbulence ==  'kOmega':
+#                            matbktype = mat.flovi_bmik_type
+#                            matbotype = mat.flovi_bmio_type
+#                elif mat.flovi_bmb_type == '2':
+#                    matbptype = mat.flovi_bmop_type
+#                    matbUtype = mat.flovi_bmou_type
+#                    Uentry += "  {}\n  {{\n    type    {};\n".format(matname, mat.flovi_bmou_type)
+#                    if node.solver != 'icoFoam':
+#                        matbnuttype = mat.flovi_bmonut_type
+#                        if node.turbulence ==  'SpalartAllmaras':
+#                            matbnutildatype = mat.flovi_bmonutilda_type
+#                        elif node.turbulence ==  'kEpsilon':
+#                            matbktype = mat.flovi_bmok_type
+#                            matbetype = mat.flovi_bmoe_type
+#                        elif node.turbulence ==  'kOmega':
+#                            matbktype = mat.flovi_bmok_type
+#                            matbotype = mat.flovi_bmoo_type
+#                
+#                elif mat.flovi_bmb_type == '4':
+#                    matbptype = 'empty'
+#                    matbUtype = 'empty'
+#                    if node.solver != 'icoFoam':
+#                        matbnuttype = 'empty'
+#                        matbnutildatype = 'empty'
+#                        matbktype = 'empty'
+#                        matbotype = 'empty'
+#                        matbetype = 'empty'
+#                    Uentry += "  {}\n  {{\n    type    {};\n  }}\n".format(matname, 'empty') 
+#                
+#                pentry += "  {}\n  {{\n    type    {};\n  }}\n".format(matname, matbptype) 
+##                if matbUtype == 'empty':
+##                    Uentry += "  {}\n  {{\n    type    {};\n  }}\n".format(matname, matbUtype) 
+##                else:
+##                    Uentry += "  {}\n  {{\n    type    {};\n    value  uniform ({} {} {});\n  }}\n".format(matname, matbUtype, mat.flovi_bmwu_x, mat.flovi_bmwu_y, mat.flovi_bmwu_z) 
+#                if node.solver != 'icoFoam':
+#                    if mat.flovi_bmb_type == '0':
+#                        nutentry += "  {0}\n  {{\n    type    {1};\n    value  $internalField;\n  }}\n".format(matname, matbnuttype) 
+#                        if node.turbulence ==  'SpalartAllmaras':                    
+#                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbnutildatype, 'value', node.nutildaval) 
+#                        elif node.turbulence ==  'kEpsilon':
+#                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbktype, 'value', node.kval) 
+#                            eentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbetype, 'value', node.epval)
+#                        elif node.turbulence ==  'kOmega':
+#                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbktype, 'value', node.kval) 
+#                            oentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbotype, 'value', node.oval)
+#                    if mat.flovi_bmb_type == '1':
+#                        nutentry += "  {0}\n  {{\n    type    {1};\n    value $internalField;\n  }}\n".format(matname, matbnuttype) 
+#                        if node.turbulence ==  'SpalartAllmaras':
+#                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    uniform {3};\n  }}\n".format(matname, matbnutildatype, 'freestreamValue', mat.flovi_bmnut) 
+#                        elif node.turbulence ==  'kEpsilon':
+#                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbktype, 'value', node.kval) 
+#                            eentry += "  {0}\n  {{\n    type    {1};\n    {2}  $internalField;\n  }}\n".format(matname, matbetype, 'value')
+#                        elif node.turbulence ==  'kOmega':
+#                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbktype, 'value', node.kval) 
+#                            oentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbotype, 'value', node.oval)
+#                    if mat.flovi_bmb_type == '2':
+#                        nutentry += "  {0}\n  {{\n    type    {1};\n    value  $internalField;\n  }}\n".format(matname, matbnuttype)
+#                        if node.turbulence ==  'SpalartAllmaras':
+#                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbnutildatype, 'freestreamValue', mat.flovi_bmnut) 
+#                        elif node.turbulence ==  'kEpsilon':
+#                            kentry += "  {0}\n  {{\n    type    {1};\n    inletValue    $internalField;\n    value    $internalField;\n  }}\n".format(matname, matbktype) 
+#                            eentry += "  {0}\n  {{\n    type    {1};\n    inletValue    $internalField;\n    value    $internalField;\n  }}\n".format(matname, matbetype)
+#                        elif node.turbulence ==  'kOmega':
+#                            kentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(matname, matbktype) 
+#                            oentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(matname, matbotype)
+#                    if mat.flovi_bmb_type == '3':
+#                        nutentry += "  {0}\n  {{\n    type    {1};\n    value  $internalField;\n  }}\n".format(matname, matbnuttype)
+#                        if node.turbulence ==  'SpalartAllmaras':
+#                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbnutildatype, 'freestreamValue', mat.flovi_bmnut) 
+#                        elif node.turbulence ==  'kEpsilon':
+#                            kentry += "  {0}\n  {{\n    type    {1};\n    inletValue    $internalField;\n    value    $internalField;\n  }}\n".format(matname, matbktype) 
+#                            eentry += "  {0}\n  {{\n    type    {1};\n    inletValue    $internalField;\n    value    $internalField;\n  }}\n".format(matname, matbetype)
+#                        elif node.turbulence ==  'kOmega':
+#                            kentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(matname, matbktype) 
+#                            oentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(matname, matbotype)
+#                    if mat.flovi_bmb_type == '4':
+#                        nutentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
+#                        if node.turbulence ==  'SpalartAllmaras':
+#                            nutildaentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
+#                        elif node.turbulence ==  'kEpsilon':
+#                            kentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
+#                            eentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
+#                        elif node.turbulence ==  'kOmega':
+#                            kentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
+#                            oentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
 #            else:
 #                if node.turbulence ==  'SpalartAllmaras':
 #                    nutentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, ('value', 'freestreamValue')[matbnuttype == 'freestream'], mat.flovi_bmnut) 
@@ -1289,21 +1431,6 @@ def fvvarwrite(scene, obs, node):
             with open(os.path.join(scene['viparams']['of0filebase'], 'omega'), 'w') as ofile:
                 ofile.write(oentry)
                 
-def fvmat(self, scene):
-    fvname = self.name.replace(" ", "_")    
-    radentry = '# ' + ('plastic', 'glass', 'dielectric', 'translucent', 'mirror', 'light', 'metal', 'antimatter')[int(self.radmatmenu)] + ' material\n' + \
-            'void {} {}\n'.format(('plastic', 'glass', 'dielectric', 'trans', 'mirror', 'light', 'metal', 'antimatter')[int(self.radmatmenu)], fvname) + \
-           {'0': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough), 
-            '1': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(self.radcolour), 
-            '2': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} 0\n'.format(self.radcolour, self.radior),
-            '3': '0\n0\n7 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f} {3:.3f} {4:.3f}\n'.format(self.radcolour, self.radspec, self.radrough, self.radtrans, self.radtranspec), 
-            '4': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(self.radcolour),
-            '5': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format([c * self.radintensity for c in self.radcolour]), 
-            '6': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough), 
-            '7': '1 void\n0\n0\n'}[self.radmatmenu] + '\n'
-    self['radentry'] = radentry
-    return(radentry)
-        
 def fvmattype(mat, var):
     if mat.flovi_bmb_type == '0':
         matbptype = ['zeroGradient'][int(mat.flovi_bmwp_type)]
@@ -1334,16 +1461,18 @@ def fvsolwrite(node):
         '        tolerance       1e-08;\n        relTol          0.1;\n    }\n\n    nuTilda\n    {\n        solver          smoothSolver;\n        smoother        GaussSeidel;\n' + \
         '        nSweeps         2;\n        tolerance       1e-08;\n        relTol          0.1;\n    }\n}\n\n'
     elif node.solver == 'simpleFoam':   
-        ofheader += 'SIMPLE\n{\n  nNonOrthogonalCorrectors 0;\n  pRefCell        0;\n  pRefValue       0;\n}\n\nresidualControl\n  {\n    "(p|U|k|epsilon|omega|nut|nuTilda)" 1e-4;\n  }\n\n'
-        if node.turbulence == 'kEpsilon':
-            ofheader += 'relaxationFactors\n{\n    fields\n    {\n        p               0.3;\n    }\n    equations\n    {\n' + \
-            '        U               0.7;\n        k               0.7;\n        epsilon           0.7;\n    }\n}\n\n'
-        elif node.turbulence == 'kOmega':
-            ofheader += 'relaxationFactors\n{\n    fields\n    {\n        p               0.3;\n    }\n    equations\n    {\n' + \
-            '        U               0.7;\n        k               0.7;\n        omega           0.7;\n    }\n}\n\n'
-        elif node.turbulence == 'SpalartAllmaras':
-            ofheader += 'relaxationFactors\n{\n    fields\n    {\n        p               0.3;\n    }\n    equations\n    {\n' + \
-            '        U               0.7;\n        k               0.7;\n        nuTilda           0.7;\n    }\n}\n\n'
+        ofheader += 'SIMPLE\n{{\n  nNonOrthogonalCorrectors 0;\n  pRefCell        0;\n  pRefValue       0;\n\n    residualControl\n  {{\n    "(p|U|k|epsilon|omega|nut|nuTilda)" {};\n  }}\n}}\n'.format(node.convergence)
+        ofheader += 'relaxationFactors\n{\n    fields\n    {\n        p               0.3;\n    }\n    equations\n    {\n' + \
+            '        U               0.7;\n        k               0.7;\n        epsilon           0.7;\n      omega           0.7;\n        nuTilda           0.7;\n    }\n}\n\n'
+#        if node.turbulence == 'kEpsilon':
+#            ofheader += 'relaxationFactors\n{\n    fields\n    {\n        p               0.3;\n    }\n    equations\n    {\n' + \
+#            '        U               0.7;\n        k               0.7;\n        epsilon           0.7;\n    }\n}\n\n'
+#        elif node.turbulence == 'kOmega':
+#            ofheader += 'relaxationFactors\n{\n    fields\n    {\n        p               0.3;\n    }\n    equations\n    {\n' + \
+#            '        U               0.7;\n        k               0.7;\n        omega           0.7;\n    }\n}\n\n'
+#        elif node.turbulence == 'SpalartAllmaras':
+#            ofheader += 'relaxationFactors\n{\n    fields\n    {\n        p               0.3;\n    }\n    equations\n    {\n' + \
+#            '        U               0.7;\n        k               0.7;\n        nuTilda           0.7;\n    }\n}\n\n'
     return ofheader
 
 def fvschwrite(node):
@@ -1386,13 +1515,13 @@ def fvshmwrite(node, o, **kwargs):
     ofheader = 'FoamFile\n{\n    version     2.0;\n    format      ascii;\n    class       dictionary;\n    object      snappyHexMeshDict;\n}\n\n'
     ofheader += 'castellatedMesh    {};\nsnap    {};\naddLayers    {};\ndebug    {};\n\n'.format('true', 'true', 'true', 0)
     ofheader += 'geometry\n{{\n    {0}.obj\n    {{\n        type triSurfaceMesh;\n        name {0};\n    }}\n}};\n\n'.format(o.name)
-    ofheader += 'castellatedMeshControls\n{{\n  maxLocalCells {};\n  maxGlobalCells {};\n  minRefinementCells {};\n  maxLoadUnbalance 0.10;\n  nCellsBetweenLevels 3;\n'.format(node.lcells, node.gcells, int(node.gcells/100))
-    ofheader += '  features\n  (\n    {{\n      file "{}.eMesh";\n      level 0;\n    }}\n  );\n\n'.format(o.name)
-    ofheader += '  refinementSurfaces\n  {{\n    {}\n    {{\n      level (2 2);\n    }}\n  }}\n\n  '.format(o.name) 
+    ofheader += 'castellatedMeshControls\n{{\n  maxLocalCells {};\n  maxGlobalCells {};\n  minRefinementCells {};\n  maxLoadUnbalance 0.10;\n  nCellsBetweenLevels {};\n'.format(node.lcells, node.gcells, int(node.gcells/100), node.ncellsbl)
+    ofheader += '  features\n  (\n    {{\n      file "{}.eMesh";\n      level {};\n    }}\n  );\n\n'.format(o.name, node.level)
+    ofheader += '  refinementSurfaces\n  {{\n    {}\n    {{\n      level ({} {});\n    }}\n  }}\n\n  '.format(o.name, node.surflmin, node.surflmax) 
     ofheader += '  resolveFeatureAngle 30;\n  refinementRegions\n  {}\n\n'
     ofheader += '  locationInMesh ({} {} {});\n  allowFreeStandingZoneFaces true;\n}}\n\n'.format(0.1, 0.1, 0.1)
     ofheader += 'snapControls\n{\n  nSmoothPatch 3;\n  tolerance 2.0;\n  nSolveIter 30;\n  nRelaxIter 5;\n  nFeatureSnapIter 10;\n  implicitFeatureSnap false;\n  explicitFeatureSnap true;\n  multiRegionFeatureSnap false;\n}\n\n'
-    ofheader += 'addLayersControls\n{{\n  relativeSizes true;\n  layers\n  {{\n    "{}.*"\n    {{\n      nSurfaceLayers 1;\n    }}\n  }}\n\n'.format(layersurf)
+    ofheader += 'addLayersControls\n{{\n  relativeSizes true;\n  layers\n  {{\n    "{}.*"\n    {{\n      nSurfaceLayers {};\n    }}\n  }}\n\n'.format(layersurf, node.layers)
     ofheader += '  expansionRatio 1.0;\n  finalLayerThickness 0.3;\n  minThickness 0.1;\n  nGrow 0;\n  featureAngle 60;\n  slipFeatureAngle 30;\n  nRelaxIter 3;\n  nSmoothSurfaceNormals 1;\n  nSmoothNormals 3;\n' + \
                 '  nSmoothThickness 10;\n  maxFaceThicknessRatio 0.5;\n  maxThicknessToMedialRatio 0.3;\n  minMedianAxisAngle 90;\n  nBufferCellsNoExtrude 0;\n  nLayerIter 50;\n}\n\n'
     ofheader += 'meshQualityControls\n{\n  #include "meshQualityDict"\n  nSmoothScale 4;\n  errorReduction 0.75;\n}\n\n'
@@ -1409,6 +1538,55 @@ def fvsfewrite(oname):
     ofheader += '{}.obj\n{{\n  extractionMethod    extractFromSurface;\n\n  extractFromSurfaceCoeffs\n  {{\n    includedAngle   150;\n  }}\n\n    writeObj\n    yes;\n}}\n'.format(oname)
     return ofheader
 
-def fvobjwrite(o):
-    pass
+def fvobjwrite(scene, o, bmo):
+    objheader = '# FloVi obj exporter\no {}\n'.format(o.name)
+    objheader = '# FloVi obj exporter\n'
+    bmomw, bmovs = bmo.matrix_world, [vert for vert in bmo.data.vertices]
+    omw, ovs = o.matrix_world, [vert for vert in o.data.vertices]
+    xvec, yvec, zvec = (bmomw*bmovs[3].co - bmomw*bmovs[0].co).normalized(), (bmomw*bmovs[2].co - bmomw*bmovs[3].co).normalized(), (bmomw*bmovs[4].co - bmomw*bmovs[0].co).normalized() 
+    ofvpos = [[(omw*ov.co - bmomw*bmovs[0].co)*vec for vec in (xvec, yvec, zvec)] for ov in ovs]
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    vcos = ''.join(['v {} {} {}\n'.format(*ofvpo) for ofvpo in ofvpos])
+    with open(os.path.join(scene['viparams']['ofctsfilebase'], '{}.obj'.format(o.name)), 'w') as objfile:
+        objfile.write(objheader+vcos)
+        for m, mat in enumerate(o.data.materials):
+            objfile.write('g {}\n'.format(mat.name) + ''.join(['f {} {} {}\n'.format(*[v.index + 1 for v in f.verts]) for f in bmesh.ops.triangulate(bm, faces = bm.faces)['faces'] if f.material_index == m]))
+        objfile.write('#{}'.format(len(bm.faces)))
+    bm.free()
+#    print(objheader + vcos + fverts)
     
+def sunpos(scene, node, frames, sun, valheader):
+    if node.bl_label == 'EnVi Simulation':
+        allresdict = node['allresdict']
+#        node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
+        datetime.datetime(datetime.datetime.now().year, 1, 1, 12, 0)
+        times = [datetime.datetime(datetime.datetime.now().year, int(allresdict['Month'][h]), int(allresdict['Day'][h]), int(allresdict['Hour'][h]) - 1, 0) for h in range(len(allresdict['Month']))]
+#    simtime = node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
+    else:
+        sun.data.shadow_method, sun.data.shadow_ray_samples, sun.data.sky.use_sky = 'RAY_SHADOW', 8, 1
+        shaddict = {'0': (0.01, 5), '1': (3, 3)}
+        (sun.data.shadow_soft_size, sun.data.energy) = shaddict[str(node['skynum'])]
+    for t, time in enumerate(times):
+        scene.frame_set(t)
+        val = allresdict[valheader][t]
+        solalt, solazi, beta, phi = solarPosition(time.timetuple()[7], time.hour + (time.minute)*0.016666, scene['latitude'], scene['longitude'])
+#        if node['skynum'] < 2:
+        sun.location, sun.rotation_euler = [x*20 for x in (-sin(phi), -cos(phi), tan(beta))], [(pi/2) - beta, 0, -phi]
+        if scene.render.engine == 'CYCLES' and bpy.data.worlds['World'].use_nodes:
+            if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
+                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)#sin(phi), -cos(phi), -2* beta/math.pi
+                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = t) 
+            if sun.data.node_tree:
+                for emnode in [emnode for emnode in sun.data.node_tree.nodes if emnode.bl_label == 'Emission']:
+                    emnode.inputs[0].default_value[2] = solalt/90
+                    emnode.inputs[1].default_value = val*0.01
+                    emnode.inputs[0].keyframe_insert(data_path = 'default_value', frame = t)
+                    emnode.inputs[1].keyframe_insert(data_path = 'default_value', frame = t)
+        sun.data.energy = val*0.01               
+        sun.data.keyframe_insert(data_path = 'energy', frame = t)
+        sun.keyframe_insert(data_path = 'location', frame = t)
+        sun.keyframe_insert(data_path = 'rotation_euler', frame = t)
+            
+        bpy.ops.object.select_all()
+    sun.data.cycles.use_multiple_importance_sampling = True

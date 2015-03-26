@@ -7,14 +7,9 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     for scene in bpy.data.scenes:
         scene.update()
     en_epw = open(locnode.weather, "r")
-    en_idf = open(scene['viparams']['idf_file'], 'w')
-    
-#    try:
-    enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0] if [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'] else 0
-#    except:
-#        exp_op.report({'ERROR'}, 'No EnVi node tree found. Have you exported the EnVi Geometry?')
-#        return
-    en_idf.write("!- Blender -> EnergyPlus\n!- Using the EnVi export scripts\n!- Author: Ryan Southall\n!- Date: {}\n\nVERSION,{};\n\n".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), scene.epversion))
+    en_idf = open(scene['enparams']['idf_file'], 'w')
+    enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]
+    en_idf.write("!- Blender -> EnergyPlus\n!- Using the EnVi export scripts\n!- Author: Ryan Southall\n!- Date: {}\n\nVERSION,{};\n\n".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), scene['enparams']['epversion']))
 
     params = ('Name', 'North Axis (deg)', 'Terrain', 'Loads Convergence Tolerance Value', 'Temperature Convergence Tolerance Value (deltaC)',
               'Solar Distribution', 'Maximum Number of Warmup Days(from MLC TCM)')
@@ -280,7 +275,8 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: REPORT VARIABLE ===========\n\n")
     epentrydict = {"Output:Variable,*,Site Outdoor Air Drybulb Temperature,Hourly;\n": node.resat, "Output:Variable,*,Site Wind Speed,Hourly;\n": node.resaws,
                    "Output:Variable,*,Site Wind Direction,Hourly;\n": node.resawd, "Output:Variable,*,Site Outdoor Air Relative Humidity,hourly;\n": node.resah,
-                   "Output:Variable,*,Site Direct Solar Radiation Rate per Area,hourly;\n": node.resasb, "Output:Variable,*,Zone Air Temperature,hourly;\n": node.restt,
+                   "Output:Variable,*,Site Direct Solar Radiation Rate per Area,hourly;\n": node.resasb, "Output:Variable,*,Site Diffuse Solar Radiation Rate per Area,hourly;\n": node.resasd,
+                   "Output:Variable,*,Zone Air Temperature,hourly;\n": node.restt,
                    "Output:Variable,*,Zone Air System Sensible Heating Rate,hourly;\n": node.restwh, "Output:Variable,*,Zone Air System Sensible Cooling Rate,hourly;\n": node.restwc,
                    "Output:Variable,*,Zone Ideal Loads Supply Air Sensible Heating Rate, hourly;\n": node.ressah, "Output:Variable,*,Zone Ideal Loads Supply Air Sensible Cooling Rate,hourly;\n": node.ressac,
                    "Output:Variable,*,Zone Thermal Comfort Fanger Model PMV,hourly;\n": node.rescpm, "Output:Variable,*,Zone Thermal Comfort Fanger Model PPD,hourly;\n": node.rescpp, "Output:Variable,*,Zone Infiltration Current Density Volume Flow Rate, hourly;\n":node.resim,
@@ -309,7 +305,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     AllSummary;              !- Report 1 Name")
     en_idf.close()
     
-    if scene['viparams'].get('hvactemplate'):
+    if scene['enparams'].get('hvactemplate'):
         os.chdir(scene['viparams']['newdir'])
         ehtempcmd = "ExpandObjects {}".format(os.path.join(scene['viparams']['newdir'], 'in.idf'))
         subprocess.call(ehtempcmd.split())
@@ -332,8 +328,13 @@ def pregeo(op):
             bpy.data.materials.remove(materials)
     
     enviobjs = [obj for obj in scene.objects if obj.envi_type in ('1', '2') and obj.layers[0] == True and obj.hide == False]
-    envings = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network']
-    enng = envings[0] if envings else 0
+    if not [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network']:
+        bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network") 
+        for screen in bpy.data.screens:
+            for area in [area for area in screen.areas if area.type == 'NODE_EDITOR' and area.spaces[0].tree_type == 'ViN']:
+                area.spaces[0].node_tree = bpy.data.node_groups[op.nodeid.split('@')[1]]
+    enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]
+    enng['enviparams'] = {'wpca': 0, 'wpcn': 0, 'crref': 0, 'afn': 0}
                 
     for obj in enviobjs:
         for mats in obj.data.materials:
@@ -367,8 +368,7 @@ def pregeo(op):
         bm.free()
 
         if any([(mat.envi_afsurface or mat.envi_boundary) for mat in en_obj.data.materials]):
-            enng = bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network") if not len([ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network']) else [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]                
-            enng['enviparams'] = {'wpca': 0, 'wpcn': 0, 'crref': 0, 'afn': 0}
+            enng['enviparams']['afn'] = 1
             if 'Control' not in [node.bl_label for node in enng.nodes]:
                 enng.nodes.new(type = 'AFNCon')         
                 enng.use_fake_user = 1
@@ -458,7 +458,7 @@ class hcoiwrite(object):
 
     def zh(self):
         params = ('Name', 'Availability Schedule Name', 'Zone Supply Air Node Name', 'Zone Exhaust Air Node Name',
-              "Maximum Heating Supply Air Temperature ("+ u'\u00b0'+"C)", "Minimum Cooling Supply Air Temperature ("+ u'\u00b0'+"C)",
+              "Maximum Heating Supply Air Temperature (degC)", "Minimum Cooling Supply Air Temperature (degC)",
               'Maximum Heating Supply Air Humidity Ratio (kgWater/kgDryAir)', 'Minimum Cooling Supply Air Humidity Ratio (kgWater/kgDryAir)',
               'Heating Limit', 'Maximum Heating Air Flow Rate (m3/s)', 'Maximum Sensible Heating Capacity (W)',
               'Cooling limit', 'Maximum Cooling Air Flow Rate (m3/s)', 'Maximum Total Cooling Capacity (W)', 'Heating Availability Schedule Name',

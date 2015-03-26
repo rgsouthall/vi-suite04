@@ -1,6 +1,6 @@
 import bpy
 from collections import OrderedDict
-from .vi_func import newrow
+from .vi_func import newrow, enresprops
 
 from .envi_mat import envi_materials, envi_constructions
 envi_mats = envi_materials()
@@ -13,30 +13,36 @@ class Vi3DPanel(bpy.types.Panel):
     bl_region_type = "UI"
 
     def draw(self, context):
+#        print(self.resat)
         scene = context.scene
-        if scene.vi_display == 1:
+#        if scene.vi_display == 1:
+        if scene['viparams']['vidisp']:
             view = context.space_data
             layout = self.layout
 
-            if scene.wr_disp_panel == 1:
+            if scene['viparams']['vidisp'] == 'wr':            
+#            if scene.wr_disp_panel == 1:
                 newrow(layout, 'Legend', scene, "vi_leg_display")
 
-            elif scene.sp_disp_panel == 1:
+#            elif scene.sp_disp_panel == 1:
+            elif scene['viparams']['vidisp'] == 'sp':
                 for i in (("Day of year:", "solday"), ("Time of day:", "solhour"), ("Sunpath scale:", "soldistance"), ("Display hours:", "hourdisp")):
                     newrow(layout, i[0], scene, i[1])
                 if scene.hourdisp:
                     for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_fsh")):
                         newrow(layout, i[0], scene, i[1])
 
-            elif scene.ss_disp_panel in (1,2) or scene.li_disp_panel in (1,2):
+#            elif scene.ss_disp_panel in (1,2) or scene.li_disp_panel in (1,2):
+            elif scene['viparams']['vidisp'] in ('ss', 'li', 'sspanel', 'lipanel', 'licpanel'):
                 row = layout.row()
                 row.prop(scene, "vi_disp_3d")
-                if scene['visimcontext'] == 'LiVi Compliance':
+                if scene['viparams']['visimcontext'] == 'LiVi Compliance':
                     newrow(layout, 'Sky view:', scene, 'vi_disp_sk')
                 row = layout.row()
-                row.operator("view3d.lidisplay", text="Shadow Display") if scene['visimcontext'] == 'Shadow' else row.operator("view3d.lidisplay", text="Radiance Display")
+                row.operator("view3d.lidisplay", text="Shadow Display") if scene['viparams']['visimcontext'] == 'Shadow' else row.operator("view3d.lidisplay", text="Radiance Display")
 
-                if scene.ss_disp_panel == 2 or scene.li_disp_panel == 2:
+#                if scene.ss_disp_panel == 2 or scene.li_disp_panel == 2:
+                if scene['viparams']['vidisp'] in ('sspanel', 'lipanel', 'licpanel'):
                     row = layout.row()
                     row.prop(view, "show_only_render")
                     newrow(layout, 'Legend', scene, "vi_leg_display")
@@ -58,16 +64,37 @@ class Vi3DPanel(bpy.types.Panel):
                         row = layout.row()
                         row.label(text="{:-<60}".format(""))
 
-                    if scene.lic_disp_panel == 1:                        
+#                    if scene.lic_disp_panel == 1:  
+                    if scene['viparams']['vidisp'] == 'licpanel':
                         propdict = OrderedDict([("Compliance Panel", "li_compliance"), ("Asessment organisation:", "li_assorg"), ("Assesment individiual:", "li_assind"), ("Job number:", "li_jobno"), ("Project name:", "li_projname")])
                         for prop in propdict.items():
                             newrow(layout, prop[0], scene, prop[1])
             
-            elif scene.en_disp_panel:
-                ambresdict = {'aws': 'Wind Speed', 'awd': 'Wind direction', 'arh': 'Humidity', 'asb': 'Direct Solar', 'asd': 'Diffuse Solar'}
-                for ambres in scene['enres']['Ambient']:
-                    newrow(layout, 'Legend', scene, "{}_display".ambres)
+            elif scene['viparams']['vidisp'] in ('en', 'enpanel'):
+                resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
+                aresdict = {"Temperature (degC)": "resat_disp", 'Wind Speed (m/s)': 'resaws_disp', 'Wind Direction (deg)': 'resawd_disp', 
+                            'Humidity (%)': 'resah_disp', 'Direct Solar (W/m^2)': 'resasb_disp', 'Diffuse Solar (W/m^2)': 'resasd_disp'}
+                zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszh_disp', 'Cooling (W)': 'reszc_disp'}
+                for ri, rname in enumerate([rname[1] for rname in resnode['resdict'].values() if rname[0] == 'Climate']):
+                    if ri == 0:                    
+                        row = layout.row()
+                        row.label(text = 'Ambient')                    
+                    if not ri%2:
+                        row = layout.row()                            
+                    if rname in aresdict:
+                        row.prop(scene, aresdict[rname])
+                
+                for ri, rname in enumerate(set([rname[1] for rname in resnode['resdict'].values() if rname[0][:3] == 'EN_' and rname[0][3:] in [o.name.upper() for o in bpy.data.objects]])):
+                    if ri == 0:                    
+                        row = layout.row()
+                        row.label(text = 'Zone')                    
+                    if not ri%2:
+                        row = layout.row()                            
+                    if rname in zresdict:
+                        row.prop(scene, zresdict[rname])
+                row = layout.row()    
                 row.operator("view3d.endisplay", text="EnVi Display")
+            
             newrow(layout, 'Display active', scene, 'vi_display')
 
 class VIMatPanel(bpy.types.Panel):
@@ -305,24 +332,36 @@ class VIMatPanel(bpy.types.Panel):
                             row.label(text = "default: "+str(envi_mats.matdat[layername][7])+"mm")
         
         elif cm.mattype == '3':
+            fvsimnode = bpy.data.node_groups[scene['viparams']['fvsimnode'].split('@')[1]].nodes[scene['viparams']['fvsimnode'].split('@')[0]] if 'fvsimnode' in scene['viparams'] else 0
             newrow(layout, "Type:", cm, "flovi_bmb_type")
             if cm.flovi_bmb_type == '0':
                 newrow(layout, "Pressure type:", cm, "flovi_bmwp_type")
+                if cm.flovi_bmwp_type == 'fixedValue':
+                    newrow(layout, "Pressure value:", cm, "flovi_b_sval")
+                    
                 newrow(layout, "Velocity type:", cm, "flovi_bmwu_type")
-                split = layout.split()
-                col = split.column(align=True)
-                col.label(text="Velocity:")
-                col.prop(cm, "flovi_bmwu_x")
-                col.prop(cm, "flovi_bmwu_y")
-                col.prop(cm, "flovi_bmwu_z")
-                fvsimnode = bpy.data.node_groups[scene['viparams']['fvsimnode'].split('@')[1]].nodes[scene['viparams']['fvsimnode'].split('@')[0]] if 'fvsimnode' in scene['viparams'] else 0
+                newrow(layout, "Field value:", cm, "flovi_u_field")
+                if not cm.flovi_u_field:
+                    newrow(layout, 'Velocity:', cm, 'flovi_b_vval')
+#                split = layout.split()
+#                col = split.column(align=True)
+#                col.label(text="Velocity:")
+#                col.prop(cm, "flovi_bmu_x")
+#                col.prop(cm, "flovi_bmu_y")
+#                col.prop(cm, "flovi_bmu_z")
+                
                 if fvsimnode and fvsimnode.solver != 'icoFoam':
                     newrow(layout, "nut type:", cm, "flovi_bmwnut_type")
-                    if fvsimnode.turbulence == 'SpalartAllmaras':
-                        newrow(layout, "nut value:", cm, "flovi_bmnut")
+                    if fvsimnode.turbulence == 'SpalartAllmaras':                        
                         newrow(layout, "nuTilda type:", cm, "flovi_bmwnutilda_type")
                     elif fvsimnode.turbulence == 'kEpsilon':
-                        pass
+                        newrow(layout, "k type:", cm, "flovi_bmwk_type")
+                        newrow(layout, "Epsilon type:", cm, "flovi_bmwe_type")
+                    elif fvsimnode.turbulence == 'komega':
+                        newrow(layout, "k type:", cm, "flovi_bmwk_type")
+                        newrow(layout, "Omega type:", cm, "flovi_bmwe_type")
+                    if fvsimnode.bouyancy:
+                        newrow(layout, "Temperature:", cm, "temperature")
 #                newrow(layout, "nuTilda:", cm, "flovi_bmnutilda")
 #                split = layout.split()
 #                col = split.column(align=True)
@@ -330,19 +369,42 @@ class VIMatPanel(bpy.types.Panel):
 #                col.prop(cm, "flovi_bmnut")
 #                col.prop(cm, "flovi_bmwnut_y")
 #                col.prop(cm, "flovi_bmwnut_z")
-            elif cm.flovi_bmb_type in ('1', '2'):
-                newrow(layout, "Pressure sub-type:", cm, "flovi_bmiop_type")
-                newrow(layout, "Velocity sub-type:", cm, "flovi_bmiou_type")
-                split = layout.split()
-                col = split.column(align=True)
-                col.label(text="Velocity:")
-                col.prop(cm, "flovi_bmiou_x")
-                col.prop(cm, "flovi_bmiou_y")
-                col.prop(cm, "flovi_bmiou_z")
-                newrow(layout, "nut type:", cm, "flovi_bmionut_type")
-                newrow(layout, "nut:", cm, "flovi_bmnut")
-                newrow(layout, "nuTilda type:", cm, "flovi_bmionutilda_type")
-#                newrow(layout, "nuTilda:", cm, "flovi_bmnutilda")
+            elif cm.flovi_bmb_type == '1':
+                newrow(layout, "Pressure sub-type:", cm, "flovi_bmip_type")
+                if cm.flovi_bmip_type == 'fixedValue':
+                    newrow(layout, "Pressure value:", cm, "flovi_b_sval")
+                newrow(layout, "Velocity sub-type:", cm, "flovi_bmiu_type")
+                newrow(layout, "Field value:", cm, "flovi_u_field")
+                if not cm.flovi_u_field:
+                    newrow(layout, 'Velocity:', cm, 'flovi_b_vval')
+                if fvsimnode and fvsimnode.solver != 'icoFoam':
+                    newrow(layout, "nut type:", cm, "flovi_bminut_type")
+                    if fvsimnode.turbulence == 'SpalartAllmaras':                        
+                        newrow(layout, "nuTilda type:", cm, "flovi_bminutilda_type")
+                    elif fvsimnode.turbulence == 'kEpsilon':
+                        newrow(layout, "k type:", cm, "flovi_bmik_type")
+                        newrow(layout, "Epsilon type:", cm, "flovi_bmie_type")
+                    elif fvsimnode.turbulence == 'kOmega':
+                        newrow(layout, "k type:", cm, "flovi_bmik_type")
+                        newrow(layout, "Omega type:", cm, "flovi_bmio_type")
+            elif cm.flovi_bmb_type == '2':
+                newrow(layout, "Pressure sub-type:", cm, "flovi_bmop_type")
+                if cm.flovi_bmop_type == 'fixedValue':
+                    newrow(layout, "Pressure value:", cm, "flovi_b_sval")
+                newrow(layout, "Velocity sub-type:", cm, "flovi_bmou_type")
+                newrow(layout, "Field value:", cm, "flovi_u_field")
+                if not cm.flovi_u_field:
+                    newrow(layout, 'Velocity:', cm, 'flovi_b_vval')
+                if fvsimnode and fvsimnode.solver != 'icoFoam':
+                    newrow(layout, "nut type:", cm, "flovi_bmonut_type")
+                    if fvsimnode.turbulence == 'SpalartAllmaras':                        
+                        newrow(layout, "nuTilda type:", cm, "flovi_bmonutilda_type")
+                    elif fvsimnode.turbulence == 'kEpsilon':
+                        newrow(layout, "k type:", cm, "flovi_bmok_type")
+                        newrow(layout, "Epsilon type:", cm, "flovi_bmoe_type")
+                    elif fvsimnode.turbulence == 'kOmega':
+                        newrow(layout, "k type:", cm, "flovi_bmok_type")
+                        newrow(layout, "Omega type:", cm, "flovi_bmoo_type")
                 
 class IESPanel(bpy.types.Panel):
     bl_label = "LiVi IES file"

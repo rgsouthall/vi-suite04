@@ -18,7 +18,7 @@
 
 
 import bpy, blf, colorsys, bgl, mathutils, bmesh
-from math import pi
+from math import pi, sin, cos, atan2
 from numpy import digitize, array
 try:
     import matplotlib
@@ -27,7 +27,7 @@ except:
     mp = 0
 
 from . import livi_export
-from .vi_func import cmap, clearscene, skframe, selobj, retobjs, framerange, viewdesc, drawloop, drawpoly, draw_index, drawfont, skfpos, objmode
+from .vi_func import cmap, clearscene, skframe, selobj, retobjs, framerange, viewdesc, drawloop, drawpoly, draw_index, drawfont, skfpos, objmode, drawcircle, drawtri
 
 def ss_display():
     pass
@@ -308,6 +308,129 @@ def li3D_legend(self, context, simnode, connode, geonode):
         print(e, 'Turning off legend display')
         scene.vi_leg_display = 0
         scene.update()
+
+def en_temp(self, context, simnode, valheader):
+    scene = context.scene
+    if not scene.resat_disp or scene['viparams']['vidisp'] not in ('en', 'enpanel'):
+        return
+    else:
+        lheight, lwidth = 200, 75
+        blf.enable(0, 4)
+        blf.shadow(0, 3, 0, 0, 0, 0.5)
+        resvals = simnode['allresdict'][valheader]
+        maxval, minval = max(resvals), min(resvals)
+        height, font_id = context.region.height, 0
+        hscale, topheight, leftwidth = height/768, height-50, 20 
+        botheight = int(topheight - hscale * lheight)
+        rightwidth = int(leftwidth + hscale * lwidth)
+        drawpoly(leftwidth, topheight, rightwidth, botheight, 0.7, 1, 1, 1)
+        drawloop(leftwidth - 1, topheight, rightwidth, botheight)
+        reslevel = (resvals[scene.frame_current] - minval)/(maxval - minval)
+        blf.size(font_id, 20, int(height/14))
+        bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+        blf.position(font_id, int(leftwidth + hscale*10), int(topheight - hscale * 20), 0)
+        blf.draw(font_id, u"T: {:.1f}\u00b0C".format(resvals[scene.frame_current]))
+        drawpoly(int(leftwidth + hscale * 10), botheight + int(0.9 * hscale * lheight * reslevel), int(leftwidth + hscale * (lwidth - 10)), botheight, 1, *colorsys.hsv_to_rgb(1 - reslevel, 1.0, 1.0))
+        drawloop(int(leftwidth + hscale * 10 - 1), botheight + int(0.9 * hscale * lheight * reslevel), int(leftwidth + hscale * (lwidth - 10)), botheight)
+        blf.disable(0, 4)
+
+#def en_ztemp(self, context, simnode, odict):
+#    scene = context.scene
+#    if not scene.reszt_disp or scene['viparams']['vidisp'] not in ('en', 'enpanel'):
+#        return
+#    else:
+        
+            
+#        lheight, lwidth = 200, 75
+#        blf.enable(0, 4)
+#        blf.shadow(0, 3, 0, 0, 0, 0.5)
+#        resvals = simnode['allresdict'][valheader]
+#        maxval, minval = max(resvals), min(resvals)
+#        height, font_id = context.region.height, 0
+#        hscale, topheight, leftwidth = height/768, height-50, 20 
+#        botheight = int(topheight - hscale * lheight)
+#        rightwidth = int(leftwidth + hscale * lwidth)
+#        drawpoly(leftwidth, topheight, rightwidth, botheight, 0.7, 1, 1, 1)
+#        drawloop(leftwidth - 1, topheight, rightwidth, botheight)
+#        reslevel = (resvals[scene.frame_current] - minval)/(maxval - minval)
+#        blf.size(font_id, 20, int(height/14))
+#        bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+#        blf.position(font_id, int(leftwidth + hscale*10), int(topheight - hscale * 20), 0)
+#        blf.draw(font_id, u"T: {:.1f}\u00b0C".format(resvals[scene.frame_current]))
+#        drawpoly(int(leftwidth + hscale * 10), botheight + int(0.9 * hscale * lheight * reslevel), int(leftwidth + hscale * (lwidth - 10)), botheight, 1, *colorsys.hsv_to_rgb(1 - reslevel, 1.0, 1.0))
+#        drawloop(int(leftwidth + hscale * 10 - 1), botheight + int(0.9 * hscale * lheight * reslevel), int(leftwidth + hscale * (lwidth - 10)), botheight)
+#        blf.disable(0, 4)        
+
+def en_wind(self, context, simnode, valheaders):
+    direcs = ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')
+    if context.space_data.region_3d.is_perspective:
+        view_mat = context.space_data.region_3d.perspective_matrix
+        vw = mathutils.Vector((view_mat[3][0], view_mat[3][1], 0)).normalized()
+        orot = atan2(vw[1],vw[0]) - atan2(1,0)
+    else:
+        vw =  mathutils.Vector((0.0, 0.0, -1.0))
+        vw.rotate(bpy.context.region_data.view_rotation)
+        orot = atan2(vw[1],vw[0]) - atan2(1,0)
+
+    scene, font_id, height = context.scene, 0, context.region.height
+    resvalss = simnode['allresdict'][valheaders[0]]
+    maxvals = max(resvalss)
+    resvalsd = simnode['allresdict'][valheaders[1]]    
+    radius, hscale = 100, height/768
+    posx, posy = int(20 + radius * hscale), int(height - 50 - hscale * (radius + 200 * 2 * 1.1))
+    drawcircle(mathutils.Vector((posx, posy)), hscale * radius, 36, 1, 0.7, 1, 1, 1)
+
+    for i in range(1, 6):
+       drawcircle(mathutils.Vector((posx, posy)), 0.15 * hscale * radius * i, 36, 0, 0.7, 0, 0, 0) 
+    
+    blf.enable(0, 4)
+    blf.size(font_id, 20, int(height/14))
+    blf.enable(0, 1)
+    blf.shadow(0, 3, 0, 0, 0, 0.5)
+    for d in range(8):
+        bgl.glBegin(bgl.GL_LINES)
+        bgl.glVertex2i(posx, posy)
+        bgl.glVertex2i(int(posx + 0.8 * hscale * radius*sin(orot + d*pi/4)), int(posy + 0.8 * hscale * radius * cos(orot + d*pi/4)))
+        bgl.glEnd()
+        fdims = blf.dimensions(font_id, direcs[d])
+        ang = orot + d*pi/4
+        fwidth = fdims[0]*0.5
+        blf.position(font_id, int(posx - fwidth*cos(ang) + hscale *0.825 * radius*sin(ang)), int(posy + fwidth*sin(ang) + hscale * 0.825 * radius * cos(ang)), 0)
+        blf.rotation(font_id, - orot - d*pi*0.25)
+        blf.draw(font_id, direcs[d])
+    blf.disable(0, 1)
+    blf.disable(0, 4)    
+    drawtri(posx, posy, resvalss[scene.frame_current]/maxvals, resvalsd[scene.frame_current] + orot*180/pi, hscale, radius)
+    
+def en_humidity(self, context, simnode, valheader):
+    scene = context.scene
+    if not scene.resat_disp or scene['viparams']['vidisp'] not in ('en', 'enpanel'):
+        return
+    else:
+        lheight, lwidth = 200, 75
+        blf.enable(0, 4)
+        blf.shadow(0, 3, 0, 0, 0, 0.5)
+        resvals = simnode['allresdict'][valheader]
+        maxval, minval = 100, 0
+        height, font_id = context.region.height, 0
+        hscale = height/768
+        topheight, leftwidth = int(height - 50 - 1.1 * hscale * lheight), 20 
+        botheight = int(topheight - hscale * lheight)
+        rightwidth = int(leftwidth + hscale * lwidth)
+        drawpoly(leftwidth, topheight, rightwidth, botheight, 0.7, 1, 1, 1)
+        drawloop(leftwidth - 1, topheight, rightwidth, botheight)
+        reslevel = (resvals[scene.frame_current] - minval)/(maxval - minval)
+        blf.size(font_id, 20, int(height/14))
+        bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+        blf.position(font_id, int(leftwidth + hscale*10), int(topheight - hscale * 20), 0)
+        blf.draw(font_id, "H: {:.1f}%".format(resvals[scene.frame_current]))
+        drawpoly(int(leftwidth + hscale * 10), botheight + int(0.9 * hscale * lheight * reslevel), int(leftwidth + hscale * (lwidth - 10)), botheight, 1, *colorsys.hsv_to_rgb(1 - reslevel, 1.0, 1.0))
+        drawloop(int(leftwidth + hscale * 10 - 1), botheight + int(0.9 * hscale * lheight * reslevel), int(leftwidth + hscale * (lwidth - 10)), botheight)
+        blf.disable(0, 4)
+    
+def en_panel(self, context, simnode):
+    scene = context.scene
+    return
         
 def viwr_legend(self, context, simnode):
     scene = context.scene

@@ -29,14 +29,14 @@ def radfexport(scene, export_op, connode, geonode, frames):
 
 def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs): 
     scene, prange = bpy.context.scene, range(geonode['reslen'])
-    frames = range(scene.fs, scene.fe + 1) if not kwargs.get('genframe') else [kwargs['genframe']]
+    frames = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) if not kwargs.get('genframe') else [kwargs['genframe']]
     os.chdir(scene['viparams']['newdir'])
     if os.lstat("{}.rtrace".format(scene['viparams']['filebase'])).st_size == 0:
         calc_op.report({'ERROR'},"There are no materials with the livi sensor option enabled")
     else:
         (res, svres) = (numpy.zeros([len(frames), geonode['reslen']]), numpy.zeros([len(frames), geonode['reslen']]))
         for frame in frames:            
-            findex = frame - scene.fs if not kwargs.get('genframe') else 0
+            findex = frame - scene['liparams']['fs'] if not kwargs.get('genframe') else 0
             if connode.bl_label in ('LiVi Basic', 'LiVi Compliance') or (connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) < 2):
                 if os.path.isfile("{}-{}.af".format(scene['viparams']['filebase'], frame)):
                     subprocess.call("{} {}-{}.af".format(scene['viparams']['rm'], scene['viparams']['filebase'], frame), shell=True)
@@ -92,12 +92,11 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                         [daresfile.write("{:.2f}\n".format(r)) for r in res[findex]]
           
         resapply(calc_op, res, svres, simnode, connode, geonode, frames)
-        print(res)
         return(res[0])
    
 def resapply(calc_op, res, svres, simnode, connode, geonode, frames):
     scene = bpy.context.scene  
-    simnode['maxres'], simnode['minres'] = {}, {}
+    simnode['maxres'], simnode['minres'], self['resdict'], self['allresdict'] = {}, {}, {}, {}
     if connode.analysismenu != '3' or connode.bl_label != 'LiVi CBDM':
         for i, f in enumerate(frames):
             simnode['maxres'][str(f)] = numpy.amax(res[i])
@@ -117,7 +116,7 @@ def resapply(calc_op, res, svres, simnode, connode, geonode, frames):
             if bpy.context.active_object and bpy.context.active_object.hide == 'False':
                 bpy.ops.object.mode_set()
         
-            for o in [o for o in scene.objects if o.name in scene['livic']]:                
+            for o in [o for o in scene.objects if o.name in scene['liparams']['livic']]:                
                 bpy.ops.object.select_all(action = 'DESELECT')
                 scene.objects.active = None
                 o['liviresults'], oareas = {}, o['lisenseareas']
@@ -143,7 +142,9 @@ def resapply(calc_op, res, svres, simnode, connode, geonode, frames):
                         v[livires] = res[fr][v[cindex] - 1]
                         if connode.bl_label == 'LiVi Compliance':
                             v[sv] = svres[fr][v[cindex] - 1]
-                    o['liviresults']['Sum'] = sum([v[livires] for v in bm.verts if v[cindex] > 0])
+                    simnode['resdict'][o.name] = [o.name] 
+                    simnode['allresdict'][o.name] = [v[livires] for v in bm.verts if v[cindex] > 0]
+#                    o['liviresults']['Sum'] = sum([v[livires] for v in bm.verts if v[cindex] > 0])
     
                 elif geonode.cpoint == '0':
                     cindex = bm.faces.layers.int['cindex']
@@ -156,7 +157,9 @@ def resapply(calc_op, res, svres, simnode, connode, geonode, frames):
                         f[livires] = res[fr][f[cindex] - 1]
                         if connode.bl_label == 'LiVi Compliance':
                             f[sv] = svres[fr][f[cindex] - 1]
-                    o['liviresults']['Sum'] = sum([f[livires] for f in bm.faces if f[cindex] > 0])
+#                    o['liviresults']['Sum'] = sum([f[livires] for f in bm.faces if f[cindex] > 0])
+                    simnode['resdict'][o.name] = [o.name] 
+                    simnode['allresdict'][o.name] = [f[livires] for f in bm.faces if f[cindex] > 0]
                 bm.to_mesh(o.data)
                 bm.free()
                 
@@ -164,7 +167,7 @@ def resapply(calc_op, res, svres, simnode, connode, geonode, frames):
                 if connode.bl_label == 'LiVi Compliance':
                     o['compmat'] = mat.name
                     if fr == 0:
-                        comps, ecomps =  [[[] * fra for fra in range(scene.fs, scene.fe + 1)] for x in range(2)]
+                        comps, ecomps =  [[[] * fra for fra in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)] for x in range(2)]
                         if connode.analysismenu == '0':
                             if connode.bambuildmenu in ('0', '5'):
                                 if not mat.gl_roof:
@@ -300,10 +303,10 @@ def resapply(calc_op, res, svres, simnode, connode, geonode, frames):
                 dfpass[frame] = 2 if dfpassarea/dftotarea >= (0.8, 0.35)[connode.analysismenu == '0' and connode.bambuildtype == '4'] else dfpass[frame]
             if edfpass[frame] == 1:
                 edfpass[frame] = 2 if edfpassarea/edftotarea >= (0.8, 0.5)[connode.analysismenu == '0' and connode.bambuildtype == '4'] else edfpass[frame]
-            scene['crits'], scene['dfpass'] = crits, dfpass
+            scene['liparams']['crits'], scene['liparams']['dfpass'] = crits, dfpass
         simnode.outputs['Data out'].hide = True
     else:
-        for fr, frame in enumerate(range(scene.fs, scene.fe + 1)):
+        for fr, frame in enumerate(range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)):
             scene.frame_set(frame)
             sof, sov = 0, 0
             for geo in retobjs('livic'):

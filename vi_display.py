@@ -44,7 +44,7 @@ def li_display(simnode, connode, geonode):
 
     bpy.ops.object.select_all(action = 'DESELECT')
 
-    if len(bpy.app.handlers.frame_change_pre) == 0:
+    if not bpy.app.handlers.frame_change_pre:
         bpy.app.handlers.frame_change_pre.append(livi_export.cyfc1)
         
     for o in scene.objects:

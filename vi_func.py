@@ -95,7 +95,11 @@ def fvmat(self, mn, bound):
         entry = nttdict[ntdict[self.flovi_bmb_type]]            
     return begin + entry + end
         
-        
+def recalculate_text(scene):    
+    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_temp']:
+        txt = o.children[0] 
+        txt.data.body = u"{:.1f}\u00b0C".format(o['vals'][scene.frame_current])
+
 def radpoints(o, faces, sks):
     fentries = ['']*len(faces)   
     if sks:

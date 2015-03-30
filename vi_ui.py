@@ -92,9 +92,33 @@ class Vi3DPanel(bpy.types.Panel):
                         row = layout.row()                            
                     if rname in zresdict:
                         row.prop(scene, zresdict[rname])
+                        
                 row = layout.row()    
                 row.operator("view3d.endisplay", text="EnVi Display")
-            
+                if scene.reszt_disp and scene['viparams']['vidisp'] == 'enpanel':
+                    row = layout.row()
+                    row.label('Temperature')
+                    row = layout.row()
+                    row.prop(scene, 'en_temp_max')
+                    row.prop(scene, 'en_temp_min')
+                if scene.reszh_disp and scene['viparams']['vidisp'] == 'enpanel':
+                    row = layout.row()
+                    row.label('Humidity')
+                    row = layout.row()
+                    row.prop(scene, 'en_hum_max')
+                    row.prop(scene, 'en_hum_min')
+                if scene.reszhw_disp and scene['viparams']['vidisp'] == 'enpanel':
+                    row = layout.row()
+                    row.label('Heating')
+                    row = layout.row()
+                    row.prop(scene, 'en_hw_max')
+                    row.prop(scene, 'en_hw_min')
+                if scene.reszcw_disp and scene['viparams']['vidisp'] == 'enpanel':
+                    row = layout.row()
+                    row.label('Cooling')
+                    row = layout.row()
+                    row.prop(scene, 'en_cw_max')
+                    row.prop(scene, 'en_cw_min')   
             newrow(layout, 'Display active', scene, 'vi_display')
 
 class VIMatPanel(bpy.types.Panel):

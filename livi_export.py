@@ -49,7 +49,6 @@ def radgexport(export_op, node, **kwargs):
                     o['vgi'] = o.vertex_groups['genfaces'].index
             scene['liparams']['livim'] = [o.name for o in mableobs if o.manip]
             clearanim(scene, [bpy.data.objects[on] for on in scene['liparams']['livim']])
-#            clearanim(scene, [o for o in mableobs if o.manip])
     
     if export == 'geoexport':
         clearscene(scene, export_op)
@@ -59,7 +58,6 @@ def radgexport(export_op, node, **kwargs):
         scene['liparams']['cfe'] = 0
         
     for frame in range(scene.fs, scene.gfe + 1): 
-        rti, rtpoints = 1, ''
         if export == 'geoexport':
             scene.frame_set(frame)
         
@@ -82,10 +80,10 @@ def radgexport(export_op, node, **kwargs):
         # Geometry export routine
         
         if frame in range(scene['liparams']['fs'], max(node['frames']['Geometry'], node['frames']['Material']) + 1):
+            rti, rtpoints = 1, ''
             gframe = scene.frame_current if node['frames']['Geometry'] > 0 else 0
             mframe = scene.frame_current if node['frames']['Material'] > 0 else 0
             gradfile = "# Geometry \n\n"
-            lradfile = "# Lights \n\n" 
             
             for o in set(geooblist + caloblist):                
                 bm = bmesh.new()
@@ -178,7 +176,8 @@ def radgexport(export_op, node, **kwargs):
                 bm.free()
                             
     # Lights export routine
-
+        if frame in range(scene.fs, node['frames']['Lights'] + 1):
+            lradfile = "# Lights \n\n" 
             for o in lightlist:
                 if frame in range(node['frames']['Lights'] + 1):
                     iesname = os.path.splitext(os.path.basename(o.ies_name))[0]

@@ -20,7 +20,7 @@ from .livi_calc  import li_calc, resapply
 from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend, en_wind, en_temp, en_humidity, en_panel
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
-from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, framerange, viparams, objmode, nodecolour, cmap, vertarea, wind_rose, compass, windnum
+from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, framerange, viparams, objmode, nodecolour, cmap, vertarea, wind_rose, compass, windnum, envires
 from .vi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, sunpos, recalculate_text
 from .vi_chart import chart_disp
 from .vi_gen import vigen
@@ -661,8 +661,8 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
     def modal(self, context, event):
         scene = context.scene            
         if scene['viparams']['vidisp'] not in ('en', 'enpanel'): 
-            if self.get('_hande_temp'):
-                bpy.types.SpaceView3D.draw_handler_remove(self._handle_temp, 'WINDOW')
+#            if self.get('_hande_temp'):
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle_temp, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_hum, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_wind, 'WINDOW')
 #            bpy.types.SpaceView3D.draw_handler_remove(self._handle_ztemp, 'WINDOW')
@@ -674,8 +674,10 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
     def execute(self, context): 
         scene = context.scene 
         resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
+        eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in [rval[0] for rval in resnode['resdict'].values()]}
+#        scene['enviparams']['resobs'] = [o.name for o in bpy.data.objects if 'EN_'+o.name.upper() in [rval[0] for rval in resnode['resdict'].values()]]
         scene.frame_start, scene.frame_end = 0, len(resnode['allresdict']['Hour']) - 1 
-        if scene.resasb_disp:
+        if scene.resas_disp:
             suns = [o for o in bpy.data.objects if o.type == 'LAMP' and o.data.type == 'SUN']
             if not suns:
                 bpy.ops.object.lamp_add(type='SUN')
@@ -685,23 +687,19 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
             for headvals in resnode['resdict'].items():
                 if len(headvals[1]) == 2 and headvals[1][1] == 'Direct Solar (W/m^2)':
                     valheader = headvals[0]
-            vals = resnode['allresdict'][valheader]
-            
-#            for v, val in enumerate(vals):
-#                scene.frame_set(v)
-                
+            vals = resnode['allresdict'][valheader]                
             sunpos(scene, resnode, range(scene.frame_start, scene.frame_end), sun, valheader)
-        if scene.resat_disp:
+#        if scene.resat_disp:
             for headvals in resnode['resdict'].items():
                 if headvals[1][0] == 'Climate' and headvals[1][1] == 'Temperature (degC)':
                     valheader = headvals[0]
             self._handle_temp = bpy.types.SpaceView3D.draw_handler_add(en_temp, (self, context, resnode, valheader), 'WINDOW', 'POST_PIXEL')
-        if scene.resah_disp:
+#        if scene.resah_disp:
             for headvals in resnode['resdict'].items():
                 if headvals[1][0] == 'Climate' and headvals[1][1] == 'Humidity (%)':
                     valheader = headvals[0]
             self._handle_hum = bpy.types.SpaceView3D.draw_handler_add(en_humidity, (self, context, resnode, valheader), 'WINDOW', 'POST_PIXEL') 
-        if scene.resaws_disp or scene.resawd_disp:
+#        if scene.resaws_disp or scene.resawd_disp:
             valheaders = ['', '']
             for headvals in resnode['resdict'].items():
                 if headvals[1][0] == 'Climate':
@@ -711,53 +709,13 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                         valheaders[1] = headvals[0]
             self._handle_wind = bpy.types.SpaceView3D.draw_handler_add(en_wind, (self, context, resnode, valheaders), 'WINDOW', 'POST_PIXEL') 
         
-        if scene.reszt_disp:
-            odict = {res[1][0][3:]: res[0] for res in resnode['resdict'].items() if len(res[1]) == 2 and res[1][0][3:] in [o.name.upper() for o in bpy.data.objects] and res[1][1] == 'Temperature (degC)'}
-            obs = [o for o in bpy.data.objects if o.name.upper() in odict]            
-            scene.en_temp_max = max([max(resnode['allresdict'][odict[o.name.upper()]]) for o in obs]) 
-            scene.en_temp_min = min([min(resnode['allresdict'][odict[o.name.upper()]]) for o in obs]) 
-            for o in obs:
-                vals = resnode['allresdict'][odict[o.name.upper()]]
-                for frame in range(scene.frame_start, scene.frame_end + 1):
-                    scene.frame_set(frame)                
-#                    maxval, minval = max(vals), min(vals)
-                    opos = o.matrix_world * mathutils.Vector([sum(ops)/8 for ops in zip(*o.bound_box)])
-
-                    if not o.children:
-                        bpy.ops.mesh.primitive_plane_add()                    
-                        ores = bpy.context.active_object
-                        ores['VIType'] = 'envi_temp'
-                        ores['vals'] = vals
-                        bpy.ops.object.editmode_toggle()
-                        bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"mirror":False}, TRANSFORM_OT_translate={"value":(0, 0, 1), "constraint_axis":(False, False, True), "constraint_orientation":'NORMAL', "mirror":False, "proportional":'DISABLED', "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False})
-                        bpy.ops.object.editmode_toggle()
-                        ores.scale, ores.parent = (0.5, 0.5, 0.5), o 
-                        ores.location = o.matrix_world.inverted() * opos
-                        bpy.ops.object.material_slot_add()
-                        mat = bpy.data.materials.new(name = '{}_temp'.format(o.name))
-                        ores.material_slots[0].material = mat 
-                        bpy.ops.object.text_add(radius=1, view_align=False, enter_editmode=False, layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
-                        txt = bpy.context.active_object
-                        bpy.context.object.data.extrude = 0.001
-                        txt.parent = ores
-                        txt.data.align = 'CENTER'
-                    else:
-                        ores = o.children[0]
-                        mat = ores.material_slots[0].material
-                        txt = ores.children[0]
-                    
-                    ores.scale[2] = (vals[frame] - scene.en_temp_min)/(scene.en_temp_max - scene.en_temp_min)
-                    ores.keyframe_insert(data_path = 'scale', index = 2, frame = frame)
-                    mat.diffuse_color = colorsys.hsv_to_rgb(0.7 * (scene.en_temp_max - vals[frame])/(scene.en_temp_max - scene.en_temp_min), 1, 1)
-                    mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
-                    txt.location[2] = ores.matrix_world.to_translation()[2]
-                    txt.keyframe_insert(data_path = 'location', frame = frame)
-                    
-            scene.frame_set(scene.frame_start) 
-            if not bpy.app.handlers.frame_change_pre:
-                bpy.app.handlers.frame_change_pre.append(recalculate_text)
-#                    txt.data.body = u"{:.1f}\u00b0C".format(vals[frame])
-#                    txt.data.keyframe_insert(data_path = 'body', frame = frame)
+        if scene.reszt_disp:            
+            envires(scene, eresobs, resnode, 'Temp')        
+        if scene.reszh_disp:
+            envires(scene, eresobs, resnode, 'Hum')
+        scene.frame_set(scene.frame_start) 
+        if not bpy.app.handlers.frame_change_pre:
+            bpy.app.handlers.frame_change_pre.append(recalculate_text)
             
         self._handle_enpanel = bpy.types.SpaceView3D.draw_handler_add(en_panel, (self, context, resnode), 'WINDOW', 'POST_PIXEL') 
         scene['viparams']['vidisp'] = 'enpanel'

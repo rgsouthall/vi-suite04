@@ -334,33 +334,6 @@ def en_temp(self, context, simnode, valheader):
         drawloop(int(leftwidth + hscale * 10 - 1), botheight + int(0.9 * hscale * lheight * reslevel), int(leftwidth + hscale * (lwidth - 10)), botheight)
         blf.disable(0, 4)
 
-#def en_ztemp(self, context, simnode, odict):
-#    scene = context.scene
-#    if not scene.reszt_disp or scene['viparams']['vidisp'] not in ('en', 'enpanel'):
-#        return
-#    else:
-        
-            
-#        lheight, lwidth = 200, 75
-#        blf.enable(0, 4)
-#        blf.shadow(0, 3, 0, 0, 0, 0.5)
-#        resvals = simnode['allresdict'][valheader]
-#        maxval, minval = max(resvals), min(resvals)
-#        height, font_id = context.region.height, 0
-#        hscale, topheight, leftwidth = height/768, height-50, 20 
-#        botheight = int(topheight - hscale * lheight)
-#        rightwidth = int(leftwidth + hscale * lwidth)
-#        drawpoly(leftwidth, topheight, rightwidth, botheight, 0.7, 1, 1, 1)
-#        drawloop(leftwidth - 1, topheight, rightwidth, botheight)
-#        reslevel = (resvals[scene.frame_current] - minval)/(maxval - minval)
-#        blf.size(font_id, 20, int(height/14))
-#        bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-#        blf.position(font_id, int(leftwidth + hscale*10), int(topheight - hscale * 20), 0)
-#        blf.draw(font_id, u"T: {:.1f}\u00b0C".format(resvals[scene.frame_current]))
-#        drawpoly(int(leftwidth + hscale * 10), botheight + int(0.9 * hscale * lheight * reslevel), int(leftwidth + hscale * (lwidth - 10)), botheight, 1, *colorsys.hsv_to_rgb(1 - reslevel, 1.0, 1.0))
-#        drawloop(int(leftwidth + hscale * 10 - 1), botheight + int(0.9 * hscale * lheight * reslevel), int(leftwidth + hscale * (lwidth - 10)), botheight)
-#        blf.disable(0, 4)        
-
 def en_wind(self, context, simnode, valheaders):
     direcs = ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')
     if context.space_data.region_3d.is_perspective:
@@ -430,6 +403,121 @@ def en_humidity(self, context, simnode, valheader):
     
 def en_panel(self, context, simnode):
     scene = context.scene
+    resitems = simnode['resdict'].items()
+    reszones = [res[1][0] for res in resitems]
+    metrics = set
+    height, font_id = context.region.height, 0
+    hscale = height/768
+    startx, starty, rowheight, totwidth = 50, height - 50, 20, 200
+    
+    if bpy.context.active_object and 'EN_{}'.format(bpy.context.active_object.name.upper()) in reszones:
+        metrics = [res[1][1] for res in resitems if 'EN_{}'.format(bpy.context.active_object.name.upper()) == res[1][0]]
+#        headers = [res[0] for res in simnode['resdict'].items() if 'EN_{}'.format(bpy.context.active_object.name.upper()) == res[1][0]]
+#        vals = [simnode['allresdict'][head] for head in headers]
+        metricno = 6 * (0, 1)['Temperature (degC)' in metrics] + 6 * (0, 1)['Humidity (%)' in metrics] + 8 * (0, 1)['Heating (W)' in metrics] + 8 * (0, 1)['Cooling (W)' in metrics] + 6 * (0, 1)['CO2' in metrics]
+#        valheaders = [val[1] for val in vals]
+#        print(valheaders)
+        rowno = 1
+        if metricno:
+            drawpoly(startx, starty, startx + int(hscale*totwidth), starty - int(hscale*rowheight*(1 + metricno)), 0.7, 1, 1, 1)
+            drawloop(startx, starty, startx + int(hscale*totwidth), starty - int(hscale*rowheight*(1 + metricno)))
+            blf.enable(0, 4)
+            blf.shadow(0, 3, 0, 0, 0, 0.5)
+            blf.size(font_id, 20, int(height/14))
+            bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+            
+            if 'Temperature (degC)' in metrics:
+                vals = simnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'Temperature (degC)'][0]]
+                avval, maxval, minval, percenta, percentb = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val > scene.en_temp_max for val in vals])/len(vals), 100 * sum([val < scene.en_temp_min for val in vals])/len(vals) 
+                blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
+                blf.draw(font_id, 'Temperatures:')
+                for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.1f}'.format(scene.en_temp_max), '% below {:.1f}'.format(scene.en_temp_min))):
+                    blf.position(font_id, int(startx + hscale*10), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                    blf.draw(font_id, text)
+                for tt, text in enumerate((avval, maxval, minval, percenta, percentb)):
+                    blf.position(font_id, int(startx +  hscale*(totwidth * 0.6 + 10)), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                    blf.draw(font_id, '{:.1f}'.format(text))
+                bgl.glBegin(bgl.GL_LINES)
+                bgl.glVertex2i(startx + int(hscale * totwidth * 0.2), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+                bgl.glVertex2i(startx + int(hscale*totwidth * 0.8), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+                bgl.glEnd()
+                rowno += tt + 2
+            
+            if 'Humidity (%)' in metrics:
+                vals = simnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'Humidity (%)'][0]]
+                avval, maxval, minval, percenta, percentb = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val > scene.en_temp_max for val in vals])/len(vals), 100 * sum([val < scene.en_temp_min for val in vals])/len(vals) 
+                blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
+                blf.draw(font_id, 'Humidities:')
+                for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.1f}'.format(scene.en_hum_max), '% below {:.1f}'.format(scene.en_hum_min))):
+                    blf.position(font_id, int(startx + hscale*10), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                    blf.draw(font_id, text)
+                for tt, text in enumerate((avval, maxval, minval, percenta, percentb)):
+                    blf.position(font_id, int(startx +  hscale*(totwidth * 0.6 + 10)), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                    blf.draw(font_id, '{:.1f}'.format(text))
+                bgl.glBegin(bgl.GL_LINES)
+                bgl.glVertex2i(startx + int(hscale * totwidth * 0.2), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+                bgl.glVertex2i(startx + int(hscale*totwidth * 0.8), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+                bgl.glEnd()
+                rowno += tt + 2
+            
+            if 'Heating (W)' in metrics:
+                vals = simnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'Heating (W)'][0]]
+                avval, maxval, minval, percenta, percentb, kwh, kwhm2 = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val >= scene.en_heat_max for val in vals])/len(vals), 100 * sum([val <= scene.en_heat_min for val in vals])/len(vals), 0.001 * sum(vals), 0.001 * sum(vals)/bpy.data.objects['en_'+bpy.context.active_object.name]['floorarea'] 
+                blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
+                blf.draw(font_id, 'Heating (W):')
+                for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.1f}'.format(scene.en_heat_max), '% at min {:.1f}'.format(scene.en_heat_min), 'kWh', 'kWh/m^2')):
+                    blf.position(font_id, int(startx + hscale*10), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                    blf.draw(font_id, text)
+                for tt, text in enumerate((avval, maxval, minval, percenta, percentb, kwh, kwhm2)):
+                    blf.position(font_id, int(startx +  hscale*(totwidth * 0.6 + 10)), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                    blf.draw(font_id, '{:.1f}'.format(text))
+                bgl.glBegin(bgl.GL_LINES)
+                bgl.glVertex2i(startx + int(hscale * totwidth * 0.2), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+                bgl.glVertex2i(startx + int(hscale*totwidth * 0.8), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+                bgl.glEnd()
+                rowno += tt + 2
+                
+            if 'Cooling (W)' in metrics:
+                vals = simnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'Cooling (W)'][0]]
+                avval, maxval, minval, percenta, percentb, kwh, kwhm2 = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val >= scene.en_heat_max for val in vals])/len(vals), 100 * sum([val <= scene.en_heat_min for val in vals])/len(vals), 0.001 * sum(vals), 0.001 * sum(vals)/bpy.data.objects['en_'+bpy.context.active_object.name]['floorarea'] 
+                blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
+                blf.draw(font_id, 'Cooling (W):')
+                for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.1f}'.format(scene.en_heat_max), '% at min {:.1f}'.format(scene.en_heat_min), 'kWh', 'kWh/m^2')):
+                    blf.position(font_id, int(startx + hscale*10), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                    blf.draw(font_id, text)
+                for tt, text in enumerate((avval, maxval, minval, percenta, percentb, kwh, kwhm2)):
+                    blf.position(font_id, int(startx +  hscale*(totwidth * 0.6 + 10)), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                    blf.draw(font_id, '{:.1f}'.format(text))
+                bgl.glBegin(bgl.GL_LINES)
+                bgl.glVertex2i(startx + int(hscale * totwidth * 0.2), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+                bgl.glVertex2i(startx + int(hscale*totwidth * 0.8), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+                bgl.glEnd()
+                rowno += tt + 2
+            
+            if 'CO2 (ppm)' in metrics:
+                vals = simnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'CO2 (ppm)'][0]]
+                avval, maxval, minval, percenta, percentb = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val >= scene.en_co2_max for val in vals])/len(vals), 100 * sum([val <= scene.en_co2_min for val in vals])/len(vals) 
+                blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
+                blf.draw(font_id, 'CO2 (ppm):')
+                for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.1f}'.format(scene.en_co2_max), '% at min {:.1f}'.format(scene.en_co2_min))):
+                    blf.position(font_id, int(startx + hscale*10), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                    blf.draw(font_id, text)
+                for tt, text in enumerate((avval, maxval, minval, percenta, percentb)):
+                    blf.position(font_id, int(startx +  hscale*(totwidth * 0.6 + 10)), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                    blf.draw(font_id, '{:.1f}'.format(text))
+                bgl.glBegin(bgl.GL_LINES)
+                bgl.glVertex2i(startx + int(hscale * totwidth * 0.2), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+                bgl.glVertex2i(startx + int(hscale*totwidth * 0.8), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+                bgl.glEnd()
+                rowno += tt + 2    
+            
+                    
+                
+                
+                    
+            blf.disable(0, 4)
+
+        
     return
         
 def viwr_legend(self, context, simnode):
@@ -472,6 +560,10 @@ def viwr_legend(self, context, simnode):
         drawfont("Max: {:.1f}".format(datasource['maxres']), font_id, 0, newheight, newwidth + hscale * 2, int(hscale*(simnode['nbins']*20 + 50)))
         drawfont("Min: {:.1f}".format(datasource['minres']), font_id, 0, newheight, newwidth + hscale * 2, int(hscale*(simnode['nbins']*20 + 65)))
         blf.disable(0, 4)
+
+def lipanel():
+    pass
+    
         
 def li_compliance(self, context, connode):
     height, scene = context.region.height, context.scene

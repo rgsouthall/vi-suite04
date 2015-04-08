@@ -72,17 +72,24 @@ class Vi3DPanel(bpy.types.Panel):
             
             elif scene['viparams']['vidisp'] in ('en', 'enpanel'):
                 resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
-                aresdict = {"Temperature (degC)": "resat_disp", 'Wind Speed (m/s)': 'resaws_disp', 'Wind Direction (deg)': 'resawd_disp', 
-                            'Humidity (%)': 'resah_disp', 'Direct Solar (W/m^2)': 'resasb_disp', 'Diffuse Solar (W/m^2)': 'resasd_disp'}
-                zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszh_disp', 'Cooling (W)': 'reszc_disp'}
-                for ri, rname in enumerate([rname[1] for rname in resnode['resdict'].values() if rname[0] == 'Climate']):
-                    if ri == 0:                    
-                        row = layout.row()
-                        row.label(text = 'Ambient')                    
-                    if not ri%2:
-                        row = layout.row()                            
-                    if rname in aresdict:
-                        row.prop(scene, aresdict[rname])
+                resitems = resnode['resdict'].items()
+                metrics = [res[1][1] for res in resitems if 'EN_{}'.format(bpy.context.active_object.name.upper()) == res[1][0]]
+#                aresdict = {"Air": "resaa_disp", 'Solar': 'resas_disp'}#, 'Wind Direction (deg)': 'resawd_disp', 
+          #                  'Humidity (%)': 'resah_disp', 'Direct Solar (W/m^2)': 'resasb_disp', 'Diffuse Solar (W/m^2)': 'resasd_disp'}
+                zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp', 'CO2 (ppm)': 'reszco_disp'}
+                row = layout.row() 
+                row.label(text = 'Ambient')
+                row = layout.row() 
+                row.prop(scene, 'resaa_disp')
+                row.prop(scene, 'resas_disp')
+#                for ri, rname in enumerate([rname[1] for rname in resnode['resdict'].values() if rname[0] == 'Climate']):
+#                    if ri == 0:                    
+#                        row = layout.row()
+#                        row.label(text = 'Ambient')                    
+#                    if not ri%2:
+#                        row = layout.row()                            
+#                    if rname in aresdict:
+#                        row.prop(scene, aresdict[rname])
                 
                 for ri, rname in enumerate(set([rname[1] for rname in resnode['resdict'].values() if rname[0][:3] == 'EN_' and rname[0][3:] in [o.name.upper() for o in bpy.data.objects]])):
                     if ri == 0:                    
@@ -95,30 +102,37 @@ class Vi3DPanel(bpy.types.Panel):
                         
                 row = layout.row()    
                 row.operator("view3d.endisplay", text="EnVi Display")
-                if scene.reszt_disp and scene['viparams']['vidisp'] == 'enpanel':
-                    row = layout.row()
-                    row.label('Temperature')
-                    row = layout.row()
-                    row.prop(scene, 'en_temp_max')
-                    row.prop(scene, 'en_temp_min')
-                if scene.reszh_disp and scene['viparams']['vidisp'] == 'enpanel':
-                    row = layout.row()
-                    row.label('Humidity')
-                    row = layout.row()
-                    row.prop(scene, 'en_hum_max')
-                    row.prop(scene, 'en_hum_min')
-                if scene.reszhw_disp and scene['viparams']['vidisp'] == 'enpanel':
-                    row = layout.row()
-                    row.label('Heating')
-                    row = layout.row()
-                    row.prop(scene, 'en_hw_max')
-                    row.prop(scene, 'en_hw_min')
-                if scene.reszcw_disp and scene['viparams']['vidisp'] == 'enpanel':
-                    row = layout.row()
-                    row.label('Cooling')
-                    row = layout.row()
-                    row.prop(scene, 'en_cw_max')
-                    row.prop(scene, 'en_cw_min')   
+                if scene['viparams']['vidisp'] == 'enpanel':
+                    if 'Temperature (degC)' in metrics:
+                        row = layout.row()
+                        row.label('Temperature')
+                        row = layout.row()
+                        row.prop(scene, 'en_temp_max')
+                        row.prop(scene, 'en_temp_min')
+                    if 'Humidity (%)' in metrics:
+                        row = layout.row()
+                        row.label('Humidity')
+                        row = layout.row()
+                        row.prop(scene, 'en_hum_max')
+                        row.prop(scene, 'en_hum_min')
+                    if 'Heating (W)' in metrics:
+                        row = layout.row()
+                        row.label('Heating')
+                        row = layout.row()
+                        row.prop(scene, 'en_heat_max')
+                        row.prop(scene, 'en_heat_min')
+                    if 'Cooling (W)' in metrics:
+                        row = layout.row()
+                        row.label('Cooling')
+                        row = layout.row()
+                        row.prop(scene, 'en_cool_max')
+                        row.prop(scene, 'en_cool_min')   
+                    if 'CO2' in metrics:
+                        row = layout.row()
+                        row.label('CO2')
+                        row = layout.row()
+                        row.prop(scene, 'en_co2_max')
+                        row.prop(scene, 'en_co2_min')
             newrow(layout, 'Display active', scene, 'vi_display')
 
 class VIMatPanel(bpy.types.Panel):

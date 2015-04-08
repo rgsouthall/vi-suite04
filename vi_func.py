@@ -99,6 +99,50 @@ def recalculate_text(scene):
     for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_temp']:
         txt = o.children[0] 
         txt.data.body = u"{:.1f}\u00b0C".format(o['vals'][scene.frame_current])
+        
+def envires(scene, eresobs, resnode, restype):
+    resdict = {'Temp': ('Temperature (degC)', scene.en_temp_max, scene.en_temp_min), 'Hum': ('Humidity (%)', scene.en_hum_max, scene.en_hum_min)}
+    odict = {res[1][0]: res[0] for res in resnode['resdict'].items() if len(res[1]) == 2 and res[1][0] in eresobs.values() and res[1][1] == resdict[restype][0]}
+    eobs = [bpy.data.objects[o] for o in eresobs if eresobs[o] in odict]
+    maxval = max([max(resnode['allresdict'][odict[o.name.upper()]]) for o in eobs]) if resdict[restype][1] == max([max(resnode['allresdict'][odict[o.name.upper()]]) for o in eobs]) else resdict[restype][1]
+    minval = min([min(resnode['allresdict'][odict[o.name.upper()]]) for o in eobs]) if resdict[restype][2] == min([min(resnode['allresdict'][odict[o.name.upper()]]) for o in eobs]) else resdict[restype][2]
+    for o in [bpy.data.objects[o[3:]] for o in eresobs if eresobs[o] in odict] :
+        vals = resnode['allresdict'][odict['EN_'+o.name.upper()]]
+        for frame in range(scene.frame_start, scene.frame_end + 1):
+            scene.frame_set(frame)                
+            opos = o.matrix_world * mathutils.Vector([sum(ops)/8 for ops in zip(*o.bound_box)])
+
+            if not o.children:
+                bpy.ops.mesh.primitive_plane_add()                    
+                ores = bpy.context.active_object
+                ores['VIType'] = 'envi_{}'.format(restype.lower())
+                if not ores.get('envires'):
+                    ores['envires'] = {}
+                ores['envires'][restype] = vals
+                bpy.ops.object.editmode_toggle()
+                bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"mirror":False}, TRANSFORM_OT_translate={"value":(0, 0, 1), "constraint_axis":(False, False, True), "constraint_orientation":'NORMAL', "mirror":False, "proportional":'DISABLED', "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False})
+                bpy.ops.object.editmode_toggle()
+                ores.scale, ores.parent = (0.5, 0.5, 0.5), o 
+                ores.location = o.matrix_world.inverted() * opos
+                bpy.ops.object.material_slot_add()
+                mat = bpy.data.materials.new(name = '{}_{}'.format(o.name, restype.lower()))
+                ores.material_slots[0].material = mat 
+                bpy.ops.object.text_add(radius=1, view_align=False, enter_editmode=False, layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
+                txt = bpy.context.active_object
+                bpy.context.object.data.extrude = 0.001
+                txt.parent = ores
+                txt.data.align = 'CENTER'
+            else:
+                ores = o.children[0]
+                mat = ores.material_slots[0].material
+                txt = ores.children[0]
+            
+            ores.scale[2] = (vals[frame] - minval)/(maxval - minval)
+            ores.keyframe_insert(data_path = 'scale', index = 2, frame = frame)
+            mat.diffuse_color = colorsys.hsv_to_rgb(0.7 * (maxval - vals[frame])/(maxval - minval), 1, 1)
+            mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
+            txt.location[2] = ores.matrix_world.to_translation()[2]
+            txt.keyframe_insert(data_path = 'location', frame = frame)
 
 def radpoints(o, faces, sks):
     fentries = ['']*len(faces)   
@@ -149,23 +193,22 @@ def viparams(op, scene):
     scene['flparams'] = {'offilebase': offb, 'ofsfilebase': offs, 'ofcfilebase': offc, 'ofcpfilebase': offcp, 'of0filebase': offzero, 'ofctsfilebase': offcts}
 
 def resnameunits():
-    rnu = {'0': ("Temperature", "Ambient Temperature (C)"),'1': ("Wind Speed", "Ambient Wind Speed (m/s)"), '2': ("Wind Direction", "Ambient Wind Direction (degrees from North)"),
-                '3': ("Humidity", "Ambient Humidity"),'4': ("Direct Solar", u'Direct Solar Radiation (W/m\u00b2K)'), '5': ("Diffuse Solar", u'Diffuse Solar Radiation (W/m\u00b2K)'),
-                '6': ("Temperature", "Zone Temperatures"), '7': ("Heating Watts", "Zone Heating Requirement (Watts)"), '8': ("Cooling Watts", "Zone Cooling Requirement (Watts)"),
+    rnu = {'0': ("Air", "Ambient air metrics"),'1': ("Wind Speed", "Ambient Wind Speed (m/s)"), '2': ("Wind Direction", "Ambient Wind Direction (degrees from North)"),
+                '3': ("Humidity", "Ambient Humidity"),'4': ("Solar", 'Ambient solar metrics'), '5': ("Temperature", "Zone Temperature"), '6': ("Humidity", "Zone Humidity"),
+                '7': ("Heating Watts", "Zone Heating Requirement (Watts)"), '8': ("Cooling Watts", "Zone Cooling Requirement (Watts)"),
                 '9': ("Solar Gain", "Window Solar Gain (Watts)"), '10': ("PPD", "Percentage Proportion Dissatisfied"), '11': ("PMV", "Predicted Mean Vote"),
                 '12': ("Ventilation (l/s)", "Zone Ventilation rate (l/s)"), '13': (u'Ventilation (m\u00b3/h)', u'Zone Ventilation rate (m\u00b3/h)'),
-                '14': (u'Infiltration (m\u00b3)',  u'Zone Infiltration (m\u00b3)'), '15': ('Infiltration (ACH)', 'Zone Infiltration rate (ACH)'), '16': (u'CO\u2082 (ppm)', u'Zone CO\u2082 concentration (ppm)'),
+                '14': (u'Infiltration (m\u00b3)',  u'Zone Infiltration (m\u00b3)'), '15': ('Infiltration (ACH)', 'Zone Infiltration rate (ACH)'), '16': ('CO2 (ppm)', 'Zone CO2 concentration (ppm)'),
                 '17': ("Heat loss (W)", "Ventilation Heat Loss (W)"), '18': (u'Flow (m\u00b3/s)', u'Linkage flow (m\u00b3/s)'), '19': ('Opening factor', 'Linkage Opening Factor'),
                 '20': ("MRT (K)", "Mean Radiant Temperature (K)"), '21': ('Occupancy', 'Occupancy count'), '22': ("Humidity", "Zone Humidity"),
                 '23': ("Fabric HB (W)", "Fabric convective heat balance"), '24': ("Air Heating", "Zone air heating"), '25': ("Air Cooling", "Zone air cooling")}
     return [bpy.props.BoolProperty(name = rnu[str(rnum)][0], description = rnu[str(rnum)][1], default = False) for rnum in range(len(rnu))]
 
 def enresprops(disp):
-    return {'0': (0, "resat{}".format(disp), "resaws{}".format(disp), 0, "resawd{}".format(disp), "resah{}".format(disp), 0, "resasb{}".format(disp), "resasd{}".format(disp)), 
-           '1': (0, "restt{}".format(disp), "resh{}".format(disp), 0, "restwh{}".format(disp), "restwc{}".format(disp), 0, "ressah{}".format(disp), "ressac{}".format(disp), 0,"reswsg{}".format(disp), "resfhb{}".format(disp)),
-            '2': (0, "rescpp{}".format(disp), "rescpm{}".format(disp), 0, 'resmrt{}'.format(disp), 'resocc{}'.format(disp)), 
-            '3': (0, "resim{}".format(disp), "resiach{}".format(disp), 0, "resco2{}".format(disp), "resihl{}".format(disp)), 
-            '4': (0, "resl12ms{}".format(disp), "reslof{}".format(disp))}
+    return {'0': (0, "restt{}".format(disp), "resh{}".format(disp), 0, "restwh{}".format(disp), "restwc{}".format(disp), 0, "ressah{}".format(disp), "ressac{}".format(disp), 0,"reswsg{}".format(disp), "resfhb{}".format(disp)),
+            '1': (0, "rescpp{}".format(disp), "rescpm{}".format(disp), 0, 'resmrt{}'.format(disp), 'resocc{}'.format(disp)), 
+            '2': (0, "resim{}".format(disp), "resiach{}".format(disp), 0, "resco2{}".format(disp), "resihl{}".format(disp)), 
+            '3': (0, "resl12ms{}".format(disp), "reslof{}".format(disp))}
         
 def nodestate(self, opstate):
     if self['exportstate'] !=  opstate:
@@ -372,8 +415,8 @@ def processf(pro_op, node):
                 'Zone Mean Radiant Temperature [C] !Hourly' :'Mean Radiant ({})'.format(u'\u00b0'), 
                 'Zone Thermal Comfort Fanger Model PPD [%] !Hourly' :'PPD',
                 'Zone Thermal Comfort Fanger Model PMV [] !Hourly' :'PMV',               
-                'AFN Node CO2 Concentration [ppm] !Hourly': 'CO2',
-                'Zone Air CO2 Concentration [ppm] !Hourly': 'CO2',
+                'AFN Node CO2 Concentration [ppm] !Hourly': 'CO2 (ppm)',
+                'Zone Air CO2 Concentration [ppm] !Hourly': 'CO2 (ppm)',
                 'Zone Mean Radiant Temperature [C] !Hourly': 'MRT', 'Zone People Occupant Count [] !Hourly': 'Occupancy', 
                 'Zone Air Heat Balance Surface Convection Rate [W] !Hourly': 'Heat balance (W)'}
     enresdict = {'AFN Node CO2 Concentration [ppm] !Hourly': 'CO2'}

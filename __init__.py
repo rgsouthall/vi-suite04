@@ -122,16 +122,16 @@ def settemps(self, context):
     scene = context.scene
     bpy.app.handlers.frame_change_pre.clear()
     fc = scene.frame_current
-    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_temp']:
+    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_temp' and o.get('envires')]:
         mat = o.material_slots[0].material
         for frame in range(scene.frame_start, scene.frame_end + 1):
             scene.frame_set(frame)
-            if o['vals'][frame] < scene.en_temp_min:
+            if o['envires']['Temp'][frame] < scene.en_temp_min:
                 col = (0, 0, 1) 
-            elif o['vals'][frame] > scene.en_temp_max:
+            elif o['envires']['Temp'][frame] > scene.en_temp_max:
                 col = (1, 0, 0)
             else:
-                col = colorsys.hsv_to_rgb(0.667 * (scene.en_temp_max - o['vals'][frame])/(scene.en_temp_max - scene.en_temp_min), 1, 1)
+                col = colorsys.hsv_to_rgb(0.667 * (scene.en_temp_max - o['envires']['Temp'][frame])/(scene.en_temp_max - scene.en_temp_min), 1, 1)
 
             mat.diffuse_color = col
             mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
@@ -139,6 +139,69 @@ def settemps(self, context):
     scene.frame_set(fc)
     bpy.app.handlers.frame_change_pre.append(recalculate_text)        
 
+def sethums(self, context):
+    scene = context.scene
+    bpy.app.handlers.frame_change_pre.clear()
+    fc = scene.frame_current
+    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_hum']:
+        mat = o.material_slots[0].material
+        for frame in range(scene.frame_start, scene.frame_end + 1):
+            scene.frame_set(frame)
+            if o['envires']['Hum'][frame] < scene.en_hum_min:
+                col = (0, 0, 1) 
+            elif o['envires']['Hum'][frame] > scene.en_hum_max:
+                col = (1, 0, 0)
+            else:
+                col = colorsys.hsv_to_rgb(0.667 * (scene.en_hum_max - o['envires']['Hum'][frame])/(scene.en_hum_max - scene.en_hum_min), 1, 1)
+
+            mat.diffuse_color = col
+            mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
+
+    scene.frame_set(fc)
+    bpy.app.handlers.frame_change_pre.append(recalculate_text)
+
+def setheats(self, context):
+    scene = context.scene
+    bpy.app.handlers.frame_change_pre.clear()
+    fc = scene.frame_current
+    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_hum']:
+        mat = o.material_slots[0].material
+        for frame in range(scene.frame_start, scene.frame_end + 1):
+            scene.frame_set(frame)
+            if o['envires']['Hum'][frame] < scene.en_hum_min:
+                col = (0, 0, 1) 
+            elif o['envires']['Hum'][frame] > scene.en_hum_max:
+                col = (1, 0, 0)
+            else:
+                col = colorsys.hsv_to_rgb(0.667 * (scene.en_hum_max - o['envires']['Hum'][frame])/(scene.en_hum_max - scene.en_hum_min), 1, 1)
+
+            mat.diffuse_color = col
+            mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
+
+    scene.frame_set(fc)
+    bpy.app.handlers.frame_change_pre.append(recalculate_text)
+
+def setcools(self, context):
+    scene = context.scene
+    bpy.app.handlers.frame_change_pre.clear()
+    fc = scene.frame_current
+    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_hum']:
+        mat = o.material_slots[0].material
+        for frame in range(scene.frame_start, scene.frame_end + 1):
+            scene.frame_set(frame)
+            if o['envires']['Hum'][frame] < scene.en_hum_min:
+                col = (0, 0, 1) 
+            elif o['envires']['Hum'][frame] > scene.en_hum_max:
+                col = (1, 0, 0)
+            else:
+                col = colorsys.hsv_to_rgb(0.667 * (scene.en_hum_max - o['envires']['Hum'][frame])/(scene.en_hum_max - scene.en_hum_min), 1, 1)
+
+            mat.diffuse_color = col
+            mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
+
+    scene.frame_set(fc)
+    bpy.app.handlers.frame_change_pre.append(recalculate_text)
+    
 def register():
     bpy.utils.register_module(__name__)
     Object, Scene, Material = bpy.types.Object, bpy.types.Scene, bpy.types.Material
@@ -440,12 +503,14 @@ def register():
     Scene.vi_leg_min = bpy.props.FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0, update=legupdate)
     Scene.en_temp_max = bpy.props.FloatProperty(name = "Max:", description = "Temp maximum", default = 24, update=settemps)
     Scene.en_temp_min = bpy.props.FloatProperty(name = "Min:", description = "Temp minimum", default = 18, update=settemps)
-    Scene.en_hum_max = bpy.props.FloatProperty(name = "Max:", description = "Temp maximum", default = 24, update=sethums)
-    Scene.en_hum_min = bpy.props.FloatProperty(name = "Min:", description = "Temp minimum", default = 18, update=sethums)
-    Scene.en_heat_max = bpy.props.FloatProperty(name = "Max:", description = "Temp maximum", default = 24, update=setheats)
-    Scene.en_heat_min = bpy.props.FloatProperty(name = "Min:", description = "Temp minimum", default = 18, update=setheats)
-    Scene.en_cool_max = bpy.props.FloatProperty(name = "Max:", description = "Temp maximum", default = 24, update=setcools)
-    Scene.en_cool_min = bpy.props.FloatProperty(name = "Min:", description = "Temp minimum", default = 18, update=setcools)
+    Scene.en_hum_max = bpy.props.FloatProperty(name = "Max:", description = "Temp maximum", default = 100, update=sethums)
+    Scene.en_hum_min = bpy.props.FloatProperty(name = "Min:", description = "Temp minimum", default = 0, update=sethums)
+    Scene.en_heat_max = bpy.props.FloatProperty(name = "Max:", description = "Temp maximum", default = 1000, update=setheats)
+    Scene.en_heat_min = bpy.props.FloatProperty(name = "Min:", description = "Temp minimum", default = 0, update=setheats)
+    Scene.en_cool_max = bpy.props.FloatProperty(name = "Max:", description = "Temp maximum", default = 1000, update=setcools)
+    Scene.en_cool_min = bpy.props.FloatProperty(name = "Min:", description = "Temp minimum", default = 0, update=setcools)
+    Scene.en_co2_max = bpy.props.FloatProperty(name = "Max:", description = "CO2 maximum", default = 10000, update=setcools)
+    Scene.en_co2_min = bpy.props.FloatProperty(name = "Min:", description = "CO2 minimum", default = 0, update=setcools)
     Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 48, 9)
     Scene.vi_display_rp_fc = fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     Scene.vi_display_rp_fsh = fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
@@ -457,7 +522,7 @@ def register():
     Scene.li_assorg = sprop("", "Name of the assessing organisation", 1024, '')
     Scene.li_assind = sprop("", "Name of the assessing individual", 1024, '')
     Scene.li_jobno = sprop("", "Project job number", 1024, '')
-    (Scene.resat_disp, Scene.resaws_disp, Scene.resawd_disp, Scene.resah_disp, Scene.resasb_disp, Scene.resasd_disp, Scene.reszt_disp, Scene.reszh_disp, Scene.reszhw_disp, Scene.reszcw_disp, Scene.reszppd_disp, Scene.reszpmv_disp, resvls, resvmh, resim, resiach, Scene.reszco_disp, resihl, resl12ms,
+    (Scene.resaa_disp, Scene.resaws_disp, Scene.resawd_disp, Scene.resah_disp, Scene.resas_disp, Scene.reszt_disp, Scene.reszh_disp, Scene.reszhw_disp, Scene.reszcw_disp, Scene.reszsg_disp, Scene.reszppd_disp, Scene.reszpmv_disp, resvls, resvmh, resim, resiach, Scene.reszco_disp, resihl, resl12ms,
      reslof, resmrt, resocc, resh, resfhb, ressah, ressac) = resnameunits() 
 #    Scene.resnode = sprop("", "", 0, "")
 #    Scene.restree = sprop("", "", 0, "") 

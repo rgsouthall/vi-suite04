@@ -1,4 +1,4 @@
-import bpy, datetime, mathutils, os, time, bmesh, shutil, colorsys
+import bpy, datetime, mathutils, os, time, bmesh, shutil, subprocess
 from os import rename
 import numpy
 from numpy import arange, histogram
@@ -17,7 +17,7 @@ except:
 
 from .livi_export import radcexport, radgexport, cyfc1, createoconv, createradfile
 from .livi_calc  import li_calc, resapply
-from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend, en_wind, en_temp, en_humidity, en_panel
+from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend, en_air, en_panel
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, framerange, viparams, objmode, nodecolour, cmap, vertarea, wind_rose, compass, windnum, envires
@@ -37,6 +37,8 @@ class NODE_OT_LiGExport(bpy.types.Operator):
         scene = context.scene
         if viparams(self, scene):
             return {'CANCELLED'}
+#        scene['liparams']['fs'] = 0
+#        scene['liparams']['fe'] = 0
 #        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         scene['viparams']['vidisp'] = ''
         objmode()
@@ -172,7 +174,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
         objmode()
         simnode, frame = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]], scene.frame_current
         connode, geonode =  simnode.export(self.bl_label) 
-        if frame not in range(scene.fs, scene.fe + 1):
+        if frame not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
             self.report({'ERROR'}, "Current frame is not within the exported frame range")
             return {'CANCELLED'}
         if not simnode.edit_file:
@@ -188,7 +190,12 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
                 cang = '180 -vth' if connode.analysismenu == '3' else cam.data.angle*180/pi
                 vv = 180 if connode.analysismenu == '3' else cang * scene.render.resolution_y/scene.render.resolution_x
                 vd = (0.001, 0, -1*cam.matrix_world[2][2]) if (round(-1*cam.matrix_world[0][2], 3), round(-1*cam.matrix_world[1][2], 3)) == (0.0, 0.0) else [-1*cam.matrix_world[i][2] for i in range(3)]
-                rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['nproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current)               
+                if simnode.pmap:
+                    pmcmd = ('mkpmap', '+fo', '+bv', '-apD', '0.001', '-apo', ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.pport]), '-apg', '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), '{}'.format(simnode.pmapgno), '-apc', '{}-{}.cpm'.format(scene['viparams']['filebase'], frame), '{}'.format(simnode.pmapcno), '{}-{}.oct'.format(scene['viparams']['filebase'], frame))
+                    subprocess.call(pmcmd)
+                    rvucmd = "rvu -w -ap {8} 50 -ap {9} 50 -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -ab 1 {6}-{7}.oct".format(scene['viparams']['nproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), '{}-{}.cpm'.format(scene['viparams']['filebase'], frame))               
+                else:
+                    rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['nproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current)               
                 rvurun = Popen(rvucmd.split(), stdout = PIPE, stderr = PIPE)
                 time.sleep(0.1)
                 if rvurun.poll() is not None:                    
@@ -233,9 +240,9 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
                             glaretext = line.decode().replace(',', ' ').replace("#INF", "").split(' ')                    
                             glaretf.write("{0:0>2d}/{1:0>2d} {2:0>2d}:{3:0>2d}\ndgp: {4:.3f}\ndgi: {5:.3f}\nugr: {6:.3f}\nvcp: {7:.3f}\ncgi: {8:.3f}\nLveil: {9:.3f}\n".format(time.day, time.month, time.hour, time.minute, *[float(x) for x in glaretext[6:12]]))
                 pcondcmd = "pcond -u 300 {0}.hdr > {0}.temphdr".format(os.path.join(self.scene['viparams']['newdir'], 'glare'+str(self.frame)))
-                Popen(pcondcmd, shell = True).communicate()
+                Popen(pcondcmd.split()).communicate()
                 psigncmd = "{0} {1}.glare | psign -h 32 -cb 0 0 0 -cf 40 40 40 | pcompos {3}.temphdr 0 0 - 800 550 > {3}.hdr" .format(self.scene['viparams']['cat'], self.scene['viparams']['filebase'], self.frame, os.path.join(self.scene['viparams']['newdir'], 'glare'+str(self.frame)))
-                Popen(psigncmd, shell = True).communicate()
+                Popen(psigncmd.split()).communicate()
                 os.remove(os.path.join(self.scene['viparams']['newdir'], 'glare{}.temphdr'.format(self.frame)))
 
                 if  'glare{}.hdr'.format(self.frame) in bpy.data.images:
@@ -275,7 +282,7 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
                 createoconv(self.scene, frame, self)
 
             rpictcmd = "rpict -w -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct | evalglare -c {5}".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, os.path.join(self.scene['viparams']['newdir'], 'glare{}.hdr'.format(self.frame)))               
-            self.egrun = Popen(rpictcmd, shell = True, stdout=PIPE)
+            self.egrun = Popen(rpictcmd.split(), stdout=PIPE)
             return {'RUNNING_MODAL'}
         else:
             self.report({'ERROR'}, "There is no camera in the scene. Create one for glare analysis")
@@ -292,13 +299,13 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
             return {'CANCELLED'}
         objmode()
 #        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel, scene.li_disp_count = 0, 0, 0, 0, 0, 0, 0, 0
-        scene['viparams']['vidisp'] = ''
+#        scene['viparams']['vidisp'] = 'li'
         clearscene(scene, self)
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         connode, geonode = simnode.export(self.bl_label)
-        scene['visimcontext'] = connode.bl_label
+        scene['viparams']['visimcontext'] = connode.bl_label
         
-        for frame in range(scene.fs, scene.fe + 1):
+        for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
             if not simnode.edit_file:
                 createradfile(scene, frame, self, connode, geonode)
             elif not os.path.isfile(os.path.join(scene['viparams']['newdir'], scene['viparams']['filename']+'-{}.rad'.format(frame))):
@@ -321,10 +328,10 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
             scene.fe = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
             li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
         scene.vi_display = 1 if connode.analysismenu != '3' or connode.bl_label != 'LiVi CBDM' else 0  
-        context.scene.fe = framerange(context.scene, simnode['Animation'])[-1]
-        (scene.li_disp_panel, scene.lic_disp_panel) = (1, 1) if connode.bl_label == 'LiVi Compliance'  else (1, 0)
-        context.scene.resnode = simnode.name
-        context.scene.restree = self.nodeid.split('@')[1]
+        context.scene['liparams']['fe'] = framerange(context.scene, simnode['Animation'])[-1]
+        scene['viparams']['vidisp'] = 'li'
+        context.scene['viparams']['resnode'] = simnode.name
+        context.scene['viparams']['restree'] = self.nodeid.split('@')[1]
         return {'FINISHED'}
 
 class VIEW3D_OT_LiDisplay(bpy.types.Operator):
@@ -380,7 +387,7 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
         scene.li_disp_count = scene.li_disp_count + 1 if scene.li_disp_count < 10 else 0
         scene.vi_disp_wire = 0
         self.disp = scene.li_disp_count
-        self.simnode = bpy.data.node_groups[scene.restree].nodes[scene.resnode]
+        self.simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
         (connode, geonode) = (0, 0) if self.simnode.bl_label == 'VI Shadow Study' else (self.simnode.export(self.bl_label))
         scene['viparams']['vidisp'] = 'sspanel' if self.simnode.bl_label == 'VI Shadow Study' else 'lipanel'
 #        (scene.li_disp_panel, scene.ss_disp_panel) = (0, 2) if self.simnode.bl_label == 'VI Shadow Study' else (2, 0)
@@ -635,7 +642,7 @@ class NODE_OT_EnSim(bpy.types.Operator):
         scene = context.scene
         if viparams(self, scene):
             return {'CANCELLED'}
-        context.scene['visimcontext'] = 'EnVi'
+        context.scene['viparams']['visimcontext'] = 'EnVi'
         wm = context.window_manager
         self._timer = wm.event_timer_add(1, context.window)
         wm.modal_handler_add(self)
@@ -645,7 +652,7 @@ class NODE_OT_EnSim(bpy.types.Operator):
         self.simnode.resfilename = os.path.join(scene['viparams']['newdir'], self.simnode.resname+'.eso')
         os.chdir(scene['viparams']['newdir'])
         esimcmd = "EnergyPlus" 
-        self.esimrun = Popen(esimcmd.split(), stderr = PIPE, shell = True)
+        self.esimrun = Popen(esimcmd.split(), stderr = PIPE)
         self.simnode.run = 0
         return {'RUNNING_MODAL'}
         
@@ -662,9 +669,9 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
         scene = context.scene            
         if scene['viparams']['vidisp'] not in ('en', 'enpanel'): 
 #            if self.get('_hande_temp'):
-            bpy.types.SpaceView3D.draw_handler_remove(self._handle_temp, 'WINDOW')
-            bpy.types.SpaceView3D.draw_handler_remove(self._handle_hum, 'WINDOW')
-            bpy.types.SpaceView3D.draw_handler_remove(self._handle_wind, 'WINDOW')
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle_air, 'WINDOW')
+#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_hum, 'WINDOW')
+#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_wind, 'WINDOW')
 #            bpy.types.SpaceView3D.draw_handler_remove(self._handle_ztemp, 'WINDOW')
             if not scene.enpanel_disp:
                 bpy.types.SpaceView3D.draw_handler_remove(self._handle_enpanel, 'WINDOW')
@@ -672,7 +679,7 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context): 
-        scene = context.scene 
+        scene, valheaders = context.scene, [] 
         resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
         eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in [rval[0] for rval in resnode['resdict'].values()]}
 #        scene['enviparams']['resobs'] = [o.name for o in bpy.data.objects if 'EN_'+o.name.upper() in [rval[0] for rval in resnode['resdict'].values()]]
@@ -687,27 +694,31 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
             for headvals in resnode['resdict'].items():
                 if len(headvals[1]) == 2 and headvals[1][1] == 'Direct Solar (W/m^2)':
                     valheader = headvals[0]
-            vals = resnode['allresdict'][valheader]                
+#            vals = resnode['allresdict'][valheader]                
             sunpos(scene, resnode, range(scene.frame_start, scene.frame_end), sun, valheader)
-#        if scene.resat_disp:
-            for headvals in resnode['resdict'].items():
-                if headvals[1][0] == 'Climate' and headvals[1][1] == 'Temperature (degC)':
-                    valheader = headvals[0]
-            self._handle_temp = bpy.types.SpaceView3D.draw_handler_add(en_temp, (self, context, resnode, valheader), 'WINDOW', 'POST_PIXEL')
-#        if scene.resah_disp:
-            for headvals in resnode['resdict'].items():
-                if headvals[1][0] == 'Climate' and headvals[1][1] == 'Humidity (%)':
-                    valheader = headvals[0]
-            self._handle_hum = bpy.types.SpaceView3D.draw_handler_add(en_humidity, (self, context, resnode, valheader), 'WINDOW', 'POST_PIXEL') 
-#        if scene.resaws_disp or scene.resawd_disp:
-            valheaders = ['', '']
-            for headvals in resnode['resdict'].items():
-                if headvals[1][0] == 'Climate':
-                    if headvals[1][1] == 'Wind Speed (m/s)':
-                        valheaders[0] = headvals[0]
-                    if headvals[1][1] == 'Wind Direction (deg)':
-                        valheaders[1] = headvals[0]
-            self._handle_wind = bpy.types.SpaceView3D.draw_handler_add(en_wind, (self, context, resnode, valheaders), 'WINDOW', 'POST_PIXEL') 
+        if scene.resaa_disp:
+            for rtype in ('Temperature (degC)', 'Wind Speed (m/s)', 'Wind Direction (deg)', 'Humidity (%)'):
+                for headvals in resnode['resdict'].items():
+                    if headvals[1][0] == 'Climate' and headvals[1][1] == rtype:
+                        valheaders.append(headvals[0])
+#            for headvals in resnode['resdict'].items():
+#                if headvals[1][0] == 'Climate' and headvals[1][1] == 'Temperature (degC)':
+#                    valheaders.append(headvals[0])
+##            self._handle_temp = bpy.types.SpaceView3D.draw_handler_add(en_temp, (self, context, resnode, valheader), 'WINDOW', 'POST_PIXEL')
+##        if scene.resah_disp:
+#            for headvals in resnode['resdict'].items():
+#                if headvals[1][0] == 'Climate' and headvals[1][1] == 'Humidity (%)':
+#                    valheader = headvals[0]
+#            self._handle_hum = bpy.types.SpaceView3D.draw_handler_add(en_humidity, (self, context, resnode, valheader), 'WINDOW', 'POST_PIXEL') 
+##        if scene.resaws_disp or scene.resawd_disp:
+#            valheaders = ['', '']
+#            for headvals in resnode['resdict'].items():
+#                if headvals[1][0] == 'Climate':
+#                    if headvals[1][1] == 'Wind Speed (m/s)':
+#                        valheaders[0] = headvals[0]
+#                    if headvals[1][1] == 'Wind Direction (deg)':
+#                        valheaders[1] = headvals[0]
+            self._handle_air = bpy.types.SpaceView3D.draw_handler_add(en_air, (self, context, resnode, valheaders), 'WINDOW', 'POST_PIXEL') 
         
         if scene.reszt_disp:            
             envires(scene, eresobs, resnode, 'Temp')        
@@ -772,10 +783,10 @@ class NODE_OT_SunPath(bpy.types.Operator):
         solringnum, sd, numpos = 0, 100, {}
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         node.export()
-        scene, scene.resnode, scene.restree = context.scene, node.name, self.nodeid.split('@')[1]
+        scene, scene['viparams']['resnode'], scene['viparams']['restree'] = context.scene, node.name, self.nodeid.split('@')[1]
 #        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 1, 0, 0, 0, 0, 0
         scene['viparams']['vidisp'] = 'sp'
-        context.scene['visimcontext'] = 'SunPath'
+        context.scene['viparams']['visimcontext'] = 'SunPath'
         scene.cursor_location = (0.0, 0.0, 0.0)
         matdict = {'SolEquoRings': (1, 0, 0), 'HourRings': (1, 1, 0), 'SPBase': (1, 1, 1), 'Sun': (1, 1, 1)}
         for mat in [mat for mat in matdict.items() if mat[0] not in bpy.data.materials]:
@@ -905,7 +916,7 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def invoke(self, context, event):
-        simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]
+        simnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]
         self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(spnumdisplay, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
         context.scene.vi_display = 1
@@ -933,10 +944,10 @@ class NODE_OT_WindRose(bpy.types.Operator):
            
         simnode.export()
         locnode = simnode.inputs['Location in'].links[0].from_node
-        scene.resnode, scene.restree = simnode.name, self.nodeid.split('@')[1]            
+        scene['viparams']['resnode'], scene['viparams']['restree'] = simnode.name, self.nodeid.split('@')[1]            
 #        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 0, 1
         scene['viparams']['vidisp'] = 'wr'
-        context.scene['visimcontext'] = 'Wind'
+        context.scene['viparams']['visimcontext'] = 'Wind'
         mon = [int(mo) for mo in locnode['allresdict']['Month']]
         awd = [float(wd) for mi, wd in enumerate(locnode['allresdict']['20']) if simnode.startmonth <= mon[mi] <= simnode.endmonth]
         aws = [float(ws) for mi, ws in enumerate(locnode['allresdict']['21']) if simnode.startmonth <= mon[mi] <= simnode.endmonth]
@@ -986,7 +997,7 @@ class VIEW3D_OT_WRLegDisplay(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def invoke(self, context, event):
-        simnode = bpy.data.node_groups[context.scene.restree].nodes[context.scene.resnode]
+        simnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]
         self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(viwr_legend, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
@@ -1007,13 +1018,13 @@ class NODE_OT_Shadow(bpy.types.Operator):
             self.report({'ERROR'},"No objects have a VI Shadow material attached.")
             return {'CANCELLED'}
             
-        scene.restree = self.nodeid.split('@')[1]
+        scene['viparams']['restree'] = self.nodeid.split('@')[1]
 #        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 1, 0
         scene['viparams']['vidisp'] = 'ss'
         clearscene(scene, self)
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
 #        simnode.running = 1
-        scene['visimcontext'] = 'Shadow'
+        scene['viparams']['visimcontext'] = 'Shadow'
         if not scene.get('liparams'):
            scene['liparams'] = {} 
         scene['liparams']['cp'], scene['liparams']['unit'], scene['liparams']['type'] = simnode.cpoint, '% Sunlit', 'VI Shadow'
@@ -1024,7 +1035,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         if simnode.starthour > simnode.endhour:
             self.report({'ERROR'},"End hour is before start hour.")
             return{'CANCELLED'}
-        scene.resnode, simnode['Animation'] = simnode.name, simnode.animmenu
+        scene['viparams']['resnode'], simnode['Animation'] = simnode.name, simnode.animmenu
 
         if simnode['Animation'] == 'Static':
             scmaxres, scminres, scavres, scene.fs = [0], [100], [0], scene.frame_current

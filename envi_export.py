@@ -13,9 +13,9 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 
     params = ('Name', 'North Axis (deg)', 'Terrain', 'Loads Convergence Tolerance Value', 'Temperature Convergence Tolerance Value (deltaC)',
               'Solar Distribution', 'Maximum Number of Warmup Days(from MLC TCM)')
-    paramvs = (node.loc, '0.00', ("City", "Urban", "Suburbs", "Country", "Ocean,")[int(node.terrain)], '0.004', '0.4', 'FullExteriorWithReflections', '15')
+    paramvs = (node.loc, '0.00', ("City", "Urban", "Suburbs", "Country", "Ocean,")[int(node.terrain)], '0.004', '0.4', 'FullInteriorAndExteriorWithReflections', '15')
     en_idf.write(epentry('Building', params, paramvs))
-    params = ('Time Step in Hours', 'Algorithm', 'Algorithm', 'Algorithm', '(default frequency of calculation)', 'no zone sizing, system sizing, plant sizing, no design day, use weather file')
+    params = ('Time Step in Hours', 'Algorithm', 'Algorithm', 'Algorithm', 'Default frequency of calculation', 'no zone sizing, system sizing, plant sizing, no design day, use weather file')
     paramvs = ('Timestep, {}'.format(node.timesteps), 'SurfaceConvectionAlgorithm:Inside, TARP', 'SurfaceConvectionAlgorithm:Outside, TARP', 'HeatBalanceAlgorithm, ConductionTransferFunction',
                'ShadowCalculation, AverageOverDaysInFrequency, 10', 'SimulationControl, No,No,No,No,Yes')
 
@@ -168,7 +168,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 if mat.envi_con_type == "Floor":
                     obj["floorarea"] = obj["floorarea"] + poly.area
 
-            elif  mat.envi_con_type in ('Door', 'Window'):
+            elif mat.envi_con_type in ('Door', 'Window'):
                 xav, yav, zav = obm*mathutils.Vector(poly.center)
                 params = list(wfrparams) + ["X,Y,Z ==> Vertex {} (m)".format(v) for v in poly.vertices]
                 paramvs = ['{}_{}'.format(obj.name, poly.index), 'Wall', 'Frame', obj.name, obc, obco, se, we, 'autocalculate', len(poly.vertices)] + ["  {0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}".format(obm * odv[v].co) for v in poly.vertices]
@@ -202,70 +202,172 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     en_idf.write(epentry('ScheduleTypeLimits', params, paramvs))
 
     hcoiobjs = [hcoiwrite(obj) for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type == '1']
+    zonenames = [o.name for o in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type == '1']
     bpy.context.scene['viparams']['hvactemplate'] = 0
-    for hcoiobj in hcoiobjs:
-        en_idf.write(hcoiobj.hvacschedwrite())
-        if hcoiobj.h:
-            en_idf.write(hcoiobj.htspwrite())
-        if hcoiobj.c:
-            en_idf.write(hcoiobj.ctspwrite())
-        if hcoiobj.h or hcoiobj.c:
-            en_idf.write(hcoiobj.consched())
-        if hcoiobj.obj.envi_occtype != '0':
-            en_idf.write(hcoiobj.schedwrite())
-            en_idf.write(hcoiobj.aschedwrite())
-            if hcoiobj.obj.envi_comfort:
-                en_idf.write(hcoiobj.weschedwrite())
-                en_idf.write(hcoiobj.avschedwrite())
-                en_idf.write(hcoiobj.clschedwrite())
-                if hcoiobj.obj.envi_co2 and not co2:
-                    en_idf.write(hcoiobj.co2sched())
-                    co2 = 1
-        if hcoiobj.obj.envi_equiptype != '0':
-            en_idf.write(hcoiobj.equipsched())
-            
-            
-        if (hcoiobj.obj.envi_occtype == "1" and hcoiobj.obj.envi_occinftype != 0) or (hcoiobj.obj.envi_occtype != "1" and hcoiobj.obj.envi_inftype != 0):
-            en_idf.write(hcoiobj.zisched())
+    zonenodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in zonenames]
+    
+    for zn in zonenodes:
+        for schedtype in ('VASchedule', 'TSPSchedule', 'HVAC', 'Occupancy', 'Equipment', 'Infiltration'):
+            try:
+                if schedtype == 'HVAC':
+                    en_idf.write(zn.inputs[schedtype].links[0].from_node.eptcwrite(zn.zone))
+                    hsdict = {'HSchedule': '_htspsched', 'CSchedule': '_ctspsched'}
+                    for sschedtype in hsdict: 
+                        try:
+                            en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links[0].from_node.epwrite(zn.zone+hsdict[sschedtype], 'Temperature'))
+                            
+                        except Exception as e:
+                            print('hvac', e)
+                    
+                elif schedtype == 'Occupancy':
+                    osdict = {'OSchedule': '_occsched', 'ASchedule': '_actsched', 'WSchedule': '_wesched', 'VSchedule': '_avsched', 'CSchedule': '_closched'}
+                    for sschedtype in osdict:
+                        svariant = 'Fraction' if sschedtype == 'OSchedule' else 'Any Number'
+                        try:
+                            en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links[0].from_node.epwrite(zn.zone + osdict[sschedtype], svariant))
+                        except Exception as e:
+                            print('occ', e)
+                    if zn.inputs[schedtype].links[0].from_node.envi_comfort and zn.inputs[schedtype].links[0].from_node.envi_co2:
+                        en_idf.write(epschedwrite('Default outdoor CO2 levels 400 ppm', 'Any number', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format('400')]]]]))
 
-    if enng:
-        for snode in [snode for snode in enng.nodes if snode.bl_idname == 'EnViSched' and snode.outputs['Schedule'].is_linked]:
-            en_idf.write(snode.epwrite())
+                elif schedtype == 'Equipment':
+                    if not zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links:
+                        en_idf.write(epschedwrite(zn.zone + '_equipsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,1']]]]))
+                    else:
+                        en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.epwrite(zn.zone+'_eqsched', 'Fraction'))
+                elif schedtype == 'Infiltration':
+                    if not zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links:
+                        en_idf.write(epschedwrite(zn.zone + '_infilsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(1)]]]]))
+                    else:
+                        en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.epwrite(zn.zone+'_infsched', 'Fraction'))
+                elif schedtype == 'VASchedule':
+                    if zn.inputs[schedtype].links:
+                        en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite(zn.zone+'_vasched', 'Fraction'))
+                    else:
+                        en_idf.write(epschedwrite(zn.zone + '_hvacsched', 'Temperature', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,1']]]]))
+                elif schedtype == 'TSPSchedule':
+                    if zn.inputs[schedtype].links:
+                        en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite(zn.zone+'_tspsched', 'Temperature'))
+                    else:
+                        pass
+
+            except Exception as e:
+                print(e)
+
+#    for hcoiobj in hcoiobjs:
+#        en_idf.write(hcoiobj.hvacschedwrite())
+#        if hcoiobj.h:
+#            en_idf.write(hcoiobj.htspwrite())
+#        if hcoiobj.c:
+#            en_idf.write(hcoiobj.ctspwrite())
+#        if hcoiobj.h or hcoiobj.c:
+#            en_idf.write(hcoiobj.consched())
+#        if hcoiobj.obj.envi_occtype != '0':
+#            en_idf.write(hcoiobj.schedwrite())
+#            en_idf.write(hcoiobj.aschedwrite())
+#            if hcoiobj.obj.envi_comfort:
+#                en_idf.write(hcoiobj.weschedwrite())
+#                en_idf.write(hcoiobj.avschedwrite())
+#                en_idf.write(hcoiobj.clschedwrite())
+#                if hcoiobj.obj.envi_co2 and not co2:
+#                    en_idf.write(hcoiobj.co2sched())
+#                    co2 = 1
+#        if hcoiobj.obj.envi_equiptype != '0':
+#            en_idf.write(hcoiobj.equipsched())
+#            
+#            
+#        if (hcoiobj.obj.envi_occtype == "1" and hcoiobj.obj.envi_occinftype != 0) or (hcoiobj.obj.envi_occtype != "1" and hcoiobj.obj.envi_inftype != 0):
+#            en_idf.write(hcoiobj.zisched())
+
+#    if enng:
+#        for snode in [snode for snode in enng.nodes if snode.bl_idname == 'EnViSched' and snode.outputs['Schedule'].is_linked]:
+#            en_idf.write(snode.epwrite())
 
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: THERMOSTSTATS ===========\n\n")
-    for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc]:
-        en_idf.write(hcoiobj.thermowrite())
-        en_idf.write(hcoiobj.zc())
+    for zn in zonenodes:
+        try:
+            en_idf.write(zn.inputs['HVAC'].links[0].from_node.ephspwrite(zn.zone))
+        except Exception as e:
+            print(e)
+            
+#    for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc]:
+#        en_idf.write(hcoiobj.thermowrite())
+#        en_idf.write(hcoiobj.zc())
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: EQUIPMENT ===========\n\n")
-    for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc and not hcoiobj.obj.envi_hvact]:
-        en_idf.write(hcoiobj.ec())
-        en_idf.write(hcoiobj.el())
+    for zn in zonenodes:
+        try:
+            en_idf.write(zn.inputs['HVAC'].links[0].from_node.epewrite(zn.zone))
+        except Exception as e:
+            print(e)
+    
+#    for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc and not hcoiobj.obj.envi_hvact]:
+#        en_idf.write(hcoiobj.ec())
+#        en_idf.write(hcoiobj.el())
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: HVAC ===========\n\n")
-    for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc and not hcoiobj.obj.envi_hvact]:
-        en_idf.write(hcoiobj.zh())
-        if hcoiobj.obj.envi_hvacoam != '0': 
-            en_idf.write(hcoiobj.zhoa())
-    for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc and hcoiobj.obj.envi_hvact]:
-        en_idf.write(hcoiobj.zht())
+    for zn in zonenodes:
+        try:
+            en_idf.write(zn.inputs['HVAC'].links[0].from_node.ephwrite(zn.zone))
+        except Exception as e:
+            print(e)
+#    for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc and not hcoiobj.obj.envi_hvact]:
+#        en_idf.write(hcoiobj.zh())
+#        if hcoiobj.obj.envi_hvacoam != '0': 
+#            en_idf.write(hcoiobj.zhoa())
+    for zn in zonenodes:
+        try:
+            hvacnode = zn.inputs['HVAC'].links[0].from_node
+            if hvacnode.hc and hvacnode.envi_hvact:
+                en_idf.write(hvacnode.hvactwrite(zn.zone))
+        except:
+            pass
+#    for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc and hcoiobj.obj.envi_hvact]:
+#        en_idf.write(hcoiobj.zht())
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: OCCUPANCY ===========\n\n")
-    for hcoiobj in hcoiobjs:
-        if hcoiobj.obj.envi_occtype != "0":
-            en_idf.write(hcoiobj.peoplewrite())
+    for zn in zonenodes:
+        try:
+            en_idf.write(zn.inputs['Occupancy'].links[0].from_node.epwrite(zn.zone))
+        except:
+            pass
+#    for hcoiobj in hcoiobjs:
+#        if hcoiobj.obj.envi_occtype != "0":
+#            en_idf.write(hcoiobj.peoplewrite())
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: OTHER EQUIPMENT ===========\n\n")
-    for hcoiobj in hcoiobjs:
-        if hcoiobj.obj.envi_equiptype != "0":
-            en_idf.write(hcoiobj.equip())
+    for zn in zonenodes:
+        try:
+            en_idf.write(zn.inputs['Equipment'].links[0].from_node.oewrite(zn.zone))
+        except:
+            pass
+
+#    for hcoiobj in hcoiobjs:
+#        if hcoiobj.obj.envi_equiptype != "0":
+#            en_idf.write(hcoiobj.equip())
+    
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: CONTAMINANTS ===========\n\n")
-    co2 = 0
-    for hcoiobj in hcoiobjs:
-        if hcoiobj.obj.envi_co2 and not co2:
-            en_idf.write(hcoiobj.co2())
-            co2 = 1
+#    co2 = 0
+    for zn in zonenodes:
+        try:
+            if zn.inputs['Occupancy'].links[0].from_node.envi_co2 and zn.inputs['Occupancy'].links[0].from_node.envi_comfort:
+                params = ('Carbon Dioxide Concentration', 'Outdoor Carbon Dioxide Schedule Name', 'Generic Contaminant Concentration', 'Outdoor Generic Contaminant Schedule Name')
+                paramvs = ('Yes', 'Default outdoor CO2 levels 400 ppm', 'No', '')
+                en_idf.write(epentry('ZoneAirContaminantBalance', params, paramvs))
+                break
+        except:
+            pass
+        
+#    for hcoiobj in hcoiobjs:
+#        if hcoiobj.obj.envi_co2 and not co2:
+#            en_idf.write(hcoiobj.co2())
+#            co2 = 1
 
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: INFILTRATION ===========\n\n")
-    for hcoiobj in hcoiobjs:
-        if (hcoiobj.obj.envi_occtype == "1" and hcoiobj.obj.envi_occinftype != '0') or (hcoiobj.obj.envi_occtype != "1" and hcoiobj.obj.envi_inftype != '0'):
-            en_idf.write(hcoiobj.zi())
+    for zn in zonenodes:
+        try:
+            en_idf.write(zn.inputs['Infiltration'].links[0].from_node.epwrite(zn.zone))
+        except:
+            pass
+#    for hcoiobj in hcoiobjs:
+#        if (hcoiobj.obj.envi_occtype == "1" and hcoiobj.obj.envi_occinftype != '0') or (hcoiobj.obj.envi_occtype != "1" and hcoiobj.obj.envi_inftype != '0'):
+#            en_idf.write(hcoiobj.zi())
 
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: AIRFLOW NETWORK ===========\n\n")
     
@@ -330,6 +432,7 @@ def pregeo(op):
             bpy.data.materials.remove(materials)
     
     enviobjs = [obj for obj in scene.objects if obj.envi_type in ('1', '2') and obj.layers[0] == True and obj.hide == False]
+
     if not [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network']:
         bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network") 
         for screen in bpy.data.screens:
@@ -337,6 +440,8 @@ def pregeo(op):
                 area.spaces[0].node_tree = bpy.data.node_groups[op.nodeid.split('@')[1]]
     enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]
     enng['enviparams'] = {'wpca': 0, 'wpcn': 0, 'crref': 0, 'afn': 0}
+    
+    [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and node.zone[3:] not in [o.name for o in enviobjs]]
                 
     for obj in enviobjs:
         for mats in obj.data.materials:
@@ -368,22 +473,20 @@ def pregeo(op):
         bm.transform(en_obj.matrix_world)
         en_obj["volume"] = bm.calc_volume()
         bm.free()
+        
+        if en_obj.envi_type == '1':
+            if en_obj.name not in [node.zone for node in enng.nodes if hasattr(node, 'zone')]:
+                enng.nodes.new(type = 'EnViZone').zone = en_obj.name
+            else:
+                for node in enng.nodes:
+                    if hasattr(node, 'zone') and node.zone == en_obj.name:
+                        node.zupdate(bpy.context)
 
-        if any([(mat.envi_afsurface or mat.envi_boundary) for mat in en_obj.data.materials]):
+        if any([mat.envi_afsurface for mat in en_obj.data.materials]):
             enng['enviparams']['afn'] = 1
             if 'Control' not in [node.bl_label for node in enng.nodes]:
                 enng.nodes.new(type = 'AFNCon')         
                 enng.use_fake_user = 1
-            if en_obj.envi_type =='1' and en_obj.name not in [node.zone for node in enng.nodes if hasattr(node, 'zone')]:
-                enng.nodes.new(type = 'EnViZone').zone = en_obj.name
-            elif en_obj.envi_type == '1':
-                for node in enng.nodes:
-                    if hasattr(node, 'zone') and node.zone == en_obj.name:
-                        node.zupdate(bpy.context)
-        elif enng and en_obj.name in [node.zone for node in enng.nodes if hasattr(node, 'zone')]:
-            for node in enng.nodes:
-                if hasattr(node, 'zone') and node.zone == en_obj.name:
-                    enng.nodes.remove(node)
             
         bpy.data.scenes[0].layers[0:2] = True, False
         obj.select = True

@@ -2,7 +2,7 @@ bl_info = {
     "name": "VI-Suite v03",
     "author": "Ryan Southall",
     "version": (0, 3, 0),
-    "blender": (2, 7, 3),
+    "blender": (2, 7, 5),
     "api":"",
     "location": "Node Editor & 3D View > Properties Panel",
     "description": "Radiance/EnergyPlus exporter and results visualiser",
@@ -90,7 +90,7 @@ def eupdate(self, context):
 def tupdate(self, context):
     for o in [o for o in context.scene.objects if o.type == 'MESH'  and 'lightarray' not in o.name and o.hide == False and o.layers[context.scene.active_layer] == True and o.get('lires')]:
         o.show_transparent = 1
-    for mat in [bpy.data.materials['{}#{}'.format(('livi', 'shad')['Shadow' in context.scene.resnode], index)] for index in range(20)]:
+    for mat in [bpy.data.materials['{}#{}'.format(('livi', 'shad')['Shadow' in context.scene['viparams']['resnode']], index)] for index in range(20)]:
         mat.use_transparency, mat.transparency_method, mat.alpha = 1, 'MASK', context.scene.vi_disp_trans
         
 def wupdate(self, context):
@@ -100,7 +100,7 @@ def wupdate(self, context):
         
 def legupdate(self, context):
     scene = context.scene
-    for frame in range(scene.fs, scene.fe + 1):
+    for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
         for o in [o for o in scene.objects if o.get('lires')]:
             bm = bmesh.new()
             bm.from_mesh(o.data)
@@ -220,7 +220,7 @@ def register():
     (Object.licalc, Object.lires, Object.limerr, Object.manip, Object.lila) = [bprop("", "", False)] * 5
 
 # EnVi zone definitions
-    Object.envi_type = eprop([("0", "Thermal", "Thermal Zone"), ("1", "Shading", "Shading Object")], "EnVi object type", "Specify the EnVi object type", "0")
+    Object.envi_type = eprop([("0", "None", "Not an EnVi zone"), ("1", "Thermal", "Thermal Zone"), ("2", "Shading", "Shading Object")], "EnVi object type", "Specify the EnVi object type", "0")
     
 # EnVi HVAC Template definitions
     Object.envi_hvacsched = bprop("", "Create a system level schedule", False)
@@ -319,7 +319,7 @@ def register():
                                  
     Material.radmat = radmat
     Material.radmatdict = {'0': ['radcolour', 0, 'radrough', 'radspec'], '1': ['radcolour'], '2': ['radcolour', 0, 'radior'], '3': ['radcolour', 0, 'radspec', 'radrough', 0, 'radtrans',  'radtranspec'], '4': ['radcolour'], '5': ['radcolour', 0, 'radintensity'], '6': ['radcolour', 0, 'radrough', 'radspec'], '7': []}
-
+    Material.pport = bprop("", "Flag to signify whether the material represents a Photon Port", False)
     radtypes = [('0', 'Plastic', 'Plastic Radiance material'), ('1', 'Glass', 'Glass Radiance material'), ('2', 'Dielectric', 'Dialectric Radiance material'),
                 ('3', 'Translucent', 'Translucent Radiance material'), ('4', 'Mirror', 'Mirror Radiance material'), ('5', 'Light', 'Emission Radiance material'),
                 ('6', 'Metal', 'Metal Radiance material'), ('7', 'Anti-matter', 'Antimatter Radiance material')]
@@ -486,7 +486,9 @@ def register():
     
 # Scene parameters
 #    Scene.fs = iprop("Frame start", "Starting frame",0, 1000, 0)
-#    (Scene.fe, Scene.gfe, Scene.cfe) = [iprop("Frame start", "End frame",0, 50000, 0)] * 3
+#    (Scene.fe, Scene.gfe, Scene.cfe) = [iprop("Framhttp://www.durra.lk/what-is-durra/historye start", "End frame",0, 50000, 0)] * 3
+    Scene.latitude = bpy.props.FloatProperty(name = "Latitude", description = "Site Latitude", default = 52.0)
+    Scene.longitude = bpy.props.FloatProperty(name = "Longitude", description = "Site Longitude", default = 0.0)
     Scene.vipath = sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
     Scene.solday = bpy.props.IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
     Scene.solhour = bpy.props.FloatProperty(name = "", description = "Time of day", min = 0, max = 24, default = 12, update=sunpath1)
@@ -501,16 +503,16 @@ def register():
      Scene.vi_display_sel_only, Scene.vi_display_vis_only) = [bprop("", "", False)] * 11
     Scene.vi_leg_max = bpy.props.FloatProperty(name = "", description = "Legend maximum", min = 0, max = 1000000, default = 1000, update=legupdate)
     Scene.vi_leg_min = bpy.props.FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0, update=legupdate)
-    Scene.en_temp_max = bpy.props.FloatProperty(name = "Max:", description = "Temp maximum", default = 24, update=settemps)
-    Scene.en_temp_min = bpy.props.FloatProperty(name = "Min:", description = "Temp minimum", default = 18, update=settemps)
-    Scene.en_hum_max = bpy.props.FloatProperty(name = "Max:", description = "Temp maximum", default = 100, update=sethums)
-    Scene.en_hum_min = bpy.props.FloatProperty(name = "Min:", description = "Temp minimum", default = 0, update=sethums)
-    Scene.en_heat_max = bpy.props.FloatProperty(name = "Max:", description = "Temp maximum", default = 1000, update=setheats)
-    Scene.en_heat_min = bpy.props.FloatProperty(name = "Min:", description = "Temp minimum", default = 0, update=setheats)
-    Scene.en_cool_max = bpy.props.FloatProperty(name = "Max:", description = "Temp maximum", default = 1000, update=setcools)
-    Scene.en_cool_min = bpy.props.FloatProperty(name = "Min:", description = "Temp minimum", default = 0, update=setcools)
-    Scene.en_co2_max = bpy.props.FloatProperty(name = "Max:", description = "CO2 maximum", default = 10000, update=setcools)
-    Scene.en_co2_min = bpy.props.FloatProperty(name = "Min:", description = "CO2 minimum", default = 0, update=setcools)
+    Scene.en_temp_max = bpy.props.FloatProperty(name = "Max", description = "Temp maximum", default = 24, update=settemps)
+    Scene.en_temp_min = bpy.props.FloatProperty(name = "Min", description = "Temp minimum", default = 18, update=settemps)
+    Scene.en_hum_max = bpy.props.FloatProperty(name = "Max", description = "Humidity maximum", default = 100, update=sethums)
+    Scene.en_hum_min = bpy.props.FloatProperty(name = "Min", description = "Humidity minimum", default = 0, update=sethums)
+    Scene.en_heat_max = bpy.props.FloatProperty(name = "Max", description = "Heating maximum", default = 1000, update=setheats)
+    Scene.en_heat_min = bpy.props.FloatProperty(name = "Min", description = "Heating minimum", default = 0, update=setheats)
+    Scene.en_cool_max = bpy.props.FloatProperty(name = "Max", description = "Cooling maximum", default = 1000, update=setcools)
+    Scene.en_cool_min = bpy.props.FloatProperty(name = "Min", description = "Cooling minimum", default = 0, update=setcools)
+    Scene.en_co2_max = bpy.props.FloatProperty(name = "Max", description = "CO2 maximum", default = 10000, update=setcools)
+    Scene.en_co2_min = bpy.props.FloatProperty(name = "Min", description = "CO2 minimum", default = 0, update=setcools)
     Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 48, 9)
     Scene.vi_display_rp_fc = fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     Scene.vi_display_rp_fsh = fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)

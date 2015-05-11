@@ -29,6 +29,8 @@ except:
 from . import livi_export
 from .vi_func import cmap, clearscene, skframe, selobj, retobjs, framerange, viewdesc, drawloop, drawpoly, draw_index, drawfont, skfpos, objmode, drawcircle, drawtri
 
+nh = 768
+
 def ss_display():
     pass
 
@@ -52,17 +54,17 @@ def li_display(simnode, connode, geonode):
             bpy.ops.object.select_all(action = 'DESELECT')
             obcalclist.append(o)
 
-    scene.frame_set(scene.fs)
+    scene.frame_set(scene['liparams']['fs'])
     scene.objects.active = None
     
-    for i, o in enumerate([scene.objects[oname] for oname in scene['{}c'.format(mtype)]]):
+    for i, o in enumerate([scene.objects[oname] for oname in scene['liparams']['{}c'.format(mtype)]]):
         me = bpy.data.meshes.new(o.name+"res") 
         ores = bpy.data.objects.new(o.name+"res", me) 
         cv = ores.cycles_visibility
         cv.diffuse, cv.glossy, cv.transmission, cv.scatter, cv.shadow = 0, 0, 0, 0, 0
         bm = bmesh.new()
         bm.from_mesh(o.data)
-        bm.transform(o.matrix_world)
+        bm.normal_update()
         
         if scene['liparams']['cp'] == '0':  
             cindex = bm.faces.layers.int['cindex']
@@ -95,11 +97,12 @@ def li_display(simnode, connode, geonode):
                 bpy.ops.object.material_slot_add()
                 ores.material_slots[-1].material = bpy.data.materials[matname]
         
-        for fr, frame in enumerate(range(scene.fs, scene.fe + 1)):  
+        for fr, frame in enumerate(range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)):  
             if fr == 0:
                 if scene.vi_disp_3d == 1 and scene['liparams']['cp'] == '0':
                     for face in bmesh.ops.extrude_discrete_faces(bm, faces = bm.faces)['faces']:
                         face.select = True
+                bm.transform(o.matrix_world)
                 bm.to_mesh(ores.data)
                 bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
             
@@ -125,7 +128,7 @@ def li_display(simnode, connode, geonode):
                     f.material_index = nmatis[fi]
                 oreslist = [f[livires] for f in bm.faces] if scene['liparams']['cp'] == '0' else [v[livires] for v in bm.verts]
 
-            if scene.fe - scene.fs > 0:
+            if scene['liparams']['fe'] - scene['liparams']['fs'] > 0:
                 [ores.data.polygons[fi].keyframe_insert('material_index', frame=frame) for fi in range(len(bm.faces))] 
             ores['omax'][str(frame)], ores['omin'][str(frame)], ores['oave'][str(frame)] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
         
@@ -139,7 +142,8 @@ def li_display(simnode, connode, geonode):
                 
     skframe('', scene, obreslist, simnode['Animation'])                                   
     bpy.ops.wm.save_mainfile(check_existing = False)
-    scene.frame_set(scene.fs)
+    scene.frame_set(scene['liparams']['fs'])
+    scene['viparams']['vidisp'] = 'lipanel'
     rendview(1)
 
 def spnumdisplay(disp_op, context, simnode):
@@ -175,9 +179,9 @@ def spnumdisplay(disp_op, context, simnode):
 
 def linumdisplay(disp_op, context, simnode, connode, geonode):
     scene = context.scene    
-    if not scene.vi_display:
+    if scene['viparams']['vidisp'] != 'lipanel':
         return
-    if scene.frame_current not in range(scene.fs, scene.fe + 1):
+    if scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
         disp_op.report({'INFO'},"Outside result frame range")
         return
 
@@ -261,14 +265,14 @@ def li3D_legend(self, context, simnode, connode, geonode):
     scene = context.scene
     fc = str(scene.frame_current)
     try:
-        if scene.vi_leg_display != True or scene.vi_display == 0 or (scene.wr_disp_panel != 1 and scene.li_disp_panel != 2 and scene.ss_disp_panel != 2) or scene.frame_current not in range(scene.fs, scene.fe + 1):
+        if scene['viparams']['vidisp'] != 'lipanel' or scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or not scene.vi_leg_display:
             return
         else:
             resvals = [('{:.1f}', '{:.0f}')[scene.vi_leg_max >= 100].format(scene.vi_leg_min+i*(scene.vi_leg_max - scene.vi_leg_min)/19) for i in range(20)]    
             height = context.region.height
             lenres = len(resvals[-1])
             font_id = 0
-            drawpoly(20, height - 40, 70 + lenres*8, height - 520)
+            drawpoly(20, height - 40, 70 + lenres*8, height - 520, 0.7, 1, 1, 1)
             drawloop(19, height - 40, 70 + lenres*8, height - 520)
     
             for i in range(20):
@@ -309,96 +313,86 @@ def li3D_legend(self, context, simnode, connode, geonode):
         scene.vi_leg_display = 0
         scene.update()
 
-def en_temp(self, context, simnode, valheader):
+def en_air(self, context, simnode, valheaders):
     scene = context.scene
-    if not scene.resat_disp or scene['viparams']['vidisp'] not in ('en', 'enpanel'):
+    if not scene.resaa_disp or scene['viparams']['vidisp'] not in ('en', 'enpanel'):
         return
     else:
-        lheight, lwidth = 200, 75
+        height, width, font_id = context.region.height, context.region.width, 0
+        hscale, tmar, rmar = height/nh, 50, 20
+        bheight, bwidth = hscale * 250, hscale * 350
+        topheight = height - tmar
+        leftwidth = width - int(rmar + bwidth)
+        botheight = height - int(tmar + bheight)
+        rightwidth = width - rmar
+        drawpoly(leftwidth, topheight, rightwidth, botheight, 0.7, 1, 1, 1)
+        drawloop(leftwidth - 1, topheight, rightwidth, botheight)
         blf.enable(0, 4)
+        blf.size(font_id, 20, int(height/14))
         blf.shadow(0, 3, 0, 0, 0, 0.5)
-        resvals = simnode['allresdict'][valheader]
+        
+        # Temperature
+        resvals = simnode['allresdict'][valheaders[0]]
         maxval, minval = max(resvals), min(resvals)
-        height, font_id = context.region.height, 0
-        hscale, topheight, leftwidth = height/768, height-50, 20 
-        botheight = int(topheight - hscale * lheight)
-        rightwidth = int(leftwidth + hscale * lwidth)
-        drawpoly(leftwidth, topheight, rightwidth, botheight, 0.7, 1, 1, 1)
-        drawloop(leftwidth - 1, topheight, rightwidth, botheight)
+        maxval, minval = max(resvals), min(resvals)
         reslevel = (resvals[scene.frame_current] - minval)/(maxval - minval)
         blf.size(font_id, 20, int(height/14))
         bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-        blf.position(font_id, int(leftwidth + hscale*10), int(topheight - hscale * 20), 0)
+        blf.position(font_id, int(leftwidth + hscale*5), int(topheight - hscale * 20), 0)
         blf.draw(font_id, u"T: {:.1f}\u00b0C".format(resvals[scene.frame_current]))
-        drawpoly(int(leftwidth + hscale * 10), botheight + int(0.9 * hscale * lheight * reslevel), int(leftwidth + hscale * (lwidth - 10)), botheight, 1, *colorsys.hsv_to_rgb(1 - reslevel, 1.0, 1.0))
-        drawloop(int(leftwidth + hscale * 10 - 1), botheight + int(0.9 * hscale * lheight * reslevel), int(leftwidth + hscale * (lwidth - 10)), botheight)
-        blf.disable(0, 4)
-
-def en_wind(self, context, simnode, valheaders):
-    direcs = ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')
-    if context.space_data.region_3d.is_perspective:
-        view_mat = context.space_data.region_3d.perspective_matrix
-        vw = mathutils.Vector((view_mat[3][0], view_mat[3][1], 0)).normalized()
+        drawpoly(int(leftwidth + hscale * 10), botheight + int(0.9 * bheight * reslevel), int(leftwidth + hscale * 60), botheight, 1, *colorsys.hsv_to_rgb(1 - reslevel, 1.0, 1.0))
+        drawloop(int(leftwidth + hscale * 10 - 1), botheight + int(0.9 * bheight * reslevel), int(leftwidth + hscale * 60), botheight)
+        
+        # Wind
+        direcs = ('N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW')
+        if context.space_data.region_3d.is_perspective:
+            view_mat = context.space_data.region_3d.perspective_matrix
+            vw = mathutils.Vector((view_mat[3][0], view_mat[3][1], 0)).normalized()
+#            orot = atan2(vw[1],vw[0]) - atan2(1,0)
+        else:
+            vw =  mathutils.Vector((0.0, 0.0, -1.0))
+            vw.rotate(bpy.context.region_data.view_rotation)
         orot = atan2(vw[1],vw[0]) - atan2(1,0)
-    else:
-        vw =  mathutils.Vector((0.0, 0.0, -1.0))
-        vw.rotate(bpy.context.region_data.view_rotation)
-        orot = atan2(vw[1],vw[0]) - atan2(1,0)
-
-    scene, font_id, height = context.scene, 0, context.region.height
-    resvalss = simnode['allresdict'][valheaders[0]]
-    maxvals = max(resvalss)
-    resvalsd = simnode['allresdict'][valheaders[1]]    
-    radius, hscale = 100, height/768
-    posx, posy = int(20 + radius * hscale), int(height - 50 - hscale * (radius + 200 * 2 * 1.1))
-    drawcircle(mathutils.Vector((posx, posy)), hscale * radius, 36, 1, 0.7, 1, 1, 1)
-
-    for i in range(1, 6):
-       drawcircle(mathutils.Vector((posx, posy)), 0.15 * hscale * radius * i, 36, 0, 0.7, 0, 0, 0) 
     
-    blf.enable(0, 4)
-    blf.size(font_id, 20, int(height/14))
-    blf.enable(0, 1)
-    blf.shadow(0, 3, 0, 0, 0, 0.5)
-    for d in range(8):
-        bgl.glBegin(bgl.GL_LINES)
-        bgl.glVertex2i(posx, posy)
-        bgl.glVertex2i(int(posx + 0.8 * hscale * radius*sin(orot + d*pi/4)), int(posy + 0.8 * hscale * radius * cos(orot + d*pi/4)))
-        bgl.glEnd()
-        fdims = blf.dimensions(font_id, direcs[d])
-        ang = orot + d*pi/4
-        fwidth = fdims[0]*0.5
-        blf.position(font_id, int(posx - fwidth*cos(ang) + hscale *0.825 * radius*sin(ang)), int(posy + fwidth*sin(ang) + hscale * 0.825 * radius * cos(ang)), 0)
-        blf.rotation(font_id, - orot - d*pi*0.25)
-        blf.draw(font_id, direcs[d])
-    blf.disable(0, 1)
-    blf.disable(0, 4)    
-    drawtri(posx, posy, resvalss[scene.frame_current]/maxvals, resvalsd[scene.frame_current] + orot*180/pi, hscale, radius)
-    
-def en_humidity(self, context, simnode, valheader):
-    scene = context.scene
-    if not scene.resat_disp or scene['viparams']['vidisp'] not in ('en', 'enpanel'):
-        return
-    else:
-        lheight, lwidth = 200, 75
-        blf.enable(0, 4)
-        blf.shadow(0, 3, 0, 0, 0, 0.5)
-        resvals = simnode['allresdict'][valheader]
+        scene, font_id, height = context.scene, 0, context.region.height
+        resvalss = simnode['allresdict'][valheaders[1]]
+        maxvals = max(resvalss)
+        resvalsd = simnode['allresdict'][valheaders[2]]    
+        radius, hscale = 110, height/nh
+        posx, posy = int(rightwidth - radius * hscale), int(topheight - hscale * radius * 1.2)
+        blf.position(font_id, int(leftwidth + hscale * 160), int(topheight - hscale * 20), 0)
+        blf.draw(font_id, "W: {:.1f}(m/s)".format(resvalss[scene.frame_current]))
+        blf.position(font_id, int(leftwidth + hscale * 245), int(topheight - hscale * 20), 0)
+        blf.draw(font_id, "W: {:.1f}deg".format(resvalsd[scene.frame_current]))
+
+        for i in range(1, 6):
+            drawcircle(mathutils.Vector((posx, posy)), 0.15 * hscale * radius * i, 36, 0, 0.7, 0, 0, 0) 
+
+        blf.enable(0, 1)
+
+        for d in range(8):
+            bgl.glBegin(bgl.GL_LINES)
+            bgl.glVertex2i(posx, posy)
+            bgl.glVertex2i(int(posx + 0.8 * hscale * radius*sin(orot + d*pi/4)), int(posy + 0.8 * hscale * radius * cos(orot + d*pi/4)))
+            bgl.glEnd()
+            fdims = blf.dimensions(font_id, direcs[d])
+            ang = orot + d*pi/4
+            fwidth = fdims[0]*0.5
+            blf.position(font_id, int(posx - fwidth*cos(ang) + hscale *0.825 * radius*sin(ang)), int(posy + fwidth*sin(ang) + hscale * 0.825 * radius * cos(ang)), 0)
+            blf.rotation(font_id, - orot - d*pi*0.25)
+            blf.draw(font_id, direcs[d])
+        blf.disable(0, 1)   
+        drawtri(posx, posy, resvalss[scene.frame_current]/maxvals, resvalsd[scene.frame_current] + orot*180/pi, hscale, radius)
+        
+        # Humidity
+        resvals = simnode['allresdict'][valheaders[3]]
         maxval, minval = 100, 0
-        height, font_id = context.region.height, 0
-        hscale = height/768
-        topheight, leftwidth = int(height - 50 - 1.1 * hscale * lheight), 20 
-        botheight = int(topheight - hscale * lheight)
-        rightwidth = int(leftwidth + hscale * lwidth)
-        drawpoly(leftwidth, topheight, rightwidth, botheight, 0.7, 1, 1, 1)
-        drawloop(leftwidth - 1, topheight, rightwidth, botheight)
         reslevel = (resvals[scene.frame_current] - minval)/(maxval - minval)
-        blf.size(font_id, 20, int(height/14))
         bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-        blf.position(font_id, int(leftwidth + hscale*10), int(topheight - hscale * 20), 0)
+        blf.position(font_id, int(leftwidth + hscale * 75), int(topheight - hscale * 20), 0)
         blf.draw(font_id, "H: {:.1f}%".format(resvals[scene.frame_current]))
-        drawpoly(int(leftwidth + hscale * 10), botheight + int(0.9 * hscale * lheight * reslevel), int(leftwidth + hscale * (lwidth - 10)), botheight, 1, *colorsys.hsv_to_rgb(1 - reslevel, 1.0, 1.0))
-        drawloop(int(leftwidth + hscale * 10 - 1), botheight + int(0.9 * hscale * lheight * reslevel), int(leftwidth + hscale * (lwidth - 10)), botheight)
+        drawpoly(int(leftwidth + hscale * 80), botheight + int(0.9 * bheight * reslevel), int(leftwidth + hscale * 130), botheight, 1, *colorsys.hsv_to_rgb(1 - reslevel, 1.0, 1.0))
+        drawloop(int(leftwidth + hscale * 80 - 1), botheight + int(0.9 * bheight * reslevel), int(leftwidth + hscale * 130), botheight)      
         blf.disable(0, 4)
     
 def en_panel(self, context, simnode):
@@ -407,14 +401,14 @@ def en_panel(self, context, simnode):
     reszones = [res[1][0] for res in resitems]
     metrics = set
     height, font_id = context.region.height, 0
-    hscale = height/768
+    hscale = height/nh
     startx, starty, rowheight, totwidth = 50, height - 50, 20, 200
     
     if bpy.context.active_object and 'EN_{}'.format(bpy.context.active_object.name.upper()) in reszones:
         metrics = [res[1][1] for res in resitems if 'EN_{}'.format(bpy.context.active_object.name.upper()) == res[1][0]]
 #        headers = [res[0] for res in simnode['resdict'].items() if 'EN_{}'.format(bpy.context.active_object.name.upper()) == res[1][0]]
 #        vals = [simnode['allresdict'][head] for head in headers]
-        metricno = 6 * (0, 1)['Temperature (degC)' in metrics] + 6 * (0, 1)['Humidity (%)' in metrics] + 8 * (0, 1)['Heating (W)' in metrics] + 8 * (0, 1)['Cooling (W)' in metrics] + 6 * (0, 1)['CO2' in metrics]
+        metricno = 6 * (0, 1)['Temperature (degC)' in metrics] + 6 * (0, 1)['Humidity (%)' in metrics] + 8 * (0, 1)['Heating (W)' in metrics] + 8 * (0, 1)['Cooling (W)' in metrics] + 6 * (0, 1)['CO2 (ppm)' in metrics]
 #        valheaders = [val[1] for val in vals]
 #        print(valheaders)
         rowno = 1
@@ -511,13 +505,7 @@ def en_panel(self, context, simnode):
                 bgl.glEnd()
                 rowno += tt + 2    
             
-                    
-                
-                
-                    
-            blf.disable(0, 4)
-
-        
+            blf.disable(0, 4)        
     return
         
 def viwr_legend(self, context, simnode):
@@ -530,7 +518,7 @@ def viwr_legend(self, context, simnode):
         resvals = ['{0:.0f} to {1:.0f}'.format(2*i, 2*(i+1)) for i in range(simnode['nbins'])]
         resvals[-1] = resvals[-1][:-int(len('{:.0f}'.format(simnode['maxres'])))] + u"\u221E"
         height, lenres, font_id = context.region.height, len(resvals[-1]) + 1 , 0
-        hscale, newheight, newwidth = height/768, height-50, 20     
+        hscale, newheight, newwidth = height/nh, height-50, 20     
         drawpoly(newwidth, newheight, newwidth + int(hscale*(40 + lenres*8)), int((newheight - hscale*(simnode['nbins']+3.5)*20)))
         drawloop(newwidth - 1, newheight, newwidth + int(hscale*(40 + lenres*8)), int((newheight - hscale*(simnode['nbins']+3.5)*20)))
         cm = matplotlib.cm.jet if simnode.wrtype in ('0', '1') else matplotlib.cm.hot

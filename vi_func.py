@@ -22,9 +22,10 @@ def cmap(cm):
         bpy.data.materials['{}#{}'.format(cmdict[cm], i)].diffuse_color = colorsys.hsv_to_rgb(0.75 - 0.75*(i/19), 1, 1) if cm == 'hot' else colorsys.hsv_to_rgb(1, 0, (i/19))
 
 def radmat(self, scene):
-    radname = self.name.replace(" ", "_")    
+    radname = self.name.replace(" ", "_") 
+#    modifier = 'pmapam' if self.radmatmenu == '7' and self.mattype == '1' else 'pport' if self.pport else 'void'
     radentry = '# ' + ('plastic', 'glass', 'dielectric', 'translucent', 'mirror', 'light', 'metal', 'antimatter')[int(self.radmatmenu)] + ' material\n' + \
-            'void {} {}\n'.format(('plastic', 'glass', 'dielectric', 'trans', 'mirror', 'light', 'metal', 'antimatter')[int(self.radmatmenu)], radname) + \
+            '{} {} {}\n'.format('void', ('plastic', 'glass', 'dielectric', 'trans', 'mirror', 'light', 'metal', 'antimatter')[int(self.radmatmenu)], radname) + \
            {'0': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough), 
             '1': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(self.radcolour), 
             '2': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} 0\n'.format(self.radcolour, self.radior),
@@ -185,12 +186,30 @@ def viparams(op, scene):
     nd = os.path.join(fd, fn)
     fb, ofb, offb, idf  = os.path.join(nd, fn), os.path.join(nd, 'obj'), os.path.join(nd, 'Openfoam'), os.path.join(nd, 'in.idf')
     offzero, offs, offc, offcp, offcts = os.path.join(offb, '0'), os.path.join(offb, 'system'), os.path.join(offb, 'constant'), os.path.join(offb, 'constant', "polyMesh"), os.path.join(offb, 'constant', "triSurface")
-    scene['viparams'] = {'rm': ('rm ', 'del ')[str(sys.platform) == 'win32'], 'cat': ('cat ', 'type ')[str(sys.platform) == 'win32'], 'cp': ('cp ', 'copy ')[str(sys.platform) == 'win32'], 
-    'nproc': str(multiprocessing.cpu_count()), 'filepath': bpy.data.filepath, 'filename': fn, 'filedir': fd, 'newdir': nd, 'filebase': fb}
-    
-    scene['liparams'] = {'objfilebase': ofb}
-    scene['enparams'] = {'idf_file': idf, 'epversion': '8-2-0'}
-    scene['flparams'] = {'offilebase': offb, 'ofsfilebase': offs, 'ofcfilebase': offc, 'ofcpfilebase': offcp, 'of0filebase': offzero, 'ofctsfilebase': offcts}
+    if not scene.get('viparams'):
+        scene['viparams'] = {}
+    scene['viparams']['cat'] = ('cat ', 'type ')[str(sys.platform) == 'win32']
+    scene['viparams']['nproc'] = str(multiprocessing.cpu_count())
+    scene['viparams']['filepath'] = bpy.data.filepath
+    scene['viparams']['filename'] = fn
+    scene['viparams']['filedir'] = fd
+    scene['viparams']['newdir'] = nd 
+    scene['viparams']['filebase'] = fb
+    if not scene.get('liparams'):
+        scene['liparams'] = {}
+    scene['liparams']['objfilebase'] = ofb
+    if not scene.get('enparams'):
+        scene['enparams'] = {}
+    scene['enparams']['idf_file'] = idf
+    scene['enparams']['epversion'] = '8-2-0'
+    if not scene.get('flparams'):
+        scene['flparams'] = {}
+    scene['flparams']['offilebase'] = offb
+    scene['flparams']['ofsfilebase'] = offs
+    scene['flparams']['ofcfilebase'] = offc
+    scene['flparams']['ofcpfilebase'] = offcp
+    scene['flparams']['of0filebase'] = offzero
+    scene['flparams']['ofctsfilebase'] = offcts
 
 def resnameunits():
     rnu = {'0': ("Air", "Ambient air metrics"),'1': ("Wind Speed", "Ambient Wind Speed (m/s)"), '2': ("Wind Direction", "Ambient Wind Direction (degrees from North)"),
@@ -239,9 +258,9 @@ def newrow(layout, s1, root, s2):
 
 def retobj(name, fr, node, scene):
     if node.animmenu == "Geometry":
-        return(scene['viparams']['objfilebase']+"-{}-{}.obj".format(name.replace(" ", "_"), fr))
+        return(os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(name.replace(" ", "_"), fr)))
     else:
-        return(scene['viparams']['objfilebase']+"-{}-{}.obj".format(name.replace(" ", "_"), bpy.context.scene.frame_start))
+        return(os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(name.replace(" ", "_"), bpy.context.scene.frame_start)))
 
 def retelaarea(node):
     inlinks = [sock.links[0] for sock in node.inputs if sock.bl_idname in ('EnViSSFlowSocket', 'EnViSFlowSocket') and sock.links]
@@ -266,9 +285,10 @@ def objoin(obs):
     
 def retmesh(name, fr, node, scene):
     if node.animmenu in ("Geometry", "Material"):
-        return(scene['viparams']['objfilebase']+"-{}-{}.mesh".format(name.replace(" ", "_"), fr))
+        return(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(name.replace(" ", "_"), fr)))
     else:
-        return(scene['viparams']['objfilebase']+"-{}-{}.mesh".format(name.replace(" ", "_"), bpy.context.scene.frame_start))
+        print(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(name.replace(" ", "_"), bpy.context.scene.frame_start)))
+        return(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(name.replace(" ", "_"), bpy.context.scene.frame_start)))
 
 def nodeinputs(node):
     try:
@@ -980,6 +1000,23 @@ def retobjs(otypes):
     elif otypes == 'ssc':
         return([geo for geo in scene.objects if geo.type == 'MESH' and geo.licalc and geo.lires == 0 and geo.hide == False and geo.layers[scene.active_layer] == True])
 
+
+def radmesh(scene, obs, export_op):
+#    matnames = []
+    for o in obs:
+        for mat in o.data.materials:
+#            matnames.append(mat.name)
+            if mat['radentry'].split(' ')[1] in ('light', 'mirror', 'antimatter') or mat.pport:
+                export_op.report({'INFO'}, o.name+" has an antimatter, photon port, emission or mirror material. Basic export routine used with no modifiers.")
+                o['merr'] = 1 
+        selobj(scene, o)
+        selmesh('selenm')                        
+        if [edge for edge in o.data.edges if edge.select]:
+            export_op.report({'INFO'}, o.name+" has a non-manifold mesh. Basic export routine used with no modifiers.")
+            o['merr'] = 1
+        if not o.get('merr'):
+            o['merr'] = 0
+
 def viewdesc(context):
     region = context.region
     width, height = region.width, region.height
@@ -1034,7 +1071,6 @@ def sunpath2(scene):
     sunpath()
 
 def sunpath():
-    # For future reference I can also project an emmisve sky texture on a sphere using the normal texture coordinate.
     scene = bpy.context.scene
     sun = [ob for ob in scene.objects if ob.get('VIType') == 'Sun'][0]
     skysphere = [ob for ob in scene.objects if ob.get('VIType') == 'SkyMesh'][0]
@@ -1057,12 +1093,12 @@ def sunpath():
                     bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
             if sun.data.node_tree:
                 for blnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Blackbody']:
-                    blnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5 if beta > 0 else 2000
+                    blnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5 if beta > 0 else 2500
                 for emnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Emission']:
                     emnode.inputs[1].default_value = 10 * sin(beta) if beta > 0 else 0
             if sunob.data.materials[0].node_tree:
                 for smblnode in [node for node in sunob.data.materials[0].node_tree.nodes if sunob.data.materials and node.bl_label == 'Blackbody']:
-                    smblnode.inputs[0].default_value = 2000 + 3500*sin(beta)**0.5 if beta > 0 else 2000
+                    smblnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5 if beta > 0 else 2500
             if skysphere and not skysphere.hide and skysphere.data.materials[0].node_tree:
                 if 'Sky Texture' in [no.bl_label for no in skysphere.data.materials[0].node_tree.nodes]:
                     skysphere.data.materials[0].node_tree.nodes['Sky Texture'].sun_direction = sin(phi), -cos(phi), sin(beta)
@@ -1120,7 +1156,7 @@ def wr_axes():
     return(fig, ax)
 
 def skframe(pp, scene, oblist, anim):
-    for frame in range(scene.fs, scene.fe + 1):
+    for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
         scene.frame_set(frame)
         for o in [o for o in oblist if o.data.shape_keys]:
             for shape in o.data.shape_keys.key_blocks:
@@ -1292,11 +1328,11 @@ def fvblbmgen(mats, ffile, vfile, bfile, meshtype):
 def fvbmr(scene, o):
     points = '{\n    version     2.0;\n    format      ascii;\n    class       vectorField;\n    location    "constant/polyMesh";\n    object      points;\n}\n\n{}\n(\n'.format(len(o.data.verts))
     points += ''.join(['({} {} {})\n'.format(o.matrix_world * v.co) for v in o.data.verts]) + ')'
-    with open(os.path.join(scene['viparams']['ofcpfilebase'], 'points'), 'r') as pfile:
+    with open(os.path.join(scene['flparams']['ofcpfilebase'], 'points'), 'r') as pfile:
         pfile.write(points)
     faces = '{\n    version     2.0;\n    format      ascii;\n    class       faceList;\n    location    "constant/polyMesh";\n    object      faces;\n}\n\n{}\n(\n'.format(len(o.data.faces))
     faces += ''.join(['({} {} {} {})\n'.format(f.vertices) for f in o.data.faces]) + ')'
-    with open(os.path.join(scene['viparams']['ofcpfilebase'], 'faces'), 'r') as ffile:
+    with open(os.path.join(scene['flparams']['ofcpfilebase'], 'faces'), 'r') as ffile:
         ffile.write(faces)
     
 def fvvarwrite(scene, obs, node):
@@ -1457,25 +1493,25 @@ def fvvarwrite(scene, obs, node):
     eentry += '}'
     oentry += '}'
     
-    with open(os.path.join(scene['viparams']['of0filebase'], 'p'), 'w') as pfile:
+    with open(os.path.join(scene['flparams']['of0filebase'], 'p'), 'w') as pfile:
         pfile.write(pentry)
-    with open(os.path.join(scene['viparams']['of0filebase'], 'U'), 'w') as Ufile:
+    with open(os.path.join(scene['flparams']['of0filebase'], 'U'), 'w') as Ufile:
         Ufile.write(Uentry)
     if node.solver != 'icoFoam':
-        with open(os.path.join(scene['viparams']['of0filebase'], 'nut'), 'w') as nutfile:
+        with open(os.path.join(scene['flparams']['of0filebase'], 'nut'), 'w') as nutfile:
             nutfile.write(nutentry)
         if node.turbulence == 'SpalartAllmaras':
-            with open(os.path.join(scene['viparams']['of0filebase'], 'nuTilda'), 'w') as nutildafile:
+            with open(os.path.join(scene['flparams']['of0filebase'], 'nuTilda'), 'w') as nutildafile:
                 nutildafile.write(nutildaentry)
         if node.turbulence == 'kEpsilon':
-            with open(os.path.join(scene['viparams']['of0filebase'], 'k'), 'w') as kfile:
+            with open(os.path.join(scene['flparams']['of0filebase'], 'k'), 'w') as kfile:
                 kfile.write(kentry)
-            with open(os.path.join(scene['viparams']['of0filebase'], 'epsilon'), 'w') as efile:
+            with open(os.path.join(scene['flparams']['of0filebase'], 'epsilon'), 'w') as efile:
                 efile.write(eentry)
         if node.turbulence == 'kOmega':
-            with open(os.path.join(scene['viparams']['of0filebase'], 'k'), 'w') as kfile:
+            with open(os.path.join(scene['flparams']['of0filebase'], 'k'), 'w') as kfile:
                 kfile.write(kentry)
-            with open(os.path.join(scene['viparams']['of0filebase'], 'omega'), 'w') as ofile:
+            with open(os.path.join(scene['flparams']['of0filebase'], 'omega'), 'w') as ofile:
                 ofile.write(oentry)
                 
 def fvmattype(mat, var):
@@ -1595,7 +1631,7 @@ def fvobjwrite(scene, o, bmo):
     bm = bmesh.new()
     bm.from_mesh(o.data)
     vcos = ''.join(['v {} {} {}\n'.format(*ofvpo) for ofvpo in ofvpos])
-    with open(os.path.join(scene['viparams']['ofctsfilebase'], '{}.obj'.format(o.name)), 'w') as objfile:
+    with open(os.path.join(scene['flparams']['ofctsfilebase'], '{}.obj'.format(o.name)), 'w') as objfile:
         objfile.write(objheader+vcos)
         for m, mat in enumerate(o.data.materials):
             objfile.write('g {}\n'.format(mat.name) + ''.join(['f {} {} {}\n'.format(*[v.index + 1 for v in f.verts]) for f in bmesh.ops.triangulate(bm, faces = bm.faces)['faces'] if f.material_index == m]))

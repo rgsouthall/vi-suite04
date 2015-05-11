@@ -77,19 +77,12 @@ class Vi3DPanel(bpy.types.Panel):
 #                aresdict = {"Air": "resaa_disp", 'Solar': 'resas_disp'}#, 'Wind Direction (deg)': 'resawd_disp', 
           #                  'Humidity (%)': 'resah_disp', 'Direct Solar (W/m^2)': 'resasb_disp', 'Diffuse Solar (W/m^2)': 'resasd_disp'}
                 zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp', 'CO2 (ppm)': 'reszco_disp'}
+                vresdict = {"Opening factor": "reszof_disp", "Linkage flow": "reszlf_disp"}
                 row = layout.row() 
                 row.label(text = 'Ambient')
                 row = layout.row() 
                 row.prop(scene, 'resaa_disp')
                 row.prop(scene, 'resas_disp')
-#                for ri, rname in enumerate([rname[1] for rname in resnode['resdict'].values() if rname[0] == 'Climate']):
-#                    if ri == 0:                    
-#                        row = layout.row()
-#                        row.label(text = 'Ambient')                    
-#                    if not ri%2:
-#                        row = layout.row()                            
-#                    if rname in aresdict:
-#                        row.prop(scene, aresdict[rname])
                 
                 for ri, rname in enumerate(set([rname[1] for rname in resnode['resdict'].values() if rname[0][:3] == 'EN_' and rname[0][3:] in [o.name.upper() for o in bpy.data.objects]])):
                     if ri == 0:                    
@@ -99,6 +92,15 @@ class Vi3DPanel(bpy.types.Panel):
                         row = layout.row()                            
                     if rname in zresdict:
                         row.prop(scene, zresdict[rname])
+                
+                for ri, rname in enumerate(set([rname[1] for rname in resnode['resdict'].values() if rname[0][:3] == 'EN_' and rname[1][1] in vresdict])):
+                    if ri == 0:                    
+                        row = layout.row()
+                        row.label(text = 'Ventilation')                    
+                    if not ri%2:
+                        row = layout.row()                            
+                    if rname in vresdict:
+                        row.prop(scene, vresdict[rname])  
                         
                 row = layout.row()    
                 row.operator("view3d.endisplay", text="EnVi Display")
@@ -127,12 +129,13 @@ class Vi3DPanel(bpy.types.Panel):
                         row = layout.row()
                         row.prop(scene, 'en_cool_max')
                         row.prop(scene, 'en_cool_min')   
-                    if 'CO2' in metrics:
+                    if 'CO2 (ppm)' in metrics:
                         row = layout.row()
                         row.label('CO2')
                         row = layout.row()
                         row.prop(scene, 'en_co2_max')
                         row.prop(scene, 'en_co2_min')
+                        
             newrow(layout, 'Display active', scene, 'vi_display')
 
 class VIMatPanel(bpy.types.Panel):
@@ -175,6 +178,7 @@ class VIMatPanel(bpy.types.Panel):
                      row.prop(cm, prop)
                 else:
                     row = layout.row()
+            newrow(layout, 'Photon Port:', cm, 'pport')
             row = layout.row()
             row.label("-----------------------------------------")
             newrow(layout, "EnVi Construction Type:", cm, "envi_con_type")

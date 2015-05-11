@@ -17,7 +17,7 @@ class envi_materials(object):
                         'Outer brick': ('Rough', '0.96', '2000', '650.00', '0.90', '0.930000', '0.930000', '100'),
                         'Vermiculite insulating brick': ('Rough', '0.27', '700', '840.00', '0.90', '0.650000', '0.650000', '100'),
                         'Honeycomb brick': ('Rough', '0.27', '1700', '1000.00', '0.90', '0.7', '0.7', '102'),
-                        'Hollow terracota': ('Rough', '0.3', '1389', '1000.00', '0.90', '0.7', '0.7', '102')}
+                        'Hollow terracota': ('Rough', '0.6', '845', '800', '0.90', '0.7', '0.7', '102')}
         self.brick_dat = OrderedDict(sorted(self.brick_datd.items()))
 
         self.cladding_datd = {'Stucco': ('Smooth', '0.692', '1858', '836.00', '0.900000', '0.9200000', '0.920000', '25'),

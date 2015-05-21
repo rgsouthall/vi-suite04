@@ -25,7 +25,7 @@ else:
     from .vi_operators import *
     from .vi_ui import *
 
-import sys, os, inspect, bpy, nodeitems_utils, bmesh, shutil
+import sys, os, inspect, bpy, nodeitems_utils, bmesh, shutil, colorsys
 from numpy import array, digitize
 
 epversion = "8-2-0"
@@ -524,8 +524,10 @@ def register():
     Scene.li_assorg = sprop("", "Name of the assessing organisation", 1024, '')
     Scene.li_assind = sprop("", "Name of the assessing individual", 1024, '')
     Scene.li_jobno = sprop("", "Project job number", 1024, '')
-    (Scene.resaa_disp, Scene.resaws_disp, Scene.resawd_disp, Scene.resah_disp, Scene.resas_disp, Scene.reszt_disp, Scene.reszh_disp, Scene.reszhw_disp, Scene.reszcw_disp, Scene.reszsg_disp, Scene.reszppd_disp, Scene.reszpmv_disp, resvls, resvmh, resim, resiach, Scene.reszco_disp, resihl, resl12ms,
-     reslof, resmrt, resocc, resh, resfhb, ressah, ressac) = resnameunits() 
+    (Scene.resaa_disp, Scene.resaws_disp, Scene.resawd_disp, Scene.resah_disp, Scene.resas_disp, Scene.reszt_disp, Scene.reszh_disp, Scene.reszhw_disp, Scene.reszcw_disp, Scene.reszsg_disp, Scene.reszppd_disp, 
+     Scene.reszpmv_disp, Scene.resvls_disp, Scene.resvmh_disp, Scene.resim_disp, Scene.resiach_disp, Scene.reszco_disp, Scene.resihl_disp, Scene.reszlf_disp,
+     Scene.reszof_disp, Scene.resmrt_disp, Scene.resocc_disp, Scene.resh_disp, Scene.resfhb_disp, Scene.ressah_disp, Scene.ressac_disp) = resnameunits() 
+    Scene.envi_flink = bprop("", "Associate flow results with the nearest object", False)
 #    Scene.resnode = sprop("", "", 0, "")
 #    Scene.restree = sprop("", "", 0, "") 
 #    Scene.epversion = sprop("", "EnergyPlus version", 1024, epversion.replace('-', '.'))

@@ -73,11 +73,11 @@ class Vi3DPanel(bpy.types.Panel):
             elif scene['viparams']['vidisp'] in ('en', 'enpanel'):
                 resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
                 resitems = resnode['resdict'].items()
-                metrics = [res[1][1] for res in resitems if 'EN_{}'.format(bpy.context.active_object.name.upper()) == res[1][0]]
+                metrics = [res[1][1] for res in resitems if bpy.context.active_object and 'EN_{}'.format(bpy.context.active_object.name.upper()) == res[1][0]]
 #                aresdict = {"Air": "resaa_disp", 'Solar': 'resas_disp'}#, 'Wind Direction (deg)': 'resawd_disp', 
           #                  'Humidity (%)': 'resah_disp', 'Direct Solar (W/m^2)': 'resasb_disp', 'Diffuse Solar (W/m^2)': 'resasd_disp'}
                 zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp', 'CO2 (ppm)': 'reszco_disp'}
-                vresdict = {"Opening factor": "reszof_disp", "Linkage flow": "reszlf_disp"}
+                vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}
                 row = layout.row() 
                 row.label(text = 'Ambient')
                 row = layout.row() 
@@ -93,7 +93,7 @@ class Vi3DPanel(bpy.types.Panel):
                     if rname in zresdict:
                         row.prop(scene, zresdict[rname])
                 
-                for ri, rname in enumerate(set([rname[1] for rname in resnode['resdict'].values() if rname[0][:3] == 'EN_' and rname[1][1] in vresdict])):
+                for ri, rname in enumerate(set([rname[1] for rname in resnode['resdict'].values() if rname[0][:4] == 'WIN-' and rname[1] in vresdict])):
                     if ri == 0:                    
                         row = layout.row()
                         row.label(text = 'Ventilation')                    
@@ -101,7 +101,8 @@ class Vi3DPanel(bpy.types.Panel):
                         row = layout.row()                            
                     if rname in vresdict:
                         row.prop(scene, vresdict[rname])  
-                        
+                    
+                newrow(layout, 'Link to object', scene, 'envi_flink')        
                 row = layout.row()    
                 row.operator("view3d.endisplay", text="EnVi Display")
                 if scene['viparams']['vidisp'] == 'enpanel':

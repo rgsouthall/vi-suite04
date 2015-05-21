@@ -186,7 +186,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 paramvs = ['{}_{}'.format(obj.name, poly.index), '', len(poly.vertices)] + ['{0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}'.format(obm * odv[poly.vertices[v]].co) for v in range(len(poly.vertices))]
                 en_idf.write(epentry('Shading:Building:Detailed', params, paramvs))
 
-    co2 = 0
+#    co2 = 0
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: SCHEDULES ===========\n\n")
     params = ('Name', 'Lower Limit Value', 'Upper Limit Value', 'Numeric Type', 'Unit Type')
     paramvs = ("Temperature", -60, 200, "CONTINUOUS", "Temperature")
@@ -201,7 +201,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     paramvs = ["Any Number"]
     en_idf.write(epentry('ScheduleTypeLimits', params, paramvs))
 
-    hcoiobjs = [hcoiwrite(obj) for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type == '1']
+#    hcoiobjs = [hcoiwrite(obj) for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type == '1']
     zonenames = [o.name for o in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type == '1']
     bpy.context.scene['viparams']['hvactemplate'] = 0
     zonenodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in zonenames]
@@ -209,35 +209,40 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     for zn in zonenodes:
         for schedtype in ('VASchedule', 'TSPSchedule', 'HVAC', 'Occupancy', 'Equipment', 'Infiltration'):
             try:
-                if schedtype == 'HVAC':
+                if schedtype == 'HVAC' and zn.inputs[schedtype].links:
                     en_idf.write(zn.inputs[schedtype].links[0].from_node.eptcwrite(zn.zone))
                     hsdict = {'HSchedule': '_htspsched', 'CSchedule': '_ctspsched'}
+                    tvaldict = {'HSchedule': zn.inputs[schedtype].links[0].from_node.envi_htsp, 'CSchedule': zn.inputs[schedtype].links[0].from_node.envi_ctsp}
                     for sschedtype in hsdict: 
                         try:
-                            en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links[0].from_node.epwrite(zn.zone+hsdict[sschedtype], 'Temperature'))
-                            
+                            en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links[0].from_node.epwrite(zn.zone+hsdict[sschedtype], 'Temperature'))                            
                         except Exception as e:
-                            print('hvac', e)
-                    
-                elif schedtype == 'Occupancy':
+                            en_idf.write(epschedwrite(zn.zone + hsdict[sschedtype], 'Temperature', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(tvaldict[sschedtype])]]]]))
+
+                elif schedtype == 'Occupancy' and zn.inputs[schedtype].links:
                     osdict = {'OSchedule': '_occsched', 'ASchedule': '_actsched', 'WSchedule': '_wesched', 'VSchedule': '_avsched', 'CSchedule': '_closched'}
+                    ovaldict = {'OSchedule': 1, 'ASchedule': zn.inputs[schedtype].links[0].from_node.envi_occwatts, 
+                                'WSchedule': zn.inputs[schedtype].links[0].from_node.envi_weff, 'VSchedule': zn.inputs[schedtype].links[0].from_node.envi_airv, 
+                                'CSchedule': zn.inputs[schedtype].links[0].from_node.envi_cloth}
                     for sschedtype in osdict:
                         svariant = 'Fraction' if sschedtype == 'OSchedule' else 'Any Number'
                         try:
                             en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links[0].from_node.epwrite(zn.zone + osdict[sschedtype], svariant))
                         except Exception as e:
-                            print('occ', e)
+                            en_idf.write(epschedwrite(zn.zone + osdict[sschedtype], svariant, ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{:.3f}'.format(ovaldict[sschedtype])]]]]))
+
+#                            en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links[0].from_node.epwrite(zn.zone + osdict[sschedtype], svariant))
                     if zn.inputs[schedtype].links[0].from_node.envi_comfort and zn.inputs[schedtype].links[0].from_node.envi_co2:
                         en_idf.write(epschedwrite('Default outdoor CO2 levels 400 ppm', 'Any number', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format('400')]]]]))
 
-                elif schedtype == 'Equipment':
+                elif schedtype == 'Equipment' and zn.inputs[schedtype].links:
                     if not zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links:
-                        en_idf.write(epschedwrite(zn.zone + '_equipsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,1']]]]))
+                        en_idf.write(epschedwrite(zn.zone + '_eqsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,1']]]]))
                     else:
                         en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.epwrite(zn.zone+'_eqsched', 'Fraction'))
                 elif schedtype == 'Infiltration':
                     if not zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links:
-                        en_idf.write(epschedwrite(zn.zone + '_infilsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(1)]]]]))
+                        en_idf.write(epschedwrite(zn.zone + '_infsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(1)]]]]))
                     else:
                         en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.epwrite(zn.zone+'_infsched', 'Fraction'))
                 elif schedtype == 'VASchedule':
@@ -374,6 +379,11 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     if enng and enng['enviparams']['afn']:
         writeafn(exp_op, en_idf, enng)
 
+    en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: EMS ===========\n\n")   
+    emsprognodes = [pn for pn in enng.nodes if pn.bl_idname == 'EnViProg' and not pn.use_custom_color]
+    for node in emsprognodes:
+        en_idf.write(node.awrite() + node.swrite() + node.epwrite())
+    
     en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: REPORT VARIABLE ===========\n\n")
     epentrydict = {"Output:Variable,*,Zone Air Temperature,hourly;\n": node.restt,
                    "Output:Variable,*,Zone Air System Sensible Heating Rate,hourly;\n": node.restwh, "Output:Variable,*,Zone Air System Sensible Cooling Rate,hourly;\n": node.restwc,

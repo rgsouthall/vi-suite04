@@ -700,7 +700,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
     restype= bpy.props.EnumProperty(items = [("0", "Zone Thermal", "Thermal Results"), ("1", "Comfort", "Comfort Results"), ("2", "Zone Ventilation", "Zone Ventilation Results"), ("3", "Ventilation Link", "ZoneVentilation Results")],
                                    name="", description="Specify the EnVi results category", default="0", update = nodeupdate)
     
-    (resat, resaws, resawd, resah, resasb, resasd, restt, restwh, restwc, reswsg, rescpp, rescpm, resvls, resvmh, resim, resiach, resco2, resihl, resl12ms,
+    (resaam, resaws, resawd, resah, resasm, restt, resh, restwh, restwc, reswsg, rescpp, rescpm, resvls, resvmh, resim, resiach, resco2, resihl, resl12ms,
      reslof, resmrt, resocc, resh, resfhb, ressah, ressac) = resnameunits()
 
     def init(self, context):
@@ -1696,6 +1696,34 @@ class EnViWPCSocket(bpy.types.NodeSocket):
 
     def draw_color(self, context, node):
         return (0.2, 0.2, 0.2, 0.75)
+        
+class EnViActSocket(bpy.types.NodeSocket):
+    '''An EnVi actuator socket'''
+    bl_idname = 'EnViActSocket'
+    bl_label = 'EnVi actuator socket'
+
+    sn = bpy.props.StringProperty()
+    valid = ['Actuator']
+
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+
+    def draw_color(self, context, node):
+        return (0.2, 0.9, 0.9, 0.75)
+
+class EnViSenseSocket(bpy.types.NodeSocket):
+    '''An EnVi sensor socket'''
+    bl_idname = 'EnViSenseSocket'
+    bl_label = 'EnVi sensor socket'
+
+    sn = bpy.props.StringProperty()
+    valid = ['Sensor']
+
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+
+    def draw_color(self, context, node):
+        return (0.9, 0.9, 0.2, 0.75)
 
 class AFNCon(bpy.types.Node, EnViNodes):
     '''Node defining the overall airflow network simulation'''
@@ -1890,12 +1918,12 @@ class EnViOcc(bpy.types.Node, EnViNodes):
         plist[int(self.envi_occtype) - 1] = self.envi_occsmax
         params =  ['Name', 'Zone or ZoneList Name', 'Number of People Schedule Name', 'Number of People Calculation Method', 'Number of People', 'People per Zone Floor Area (person/m2)',
         'Zone Floor Area per Person (m2/person)', 'Fraction Radiant', 'Sensible Heat Fraction', 'Activity Level Schedule Name']
-        paramvs = [zn + "_occupancy", zn, ('', zn + '_occsched')[self.inputs['OSchedule'].is_linked], pdict[self.envi_occtype]] + plist + [0.3, '', ('', zn + '_actsched')[self.inputs['ASchedule'].is_linked]]
+        paramvs = [zn + "_occupancy", zn, zn + '_occsched', pdict[self.envi_occtype]] + plist + [0.3, '', zn + '_actsched']
         if self.envi_comfort:
             params += ['Carbon Dioxide Generation Rate (m3/s-W)', 'Enable ASHRAE 55 Comfort Warnings',
                        'Mean Radiant Temperature Calculation Type', 'Surface Name/Angle Factor List Name', 'Work Efficiency Schedule Name', 'Clothing Insulation Calculation Method', 'Clothing Insulation Calculation Method Schedule Name',
                        'Clothing Insulation Schedule Name', 'Air Velocity Schedule Name', 'Thermal Comfort Model 1 Type']
-            paramvs += [3.82E-8, 'No', 'zoneaveraged', '', ('', zn + '_wesched')[self.inputs['WSchedule'].is_linked], 'ClothingInsulationSchedule', '', ('', zn + '_closched')[self.inputs['CSchedule'].is_linked], ('', zn + '_avsched')[self.inputs['VSchedule'].is_linked], 'FANGER']
+            paramvs += [3.82E-8, 'No', 'zoneaveraged', '', zn + '_wesched', 'ClothingInsulationSchedule', '', zn + '_closched', zn + '_avsched', 'FANGER']
         return epentry('People', params, paramvs)
         
 class EnViEq(bpy.types.Node, EnViNodes):
@@ -1932,7 +1960,7 @@ class EnViEq(bpy.types.Node, EnViNodes):
         elist[int(self.envi_equiptype) - 1] = self.envi_equipmax
         params = ('Name', 'Zone Name', 'SCHEDULE Name', 'Design Level calculation method', 'Design Level (W)', 'Power per Zone Floor Area (Watts/m2)', 'Power per Person (Watts/person)', \
         'Fraction Latent', 'Fraction Radiant', 'Fraction Lost')
-        paramvs = [zn + "_equip", zn, ('', zn + "_eqsched")[self.inputs['Schedule'].is_linked], edict[self.envi_equiptype]] + elist + ['0', '0', '0']
+        paramvs = [zn + "_equip", zn, zn + "_eqsched", edict[self.envi_equiptype]] + elist + ['0', '0', '0']
         return epentry('OtherEquipment', params, paramvs)
 
 class EnViInf(bpy.types.Node, EnViNodes):
@@ -1975,7 +2003,7 @@ class EnViInf(bpy.types.Node, EnViNodes):
         params = ('Name', 'Zone or ZoneList Name', 'Schedule Name', 'Design Flow Rate Calculation Method', 'Design Flow Rate {m3/s}', 'Flow per Zone Floor Area {m3/s-m2}',
                'Flow per Exterior Surface Area {m3/s-m2}', 'Air Changes per Hour {1/hr}', 'Constant Term Coefficient', 'Temperature Term Coefficient',
                 'Velocity Term Coefficient', 'Velocity Squared Term Coefficient')
-        paramvs = [zn + '_infiltration', zn, ('', zn + '_infsched')[self.inputs['Schedule'].is_linked], infildict[self.envi_inftype]] + inflist + [1, 0, 0, 0]
+        paramvs = [zn + '_infiltration', zn, zn + '_infsched', infildict[self.envi_inftype]] + inflist + [1, 0, 0, 0]
         return epentry('ZoneInfiltration:DesignFlowRate', params, paramvs)
         
 class EnViHvac(bpy.types.Node, EnViNodes):
@@ -2084,7 +2112,7 @@ class EnViHvac(bpy.types.Node, EnViNodes):
             paramvs = [zn +'_tsp', zn + '_ctspsched']
         
         params2 = ('Name', 'Zone or Zonelist Name', 'Control Type Schedule Name', 'Control 1 Object Type', 'Control 1 Name')
-        paramvs2 = (zn+'_thermostat', zn, zn +'_thermocontrol', 'ThermostatSetpoint:{}'.format(self['hc']), zn + '_tsp')
+        paramvs2 = (zn+'_thermostat', zn, ('', zn +'_thermocontrol')[self.inputs['HSchedule'].is_linked or self.inputs['CSchedule'].is_linked], 'ThermostatSetpoint:{}'.format(self['hc']), zn + '_tsp')
         return epentry('ThermostatSetpoint:{}'.format(self['hc']), params, paramvs) + epentry('ZoneControl:Thermostat', params2, paramvs2)
         
     def ephwrite(self, zn):
@@ -2135,6 +2163,9 @@ class EnViHvac(bpy.types.Node, EnViNodes):
         params2 = ('Name', 'Zone Equipment 1 Object Type', 'Zone Equipment 1 Name', 'Zone Equipment 1 Cooling Sequence', 'Zone Equipment 1 Heating or No-Load Sequence')
         paramvs2 = (zn + '_Equipment', 'ZoneHVAC:IdealLoadsAirSystem', zn + '_Air', 1, 1)
         return epentry('ZoneHVAC:EquipmentConnections', params, paramvs) + epentry('ZoneHVAC:EquipmentList', params2, paramvs2)
+    
+    def schedwrite(self, zn):
+        pass
          
 class EnViZone(bpy.types.Node, EnViNodes):
     '''Node describing a simulation zone'''
@@ -2242,8 +2273,8 @@ class EnViZone(bpy.types.Node, EnViNodes):
         [newrow(layout, val[0], self, val[1]) for v, val in enumerate(vals) if yesno[v]]
 
     def epwrite(self):
-        (tempschedname, mvof, lowerlim, upperlim) = (self.inputs['TSPSchedule'].links[0].from_node.name, self.mvof, self.lowerlim, self.upperlim) if self.inputs['TSPSchedule'].is_linked else ('', '', '', '')
-        vaschedname = self.inputs['VASchedule'].links[0].from_node.name if self.inputs['VASchedule'].is_linked else ''
+        (tempschedname, mvof, lowerlim, upperlim) = (self.zone + '_tspsched', self.mvof, self.lowerlim, self.upperlim) if self.inputs['TSPSchedule'].is_linked else ('', '', '', '')
+        vaschedname = self.zone + '_vasched' if self.inputs['VASchedule'].is_linked else ''
         params = ('Zone Name',
         'Ventilation Control Mode', 'Ventilation Control Zone Temperature Setpoint Schedule Name',
         'Minimum Venting Open Factor (dimensionless)',
@@ -2705,7 +2736,7 @@ class EnViSched(bpy.types.Node, EnViNodes):
                 self.t2 = self.t1 + 1
                 if self.t3 <= self.t2 and self.t2 < 365:
                     self.t3 = self.t2 + 1
-                    if self.t4 != 365:
+                    if self.t4 != 365:    
                         self.t4 = 365
 
             tn = (self.t1, self.t2, self.t3, self.t4).index(365) + 1
@@ -2810,6 +2841,241 @@ class EnViFanNode(bpy.types.Node, EnViNodes):
             vals = (("Name:", 'fname'), ("Efficiency:", 'feff'), ("Pressure Rise (Pa):", 'fpr'), ("Max flow rate:", 'fmfr'), ("Motor efficiency:", 'fmeff'), ("Airstream fraction:",'fmaf'))
             [newrow(layout, val[0], self, val[1]) for val in vals]
 
+#class EnViSenseNode(bpy.types.Node, EnViNodes):
+#    '''Node describing an EMS sensor'''
+#    bl_idname = 'EnViSense'
+#    bl_label = 'Envi Sensor'
+#    bl_icon = 'SOUND'
+#    
+#    sensorlist = [("0", "Zone Temperature", "Sense the zone temperature"), ("1", "Zone Humidity", "Sense the zone humidity"), ("2", "Zone CO2", "Sense the zone CO2")]
+#    sensortype = bpy.props.EnumProperty(name="Type", description="Linkage type", items=sensorlist, default='0')
+#    sensordict = {'0':  ('Temp', 'Zone Mean Air Temperature'), '1': ('RH', 'System Node Relative Humidity'), '2': ('CO2', 'AFN Node CO2 Concentration')}
+#    
+#    def epwrite(self, obj):
+#        params = ('Name', 'Output:Variable or Output:Meter Index Key Name', 'EnergyManagementSystem:Sensor')
+#        paramvs = ('{}_{}'.format(obj.name, self.sensordict[self.sensortype][0]), '{} Node'.format(obj.name), self.sensordict[self.sensortype][1])
+#        return epentry('EnergyManagementSystem:Sensor', params, paramvs)
+#
+#class EnViActNode(bpy.types.Node, EnViNodes):
+#    '''Node describing an EMS actuator'''
+#    bl_idname = 'EnViAct'
+#    bl_label = 'Envi Actuator'
+#    bl_icon = 'SOUND'
+#    
+#    actlist = [("0", "Opening factor", "Actuate the opening factor")]
+#    acttype = bpy.props.EnumProperty(name="Type", description="Actuator type", items=actlist, default='0')
+#    compdict = {'0': 'AirFlow Network Window/Door Opening'}
+#    actdict =  {'0': 'Venting Opening Factor'}
+#    
+#    def epwrite(self, zn, ln):
+#        params = ('Name', 'Actuated Component Unique Name', 'Actuated Component Type', 'Actuated Component Control Type')
+#        paramvs = ('{}_ofa'.format(zn), ln, self.compdict[self.acttype], self.actdict[self.acttype])
+#        return epentry('EnergyManagementSystem:Actuator', params, paramvs)
+        
+class EnViProgNode(bpy.types.Node, EnViNodes):
+    '''Node describing an EMS Program'''
+    bl_idname = 'EnViProg'
+    bl_label = 'Envi Program'
+    bl_icon = 'SOUND'
+            
+    text_file = bpy.props.StringProperty(description="Textfile to show")
+    sensorlist = [("0", "Zone Temperature", "Sense the zone temperature"), ("1", "Zone Humidity", "Sense the zone humidity"), ("2", "Zone CO2", "Sense the zone CO2"),
+                  ("3", "Zone Occupancy", "Sense the zone occupancy"), ("4", "Zone Equipment", "Sense the equipment level")]
+    sensortype = bpy.props.EnumProperty(name="", description="Linkage type", items=sensorlist, default='0')
+    sensordict = {'0':  ('Temp', 'Zone Mean Air Temperature'), '1': ('RH', 'System Node Relative Humidity'), '2': ('CO2', 'AFN Node CO2 Concentration')}
+
+    actlist = [("0", "Opening factor", "Actuate the opening factor")]
+    acttype = bpy.props.EnumProperty(name="", description="Actuator type", items=actlist, default='0')
+    compdict = {'0': 'AirFlow Network Window/Door Opening'}
+    actdict =  {'0': 'Venting Opening Factor'}
+    
+    def init(self, context):
+        self['nodeid'] = nodeid(self)
+        self.outputs.new('EnViSenseSocket', 'Sensor')
+        self.outputs.new('EnViActSocket', 'Actuator')
+        nodecolour(self, 1)  
+        
+    def draw_buttons(self, context, layout):
+        if self.outputs and self.outputs[0].links:
+            newrow(layout, 'Sensor', self, 'sensortype')
+        if self.outputs and self.outputs[1].links:
+            newrow(layout, 'Actuator', self, 'acttype')
+        layout.prop_search(self, 'text_file', bpy.data, 'texts', text='File', icon='TEXT')
+    
+    def update(self):
+        for sock in [sock for sock in self.inputs if sock.links]:
+            socklink(sock, self['nodeid'].split('@')[1])                     
+        self.use_custom_color = nodecolour(self, all([sock.links for sock in self.inputs])) 
+    
+    def names(self):
+        if self.outputs:
+            znode = self.outputs['Actuator'].links[0].to_node
+            ln = self.outputs['Actuator'].links[0].to_socket.name
+            zn = znode.emszone
+            return(ln, zn)
+    
+    def swrite(self):
+        params = ('Name', 'Output:Variable or Output:Meter Index Key Name', 'EnergyManagementSystem:Sensor')
+        paramvs = ('{}_{}'.format(self.names()[1], self.sensordict[self.sensortype][0]), '{} Node'.format(self.names()[1]), self.sensordict[self.sensortype][1])
+        return epentry('EnergyManagementSystem:Sensor', params, paramvs)
+    
+    def awrite(self):
+        params = ('Name', 'Actuated Component Unique Name', 'Actuated Component Type', 'Actuated Component Control Type')
+        paramvs = ('{}_act'.format(self.names()[1]), self.names()[0], self.compdict[self.acttype], self.actdict[self.acttype])
+        return epentry('EnergyManagementSystem:Actuator', params, paramvs)
+        
+    def epwrite(self, cmname, pname):
+        cmparams = ('Name', 'EnergyPlus Model Calling Point', 'Program Name 1')
+        cmparamvs = (cmname, 'BeginTimestepBeforePredictor', pname)
+        cmentry = epentry('EnergyManagementSystem:ProgramCallingManager', cmparams, cmparamvs)
+#  EnergyManagementSystem:ProgramCallingManager,
+#    RH Controlled Open Factor,  !- Name
+#    BeginTimestepBeforePredictor,  !- EnergyPlus Model Calling Point
+#    RH_OpeningController;    !- Program Name 1
+#        
+        pparams = ['Name'] + ['<none>' for line in bpy.data.texts[self.text_file].data.readlines()]
+        pparamvs = [pname] + [line.replace('act1', self.names()[1]+'_act').replace('sense1', '{}_{}'.format(self.names[1], self.sensordict[self.sensortype][0])) for line in bpy.data.texts[self.text_file].data.readlines()]
+        pentry = ('EnergyManagementSystem:Program', pparams, pparamvs)
+        
+        return cmentry + pentry
+        
+#  EnergyManagementSystem:Program,
+#    RH_OpeningController,    !- Name
+#    IF ZoneRH < 25,          !- Program Line 1
+#    SET MyOpenFactor = 0.0,  !- Program Line 2
+#    ELSEIF ZoneRH > 60,      !- <none>
+#    SET MyOpenFactor = 1.0,  !- <none>
+#    ELSE,                    !- <none>
+#    SET MyOpenFactor = (ZoneRH - 25) / (60 - 25),  !- <none>
+#    ENDIF;                   !- <none>
+#      EnergyManagementSystem:Actuator,
+#    MyOpenFactor,            !- Name
+#    Zn001:Wall001:Win001,    !- Actuated Component Unique Name
+#    AirFlow Network Window/Door Opening,  !- Actuated Component Type
+#    Venting Opening Factor;  !- Actuated Component Control Type    
+    
+class EnViEMSZoneNode(bpy.types.Node, EnViNodes):
+    '''Node describing a simulation zone'''
+    bl_idname = 'EnViEMSZone'
+    bl_label = 'EMS Zone'
+    bl_icon = 'SOUND'
+
+    def zupdate(self, context):
+        try:
+            obj = bpy.data.objects[self.emszone]
+            odm = obj.data.materials
+            self.zonevolume = objvol('', obj)
+#            bsocklist = ['{}_{}_b'.format(odm[face.material_index].name, face.index)  for face in obj.data.polygons if odm[face.material_index].envi_boundary == 1 and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViBoundSocket']]
+#            ssocklist = ['{}_{}_s'.format(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type not in ('Window', 'Door') and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViSFlowSocket']]
+            sssocklist = ['{}_{}_ss'.format(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type in ('Window', 'Door') and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViActSocket']]
+        except:
+            sssocklist = [], [], []
+            
+#        for oname in [outputs for outputs in self.outputs if outputs.name not in bsocklist and outputs.bl_idname == 'EnViBoundSocket']:
+#            self.outputs.remove(oname)
+#        for oname in [outputs for outputs in self.outputs if outputs.name not in ssocklist and outputs.bl_idname == 'EnViSFlowSocket']:
+#            self.outputs.remove(oname)
+        for oname in [outputs for outputs in self.outputs if outputs.name not in sssocklist and outputs.bl_idname == 'EnViActSocket']:
+            try: self.outputs.remove(oname)
+            except: pass
+#        for iname in [inputs for inputs in self.inputs if inputs.name not in bsocklist and inputs.bl_idname == 'EnViBoundSocket']:
+#            self.inputs.remove(iname)
+#        for iname in [inputs for inputs in self.inputs if inputs.name not in ssocklist and inputs.bl_idname == 'EnViSFlowSocket']:
+#            self.inputs.remove(iname)
+        for iname in [inputs for inputs in self.inputs if inputs.name not in sssocklist and inputs.bl_idname == 'EnViActSocket']:
+            try: self.inputs.remove(iname)
+            except: pass
+#        for sock in sorted(set(bsocklist)):
+#            if not self.outputs.get(sock):
+#                self.outputs.new('EnViBoundSocket', sock).sn = sock.split('_')[-2]
+#            if not self.inputs.get(sock):
+#                self.inputs.new('EnViBoundSocket', sock).sn = sock.split('_')[-2]
+#        for sock in sorted(set(ssocklist)):
+#            if not self.outputs.get(sock):
+#                self.outputs.new('EnViSFlowSocket', sock).sn = sock.split('_')[-2]
+#            if not self.inputs.get(sock):
+#                self.inputs.new('EnViSFlowSocket', sock).sn = sock.split('_')[-2]
+        for sock in sorted(set(sssocklist)):
+#            if not self.outputs.get(sock):
+#                self.outputs.new('EnViActSocket', sock).sn = sock.split('_')[-2]
+            if not self.inputs.get(sock):
+                self.inputs.new('EnViActSocket', sock).sn = sock.split('_')[-2]
+
+
+
+    emszone = bpy.props.StringProperty(update = zupdate)
+#    controltype = [("NoVent", "None", "No ventilation control"), ("Constant", "Constant", "From vent availability schedule"), ("Temperature", "Temperature", "Temperature control")]
+#    control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='NoVent', update = supdate)
+#    zonevolume = bpy.props.FloatProperty(name = '')
+#    mvof = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 1)
+#    lowerlim = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 100)
+#    upperlim = bpy.props.FloatProperty(default = 50, name = "", min = 0, max = 100)
+
+    def init(self, context):
+        self['nodeid'] = nodeid(self)
+        self.inputs.new('EnViSenseSocket', 'Sensor')
+#        self.inputs.new('EnViSenseSocket', 'Equipment')
+#        self.inputs.new('EnViSenseSocket', 'CO2')
+#        self.inputs.new('EnViSenseSocket', 'Humidity')
+#        self.inputs.new('EnViSenseSocket', 'Temperature')
+
+
+#    def update(self):
+#        [bi, si, ssi, bo, so , sso] = [1, 1, 1, 1, 1, 1]
+#        if self.control != 'Temperature' and self.inputs['TSPSchedule'].is_linked:
+#            remlink(self, self.inputs['TSPSchedule'].links)
+#        self.inputs['TSPSchedule'].hide = False if self.control == 'Temperature' else True
+#        try:
+   #         for inp in [inp for inp in self.inputs if inp.bl_idname in ('EnViSenseSocket', 'EnViActSocket')]:
+  #              self.outputs[inp.name].hide = True if inp.is_linked and self.outputs[inp.name].bl_idname == inp.bl_idname else False
+
+#            for outp in [outp for outp in self.outputs if outp.bl_idname in ('EnViSenseSocket', 'EnViActSocket')]:
+#                self.inputs[outp.name].hide = True if outp.is_linked and self.inputs[outp.name].bl_idname == outp.bl_idname else False
+
+#            for inp in [inp for inp in self.inputs if inp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
+#                if inp.bl_idname == 'EnViSenseSocket' and not inp.hide and not inp.links:
+#                    bi = 0
+#                if inp.bl_idname == 'EnViSFlowSocket' and not inp.hide and not inp.links:
+#                    si = 0
+#                if inp.bl_idname == 'EnViSSFlowSocket' and not inp.hide and not inp.links:
+#                    ssi = 0
+#
+#            for outp in [outp for outp in self.outputs if outp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
+#                if outp.bl_idname == 'EnViSenseSocket' and not outp.hide and not outp.links:
+#                    bo = 0
+#                if outp.bl_idname == 'EnViSFlowSocket' and not outp.hide and not outp.links:
+#                    so = 0
+#                if outp.bl_idname == 'EnViSSFlowSocket' and not outp.hide and not outp.links:
+#                    sso = 0
+
+#        except Exception as e:
+#            print(e)
+
+#        nodecolour(self, not all((bi, si, ssi, bo, so, sso)))
+
+    def draw_buttons(self, context, layout):
+        row=layout.row()
+        row.prop(self, "emszone")
+#        yesno = (1, 1, self.control == 'Temperature', self.control == 'Temperature', self.control == 'Temperature')
+#        vals = (("Volume:", "zonevolume"), ("Control type:", "control"), ("Minimum OF:", "mvof"), ("Lower:", "lowerlim"), ("Upper:", "upperlim"))
+#        [newrow(layout, val[0], self, val[1]) for v, val in enumerate(vals) if yesno[v]]
+
+    def epwrite(self):
+        (tempschedname, mvof, lowerlim, upperlim) = (self.zone + '_tspsched', self.mvof, self.lowerlim, self.upperlim) if self.inputs['TSPSchedule'].is_linked else ('', '', '', '')
+        vaschedname = self.zone + '_vasched' if self.inputs['VASchedule'].is_linked else ''
+        params = ('Zone Name',
+        'Ventilation Control Mode', 'Ventilation Control Zone Temperature Setpoint Schedule Name',
+        'Minimum Venting Open Factor (dimensionless)',
+        'Indoor and Outdoor Temperature Diffeence Lower Limit for Maximum Venting Opening Factor (deltaC)',
+        'Indoor and Outdoor Temperature Diffeence Upper Limit for Minimum Venting Opening Factor (deltaC)',
+        'Indoor and Outdoor Enthalpy Difference Lower Limit For Maximum Venting Open Factor (deltaJ/kg)',
+        'Indoor and Outdoor Enthalpy Difference Upper Limit for Minimun Venting Open Factor (deltaJ/kg)',
+        'Venting Availability Schedule Name')
+
+        paramvs = (self.zone, self.control, tempschedname, mvof, lowerlim, upperlim, '0.0', '300000.0', vaschedname)
+        return epentry('AirflowNetwork:MultiZone:Zone', params, paramvs)
+
+        
 class EnViNodeCategory(NodeCategory):
     @classmethod
     def poll(cls, context):
@@ -2821,9 +3087,9 @@ envinode_categories = [
         , NodeItem("EnViEq", label="Equipment Node"), NodeItem("EnViHvac", label="HVAC Node"), NodeItem("EnViInf", label="Infiltration Node"), NodeItem("EnViTC", label="Thermal Chimney Node")]),
         EnViNodeCategory("LinkNodes", "Airflow Link Nodes", items=[
             NodeItem("EnViSSFlow", label="Sub-surface Flow Node"), NodeItem("EnViSFlow", label="Surface Flow Node")]),
-        EnViNodeCategory("SchedNodes", "Schedule Nodes", items=[
-            NodeItem("EnViSched", label="Schedule")])]
-
+        EnViNodeCategory("SchedNodes", "Schedule Nodes", items=[NodeItem("EnViSched", label="Schedule")]),
+        EnViNodeCategory("EMSNodes", "EMS Nodes", items=[NodeItem("EnViProg", label="Program"), NodeItem("EnViEMSZone", label="Zone")])]
+        
 class ViASCImport(bpy.types.Node, ViNodes):
     '''Node describing a LiVi geometry export node'''
     bl_idname = 'ViASCImport'

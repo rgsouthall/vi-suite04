@@ -20,7 +20,7 @@ from .livi_calc  import li_calc, resapply
 from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend, en_air, en_panel
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
-from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, framerange, viparams, objmode, nodecolour, cmap, vertarea, wind_rose, compass, windnum, envires
+from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, framerange, viparams, objmode, nodecolour, cmap, vertarea, wind_rose, compass, windnum, envizres, envilres
 from .vi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, sunpos, recalculate_text
 from .vi_chart import chart_disp
 from .vi_gen import vigen
@@ -668,8 +668,8 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
     def modal(self, context, event):
         scene = context.scene            
         if scene['viparams']['vidisp'] not in ('en', 'enpanel'): 
-#            if self.get('_hande_temp'):
-            bpy.types.SpaceView3D.draw_handler_remove(self._handle_air, 'WINDOW')
+            if self.get('_handle_air'):
+                bpy.types.SpaceView3D.draw_handler_remove(self._handle_air, 'WINDOW')
 #            bpy.types.SpaceView3D.draw_handler_remove(self._handle_hum, 'WINDOW')
 #            bpy.types.SpaceView3D.draw_handler_remove(self._handle_wind, 'WINDOW')
 #            bpy.types.SpaceView3D.draw_handler_remove(self._handle_ztemp, 'WINDOW')
@@ -682,6 +682,7 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
         scene, valheaders = context.scene, [] 
         resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
         eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in [rval[0] for rval in resnode['resdict'].values()]}
+#        ereslinks = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in [rval[0] for rval in resnode['resdict'].values()]}
 #        scene['enviparams']['resobs'] = [o.name for o in bpy.data.objects if 'EN_'+o.name.upper() in [rval[0] for rval in resnode['resdict'].values()]]
         scene.frame_start, scene.frame_end = 0, len(resnode['allresdict']['Hour']) - 1 
         if scene.resas_disp:
@@ -721,9 +722,14 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
             self._handle_air = bpy.types.SpaceView3D.draw_handler_add(en_air, (self, context, resnode, valheaders), 'WINDOW', 'POST_PIXEL') 
         
         if scene.reszt_disp:            
-            envires(scene, eresobs, resnode, 'Temp')        
+            envizres(scene, eresobs, resnode, 'Temp')        
         if scene.reszh_disp:
-            envires(scene, eresobs, resnode, 'Hum')
+            envizres(scene, eresobs, resnode, 'Hum')
+        if scene.reszof_disp:   
+            envilres(scene, resnode)
+        if scene.reszlf_disp:
+            envilres(scene, resnode)
+            
         scene.frame_set(scene.frame_start) 
         if not bpy.app.handlers.frame_change_pre:
             bpy.app.handlers.frame_change_pre.append(recalculate_text)
@@ -770,7 +776,7 @@ class NODE_OT_FileProcess(bpy.types.Operator, io_utils.ExportHelper):
         processf(self, node)
         node.export()
         return {'FINISHED'}
-
+        
 class NODE_OT_SunPath(bpy.types.Operator):
     bl_idname = "node.sunpath"
     bl_label = "Sun Path"

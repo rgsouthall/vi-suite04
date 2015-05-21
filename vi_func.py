@@ -99,51 +99,98 @@ def fvmat(self, mn, bound):
 def recalculate_text(scene):    
     for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_temp']:
         txt = o.children[0] 
-        txt.data.body = u"{:.1f}\u00b0C".format(o['vals'][scene.frame_current])
+        txt.data.body = u"{:.1f}\u00b0C".format(o['envires']['Temp'][scene.frame_current])
         
-def envires(scene, eresobs, resnode, restype):
+def envilres(scene, resnode):
+    for rd in resnode['resdict']:
+        if resnode['resdict'][rd][0][:4] == 'WIN-':
+            baseob = [o for o in bpy.data.objects if o.name.upper() == resnode['resdict'][rd][0][7:][:-2]][0]
+            basefacecent = baseob.matrix_world * baseob.data.polygons[int(resnode['resdict'][rd][0][4:].split('_')[-1])].center
+            if scene.envi_flink:
+                posobs = [o for o in bpy.data.objects if o.vi_type == '0' and o.layers[0]]
+                dists = [(o.location - basefacecent).length for o in posobs]
+                resob = posobs[dists.index(min(dists))]
+                if not resob.get('envires'):
+                    resob['envires'] = {}
+            else:
+                resob = baseob
+            
+            if resob.data.shape_keys and resnode['resdict'][rd][1] == 'Opening Factor':
+                resob['envires']['LOF'] = resnode['allresdict'][rd]
+                for frame in range(scene.frame_start, scene.frame_end + 1):
+                    scene.frame_set(frame) 
+                    resob.data.shape_keys.key_blocks[1].value = resob['envires']['LOF'][frame]
+                    resob.data.shape_keys.key_blocks[1].keyframe_insert(data_path = 'value', frame = frame)
+            
+            if resob.data.shape_keys and resnode['resdict'][rd][1] == 'Linkage Flow in':
+                bpy.ops.mesh.primitive_cone_add()
+                fcone = bpy.context.active_object
+                fcone.rotation_euler = resob.rotation_euler if scene.envi_flink else mathutils.angle(fcone.matrix_world * fcone.data.polygons[-1].normal, resob.matrix_word * resob.data.polygons[int(resnode['resdict'][rd][0].split('_')[-1])].normal)
+                fcone.parent = resob
+ #               fcone.location = resob.location if scene.envi_flink else resob.matrix_word * resob.data.polygons[int(resnode['resdict'][rd][0].split('_')[-1])].center
+                fcone['envires'] = {}
+                fi = resnode['allresdict'][rd]
+                
+                for frd in resnode['resdict']:
+                    if resnode['resdict'][frd][0] == resnode['resdict'][rd][0] and resnode['resdict'][frd][1] == 'Linkage Flow out':
+                        fo = resnode['allresdict'][frd]
+                fcone['envires']['flow'] = [float(fival) - float(foval) for fival, foval in zip(fi,fo)]
+                
+                for frame in range(scene.frame_start, scene.frame_end + 1):
+                    scene.frame_set(frame)
+                    fcone.rotation_euler = fcone.rotation_euler.to_matrix().inverted().to_euler()
+                    fcone.scale = [10*float(fcone['envires']['flow'][frame]) for i in range(3)]
+                    fcone.keyframe_insert(data_path = 'scale', frame = frame)
+                    fcone.keyframe_insert(data_path = 'rotation_euler', frame = frame)
+
+def envizres(scene, eresobs, resnode, restype):
     resdict = {'Temp': ('Temperature (degC)', scene.en_temp_max, scene.en_temp_min), 'Hum': ('Humidity (%)', scene.en_hum_max, scene.en_hum_min)}
     odict = {res[1][0]: res[0] for res in resnode['resdict'].items() if len(res[1]) == 2 and res[1][0] in eresobs.values() and res[1][1] == resdict[restype][0]}
     eobs = [bpy.data.objects[o] for o in eresobs if eresobs[o] in odict]
     maxval = max([max(resnode['allresdict'][odict[o.name.upper()]]) for o in eobs]) if resdict[restype][1] == max([max(resnode['allresdict'][odict[o.name.upper()]]) for o in eobs]) else resdict[restype][1]
     minval = min([min(resnode['allresdict'][odict[o.name.upper()]]) for o in eobs]) if resdict[restype][2] == min([min(resnode['allresdict'][odict[o.name.upper()]]) for o in eobs]) else resdict[restype][2]
-    for o in [bpy.data.objects[o[3:]] for o in eresobs if eresobs[o] in odict] :
+    
+    for o in [bpy.data.objects[o[3:]] for o in eresobs if eresobs[o] in odict]:   
         vals = resnode['allresdict'][odict['EN_'+o.name.upper()]]
+        opos = o.matrix_world * mathutils.Vector([sum(ops)/8 for ops in zip(*o.bound_box)])
+    
+        if not o.children or not any([restype in oc['envires'] for oc in o.children if oc.get('envires')]):
+            bpy.ops.mesh.primitive_plane_add()                    
+            ores = bpy.context.active_object
+            ores['VIType'] = 'envi_{}'.format(restype.lower())
+            if not ores.get('envires'):
+                ores['envires'] = {}
+            ores['envires'][restype] = vals
+            bpy.ops.object.editmode_toggle()
+            bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"mirror":False}, TRANSFORM_OT_translate={"value":(0, 0, 1), "constraint_axis":(False, False, True), "constraint_orientation":'NORMAL', "mirror":False, "proportional":'DISABLED', "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False})
+            bpy.ops.object.editmode_toggle()
+            ores.scale, ores.parent = (0.5, 0.5, 0.5), o
+            ores.location = o.matrix_world.inverted() * opos
+            bpy.ops.object.material_slot_add()
+            mat = bpy.data.materials.new(name = '{}_{}'.format(o.name, restype.lower()))
+            ores.material_slots[0].material = mat 
+            bpy.ops.object.text_add(radius=1, view_align=False, enter_editmode=False, layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
+            txt = bpy.context.active_object
+            bpy.context.object.data.extrude = 0.001
+            txt.parent, txt.location = ores, ores.location
+            txt.data.align = 'CENTER'
+        else:
+            ores = [o for o in o.children if o.get('envires') and restype in o['envires']][0] 
+#                ores = o.children[0]
+            mat = ores.material_slots[0].material
+            txt = ores.children[0]
+
+        
         for frame in range(scene.frame_start, scene.frame_end + 1):
             scene.frame_set(frame)                
-            opos = o.matrix_world * mathutils.Vector([sum(ops)/8 for ops in zip(*o.bound_box)])
-
-            if not o.children:
-                bpy.ops.mesh.primitive_plane_add()                    
-                ores = bpy.context.active_object
-                ores['VIType'] = 'envi_{}'.format(restype.lower())
-                if not ores.get('envires'):
-                    ores['envires'] = {}
-                ores['envires'][restype] = vals
-                bpy.ops.object.editmode_toggle()
-                bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"mirror":False}, TRANSFORM_OT_translate={"value":(0, 0, 1), "constraint_axis":(False, False, True), "constraint_orientation":'NORMAL', "mirror":False, "proportional":'DISABLED', "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False})
-                bpy.ops.object.editmode_toggle()
-                ores.scale, ores.parent = (0.5, 0.5, 0.5), o 
-                ores.location = o.matrix_world.inverted() * opos
-                bpy.ops.object.material_slot_add()
-                mat = bpy.data.materials.new(name = '{}_{}'.format(o.name, restype.lower()))
-                ores.material_slots[0].material = mat 
-                bpy.ops.object.text_add(radius=1, view_align=False, enter_editmode=False, layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
-                txt = bpy.context.active_object
-                bpy.context.object.data.extrude = 0.001
-                txt.parent = ores
-                txt.data.align = 'CENTER'
-            else:
-                ores = o.children[0]
-                mat = ores.material_slots[0].material
-                txt = ores.children[0]
-            
             ores.scale[2] = (vals[frame] - minval)/(maxval - minval)
             ores.keyframe_insert(data_path = 'scale', index = 2, frame = frame)
             mat.diffuse_color = colorsys.hsv_to_rgb(0.7 * (maxval - vals[frame])/(maxval - minval), 1, 1)
             mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
             txt.location[2] = ores.matrix_world.to_translation()[2]
             txt.keyframe_insert(data_path = 'location', frame = frame)
+            
+            
 
 def radpoints(o, faces, sks):
     fentries = ['']*len(faces)   
@@ -403,7 +450,7 @@ def retrmenus(innode):
     enrtype = [(enr, enr, "Plot "+enr) for enr in innode['enrtypes']]
     rtypemenu = bpy.props.EnumProperty(items=rtype, name="", description="Result types", default = rtype[0][0])
     statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
-    valid = ['EnVi Results']    
+    valid = ['Vi Results']    
     climmenu = bpy.props.EnumProperty(items=ctype, name="", description="Climate type", default = ctype[0][0]) if 'Climate' in innode['rtypes'] else ''     
     zonemenu = bpy.props.EnumProperty(items=ztype, name="", description="Zone", default = ztype[0][0]) if 'Zone' in innode['rtypes'] else ''
     zonermenu = bpy.props.EnumProperty(items=zrtype, name="", description="Zone result", default = zrtype[0][0])  if 'Zone' in innode['rtypes'] else ''

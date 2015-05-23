@@ -11,6 +11,8 @@ class Vi3DPanel(bpy.types.Panel):
     bl_label = "VI-Suite Display"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
+    
+    
 
     def draw(self, context):
 #        print(self.resat)
@@ -73,11 +75,19 @@ class Vi3DPanel(bpy.types.Panel):
             elif scene['viparams']['vidisp'] in ('en', 'enpanel'):
                 resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
                 resitems = resnode['resdict'].items()
-                metrics = [res[1][1] for res in resitems if bpy.context.active_object and 'EN_{}'.format(bpy.context.active_object.name.upper()) == res[1][0]]
+#                self["_RNA_UI"] = {"Start": {"min":resnode.dsdoy, "max":resnode.dedoy}, "End": {"min":resnode.dsdoy, "max":resnode.dedoy}}
+
+                zonemetrics = set([res[1][1] for res in resitems if res[1][0] in ['EN_{}'.format(ob.name.upper()) for ob in bpy.data.objects]])
 #                aresdict = {"Air": "resaa_disp", 'Solar': 'resas_disp'}#, 'Wind Direction (deg)': 'resawd_disp', 
           #                  'Humidity (%)': 'resah_disp', 'Direct Solar (W/m^2)': 'resasb_disp', 'Diffuse Solar (W/m^2)': 'resasd_disp'}
+#                allmetrics = set([res[1][1] for res in resitems if len(res[1]) == 2])
+#                print(zonemetrics)
                 zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp', 'CO2 (ppm)': 'reszco_disp'}
                 vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}
+                row = layout.row()
+#                row.label(text = 'Day:')                
+                row.prop(resnode, '["Start"]')
+                row.prop(resnode, '["End"]')
                 row = layout.row() 
                 row.label(text = 'Ambient')
                 row = layout.row() 
@@ -106,31 +116,31 @@ class Vi3DPanel(bpy.types.Panel):
                 row = layout.row()    
                 row.operator("view3d.endisplay", text="EnVi Display")
                 if scene['viparams']['vidisp'] == 'enpanel':
-                    if 'Temperature (degC)' in metrics:
+                    if 'Temperature (degC)' in zonemetrics:
                         row = layout.row()
                         row.label('Temperature')
                         row = layout.row()
                         row.prop(scene, 'en_temp_max')
                         row.prop(scene, 'en_temp_min')
-                    if 'Humidity (%)' in metrics:
+                    if 'Humidity (%)' in zonemetrics:
                         row = layout.row()
                         row.label('Humidity')
                         row = layout.row()
                         row.prop(scene, 'en_hum_max')
                         row.prop(scene, 'en_hum_min')
-                    if 'Heating (W)' in metrics:
+                    if 'Heating (W)' in zonemetrics:
                         row = layout.row()
                         row.label('Heating')
                         row = layout.row()
                         row.prop(scene, 'en_heat_max')
                         row.prop(scene, 'en_heat_min')
-                    if 'Cooling (W)' in metrics:
+                    if 'Cooling (W)' in zonemetrics:
                         row = layout.row()
                         row.label('Cooling')
                         row = layout.row()
                         row.prop(scene, 'en_cool_max')
                         row.prop(scene, 'en_cool_min')   
-                    if 'CO2 (ppm)' in metrics:
+                    if 'CO2 (ppm)' in zonemetrics:
                         row = layout.row()
                         row.label('CO2')
                         row = layout.row()

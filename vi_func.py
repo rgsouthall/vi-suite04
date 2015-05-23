@@ -97,9 +97,10 @@ def fvmat(self, mn, bound):
     return begin + entry + end
         
 def recalculate_text(scene):    
-    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_temp']:
+    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_temp' and o.children]:
         txt = o.children[0] 
-        txt.data.body = u"{:.1f}\u00b0C".format(o['envires']['Temp'][scene.frame_current])
+        sf = scene.frame_current if scene.frame_current <= scene.frame_end else scene.frame_end
+        txt.data.body = u"{:.1f}\u00b0C".format(o['envires']['Temp'][sf])  
         
 def envilres(scene, resnode):
     for rd in resnode['resdict']:
@@ -147,12 +148,16 @@ def envizres(scene, eresobs, resnode, restype):
     resdict = {'Temp': ('Temperature (degC)', scene.en_temp_max, scene.en_temp_min), 'Hum': ('Humidity (%)', scene.en_hum_max, scene.en_hum_min)}
     odict = {res[1][0]: res[0] for res in resnode['resdict'].items() if len(res[1]) == 2 and res[1][0] in eresobs.values() and res[1][1] == resdict[restype][0]}
     eobs = [bpy.data.objects[o] for o in eresobs if eresobs[o] in odict]
-    maxval = max([max(resnode['allresdict'][odict[o.name.upper()]]) for o in eobs]) if resdict[restype][1] == max([max(resnode['allresdict'][odict[o.name.upper()]]) for o in eobs]) else resdict[restype][1]
-    minval = min([min(resnode['allresdict'][odict[o.name.upper()]]) for o in eobs]) if resdict[restype][2] == min([min(resnode['allresdict'][odict[o.name.upper()]]) for o in eobs]) else resdict[restype][2]
-    
+    resstart = 24 * (resnode['Start'] - resnode.dsdoy)
+    resend = resstart + 24 * (1 + resnode['End'] - resnode['Start'])
+#    resrange = (24 * (resnode['Start'] - resnode.dsdoy), 24 * (1 + resnode['End'] - resnode['Start']))
+    maxval = max([max(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) if resdict[restype][1] == max([max(resnode['allresdict'][odict[o.name.upper()]]) for o in eobs]) else resdict[restype][1]
+    minval = min([min(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) if resdict[restype][2] == min([min(resnode['allresdict'][odict[o.name.upper()]]) for o in eobs]) else resdict[restype][2]
+    print(resstart, resend)
     for o in [bpy.data.objects[o[3:]] for o in eresobs if eresobs[o] in odict]:   
-        vals = resnode['allresdict'][odict['EN_'+o.name.upper()]]
+        vals = resnode['allresdict'][odict['EN_'+o.name.upper()]][resstart:resend]
         opos = o.matrix_world * mathutils.Vector([sum(ops)/8 for ops in zip(*o.bound_box)])
+        print(len(vals))
     
         if not o.children or not any([restype in oc['envires'] for oc in o.children if oc.get('envires')]):
             bpy.ops.mesh.primitive_plane_add()                    
@@ -171,27 +176,34 @@ def envizres(scene, eresobs, resnode, restype):
             ores.material_slots[0].material = mat 
             bpy.ops.object.text_add(radius=1, view_align=False, enter_editmode=False, layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
             txt = bpy.context.active_object
-            bpy.context.object.data.extrude = 0.001
-            txt.parent, txt.location = ores, ores.location
+            bpy.context.object.data.extrude = 0.002
+            txt.parent = ores
+            txt.location = (0,0,0)
             txt.data.align = 'CENTER'
+            txt.name = '{}_{}_text'.format(o.name, restype)
+#            txt['envires'] = {}
+#            txt['envires'][restype] = vals
         else:
             ores = [o for o in o.children if o.get('envires') and restype in o['envires']][0] 
+            ores['envires'][restype] = vals
 #                ores = o.children[0]
             mat = ores.material_slots[0].material
             txt = ores.children[0]
+#            txt['envires'] = {}
+#            txt['envires'][restype] = vals
 
-        
+        scaleval =  [(vals[frame] - minval)/(maxval - minval) for frame in range(scene.frame_start, scene.frame_end + 1)]
+        colval = [colorsys.hsv_to_rgb(0.667 * (maxval - vals[frame])/(maxval - minval), 1, 1) for frame in range(scene.frame_start, scene.frame_end + 1)]
         for frame in range(scene.frame_start, scene.frame_end + 1):
-            scene.frame_set(frame)                
-            ores.scale[2] = (vals[frame] - minval)/(maxval - minval)
+            scene.frame_set(frame) 
+            ores.scale[2] =  scaleval[frame] if scaleval[frame] > 0.1 else 0.1 
             ores.keyframe_insert(data_path = 'scale', index = 2, frame = frame)
-            mat.diffuse_color = colorsys.hsv_to_rgb(0.7 * (maxval - vals[frame])/(maxval - minval), 1, 1)
+            mat.diffuse_color = colval[frame] if minval < vals[frame] < maxval else ((0, 1)[vals[frame] >= maxval], 0, (0, 1)[vals[frame] <= minval]) 
             mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
-            txt.location[2] = ores.matrix_world.to_translation()[2]
+            txt.location[2] = ores.dimensions[2]/ores.scale[2]
+#            txt.location[2] = ores.matrix_world.to_translation()[2]
             txt.keyframe_insert(data_path = 'location', frame = frame)
             
-            
-
 def radpoints(o, faces, sks):
     fentries = ['']*len(faces)   
     if sks:
@@ -1686,17 +1698,20 @@ def fvobjwrite(scene, o, bmo):
     bm.free()
 #    print(objheader + vcos + fverts)
     
-def sunpos(scene, node, frames, sun, valheader):
-    if node.bl_label == 'EnVi Simulation':
-        allresdict = node['allresdict']
+def sunpos(scene, resnode, frames, sun, valheader):
+    if resnode.bl_label == 'EnVi Simulation':
+        allresdict = resnode['allresdict']
+        resstart = 24 * (resnode['Start'] - resnode.dsdoy)
+        resend = resstart + 24 * (1 + resnode['End'] - resnode['Start'])
+ #       resrange = (24 * (resnode['Start'] - resnode.dsdoy), -24 * (resnode.dedoy - resnode['End']) - 1)
 #        node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
-        datetime.datetime(datetime.datetime.now().year, 1, 1, 12, 0)
-        times = [datetime.datetime(datetime.datetime.now().year, int(allresdict['Month'][h]), int(allresdict['Day'][h]), int(allresdict['Hour'][h]) - 1, 0) for h in range(len(allresdict['Month']))]
+        datetime.datetime(datetime.datetime.now().year, int(allresdict['Month'][resstart]), int(allresdict['Day'][resstart]), 0, 0)
+        times = [datetime.datetime(datetime.datetime.now().year, int(allresdict['Month'][h]), int(allresdict['Day'][h]), int(allresdict['Hour'][h]) - 1, 0) for h in range(resstart, resend)]
 #    simtime = node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
     else:
         sun.data.shadow_method, sun.data.shadow_ray_samples, sun.data.sky.use_sky = 'RAY_SHADOW', 8, 1
         shaddict = {'0': (0.01, 5), '1': (3, 3)}
-        (sun.data.shadow_soft_size, sun.data.energy) = shaddict[str(node['skynum'])]
+        (sun.data.shadow_soft_size, sun.data.energy) = shaddict[str(resnode['skynum'])]
     for t, time in enumerate(times):
         scene.frame_set(t)
         val = allresdict[valheader][t]

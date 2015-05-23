@@ -395,14 +395,16 @@ def en_air(self, context, simnode, valheaders):
         drawloop(int(leftwidth + hscale * 80 - 1), botheight + int(0.9 * bheight * reslevel), int(leftwidth + hscale * 130), botheight)      
         blf.disable(0, 4)
     
-def en_panel(self, context, simnode):
+def en_panel(self, context, resnode):
     scene = context.scene
-    resitems = simnode['resdict'].items()
+    resitems = resnode['resdict'].items()
     reszones = [res[1][0] for res in resitems]
     metrics = set
     height, font_id = context.region.height, 0
     hscale = height/nh
     startx, starty, rowheight, totwidth = 50, height - 50, 20, 200
+    resstart = 24 * (resnode['Start'] - resnode.dsdoy)
+    resend = resstart + 24 * (1 + resnode['End'] - resnode['Start'])
     
     if bpy.context.active_object and 'EN_{}'.format(bpy.context.active_object.name.upper()) in reszones:
         metrics = [res[1][1] for res in resitems if 'EN_{}'.format(bpy.context.active_object.name.upper()) == res[1][0]]
@@ -421,7 +423,7 @@ def en_panel(self, context, simnode):
             bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
             
             if 'Temperature (degC)' in metrics:
-                vals = simnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'Temperature (degC)'][0]]
+                vals = resnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'Temperature (degC)'][0]][resstart:resend]
                 avval, maxval, minval, percenta, percentb = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val > scene.en_temp_max for val in vals])/len(vals), 100 * sum([val < scene.en_temp_min for val in vals])/len(vals) 
                 blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
                 blf.draw(font_id, 'Temperatures:')

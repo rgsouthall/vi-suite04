@@ -752,6 +752,7 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
         self.inputs.new('ViEnC', 'Context in')
         self.outputs.new('ViR', 'Results out')
         self['exportstate'] = ''
+        self['Start'], self['End'] = 1, 365
         nodecolour(self, 1)
 
     def nodeupdate(self, context):
@@ -778,8 +779,14 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
             socklink(self.outputs['Results out'], self['nodeid'].split('@')[1])
 
     def sim(self):
-        self.dsdoy = self.inputs['Context in'].links[0].from_node.sdoy # (locnode.startmonthnode.sdoy
-        self.dedoy = self.inputs['Context in'].links[0].from_node.edoy
+        innode = self.inputs['Context in'].links[0].from_node
+        self.dsdoy = innode.sdoy # (locnode.startmonthnode.sdoy
+        self.dedoy = innode.edoy
+#        self.dsdoy.min =  self.dsdoy   
+#        self.dsdoy.max =  self.dedoy
+#        self["_RNA_UI"] = {"Start": {"min":resnode.dsdoy, "max":resnode.dedoy}, "End": {"min":resnode.dsdoy, "max":resnode.dedoy}}
+        self["_RNA_UI"] = {"Start": {"min":innode.sdoy, "max":innode.edoy}, "End": {"min":innode.sdoy, "max":innode.edoy}}
+        self['Start'], self['End'] = innode.sdoy, innode.edoy
 
 class ViEnRFNode(bpy.types.Node, ViNodes):
     '''Node for EnergyPlus results file selection'''

@@ -11,14 +11,12 @@ class Vi3DPanel(bpy.types.Panel):
     bl_label = "VI-Suite Display"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    
-    
-
+        
     def draw(self, context):
 #        print(self.resat)
         scene = context.scene
 #        if scene.vi_display == 1:
-        if scene['viparams']['vidisp']:
+        if scene.get('viparams') and scene['viparams']['vidisp']:
             view = context.space_data
             layout = self.layout
 

@@ -96,11 +96,13 @@ def fvmat(self, mn, bound):
         entry = nttdict[ntdict[self.flovi_bmb_type]]            
     return begin + entry + end
         
-def recalculate_text(scene):    
-    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_temp' and o.children]:
-        txt = o.children[0] 
-        sf = scene.frame_current if scene.frame_current <= scene.frame_end else scene.frame_end
-        txt.data.body = u"{:.1f}\u00b0C".format(o['envires']['Temp'][sf])  
+def recalculate_text(scene):   
+    resdict = {'Temp': ('envi_temp', u'\u00b0C'), 'Hum': ('envi_hum', '%'), 'CO2': ('envi_co2', 'ppm'), 'Heat': ('envi_heat', 'HW'), 'Cool': ('envi_cool', 'CW')}
+    for res in resdict:    
+        for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == resdict[res][0] and o.children]:
+            txt = o.children[0] 
+            sf = scene.frame_current if scene.frame_current <= scene.frame_end else scene.frame_end
+            txt.data.body = "{:.1f}".format(o['envires'][res][sf]) + resdict[res][1]
         
 def envilres(scene, resnode):
     for rd in resnode['resdict']:
@@ -151,13 +153,12 @@ def envizres(scene, eresobs, resnode, restype):
     resstart = 24 * (resnode['Start'] - resnode.dsdoy)
     resend = resstart + 24 * (1 + resnode['End'] - resnode['Start'])
 #    resrange = (24 * (resnode['Start'] - resnode.dsdoy), 24 * (1 + resnode['End'] - resnode['Start']))
-    maxval = max([max(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) if resdict[restype][1] == max([max(resnode['allresdict'][odict[o.name.upper()]]) for o in eobs]) else resdict[restype][1]
-    minval = min([min(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) if resdict[restype][2] == min([min(resnode['allresdict'][odict[o.name.upper()]]) for o in eobs]) else resdict[restype][2]
-    print(resstart, resend)
+    maxval = max([max(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) if resdict[restype][1] == max([max(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) else resdict[restype][1]
+    minval = min([min(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) if resdict[restype][2] == min([min(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) else resdict[restype][2]
+
     for o in [bpy.data.objects[o[3:]] for o in eresobs if eresobs[o] in odict]:   
         vals = resnode['allresdict'][odict['EN_'+o.name.upper()]][resstart:resend]
         opos = o.matrix_world * mathutils.Vector([sum(ops)/8 for ops in zip(*o.bound_box)])
-        print(len(vals))
     
         if not o.children or not any([restype in oc['envires'] for oc in o.children if oc.get('envires')]):
             bpy.ops.mesh.primitive_plane_add()                    
@@ -169,18 +170,23 @@ def envizres(scene, eresobs, resnode, restype):
             bpy.ops.object.editmode_toggle()
             bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"mirror":False}, TRANSFORM_OT_translate={"value":(0, 0, 1), "constraint_axis":(False, False, True), "constraint_orientation":'NORMAL', "mirror":False, "proportional":'DISABLED', "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False})
             bpy.ops.object.editmode_toggle()
-            ores.scale, ores.parent = (0.5, 0.5, 0.5), o
+            ores.scale, ores.parent = (0.25, 0.25, 0.25), o
             ores.location = o.matrix_world.inverted() * opos
             bpy.ops.object.material_slot_add()
             mat = bpy.data.materials.new(name = '{}_{}'.format(o.name, restype.lower()))
             ores.material_slots[0].material = mat 
             bpy.ops.object.text_add(radius=1, view_align=False, enter_editmode=False, layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
             txt = bpy.context.active_object
-            bpy.context.object.data.extrude = 0.002
+            bpy.context.object.data.extrude = 0.005
+            bpy.ops.object.material_slot_add()
             txt.parent = ores
-            txt.location = (0,0,0)
+            txt.location, txt.scale = (0,0,0), (ores.scale[0]*2, ores.scale[1]*2, 1)
             txt.data.align = 'CENTER'
             txt.name = '{}_{}_text'.format(o.name, restype)
+            txt.data.body = u"{:.1f}\u00b0C".format(ores['envires'][restype][0]) 
+            tmat = bpy.data.materials.new(name = '{}'.format(txt.name))
+            tmat.diffuse_color = (0, 0, 0)
+            txt.material_slots[0].material = tmat
 #            txt['envires'] = {}
 #            txt['envires'][restype] = vals
         else:
@@ -188,19 +194,40 @@ def envizres(scene, eresobs, resnode, restype):
             ores['envires'][restype] = vals
 #                ores = o.children[0]
             mat = ores.material_slots[0].material
-            txt = ores.children[0]
+            if not ores.children:
+                bpy.ops.object.text_add(radius=1, view_align=False, enter_editmode=False, layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
+                txt = bpy.context.active_object
+                bpy.context.object.data.extrude = 0.005
+                bpy.ops.object.material_slot_add()
+                txt.parent = ores
+                txt.location, txt.scale = (0,0,0), (ores.scale[0], ores.scale[1], 1)
+                txt.data.align = 'CENTER'
+                txt.name = '{}_{}_text'.format(o.name, restype)
+                tmat = bpy.data.materials.new(name = '{}'.format(txt.name))
+                tmat.diffuse_color = (0, 0, 0)
+                txt.material_slots[0].material = tmat
+            else:
+                txt = ores.children[0]
+            txt.data.body = u"{:.1f}\u00b0C".format(ores['envires'][restype][0]) 
 #            txt['envires'] = {}
 #            txt['envires'][restype] = vals
 
         scaleval =  [(vals[frame] - minval)/(maxval - minval) for frame in range(scene.frame_start, scene.frame_end + 1)]
+        sv = [(sv, 0.1)[sv <= 0.1] for sv in scaleval]
+#        tl = [ores.dimensions[2]/s for s in sv]
         colval = [colorsys.hsv_to_rgb(0.667 * (maxval - vals[frame])/(maxval - minval), 1, 1) for frame in range(scene.frame_start, scene.frame_end + 1)]
+        cv = [(((0, 1)[vals[c] >= maxval], 0, (0, 1)[vals[c] <= minval]), cv)[minval < vals[c] < maxval] for c, cv in enumerate(colval)]
+
         for frame in range(scene.frame_start, scene.frame_end + 1):
             scene.frame_set(frame) 
-            ores.scale[2] =  scaleval[frame] if scaleval[frame] > 0.1 else 0.1 
+#            oscale = scaleval[frame] 
+            #if scaleval[frame] > 0.1 else 0.1 
+            ores.scale[2] =  sv[frame]
             ores.keyframe_insert(data_path = 'scale', index = 2, frame = frame)
-            mat.diffuse_color = colval[frame] if minval < vals[frame] < maxval else ((0, 1)[vals[frame] >= maxval], 0, (0, 1)[vals[frame] <= minval]) 
+#            mat.diffuse_color = colval[frame] if minval < vals[frame] < maxval else ((0, 1)[vals[frame] >= maxval], 0, (0, 1)[vals[frame] <= minval]) 
+            mat.diffuse_color = cv[frame]
             mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
-            txt.location[2] = ores.dimensions[2]/ores.scale[2]
+            txt.location[2] = 1
 #            txt.location[2] = ores.matrix_world.to_translation()[2]
             txt.keyframe_insert(data_path = 'location', frame = frame)
             
@@ -260,7 +287,7 @@ def viparams(op, scene):
     if not scene.get('enparams'):
         scene['enparams'] = {}
     scene['enparams']['idf_file'] = idf
-    scene['enparams']['epversion'] = '8-2-0'
+    scene['enparams']['epversion'] = '8.3'
     if not scene.get('flparams'):
         scene['flparams'] = {}
     scene['flparams']['offilebase'] = offb
@@ -1252,6 +1279,8 @@ def nodeid(node):
 
 def nodecolour(node, prob):
     (node.use_custom_color, node.color) = (1, (1.0, 0.3, 0.3)) if prob else (0, (1.0, 0.3, 0.3))
+    if prob:
+        node.hide = False
     return not prob
 
 def remlink(node, links):

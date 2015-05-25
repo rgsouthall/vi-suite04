@@ -257,7 +257,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                         pass
 
             except Exception as e:
-                print(e)
+                print('Tuple', e)
 
 #    for hcoiobj in hcoiobjs:
 #        en_idf.write(hcoiobj.hvacschedwrite())
@@ -293,7 +293,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         try:
             en_idf.write(zn.inputs['HVAC'].links[0].from_node.ephspwrite(zn.zone))
         except Exception as e:
-            print(e)
+            print('Thermo', e)
             
 #    for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc]:
 #        en_idf.write(hcoiobj.thermowrite())
@@ -303,7 +303,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         try:
             en_idf.write(zn.inputs['HVAC'].links[0].from_node.epewrite(zn.zone))
         except Exception as e:
-            print(e)
+            print('Equip', e)
     
 #    for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc and not hcoiobj.obj.envi_hvact]:
 #        en_idf.write(hcoiobj.ec())
@@ -313,7 +313,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         try:
             en_idf.write(zn.inputs['HVAC'].links[0].from_node.ephwrite(zn.zone))
         except Exception as e:
-            print(e)
+            print('HVAC', e)
 #    for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc and not hcoiobj.obj.envi_hvact]:
 #        en_idf.write(hcoiobj.zh())
 #        if hcoiobj.obj.envi_hvacoam != '0': 
@@ -381,8 +381,8 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 
     en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: EMS ===========\n\n")   
     emsprognodes = [pn for pn in enng.nodes if pn.bl_idname == 'EnViProg' and not pn.use_custom_color]
-    for node in emsprognodes:
-        en_idf.write(node.awrite() + node.swrite() + node.epwrite())
+    for prognode in emsprognodes:
+        en_idf.write(prognode.epwrite())
     
     en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: REPORT VARIABLE ===========\n\n")
     epentrydict = {"Output:Variable,*,Zone Air Temperature,hourly;\n": node.restt,
@@ -426,7 +426,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         subprocess.call('{} {} {}'.format(scene['viparams']['cp'], os.path.join(scene['viparams']['newdir'], 'expanded.idf'), os.path.join(scene['viparams']['newdir'], 'in.idf')), shell = True)
 
     if 'in.idf' not in [im.name for im in bpy.data.texts]:
-        bpy.data.texts.load(scene['viparams']['idf_file'])
+        bpy.data.texts.load(scene['enparams']['idf_file'])
 
 def pregeo(op):
     scene = bpy.context.scene
@@ -449,6 +449,7 @@ def pregeo(op):
             for area in [area for area in screen.areas if area.type == 'NODE_EDITOR' and area.spaces[0].tree_type == 'ViN']:
                 area.spaces[0].node_tree = bpy.data.node_groups[op.nodeid.split('@')[1]]
     enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]
+    enng.use_fake_user = True
     enng['enviparams'] = {'wpca': 0, 'wpcn': 0, 'crref': 0, 'afn': 0}
     
     [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and node.zone[3:] not in [o.name for o in enviobjs]]

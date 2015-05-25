@@ -546,9 +546,7 @@ class NODE_OT_EnGExport(bpy.types.Operator):
 
     def invoke(self, context, event):
         scene = context.scene
-        print('hi')
         if viparams(self, scene):
-            print('hi2')
             return {'CANCELLED'}
         scene['viparams']['vidisp'] = ''
 #        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
@@ -668,12 +666,15 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
     def modal(self, context, event):
         scene = context.scene            
         if scene['viparams']['vidisp'] not in ('en', 'enpanel'): 
-            if self.get('_handle_air'):
+            try:
+#                if self.get('_handle_air'):
                 bpy.types.SpaceView3D.draw_handler_remove(self._handle_air, 'WINDOW')
+            except:
+                pass
 #            bpy.types.SpaceView3D.draw_handler_remove(self._handle_hum, 'WINDOW')
 #            bpy.types.SpaceView3D.draw_handler_remove(self._handle_wind, 'WINDOW')
 #            bpy.types.SpaceView3D.draw_handler_remove(self._handle_ztemp, 'WINDOW')
-            if not scene.enpanel_disp:
+            if not scene.get('enpanel_disp'):
                 bpy.types.SpaceView3D.draw_handler_remove(self._handle_enpanel, 'WINDOW')
             return {'CANCELLED'}
         return {'PASS_THROUGH'}

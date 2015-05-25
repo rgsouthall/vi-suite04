@@ -313,8 +313,10 @@ def li3D_legend(self, context, simnode, connode, geonode):
         scene.vi_leg_display = 0
         scene.update()
 
-def en_air(self, context, simnode, valheaders):
+def en_air(self, context, resnode, valheaders):
     scene = context.scene
+    resstart = 24 * (resnode['Start'] - resnode.dsdoy)
+    resend = resstart + 24 * (1 + resnode['End'] - resnode['Start'])
     if not scene.resaa_disp or scene['viparams']['vidisp'] not in ('en', 'enpanel'):
         return
     else:
@@ -332,7 +334,7 @@ def en_air(self, context, simnode, valheaders):
         blf.shadow(0, 3, 0, 0, 0, 0.5)
         
         # Temperature
-        resvals = simnode['allresdict'][valheaders[0]]
+        resvals = resnode['allresdict'][valheaders[0]][resstart:resend]
         maxval, minval = max(resvals), min(resvals)
         maxval, minval = max(resvals), min(resvals)
         reslevel = (resvals[scene.frame_current] - minval)/(maxval - minval)
@@ -355,9 +357,9 @@ def en_air(self, context, simnode, valheaders):
         orot = atan2(vw[1],vw[0]) - atan2(1,0)
     
         scene, font_id, height = context.scene, 0, context.region.height
-        resvalss = simnode['allresdict'][valheaders[1]]
+        resvalss = resnode['allresdict'][valheaders[1]][resstart:resend]
         maxvals = max(resvalss)
-        resvalsd = simnode['allresdict'][valheaders[2]]    
+        resvalsd = resnode['allresdict'][valheaders[2]][resstart:resend] 
         radius, hscale = 110, height/nh
         posx, posy = int(rightwidth - radius * hscale), int(topheight - hscale * radius * 1.2)
         blf.position(font_id, int(leftwidth + hscale * 160), int(topheight - hscale * 20), 0)
@@ -385,7 +387,7 @@ def en_air(self, context, simnode, valheaders):
         drawtri(posx, posy, resvalss[scene.frame_current]/maxvals, resvalsd[scene.frame_current] + orot*180/pi, hscale, radius)
         
         # Humidity
-        resvals = simnode['allresdict'][valheaders[3]]
+        resvals = resnode['allresdict'][valheaders[3]]
         maxval, minval = 100, 0
         reslevel = (resvals[scene.frame_current] - minval)/(maxval - minval)
         bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
@@ -424,6 +426,7 @@ def en_panel(self, context, resnode):
             
             if 'Temperature (degC)' in metrics:
                 vals = resnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'Temperature (degC)'][0]][resstart:resend]
+                print(len(vals))                
                 avval, maxval, minval, percenta, percentb = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val > scene.en_temp_max for val in vals])/len(vals), 100 * sum([val < scene.en_temp_min for val in vals])/len(vals) 
                 blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
                 blf.draw(font_id, 'Temperatures:')
@@ -440,7 +443,7 @@ def en_panel(self, context, resnode):
                 rowno += tt + 2
             
             if 'Humidity (%)' in metrics:
-                vals = simnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'Humidity (%)'][0]]
+                vals = resnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'Humidity (%)'][0]]
                 avval, maxval, minval, percenta, percentb = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val > scene.en_temp_max for val in vals])/len(vals), 100 * sum([val < scene.en_temp_min for val in vals])/len(vals) 
                 blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
                 blf.draw(font_id, 'Humidities:')
@@ -457,7 +460,7 @@ def en_panel(self, context, resnode):
                 rowno += tt + 2
             
             if 'Heating (W)' in metrics:
-                vals = simnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'Heating (W)'][0]]
+                vals = resnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'Heating (W)'][0]]
                 avval, maxval, minval, percenta, percentb, kwh, kwhm2 = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val >= scene.en_heat_max for val in vals])/len(vals), 100 * sum([val <= scene.en_heat_min for val in vals])/len(vals), 0.001 * sum(vals), 0.001 * sum(vals)/bpy.data.objects['en_'+bpy.context.active_object.name]['floorarea'] 
                 blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
                 blf.draw(font_id, 'Heating (W):')
@@ -474,7 +477,7 @@ def en_panel(self, context, resnode):
                 rowno += tt + 2
                 
             if 'Cooling (W)' in metrics:
-                vals = simnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'Cooling (W)'][0]]
+                vals = resnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'Cooling (W)'][0]]
                 avval, maxval, minval, percenta, percentb, kwh, kwhm2 = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val >= scene.en_heat_max for val in vals])/len(vals), 100 * sum([val <= scene.en_heat_min for val in vals])/len(vals), 0.001 * sum(vals), 0.001 * sum(vals)/bpy.data.objects['en_'+bpy.context.active_object.name]['floorarea'] 
                 blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
                 blf.draw(font_id, 'Cooling (W):')

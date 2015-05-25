@@ -27,8 +27,9 @@ else:
 
 import sys, os, inspect, bpy, nodeitems_utils, bmesh, shutil, colorsys
 from numpy import array, digitize
+#from bpy.app.handlers import persistent
 
-epversion = "8-2-0"
+epversion = "8-3-0"
 addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 matpath, epwpath, envi_mats, envi_cons, conlayers  = addonpath+'/EPFiles/Materials/Materials.data', addonpath+'/EPFiles/Weather/', envi_materials(), envi_constructions(), 5
 
@@ -37,6 +38,8 @@ rplatldict = {'linux': ('/usr/share/radiance/lib', '/usr/local/radiance/lib'), '
 eplatbdict = {'linux': ('/usr/local/EnergyPlus-{}'.format(epversion)), 'win32': 'C:\EnergyPlusV{}'.format(epversion), 'darwin': '/Applications/EnergyPlus-{}'.format(epversion)}
 platdict = {'linux': 'linux', 'win32': 'windows', 'darwin': 'osx'}
 evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
+
+
 
 
 if 'RAYPATH' not in os.environ:

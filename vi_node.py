@@ -2922,8 +2922,6 @@ class EnViProgNode(bpy.types.Node, EnViNodes):
         for sock in [sock for sock in self.inputs if sock.links]:
             socklink(sock, self['nodeid'].split('@')[1])                     
         nodecolour(self, not all([sock.links for sock in self.outputs])) 
-        if self.use_custom_color:
-            self.hide = False
     
     def names(self):
         if self.outputs:

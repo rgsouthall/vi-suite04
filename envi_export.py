@@ -156,7 +156,8 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 
     for obj in [obj for obj in bpy.data.objects if obj.layers[1] and obj.type == 'MESH' and obj.envi_type != '0']:
         obm, odv = obj.matrix_world, obj.data.vertices
-        obj["floorarea"] = sum([facearea(obj, face) for face in obj.data.polygons if obj.data.materials[face.material_index].envi_con_type =='floor'])
+#        obj["floorarea"] = sum([facearea(obj, face) for face in obj.data.polygons if obj.data.materials[face.material_index].envi_con_type =='floor'] and obj.envi_type == '1')
+
         for poly in obj.data.polygons:
             mat = obj.data.materials[poly.material_index]
             (obc, obco, se, we) = boundpoly(obj, mat, poly, enng)
@@ -165,10 +166,12 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 params = list(wfrparams) + ["X,Y,Z ==> Vertex {} (m)".format(v) for v in poly.vertices]
                 paramvs = ['{}_{}'.format(obj.name, poly.index), mat.envi_con_type, mat.name, obj.name, obc, obco, se, we, 'autocalculate', len(poly.vertices)]+ ["  {0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}".format(obm * odv[v].co) for v in poly.vertices]
                 en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))
-                if mat.envi_con_type == "Floor":
-                    obj["floorarea"] = obj["floorarea"] + poly.area
+#                if mat.envi_con_type == "Floor":
+#                    obj["floorarea"] += poly.area
 
             elif mat.envi_con_type in ('Door', 'Window'):
+                if len(poly.vertices) > 4:
+                    exp_op.report({'ERROR'}, 'Window/door in {} has more than 4 vertices'.format(obj.name))
                 xav, yav, zav = obm*mathutils.Vector(poly.center)
                 params = list(wfrparams) + ["X,Y,Z ==> Vertex {} (m)".format(v) for v in poly.vertices]
                 paramvs = ['{}_{}'.format(obj.name, poly.index), 'Wall', 'Frame', obj.name, obc, obco, se, we, 'autocalculate', len(poly.vertices)] + ["  {0[0]:.3f}, {0[1]:.3f}, {0[2]:.3f}".format(obm * odv[v].co) for v in poly.vertices]
@@ -455,6 +458,8 @@ def pregeo(op):
     [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and node.zone[3:] not in [o.name for o in enviobjs]]
                 
     for obj in enviobjs:
+        obj["floorarea"] = sum([facearea(obj, face) for face in obj.data.polygons if obj.data.materials[face.material_index].envi_con_type =='Floor' and obj.envi_type == '1'])
+        print(obj['floorarea'])
         for mats in obj.data.materials:
             if 'en_'+mats.name not in [mat.name for mat in bpy.data.materials]:
                 mats.copy().name = 'en_'+mats.name

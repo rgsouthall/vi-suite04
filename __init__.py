@@ -121,6 +121,7 @@ def legupdate(self, context):
                 f.keyframe_insert('material_index', frame=frame)
     scene.frame_set(scene.frame_current)
 
+    
 def settemps(self, context):
     scene = context.scene
     bpy.app.handlers.frame_change_pre.clear()
@@ -140,7 +141,8 @@ def settemps(self, context):
             mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
 
     scene.frame_set(fc)
-    bpy.app.handlers.frame_change_pre.append(recalculate_text)        
+    if not bpy.app.handlers.frame_change_pre:
+        bpy.app.handlers.frame_change_pre.append(recalculate_text)            
 
 def sethums(self, context):
     scene = context.scene
@@ -161,49 +163,74 @@ def sethums(self, context):
             mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
 
     scene.frame_set(fc)
-    bpy.app.handlers.frame_change_pre.append(recalculate_text)
+    if not bpy.app.handlers.frame_change_pre:
+        bpy.app.handlers.frame_change_pre.append(recalculate_text)
 
 def setheats(self, context):
     scene = context.scene
     bpy.app.handlers.frame_change_pre.clear()
     fc = scene.frame_current
-    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_hum']:
+    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_heat']:
         mat = o.material_slots[0].material
         for frame in range(scene.frame_start, scene.frame_end + 1):
             scene.frame_set(frame)
-            if o['envires']['Hum'][frame] < scene.en_hum_min:
+            if o['envires']['Heat'][frame] < scene.en_heat_min:
                 col = (0, 0, 1) 
-            elif o['envires']['Hum'][frame] > scene.en_hum_max:
+            elif o['envires']['Heat'][frame] > scene.en_heat_max:
                 col = (1, 0, 0)
             else:
-                col = colorsys.hsv_to_rgb(0.667 * (scene.en_hum_max - o['envires']['Hum'][frame])/(scene.en_hum_max - scene.en_hum_min), 1, 1)
+                col = colorsys.hsv_to_rgb(0.667 * (scene.en_heat_max - o['envires']['Heat'][frame])/(scene.en_heat_max - scene.en_heat_min), 1, 1)
 
             mat.diffuse_color = col
             mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
 
     scene.frame_set(fc)
-    bpy.app.handlers.frame_change_pre.append(recalculate_text)
+    if not bpy.app.handlers.frame_change_pre:
+        bpy.app.handlers.frame_change_pre.append(recalculate_text)
 
 def setcools(self, context):
     scene = context.scene
     bpy.app.handlers.frame_change_pre.clear()
     fc = scene.frame_current
-    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_hum']:
+    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_cool']:
         mat = o.material_slots[0].material
         for frame in range(scene.frame_start, scene.frame_end + 1):
             scene.frame_set(frame)
-            if o['envires']['Hum'][frame] < scene.en_hum_min:
+            if o['envires']['Cool'][frame] < scene.en_cool_min:
                 col = (0, 0, 1) 
-            elif o['envires']['Hum'][frame] > scene.en_hum_max:
+            elif o['envires']['Cool'][frame] > scene.en_cool_max:
                 col = (1, 0, 0)
             else:
-                col = colorsys.hsv_to_rgb(0.667 * (scene.en_hum_max - o['envires']['Hum'][frame])/(scene.en_hum_max - scene.en_hum_min), 1, 1)
+                col = colorsys.hsv_to_rgb(0.667 * (scene.en_cool_max - o['envires']['Cool'][frame])/(scene.en_cool_max - scene.en_cool_min), 1, 1)
 
             mat.diffuse_color = col
             mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
 
     scene.frame_set(fc)
-    bpy.app.handlers.frame_change_pre.append(recalculate_text)
+    if not bpy.app.handlers.frame_change_pre:
+        bpy.app.handlers.frame_change_pre.append(recalculate_text)
+        
+def setco2s(self, context):
+    scene = context.scene
+    bpy.app.handlers.frame_change_pre.clear()
+    fc = scene.frame_current
+    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_co2']:
+        mat = o.material_slots[0].material
+        for frame in range(scene.frame_start, scene.frame_end + 1):
+            scene.frame_set(frame)
+            if o['envires']['CO2'][frame] < scene.en_co2_min:
+                col = (0, 0, 1) 
+            elif o['envires']['CO2'][frame] > scene.en_co2_max:
+                col = (1, 0, 0)
+            else:
+                col = colorsys.hsv_to_rgb(0.667 * (scene.en_co2_max - o['envires']['CO2'][frame])/(scene.en_co2_max - scene.en_co2_min), 1, 1)
+
+            mat.diffuse_color = col
+            mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
+
+    scene.frame_set(fc)
+    if not bpy.app.handlers.frame_change_pre:
+        bpy.app.handlers.frame_change_pre.append(recalculate_text)
     
 def register():
     bpy.utils.register_module(__name__)
@@ -514,8 +541,8 @@ def register():
     Scene.en_heat_min = bpy.props.FloatProperty(name = "Min", description = "Heating minimum", default = 0, update=setheats)
     Scene.en_cool_max = bpy.props.FloatProperty(name = "Max", description = "Cooling maximum", default = 1000, update=setcools)
     Scene.en_cool_min = bpy.props.FloatProperty(name = "Min", description = "Cooling minimum", default = 0, update=setcools)
-    Scene.en_co2_max = bpy.props.FloatProperty(name = "Max", description = "CO2 maximum", default = 10000, update=setcools)
-    Scene.en_co2_min = bpy.props.FloatProperty(name = "Min", description = "CO2 minimum", default = 0, update=setcools)
+    Scene.en_co2_max = bpy.props.FloatProperty(name = "Max", description = "CO2 maximum", default = 10000, update=setco2s)
+    Scene.en_co2_min = bpy.props.FloatProperty(name = "Min", description = "CO2 minimum", default = 0, update=setco2s)
     Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 48, 9)
     Scene.vi_display_rp_fc = fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     Scene.vi_display_rp_fsh = fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)

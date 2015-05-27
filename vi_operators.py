@@ -726,6 +726,8 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
             envizres(scene, eresobs, resnode, 'Temp')        
         if scene.reszh_disp:
             envizres(scene, eresobs, resnode, 'Hum')
+        if scene.reszco_disp:
+            envizres(scene, eresobs, resnode, 'CO2')
         if scene.reszof_disp:   
             envilres(scene, resnode)
         if scene.reszlf_disp:

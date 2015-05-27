@@ -102,7 +102,7 @@ def recalculate_text(scene):
         for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == resdict[res][0] and o.children]:
             txt = o.children[0] 
             sf = scene.frame_current if scene.frame_current <= scene.frame_end else scene.frame_end
-            txt.data.body = "{:.1f}".format(o['envires'][res][sf]) + resdict[res][1]
+            txt.data.body = ("{:.1f}", "{:.0f}")[res == 'CO2'].format(o['envires'][res][sf]) + resdict[res][1]
         
 def envilres(scene, resnode):
     for rd in resnode['resdict']:
@@ -147,7 +147,8 @@ def envilres(scene, resnode):
                     fcone.keyframe_insert(data_path = 'rotation_euler', frame = frame)
 
 def envizres(scene, eresobs, resnode, restype):
-    resdict = {'Temp': ('Temperature (degC)', scene.en_temp_max, scene.en_temp_min), 'Hum': ('Humidity (%)', scene.en_hum_max, scene.en_hum_min)}
+    resdict = {'Temp': ('Temperature (degC)', scene.en_temp_max, scene.en_temp_min, u"\u00b0C"), 'Hum': ('Humidity (%)', scene.en_hum_max, scene.en_hum_min, '%'),
+               'CO2': ('CO2 (ppm)', scene.en_co2_max, scene.en_co2_min, 'ppm')}
     odict = {res[1][0]: res[0] for res in resnode['resdict'].items() if len(res[1]) == 2 and res[1][0] in eresobs.values() and res[1][1] == resdict[restype][0]}
     eobs = [bpy.data.objects[o] for o in eresobs if eresobs[o] in odict]
     resstart = 24 * (resnode['Start'] - resnode.dsdoy)
@@ -183,7 +184,7 @@ def envizres(scene, eresobs, resnode, restype):
             txt.location, txt.scale = (0,0,0), (ores.scale[0]*2, ores.scale[1]*2, 1)
             txt.data.align = 'CENTER'
             txt.name = '{}_{}_text'.format(o.name, restype)
-            txt.data.body = u"{:.1f}\u00b0C".format(ores['envires'][restype][0]) 
+            txt.data.body = "{:.1f}{}".format(ores['envires'][restype][0], resdict[restype][3]) if restype !='CO2' else "{:.0f}{}".format(ores['envires'][restype][0], resdict[restype][2])
             tmat = bpy.data.materials.new(name = '{}'.format(txt.name))
             tmat.diffuse_color = (0, 0, 0)
             txt.material_slots[0].material = tmat

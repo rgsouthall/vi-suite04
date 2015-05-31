@@ -515,6 +515,8 @@ def processf(pro_op, node):
                 'Zone Air System Sensible Cooling Rate [W] !Hourly': 'Cooling (W)',
                 'Zone Ideal Loads Supply Air Sensible Heating Rate [W] !Hourly': 'Zone air heating (W)',
                 'Zone Ideal Loads Supply Air Sensible Cooling Rate [W] !Hourly': 'Zone air cooling (W)',
+                'Zone Ideal Loads Supply Air Sensible Heating Rate [W] !Hourly': 'Zone air heating (W)',
+                'Zone Ideal Loads Supply Air Sensible Cooling Rate [W] !Hourly': 'Zone air cooling (W)',
                 'Zone Windows Total Transmitted Solar Radiation Rate [W] !Hourly': 'Solar gain (W)',
                 'Zone Infiltration Current Density Volume Flow Rate [m3/s] !Hourly': 'Infiltration (m'+u'\u00b3'+')',
                 'Zone Infiltration Air Change Rate [ach] !Hourly': 'Infiltration (ACH)',
@@ -546,11 +548,17 @@ def processf(pro_op, node):
                         objlist.append(linesplit[2].strip('_OCCUPANCY'))
                     elif linesplit[3] in zresdict and linesplit[2][-4:] == '_AIR' and linesplit[2].strip('_AIR') not in objlist and 'ExtNode' not in linesplit[2]:
                         objlist.append(linesplit[2].strip('_AIR'))
+                    elif 'IDEAL LOADS AIR SYSTEM' in linesplit[2]:
+                        print(linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip())
+                        if linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip() not in objlist:
+                            
+                            objlist.append(linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip())
                     elif linesplit[3] in zresdict and linesplit[2] not in objlist and 'ExtNode' not in linesplit[2]:
                         objlist.append(linesplit[2])
                     allresdict[linesplit[0]] = []
             elif not intro and len(linesplit) == 2:
                 allresdict[linesplit[0]].append(float(linesplit[1]))
+            
             if linesplit[0] in resdict:
                 if linesplit[0] == dos:
                     allresdict['Month'].append(int(linesplit[2]))
@@ -593,6 +601,18 @@ def processf(pro_op, node):
                         zrtypes.append(zresdict[linesplit[3]])
                 except:
                     pass
+                
+            elif len(linesplit) > 3 and 'IDEAL LOADS AIR SYSTEM' in linesplit[2] and linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip() in objlist:
+                if 'Zone' not in node['rtypes']:
+                   node['rtypes'] += ['Zone']
+                try:
+                    resdict[linesplit[0]] = [linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip(), zresdict[linesplit[3]]]
+                    if linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip() not in ztypes:
+                        ztypes.append(linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip())
+                    if zresdict[linesplit[3]] not in zrtypes:
+                        zrtypes.append(zresdict[linesplit[3]])
+                except Exception as e:
+                    print(e)
             
             elif len(linesplit) > 3 and linesplit[2] in objlist:
                 if 'Zone' not in node['rtypes']:
@@ -629,7 +649,7 @@ def processf(pro_op, node):
                         enrtypes.append(enresdict[linesplit[3]])
                 except Exception as e:
                     print('ext', e)
-            
+    print(objlist)        
     node.dsdoy = datetime.datetime(datetime.datetime.now().year, allresdict['Month'][0], allresdict['Day'][0]).timetuple().tm_yday
     node.dedoy = datetime.datetime(datetime.datetime.now().year, allresdict['Month'][-1], allresdict['Day'][-1]).timetuple().tm_yday
     node['dos'], node['resdict'], node['ctypes'], node['ztypes'], node['zrtypes'], node['ltypes'], node['lrtypes'], node['entypes'], node['enrtypes'] = dos, resdict, ctypes, ztypes, zrtypes, ltypes, lrtypes, entypes, enrtypes
@@ -1305,6 +1325,7 @@ def socklink(sock, ng):
         valid1 = sock.valid if not sock.get('valid') else sock['valid']
         for link in sock.links:
             valid2 = link.to_socket.valid if not link.to_socket.get('valid') else link.to_socket['valid'] 
+            print(sock.node, valid1, valid2)
             if not set(valid1)&set(valid2):
                 bpy.data.node_groups[ng].links.remove(link)
     except Exception as e:

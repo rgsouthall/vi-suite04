@@ -474,7 +474,7 @@ class IESPanel(bpy.types.Panel):
             newrow(layout, 'Light Array', lamp, 'lila')
         if (lamp.type == 'LAMP' and lamp.data.type != 'SUN') or lamp.lila: 
             row = layout.row()
-            row.operator("livi.iesselect")
+            row.operator("livi.ies_select")
             row.prop(lamp, "ies_name")
             newrow(layout, 'IES Dimension:', lamp, "ies_unit")
             newrow(layout, 'IES Strength:', lamp, "ies_strength")

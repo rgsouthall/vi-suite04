@@ -1,4 +1,4 @@
-import bpy, os, itertools, subprocess, datetime, sys, mathutils, bmesh
+import bpy, os, itertools, subprocess, datetime, shutil, mathutils, bmesh
 from .vi_func import epentry, objvol, ceilheight, selobj, facearea, boundpoly, rettimes, epschedwrite, selmesh
 dtdf = datetime.date.fromordinal
 
@@ -304,7 +304,9 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: EQUIPMENT ===========\n\n")
     for zn in zonenodes:
         try:
-            en_idf.write(zn.inputs['HVAC'].links[0].from_node.epewrite(zn.zone))
+            hvaczone = zn.inputs['HVAC'].links[0].from_node
+            if not hvaczone.envi_hvact:
+                en_idf.write(zn.inputs['HVAC'].links[0].from_node.epewrite(zn.zone))
         except Exception as e:
             print('Equip', e)
     
@@ -314,20 +316,24 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: HVAC ===========\n\n")
     for zn in zonenodes:
         try:
-            en_idf.write(zn.inputs['HVAC'].links[0].from_node.ephwrite(zn.zone))
+            hvacnode = zn.inputs['HVAC'].links[0].from_node
+            if hvacnode.envi_hvact:
+                en_idf.write(hvacnode.hvactwrite(zn.zone))
+            else:
+                en_idf.write(hvacnode.ephwrite(zn.zone))
         except Exception as e:
             print('HVAC', e)
 #    for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc and not hcoiobj.obj.envi_hvact]:
 #        en_idf.write(hcoiobj.zh())
 #        if hcoiobj.obj.envi_hvacoam != '0': 
 #            en_idf.write(hcoiobj.zhoa())
-    for zn in zonenodes:
-        try:
-            hvacnode = zn.inputs['HVAC'].links[0].from_node
-            if hvacnode.hc and hvacnode.envi_hvact:
-                en_idf.write(hvacnode.hvactwrite(zn.zone))
-        except:
-            pass
+#    for zn in zonenodes:
+#        try:
+#            hvacnode = zn.inputs['HVAC'].links[0].from_node
+#            if hvacnode.hc and hvacnode.envi_hvact:
+#                en_idf.write(hvacnode.hvactwrite(zn.zone))
+#        except:
+#            pass
 #    for hcoiobj in [hcoiobj for hcoiobj in hcoiobjs if hcoiobj.hc and hcoiobj.obj.envi_hvact]:
 #        en_idf.write(hcoiobj.zht())
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: OCCUPANCY ===========\n\n")
@@ -426,8 +432,8 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         os.chdir(scene['viparams']['newdir'])
         ehtempcmd = "ExpandObjects {}".format(os.path.join(scene['viparams']['newdir'], 'in.idf'))
         subprocess.call(ehtempcmd.split())
-        subprocess.call('{} {} {}'.format(scene['viparams']['cp'], os.path.join(scene['viparams']['newdir'], 'expanded.idf'), os.path.join(scene['viparams']['newdir'], 'in.idf')), shell = True)
-
+#        subprocess.call('{} {} {}'.format(scene['viparams']['cp'], os.path.join(scene['viparams']['newdir'], 'expanded.idf'), os.path.join(scene['viparams']['newdir'], 'in.idf')), shell = True)
+        shutil.copyfile(os.path.join(scene['viparams']['newdir'], 'expanded.idf'), os.path.join(scene['viparams']['newdir'], 'in.idf')) 
     if 'in.idf' not in [im.name for im in bpy.data.texts]:
         bpy.data.texts.load(scene['enparams']['idf_file'])
 

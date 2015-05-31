@@ -1,11 +1,14 @@
 # EnVi materials database
-#s = 70
+
 from collections import OrderedDict
 from .vi_func import epentry
 
 class envi_materials(object):
+    '''Defines materials with a comma separated dictionary, with material name as key, giving 
+    (Roughness, Conductivity {W/m-K}, Density {kg/m3}, Specific Heat {J/kg-K}, Thermal Absorbtance, 
+    Solar Absorbtance, Visible Absorbtance, Default thickness)'''
+
     def __init__(self):
-        # Define materials with a comma separated dictionary, with material name as key, giving (Roughness, Conductivity {W/m-K}, Density {kg/m3}, Specific Heat {J/kg-K}, Thermal Absorbtance, Solar Absorbtance, Visible Absorbtance, Default thickness)
         self.metal_datd = {'Copper': ('Smooth', '200', '8900.0', '418.00', '0.72', '0.65', '0.65', '5'),
                         'Steel': ('Smooth', '50', '7800.0', '502.0', '0.12', '0.2', '0.2', '5'),
                         'Aluminium': ('Smooth', '210', '2700', '880.00', '0.22', '0.2', '0.2', '5'),
@@ -29,7 +32,8 @@ class envi_materials(object):
                         'Aerated concrete block': ('Rough', '0.24', '750.0', '1000', '0.9', '0.65', '0.65', '100'),
                         'Inner concrete block': ('Rough', '0.51', '1400.0', '1000', '0.9', '0.65', '0.65', '100'),
                         'Heavy mix concrete': ('Rough', '1.4', '2100.0', '840.0', '0.90', '0.65', '0.65', '100'),
-                        'Concrete Floor slab': ('MediumRough', '1.73', '2242.6', '836.0', '0.90', '0.65', '0.65', '100')}
+                        'Concrete Floor slab': ('MediumRough', '1.73', '2242.6', '836.0', '0.90', '0.65', '0.65', '100'),
+                        'Hemcrete': ('Rough', '0.09', '330.0', '2100', '0.900000', '0.600000', '0.600000', '50')}
         self.concrete_dat = OrderedDict(sorted(self.concrete_datd.items()))
 
         self.wood_datd = {'Wood flooring': ('MediumSmooth', '0.14', '600.0', '1210.0', '0.91', '0.65', '0.65', '25'),
@@ -72,11 +76,10 @@ class envi_materials(object):
                         'Wilton wool carpet': ('Rough', '0.06', '186.0', '1360.0', '0.90', '0.60', '0.60', '5'),
                         'Thermawall TW50': ('MediumSmooth', '0.022', '32.000', '1500', '0.900000', '0.600000', '0.600000', '200'),
                         'Stramit': ('Rough', '0.1', '380.0', '2100', '0.900000', '0.600000', '0.600000', '50'),
-                        'Straw bale': ('Rough', '0.07', '380.0', '2100', '0.900000', '0.600000', '0.600000', '50'),
-                        'Foamglass': ('MediumSmooth', '0.05', '380.0', '2100', '0.900000', '0.600000', '0.600000', '50'),
-                        'Hemcrete': ('Rough', '0.06', '380.0', '2100', '0.900000', '0.600000', '0.600000', '50'),
-                        'Hemcrete': ('Rough', '0.06', '380.0', '2100', '0.900000', '0.600000', '0.600000', '50'),
-                        'Calsitherm': ('Rough', '0.06', '380.0', '2100', '0.900000', '0.600000', '0.600000', '50')}
+                        'Straw bale': ('Rough', '0.07', '110.0', '2000', '0.900000', '0.600000', '0.600000', '50'),
+                        'Foamglass': ('MediumSmooth', '0.04', '120.0', '840', '0.900000', '0.600000', '0.600000', '50'),
+                        'Calsitherm': ('Rough', '0.059', '220.0', '1500', '0.900000', '0.600000', '0.600000', '50')}
+   
         self.insulation_dat = OrderedDict(sorted(self.insulation_datd.items()))
 
         self.namedict = OrderedDict()

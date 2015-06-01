@@ -97,12 +97,12 @@ def fvmat(self, mn, bound):
     return begin + entry + end
         
 def recalculate_text(scene):   
-    resdict = {'Temp': ('envi_temp', u'\u00b0C'), 'Hum': ('envi_hum', '%'), 'CO2': ('envi_co2', 'ppm'), 'Heat': ('envi_heat', 'HW'), 'Cool': ('envi_cool', 'CW')}
+    resdict = {'Temp': ('envi_temp', u'\u00b0C'), 'Hum': ('envi_hum', '%'), 'CO2': ('envi_co2', 'ppm'), 'Heat': ('envi_heat', 'hW'), 'Cool': ('envi_cool', 'cW')}
     for res in resdict:    
         for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == resdict[res][0] and o.children]:
             txt = o.children[0] 
             sf = scene.frame_current if scene.frame_current <= scene.frame_end else scene.frame_end
-            txt.data.body = ("{:.1f}", "{:.0f}")[res == 'CO2'].format(o['envires'][res][sf]) + resdict[res][1]
+            txt.data.body = ("{:.1f}", "{:.0f}")[res in ('Heat', 'CO2')].format(o['envires'][res][sf]) + resdict[res][1]
         
 def envilres(scene, resnode):
     for rd in resnode['resdict']:
@@ -148,7 +148,8 @@ def envilres(scene, resnode):
 
 def envizres(scene, eresobs, resnode, restype):
     resdict = {'Temp': ('Temperature (degC)', scene.en_temp_max, scene.en_temp_min, u"\u00b0C"), 'Hum': ('Humidity (%)', scene.en_hum_max, scene.en_hum_min, '%'),
-               'CO2': ('CO2 (ppm)', scene.en_co2_max, scene.en_co2_min, 'ppm')}
+               'CO2': ('CO2 (ppm)', scene.en_co2_max, scene.en_co2_min, 'ppm'),
+                'Heat': ('Heating (W)', scene.en_heat_max, scene.en_heat_min, 'W')}
     odict = {res[1][0]: res[0] for res in resnode['resdict'].items() if len(res[1]) == 2 and res[1][0] in eresobs.values() and res[1][1] == resdict[restype][0]}
     eobs = [bpy.data.objects[o] for o in eresobs if eresobs[o] in odict]
     resstart = 24 * (resnode['Start'] - resnode.dsdoy)

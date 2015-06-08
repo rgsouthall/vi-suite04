@@ -412,7 +412,7 @@ def en_panel(self, context, resnode):
         metrics = [res[1][1] for res in resitems if 'EN_{}'.format(bpy.context.active_object.name.upper()) == res[1][0]]
 #        headers = [res[0] for res in simnode['resdict'].items() if 'EN_{}'.format(bpy.context.active_object.name.upper()) == res[1][0]]
 #        vals = [simnode['allresdict'][head] for head in headers]
-        metricno = 6 * (0, 1)['Temperature (degC)' in metrics] + 6 * (0, 1)['Humidity (%)' in metrics] + 8 * (0, 1)['Heating (W)' in metrics] + 8 * (0, 1)['Cooling (W)' in metrics] + 6 * (0, 1)['CO2 (ppm)' in metrics]
+        metricno = 6 * (0, 1)['Temperature (degC)' in metrics] + 6 * (0, 1)['Humidity (%)' in metrics] + 8 * (0, 1)['Heating (W)' in metrics] + 8 * (0, 1)['Zone air heating (W)' in metrics] + 8 * (0, 1)['Cooling (W)' in metrics] + 6 * (0, 1)['CO2 (ppm)' in metrics]
 #        valheaders = [val[1] for val in vals]
 #        print(valheaders)
         rowno = 1
@@ -460,6 +460,23 @@ def en_panel(self, context, resnode):
             
             if 'Heating (W)' in metrics:
                 vals = resnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'Heating (W)'][0]]
+                avval, maxval, minval, percenta, percentb, kwh, kwhm2 = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val >= scene.en_heat_max for val in vals])/len(vals), 100 * sum([val <= scene.en_heat_min for val in vals])/len(vals), 0.001 * sum(vals), 0.001 * sum(vals)/bpy.data.objects['en_'+bpy.context.active_object.name]['floorarea'] 
+                blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
+                blf.draw(font_id, 'Heating (W):')
+                for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.1f}'.format(scene.en_heat_max), '% at min {:.1f}'.format(scene.en_heat_min), 'kWh', 'kWh/m^2')):
+                    blf.position(font_id, int(startx + hscale*10), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                    blf.draw(font_id, text)
+                for tt, text in enumerate((avval, maxval, minval, percenta, percentb, kwh, kwhm2)):
+                    blf.position(font_id, int(startx +  hscale*(totwidth * 0.6 + 10)), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                    blf.draw(font_id, '{:.1f}'.format(text))
+                bgl.glBegin(bgl.GL_LINES)
+                bgl.glVertex2i(startx + int(hscale * totwidth * 0.2), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+                bgl.glVertex2i(startx + int(hscale*totwidth * 0.8), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+                bgl.glEnd()
+                rowno += tt + 2
+                
+            if 'Zone air heating (W)' in metrics:
+                vals = resnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'Zone air heating (W)'][0]]
                 avval, maxval, minval, percenta, percentb, kwh, kwhm2 = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val >= scene.en_heat_max for val in vals])/len(vals), 100 * sum([val <= scene.en_heat_min for val in vals])/len(vals), 0.001 * sum(vals), 0.001 * sum(vals)/bpy.data.objects['en_'+bpy.context.active_object.name]['floorarea'] 
                 blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
                 blf.draw(font_id, 'Heating (W):')

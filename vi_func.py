@@ -1142,7 +1142,8 @@ def skfpos(o, frame, vis):
     return mathutils.Vector(((maxx + minx) * 0.5, (maxy + miny) * 0.5, (maxz + minz) * 0.5))
 
 def selmesh(sel):
-    bpy.ops.object.mode_set(mode = 'EDIT')
+    if bpy.context.active_object.mode != 'EDIT':
+        bpy.ops.object.mode_set(mode = 'EDIT')        
     if sel == 'selenm':
         bpy.ops.mesh.select_mode(type="EDGE")
         bpy.ops.mesh.select_all(action='DESELECT')

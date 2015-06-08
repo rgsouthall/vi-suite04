@@ -695,31 +695,14 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                 sun = suns[0]
             for headvals in resnode['resdict'].items():
                 if len(headvals[1]) == 2 and headvals[1][1] == 'Direct Solar (W/m^2)':
-                    valheader = headvals[0]
-#            vals = resnode['allresdict'][valheader]                
+                    valheader = headvals[0]               
             sunpos(scene, resnode, range(scene.frame_start, scene.frame_end), sun, valheader)
         if scene.resaa_disp:
             for rtype in ('Temperature (degC)', 'Wind Speed (m/s)', 'Wind Direction (deg)', 'Humidity (%)'):
                 for headvals in resnode['resdict'].items():
                     if headvals[1][0] == 'Climate' and headvals[1][1] == rtype:
                         valheaders.append(headvals[0])
-#            for headvals in resnode['resdict'].items():
-#                if headvals[1][0] == 'Climate' and headvals[1][1] == 'Temperature (degC)':
-#                    valheaders.append(headvals[0])
-##            self._handle_temp = bpy.types.SpaceView3D.draw_handler_add(en_temp, (self, context, resnode, valheader), 'WINDOW', 'POST_PIXEL')
-##        if scene.resah_disp:
-#            for headvals in resnode['resdict'].items():
-#                if headvals[1][0] == 'Climate' and headvals[1][1] == 'Humidity (%)':
-#                    valheader = headvals[0]
-#            self._handle_hum = bpy.types.SpaceView3D.draw_handler_add(en_humidity, (self, context, resnode, valheader), 'WINDOW', 'POST_PIXEL') 
-##        if scene.resaws_disp or scene.resawd_disp:
-#            valheaders = ['', '']
-#            for headvals in resnode['resdict'].items():
-#                if headvals[1][0] == 'Climate':
-#                    if headvals[1][1] == 'Wind Speed (m/s)':
-#                        valheaders[0] = headvals[0]
-#                    if headvals[1][1] == 'Wind Direction (deg)':
-#                        valheaders[1] = headvals[0]
+
             self._handle_air = bpy.types.SpaceView3D.draw_handler_add(en_air, (self, context, resnode, valheaders), 'WINDOW', 'POST_PIXEL') 
         
         if scene.reszt_disp:            

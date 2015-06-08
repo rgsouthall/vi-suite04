@@ -78,7 +78,8 @@ class envi_materials(object):
                         'Stramit': ('Rough', '0.1', '380.0', '2100', '0.900000', '0.600000', '0.600000', '50'),
                         'Straw bale': ('Rough', '0.07', '110.0', '2000', '0.900000', '0.600000', '0.600000', '50'),
                         'Foamglass': ('MediumSmooth', '0.04', '120.0', '840', '0.900000', '0.600000', '0.600000', '50'),
-                        'Calsitherm': ('Rough', '0.059', '220.0', '1500', '0.900000', '0.600000', '0.600000', '50')}
+                        'Calsitherm': ('Rough', '0.059', '220.0', '1500', '0.900000', '0.600000', '0.600000', '50'),
+                        'Cellulose (attic)': ('Rough', '0.04', '25.0', '1600', '0.900000', '0.600000', '0.600000', '200')}
    
         self.insulation_dat = OrderedDict(sorted(self.insulation_datd.items()))
 
@@ -114,15 +115,18 @@ class envi_materials(object):
 
 class envi_constructions(object):
     def __init__(self):
-        self.wall_cond = {'External Wall 1': ('Standard Brick', 'Thermawall TW50', 'Inner concrete block'), 'Party Wall 1': ('Plaster board', 'Standard Brick', 'Plaster board')}
+        self.wall_cond = {'External Wall 1': ('Standard Brick', 'Thermawall TW50', 'Inner concrete block'), 'Kingston PH 1': ('Plywood', 'EPS', 'Plywood'),
+        'Party Wall 1': ('Plaster board', 'Standard Brick', 'Plaster board')}
         self.wall_con = OrderedDict(sorted(self.wall_cond.items()))
-        self.floor_cond = {'Ground Floor 1': ('Common earth', 'Gravel', 'Heavy mix concrete', 'Horizontal Air 20-50mm Heat Down', 'Chipboard')}
+        self.floor_cond = {'Ground Floor 1': ('Common earth', 'Gravel', 'Heavy mix concrete', 'Horizontal Air 20-50mm Heat Down', 'Chipboard'),
+                           'Kingston PH 1': ('Common earth', 'Gravel', 'EPS', 'Heavy mix concrete')}
         self.floor_con = OrderedDict(sorted(self.floor_cond.items()))
         self.roof_cond = {'Roof 1': ('Clay tile', 'Roofing felt', 'Plywood')}
         self.roof_con = OrderedDict(sorted(self.roof_cond.items()))
         self.door_cond = {'Internal Door 1': ('Chipboard', 'Hardwood', 'Chipboard')}
         self.door_con = OrderedDict(sorted(self.door_cond.items()))
-        self.glaze_cond = {'Standard Double Glazing': ('Clear 3mm', 'Air', 'Clear 3mm'), 'Low-E Double Glazing': ('Clear 3mm', 'Air', 'Clear 3mm LoE')}
+        self.glaze_cond = {'Standard Double Glazing': ('Clear 3mm', 'Air', 'Clear 3mm'), 'Low-E Double Glazing': ('Clear 3mm LoE', 'Air', 'Clear 3mm'), 
+                           'PassivHaus': ('Clear 3mm LoE', 'Argon', 'Clear 3mm LoE', 'Argon', 'Clear 3mm')}
         self.glaze_con = OrderedDict(sorted(self.glaze_cond.items()))
         self.p = 0
 

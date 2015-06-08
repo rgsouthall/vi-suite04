@@ -24,8 +24,9 @@ class envi_materials(object):
         self.brick_dat = OrderedDict(sorted(self.brick_datd.items()))
 
         self.cladding_datd = {'Stucco': ('Smooth', '0.692', '1858', '836.00', '0.900000', '0.9200000', '0.920000', '25'),
-                              'Plaster board': ('Smooth', '0.7264', '1602', '836.00', '0.900000', '0.9200000', '0.920000', '20'),
-                              'Plaster': ('Smooth', '1.5', '1900', '840.00', '0.300000', '0.300000', '0.30000', '5')}
+                              'Plaster board': ('Smooth', '0.7264', '1602', '836.00', '0.400000', '0.400000', '0.40000', '20'),
+                              'Plaster': ('Smooth', '1.5', '1900', '840.00', '0.300000', '0.300000', '0.3000', '5'),
+                              'Roof tiles': ('Smooth', '0.84', '1900', '840.00', '0.800000', '0.800000', '0.80000', '20')}
         self.cladding_dat = OrderedDict(sorted(self.cladding_datd.items()))
 
         self.concrete_datd = {'Light mix concrete': ('MediumRough', '0.38', '1200.0', '653', '0.9', '0.65', '0.65', '100'),

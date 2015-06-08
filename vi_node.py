@@ -2230,10 +2230,10 @@ class EnViZone(bpy.types.Node, EnViNodes):
         obj = bpy.data.objects[self.zone]
         odm = obj.data.materials
         self.zonevolume = objvol('', obj)
-        bsocklist = ['{}_{}_b'.format(odm[face.material_index].name, face.index)  for face in obj.data.polygons if odm[face.material_index].envi_boundary == 1 and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViBoundSocket']]
-        ssocklist = ['{}_{}_s'.format(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type not in ('Window', 'Door') and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViSFlowSocket']]
-        sssocklist = ['{}_{}_ss'.format(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type in ('Window', 'Door') and odm[face.material_index].name not in [outp.name for outp in self.outputs if outp.bl_idname == 'EnViSSFlowSocket']]
-
+        bsocklist = ['{}_{}_b'.format(odm[face.material_index].name, face.index)  for face in obj.data.polygons if odm[face.material_index].envi_boundary == 1 and odm[face.material_index].name not in [outp.sn for outp in self.outputs if outp.bl_idname == 'EnViBoundSocket']]
+        ssocklist = ['{}_{}_s'.format(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type not in ('Window', 'Door')]
+        sssocklist = ['{}_{}_ss'.format(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type in ('Window', 'Door')]
+        print(ssocklist)
         for oname in [outputs for outputs in self.outputs if outputs.name not in bsocklist and outputs.bl_idname == 'EnViBoundSocket']:
             self.outputs.remove(oname)
         for oname in [outputs for outputs in self.outputs if outputs.name not in ssocklist and outputs.bl_idname == 'EnViSFlowSocket']:
@@ -2470,7 +2470,7 @@ class EnViSSFlowNode(bpy.types.Node, EnViNodes):
     mvof = bpy.props.FloatProperty(default = 0, min = 0, max = 1, name = "", description = 'Minimium venting open factor')
     lvof = bpy.props.FloatProperty(default = 0, min = 0, max = 100, name = "", description = 'Indoor and Outdoor Temperature Difference Lower Limit For Maximum Venting Open Factor (deltaC)')
     uvof = bpy.props.FloatProperty(default = 1, min = 1, max = 100, name = "", description = 'Indoor and Outdoor Temperature Difference Upper Limit For Minimum Venting Open Factor (deltaC)')
-    amfcc = bpy.props.FloatProperty(default = 0.001, min = 0, max = 1, name = "", description = 'Air Mass Flow Coefficient When Opening is Closed (kg/s-m)')
+    amfcc = bpy.props.FloatProperty(default = 0.001, min = 0.00001, max = 1, name = "", description = 'Air Mass Flow Coefficient When Opening is Closed (kg/s-m)')
     amfec = bpy.props.FloatProperty(default = 0.65, min = 0.5, max = 1, name = '', description =  'Air Mass Flow Exponent When Opening is Closed (dimensionless)')
     lvo = bpy.props.EnumProperty(items = [('NonPivoted', 'NonPivoted', 'Non pivoting opening'), ('HorizontallyPivoted', 'HPivoted', 'Horizontally pivoting opening')], name = '', default = 'NonPivoted', description = 'Type of Rectanguler Large Vertical Opening (LVO)')
     ecl = bpy.props.FloatProperty(default = 0.0, min = 0, name = '', description = 'Extra Crack Length or Height of Pivoting Axis (m)')
@@ -2930,14 +2930,14 @@ class EnViProgNode(bpy.types.Node, EnViNodes):
         for slink in self.outputs['Sensor'].links:
             snode = slink.to_node
             sparams = ('Name', 'Output:Variable or Output:Meter Index Key Name', 'EnergyManagementSystem:Sensor')
-            if snode.bl_label == 'EnViZone':
-                sparamvs = ('{}_{}'.format(snode.zone, snode.sensordict[snode.sensortype][1]), '{}'.format(snode.zone), snode.sensordict[snode.sensortype][1])
-                sentries += epentry('EnergyManagementSystem:Sensor', sparams, sparamvs)
+            if snode.bl_idname == 'EnViEMSZone':
+                sparamvs = ('{}_{}'.format(snode.emszone, snode.sensordict[snode.sensortype][0]), '{}'.format(snode.emszone), snode.sensordict[snode.sensortype][1])
+#                sentries += epentry('EnergyManagementSystem:Sensor', sparams, sparamvs)
             elif snode.bl_label == 'EnViOcc':
                 for zlink in snode.outputs['Occupancy'].links:                    
                     znode = zlink.to_node
-                    sparamvs = ('{}_{}'.format(znode.zone, snode.sensordict[snode.sensortype][1]), '{}'.format(znode.zone), snode.sensordict[snode.sensortype][1])
-                    sentries += epentry('EnergyManagementSystem:Sensor', sparams, sparamvs)
+                    sparamvs = ('{}_{}'.format(znode.zone, snode.sensordict[snode.sensortype][0]), '{}'.format(znode.zone), snode.sensordict[snode.sensortype][1])
+            sentries += epentry('EnergyManagementSystem:Sensor', sparams, sparamvs)
         
         aentries = ''
         for alink in self.outputs['Actuator'].links:
@@ -2976,6 +2976,7 @@ class EnViEMSZoneNode(bpy.types.Node, EnViNodes):
             sssocklist = []
             self.inputs[0].hide = True
             nodecolour(self, 1)
+        
         for iname in [inputs for inputs in self.inputs if inputs.name not in sssocklist and inputs.bl_idname == 'EnViActSocket']:
             try: self.inputs.remove(iname)
             except: pass
@@ -2983,7 +2984,7 @@ class EnViEMSZoneNode(bpy.types.Node, EnViNodes):
         for sock in sorted(set(sssocklist)):
             if not self.inputs.get(sock):
                 try: self.inputs.new('EnViActSocket', sock).sn = '{0[0]}-{0[1]}_{0[2]}_{0[3]}'.format(sock.split('_'))
-                except: pass
+                except Exception as e: print(e)
             
     emszone = bpy.props.StringProperty(name = '', update = zupdate)
     sensorlist = [("0", "Zone Temperature", "Sense the zone temperature"), ("1", "Zone Humidity", "Sense the zone humidity"), ("2", "Zone CO2", "Sense the zone CO2"),

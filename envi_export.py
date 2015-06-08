@@ -86,7 +86,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 exp_op.report({'ERROR'}, 'Wrong number of layers specified for the {} window construction'.format(mat.name))
                 return
             for l, layer in enumerate(layers):
-                if layer == "1" and mat.envi_con_type in ("Wall", "Floor", "Roof"):
+                if layer == "1" and mat.envi_con_type in ("Wall", "Floor", "Roof", "Door"):
                     mats = ((mat.envi_export_bricklist_lo, mat.envi_export_claddinglist_lo, mat.envi_export_concretelist_lo, mat.envi_export_metallist_lo, mat.envi_export_stonelist_lo, mat.envi_export_woodlist_lo, mat.envi_export_gaslist_lo, mat.envi_export_insulationlist_lo), \
                     (mat.envi_export_bricklist_l1, mat.envi_export_claddinglist_l1, mat.envi_export_concretelist_l1, mat.envi_export_metallist_l1, mat.envi_export_stonelist_l1, mat.envi_export_woodlist_l1, mat.envi_export_gaslist_l1, mat.envi_export_insulationlist_l1), \
                     (mat.envi_export_bricklist_l2, mat.envi_export_claddinglist_l2, mat.envi_export_concretelist_l2, mat.envi_export_metallist_l2, mat.envi_export_stonelist_l2, mat.envi_export_woodlist_l2, mat.envi_export_gaslist_l2, mat.envi_export_insulationlist_l2), \
@@ -105,7 +105,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                     else:
                         em.gmat_write(en_idf, '{}-{}'.format(mats, matcount.count(mats.upper())), list(em.matdat[mats]), str(thicklist[l]/1000))
 
-                elif layer == "2" and mat.envi_con_type in ("Wall", "Floor", "Roof"):
+                elif layer == "2" and mat.envi_con_type in ("Wall", "Floor", "Roof", "Door"):
                     mats = (mat.envi_export_lo_name, mat.envi_export_l1_name, mat.envi_export_l2_name, mat.envi_export_l3_name, mat.envi_export_l4_name)[l]
                     params = ([mat.envi_export_lo_rough, mat.envi_export_lo_tc, mat.envi_export_lo_rho, mat.envi_export_lo_shc, mat.envi_export_lo_tab, mat.envi_export_lo_sab, mat.envi_export_lo_vab],\
                     [mat.envi_export_l1_rough, mat.envi_export_l1_tc, mat.envi_export_l1_rho, mat.envi_export_l1_shc, mat.envi_export_l1_tab, mat.envi_export_l1_sab, mat.envi_export_l1_vab],\
@@ -372,8 +372,11 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         subprocess.call(ehtempcmd.split())
 #        subprocess.call('{} {} {}'.format(scene['viparams']['cp'], os.path.join(scene['viparams']['newdir'], 'expanded.idf'), os.path.join(scene['viparams']['newdir'], 'in.idf')), shell = True)
         shutil.copyfile(os.path.join(scene['viparams']['newdir'], 'expanded.idf'), os.path.join(scene['viparams']['newdir'], 'in.idf')) 
+    
     if 'in.idf' not in [im.name for im in bpy.data.texts]:
         bpy.data.texts.load(scene['enparams']['idf_file'])
+    else:
+        bpy.data.texts['in.idf'].filepath = scene['enparams']['idf_file']
 
 def pregeo(op):
     scene = bpy.context.scene
@@ -405,7 +408,7 @@ def pregeo(op):
                 
     for obj in enviobjs:
         obj["floorarea"] = sum([facearea(obj, face) for face in obj.data.polygons if obj.data.materials[face.material_index].envi_con_type =='Floor' and obj.envi_type == '1'])
-        print(obj['floorarea'])
+
         for mats in obj.data.materials:
             if 'en_'+mats.name not in [mat.name for mat in bpy.data.materials]:
                 mats.copy().name = 'en_'+mats.name
@@ -432,7 +435,7 @@ def pregeo(op):
         en_obj.select = False
         bm = bmesh.new()
         bm.from_mesh(en_obj.data)
-        bmesh.ops.triangulate(bm, faces = [face for face in bm.faces if len(face.verts) > 5])
+        bmesh.ops.triangulate(bm, faces = [face for face in bm.faces if en_obj.data.materials[face.material_index].envi_con_type == 'Shading'])
         bm.transform(en_obj.matrix_world)
         en_obj["volume"] = bm.calc_volume()
         bm.transform(en_obj.matrix_world.inverted())

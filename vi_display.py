@@ -18,7 +18,7 @@
 
 
 import bpy, blf, colorsys, bgl, mathutils, bmesh
-from math import pi, sin, cos, atan2
+from math import pi, sin, cos, atan2, log10
 from numpy import digitize, array
 try:
     import matplotlib
@@ -179,7 +179,7 @@ def spnumdisplay(disp_op, context, simnode):
 
 def linumdisplay(disp_op, context, simnode, connode, geonode):
     scene = context.scene    
-    if scene['viparams']['vidisp'] != 'lipanel':
+    if scene['viparams']['vidisp'] not in ('lipanel', 'sspanel'):
         return
     if scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
         disp_op.report({'INFO'},"Outside result frame range")
@@ -187,7 +187,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
 
     obreslist = [ob for ob in scene.objects if ob.type == 'MESH'  and 'lightarray' not in ob.name and ob.hide == False and ob.layers[scene.active_layer] == True and ob.get('lires')]
                     
-    if (scene.li_disp_panel != 2 and scene.ss_disp_panel != 2) or scene.vi_display_rp != True \
+    if scene.vi_display_rp != True \
          or (bpy.context.active_object not in obreslist and scene.vi_display_sel_only == True)  \
          or (bpy.context.active_object and bpy.context.active_object.mode == 'EDIT'):
         return
@@ -198,7 +198,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
     bgl.glColor4f(*scene.vi_display_rp_fc[:])
     blf.size(0, scene.vi_display_rp_fs, 72)
     bgl.glColor3f = scene.vi_display_rp_fc
-    fn = context.scene.frame_current - scene.fs
+    fn = context.scene.frame_current - scene['liparams']['fs']
     mid_x, mid_y, width, height = viewdesc(context)
     view_mat = context.space_data.region_3d.perspective_matrix
 #    view_pivot = context.region_data.view_location bpy.context.active_object.location if bpy.context.active_object and context.user_preferences.view.use_rotate_around_active else context.region_data.view_location
@@ -228,14 +228,15 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         bm.from_mesh(obm)
         bm.transform(omw)
 
-        if scene['liparams']['cp'] == "0":
+#        if scene['liparams']['cp'] == "0":
+        if bm.faces.layers.float.get('res{}'.format(scene.frame_current)):
             livires = bm.faces.layers.float['res{}'.format(scene.frame_current)]
             if not scene.vi_disp_3d:
                 faces = [f for f in bm.faces if not f.hide and mathutils.Vector.angle(vw, view_location - f.calc_center_median()) < pi * 0.5]
                 faces = [f for f in faces if not scene.ray_cast(f.calc_center_median() + scene.vi_display_rp_off * f.normal, view_location)[0]] if scene.vi_display_vis_only else faces
                 fcs = [view_mat*f.calc_center_bounds().to_4d() for f in faces]
             else:
-                sk = bm.verts.layers.shape[scene.frame_current]
+#                sk = bm.verts.layers.shape[scene.frame_current]
                 faces = [f for f in bm.faces if f.select and not f.hide]
                 fpos = [skfpos(ob, scene.frame_current, [v.index for v in f.verts]) for f in faces]
                 faces = [f for fi, f in enumerate(faces) if mathutils.Vector.angle(vw, view_location - f.calc_center_median()) < pi * 0.5]
@@ -245,7 +246,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
                 fcs = [view_mat*fpos[fi].to_4d() for fi, f in enumerate(faces)]
             res = [f[livires] for f in faces]
             draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, fcs, res)
-        else:
+        elif bm.verts.layers.float.get('res{}'.format(scene.frame_current)) :
             livires = bm.verts.layers.float['res{}'.format(scene.frame_current)]              
             if not scene.vi_disp_3d:
                 verts = [v for v in bm.verts if not v.hide and mathutils.Vector.angle(vw, view_location - v.co) < pi * 0.5]
@@ -268,7 +269,8 @@ def li3D_legend(self, context, simnode, connode, geonode):
         if scene['viparams']['vidisp'] != 'lipanel' or scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or not scene.vi_leg_display:
             return
         else:
-            resvals = [('{:.1f}', '{:.0f}')[scene.vi_leg_max >= 100].format(scene.vi_leg_min+i*(scene.vi_leg_max - scene.vi_leg_min)/19) for i in range(20)]    
+            resvals = [('{:.1f}', '{:.0f}')[scene.vi_leg_max >= 100].format(scene.vi_leg_min + i*(scene.vi_leg_max - scene.vi_leg_min)/19) for i in range(20)] if scene.vi_leg_scale == '0' else \
+                        [('{:.1f}', '{:.0f}')[scene.vi_leg_max >= 100].format(scene.vi_leg_min + (1 -log10(i)/log10(20))*(scene.vi_leg_max - scene.vi_leg_min)) for i in range(1, 21)[::-1]]
             height = context.region.height
             lenres = len(resvals[-1])
             font_id = 0

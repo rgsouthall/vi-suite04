@@ -29,7 +29,7 @@ def radgexport(export_op, node, **kwargs):
     radfiles = []
     geogennode = node.inputs['Generative in'].links[0].from_node if node.inputs['Generative in'].links else 0
     geooblist, caloblist, lightlist = retobjs('livig'), retobjs('livic'), retobjs('livil') 
-    radmesh(scene, set(geooblist + caloblist), export_op)
+    
     if not kwargs:
         mableobs = set(geooblist + caloblist)
         scene['liparams']['livig'], scene['liparams']['livic'], scene['liparams']['livil'] = [o.name for o in geooblist], [o.name for o in caloblist], [o.name for o in lightlist]
@@ -57,7 +57,8 @@ def radgexport(export_op, node, **kwargs):
     else:
         (scene['liparams']['fs'], scene['liparams']['gfe'], node['frames']['Material'], node['frames']['Geometry'], node['frames']['Lights']) = [kwargs['genframe']] * 5 if kwargs.get('genframe') else (0, 0, 0, 0, 0)
     scene['liparams']['cfe'] = 0
-        
+       
+    
     for frame in range(scene['liparams']['fs'], scene['liparams']['gfe'] + 1): 
         if export == 'geoexport':
             scene.frame_set(frame)
@@ -84,7 +85,7 @@ def radgexport(export_op, node, **kwargs):
             gframe = scene.frame_current if node['frames']['Geometry'] > 0 else 0
             mframe = scene.frame_current if node['frames']['Material'] > 0 else 0
             gradfile = "# Geometry \n\n"
-            
+            radmesh(scene, set(geooblist + caloblist), export_op) 
             for o in set(geooblist + caloblist):                
                 bm = bmesh.new()
                 bm.from_mesh(o.data)
@@ -228,7 +229,7 @@ def radcexport(export_op, node, locnode, geonode):
                             bpy.ops.object.lamp_add(type='SUN')
                             sun = bpy.context.object
                             sun['VIType'] = 'Sun'
-                    blsunexport(scene, node, locnode, frame - scene['liparams']['fs'], sun)
+#                    blsunexport(scene, node, locnode, frame - scene['liparams']['fs'], sun)
                 with open("{}-{}.sky".format(scene['viparams']['filebase'], frame), 'a') as skyfilea:
                     skyexport(node, skyfilea)
                 with open("{}-{}.sky".format(scene['viparams']['filebase'], frame), 'r') as skyfiler:
@@ -335,23 +336,23 @@ def hdrexport(scene, frame, node):
     else:
         bpy.data.images['{}p.hdr'.format(frame)].reload()
 
-def blsunexport(scene, node, locnode, frame, sun):
-    simtime = node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
-    solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour + (simtime.minute)*0.016666, scene.latitude, scene.longitude)
-    if node['skynum'] < 2:
-        if frame == 0:
-            sun.data.shadow_method, sun.data.shadow_ray_samples, sun.data.sky.use_sky = 'RAY_SHADOW', 8, 1
-            shaddict = {'0': (0.01, 5), '1': (3, 3)}
-            (sun.data.shadow_soft_size, sun.data.energy) = shaddict[str(node['skynum'])] 
-        sun.location, sun.rotation_euler = [x*20 for x in (-sin(phi), -cos(phi), tan(beta))], [(math.pi/2) - beta, 0, -phi]
-        if scene.render.engine == 'CYCLES' and bpy.data.worlds['World'].use_nodes:
-            if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
-                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)#sin(phi), -cos(phi), -2* beta/math.pi
-                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = frame)
-        sun.keyframe_insert(data_path = 'location', frame = frame)
-        sun.keyframe_insert(data_path = 'rotation_euler', frame = frame)
-        sun.data.cycles.use_multiple_importance_sampling = True
-    bpy.ops.object.select_all()
+#def blsunexport(scene, node, locnode, frame, sun):
+#    simtime = node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
+#    solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour + (simtime.minute)*0.016666, scene.latitude, scene.longitude)
+#    if node['skynum'] < 2:
+#        if frame == 0:
+#            sun.data.shadow_method, sun.data.shadow_ray_samples, sun.data.sky.use_sky = 'RAY_SHADOW', 8, 1
+#            shaddict = {'0': (0.01, 5), '1': (3, 3)}
+#            (sun.data.shadow_soft_size, sun.data.energy) = shaddict[str(node['skynum'])] 
+#        sun.location, sun.rotation_euler = [x*20 for x in (-sin(phi), -cos(phi), tan(beta))], [(math.pi/2) - beta, 0, -phi]
+#        if scene.render.engine == 'CYCLES' and bpy.data.worlds['World'].use_nodes:
+#            if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
+#                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)#sin(phi), -cos(phi), -2* beta/math.pi
+#                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = frame)
+#        sun.keyframe_insert(data_path = 'location', frame = frame)
+#        sun.keyframe_insert(data_path = 'rotation_euler', frame = frame)
+#        sun.data.cycles.use_multiple_importance_sampling = True
+#    bpy.ops.object.select_all()
 
 def skyexport(node, rad_sky):
     rad_sky.write("\nskyfunc glow skyglow\n0\n0\n")

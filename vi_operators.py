@@ -21,7 +21,7 @@ from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, l
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, framerange, viparams, objmode, nodecolour, cmap, vertarea, wind_rose, compass, windnum, envizres, envilres
-from .vi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, sunpos, recalculate_text
+from .vi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, sunposenvi, recalculate_text
 from .vi_chart import chart_disp
 from .vi_gen import vigen
 
@@ -324,8 +324,8 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
                 li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
         else:
             simnode['Animation'] = 'Animated' if scene['liparams']['gfe'] > 0 or scene['liparams']['cfe'] > 0 else 'Static'
-            scene.fs = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
-            scene.fe = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
+            scene['liparams']['fs'] = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
+#            scene['liparams']['fe'] = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
             li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
         scene.vi_display = 1 if connode.analysismenu != '3' or connode.bl_label != 'LiVi CBDM' else 0  
         context.scene['liparams']['fe'] = framerange(context.scene, simnode['Animation'])[-1]
@@ -393,6 +393,7 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
 #        (scene.li_disp_panel, scene.ss_disp_panel) = (0, 2) if self.simnode.bl_label == 'VI Shadow Study' else (2, 0)
         li_display(self.simnode, connode, geonode)
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, self.simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')
+        print('well, hi there')
         self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(li3D_legend, (self, context, self.simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
         if connode and connode.bl_label == 'LiVi Compliance':
@@ -695,8 +696,11 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                 sun = suns[0]
             for headvals in resnode['resdict'].items():
                 if len(headvals[1]) == 2 and headvals[1][1] == 'Direct Solar (W/m^2)':
-                    valheader = headvals[0]               
-            sunpos(scene, resnode, range(scene.frame_start, scene.frame_end), sun, valheader)
+                    valheaders[0] = headvals[0] 
+                if len(headvals[1]) == 2 and headvals[1][1] == 'Diffuse Solar (W/m^2)':
+                     valheaders[1] = headvals[0] 
+            sunposenvi(scene, resnode, range(scene.frame_start, scene.frame_end), sun, valheaders)
+        
         if scene.resaa_disp:
             for rtype in ('Temperature (degC)', 'Wind Speed (m/s)', 'Wind Direction (deg)', 'Humidity (%)'):
                 for headvals in resnode['resdict'].items():

@@ -139,6 +139,12 @@ def resapply(calc_op, res, svres, simnode, connode, geonode, frames):
                 selobj(scene, o)
                 bm = bmesh.new()
                 bm.from_mesh(o.data)
+                if bm.faces.layers.float.get('res{}'.format(frame)):
+                    oldres = bm.faces.layers.float['res{}'.format(frame)]
+                    bm.faces.layers.float.remove(oldres) 
+                if bm.verts.layers.float.get('res{}'.format(frame)):
+                    oldres = bm.verts.layers.float['res{}'.format(frame)]
+                    bm.verts.layers.float.remove(oldres)
                 pend, passarea = pstart + len(o['lisenseareas']), 0
                 mat = [matslot.material for matslot in o.material_slots if matslot.material.mattype == '1'][0]
 
@@ -168,6 +174,7 @@ def resapply(calc_op, res, svres, simnode, connode, geonode, frames):
                         f[livires] = res[fr][f[cindex] - 1]
                         if connode.bl_label == 'LiVi Compliance':
                             f[sv] = svres[fr][f[cindex] - 1]
+                        
 #                    o['liviresults']['Sum'] = sum([f[livires] for f in bm.faces if f[cindex] > 0])
                     simnode['resdict'][o.name] = [o.name] 
                     simnode['allresdict'][o.name] = [f[livires] for f in bm.faces if f[cindex] > 0]

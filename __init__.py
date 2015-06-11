@@ -25,7 +25,7 @@ else:
     from .vi_operators import *
     from .vi_ui import *
 
-import sys, os, inspect, bpy, nodeitems_utils, bmesh, shutil, colorsys
+import sys, os, inspect, bpy, nodeitems_utils, bmesh, shutil, colorsys, math
 from numpy import array, digitize
 #from bpy.app.handlers import persistent
 
@@ -38,9 +38,6 @@ rplatldict = {'linux': ('/usr/share/radiance/lib', '/usr/local/radiance/lib'), '
 eplatbdict = {'linux': ('/usr/local/EnergyPlus-{}'.format(epversion)), 'win32': 'C:\EnergyPlusV{}'.format(epversion), 'darwin': '/Applications/EnergyPlus-{}'.format(epversion)}
 platdict = {'linux': 'linux', 'win32': 'windows', 'darwin': 'osx'}
 evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
-
-
-
 
 if 'RAYPATH' not in os.environ:
     radldir = [d for d in rplatldict[str(sys.platform)] if os.path.isdir(d)]
@@ -69,8 +66,9 @@ def confunc(i):
 (wallconlist, floorconlist, roofconlist, doorconlist, glazeconlist) = [confunc(i) for i in range(5)]
 
 def eupdate(self, context):
+    scene = context.scene
     inv = 0        
-    for frame in range(context.scene.frame_start, context.scene.frame_end + 1):
+    for frame in range(scene['liparams']['fe'], scene['liparams']['fe'] + 1):
         for o in [obj for obj in bpy.data.objects if obj.lires == 1]:
             maxo, mino = max(o['omax'].values()), min(o['omin'].values())
             bm = bmesh.new()
@@ -79,14 +77,21 @@ def eupdate(self, context):
             if str(frame) in o['omax']:
                 if bm.faces.layers.float.get('res{}'.format(frame)):
                     res = bm.faces.layers.float['res{}'.format(frame)] #if context.scene['cp'] == '0' else bm.verts.layers.float['res{}'.format(frame)]                
-                    for f in [f for f in bm.faces if f.select]:
-                        vplus = context.scene.vi_disp_3dlevel * (abs(inv - (f[res]-mino)/(maxo - mino)) * f.normal)
-                        for v in f.verts:
-                            o.data.shape_keys.key_blocks[str(frame)].data[v.index].co = o.data.shape_keys.key_blocks['Basis'].data[v.index].co + vplus
+                    faces = [f for f in bm.faces if f[res] > 0 and f.select]
+                    extrudes = [0.1 * scene.vi_disp_3dlevel * (abs(inv - math.log10(10000 * (f[res]-mino)/(maxo - mino))) * f.normal) for f in faces] if scene.vi_leg_scale == '1' else \
+                    [scene.vi_disp_3dlevel * (abs(inv - (f[res]-mino)/(maxo - mino)) * f.normal) for f in faces]
+#                        vplus = scene.vi_disp_3dlevel * (abs(inv - math.log10((f[res]-mino)/(maxo - mino))) * f.normal)
+                    for f, face in enumerate(faces):
+                        for v in face.verts:
+                            o.data.shape_keys.key_blocks[str(frame)].data[v.index].co = o.data.shape_keys.key_blocks['Basis'].data[v.index].co + extrudes[f]
                 elif bm.verts.layers.float.get('res{}'.format(frame)):
                     res = bm.verts.layers.float['res{}'.format(frame)]
-                    for v in bm.verts:
-                        o.data.shape_keys.key_blocks[str(frame)].data[v.index].co = o.data.shape_keys.key_blocks['Basis'].data[v.index].co + context.scene.vi_disp_3dlevel * (abs(inv - (v[res]-mino)/(maxo - mino)) * v.normal)
+                    verts = [v for v in bm.verts if v[res] > 0]
+                    extrudes = [scene.vi_disp_3dlevel * (abs(inv - (v[res]-mino)/(maxo - mino)) * v.normal) for v in verts] if scene.vi_leg_scale == '0' else \
+                                [0.1 * scene.vi_disp_3dlevel * (abs(inv - math.log10(10000 * (v[res]-mino)/(maxo - mino))) * v.normal) for v in verts]    
+                    for v, vert in enumerate(verts):
+                        o.data.shape_keys.key_blocks[str(frame)].data[vert.index].co = o.data.shape_keys.key_blocks['Basis'].data[vert.index].co + extrudes[v]
+                        
                 o.data.update()
             bm.free()
 
@@ -107,14 +112,24 @@ def legupdate(self, context):
         for o in [o for o in scene.objects if o.get('lires')]:
             bm = bmesh.new()
             bm.from_mesh(o.data)
-            livires = bm.faces.layers.float['res{}'.format(frame)] if bm.faces.layers.float.get('res{}'.format(frame)) else bm.verts.layers.float['res{}'.format(frame)]
+            if bm.faces.layers.float.get('res{}'.format(frame)):
+                livires = bm.faces.layers.float['res{}'.format(frame)] 
+            elif bm.verts.layers.float.get('res{}'.format(frame)):
+                livires = bm.verts.layers.float['res{}'.format(frame)]                
             try:
                 vals = array([(f[livires] - scene.vi_leg_min)/(scene.vi_leg_max - scene.vi_leg_min) for f in bm.faces]) if scene['liparams']['cp'] == '0' else \
-            ([(sum([vert[livires] for vert in f.verts])/len(f.verts) - scene.vi_leg_min)/(scene.vi_leg_max - scene.vi_leg_min) for f in bm.faces])
-            except:
+                        array([(sum([vert[livires] for vert in f.verts])/len(f.verts) - scene.vi_leg_min)/(scene.vi_leg_max - scene.vi_leg_min) for f in bm.faces])
+            except Exception as e:
+                print('there is an error in results retrieval ' + e)
                 vals = array([0 for f in bm.faces])
             bm.free()
-            bins = array([0.05*i for i in range(1, 20)])
+            if scene.vi_leg_scale == '0':
+                bins = array([0.05 * i for i in range(1, 20)])
+            elif scene.vi_leg_scale == '1':
+                slices = numpy.logspace(0, 2, 21, True)
+                bins = array([(slices[i] - 0.05 * (20 - i))/100 for i in range(21)])
+                bins = array([1 - math.log10(i)/math.log10(21) for i in range(1, 22)][::-1])
+                bins = bins[1:-1]
             nmatis = digitize(vals, bins)
             for fi, f in enumerate(o.data.polygons):
                 f.material_index = nmatis[fi]
@@ -533,6 +548,7 @@ def register():
      Scene.vi_display_sel_only, Scene.vi_display_vis_only) = [bprop("", "", False)] * 11
     Scene.vi_leg_max = bpy.props.FloatProperty(name = "", description = "Legend maximum", min = 0, max = 1000000, default = 1000, update=legupdate)
     Scene.vi_leg_min = bpy.props.FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0, update=legupdate)
+    Scene.vi_leg_scale = bpy.props.EnumProperty(items = [('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name = "", description = "Legend scale", default = '0', update=legupdate)
     Scene.en_temp_max = bpy.props.FloatProperty(name = "Max", description = "Temp maximum", default = 24, update=settemps)
     Scene.en_temp_min = bpy.props.FloatProperty(name = "Min", description = "Temp minimum", default = 18, update=settemps)
     Scene.en_hum_max = bpy.props.FloatProperty(name = "Max", description = "Humidity maximum", default = 100, update=sethums)

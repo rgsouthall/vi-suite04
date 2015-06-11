@@ -1166,7 +1166,7 @@ def draw_index(context, leg, mid_x, mid_y, width, height, posis, res):
     vecs = [mathutils.Vector((vec[0] / vec[3], vec[1] / vec[3], vec[2] / vec[3])) for vec in posis]
     xs = [int(mid_x + vec[0] * mid_x) for vec in vecs]
     ys = [int(mid_y + vec[1] * mid_y) for vec in vecs]
-    [(blf.position(0, xs[ri], ys[ri], 0), blf.draw(0, ('{:.1f}', '{:.0f}')[r > 100 or context.scene.resnode == 'VI Sun Path'].format(r))) for ri, r in enumerate(res) if (leg == 1 and (xs[ri] > 120 or ys[ri] < height - 530)) or leg == 0]
+    [(blf.position(0, xs[ri], ys[ri], 0), blf.draw(0, ('{:.1f}', '{:.0f}')[r > 100 or context.scene['viparams']['resnode'] == 'VI Sun Path'].format(r))) for ri, r in enumerate(res) if (leg == 1 and (xs[ri] > 120 or ys[ri] < height - 530)) or leg == 0]
         
 def edgelen(ob, edge):
     omw = ob.matrix_world
@@ -1291,6 +1291,8 @@ def gentarget(tarnode, result):
         return(0)
 
 def selobj(scene, geo):
+    if scene.objects.active and scene.objects.active.mode != 'EDIT':
+        bpy.ops.object.mode_set(mode = 'OBJECT') 
     for ob in scene.objects:
         ob.select = True if ob == geo else False
     scene.objects.active = geo
@@ -1751,40 +1753,97 @@ def fvobjwrite(scene, o, bmo):
     bm.free()
 #    print(objheader + vcos + fverts)
     
-def sunpos(scene, resnode, frames, sun, valheader):
-    if resnode.bl_label == 'EnVi Simulation':
-        allresdict = resnode['allresdict']
-        resstart = 24 * (resnode['Start'] - resnode.dsdoy)
-        resend = resstart + 24 * (1 + resnode['End'] - resnode['Start'])
+def sunposenvi(scene, resnode, frames, sun, valheaders):
+#    if resnode.bl_label == 'EnVi Simulation':
+    allresdict = resnode['allresdict']
+    resstart = 24 * (resnode['Start'] - resnode.dsdoy)
+    resend = resstart + 24 * (1 + resnode['End'] - resnode['Start'])
  #       resrange = (24 * (resnode['Start'] - resnode.dsdoy), -24 * (resnode.dedoy - resnode['End']) - 1)
 #        node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
-        datetime.datetime(datetime.datetime.now().year, int(allresdict['Month'][resstart]), int(allresdict['Day'][resstart]), 0, 0)
-        times = [datetime.datetime(datetime.datetime.now().year, int(allresdict['Month'][h]), int(allresdict['Day'][h]), int(allresdict['Hour'][h]) - 1, 0) for h in range(resstart, resend)]
+    datetime.datetime(datetime.datetime.now().year, int(allresdict['Month'][resstart]), int(allresdict['Day'][resstart]), 0, 0)
+    times = [datetime.datetime(datetime.datetime.now().year, int(allresdict['Month'][h]), int(allresdict['Day'][h]), int(allresdict['Hour'][h]) - 1, 0) for h in range(resstart, resend)]
+    beamvals = [0.01 * float(bv) for bv in allresdict[valheaders[0]][resstart:resend]]
+    skyvals = [0.01 * float(sv) for sv in allresdict[valheaders[1]][resstart:resend]]
+    sizevals = [(skyvals[t]/(beamvals[t] + 1), 0.01)[skyvals[t]/beamvals[t] < 0.01] for t in range(len(times))]
+    values = zip(sizevals, beamvals)
+    sunapply(scene, times, sun, values)
 #    simtime = node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
-    else:
-        sun.data.shadow_method, sun.data.shadow_ray_samples, sun.data.sky.use_sky = 'RAY_SHADOW', 8, 1
-        shaddict = {'0': (0.01, 5), '1': (3, 3)}
-        (sun.data.shadow_soft_size, sun.data.energy) = shaddict[str(resnode['skynum'])]
+#    else:
+#        sun.data.shadow_method, sun.data.shadow_ray_samples, sun.data.sky.use_sky = 'RAY_SHADOW', 8, 1
+#        shaddict = {'0': (0.01, 5), '1': (3, 3)}
+#        (sun.data.shadow_soft_size, sun.data.energy) = shaddict[str(resnode['skynum'])]
+#    for t, time in enumerate(times):
+#        scene.frame_set(t)
+#        val = allresdict[valheader][t]
+#        solalt, solazi, beta, phi = solarPosition(time.timetuple()[7], time.hour + (time.minute)*0.016666, scene['latitude'], scene['longitude'])
+##        if node['skynum'] < 2:
+#        sun.location, sun.rotation_euler = [x*20 for x in (-sin(phi), -cos(phi), tan(beta))], [(pi/2) - beta, 0, -phi]
+#        if scene.render.engine == 'CYCLES' and bpy.data.worlds['World'].use_nodes:
+#            if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
+#                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)#sin(phi), -cos(phi), -2* beta/math.pi
+#                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = t) 
+#            if sun.data.node_tree:
+#                for emnode in [emnode for emnode in sun.data.node_tree.nodes if emnode.bl_label == 'Emission']:
+#                    emnode.inputs[0].default_value[2] = solalt/90
+#                    emnode.inputs[1].default_value = val*0.01
+#                    emnode.inputs[0].keyframe_insert(data_path = 'default_value', frame = t)
+#                    emnode.inputs[1].keyframe_insert(data_path = 'default_value', frame = t)
+#        sun.data.energy = val*0.01               
+#        sun.data.keyframe_insert(data_path = 'energy', frame = t)
+#        sun.keyframe_insert(data_path = 'location', frame = t)
+#        sun.keyframe_insert(data_path = 'rotation_euler', frame = t)
+#            
+#        bpy.ops.object.select_all()
+#    sun.data.cycles.use_multiple_importance_sampling = True
+    
+def sunposlivi(scene, skynode, frames, sun, locnode, stime):
+    sun.data.shadow_method, sun.data.shadow_ray_samples, sun.data.sky.use_sky = 'RAY_SHADOW', 8, 1
+    if skynode['skynum'] < 3: 
+        times = [stime + frame*datetime.timedelta(seconds = 3600*skynode.interval) for frame in range(len(frames))]  
+        solposs = [solarPosition(time.timetuple()[7], time.hour + (time.minute)*0.016666, scene.latitude, scene.longitude) for time in times]
+        beamvals = [solposs[t][0]/15 for t in range(len(times))] if skynode['skynum'] < 2 else [0 for t in range(len(times))]
+        skyvals = beamvals
+    elif skynode['skynum'] == 3: 
+        times = [datetime.datetime(datetime.datetime.now().year, 3, 20, 12, 0)]
+        solposs = [solarPosition(time.timetuple()[7], time.hour + (time.minute)*0.016666, 0, 0) for time in times]
+        beamvals = [0 for t in range(len(times))]
+        skyvals = [5 for t in range(len(times))]
+    shaddict = {'0': 0.01, '1': 2, '2': 5, '3': 5}
+    values = list(zip([shaddict[str(skynode['skynum'])] for t in range(len(times))], beamvals, skyvals))
+    sunapply(scene, times, sun, values, solposs)
+
+def sunapply(scene, times, sun, values, solposs):
+    sun.data.animation_data_clear()
+    sun.animation_data_clear()
+    
     for t, time in enumerate(times):
+        (sun.data.shadow_soft_size, sun.data.energy) = values[t][:2]
         scene.frame_set(t)
-        val = allresdict[valheader][t]
-        solalt, solazi, beta, phi = solarPosition(time.timetuple()[7], time.hour + (time.minute)*0.016666, scene['latitude'], scene['longitude'])
-#        if node['skynum'] < 2:
-        sun.location, sun.rotation_euler = [x*20 for x in (-sin(phi), -cos(phi), tan(beta))], [(pi/2) - beta, 0, -phi]
+#        solalt, solazi, beta, phi = solarPosition(time.timetuple()[7], time.hour + (time.minute)*0.016666, scene['latitude'], scene['longitude'])
+        sun.location, sun.rotation_euler = [x*20 for x in (-sin(solposs[t][3]), -cos(solposs[t][3]), tan(solposs[t][2]))], [(pi/2) - solposs[t][2], 0, -solposs[t][3]]
         if scene.render.engine == 'CYCLES' and bpy.data.worlds['World'].use_nodes:
             if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
-                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)#sin(phi), -cos(phi), -2* beta/math.pi
+                if t == 0:
+                    bpy.data.worlds['World'].node_tree.animation_data_clear()
+                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(solposs[t][3]), -cos(solposs[t][3]), sin(solposs[t][2])#sin(phi), -cos(phi), -2* beta/math.pi
                 bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = t) 
+#            if t == 0:
+#                bpy.data.worlds['World'].node_tree.nodes['background'].inputs[1].animation_data_clear()
+            bpy.data.worlds['World'].node_tree.nodes['Background'].inputs[1].default_value = values[t][2]
+            bpy.data.worlds['World'].node_tree.nodes['Background'].inputs[1].keyframe_insert(data_path = 'default_value', frame = t)
             if sun.data.node_tree:
-                for emnode in [emnode for emnode in sun.data.node_tree.nodes if emnode.bl_label == 'Emission']:
-                    emnode.inputs[0].default_value[2] = solalt/90
-                    emnode.inputs[1].default_value = val*0.01
+                if t == 0:
+                    sun.data.node_tree.animation_data_clear()
+                for emnode in [emnode for emnode in sun.data.node_tree.nodes if emnode.bl_label == 'Emission']:                    
+                    emnode.inputs[0].default_value[2] = values[t][1]
+                    emnode.inputs[1].default_value = values[t][1]
                     emnode.inputs[0].keyframe_insert(data_path = 'default_value', frame = t)
                     emnode.inputs[1].keyframe_insert(data_path = 'default_value', frame = t)
-        sun.data.energy = val*0.01               
+        sun.data.energy = values[t][1]              
         sun.data.keyframe_insert(data_path = 'energy', frame = t)
         sun.keyframe_insert(data_path = 'location', frame = t)
         sun.keyframe_insert(data_path = 'rotation_euler', frame = t)
+    scene.frame_end = len(times)
             
-        bpy.ops.object.select_all()
+#        bpy.ops.object.select_all()
     sun.data.cycles.use_multiple_importance_sampling = True

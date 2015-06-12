@@ -516,12 +516,12 @@ def en_panel(self, context, resnode):
                 avval, maxval, minval, percenta, percentb = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val >= scene.en_co2_max for val in vals])/len(vals), 100 * sum([val <= scene.en_co2_min for val in vals])/len(vals) 
                 blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
                 blf.draw(font_id, 'CO2 (ppm):')
-                for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.1f}'.format(scene.en_co2_max), '% at min {:.1f}'.format(scene.en_co2_min))):
+                for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.0f}'.format(scene.en_co2_max), '% at min {:.0f}'.format(scene.en_co2_min))):
                     blf.position(font_id, int(startx + hscale*10), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
                     blf.draw(font_id, text)
                 for tt, text in enumerate((avval, maxval, minval, percenta, percentb)):
                     blf.position(font_id, int(startx +  hscale*(totwidth * 0.6 + 10)), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
-                    blf.draw(font_id, '{:.1f}'.format(text))
+                    blf.draw(font_id, '{:.0f}'.format(text))
                 bgl.glBegin(bgl.GL_LINES)
                 bgl.glVertex2i(startx + int(hscale * totwidth * 0.2), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
                 bgl.glVertex2i(startx + int(hscale*totwidth * 0.8), int(starty - hscale * rowheight * (rowno + tt + 1.25)))

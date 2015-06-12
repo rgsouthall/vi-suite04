@@ -696,9 +696,9 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                 sun = suns[0]
             for headvals in resnode['resdict'].items():
                 if len(headvals[1]) == 2 and headvals[1][1] == 'Direct Solar (W/m^2)':
-                    valheaders[0] = headvals[0] 
+                    valheaders.append(headvals[0]) 
                 if len(headvals[1]) == 2 and headvals[1][1] == 'Diffuse Solar (W/m^2)':
-                     valheaders[1] = headvals[0] 
+                     valheaders.append(headvals[0]) 
             sunposenvi(scene, resnode, range(scene.frame_start, scene.frame_end), sun, valheaders)
         
         if scene.resaa_disp:

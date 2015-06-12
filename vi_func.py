@@ -214,13 +214,13 @@ def envizres(scene, eresobs, resnode, restype):
 #            txt['envires'] = {}
 #            txt['envires'][restype] = vals
 
-        scaleval =  [(vals[frame] - minval)/(maxval - minval) for frame in range(scene.frame_start, scene.frame_end + 1)]
+        scaleval =  [(vals[frame] - minval)/(maxval - minval) for frame in range(0, len(vals))]
         sv = [(sv, 0.1)[sv <= 0.1] for sv in scaleval]
 #        tl = [ores.dimensions[2]/s for s in sv]
-        colval = [colorsys.hsv_to_rgb(0.667 * (maxval - vals[frame])/(maxval - minval), 1, 1) for frame in range(scene.frame_start, scene.frame_end + 1)]
+        colval = [colorsys.hsv_to_rgb(0.667 * (maxval - vals[vi])/(maxval - minval), 1, 1) for vi in range(len(vals))]
         cv = [(((0, 1)[vals[c] >= maxval], 0, (0, 1)[vals[c] <= minval]), cv)[minval < vals[c] < maxval] for c, cv in enumerate(colval)]
 
-        for frame in range(scene.frame_start, scene.frame_end + 1):
+        for frame in range(len(sv)):
             scene.frame_set(frame) 
 #            oscale = scaleval[frame] 
             #if scaleval[frame] > 0.1 else 0.1 
@@ -1762,11 +1762,14 @@ def sunposenvi(scene, resnode, frames, sun, valheaders):
 #        node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
     datetime.datetime(datetime.datetime.now().year, int(allresdict['Month'][resstart]), int(allresdict['Day'][resstart]), 0, 0)
     times = [datetime.datetime(datetime.datetime.now().year, int(allresdict['Month'][h]), int(allresdict['Day'][h]), int(allresdict['Hour'][h]) - 1, 0) for h in range(resstart, resend)]
+    solposs = [solarPosition(time.timetuple()[7], time.hour + (time.minute)*0.016666, scene.latitude, scene.longitude) for time in times]
     beamvals = [0.01 * float(bv) for bv in allresdict[valheaders[0]][resstart:resend]]
-    skyvals = [0.01 * float(sv) for sv in allresdict[valheaders[1]][resstart:resend]]
-    sizevals = [(skyvals[t]/(beamvals[t] + 1), 0.01)[skyvals[t]/beamvals[t] < 0.01] for t in range(len(times))]
-    values = zip(sizevals, beamvals)
-    sunapply(scene, times, sun, values)
+    skyvals = [1 + (0.01 * float(sv)) for sv in allresdict[valheaders[1]][resstart:resend]]
+#    sizevals = [(skyvals[t]/(beamvals[t] + 1), 0.01)[skyvals[t]/beamvals[t] < 0.01] for t in range(len(times))]
+
+    sizevals = [beamvals[t]/skyvals[t] for t in range(len(times))]
+    values = list(zip(sizevals, beamvals, skyvals))
+    sunapply(scene, times, sun, values, solposs)
 #    simtime = node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
 #    else:
 #        sun.data.shadow_method, sun.data.shadow_ray_samples, sun.data.sky.use_sky = 'RAY_SHADOW', 8, 1

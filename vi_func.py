@@ -308,11 +308,12 @@ def resnameunits():
                 '14': (u'Infiltration (m\u00b3)',  u'Zone Infiltration (m\u00b3)'), '15': ('Infiltration (ACH)', 'Zone Infiltration rate (ACH)'), '16': ('CO2 (ppm)', 'Zone CO2 concentration (ppm)'),
                 '17': ("Heat loss (W)", "Ventilation Heat Loss (W)"), '18': (u'Flow (m\u00b3/s)', u'Linkage flow (m\u00b3/s)'), '19': ('Opening factor', 'Linkage Opening Factor'),
                 '20': ("MRT (K)", "Mean Radiant Temperature (K)"), '21': ('Occupancy', 'Occupancy count'), '22': ("Humidity", "Zone Humidity"),
-                '23': ("Fabric HB (W)", "Fabric convective heat balance"), '24': ("Air Heating", "Zone air heating"), '25': ("Air Cooling", "Zone air cooling")}
+                '23': ("Fabric HB (W)", "Fabric convective heat balance"), '24': ("Air Heating", "Zone air heating"), '25': ("Air Cooling", "Zone air cooling"), '26': ("HR Heating", "Heat recovery heating (W)")}
     return [bpy.props.BoolProperty(name = rnu[str(rnum)][0], description = rnu[str(rnum)][1], default = False) for rnum in range(len(rnu))]
 
 def enresprops(disp):
-    return {'0': (0, "restt{}".format(disp), "resh{}".format(disp), 0, "restwh{}".format(disp), "restwc{}".format(disp), 0, "ressah{}".format(disp), "ressac{}".format(disp), 0,"reswsg{}".format(disp), "resfhb{}".format(disp)),
+    return {'0': (0, "restt{}".format(disp), "resh{}".format(disp), 0, "restwh{}".format(disp), "restwc{}".format(disp), 0, 
+                  "ressah{}".format(disp), "reshrhw{}".format(disp), "ressac{}".format(disp), 0,"reswsg{}".format(disp), "resfhb{}".format(disp)),
             '1': (0, "rescpp{}".format(disp), "rescpm{}".format(disp), 0, 'resmrt{}'.format(disp), 'resocc{}'.format(disp)), 
             '2': (0, "resim{}".format(disp), "resiach{}".format(disp), 0, "resco2{}".format(disp), "resihl{}".format(disp)), 
             '3': (0, "resl12ms{}".format(disp), "reslof{}".format(disp))}
@@ -515,6 +516,7 @@ def processf(pro_op, node):
                 'Zone Air System Sensible Heating Rate [W] !Hourly': 'Heating (W)',
                 'Zone Air System Sensible Cooling Rate [W] !Hourly': 'Cooling (W)',
                 'Zone Ideal Loads Supply Air Sensible Heating Rate [W] !Hourly': 'Zone air heating (W)',
+                'Zone Ideal Loads Heat Recovery Sensible Heating Rate [W] !Hourly': 'Zone HR heating (W)',
                 'Zone Ideal Loads Supply Air Sensible Cooling Rate [W] !Hourly': 'Zone air cooling (W)',
                 'Zone Ideal Loads Supply Air Sensible Heating Rate [W] !Hourly': 'Zone air heating (W)',
                 'Zone Ideal Loads Supply Air Sensible Cooling Rate [W] !Hourly': 'Zone air cooling (W)',

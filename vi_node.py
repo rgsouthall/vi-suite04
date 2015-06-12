@@ -760,7 +760,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
                                    name="", description="Specify the EnVi results category", default="0", update = nodeupdate)
     
     (resaam, resaws, resawd, resah, resasm, restt, resh, restwh, restwc, reswsg, rescpp, rescpm, resvls, resvmh, resim, resiach, resco2, resihl, resl12ms,
-     reslof, resmrt, resocc, resh, resfhb, ressah, ressac) = resnameunits()
+     reslof, resmrt, resocc, resh, resfhb, ressah, ressac, reshrhw) = resnameunits()
 
     def init(self, context):
         self['nodeid'] = nodeid(self)

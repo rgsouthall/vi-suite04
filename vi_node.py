@@ -2110,10 +2110,10 @@ class EnViHvac(bpy.types.Node, EnViNodes):
     envi_hvacht = fprop("", "Heating temperature:", 1, 99, 50)
     envi_hvacct = fprop("", "Cooling temperature:", -10, 20, 13)
     envi_hvachlt = eprop([('0', 'LimitFlowRate', 'LimitFlowRate'), ('1', 'LimitCapacity', 'LimitCapacity'), ('2', 'LimitFlowRateAndCapacity', 'LimitFlowRateAndCapacity'), ('3', 'NoLimit', 'NoLimit'), ('4', 'None', 'No heating')], '', "Heating limit type", '4')    
-    envi_hvachaf = fprop("", "Heating air flow rate", 0, 60, 1)
+    envi_hvachaf = bpy.props.FloatProperty(name = "", description = "Heating air flow rate", min = 0, max = 60, default = 1, precision = 4)
     envi_hvacshc = fprop("", "Sensible heating capacity", 0, 10000, 1000)
     envi_hvacclt = eprop([('0', 'LimitFlowRate', 'LimitFlowRate'), ('1', 'LimitCapacity', 'LimitCapacity'), ('2', 'LimitFlowRateAndCapacity', 'LimitFlowRateAndCapacity'), ('3', 'NoLimit', 'NoLimit'), ('4', 'None', 'No cooling')], '', "Cooling limit type", '4')
-    envi_hvaccaf = fprop("", "Heating air flow rate", 0, 60, 1)
+    envi_hvaccaf = bpy.props.FloatProperty(name = "", description = "Cooling air flow rate", min = 0, max = 60, default = 1, precision = 4)
     envi_hvacscc = fprop("", "Sensible cooling capacity", 0, 10000, 1000)
     envi_hvacoam = eprop([('0', 'None', 'None'), ('1', 'Flow/Zone', 'Flow/Zone'), ('2', 'Flow/Person', 'Flow/Person'), ('3', 'Flow/Area', 'Flow/Area'), ('4', 'Sum', 'Sum'), ('5', 'Maximum ', 'Maximum'), ('6', 'ACH/Detailed', 'ACH/Detailed')], '', "Cooling limit type", '2')
     envi_hvacfrp = fprop("", "Flow rate per person", 0, 1, 0.008)
@@ -2286,7 +2286,7 @@ class EnViZone(bpy.types.Node, EnViNodes):
         bsocklist = ['{}_{}_b'.format(odm[face.material_index].name, face.index)  for face in obj.data.polygons if odm[face.material_index].envi_boundary == 1 and odm[face.material_index].name not in [outp.sn for outp in self.outputs if outp.bl_idname == 'EnViBoundSocket']]
         ssocklist = ['{}_{}_s'.format(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type not in ('Window', 'Door')]
         sssocklist = ['{}_{}_ss'.format(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type in ('Window', 'Door')]
-        print(ssocklist)
+
         for oname in [outputs for outputs in self.outputs if outputs.name not in bsocklist and outputs.bl_idname == 'EnViBoundSocket']:
             self.outputs.remove(oname)
         for oname in [outputs for outputs in self.outputs if outputs.name not in ssocklist and outputs.bl_idname == 'EnViSFlowSocket']:
@@ -2529,7 +2529,7 @@ class EnViSSFlowNode(bpy.types.Node, EnViNodes):
     ecl = bpy.props.FloatProperty(default = 0.0, min = 0, name = '', description = 'Extra Crack Length or Height of Pivoting Axis (m)')
     noof = bpy.props.IntProperty(default = 2, min = 2, max = 4, name = '', description = 'Number of Sets of Opening Factor Data')
     spa = bpy.props.IntProperty(default = 90, min = 0, max = 90, name = '', description = 'Sloping Plane Angle')
-    dcof = bpy.props.FloatProperty(default = 1, min = 0, max = 1, name = '', description = 'Discharge Coefficient')
+    dcof = bpy.props.FloatProperty(default = 1, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient')
     ddtw = bpy.props.FloatProperty(default = 0.0001, min = 0, max = 10, name = '', description = 'Minimum Density Difference for Two-way Flow')
     amfc = bpy.props.FloatProperty(min = 0.001, max = 1, default = 0.01, name = "")
     amfe = bpy.props.FloatProperty(min = 0.5, max = 1, default = 0.65, name = "")
@@ -2542,12 +2542,12 @@ class EnViSSFlowNode(bpy.types.Node, EnViNodes):
     dmtc = bpy.props.FloatProperty(default = 0.0001, name = "")
     fe = bpy.props.FloatProperty(default = 0.6, min = 0, max = 1, name = "")
     rpd = bpy.props.FloatProperty(default = 4, min = 0.1, max = 50, name = "")
-    (of1, of2, of3, of4) =  [bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Opening Factor {} (dimensionless)'.format(i)) for i in range(4)]
-    (dcof1, dcof2, dcof3, dcof4) = [bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor {} (dimensionless)'.format(i)) for i in range(4)]
+    (of1, of2, of3, of4) =  [bpy.props.FloatProperty(default = 0.0, min = 0.01, max = 1, name = '', description = 'Opening Factor {} (dimensionless)'.format(i)) for i in range(4)]
+    (dcof1, dcof2, dcof3, dcof4) = [bpy.props.FloatProperty(default = 0.0, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient for Opening Factor {} (dimensionless)'.format(i)) for i in range(4)]
     (wfof1, wfof2, wfof3, wfof4) = [bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Width Factor for Opening Factor {} (dimensionless)'.format(i)) for i in range(4)]
     (hfof1, hfof2, hfof3, hfof4) = [bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Height Factor for Opening Factor {} (dimensionless)'.format(i)) for i in range(4)]
     (sfof1, sfof2, sfof3, sfof4) = [bpy.props.FloatProperty(default = 0.0, min = 0, max = 1, name = '', description = 'Start Height Factor for Opening Factor {} (dimensionless)'.format(i)) for i in range(4)]
-    dcof = bpy.props.FloatProperty(default = 0.2, min = 0, max = 1, name = '', description = 'Discharge Coefficient')
+    dcof = bpy.props.FloatProperty(default = 0.2, min = 0.01, max = 1, name = '', description = 'Discharge Coefficient')
     extnode =  bpy.props.BoolProperty(default = 0)
     actlist = [("0", "Opening factor", "Actuate the opening factor")]
     acttype = bpy.props.EnumProperty(name="", description="Actuator type", items=actlist, default='0')
@@ -2658,7 +2658,7 @@ class EnViSSFlowNode(bpy.types.Node, EnViNodes):
 
         elif self.linkmenu == 'ELA':
             cfparams = ('Name', 'Effective Leakage Area (m2)', 'Discharge Coefficient (dimensionless)', 'Reference Pressure Difference (Pa)', 'Air Mass Flow Exponent (dimensionless)')
-            cfparamsv = ('{}_{}'.format(self.name, self.linkmenu), self['ela'], self.dcof, self.rpd, self.amfe)
+            cfparamsv = ('{}_{}'.format(self.name, self.linkmenu), '{:5f}'.format(self['ela']), '{:2f}'.format(self.dcof), '{:1f}'.format(self.rpd), '{:3f}'.format(self.amfe))
 
         elif self.linkmenu == 'Crack':
             crname = 'ReferenceCrackConditions' if enng['enviparams']['crref'] == 1 else ''

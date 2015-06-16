@@ -572,7 +572,7 @@ def register():
     Scene.li_jobno = sprop("", "Project job number", 1024, '')
     (Scene.resaa_disp, Scene.resaws_disp, Scene.resawd_disp, Scene.resah_disp, Scene.resas_disp, Scene.reszt_disp, Scene.reszh_disp, Scene.reszhw_disp, Scene.reszcw_disp, Scene.reszsg_disp, Scene.reszppd_disp, 
      Scene.reszpmv_disp, Scene.resvls_disp, Scene.resvmh_disp, Scene.resim_disp, Scene.resiach_disp, Scene.reszco_disp, Scene.resihl_disp, Scene.reszlf_disp,
-     Scene.reszof_disp, Scene.resmrt_disp, Scene.resocc_disp, Scene.resh_disp, Scene.resfhb_disp, Scene.ressah_disp, Scene.ressac_disp) = resnameunits() 
+     Scene.reszof_disp, Scene.resmrt_disp, Scene.resocc_disp, Scene.resh_disp, Scene.resfhb_disp, Scene.ressah_disp, Scene.ressac_disp, Scene.reshrhw_disp) = resnameunits() 
     Scene.envi_flink = bprop("", "Associate flow results with the nearest object", False)
 #    Scene.resnode = sprop("", "", 0, "")
 #    Scene.restree = sprop("", "", 0, "") 

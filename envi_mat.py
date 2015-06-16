@@ -131,12 +131,13 @@ class envi_constructions(object):
         self.glaze_con = OrderedDict(sorted(self.glaze_cond.items()))
         self.p = 0
 
-    def con_write(self, idf_file, contype, name, nl, mn):
-        con = (self.wall_con, self.roof_con, self.floor_con, self.door_con, self.glaze_con)[("Wall", "Roof", "Floor", "Door", "Window").index(contype)]
-        params = ['Name', 'Outside layer']
-        paramvs = [mn, '{}-{}'.format(con[name][0], nl)]
-        for i in range(len(con[name])):
-            if i > 0:
-                params.append('Layer {}'.format(i))
-                paramvs.append('{}-{}'.format(con[name][i], nl))
+    def con_write(self, idf_file, contype, name, nl, mn, cln):
+#        con = (self.wall_con, self.roof_con, self.floor_con, self.door_con, self.glaze_con)[("Wall", "Roof", "Floor", "Door", "Window").index(contype)]
+        params = ['Name', 'Outside layer'] + ['Layer {}'.format(i + 1) for i in range(len(cln) - 1)]
+        
+        paramvs = [mn] + cln#'{}-{}'.format(con[name][0], nl)]
+#        for i in range(len(con[name])):
+#            if i > 0:
+#                params.append('Layer {}'.format(i))
+#                paramvs.append('{}-{}'.format(con[name][i], nl))
         idf_file.write(epentry('Construction', params, paramvs))

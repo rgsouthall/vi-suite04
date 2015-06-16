@@ -64,7 +64,6 @@ class NODE_OT_FileSelect(bpy.types.Operator, io_utils.ImportHelper):
 
     def execute(self, context):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        print(self.filepath[1])
         if self.filepath.split(".")[-1] in self.fextlist:
             if self.nodeprop == 'epwname':
                 node.epwname = self.filepath
@@ -393,7 +392,6 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
 #        (scene.li_disp_panel, scene.ss_disp_panel) = (0, 2) if self.simnode.bl_label == 'VI Shadow Study' else (2, 0)
         li_display(self.simnode, connode, geonode)
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, self.simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')
-        print('well, hi there')
         self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(li3D_legend, (self, context, self.simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
         if connode and connode.bl_label == 'LiVi Compliance':

@@ -313,7 +313,7 @@ def resnameunits():
 
 def enresprops(disp):
     return {'0': (0, "restt{}".format(disp), "resh{}".format(disp), 0, "restwh{}".format(disp), "restwc{}".format(disp), 0, 
-                  "ressah{}".format(disp), "reshrhw{}".format(disp), "ressac{}".format(disp), 0,"reswsg{}".format(disp), "resfhb{}".format(disp)),
+                  "ressah{}".format(disp), "reshrhw{}".format(disp), 0, "ressac{}".format(disp), "reswsg{}".format(disp), 0, "resfhb{}".format(disp)),
             '1': (0, "rescpp{}".format(disp), "rescpm{}".format(disp), 0, 'resmrt{}'.format(disp), 'resocc{}'.format(disp)), 
             '2': (0, "resim{}".format(disp), "resiach{}".format(disp), 0, "resco2{}".format(disp), "resihl{}".format(disp)), 
             '3': (0, "resl12ms{}".format(disp), "reslof{}".format(disp))}
@@ -376,7 +376,6 @@ def retmesh(name, fr, node, scene):
     if node.animmenu in ("Geometry", "Material"):
         return(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(name.replace(" ", "_"), fr)))
     else:
-        print(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(name.replace(" ", "_"), bpy.context.scene.frame_start)))
         return(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(name.replace(" ", "_"), bpy.context.scene.frame_start)))
 
 def nodeinputs(node):
@@ -518,8 +517,6 @@ def processf(pro_op, node):
                 'Zone Ideal Loads Supply Air Sensible Heating Rate [W] !Hourly': 'Zone air heating (W)',
                 'Zone Ideal Loads Heat Recovery Sensible Heating Rate [W] !Hourly': 'Zone HR heating (W)',
                 'Zone Ideal Loads Supply Air Sensible Cooling Rate [W] !Hourly': 'Zone air cooling (W)',
-                'Zone Ideal Loads Supply Air Sensible Heating Rate [W] !Hourly': 'Zone air heating (W)',
-                'Zone Ideal Loads Supply Air Sensible Cooling Rate [W] !Hourly': 'Zone air cooling (W)',
                 'Zone Windows Total Transmitted Solar Radiation Rate [W] !Hourly': 'Solar gain (W)',
                 'Zone Infiltration Current Density Volume Flow Rate [m3/s] !Hourly': 'Infiltration (m'+u'\u00b3'+')',
                 'Zone Infiltration Air Change Rate [ach] !Hourly': 'Infiltration (ACH)',
@@ -552,7 +549,6 @@ def processf(pro_op, node):
                     elif linesplit[3] in zresdict and linesplit[2][-4:] == '_AIR' and linesplit[2].strip('_AIR') not in objlist and 'ExtNode' not in linesplit[2]:
                         objlist.append(linesplit[2].strip('_AIR'))
                     elif 'IDEAL LOADS AIR SYSTEM' in linesplit[2]:
-                        print(linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip())
                         if linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip() not in objlist:
                             
                             objlist.append(linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip())
@@ -652,7 +648,7 @@ def processf(pro_op, node):
                         enrtypes.append(enresdict[linesplit[3]])
                 except Exception as e:
                     print('ext', e)
-    print(objlist)        
+        
     node.dsdoy = datetime.datetime(datetime.datetime.now().year, allresdict['Month'][0], allresdict['Day'][0]).timetuple().tm_yday
     node.dedoy = datetime.datetime(datetime.datetime.now().year, allresdict['Month'][-1], allresdict['Day'][-1]).timetuple().tm_yday
     node['dos'], node['resdict'], node['ctypes'], node['ztypes'], node['zrtypes'], node['ltypes'], node['lrtypes'], node['entypes'], node['enrtypes'] = dos, resdict, ctypes, ztypes, zrtypes, ltypes, lrtypes, entypes, enrtypes
@@ -1331,7 +1327,6 @@ def socklink(sock, ng):
         valid1 = sock.valid if not sock.get('valid') else sock['valid']
         for link in sock.links:
             valid2 = link.to_socket.valid if not link.to_socket.get('valid') else link.to_socket['valid'] 
-            print(sock.node, valid1, valid2)
             if not set(valid1)&set(valid2):
                 bpy.data.node_groups[ng].links.remove(link)
     except Exception as e:

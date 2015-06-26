@@ -580,7 +580,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
     def export(self, op):
         connode = self.connodes()
         geonode = self.geonodes()
-        unitdict = {'LiVi Basic': ("Lux", "W/m"+ u'\u00b2', "DF %", '')[int(connode.analysismenu)], 'LiVi Compliance': 'DF (%)', 'LiVi CBDM': ('kLuxHours', 'kWh', 'DA (%)', '', 'UDI-a (%)')[int(connode.analysismenu)]}
+        unitdict = {'LiVi Basic': ("Lux", "W/m"+ u'\u00b2', "DF %", '', '')[int(connode.analysismenu)], 'LiVi Compliance': 'DF (%)', 'LiVi CBDM': ('kLuxHours', 'kWh', 'DA (%)', '', 'UDI-a (%)')[int(connode.analysismenu)]}
         if op == 'LiVi simulation':
             if connode.bl_label == 'LiVi Basic':
                 self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rtracebasic], [n[int(self.simacc)+1] for n in self.rtracebasic]))

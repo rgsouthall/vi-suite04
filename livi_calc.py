@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, subprocess, datetime, bmesh
+import bpy, os, subprocess, datetime, bmesh, shlex
 from subprocess import PIPE, Popen, STDOUT
 from .vi_func import mtx2vals, retobjs, selobj, facearea
 from . import livi_export
@@ -71,10 +71,12 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                 vecvals = numpy.array(connode['vecvals'])
                 
                 sensarray = numpy.zeros((len(prange), 146))
-                oconvcmd = "oconv -w - > {0}-ws.oct".format(scene['viparams']['filebase'])
-                Popen(oconvcmd.split(), stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = (connode['whitesky']+geonode['radfiles'][frame]).encode('utf-8'))
-                senscmd = scene['viparams']['cat']+scene['viparams']['filebase']+".rtrace | rcontrib -w  -h -I -fo -bn 146 {} -n {} -f tregenza.cal -b tbin -m sky_glow {}-ws.oct".format(simnode['radparams'], scene['viparams']['nproc'], scene['viparams']['filebase'])
-                sensrun = Popen(senscmd.split(), stdout=PIPE)
+                oconvcmd = ("oconv - > {0}-ws.oct".format(scene['viparams']['filebase']))
+                print(shlex.split(oconvcmd))
+                Popen(shlex.split(oconvcmd), stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = (connode['whitesky']+geonode['radfiles'][frame]).encode('utf-8'))
+                senscmd = "rcontrib -w  -h -I -fo -bn 146 {} -n {} -f tregenza.cal -b tbin -m sky_glow {}-ws.oct".format(simnode['radparams'], scene['viparams']['nproc'], scene['viparams']['filebase'])
+                with  open(scene['viparams']['filebase']+".rtrace", 'r') as rtraceinput:          
+                    sensrun = Popen(shlex.split(senscmd), stdin=rtraceinput, stdout=PIPE)
                 
                 for li, line in enumerate(sensrun.stdout):
                     decline = [float(ld) for ld in line.decode().split('\t') if ld not in ('\n', '\r\n')]

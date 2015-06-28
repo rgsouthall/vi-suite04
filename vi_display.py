@@ -64,7 +64,7 @@ def li_display(simnode, connode, geonode):
         cv.diffuse, cv.glossy, cv.transmission, cv.scatter, cv.shadow = 0, 0, 0, 0, 0
         bm = bmesh.new()
         bm.from_mesh(o.data)
-        bm.normal_update()
+        
         
         if scene['liparams']['cp'] == '0':  
             cindex = bm.faces.layers.int['cindex']
@@ -80,8 +80,12 @@ def li_display(simnode, connode, geonode):
             bm.verts.layers.shape.remove(bm.verts.layers.shape[-1])
         
         for v in bm.verts:
-            v.co += v.normal * geonode.offset if geonode else v.normal * simnode.offset
-            
+            avfvec = mathutils.Vector((0,0,0))
+            for fn in [f.normal for f in v.link_faces]:
+                avfvec += fn
+            v.co += avfvec/len(v.link_faces)  * geonode.offset if geonode else avfvec/len(v.link_faces) * simnode.offset
+        
+        bm.normal_update()    
         bpy.context.scene.objects.link(ores)  
         
         obreslist.append(ores)

@@ -182,7 +182,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
                 self.ehour = self.shour
         self['skynum'] = int(self.skymenu) if self.analysismenu != "2" else 3
         starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(self.shour), int((self.shour - int(self.shour))*60)) + datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(2013, 1, 1, 12)
-        endtime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(self.ehour), int((self.ehour - int(self.ehour))*60)) + datetime.timedelta(self.edoy - 1) if self.animmenu == 'Time' else starttime
+#        endtime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(self.ehour), int((self.ehour - int(self.ehour))*60)) + datetime.timedelta(self.edoy - 1) if self.animmenu == 'Time' else starttime
         
         suns = [ob for ob in scene.objects if ob.type == 'LAMP' and ob.get('VIType') and ob.get('VIType') == 'Sun']
         if self['skynum'] < 4:
@@ -231,7 +231,9 @@ class ViLiNode(bpy.types.Node, ViNodes):
 #        self.endtime = datetime.datetime(datetime.datetime.now().year, 1, 1, 12, 0)
         self['hours'], self['frames'], self['resname'], self['unit'] = 0, {'Time':0}, 'illumout', "Lux"
         self['exportstate'] = ''
+        self['skynum'] = int(self.skymenu) if self.analysismenu != "2" else 3
         nodecolour(self, 1)
+        self.shour = 12
 
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -280,6 +282,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
                 row.label('Cannot have geometry and time animation')
 
     def update(self):
+        self.nodeupdate(bpy.context)
         for sock in self.outputs:
             socklink(sock, self['nodeid'].split('@')[1])
 
@@ -292,7 +295,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
         return ln
 
     def export(self, context):
-#        self['skynum'] = int(self.skymenu) if self.analysismenu != "2" else 3
+        
         self['hours'] = 0 if self.animmenu == 'Static' or int(self.skymenu) > 2  else (self.endtime-self.starttime).days*24 + (self.endtime-self.starttime).seconds/3600
         self['frames']['Time'] = context.scene['liparams']['cfe'] = context.scene['liparams']['fs'] + int(self['hours']/self.interval)
         self['resname'] = ("illumout", "irradout", "dfout", '')[int(self.analysismenu)]

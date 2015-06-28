@@ -78,7 +78,7 @@ def eupdate(self, context):
                 if bm.faces.layers.float.get('res{}'.format(frame)):
                     res = bm.faces.layers.float['res{}'.format(frame)] #if context.scene['cp'] == '0' else bm.verts.layers.float['res{}'.format(frame)]                
                     faces = [f for f in bm.faces if f[res] > 0 and f.select]
-                    extrudes = [0.1 * scene.vi_disp_3dlevel * (abs(inv - math.log10(10000 * (f[res]-mino)/(maxo - mino))) * f.normal) for f in faces] if scene.vi_leg_scale == '1' else \
+                    extrudes = [0.1 * scene.vi_disp_3dlevel * (abs(inv - math.log10(10000 * (f[res] + 1 - mino)/(maxo - mino))) * f.normal) for f in faces] if scene.vi_leg_scale == '1' else \
                     [scene.vi_disp_3dlevel * (abs(inv - (f[res]-mino)/(maxo - mino)) * f.normal) for f in faces]
 #                        vplus = scene.vi_disp_3dlevel * (abs(inv - math.log10((f[res]-mino)/(maxo - mino))) * f.normal)
                     for f, face in enumerate(faces):

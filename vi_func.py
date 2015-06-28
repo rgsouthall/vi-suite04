@@ -740,24 +740,31 @@ def ceilheight(obj, vertz):
     floor = [min((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) for poly in mesh.polygons if min((obj.matrix_world * mesh.vertices[poly.vertices[0]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[1]].co)[2], (obj.matrix_world * mesh.vertices[poly.vertices[2]].co)[2]) < zmin + 0.1 * (zmax - zmin)]
     return(sum(ceiling)/len(ceiling)-sum(floor)/len(floor))
 
-def vertarea(mesh, vert):
+def vertarea(mesh, vert, op):
     area = 0
     faces = [face for face in vert.link_faces] 
+    if hasattr(mesh.verts, "ensure_lookup_table"):
+        mesh.verts.ensure_lookup_table()
     if len(faces) > 1:
         for f, face in enumerate(faces):
-            ovs = []
+            ovs, oes = [], []
             fvs = [le.verts[(0, 1)[le.verts[0] == vert]] for le in vert.link_edges]
             ofaces = [oface for oface in faces if len([v for v in oface.verts if v in face.verts]) == 2]    
             for oface in ofaces:
+                oes.append([e for e in face.edges if e in oface.edges])
+                
                 ovs.append([i for i in face.verts if i in oface.verts])
-            if len(ovs) == 1:
-                if hasattr(mesh.verts, "ensure_lookup_table"):
-                    mesh.verts.ensure_lookup_table()
+
+            
+            if len(ovs) == 1:                
                 sedgevs = (vert.index, [v.index for v in fvs if v not in ovs][0])
                 sedgemp = mathutils.Vector([((mesh.verts[sedgevs[0]].co)[i] + (mesh.verts[sedgevs[1]].co)[i])/2 for i in range(3)])
                 eps = [mathutils.geometry.intersect_line_line(face.calc_center_median(), ofaces[0].calc_center_median(), ovs[0][0].co, ovs[0][1].co)[1]] + [sedgemp]
             elif len(ovs) == 2:
                 eps = [mathutils.geometry.intersect_line_line(face.calc_center_median(), ofaces[i].calc_center_median(), ovs[i][0].co, ovs[i][1].co)[1] for i in range(2)]
+            else:
+#               op.report({'ERROR'}, "Sensing mesh is too complex for vertex calculation use face sensors instead.") 
+               return 0
             area += mathutils.geometry.area_tri(vert.co, *eps) + mathutils.geometry.area_tri(face.calc_center_median(), *eps)
     elif len(faces) == 1:
         eps = [(ev.verts[0].co +ev.verts[1].co)/2 for ev in vert.link_edges]

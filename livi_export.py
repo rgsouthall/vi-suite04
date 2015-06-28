@@ -172,10 +172,17 @@ def radgexport(export_op, node, **kwargs):
                             rtpoints += '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([vert.co[i] + node.offset * vert.normal[i] for i in range(3)], vert.normal)
                             vert[cindex] = rti
                             rti += 1
-                    (o['cverts'], o['cfaces'], o['lisenseareas']) = ([cv.index for cv in cverts], csfi, [vertarea(bm, vert) for vert in cverts]) if scene['liparams']['cp'] == '1' else ([], csfi, [f.calc_area() for f in csf])      
+                    (o['cverts'], o['cfaces'], o['lisenseareas']) = ([cv.index for cv in cverts], csfi, [vertarea(bm, vert, export_op) for vert in cverts]) if scene['liparams']['cp'] == '1' else ([], csfi, [f.calc_area() for f in csf])      
+                    
+                    if 0 in o['lisenseareas']:
+                        export_op.report({'ERROR'}, o.name + " sensing mesh is too complex for vertex calculation use face sensors instead.") 
+                        bm.free()
+                        return
                 bm.transform(o.matrix_world.inverted())
                 bm.to_mesh(o.data)
                 bm.free()
+                
+
                             
     # Lights export routine
         if frame in range(scene['liparams']['fs'], node['frames']['Lights'] + 1):

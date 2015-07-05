@@ -47,13 +47,16 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                 else: 
                     rtcmd = "rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
      
-                with open("{}.rtrace".format(scene['viparams']['filebase']), 'r') as rtfile:
-                    rtrun = Popen(rtcmd.split(), stdin = rtfile, stdout=PIPE, stderr=STDOUT) 
-                    rcrun = Popen((connode['simalg'].split()), stdin = rtrun.stdout, stdout = PIPE)
-                    with open(os.path.join(scene['viparams']['newdir'], "{}-{}.res".format(connode['resname'], frame)), 'w') as resfile:
-                        for l, line in enumerate([line.decode() for line in rcrun.stdout]):
-                            res[findex][l] = eval(line)                
-                            resfile.write(line)
+#                with open("{}.rtrace".format(scene['viparams']['filebase']), 'r') as rtfile:
+                rtrun = Popen(rtcmd.split(), stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = geonode["rtpoints"].encode('utf-8'))
+#                    rtrun.communicate(b'geonode["rtpoints"]')
+#                    rtrun.stdin.flush()
+                    
+                rcrun = Popen((connode['simalg'].split()), stdin = PIPE, stdout = PIPE).communicate(input = rtrun[0])
+                with open(os.path.join(scene['viparams']['newdir'], "{}-{}.res".format(connode['resname'], frame)), 'w') as resfile:
+                    for l, line in enumerate([line for line in rcrun[0].decode().split('\n') if line]):
+                        res[findex][l] = line                
+                        resfile.write(line)
                 
             if connode.bl_label == 'LiVi Compliance' and connode.analysismenu in ('0', '1'):
                 with open("{}.rtrace".format(scene['viparams']['filebase']), 'r') as rtfile:
@@ -71,19 +74,21 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                 vecvals = numpy.array(connode['vecvals'])
                 
                 sensarray = numpy.zeros((len(prange), 146))
-                oconvcmd = ("oconv - > {0}-ws.oct".format(scene['viparams']['filebase']))
-                print(shlex.split(oconvcmd))
-                Popen(shlex.split(oconvcmd), stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = (connode['whitesky']+geonode['radfiles'][frame]).encode('utf-8'))
+                oconvcmd = "oconv - "
+                with open("{}-ws.oct".format(scene['viparams']['filebase']), 'w') as wsfile:
+#                oconvcmd = ("oconv - > {0}-ws.oct".format(scene['viparams']['filebase']))
+                    Popen(oconvcmd.split(), stdin = PIPE, stdout=wsfile, stderr=STDOUT).communicate(input = (connode['whitesky']+geonode['radfiles'][frame]).encode('utf-8'))
                 senscmd = "rcontrib -w  -h -I -fo -bn 146 {} -n {} -f tregenza.cal -b tbin -m sky_glow {}-ws.oct".format(simnode['radparams'], scene['viparams']['nproc'], scene['viparams']['filebase'])
                 with  open(scene['viparams']['filebase']+".rtrace", 'r') as rtraceinput:          
-                    sensrun = Popen(shlex.split(senscmd), stdin=rtraceinput, stdout=PIPE)
+                    sensrun = Popen(senscmd.split(), stdin=rtraceinput, stdout=PIPE)
                 
-                for li, line in enumerate(sensrun.stdout):
-                    decline = [float(ld) for ld in line.decode().split('\t') if ld not in ('\n', '\r\n')]
-                    if connode.analysismenu in ('2', '4'):
-                        sensarray[li] = [179*((decline[v]*0.265)+ (decline[v+1]*0.67) + (decline[v+2]*0.065)) for v in range(0, 438, 3)]
-                    elif connode.analysismenu == '3':
-                        sensarray[li] = [sum(decline[v:v+3]) for v in range(0, 438, 3)]
+                    for li, line in enumerate(sensrun.stdout):
+                        print(line)
+                        decline = [float(ld) for ld in line.decode().split('\t') if ld not in ('\n', '\r\n')]
+                        if connode.analysismenu in ('2', '4'):
+                            sensarray[li] = [179*((decline[v]*0.265)+ (decline[v+1]*0.67) + (decline[v+2]*0.065)) for v in range(0, 438, 3)]
+                        elif connode.analysismenu == '3':
+                            sensarray[li] = [sum(decline[v:v+3]) for v in range(0, 438, 3)]
                 if connode.analysismenu in ('2', '4'):
                     vecvals = numpy.array([vv[2:] for vv in vecvals if connode.cbdm_start_hour <= vv[0] < connode.cbdm_end_hour and vv[1] < connode['wd']])
                     hours = len(vecvals)
@@ -341,7 +346,7 @@ def resapply(calc_op, res, svres, simnode, connode, geonode, frames):
                         geo['wattres'][str(frame)][i] = sum([res[fr].T[i][sov:eov][j] * geo['lisenseareas'][j] for j in range(sov, eov)])
                 sov, sof = eov, eof
 
-        simnode.outputs['Data out'].hide = False
+  #      simnode.outputs['Data out'].hide = False
             
     calc_op.report({'INFO'}, "Calculation is finished.")
     bpy.ops.wm.save_mainfile(check_existing = False)

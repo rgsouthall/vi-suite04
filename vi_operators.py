@@ -140,9 +140,9 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
         if viparams(self, scene):
             return {'CANCELLED'}
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        locnode = 0 if node.bl_label == 'LiVi Compliance' or (node.bl_label == 'LiVi CBDM' and node.sm != '0') else node.inputs['Location in'].links[0].from_node
-        geonode = node.outputs['Context out'].links[0].to_node.inputs['Geometry in'].links[0].from_node if node.bl_label == 'LiVi CBDM' else 0
-        node.export(context) 
+#        locnode = 0 if node.bl_label == 'LiVi Compliance' or (node.bl_label == 'LiVi CBDM' and node.sm != '0') else node.inputs['Location in'].links[0].from_node
+#        geonode = node.outputs['Context out'].links[0].to_node.inputs['Geometry in'].links[0].from_node if node.bl_label == 'LiVi CBDM' else 0
+#        node.export(context, self) 
         scene['viparams']['vidisp'] = ''
 #        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         scene.frame_start = 0
@@ -154,7 +154,38 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
                 node.endtime = datetime.datetime(2013, 1, 1, int(node.ehour), int((node.ehour - int(node.ehour))*60)) + datetime.timedelta(node.edoy - 1)
         if bpy.data.filepath:
             objmode()
-            radcexport(self, node, locnode, geonode)
+#            radcexport(self, node, locnode, geonode)
+            node.export(context, self)
+            return {'FINISHED'}
+            
+class NODE_OT_LiBasicExport(bpy.types.Operator, io_utils.ExportHelper):
+    bl_idname = "node.libasicexport"
+    bl_label = "LiVi context export"
+    bl_description = "Export the scene to the Radiance file format"
+    bl_register = True
+    bl_undo = True
+    nodeid = bpy.props.StringProperty()
+    
+    def invoke(self, context, event):
+        scene = context.scene
+        if viparams(self, scene):
+            return {'CANCELLED'}
+        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        locnode = node.inputs['Location in'].links[0].from_node
+ #       geonode = node.outputs['Context out'].links[0].to_node.inputs['Geometry in'].links[0].from_node if node.bl_label == 'LiVi CBDM' else 0
+        node.export(context, self) 
+        scene['viparams']['vidisp'] = ''
+#        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
+        scene.frame_start = 0
+        scene.frame_set(0)
+
+#        if 'LiVi Basic' in node.bl_label:
+        node.starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(node.shour), int((node.shour - int(node.shour))*60)) + datetime.timedelta(node.sdoy - 1) if node['skynum'] < 3 else datetime.datetime(datetime.datetime.now().year, 1, 1, 12)
+        if node.animmenu == 'Time' and node['skynum'] < 3:
+            node.endtime = datetime.datetime(2013, 1, 1, int(node.ehour), int((node.ehour - int(node.ehour))*60)) + datetime.timedelta(node.edoy - 1)
+        if bpy.data.filepath:
+            objmode()
+            radbasicexport(self, node, locnode, geonode)
             node.export(context)
             return {'FINISHED'}
 
@@ -196,16 +227,16 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
                 else:
                     rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['nproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current)               
                 rvurun = Popen(rvucmd.split(), stdout = PIPE, stderr = PIPE)
-                time.sleep(0.1)
-                if rvurun.poll() is not None:                    
-                    for line in rvurun.stderr:
-                        if 'view up parallel to view direction' in line.decode():
-                            self.report({'ERROR'}, "Camera connot point directly upwards")
-                        if 'X11' in line.decode():
-                            self.report({'ERROR'}, "No X11 display server found. You may need to install XQuartz")
-                            
-                    self.report({'ERROR'}, "Something wrong with the Radiance preview. Try rerunning the geometry and context export")
-                    return {'CANCELLED'}
+        #        time.sleep(0.1)
+ #               if rvurun.poll() is not None:   
+                for line in rvurun.stderr:
+                    if 'view up parallel to view direction' in line.decode():
+                        self.report({'ERROR'}, "Camera cannot point directly upwards")
+                    if 'X11' in line.decode():
+                        self.report({'ERROR'}, "No X11 display server found. You may need to install XQuartz")
+                        
+#                self.report({'ERROR'}, "Something wrong with the Radiance preview. Try rerunning the geometry and context export")
+#                return {'CANCELLED'}
                 return {'FINISHED'}    
             else:
                 self.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")

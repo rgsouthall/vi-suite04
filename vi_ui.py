@@ -16,7 +16,7 @@ class Vi3DPanel(bpy.types.Panel):
 #        print(self.resat)
         scene = context.scene
 #        if scene.vi_display == 1:
-        if scene.get('viparams') and scene['viparams']['vidisp']:
+        if scene.get('viparams') and scene['viparams'].get('vidisp'):
             view = context.space_data
             layout = self.layout
 

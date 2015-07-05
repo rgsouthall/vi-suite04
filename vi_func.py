@@ -499,7 +499,9 @@ def retrmenus(innode):
     linkrmenu = bpy.props.EnumProperty(items=lrtype, name="", description="Flow linkage result", default = lrtype[0][0]) if 'Linkage' in innode['rtypes'] else ''
     enmenu = bpy.props.EnumProperty(items=entype, name="", description="External node result", default = entype[0][0]) if 'External node' in innode['rtypes'] else ''
     enrmenu = bpy.props.EnumProperty(items=enrtype, name="", description="External node result", default = enrtype[0][0]) if 'External node' in innode['rtypes'] else ''
-    return (valid, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu)
+    multfactor = bpy.props.FloatProperty(name = "", description = "Result multiplication factor", min = 0.0001, max = 10000, default = 1)
+    
+    return (valid, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor)
         
 def processf(pro_op, node):
     ctypes, ztypes, zrtypes, ltypes, lrtypes, entypes, enrtypes = [], [], [], [], [], [], []
@@ -1334,6 +1336,7 @@ def socklink(sock, ng):
         valid1 = sock.valid if not sock.get('valid') else sock['valid']
         for link in sock.links:
             valid2 = link.to_socket.valid if not link.to_socket.get('valid') else link.to_socket['valid'] 
+            print(valid1, valid2)
             if not set(valid1)&set(valid2):
                 bpy.data.node_groups[ng].links.remove(link)
     except Exception as e:

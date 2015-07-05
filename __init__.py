@@ -47,10 +47,10 @@ if 'RAYPATH' not in os.environ:
         shutil.copyfile(os.path.join(eplatbdict[str(sys.platform)], 'Energy+.idd'), os.path.join('{}'.format(addonpath), 'EPFiles', 'Energy+.idd'))            
     if not radldir:
         radbdir, radldir = [os.path.join('{}'.format(addonpath), 'Radfiles', 'bin', platdict[str(sys.platform)])], [os.path.join('{}'.format(addonpath), 'Radfiles', 'lib')]
-    os.environ["RAYPATH"] = '{0}{1}{2}'.format(radldir[0], evsep[str(sys.platform)], os.path.join(addonpath, 'lib'))        
+    os.environ["RAYPATH"] = '{0}{1}{2}'.format(radldir[0], evsep[str(sys.platform)], os.path.join(addonpath, 'Radfiles', 'lib'))        
     os.environ["PATH"] = os.environ["PATH"] + "{0}{1}{0}{2}".format(evsep[str(sys.platform)], radbdir[0], epdir)    
 else:
-    os.environ["RAYPATH"] += '{0}{1}'.format(evsep[str(sys.platform)], os.path.join(addonpath, 'lib'))
+    os.environ["RAYPATH"] += '{0}{1}'.format(evsep[str(sys.platform)], os.path.join(addonpath, 'Radfiles', 'lib'))
 
 def matfunc(i):
     matfuncdict = {'0': envi_mats.brick_dat.keys(), '1': envi_mats.stone_dat.keys(), '2': envi_mats.metal_dat.keys(), '3': envi_mats.wood_dat.keys(), '4': envi_mats.gas_dat.keys(),

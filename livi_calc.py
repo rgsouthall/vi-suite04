@@ -103,8 +103,8 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                     res = numpy.zeros([len(frames), geonode['reslen'], hours])
                     res[findex] = finalillu
                 elif connode.analysismenu == '4':
-                    res[findex] = [numpy.sum([connode.daauto >= i >= connode.dasupp for i in f])*100/hours for f in finalillu]
-
+#                    res[findex] = [numpy.sum([connode.daauto >= i >= connode.dasupp for i in f])*100/hours for f in finalillu]
+                    res[findex] = finalillu
                 if connode.analysismenu in ('2', '4'):
                     with open(os.path.join(scene['viparams']['newdir'], connode['resname']+"-"+str(frame)+".res"), "w") as daresfile:
                         [daresfile.write("{:.2f}\n".format(r)) for r in res[findex]]

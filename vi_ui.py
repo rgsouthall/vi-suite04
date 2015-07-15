@@ -47,8 +47,10 @@ class Vi3DPanel(bpy.types.Panel):
                     row.prop(view, "show_only_render")
                     newrow(layout, 'Legend', scene, "vi_leg_display")
                     if scene.vi_leg_display and not scene.ss_disp_panel:
-                        newrow(layout, 'Legend max', scene, "vi_leg_max")
-                        newrow(layout, 'Legend min.', scene, "vi_leg_min")
+                        if scene['liparams']['unit'] == 'UDI-a (%)':
+                            newrow(layout, 'UDI type:', scene, "li_disp_udi")
+                        newrow(layout, 'Legend max:', scene, "vi_leg_max")
+                        newrow(layout, 'Legend min:', scene, "vi_leg_min")
                         newrow(layout, 'Legend scale', scene, "vi_leg_scale")
                     if context.active_object and context.active_object.type == 'MESH':
                         newrow(layout, 'Draw wire:', scene, 'vi_disp_wire')                    

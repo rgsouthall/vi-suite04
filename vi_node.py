@@ -466,7 +466,7 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
 
         if self.geonodes() and (self.locnodes() or self.sm != '0'):
             row = layout.row()
-            row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
+            row.operator("node.licbdmexport", text = "Export").nodeid = self['nodeid']
 
     def update(self):
         if self.outputs.get('Context out') and self.get('nodeid'):
@@ -601,21 +601,30 @@ class ViLiCNode(bpy.types.Node, ViNodes):
             newrow(layout, "Storeys:", self, 'buildstorey')
         newrow(layout, 'Animation:', self, "animmenu")
         row = layout.row()
-        row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
+        row.operator("node.licompexport", text = "Export").nodeid = self['nodeid']
 
     def update(self):
         socklink(self.outputs['Context out'], self['nodeid'].split('@')[1])
 
-    def export(self, context):
-        quotes = ('"') if sys.platform == 'win32' else ("'")
+    def export(self, export_op, scene):
+#        quotes = ('"') if sys.platform == 'win32' else ("'")
+#        scene = context.scene
         if self.analysismenu in ('0', '1'):
-            self['simalg'] = " |  rcalc  -e {0}$1=(47.4*$1+120*$2+11.6*$3)/100{0} ".format(quotes)# if str(sys.platform) != 'win32' else ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" '
+            self['simalg'] = "rcalc  -e $1=(47.4*$1+120*$2+11.6*$3)/100"# if str(sys.platform) != 'win32' else ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" '
         self['resname'] = 'breaamout' if self.analysismenu == '0' else 'cfsh'
         self['skytypeparams'] = "-b 22.86 -c"
         self['exportstate'] = [str(x) for x in (self.analysismenu, self.bambuildmenu, self.buildstorey, self.animmenu)]
         nodecolour(self, 0)
-        context.scene['liparams']['cfe'] = 0
-        context.scene['liparams']['compnode'] = self['nodeid']
+        scene['liparams']['cfe'] = 0
+        scene['liparams']['compnode'] = self['nodeid']
+        skyfileslist = []
+        with open("{}-{}.sky".format(scene['viparams']['filebase'], 0), 'a') as skyfilea:
+            skyexport(self, skyfilea)
+        with open("{}-{}.sky".format(scene['viparams']['filebase'], 0), 'r') as skyfiler:
+            skyfileslist.append(skyfiler.read())
+        if self.hdr == True:
+            hdrexport(scene, 0, self)
+        self['skyfiles'] = skyfileslist
 
 class ViLiSNode(bpy.types.Node, ViNodes):
     '''Node describing a LiVi simulation'''

@@ -15,7 +15,7 @@ try:
 except:
     mp = 0
 
-from .livi_export import radcexport, radgexport, cyfc1, createoconv, createradfile
+from .livi_export import radbasicexport, radcompexport, radcbdmexport, radgexport, cyfc1, createoconv, createradfile
 from .livi_calc  import li_calc, resapply
 from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend, en_air, en_panel
 from .envi_export import enpolymatexport, pregeo
@@ -167,27 +167,61 @@ class NODE_OT_LiBasicExport(bpy.types.Operator, io_utils.ExportHelper):
     nodeid = bpy.props.StringProperty()
     
     def invoke(self, context, event):
-        scene = context.scene
-        if viparams(self, scene):
+#        scene = context.scene
+        if viparams(self, context.scene):
             return {'CANCELLED'}
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        locnode = node.inputs['Location in'].links[0].from_node
+#        locnode = node.inputs['Location in'].links[0].from_node
  #       geonode = node.outputs['Context out'].links[0].to_node.inputs['Geometry in'].links[0].from_node if node.bl_label == 'LiVi CBDM' else 0
-        node.export(context, self) 
-        scene['viparams']['vidisp'] = ''
-#        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
-        scene.frame_start = 0
-        scene.frame_set(0)
-
-#        if 'LiVi Basic' in node.bl_label:
-        node.starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(node.shour), int((node.shour - int(node.shour))*60)) + datetime.timedelta(node.sdoy - 1) if node['skynum'] < 3 else datetime.datetime(datetime.datetime.now().year, 1, 1, 12)
-        if node.animmenu == 'Time' and node['skynum'] < 3:
-            node.endtime = datetime.datetime(2013, 1, 1, int(node.ehour), int((node.ehour - int(node.ehour))*60)) + datetime.timedelta(node.edoy - 1)
-        if bpy.data.filepath:
-            objmode()
-            radbasicexport(self, node, locnode, geonode)
-            node.export(context)
-            return {'FINISHED'}
+        node.export(self, context.scene) 
+#        scene['viparams']['vidisp'] = ''
+##        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
+#        scene.frame_start = 0
+#        scene.frame_set(0)
+#
+##        if 'LiVi Basic' in node.bl_label:
+#        node.starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(node.shour), int((node.shour - int(node.shour))*60)) + datetime.timedelta(node.sdoy - 1) if node['skynum'] < 3 else datetime.datetime(datetime.datetime.now().year, 1, 1, 12)
+#        if node.animmenu == 'Time' and node['skynum'] < 3:
+#            node.endtime = datetime.datetime(2013, 1, 1, int(node.ehour), int((node.ehour - int(node.ehour))*60)) + datetime.timedelta(node.edoy - 1)
+#        if bpy.data.filepath:
+#            objmode()
+#            radbasicexport(self, node, locnode)
+#            node.export(context)
+        return {'FINISHED'}
+            
+class NODE_OT_LiCompExport(bpy.types.Operator, io_utils.ExportHelper):
+    bl_idname = "node.licompexport"
+    bl_label = "LiVi context export"
+    bl_description = "Export the scene to the Radiance file format"
+    bl_register = True
+    bl_undo = True
+    nodeid = bpy.props.StringProperty()
+    
+    def invoke(self, context, event):
+        if viparams(self, context.scene):
+            return {'CANCELLED'}
+        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        node.export(self, context.scene)
+        return {'FINISHED'}
+        
+class NODE_OT_LiCBDMExport(bpy.types.Operator, io_utils.ExportHelper):
+    bl_idname = "node.licbdmexport"
+    bl_label = "LiVi context export"
+    bl_description = "Export the scene to the Radiance file format"
+    bl_register = True
+    bl_undo = True
+    nodeid = bpy.props.StringProperty()
+    
+    def invoke(self, context, event):
+        if viparams(self, context.scene):
+            return {'CANCELLED'}
+#        scene = context.scene
+        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+#        locnode = 0 if node.bl_label == 'LiVi Compliance' or (node.bl_label == 'LiVi CBDM' and node.sm != '0') else node.inputs['Location in'].links[0].from_node
+#        geonode = node.outputs['Context out'].links[0].to_node.inputs['Geometry in'].links[0].from_node if node.bl_label == 'LiVi CBDM' else 0
+        node.export(context.scene, self)
+#        radcbdmexport(scene, self, node, locnode, geonode)
+        return {'FINISHED'}
 
 class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
     bl_idname = "node.radpreview"
@@ -399,7 +433,7 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
                     return {'RUNNING_MODAL'}
             
 #        if (scene.li_disp_panel < 2 and scene.ss_disp_panel < 2) or self.disp != scene.li_disp_count:  
-        if (scene['viparams']['vidisp'] not in ('lipanel', 'sspanel')) or self.disp != scene.li_disp_count:
+        if (scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'licpanel')) or self.disp != scene.li_disp_count:
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
             if scene['liparams']['type'] == 'LiVi Compliance':
@@ -412,6 +446,7 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context): 
+        dispdict = {'LiVi Compliance': 'licpanel', 'LiVi Basic': 'lipanel', 'LiVi CBDM': 'lipanel'}
         scene = context.scene 
         clearscene(scene, self)        
         scene.li_disp_count = scene.li_disp_count + 1 if scene.li_disp_count < 10 else 0
@@ -419,7 +454,10 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
         self.disp = scene.li_disp_count
         self.simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
         (connode, geonode) = (0, 0) if self.simnode.bl_label == 'VI Shadow Study' else (self.simnode.export(self.bl_label))
-        scene['viparams']['vidisp'] = 'sspanel' if self.simnode.bl_label == 'VI Shadow Study' else 'lipanel'
+        if self.simnode.bl_label == 'VI Shadow Study':
+            scene['viparams']['vidisp'] = 'sspanel'  
+        else:
+            scene['viparams']['vidisp'] = dispdict[connode.bl_label]
 #        (scene.li_disp_panel, scene.ss_disp_panel) = (0, 2) if self.simnode.bl_label == 'VI Shadow Study' else (2, 0)
         li_display(self.simnode, connode, geonode)
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, self.simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')

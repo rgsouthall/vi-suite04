@@ -63,8 +63,7 @@ def li_display(simnode, connode, geonode):
         cv = ores.cycles_visibility
         cv.diffuse, cv.glossy, cv.transmission, cv.scatter, cv.shadow = 0, 0, 0, 0, 0
         bm = bmesh.new()
-        bm.from_mesh(o.data)
-        
+        bm.from_mesh(o.data)  
         
         if scene['liparams']['cp'] == '0':  
             cindex = bm.faces.layers.int['cindex']
@@ -112,6 +111,7 @@ def li_display(simnode, connode, geonode):
             
             if connode and connode.bl_label == 'LiVi Compliance' and scene.vi_disp_sk:
                 sv = bm.faces.layers.float['sv{}'.format(frame)] if scene['liparams']['cp'] == '0' else bm.verts.layers.float['sv{}'.format(frame)]
+                bm.faces.ensure_lookup_table()
                 for fi, f in enumerate(ores.data.polygons):
                     if scene['liparams']['cp'] == '0':
                         f.material_index = 11 if bm.faces[fi][sv] > 0 else 19
@@ -147,7 +147,7 @@ def li_display(simnode, connode, geonode):
     skframe('', scene, obreslist, simnode['Animation'])                                   
     bpy.ops.wm.save_mainfile(check_existing = False)
     scene.frame_set(scene['liparams']['fs'])
-    scene['viparams']['vidisp'] = 'lipanel'
+#    scene['viparams']['vidisp'] = 'lipanel'
     rendview(1)
 
 def spnumdisplay(disp_op, context, simnode):
@@ -582,7 +582,7 @@ def lipanel():
         
 def li_compliance(self, context, connode):
     height, scene = context.region.height, context.scene
-    if not scene.get('li_compliance') or scene.frame_current not in range(scene.fs, scene.fe + 1) or scene.li_disp_panel < 2:
+    if not scene.get('li_compliance') or scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or scene['viparams']['vidisp'] != 'licpanel':
         return
     if connode.analysismenu == '0':
         buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retail', 'Office & Other')[int(connode.bambuildmenu)]
@@ -590,7 +590,7 @@ def li_compliance(self, context, connode):
         buildtype = 'Residential'
         cfshpfsdict = {'totkit': 0, 'kitdf': 0, 'kitsv': 0, 'totliv': 0, 'livdf': 0, 'livsv': 0}
 
-    drawpoly(100, height - 40, 900, height - 65)
+    drawpoly(100, height - 40, 900, height - 65, 0.7, 1, 1, 1)
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
     horpos, widths = (100, 317, 633, 900), (100, 450, 600, 750, 900)
 
@@ -609,7 +609,7 @@ def li_compliance(self, context, connode):
             mat = bpy.data.materials[o['compmat']]
             o['cr4'] = [('fail', 'pass')[int(com)] for com in o['comps'][frame][:][::2]]
             o['cr6'] = [cri[4] for cri in o['crit']]
-            if 'fail' in [c for i, c in enumerate(o['cr4']) if o['cr6'][i] == '1'] or bpy.context.scene['dfpass'][frame] == 1:
+            if 'fail' in [c for i, c in enumerate(o['cr4']) if o['cr6'][i] == '1'] or bpy.context.scene['liparams']['dfpass'][frame] == 1:
                 pf = 'FAIL'
             elif 'pass' not in [c for i, c in enumerate(o['cr4']) if o['cr6'][i] == '0.75'] and len([c for i, c in enumerate(o['cr4']) if o['cr6'][i] == '0.75']) > 0:
                 if 'pass' not in [c for i, c in enumerate(o['cr4']) if o['cr6'][i] == '0.5'] and len([c for i, c in enumerate(o['cr4']) if o['cr6'][i] == '0.5']) > 0:
@@ -631,7 +631,7 @@ def li_compliance(self, context, connode):
                 ecrit = o['ecrit']
                 o['ecr4'] = [('fail', 'pass')[int(com)] for com in o['ecomps'][frame][:][::2]]
                 o['ecr6'] = [ecri[4] for ecri in ecrit]
-                if 'fail' in [c for i, c in enumerate(o['ecr4']) if o['ecr6'][i] == '1'] or bpy.context.scene['dfpass'][frame] == 1:
+                if 'fail' in [c for i, c in enumerate(o['ecr4']) if o['ecr6'][i] == '1'] or bpy.context.scene['liparams']['dfpass'][frame] == 1:
                     epf = 'FAIL'
                 elif 'pass' not in [c for i, c in enumerate(o['ecr4']) if o['ecr6'][i] == '0.75'] and len([c for i, c in enumerate(o['ecr4']) if o['ecr6'][i] == '0.75']) > 0:
                     if 'pass' not in [c for i, c in enumerate(o['ecr4']) if o['ecr6'][i] == '0.5'] and len([c for i, c in enumerate(o['ecr4']) if o['ecr6'][i] == '0.5']) > 0:
@@ -645,7 +645,7 @@ def li_compliance(self, context, connode):
         if bpy.context.active_object in os:
             o = bpy.context.active_object
             lencrit = 1 + len(o['crit'])
-            drawpoly(100, height - 70, 900, height - 70  - (lencrit)*25)
+            drawpoly(100, height - 70, 900, height - 70  - (lencrit)*25, 0.7, 1, 1, 1)
             drawloop(100, height - 70, 900, height - 70  - (lencrit)*25)
             mat = bpy.data.materials[o['compmat']]
             if connode.analysismenu == '0':
@@ -717,7 +717,7 @@ def li_compliance(self, context, connode):
     if build_compliance == 'EXEMPLARY':
         for t, tab in enumerate(etables):
             if t == 0:
-                drawpoly(100, height - 70 - (lencrit * 25), 900, height - 70 - ((lencrit - len(etables)) * 25))
+                drawpoly(100, height - 70 - (lencrit * 25), 900, height - 70 - ((lencrit - len(etables)) * 25), 0.7, 1, 1, 1)
                 drawloop(100, height - 70 - (lencrit * 25), 900, height - 70 - ((lencrit - len(etables)) * 25))
             for j in range(4):
                 bgl.glEnable(bgl.GL_LINE_STIPPLE)
@@ -739,7 +739,7 @@ def li_compliance(self, context, connode):
     blf.size(font_id, 20, 52)
     blf.position(font_id, 110, height - 87 - lencrit*26, 0)
     if connode.analysismenu == '0':
-        drawpoly(100, height - 70 - lencrit*26, 525, height - 95 - lencrit*26)
+        drawpoly(100, height - 70 - lencrit*26, 525, height - 95 - lencrit*26, 0.7, 1, 1, 1)
         drawloop(100, height - 70 - lencrit*26, 350, height - 95 - lencrit*26)
         drawloop(100, height - 70 - lencrit*26, 350, height - 95 - lencrit*26)
         drawloop(350, height - 70 - lencrit*26, 525, height - 95 - lencrit*26)
@@ -756,7 +756,7 @@ def li_compliance(self, context, connode):
             blf.draw(font_id, '0')
 
     elif connode.analysismenu == '1':
-        drawpoly(100, height - 70 - lencrit*26, 300, height - 95 - lencrit*26)
+        drawpoly(100, height - 70 - lencrit*26, 300, height - 95 - lencrit*26, 0.7, 1, 1, 1)
         drawloop(100, height - 70 - lencrit*26, 300, height - 95 - lencrit*26)
         drawfont('Credits achieved:', 0, lencrit, height, 110, 87)
         cfshcred = 0
@@ -775,7 +775,7 @@ def li_compliance(self, context, connode):
     sw = 8
 
     aolen, ailen, jnlen = len(scene.li_assorg), len(scene.li_assind), len(scene.li_jobno)
-    drawpoly(100, 50, 500 + aolen*sw + ailen*sw + jnlen*sw, 25)
+    drawpoly(100, 50, 500 + aolen*sw + ailen*sw + jnlen*sw, 25, 0.7, 1, 1, 1)
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
     drawloop(100, 50, 260 + aolen*sw, 25)
     drawloop(260 + aolen*sw, 50, 400 + aolen*sw + ailen*sw, 25)

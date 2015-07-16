@@ -360,10 +360,21 @@ def radbasicexport(export_op, node, locnode):
 
     elif node['skynum'] == 6:
         node['skyfiles'] = ['']
+
+def radcompexport(scene, export_op, node): 
+    skyfileslist = []
+    with open("{}-{}.sky".format(scene['viparams']['filebase'], 0), 'a') as skyfilea:
+        skyexport(node, skyfilea)
+    with open("{}-{}.sky".format(scene['viparams']['filebase'], 0), 'r') as skyfiler:
+        skyfileslist.append(skyfiler.read())
+    if node.hdr == True:
+        hdrexport(scene, 0, node)
+    node['skyfiles'] = skyfileslist
+
     
-def radcbdmexport(export_op, node, locnode, geonode):
+def radcbdmexport(scene, export_op, node, locnode, geonode):
     scene = bpy.context.scene
-    locnode = node.inputs['Location in'].links[0].from_node
+#    locnode = node.inputs['Location in'].links[0].from_node
     node['Animation'] = 'Static' if geonode.animmenu == 'Static' else 'Animated'
     if not node.fromnode:            
         node['source'] = node.sourcemenu if int(node.analysismenu) > 1 else node.sourcemenu2

@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, subprocess, datetime, bmesh, shlex
+import bpy, os, subprocess, datetime, bmesh, time
 from subprocess import PIPE, Popen, STDOUT
 from .vi_func import mtx2vals, retobjs, selobj, facearea
 from . import livi_export
@@ -83,28 +83,39 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                     sensrun = Popen(senscmd.split(), stdin=rtraceinput, stdout=PIPE)
                 
                     for li, line in enumerate(sensrun.stdout):
-                        print(line)
                         decline = [float(ld) for ld in line.decode().split('\t') if ld not in ('\n', '\r\n')]
                         if connode.analysismenu in ('2', '4'):
                             sensarray[li] = [179*((decline[v]*0.265)+ (decline[v+1]*0.67) + (decline[v+2]*0.065)) for v in range(0, 438, 3)]
                         elif connode.analysismenu == '3':
                             sensarray[li] = [sum(decline[v:v+3]) for v in range(0, 438, 3)]
                 if connode.analysismenu in ('2', '4'):
+                    
+                    
                     vecvals = numpy.array([vv[2:] for vv in vecvals if connode.cbdm_start_hour <= vv[0] < connode.cbdm_end_hour and vv[1] < connode['wd']])
+                    
                     hours = len(vecvals)
                 elif connode.analysismenu == '3':
                     vecvals = [vv[2:] for vv in vecvals]
                     hours = len(vecvals)
-
-                finalillu = numpy.array([[numpy.sum(sensarray[f] * vv) for vv in vecvals] for f in prange])
+                
+                tn = time.time()
+#                print(tn)
+#                finalillu = numpy.array([[numpy.multiply(sensarray[f], vv).sum() for vv in vecvals] for f in prange])
+#                finalillu = numpy.array([[(sensarray[f] * vv).sum() for vv in vecvals] for f in prange])
+#                print(finalillu)
+#                print(time.time()-tn)
+#                finalillu2 = numpy.array([sensarray[f] * vecvals for f in prange])
+                finalillu = numpy.inner(sensarray, vecvals)
+ #               finalillu2 = numpy.array([numpy.prod([sensarray, vecvals])])
+#                print(finalillu2)
+                print(time.time()-tn)
                 if connode.analysismenu == '2':
                     res[findex] = [numpy.sum([i >= connode.dalux for i in f])*100/hours for f in finalillu]
                 elif connode.analysismenu == '3':
                     res = numpy.zeros([len(frames), geonode['reslen'], hours])
                     res[findex] = finalillu
                 elif connode.analysismenu == '4':
-#                    res[findex] = [numpy.sum([connode.daauto >= i >= connode.dasupp for i in f])*100/hours for f in finalillu]
-                    res[findex] = finalillu
+                    res[findex] = [((connode.dasupp<f)&(f<connode.daauto)).sum()*100/hours for f in finalillu]
                 if connode.analysismenu in ('2', '4'):
                     with open(os.path.join(scene['viparams']['newdir'], connode['resname']+"-"+str(frame)+".res"), "w") as daresfile:
                         [daresfile.write("{:.2f}\n".format(r)) for r in res[findex]]

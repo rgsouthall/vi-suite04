@@ -165,7 +165,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
     bl_label = 'LiVi Basic'
     bl_icon = 'LAMP'
 
-    analysistype = [('0', "Illuminance", "Lux Calculation"), ('1', "Irradiance", "W/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Factor", "DF (%) Calculation"), ('3', "Glare", "Glare Calculation")]
+    analysistype = [('0', "Illu/Irrad", "Illumninance/Irradiance Calculation"), ('1', "Irradiance", "W/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Factor", "DF (%) Calculation"), ('3', "Glare", "Glare Calculation")]
     unit = bpy.props.StringProperty()
     animtype = [('Static', "Static", "Simple static analysis"), ('Time', "Time", "Animated time analysis")]
     skylist = [("0", "Sunny", "CIE Sunny Sky description"), ("1", "Partly Coudy", "CIE Sunny Sky description"),
@@ -480,8 +480,8 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         gn = self.outputs['Context out'].links[0].to_node.geonodes() if self.outputs['Context out'].links else 0
         return gn
 
-    def export(self, context, export_op):
-        scene = context.scene
+    def export(self, scene, export_op):
+#        scene = context.scene
         locnode = self.inputs['Location in'].links[0].from_node
         geonode = self.outputs['Context out'].links[0].to_node.inputs['Geometry in'].links[0].from_node
         self['skynum'] = 4

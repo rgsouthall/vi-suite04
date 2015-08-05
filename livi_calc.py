@@ -16,9 +16,9 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, subprocess, datetime, bmesh, time
+import bpy, os, subprocess, datetime, bmesh
 from subprocess import PIPE, Popen, STDOUT
-from .vi_func import mtx2vals, retobjs, selobj, facearea
+from .vi_func import mtx2vals, retobjs, selobj
 from . import livi_export
 import numpy
 
@@ -28,115 +28,136 @@ def radfexport(scene, export_op, connode, geonode, frames):
         livi_export.fexport(scene, frame, export_op, connode, geonode, pause = 1)
 
 def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs): 
-    scene, prange = bpy.context.scene, range(geonode['reslen'])
-    frames = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) if not kwargs.get('genframe') else [kwargs['genframe']]
-    os.chdir(scene['viparams']['newdir'])
-    if os.lstat("{}.rtrace".format(scene['viparams']['filebase'])).st_size == 0:
-        calc_op.report({'ERROR'},"There are no materials with the livi sensor option enabled")
-    else:
-        (res, svres) = (numpy.zeros([len(frames), geonode['reslen']]), numpy.zeros([len(frames), geonode['reslen']]))
-        for frame in frames:            
-            findex = frame - scene['liparams']['fs'] if not kwargs.get('genframe') else 0
-            if connode.bl_label in ('LiVi Basic', 'LiVi Compliance') or (connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) < 2):
-                if os.path.isfile("{}-{}.af".format(scene['viparams']['filebase'], frame)):
-                    os.remove("{}-{}.af".format(scene['viparams']['filebase'], frame))
-                if simnode.pmap:
-                    pmcmd = ('mkpmap', '+fo', '-apD', '0.001', '-apo', ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.pport]), '-apg', '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), '{}'.format(simnode.pmapgno), '-aps', ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.mattype == '1']), '{}-{}.oct'.format(scene['viparams']['filebase'], frame))
-                    subprocess.call(pmcmd)
-                    rtcmd = "rtrace -n {0} -ap {2}-{3}.gpm 50 -ab 1 -h -ov {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
-                else: 
-                    rtcmd = "rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
-     
-#                with open("{}.rtrace".format(scene['viparams']['filebase']), 'r') as rtfile:
-                rtrun = Popen(rtcmd.split(), stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = geonode["rtpoints"].encode('utf-8'))
-#                    rtrun.communicate(b'geonode["rtpoints"]')
-#                    rtrun.stdin.flush()
+    scene = bpy.context.scene
+    scene['liparams']['maxres'], scene['liparams']['minres'], scene['liparams']['avres'] = {}, {}, {}
+    for o in [o for o in bpy.data.objects if o.get('rtpoints')]:
+        restext, prange, reslen = '', range(o['rtpnum']), o['rtpnum']
+        frames = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) if not kwargs.get('genframe') else [kwargs['genframe']]
+        os.chdir(scene['viparams']['newdir'])
+        if not reslen:
+            pass
+    #        calc_op.report({'ERROR'},"There are no materials with the livi sensor option enabled")
+        else:
+#            (res, svres) = (numpy.zeros([len(frames), reslen]), numpy.zeros([len(frames), reslen]))
+            for frame in frames:
+                print(frame)
+                resstat = []
+                findex = frame - scene['liparams']['fs'] if not kwargs.get('genframe') else 0
+                if connode.bl_label in ('LiVi Basic', 'LiVi Compliance') or (connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) < 2):
+                    if os.path.isfile("{}-{}.af".format(scene['viparams']['filebase'], frame)):
+                        os.remove("{}-{}.af".format(scene['viparams']['filebase'], frame))
+                    if simnode.pmap:
+                        pmcmd = ('mkpmap', '+fo', '-apD', '0.001', '-apo', ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.pport]), '-apg', '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), '{}'.format(simnode.pmapgno), '-aps', ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.mattype == '1']), '{}-{}.oct'.format(scene['viparams']['filebase'], frame))
+                        subprocess.call(pmcmd)
+                        rtcmd = "rtrace -n {0} -ap {2}-{3}.gpm 50 -ab 1 -h -ov {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+                    else: 
+                        rtcmd = "rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+                    if connode.bl_label == 'LiVi Compliance':
+                        o.compcalcapply(scene, frame, rtcmd, connode['simalg'])
+                    elif connode.bl_label == 'LiVi Basic':
+                        o.basiccalcapply(scene, frame, rtcmd, connode['simalg'])
+    #                with open("{}.rtrace".format(scene['viparams']['filebase']), 'r') as rtfile:
+#                    rtrun = Popen(rtcmd.split(), stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = geonode["rtpoints"].encode('utf-8'))
+#    #                    rtrun.communicate(b'geonode["rtpoints"]')
+#    #                    rtrun.stdin.flush()
+#                        
+#                    rcrun = Popen((connode['simalg'].split()), stdin = PIPE, stdout = PIPE).communicate(input = rtrun[0])
+#                    with open(os.path.join(scene['viparams']['newdir'], "{}-{}.res".format(connode['resname'], frame)), 'w') as resfile:
+#                        for l, line in enumerate([line for line in rcrun[0].decode().split('\n') if line]):
+#                            res[findex][l] = line                
+#                            resfile.write(line)
+#                    
+#                if connode.bl_label == 'LiVi Compliance' and connode.analysismenu in ('0', '1'):
+#                    with open("{}.rtrace".format(scene['viparams']['filebase']), 'r') as rtfile:
+#                        svcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct {4}".format(scene['viparams']['nproc'], '-ab 1 -ad 8192 -aa 0 -ar 512 -as 1024 -lw 0.0002', scene['viparams']['filebase'], frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+#                        svrun = Popen(svcmd.split(), stdin = rtfile, stdout=PIPE, stderr=STDOUT)                  
+#                        rcrun = Popen((connode['simalg'].split()), stdin = svrun.stdout, stdout = PIPE)                    
+#                        with open(os.path.join(scene['viparams']['newdir'],"skyview-{}.res".format(frame)), 'w') as svresfile:
+#                            for sv,line in enumerate([line.decode() for line in rcrun.stdout]):
+#                                svres[findex][sv] = eval(line)
+#                                svresfile.write(line)
+#                    print(res) 
+#    
+                if connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) > 1:
+                    vecvals = numpy.array(connode['vecvals'])                
                     
-                rcrun = Popen((connode['simalg'].split()), stdin = PIPE, stdout = PIPE).communicate(input = rtrun[0])
-                with open(os.path.join(scene['viparams']['newdir'], "{}-{}.res".format(connode['resname'], frame)), 'w') as resfile:
-                    for l, line in enumerate([line for line in rcrun[0].decode().split('\n') if line]):
-                        res[findex][l] = line                
-                        resfile.write(line)
-                
-            if connode.bl_label == 'LiVi Compliance' and connode.analysismenu in ('0', '1'):
-                with open("{}.rtrace".format(scene['viparams']['filebase']), 'r') as rtfile:
-                    svcmd = "rtrace -n {0} -w {1} -h -ov -I -af {2}-{3}.af {2}-{3}.oct {4}".format(scene['viparams']['nproc'], '-ab 1 -ad 8192 -aa 0 -ar 512 -as 1024 -lw 0.0002', scene['viparams']['filebase'], frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
-                    svrun = Popen(svcmd.split(), stdin = rtfile, stdout=PIPE, stderr=STDOUT)                  
-                    rcrun = Popen((connode['simalg'].split()), stdin = svrun.stdout, stdout = PIPE)                    
-                    with open(os.path.join(scene['viparams']['newdir'],"skyview-{}.res".format(frame)), 'w') as svresfile:
-                        for sv,line in enumerate([line.decode() for line in rcrun.stdout]):
-                            svres[findex][sv] = eval(line)
-                            svresfile.write(line)
+                    oconvcmd = "oconv - "
+                    if connode.sourcemenu == '1':
+                        connode['vecvals'], vals = mtx2vals(open(connode.mtxname, "r").readlines(), datetime.datetime(2010, 1, 1).weekday(), '')
+                    
+                    with open("{}-ws.oct".format(scene['viparams']['filebase']), 'w') as wsfile:
+                        Popen(oconvcmd.split(), stdin = PIPE, stdout=wsfile, stderr=STDOUT).communicate(input = (connode['whitesky']+geonode['radfiles'][frame]).encode('utf-8'))
+                    senscmd = "rcontrib -w  -h -I -fo -bn 146 {} -n {} -f tregenza.cal -b tbin -m sky_glow {}-ws.oct".format(simnode['radparams'], scene['viparams']['nproc'], scene['viparams']['filebase'])
+    #                with  open(scene['viparams']['filebase']+".rtrace", 'r') as rtraceinput: 
+#                    for o in [o for o in bpy.data.objects if o.get('rtpoints')]:
+                    sensarray = numpy.zeros((reslen, 146))
+                    sensrun = Popen(senscmd.split(), stdin=PIPE, stdout=PIPE).communicate(input=o['rtpoints'].encode('utf-8'))
 
-            if connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) > 1:
-                if connode.sourcemenu == '1':
-                    connode['vecvals'], vals = mtx2vals(open(connode.mtxname, "r").readlines(), datetime.datetime(2010, 1, 1).weekday(), '')
-                vecvals = numpy.array(connode['vecvals'])
-                
-                sensarray = numpy.zeros((len(prange), 146))
-                oconvcmd = "oconv - "
-                with open("{}-ws.oct".format(scene['viparams']['filebase']), 'w') as wsfile:
-#                oconvcmd = ("oconv - > {0}-ws.oct".format(scene['viparams']['filebase']))
-                    Popen(oconvcmd.split(), stdin = PIPE, stdout=wsfile, stderr=STDOUT).communicate(input = (connode['whitesky']+geonode['radfiles'][frame]).encode('utf-8'))
-                senscmd = "rcontrib -w  -h -I -fo -bn 146 {} -n {} -f tregenza.cal -b tbin -m sky_glow {}-ws.oct".format(simnode['radparams'], scene['viparams']['nproc'], scene['viparams']['filebase'])
-                with  open(scene['viparams']['filebase']+".rtrace", 'r') as rtraceinput:          
-                    sensrun = Popen(senscmd.split(), stdin=rtraceinput, stdout=PIPE)
-                
-                    for li, line in enumerate(sensrun.stdout):
-                        decline = [float(ld) for ld in line.decode().split('\t') if ld not in ('\n', '\r\n')]
+                    for li, line in enumerate(sensrun[0].decode("utf-8").splitlines()): 
+                        reslist = [float(ld) for ld in line.split() if ld not in ('\n', '\r\n')]
+
                         if connode.analysismenu in ('2', '4'):
-                            sensarray[li] = [179*((decline[v]*0.265)+ (decline[v+1]*0.67) + (decline[v+2]*0.065)) for v in range(0, 438, 3)]
+                            sensarray[li] = [179*((reslist[v]*0.265)+ (reslist[v+1]*0.67) + (reslist[v+2]*0.065)) for v in range(0, 438, 3)]
                         elif connode.analysismenu == '3':
-                            sensarray[li] = [sum(decline[v:v+3]) for v in range(0, 438, 3)]
-                if connode.analysismenu in ('2', '4'):
-                    
-                    
-                    vecvals = numpy.array([vv[2:] for vv in vecvals if connode.cbdm_start_hour <= vv[0] < connode.cbdm_end_hour and vv[1] < connode['wd']])
-                    
-                    hours = len(vecvals)
-                elif connode.analysismenu == '3':
-                    vecvals = [vv[2:] for vv in vecvals]
-                    hours = len(vecvals)
+                            sensarray[li] = [sum(reslist[v:v+3]) for v in range(0, 438, 3)]
                 
-                tn = time.time()
-#                print(tn)
-#                finalillu = numpy.array([[numpy.multiply(sensarray[f], vv).sum() for vv in vecvals] for f in prange])
-#                finalillu = numpy.array([[(sensarray[f] * vv).sum() for vv in vecvals] for f in prange])
-#                print(finalillu)
-#                print(time.time()-tn)
-#                finalillu2 = numpy.array([sensarray[f] * vecvals for f in prange])
-                finalillu = numpy.inner(sensarray, vecvals)
- #               finalillu2 = numpy.array([numpy.prod([sensarray, vecvals])])
-#                print(finalillu2)
-                print(time.time()-tn)
-                if connode.analysismenu == '2':
-                    res[findex] = [numpy.sum([i >= connode.dalux for i in f])*100/hours for f in finalillu]
-                elif connode.analysismenu == '3':
-                    res = numpy.zeros([len(frames), geonode['reslen'], hours])
-                    res[findex] = finalillu
-                elif connode.analysismenu == '4':
-                    res[findex] = [((connode.dasupp<f)&(f<connode.daauto)).sum()*100/hours for f in finalillu]
-                if connode.analysismenu in ('2', '4'):
-                    with open(os.path.join(scene['viparams']['newdir'], connode['resname']+"-"+str(frame)+".res"), "w") as daresfile:
-                        [daresfile.write("{:.2f}\n".format(r)) for r in res[findex]]
-          
-        resapply(calc_op, res, svres, simnode, connode, geonode, frames)
-        return(res[0])
-   
+                    if connode.analysismenu in ('2', '4'):
+                        vecvals = numpy.array([vv[2:] for vv in vecvals if connode.cbdm_start_hour <= vv[0] < connode.cbdm_end_hour and vv[1] < connode['wd']])      
+    
+                    elif connode.analysismenu == '3':
+                        vecvals = [vv[2:] for vv in vecvals]
+                        
+                    hours = len(vecvals)
+                    finalillu = numpy.inner(sensarray, vecvals)
+
+                    if connode.analysismenu == '2':
+                        res[findex] = [numpy.sum([i >= connode.dalux for i in f])*100/hours for f in finalillu]
+                        with open(os.path.join(scene['viparams']['newdir'], connode['resname']+"-"+str(frame)+".res"), "w") as daresfile:
+                            [daresfile.write("{:.2f}\n".format(r)) for r in res[findex]]
+                    elif connode.analysismenu == '3':
+                        res = numpy.zeros([len(frames), reslen, hours])
+                        res[findex] = finalillu
+                        o.lapply
+                    elif connode.analysismenu == '4':
+                        res = numpy.zeros([len(frames), reslen, 4])
+                        res[findex] = [[(f<connode.damin).sum()*100/hours, ((connode.damin<f)&(f<connode.dasupp)).sum()*100/hours,
+                                ((connode.dasupp<f)&(f<connode.daauto)).sum()*100/hours, (connode.daauto<f).sum()*100/hours] for f in finalillu]
+                        
+                        restext += ''.join(["{} {:.2f} {:.2f} {:.2f}\n".format(o.name, r[0], r[1], r[2], r[3]) for r in res[findex]])
+                        simnode['resdict']['{}-{}-{}'.format(o.name, 'low', frame)] = ['{}-{}-{}'.format(o.name, 'low', frame)] 
+                        simnode['allresdict']['{}-{}-{}'.format(o.name, 'low', frame)] = [r[0] for r in res[findex]]
+                        simnode['resdict']['{}-{}-{}'.format(o.name, 'supp', frame)] = ['{}-{}-{}'.format(o.name, 'supp', frame)] 
+                        simnode['allresdict']['{}-{}-{}'.format(o.name, 'supp', frame)] = [r[1] for r in res[findex]]
+                        simnode['resdict']['{}-{}-{}'.format(o.name, 'auto', frame)] = ['{}-{}-{}'.format(o.name, 'auto', frame)] 
+                        simnode['allresdict']['{}-{}-{}'.format(o.name, 'auto', frame)] = [r[2] for r in res[findex]]
+                        simnode['resdict']['{}-{}-{}'.format(o.name, 'high', frame)] = ['{}-{}-{}'.format(o.name, 'high', frame)] 
+                        simnode['allresdict']['{}-{}-{}'.format(o.name, 'high', frame)] = [r[3] for r in res[findex]]
+                        o.udiapply(scene, frame, res[findex])
+
+            scene['liparams']['maxres'][str(frame)] = max([o['omax'][str(frame)] for o in bpy.data.objects if o.get('rtpoints')])
+            scene['liparams']['minres'][str(frame)] = min([o['omin'][str(frame)] for o in bpy.data.objects if o.get('rtpoints')])
+            scene['liparams']['avres'][str(frame)] = sum([o['omin'][str(frame)] for o in bpy.data.objects if o.get('rtpoints')])/len([o['omin'][str(frame)] for o in bpy.data.objects if o.get('rtpoints')])
+        
+#        with open(os.path.join(scene['viparams']['newdir'], connode['resname']+"-"+str(frame)+".res"), "w") as resfile:
+#            resfile.write(restext)                      
+#        resapply(calc_op, res, svres, simnode, connode, geonode, frames)
+#        for i, f in enumerate(frames):
+#            scene['liparams']['maxres'][str(f)] = numpy.amax(res[i])
+#            scene['liparams']['minres'][str(f)] = numpy.amin(res[i])
+#            scene['liparams']['avres'][str(f)] = numpy.average(res[i])
+#        return(res[0])
+
 def resapply(calc_op, res, svres, simnode, connode, geonode, frames):
     scene = bpy.context.scene  
     simnode['maxres'], simnode['minres'], simnode['resdict'], simnode['allresdict'] = {}, {}, {}, {}
     if connode.analysismenu != '3' or connode.bl_label != 'LiVi CBDM':
         for i, f in enumerate(frames):
             simnode['maxres'][str(f)] = numpy.amax(res[i])
-            simnode['minres'][str(f)] = numpy.amin(res[i])
+            simnode['minres'][str(f)] = numpy.amax(res[i])
             simnode['avres'][str(f)] = numpy.average(res[i])
-            scene.vi_leg_max = max(simnode['maxres'].values())
-            scene.vi_leg_min = min(simnode['minres'].values())
-            
-        crits = []
-        dfpass = [0 for f in frames]
-        edfpass = [0 for f in frames]
+        
+        scene.vi_leg_max, scene.vi_leg_min = max(simnode['maxres'].values()), min(simnode['minres'].values())            
+        crits, dfpass, edfpass = [], [0 for f in frames], [0 for f in frames] 
         
         for fr, frame in enumerate(frames):
             scene.frame_set(frame)
@@ -179,7 +200,6 @@ def resapply(calc_op, res, svres, simnode, connode, geonode, frames):
                             v[sv] = svres[fr][v[cindex] - 1]
                     simnode['resdict'][o.name] = [o.name] 
                     simnode['allresdict'][o.name] = [v[livires] for v in bm.verts if v[cindex] > 0]
-#                    o['liviresults']['Sum'] = sum([v[livires] for v in bm.verts if v[cindex] > 0])
     
                 elif geonode.cpoint == '0':
                     cindex = bm.faces.layers.int['cindex']
@@ -193,13 +213,11 @@ def resapply(calc_op, res, svres, simnode, connode, geonode, frames):
                         if connode.bl_label == 'LiVi Compliance':
                             f[sv] = svres[fr][f[cindex] - 1]
                         
-#                    o['liviresults']['Sum'] = sum([f[livires] for f in bm.faces if f[cindex] > 0])
                     simnode['resdict'][o.name] = [o.name] 
                     simnode['allresdict'][o.name] = [f[livires] for f in bm.faces if f[cindex] > 0]
                 bm.to_mesh(o.data)
                 bm.free()
                 
-
                 if connode.bl_label == 'LiVi Compliance':
                     o['compmat'] = mat.name
                     if fr == 0:
@@ -356,8 +374,5 @@ def resapply(calc_op, res, svres, simnode, connode, geonode, frames):
                     else:
                         geo['wattres'][str(frame)][i] = sum([res[fr].T[i][sov:eov][j] * geo['lisenseareas'][j] for j in range(sov, eov)])
                 sov, sof = eov, eof
-
-  #      simnode.outputs['Data out'].hide = False
-            
     calc_op.report({'INFO'}, "Calculation is finished.")
     bpy.ops.wm.save_mainfile(check_existing = False)

@@ -35,9 +35,7 @@ class Vi3DPanel(bpy.types.Panel):
 #            elif scene.ss_disp_panel in (1,2) or scene.li_disp_panel in (1,2):
             elif scene['viparams']['vidisp'] in ('ss', 'li', 'sspanel', 'lipanel', 'licpanel'):
                 row = layout.row()
-                row.prop(scene, "vi_disp_3d")
-                if scene['viparams']['visimcontext'] == 'LiVi Compliance':
-                    newrow(layout, 'Sky view:', scene, 'vi_disp_sk')
+                row.prop(scene, "vi_disp_3d")                
                 row = layout.row()
                 row.operator("view3d.lidisplay", text="Shadow Display") if scene['viparams']['visimcontext'] == 'Shadow' else row.operator("view3d.lidisplay", text="Radiance Display")
 
@@ -49,6 +47,8 @@ class Vi3DPanel(bpy.types.Panel):
                     if scene.vi_leg_display and not scene.ss_disp_panel:
                         if scene['liparams']['unit'] == 'UDI-a (%)':
                             newrow(layout, 'UDI type:', scene, "li_disp_udi")
+                        if scene['viparams']['visimcontext'] == 'LiVi Compliance':
+                            newrow(layout, 'Sky view:', scene, 'li_disp_sk')
                         newrow(layout, 'Legend max:', scene, "vi_leg_max")
                         newrow(layout, 'Legend min:', scene, "vi_leg_min")
                         newrow(layout, 'Legend scale', scene, "vi_leg_scale")
@@ -165,21 +165,24 @@ class VIMatPanel(bpy.types.Panel):
         layout = self.layout
         newrow(layout, 'Material type', cm, "mattype")
         if cm.mattype != '3':
-            if scene.get('liparams') and scene['liparams'].get('compnode'):
-                connode = bpy.data.node_groups[scene['liparams']['compnode'].split('@')[1]].nodes[scene['liparams']['compnode'].split('@')[0]]
-                if cm.mattype == '1':
-                    if connode.analysismenu == '0':
-                        if connode.bambuildmenu == '2':
-                            newrow(layout, "Space type:", cm, 'hspacemenu')
-                        elif connode.bambuildmenu == '3':
-                            newrow(layout, "Space type:", cm, 'brspacemenu')
-                            if cm.brspacemenu == '2':
-                                row = layout.row()
-                                row.prop(cm, 'gl_roof')
-                        elif connode.bambuildmenu == '4':
-                            newrow(layout, "Space type:", cm, 'respacemenu')
-                    elif connode.analysismenu == '1':
-                        newrow(layout, "Space type:", cm, 'crspacemenu')
+            try:
+                if scene['viparams']['visimcontext'] == 'LiVi Compliance':
+                    connode = bpy.data.node_groups[scene['liparams']['compnode'].split('@')[1]].nodes[scene['liparams']['compnode'].split('@')[0]]
+                    if cm.mattype == '1':
+                        if connode.analysismenu == '0':
+                            if connode.bambuildmenu == '2':
+                                newrow(layout, "Space type:", cm, 'hspacemenu')
+                            elif connode.bambuildmenu == '3':
+                                newrow(layout, "Space type:", cm, 'brspacemenu')
+                                if cm.brspacemenu == '2':
+                                    row = layout.row()
+                                    row.prop(cm, 'gl_roof')
+                            elif connode.bambuildmenu == '4':
+                                newrow(layout, "Space type:", cm, 'respacemenu')
+                        elif connode.analysismenu == '1':
+                            newrow(layout, "Space type:", cm, 'crspacemenu')
+            except:
+                pass
     
             row = layout.row()
             row.label('LiVi Radiance type:')

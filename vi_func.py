@@ -1,4 +1,6 @@
-import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, numpy
+import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, subprocess
+from subprocess import Popen, PIPE, STDOUT
+from numpy import array, digitize, amax, amin, average, zeros
 from math import sin, cos, asin, acos, pi, isnan, tan
 from mathutils import Vector, Matrix
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
@@ -38,6 +40,206 @@ def radmat(self, scene):
     self['radentry'] = radentry
     return(radentry)
     
+def rtpoints(self, bm, gnode):
+    if bm.verts.layers.int.get('cindex'):
+        bm.verts.layers.int.remove(bm.verts.layers.int['cindex'])
+    if bm.faces.layers.int.get('cindex'):
+        bm.faces.layers.int.remove(bm.faces.layers.int['cindex'])
+    geom = bm.verts if self['cpoint'] == 1 else bm.faces 
+    geom.layers.int.new('cindex')
+    cindex = geom.layers.int['cindex']
+    geom.ensure_lookup_table()
+    
+    if self['cpoint'] == 0: 
+        gpoints = [face for face in bm.faces if self.data.materials[face.material_index].mattype == '1']
+        csfc = [face.calc_center_median() for face in gpoints]                      
+        self['rtpoints'] = ''.join(['{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([csfc[fi][i] + gnode.offset * f.normal.normalized()[i] for i in range(3)], f.normal[:]) for fi, f in enumerate(gpoints)])
+            
+    elif self['cpoint'] == 1: 
+        gpoints = set([item for sublist in [face.verts[:] for face in bm.faces if self.data.materials[face.material_index].mattype == '1'] for item in sublist])
+        self['rtpoints'] = ''.join(['{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([vert.co[i] + gnode.offset * vert.normal[i] for i in range(3)], vert.normal) for vert in gpoints])
+    
+    for g, gp in enumerate(gpoints):
+        gp[cindex] = g + 1
+
+    self['rtpnum'] = g + 1
+    bm.transform(self.matrix_world.inverted())
+    bm.to_mesh(self.data)
+    bm.free()
+    
+def regresults(scene, frames, simnode, res):    
+    for i, f in enumerate(frames):
+        simnode['maxres'][str(f)] = amax(res[i])
+        simnode['minres'][str(f)] = amin(res[i])
+        simnode['avres'][str(f)] = average(res[i])
+    scene.vi_leg_max, scene.vi_leg_min = max(simnode['maxres'].values()), min(simnode['minres'].values()) 
+
+def clearlayers(bm):
+    while bm.faces.layers.float:
+        bm.faces.layers.float.remove(bm.faces.layers.float[0])
+    while bm.verts.layers.float:
+        bm.verts.layers.float.remove(bm.verts.layers.float[0])
+    
+def basiccalcapply(self, scene, frame, rtcmd, simalg):
+    self['omax'], self['omin'], self['oave'] = {}, {}, {}
+    rtrun = Popen(rtcmd.split(), stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = self["rtpoints"].encode('utf-8'))
+    rcrun = Popen(simalg.split(), stdin = PIPE, stdout = PIPE).communicate(input = rtrun[0])
+    res = [float(r) for r in rcrun[0].decode().splitlines()]
+    selobj(scene, self)
+    bm = bmesh.new()
+    bm.from_mesh(self.data)
+    clearlayers(bm)
+    geom = bm.verts if self['cpoint'] == 1 else bm.faces
+    cindex = geom.layers.int['cindex']
+    geom.layers.float.new('res{}'.format(frame))
+    livires = geom.layers.float['res{}'.format(frame)]
+    for g in [g for g in geom if g[cindex] > 0]:
+        g[livires] = res[g[cindex] - 1]
+    bm.to_mesh(self.data)
+    bm.free()
+    self['omax'][str(frame)], self['omin'][str(frame)], self['oave'][str(frame)] = max(res), min(res), sum(res)/len(res)
+
+def basiccalcapply(self, scene, frame, rtcmd, simalg):
+    self['omax'], self['omin'], self['oave'] = {}, {}, {}
+    rtrun = Popen(rtcmd.split(), stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = self["rtpoints"].encode('utf-8'))
+    rcrun = Popen(simalg.split(), stdin = PIPE, stdout = PIPE).communicate(input = rtrun[0])
+    res = [float(r) for r in rcrun[0].decode().splitlines()]
+    selobj(scene, self)
+    bm = bmesh.new()
+    bm.from_mesh(self.data)
+    clearlayers(bm)
+    geom = bm.verts if self['cpoint'] == 1 else bm.faces
+    cindex = geom.layers.int['cindex']
+    geom.layers.float.new('res{}'.format(frame))
+    livires = geom.layers.float['res{}'.format(frame)]
+    for g in [g for g in geom if g[cindex] > 0]:
+        g[livires] = res[g[cindex] - 1]
+    bm.to_mesh(self.data)
+    bm.free()
+    self['omax'][str(frame)], self['omin'][str(frame)], self['oave'][str(frame)] = max(res), min(res), sum(res)/len(res)
+
+def ldisplay(self, scene):    
+    for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
+        bm = bmesh.new()
+        bm.from_mesh(self.data)
+        geom = bm.verts if scene['liparams']['cp'] == '1' else bm.faces       
+        res = geom.layers.float['res{}'.format(frame)]
+
+        try:
+            vals = array([(f[res] - min(scene['liparams']['minres'].values()))/(max(scene['liparams']['maxres'].values()) - min(scene['liparams']['minres'].values())) for f in bm.faces]) if scene['liparams']['cp'] == '0' else \
+                    ([(sum([vert[res] for vert in f.verts])/len(f.verts) - min(scene['liparams']['minres'].values()))/(max(scene['liparams']['maxres'].values()) - min(scene['liparams']['minres'].values())) for f in bm.faces])
+        except:
+            vals = array([max(scene['liparams']['maxres'].values()) for g in geom])
+                
+        oreslist = [g[res] for g in geom] 
+        bins = array([0.05*i for i in range(1, 20)])
+        nmatis = digitize(vals, bins)
+        for fi, f in enumerate(bm.faces):
+            f.material_index = nmatis[fi]
+        if scene['liparams']['fe'] - scene['liparams']['fs'] > 0:
+            [self.data.polygons[fi].keyframe_insert('material_index', frame=frame) for fi in range(len(bm.faces))] 
+        bm.to_mesh(self.data)
+        bm.free()
+        self['omax'][str(frame)], self['omin'][str(frame)], self['oave'][str(frame)] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
+    
+def compcalcapply(self, scene, frame, rtcmd, simalg):
+    self['omax'], self['omin'], self['oave'] = {}, {}, {}
+    rtrun = Popen(rtcmd.split(), stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = self["rtpoints"].encode('utf-8'))
+    rcrun = Popen(simalg.split(), stdin = PIPE, stdout = PIPE).communicate(input = rtrun[0])
+    dfres = [float(df) for df in rcrun[0].decode().splitlines()]
+    svcmd = "rtrace -n {0} -w {1} -h -ov -I {2}-{3}.oct ".format(scene['viparams']['nproc'], '-ab 1 -ad 8192 -aa 0 -ar 512 -as 1024 -lw 0.0002', scene['viparams']['filebase'], frame, simalg)    
+    svrun = Popen(svcmd.split(), stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = self["rtpoints"].encode('utf-8'))                 
+    rcrun = Popen(simalg.split(), stdin = PIPE, stdout = PIPE).communicate(input = svrun[0])                   
+    svres = [float(sv) for sv in rcrun[0].decode().splitlines()]
+    selobj(scene, self)
+    bm = bmesh.new()
+    bm.from_mesh(self.data)
+    clearlayers(bm)
+    geom = bm.verts if self['cpoint'] == 1 else bm.faces
+    cindex = geom.layers.int['cindex']
+    geom.layers.float.new('sv{}'.format(frame))
+    geom.layers.float.new('df{}'.format(frame))
+    geom.layers.float.new('res{}'.format(frame))
+    dfreslayer = geom.layers.float['df{}'.format(frame)]
+    svreslayer = geom.layers.float['df{}'.format(frame)]
+    compres = geom.layers.float['res{}'.format(frame)]
+    for g in [g for g in geom if g[cindex] > 0]:
+        g[dfreslayer] = dfres[g[cindex] - 1]
+        g[svreslayer] = svres[g[cindex] - 1]
+        g[compres] = (dfres[g[cindex] - 1], svres[g[cindex] - 1])[int(scene.li_disp_sk)]
+    bm.to_mesh(self.data)
+    bm.free()
+    self['omax'][str(frame)], self['omin'][str(frame)], self['oave'][str(frame)] = max(dfres), min(dfres), sum(dfres)/len(dfres)
+    mat = [matslot.material for matslot in self.material_slots if matslot.material.mattype == '1'][0]
+    self['compmat'] = mat
+    
+def udicalcapply(self, scene, frame): 
+    res = numpy.zeros([reslen, 4])
+    res[findex] = [[(f<connode.damin).sum()*100/hours, ((connode.damin<f)&(f<connode.dasupp)).sum()*100/hours,
+            ((connode.dasupp<f)&(f<connode.daauto)).sum()*100/hours, (connode.daauto<f).sum()*100/hours] for f in finalillu]
+    if bpy.context.active_object and bpy.context.active_object.hide == 'False':
+        bpy.ops.object.mode_set()              
+    bpy.ops.object.select_all(action = 'DESELECT')
+    scene.objects.active = None
+    
+    if self.get('wattres'):
+        del self['wattres']
+    
+    selobj(scene, self)
+    bm = bmesh.new()
+    bm.from_mesh(self.data)
+    clearlayers(bm)
+        
+    geom = bm.verts if self['cpoint'] == 1 else bm.faces
+    cindex = geom.layers.int['cindex']
+    udilevels = ('low', 'sup', 'auto', 'high', 'res')
+    for udilevel in udilevels:
+        geom.layers.float.new('{}{}'.format(udilevel, frame))
+    [udilow, udisupp, udiauto, udihigh, udires] = [geom.layers.float['{}{}'.format(udilevel, frame)] for udilevel in udilevels]
+#    udilow = geom.layers.float['low{}'.format(frame)]
+#    udisupp = geom.layers.float['sup{}'.format(frame)]
+#    udiauto = geom.layers.float['auto{}'.format(frame)]
+#    udihigh = geom.layers.float['high{}'.format(frame)]
+#    udires = geom.layers.float['res{}'.format(frame)]
+    for g in [g for g in geom if g[cindex] > 0]:
+        g[udilow] = res[g[cindex] - 1][0]
+        g[udisupp] = res[g[cindex] - 1][1]
+        g[udiauto] = res[g[cindex] - 1][2]
+        g[udihigh] = res[g[cindex] - 1][3]
+        g[udires] = res[g[cindex] - 1][int(scene.li_disp_udi)]            
+    bm.to_mesh(self.data)
+    bm.free()
+    
+def udidisplay(self, scene):
+    for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
+        udidict = {'0': 'low', '1': 'sup', '2': 'auto', '3': 'high'}
+        bm = bmesh.new()
+        bm.from_mesh(self.data)
+        geom = bm.verts if scene['liparams']['cp'] == '1' else bm.faces       
+        livires = geom.layers.float['{}{}'.format(udidict[scene.li_disp_udi], frame)]
+        res = geom.layers.float['res{}'.format(frame)]
+
+        try:
+            vals = array([(f[livires] - min(scene['liparams']['minres'].values()))/(max(scene['liparams']['maxres'].values()) - min(scene['liparams']['minres'].values())) for f in bm.faces]) if scene['liparams']['cp'] == '0' else \
+                    ([(sum([vert[livires] for vert in f.verts])/len(f.verts) - min(scene['liparams']['minres'].values()))/(max(scene['liparams']['maxres'].values()) - min(scene['liparams']['minres'].values())) for f in bm.faces])
+        except:
+            vals = array([max(scene['liparams']['maxres'].values()) for g in geom])
+        
+        for g in geom:
+            g[res] = g[livires]
+        
+        oreslist = [g[livires] for g in geom] 
+        bins = array([0.05*i for i in range(1, 20)])
+        nmatis = digitize(vals, bins)
+        for fi, f in enumerate(bm.faces):
+            f.material_index = nmatis[fi]
+        if scene['liparams']['fe'] - scene['liparams']['fs'] > 0:
+            [self.data.polygons[fi].keyframe_insert('material_index', frame=frame) for fi in range(len(bm.faces))] 
+        bm.to_mesh(self.data)
+        bm.free()
+        self['omax'][str(frame)], self['omin'][str(frame)], self['oave'][str(frame)] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
+    
+      
 def fvmat(self, mn, bound):
 #    fvname = on.replace(" ", "_") + self.name.replace(" ", "_") 
     begin = '\n  {}\n  {{\n    type    '.format(mn)  
@@ -1055,7 +1257,7 @@ def mtx2vals(mtxlines, fwd, node):
             startline = m + 1
             break
 
-    vecvals, vals, hour, patch = numpy.array([[x%24, (fwd+int(x/24))%7] + [0 for p in range(patches)] for x in range(hours)]), numpy.zeros((patches)), 0, 2
+    vecvals, vals, hour, patch = array([[x%24, (fwd+int(x/24))%7] + [0 for p in range(patches)] for x in range(hours)]), zeros((patches)), 0, 2
     
     for fvals in mtxlines[startline:]:
         if fvals == '\n':

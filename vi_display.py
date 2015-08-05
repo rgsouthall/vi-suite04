@@ -119,22 +119,25 @@ def li_display(simnode, connode, geonode):
                         faceres = sum([v[sv] for v in bm.verts])/len(f.vertices)
                         f.material_index = 11 if faceres > 0 else 19
                 oreslist = [f[sv] for f in bm.faces] if scene['liparams']['cp'] == '0' else [v[sv] for v in bm.verts]
+            elif connode and connode.bl_label == 'LiVi CBDM' and scene['liparams']['unit'] == 'UDI-a (%)':
+                ores.udidisplay(scene)
             else:
-                livires = bm.faces.layers.float['res{}'.format(frame)] if scene['liparams']['cp'] == '0' else bm.verts.layers.float['res{}'.format(frame)]
-                try:
-                    vals = array([(f[livires] - min(simnode['minres'].values()))/(max(simnode['maxres'].values()) - min(simnode['minres'].values())) for f in bm.faces]) if scene['liparams']['cp'] == '0' else \
-                ([(sum([vert[livires] for vert in f.verts])/len(f.verts) - min(simnode['minres'].values()))/(max(simnode['maxres'].values()) - min(simnode['minres'].values())) for f in bm.faces])
-                except:
-                    vals = array([0 for f in bm.faces])
-                bins = array([0.05*i for i in range(1, 20)])
-                nmatis = digitize(vals, bins)
-                for fi, f in enumerate(ores.data.polygons):
-                    f.material_index = nmatis[fi]
-                oreslist = [f[livires] for f in bm.faces] if scene['liparams']['cp'] == '0' else [v[livires] for v in bm.verts]
-
-            if scene['liparams']['fe'] - scene['liparams']['fs'] > 0:
-                [ores.data.polygons[fi].keyframe_insert('material_index', frame=frame) for fi in range(len(bm.faces))] 
-            ores['omax'][str(frame)], ores['omin'][str(frame)], ores['oave'][str(frame)] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
+                ores.ldisplay(scene)
+#                livires = bm.faces.layers.float['res{}'.format(frame)] if scene['liparams']['cp'] == '0' else bm.verts.layers.float['res{}'.format(frame)]
+#                try:
+#                    vals = array([(f[livires] - min(simnode['minres'].values()))/(max(simnode['maxres'].values()) - min(simnode['minres'].values())) for f in bm.faces]) if scene['liparams']['cp'] == '0' else \
+#                ([(sum([vert[livires] for vert in f.verts])/len(f.verts) - min(simnode['minres'].values()))/(max(simnode['maxres'].values()) - min(simnode['minres'].values())) for f in bm.faces])
+#                except:
+#                    vals = array([0 for f in bm.faces])
+#                bins = array([0.05*i for i in range(1, 20)])
+#                nmatis = digitize(vals, bins)
+#                for fi, f in enumerate(ores.data.polygons):
+#                    f.material_index = nmatis[fi]
+#                oreslist = [f[livires] for f in bm.faces] if scene['liparams']['cp'] == '0' else [v[livires] for v in bm.verts]
+#
+#            if scene['liparams']['fe'] - scene['liparams']['fs'] > 0:
+#                [ores.data.polygons[fi].keyframe_insert('material_index', frame=frame) for fi in range(len(bm.faces))] 
+#            ores['omax'][str(frame)], ores['omin'][str(frame)], ores['oave'][str(frame)] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
         
         bm.free()
         if scene.vi_disp_3d == 1:

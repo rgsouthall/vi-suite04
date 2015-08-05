@@ -23,6 +23,7 @@ from .vi_func import retsky, retobj, retmesh, clearscene, solarPosition, mtx2val
 
 def radgexport(export_op, node, **kwargs):
     scene = bpy.context.scene  
+    scene['liparams']['cp'] = node.cpoint
     export = 'geoexport' if export_op.nodeid.split('@')[0] == 'LiVi Geometry' else 'genexport'
     if bpy.context.active_object and not bpy.context.active_object.layers[scene.active_layer]:
         export_op.report({'INFO'}, "Active geometry is not on the active layer. You may need to lock layers.")
@@ -138,49 +139,52 @@ def radgexport(export_op, node, **kwargs):
                             del o['merr']
                             
                 # rtrace export routine
-        
+                
                 if o.name in scene['liparams']['livic']:
-                    cverts, csfi, scene.objects.active, o['cfaces'] = [], [], o, []               
-                    selmesh('desel')
-                    scene.objects.active, scene['liparams']['cp'] = o, node.cpoint
-            
-                    if scene['liparams']['cp'] == '0':               
-                        if bm.verts.layers.int.get('cindex'):
-                            bm.verts.layers.int.remove(bm.verts.layers.int['cindex'])
-                        if bm.faces.layers.int.get('cindex'):
-                            bm.faces.layers.int.remove(bm.faces.layers.int['cindex'])
-                        bm.faces.layers.int.new('cindex')
-                        cindex = bm.faces.layers.int['cindex'] 
-                        csf = [face for face in bm.faces if o.data.materials[face.material_index].mattype == '1']
-                        csfc = [face.calc_center_median() for face in csf]
-                        csfi = [face.index for face in csf]
-                        
-                        for fi, f in enumerate(csf):
-                            rtpoints += '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([csfc[fi][i] + node.offset * f.normal.normalized()[i] for i in range(3)], f.normal[:])
-                            f[cindex] = rti
-                            rti+= 1
-                            
-                    elif scene['liparams']['cp'] == '1': 
-                        if bm.faces.layers.int.get('cindex'):
-                            bm.faces.layers.int.remove(bm.faces.layers.int['cindex'])
-                        if bm.verts.layers.int.get('cindex'):
-                            bm.verts.layers.int.remove(bm.verts.layers.int['cindex'])
-                        bm.verts.layers.int.new('cindex')
-                        cindex = bm.verts.layers.int['cindex']
-                        cverts = set([item for sublist in [face.verts[:] for face in bm.faces if o.data.materials[face.material_index].mattype == '1'] for item in sublist])
-                        for vert in cverts:
-                            rtpoints += '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([vert.co[i] + node.offset * vert.normal[i] for i in range(3)], vert.normal)
-                            vert[cindex] = rti
-                            rti += 1
-                    (o['cverts'], o['cfaces'], o['lisenseareas']) = ([cv.index for cv in cverts], csfi, [vertarea(bm, vert, export_op) for vert in cverts]) if scene['liparams']['cp'] == '1' else ([], csfi, [f.calc_area() for f in csf])      
-                    
-                    if 0 in o['lisenseareas']:
-                        export_op.report({'ERROR'}, o.name + " sensing mesh is too complex for vertex calculation use face sensors instead.") 
-                        bm.free()
-                        return
-                bm.transform(o.matrix_world.inverted())
-                bm.to_mesh(o.data)
-                bm.free()
+                    o['cpoint'] = int(node.cpoint)
+                    o.rtpoints(bm, node)
+#                    
+#                    cverts, csfi, scene.objects.active, o['cfaces'] = [], [], o, []               
+#                    selmesh('desel')
+#                    scene.objects.active, scene['liparams']['cp'] = o, node.cpoint
+#            
+#                    if scene['liparams']['cp'] == '0':               
+#                        if bm.verts.layers.int.get('cindex'):
+#                            bm.verts.layers.int.remove(bm.verts.layers.int['cindex'])
+#                        if bm.faces.layers.int.get('cindex'):
+#                            bm.faces.layers.int.remove(bm.faces.layers.int['cindex'])
+#                        bm.faces.layers.int.new('cindex')
+#                        cindex = bm.faces.layers.int['cindex'] 
+#                        csf = [face for face in bm.faces if o.data.materials[face.material_index].mattype == '1']
+#                        csfc = [face.calc_center_median() for face in csf]
+#                        csfi = [face.index for face in csf]
+#                        
+#                        for fi, f in enumerate(csf):
+#                            rtpoints += '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([csfc[fi][i] + node.offset * f.normal.normalized()[i] for i in range(3)], f.normal[:])
+#                            f[cindex] = rti
+#                            rti+= 1
+#                            
+#                    elif scene['liparams']['cp'] == '1': 
+#                        if bm.faces.layers.int.get('cindex'):
+#                            bm.faces.layers.int.remove(bm.faces.layers.int['cindex'])
+#                        if bm.verts.layers.int.get('cindex'):
+#                            bm.verts.layers.int.remove(bm.verts.layers.int['cindex'])
+#                        bm.verts.layers.int.new('cindex')
+#                        cindex = bm.verts.layers.int['cindex']
+#                        cverts = set([item for sublist in [face.verts[:] for face in bm.faces if o.data.materials[face.material_index].mattype == '1'] for item in sublist])
+#                        for vert in cverts:
+#                            rtpoints += '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([vert.co[i] + node.offset * vert.normal[i] for i in range(3)], vert.normal)
+#                            vert[cindex] = rti
+#                            rti += 1
+#                    (o['cverts'], o['cfaces'], o['lisenseareas']) = ([cv.index for cv in cverts], csfi, [vertarea(bm, vert, export_op) for vert in cverts]) if scene['liparams']['cp'] == '1' else ([], csfi, [f.calc_area() for f in csf])      
+#                    
+#                    if 0 in o['lisenseareas']:
+#                        export_op.report({'ERROR'}, o.name + " sensing mesh is too complex for vertex calculation use face sensors instead.") 
+#                        bm.free()
+#                        return
+#                bm.transform(o.matrix_world.inverted())
+#                bm.to_mesh(o.data)
+#                bm.free()
                 
 
                             
@@ -360,6 +364,7 @@ def radbasicexport(export_op, node, locnode):
 
     elif node['skynum'] == 6:
         node['skyfiles'] = ['']
+    scene['viparams']['visimcontext'] = 'LiVi Basic'
 
 def radcompexport(scene, export_op, node): 
     skyfileslist = []
@@ -370,6 +375,7 @@ def radcompexport(scene, export_op, node):
     if node.hdr == True:
         hdrexport(scene, 0, node)
     node['skyfiles'] = skyfileslist
+    scene['viparams']['visimcontext'] = 'LiVi Compliance'
 
     
 def radcbdmexport(scene, export_op, node, locnode, geonode):
@@ -432,7 +438,8 @@ def radcbdmexport(scene, export_op, node, locnode, geonode):
             bpy.data.images.load(node.hdrname)
         
         if int(node.analysismenu) < 2:
-            node['skyfiles'] = [hdrsky(node.hdrname)]   
+            node['skyfiles'] = [hdrsky(node.hdrname)] 
+    scene['viparams']['visimcontext'] = 'LiVi CBDM'
     
 def sunexport(scene, node, locnode, frame): 
     if locnode:

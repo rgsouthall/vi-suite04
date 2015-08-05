@@ -21,13 +21,13 @@ if "bpy" in locals():
 else:
     from .vi_node import vinode_categories, envinode_categories
     from .envi_mat import envi_materials, envi_constructions
-    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, fvmat, radmat, resnameunits, recalculate_text
+    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, fvmat, radmat, resnameunits, recalculate_text, rtpoints, udicalcapply, udidisplay, compcalcapply, basiccalcapply, ldisplay
     from .vi_operators import *
     from .vi_ui import *
 
 import sys, os, inspect, bpy, nodeitems_utils, bmesh, shutil, colorsys, math
 from numpy import array, digitize
-#from bpy.app.handlers import persistent
+
 
 epversion = "8-3-0"
 addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -80,7 +80,6 @@ def eupdate(self, context):
                     faces = [f for f in bm.faces if f[res] > 0 and f.select]
                     extrudes = [0.1 * scene.vi_disp_3dlevel * (abs(inv - math.log10(10000 * (f[res] + 1 - mino)/(maxo - mino))) * f.normal) for f in faces] if scene.vi_leg_scale == '1' else \
                     [scene.vi_disp_3dlevel * (abs(inv - (f[res]-mino)/(maxo - mino)) * f.normal) for f in faces]
-#                        vplus = scene.vi_disp_3dlevel * (abs(inv - math.log10((f[res]-mino)/(maxo - mino))) * f.normal)
                     for f, face in enumerate(faces):
                         for v in face.verts:
                             o.data.shape_keys.key_blocks[str(frame)].data[v.index].co = o.data.shape_keys.key_blocks['Basis'].data[v.index].co + extrudes[f]
@@ -136,7 +135,14 @@ def legupdate(self, context):
                 f.keyframe_insert('material_index', frame=frame)
     scene.frame_set(scene.frame_current)
 
-    
+def udiupdate(self, context):
+    for o in [o for o in bpy.data.objects if o.lires]:
+        o.udidisplay(context.scene)   
+        
+def compupdate(self, context):
+    for o in [o for o in bpy.data.objects if o.lires]:
+        o.compdisplay(context.scene)
+        
 def settemps(self, context):
     scene = context.scene
     bpy.app.handlers.frame_change_pre.clear()
@@ -263,6 +269,13 @@ def register():
     Object.ies_unit = eprop([("m", "Meters", ""), ("c", "Centimeters", ""), ("f", "Feet", ""), ("i", "Inches", "")], "", "Specify the IES file measurement unit", "m")
     Object.ies_colour = fvprop(3, "IES Colour",'IES Colour', [1.0, 1.0, 1.0], 'COLOR', 0, 1)
     (Object.licalc, Object.lires, Object.limerr, Object.manip, Object.lila) = [bprop("", "", False)] * 5
+    Object.compcalcapply = compcalcapply    
+    Object.basiccalcapply = basiccalcapply 
+    Object.rtpoints = rtpoints
+    Object.udicalcapply = udicalcapply
+    
+    Object.udidisplay = udidisplay
+    Object.ldisplay = ldisplay
 
 # EnVi zone definitions
     Object.envi_type = eprop([("0", "None", "Not an EnVi zone"), ("1", "Thermal", "Thermal Zone"), ("2", "Shading", "Shading Object")], "EnVi object type", "Specify the EnVi object type", "0")
@@ -548,7 +561,7 @@ def register():
      Scene.vi_display_sel_only, Scene.vi_display_vis_only) = [bprop("", "", False)] * 11
     Scene.vi_leg_max = bpy.props.FloatProperty(name = "", description = "Legend maximum", min = 0, max = 1000000, default = 1000, update=legupdate)
     Scene.vi_leg_min = bpy.props.FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0, update=legupdate)
-    Scene.vi_leg_scale = bpy.props.EnumProperty(items = [('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name = "", description = "Legend scale", default = '0', update=legupdate)
+    Scene.vi_leg_scale = bpy.props.EnumProperty(items = [('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name = "", description = "Legend scale", default = '0', update=legupdate)    
     Scene.en_temp_max = bpy.props.FloatProperty(name = "Max", description = "Temp maximum", default = 24, update=settemps)
     Scene.en_temp_min = bpy.props.FloatProperty(name = "Min", description = "Temp minimum", default = 18, update=settemps)
     Scene.en_hum_max = bpy.props.FloatProperty(name = "Max", description = "Humidity maximum", default = 100, update=sethums)
@@ -565,12 +578,12 @@ def register():
     Scene.vi_display_rp_off = fprop("", "Surface offset for number display", 0, 1, 0.001)
     Scene.vi_disp_trans = bpy.props.FloatProperty(name = "", description = "Sensing material transparency", min = 0, max = 1, default = 1, update = tupdate)
     Scene.vi_disp_wire = bpy.props.BoolProperty(name = "", description = "Draw wire frame", default = 0, update=wupdate)
-    Scene.vi_disp_sk = bprop("", "Boolean for skyview display",  False)
+    Scene.li_disp_sk = bpy.props.EnumProperty(items = [("0", "Daylight Factor", "Display Daylight factor"),("1", "Sky view", "Display the Sky View")], name = "", description = "Compliance data type", default = "0", update = compupdate)
     Scene.li_projname = sprop("", "Name of the building project", 1024, '')
     Scene.li_assorg = sprop("", "Name of the assessing organisation", 1024, '')
     Scene.li_assind = sprop("", "Name of the assessing individual", 1024, '')
     Scene.li_jobno = sprop("", "Project job number", 1024, '')
-    Scene.li_disp_udi = eprop([("0", "Supplementary", "Percentage of hours requiring supplementary lighting"), ("1", "Autonomous", "Percentage of hours with autonomous lighting"), ("2", "Upper", "Percentage of hours excedding the upper limit")], "", "UDI range selection", "1")
+    Scene.li_disp_udi = bpy.props.EnumProperty(items = [("0", "Low", "Percentage of hours below minimum threshold"),("1", "Supplementary", "Percentage of hours requiring supplementary lighting"), ("2", "Autonomous", "Percentage of hours with autonomous lighting"), ("3", "Upper", "Percentage of hours excedding the upper limit")], name = "", description = "UDI range selection", default = "1", update = udiupdate)
     (Scene.resaa_disp, Scene.resaws_disp, Scene.resawd_disp, Scene.resah_disp, Scene.resas_disp, Scene.reszt_disp, Scene.reszh_disp, Scene.reszhw_disp, Scene.reszcw_disp, Scene.reszsg_disp, Scene.reszppd_disp, 
      Scene.reszpmv_disp, Scene.resvls_disp, Scene.resvmh_disp, Scene.resim_disp, Scene.resiach_disp, Scene.reszco_disp, Scene.resihl_disp, Scene.reszlf_disp,
      Scene.reszof_disp, Scene.resmrt_disp, Scene.resocc_disp, Scene.resh_disp, Scene.resfhb_disp, Scene.ressah_disp, Scene.ressac_disp, Scene.reshrhw_disp) = resnameunits() 

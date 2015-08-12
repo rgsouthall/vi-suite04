@@ -48,7 +48,9 @@ class Vi3DPanel(bpy.types.Panel):
                         if scene['liparams']['unit'] == 'UDI-a (%)':
                             newrow(layout, 'UDI type:', scene, "li_disp_udi")
                         if scene['viparams']['visimcontext'] == 'LiVi Compliance':
-                            newrow(layout, 'Sky view:', scene, 'li_disp_sk')
+                            newrow(layout, 'Metric:', scene, 'li_disp_sv')
+                        if scene['viparams']['visimcontext'] == 'LiVi Basic':
+                            newrow(layout, 'Metric:', scene, 'li_disp_basic')
                         newrow(layout, 'Legend max:', scene, "vi_leg_max")
                         newrow(layout, 'Legend min:', scene, "vi_leg_min")
                         newrow(layout, 'Legend scale', scene, "vi_leg_scale")

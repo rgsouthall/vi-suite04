@@ -31,17 +31,13 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
     scene = bpy.context.scene
     scene['liparams']['maxres'], scene['liparams']['minres'], scene['liparams']['avres'] = {}, {}, {}
     for o in [o for o in bpy.data.objects if o.get('rtpoints')]:
-        restext, prange, reslen = '', range(o['rtpnum']), o['rtpnum']
+        restext, reslen = '', o['rtpnum']
         frames = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) if not kwargs.get('genframe') else [kwargs['genframe']]
         os.chdir(scene['viparams']['newdir'])
         if not reslen:
             pass
-    #        calc_op.report({'ERROR'},"There are no materials with the livi sensor option enabled")
         else:
-#            (res, svres) = (numpy.zeros([len(frames), reslen]), numpy.zeros([len(frames), reslen]))
             for frame in frames:
-                print(frame)
-                resstat = []
                 findex = frame - scene['liparams']['fs'] if not kwargs.get('genframe') else 0
                 if connode.bl_label in ('LiVi Basic', 'LiVi Compliance') or (connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) < 2):
                     if os.path.isfile("{}-{}.af".format(scene['viparams']['filebase'], frame)):
@@ -51,11 +47,13 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                         subprocess.call(pmcmd)
                         rtcmd = "rtrace -n {0} -ap {2}-{3}.gpm 50 -ab 1 -h -ov {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                     else: 
-                        rtcmd = "rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+                        rtcmd = "rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                     if connode.bl_label == 'LiVi Compliance':
-                        o.compcalcapply(scene, frame, rtcmd, connode['simalg'])
+                        o.compcalcapply(scene, frame, rtcmd)
                     elif connode.bl_label == 'LiVi Basic':
-                        o.basiccalcapply(scene, frame, rtcmd, connode['simalg'])
+                        o.basiccalcapply(scene, frame, rtcmd)
+#                    elif connode.bl_label == 'LiVi Basic' and connode.analysismenu == '1':
+#                        o.dfcalcapply(scene, frame, rtcmd, connode['simalg'])
     #                with open("{}.rtrace".format(scene['viparams']['filebase']), 'r') as rtfile:
 #                    rtrun = Popen(rtcmd.split(), stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = geonode["rtpoints"].encode('utf-8'))
 #    #                    rtrun.communicate(b'geonode["rtpoints"]')
@@ -134,9 +132,9 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                         simnode['allresdict']['{}-{}-{}'.format(o.name, 'high', frame)] = [r[3] for r in res[findex]]
                         o.udiapply(scene, frame, res[findex])
 
-            scene['liparams']['maxres'][str(frame)] = max([o['omax'][str(frame)] for o in bpy.data.objects if o.get('rtpoints')])
-            scene['liparams']['minres'][str(frame)] = min([o['omin'][str(frame)] for o in bpy.data.objects if o.get('rtpoints')])
-            scene['liparams']['avres'][str(frame)] = sum([o['omin'][str(frame)] for o in bpy.data.objects if o.get('rtpoints')])/len([o['omin'][str(frame)] for o in bpy.data.objects if o.get('rtpoints')])
+#            scene['liparams']['maxres'][str(frame)] = max([o['omax'][str(frame)] for o in bpy.data.objects if o.get('rtpoints')])
+#            scene['liparams']['minres'][str(frame)] = min([o['omin'][str(frame)] for o in bpy.data.objects if o.get('rtpoints')])
+#            scene['liparams']['avres'][str(frame)] = sum([o['omin'][str(frame)] for o in bpy.data.objects if o.get('rtpoints')])/len([o['omin'][str(frame)] for o in bpy.data.objects if o.get('rtpoints')])
         
 #        with open(os.path.join(scene['viparams']['newdir'], connode['resname']+"-"+str(frame)+".res"), "w") as resfile:
 #            resfile.write(restext)                      

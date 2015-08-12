@@ -15,7 +15,7 @@ try:
 except:
     mp = 0
 
-from .livi_export import radbasicexport, radcompexport, radcbdmexport, radgexport, cyfc1, createoconv, createradfile
+from .livi_export import radgexport, cyfc1, createoconv, createradfile
 from .livi_calc  import li_calc, resapply
 from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend, en_air, en_panel
 from .envi_export import enpolymatexport, pregeo

@@ -19,7 +19,6 @@
 
 import bpy, blf, colorsys, bgl, mathutils, bmesh
 from math import pi, sin, cos, atan2, log10
-from numpy import digitize, array
 try:
     import matplotlib
     mp = 1
@@ -27,7 +26,7 @@ except:
     mp = 0
 
 from . import livi_export
-from .vi_func import cmap, clearscene, skframe, selobj, retobjs, framerange, viewdesc, drawloop, drawpoly, draw_index, drawfont, skfpos, objmode, drawcircle, drawtri
+from .vi_func import cmap, skframe, selobj, retobjs, framerange, viewdesc, drawloop, drawpoly, draw_index, drawfont, skfpos, objmode, drawcircle, drawtri, setscenelivivals
 
 nh = 768
 
@@ -36,6 +35,8 @@ def ss_display():
 
 def li_display(simnode, connode, geonode):
     scene, obreslist, obcalclist = bpy.context.scene, [], []
+    setscenelivivals(scene)
+    
     (rcol, mtype) =  ('hot', 'livi') if 'LiVi' in simnode.bl_label else ('grey', 'shad')
     cmap(rcol)
 
@@ -50,10 +51,10 @@ def li_display(simnode, connode, geonode):
         bpy.app.handlers.frame_change_pre.append(livi_export.cyfc1)
         
     for o in scene.objects:
-        if geo.type == "MESH" and geo.get('licalc') and geo.hide == False:
+        if o.type == "MESH" and o.get('licalc') and o.hide == False:
             bpy.ops.object.select_all(action = 'DESELECT')
             obcalclist.append(o)
-
+    
     scene.frame_set(scene['liparams']['fs'])
     scene.objects.active = None
     
@@ -88,19 +89,18 @@ def li_display(simnode, connode, geonode):
         bpy.context.scene.objects.link(ores)  
         
         obreslist.append(ores)
-        ores['omax'], ores['omin'], ores['oave'], ores['lires']  = {}, {}, {}, 1 
+        ores['omax'], ores['omin'], ores['oave'], ores['lires']  = o['omax'], o['omin'], o['oave'], 1 
         if connode and connode.bl_label == 'LiVi Compliance':
             for c in ('compmat', 'comps', 'crit', 'ecrit', 'ecomps'):
                 ores[c] = o[c]
         selobj(scene, ores)
         
-
         for matname in ['{}#{}'.format(mtype, i) for i in range(20)]:
             if bpy.data.materials[matname] not in ores.data.materials[:]:
                 bpy.ops.object.material_slot_add()
                 ores.material_slots[-1].material = bpy.data.materials[matname]
         
-        for fr, frame in enumerate(range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)):  
+        for fr, frame in enumerate(range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)):             
             if fr == 0:
                 if scene.vi_disp_3d == 1 and scene['liparams']['cp'] == '0':
                     for face in bmesh.ops.extrude_discrete_faces(bm, faces = bm.faces)['faces']:
@@ -109,35 +109,12 @@ def li_display(simnode, connode, geonode):
                 bm.to_mesh(ores.data)
                 bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
             
-            if connode and connode.bl_label == 'LiVi Compliance' and scene.vi_disp_sk:
-                sv = bm.faces.layers.float['sv{}'.format(frame)] if scene['liparams']['cp'] == '0' else bm.verts.layers.float['sv{}'.format(frame)]
-                bm.faces.ensure_lookup_table()
-                for fi, f in enumerate(ores.data.polygons):
-                    if scene['liparams']['cp'] == '0':
-                        f.material_index = 11 if bm.faces[fi][sv] > 0 else 19
-                    if scene['liparams']['cp'] == '1':
-                        faceres = sum([v[sv] for v in bm.verts])/len(f.vertices)
-                        f.material_index = 11 if faceres > 0 else 19
-                oreslist = [f[sv] for f in bm.faces] if scene['liparams']['cp'] == '0' else [v[sv] for v in bm.verts]
-            elif connode and connode.bl_label == 'LiVi CBDM' and scene['liparams']['unit'] == 'UDI-a (%)':
+            if connode and connode.bl_label == 'LiVi Compliance':
+                ores.compdisplay(scene)
+            elif connode and connode.bl_label == 'LiVi CBDM' and 'UDI' in scene['liparams']['unit']:
                 ores.udidisplay(scene)
             else:
                 ores.ldisplay(scene)
-#                livires = bm.faces.layers.float['res{}'.format(frame)] if scene['liparams']['cp'] == '0' else bm.verts.layers.float['res{}'.format(frame)]
-#                try:
-#                    vals = array([(f[livires] - min(simnode['minres'].values()))/(max(simnode['maxres'].values()) - min(simnode['minres'].values())) for f in bm.faces]) if scene['liparams']['cp'] == '0' else \
-#                ([(sum([vert[livires] for vert in f.verts])/len(f.verts) - min(simnode['minres'].values()))/(max(simnode['maxres'].values()) - min(simnode['minres'].values())) for f in bm.faces])
-#                except:
-#                    vals = array([0 for f in bm.faces])
-#                bins = array([0.05*i for i in range(1, 20)])
-#                nmatis = digitize(vals, bins)
-#                for fi, f in enumerate(ores.data.polygons):
-#                    f.material_index = nmatis[fi]
-#                oreslist = [f[livires] for f in bm.faces] if scene['liparams']['cp'] == '0' else [v[livires] for v in bm.verts]
-#
-#            if scene['liparams']['fe'] - scene['liparams']['fs'] > 0:
-#                [ores.data.polygons[fi].keyframe_insert('material_index', frame=frame) for fi in range(len(bm.faces))] 
-#            ores['omax'][str(frame)], ores['omin'][str(frame)], ores['oave'][str(frame)] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
         
         bm.free()
         if scene.vi_disp_3d == 1:
@@ -186,7 +163,7 @@ def spnumdisplay(disp_op, context, simnode):
 
 def linumdisplay(disp_op, context, simnode, connode, geonode):
     scene = context.scene    
-    if scene['viparams']['vidisp'] not in ('lipanel', 'sspanel'):
+    if scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'licpanel'):
         return
     if scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
         disp_op.report({'INFO'},"Outside result frame range")
@@ -273,7 +250,7 @@ def li3D_legend(self, context, simnode, connode, geonode):
     scene = context.scene
     fc = str(scene.frame_current)
     try:
-        if scene['viparams']['vidisp'] != 'lipanel' or scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or not scene.vi_leg_display:
+        if scene['viparams']['vidisp'] not in ('licpanel', 'lipanel') or scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or not scene.vi_leg_display:
             return
         else:
             resvals = [('{:.1f}', '{:.0f}')[scene.vi_leg_max >= 100].format(scene.vi_leg_min + i*(scene.vi_leg_max - scene.vi_leg_min)/19) for i in range(20)] if scene.vi_leg_scale == '0' else \

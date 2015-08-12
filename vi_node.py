@@ -165,7 +165,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
     bl_label = 'LiVi Basic'
     bl_icon = 'LAMP'
 
-    analysistype = [('0', "Illu/Irrad", "Illumninance/Irradiance Calculation"), ('1', "Irradiance", "W/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Factor", "DF (%) Calculation"), ('3', "Glare", "Glare Calculation")]
+    analysistype = [('0', "Illu/Irrad/DF", "Illumninance/Irradiance/Daylight Factor Calculation"), ('1', "Glare", "Glare Calculation")]
     unit = bpy.props.StringProperty()
     animtype = [('Static', "Static", "Simple static analysis"), ('Time', "Time", "Animated time analysis")]
     skylist = [("0", "Sunny", "CIE Sunny Sky description"), ("1", "Partly Coudy", "CIE Sunny Sky description"),
@@ -180,7 +180,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
         if self.edoy == self.sdoy:
             if self.ehour < self.shour:
                 self.ehour = self.shour
-        self['skynum'] = int(self.skymenu) if self.analysismenu != "2" else 3
+        self['skynum'] = int(self.skymenu) if self.analysismenu != "1" else 3
         starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(self.shour), int((self.shour - int(self.shour))*60)) + datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(2013, 1, 1, 12)
 #        endtime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(self.ehour), int((self.ehour - int(self.ehour))*60)) + datetime.timedelta(self.edoy - 1) if self.animmenu == 'Time' else starttime
         
@@ -197,8 +197,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
                 bpy.ops.object.lamp_add(type='SUN')
                 sun = bpy.context.object
                 sun['VIType'] = 'Sun'
-            
-            
+                        
             if self.inputs['Location in'].links:
                 sunposlivi(scene, self, frames, sun, self.inputs['Location in'].links[0].from_node, starttime)
         else:
@@ -229,9 +228,9 @@ class ViLiNode(bpy.types.Node, ViNodes):
         self.outputs.new('ViLiC', 'Context out')
 #        self.starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, 12, 0)
 #        self.endtime = datetime.datetime(datetime.datetime.now().year, 1, 1, 12, 0)
-        self['hours'], self['frames'], self['resname'], self['unit'] = 0, {'Time':0}, 'illumout', "Lux"
+        self['hours'], self['frames'], self['resname'], context.scene['liparams']['unit'] = 0, {'Time':0}, 'illumout', "Lux"
         self['exportstate'] = ''
-        self['skynum'] = int(self.skymenu) if self.analysismenu != "2" else 3
+        self['skynum'] = int(self.skymenu)
         nodecolour(self, 1)
         self.shour = 12
 
@@ -240,33 +239,28 @@ class ViLiNode(bpy.types.Node, ViNodes):
         row.label("Analysis type:")
         row.prop(self, 'analysismenu')
         row = layout.row()
-        if self.analysismenu in ('0', '1', '3'):
-            row.label("Sky type:")
-            row.prop(self, 'skymenu')
-            if self.skymenu in ('0', '1', '2'):
-                newrow(layout, "Animation", self, 'animmenu')
-                newrow(layout, "Start hour:", self, 'shour')
-                newrow(layout, "Start day:", self, 'sdoy')
-                if self.animmenu == 'Time':
-                    newrow(layout, "End hour:", self, 'ehour')
-                    newrow(layout, "End day of year:", self, 'edoy')
-#                    if self.edoy < self.sdoy:
-#                        self.edoy = self.sdoy
-#                    if self.edoy == self.sdoy and self.ehour < self.shour:
-#                        self.ehour = self.shour
-                    newrow(layout, "Interval (hours):", self, 'interval')
-            elif self.skymenu == '4':
-                row = layout.row()
-                row.label("HDR file:")
-                row.operator('node.hdrselect', text = 'HDR select').nodeid = self['nodeid']
-                row = layout.row()
-                row.prop(self, 'hdrname')
-            elif self.skymenu == '5':
-                row = layout.row()
-                row.label("Radiance file:")
-                row.operator('node.skyselect', text = 'Sky select').nodeid = self['nodeid']
-                row = layout.row()
-                row.prop(self, 'skyname')
+        row.label("Sky type:")
+        row.prop(self, 'skymenu')
+        if self.skymenu in ('0', '1', '2'):
+            newrow(layout, "Animation", self, 'animmenu')
+            newrow(layout, "Start hour:", self, 'shour')
+            newrow(layout, "Start day:", self, 'sdoy')
+            if self.animmenu == 'Time':
+                newrow(layout, "End hour:", self, 'ehour')
+                newrow(layout, "End day of year:", self, 'edoy')
+                newrow(layout, "Interval (hours):", self, 'interval')
+        elif self.skymenu == '4':
+            row = layout.row()
+            row.label("HDR file:")
+            row.operator('node.hdrselect', text = 'HDR select').nodeid = self['nodeid']
+            row = layout.row()
+            row.prop(self, 'hdrname')
+        elif self.skymenu == '5':
+            row = layout.row()
+            row.label("Radiance file:")
+            row.operator('node.skyselect', text = 'Sky select').nodeid = self['nodeid']
+            row = layout.row()
+            row.prop(self, 'skyname')
         row = layout.row()
 
         if self.skymenu not in ('4', '6'):
@@ -298,20 +292,15 @@ class ViLiNode(bpy.types.Node, ViNodes):
         skyfileslist = []
         scene = context.scene
         locnode = self.inputs['Location in'].links[0].from_node
+        self['skynum'] = int(self.skymenu)
         self['hours'] = 0 if self.animmenu == 'Static' or int(self.skymenu) > 2  else (self.endtime-self.starttime).days*24 + (self.endtime-self.starttime).seconds/3600
         self['frames']['Time'] = scene['liparams']['cfe'] = scene['liparams']['fs'] + int(self['hours']/self.interval)
-        self['resname'] = ("illumout", "irradout", "dfout", '')[int(self.analysismenu)]
-        self['simalg'] = ("rcalc -e $1=47.4*$1+120*$2+11.6*$3", "rcalc -e $1=$1", "rcalc  -e {$1=(47.4*$1+120*$2+11.6*$3)/100", '')[int(self.analysismenu)]
-        if int(self.skymenu) < 4:
-            self['skytypeparams'] = ("+s", "+i", "-c", "-b 22.86 -c")[int(self['skynum'])]
-        self['exportstate'] = [str(x) for x in (self.analysismenu, self.animmenu, self.skymenu, self.shour, self.sdoy, self.ehour, self.edoy, self.interval, self.hdr, self.hdrname, self.skyname, self.resname)]
-        self.exported = 1
-        self.inputs['Location in'].links[0].from_node.exported = 1
-        
+        self['resname'] = ("basicout", '')[int(self.analysismenu)]
         if self['skynum'] < 4:
-            for frame in range(scene['liparams']['fs'], scene['liparams']['cfe'] + 1):
-                sunexport(scene, self, locnode, frame - scene['liparams']['fs'])
-                if self['skynum'] < 2 and self.analysismenu != '2':
+            self['skytypeparams'] = ("+s", "+i", "-c", "-b 22.86 -c")[self['skynum']]          
+            for f, frame in enumerate(range(scene['liparams']['fs'], scene['liparams']['cfe'] + 1)):
+                skyfileslist.append(sunexport(scene, self, locnode, f))
+                if self['skynum'] < 2:
                     if frame == scene.frame_start:
                         if 'SUN' in [ob.data.type for ob in scene.objects if ob.type == 'LAMP' and ob.get('VIType')]:
                             sun = [ob for ob in scene.objects if ob.get('VIType') == 'Sun'][0]
@@ -319,57 +308,30 @@ class ViLiNode(bpy.types.Node, ViNodes):
                             bpy.ops.object.lamp_add(type='SUN')
                             sun = bpy.context.object
                             sun['VIType'] = 'Sun'
-#                    blsunexport(scene, self, locnode, frame - scene['liparams']['fs'], sun)
-                with open("{}-{}.sky".format(scene['viparams']['filebase'], frame), 'a') as skyfilea:
-                    skyexport(self, skyfilea)
-                with open("{}-{}.sky".format(scene['viparams']['filebase'], frame), 'r') as skyfiler:
-                    skyfileslist.append(skyfiler.read())
+
+                skyfileslist[f] += skyexport(self)
                 if self.hdr == True:
-                    hdrexport(scene, frame, self)
+                    hdrexport(scene, f, frame, self, skyfileslist[f])
+                    
             self['skyfiles'] = skyfileslist
             
         elif self['skynum'] == 4:
             if self.hdrname not in bpy.data.images:
                 bpy.data.images.load(self.hdrname)
             self['skyfiles'] = [hdrsky(self.hdrname)]
-
         elif self['skynum'] == 5:
             shutil.copyfile(self.radname, "{}-0.sky".format(scene['viparams']['filebase']))
             with open(self.radname, 'r') as radfiler:
                 self['skyfiles'] =  [radfiler.read()]
-
+            hdrexport(scene, 0, 0, self, self['skyfiles'][0])
         elif self['skynum'] == 6:
             self['skyfiles'] = ['']
+ 
         nodecolour(self, 0)
-        
-#    def radsky(self, context):
-#        skyfileslist = []
-#        scene = context.scene
-#        locnode = self.inputs['Location in'].links[0].from_node
-#        if self['skynum'] < 4:
-#            for frame in range(scene['liparams']['fs'], scene['liparams']['cfe'] + 1):
-#                sunexport(scene, self, locnode, frame - scene['liparams']['fs'])
-#                with open("{}-{}.sky".format(scene['viparams']['filebase'], frame), 'a') as skyfilea:
-#                    skyexport(self, skyfilea)
-#                with open("{}-{}.sky".format(scene['viparams']['filebase'], frame), 'r') as skyfiler:
-#                    skyfileslist.append(skyfiler.read())
-#                if self.hdr == True:
-#                    hdrexport(scene, frame, self)
-#            self['skyfiles'] = skyfileslist
-#            
-#        elif self['skynum'] == 4:
-#            if self.hdrname not in bpy.data.images:
-#                bpy.data.images.load(self.hdrname)
-#            self['skyfiles'] = [hdrsky(self.hdrname)]
-#
-#        elif self['skynum'] == 5:
-#            shutil.copyfile(self.radname, "{}-0.sky".format(scene['viparams']['filebase']))
-#            with open(self.radname, 'r') as radfiler:
-#                self['skyfiles'] =  [radfiler.read()]
-#
-#        elif self['skynum'] == 6:
-#            self['skyfiles'] = ['']
-   
+        self['exportstate'] = [str(x) for x in (self.analysismenu, self.animmenu, self.skymenu, self.shour, self.sdoy, self.ehour, self.edoy, self.interval, self.hdr, self.hdrname, self.skyname, self.resname)]
+#        self.exported = 1
+#        self.inputs['Location in'].links[0].from_node.exported = 1
+           
 class ViLiCBNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite climate based lighting node'''
     bl_idname = 'ViLiCBNode'
@@ -405,11 +367,9 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
     startmonth = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 12, description = 'Start Month', update = nodeupdate)
     endmonth = bpy.props.IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month', update = nodeupdate)
     sm = bpy.props.StringProperty(name = '', default = '0')
-#    exported = bpy.props.BoolProperty(name = '', default = False)
     hdr = bpy.props.BoolProperty(name = '', default = False)
     fromnode = bpy.props.BoolProperty(name = '', default = False)
     num = (("-ab", 2, 3, 5), ("-ad", 512, 2048, 4096), ("-ar", 128, 512, 1024), ("-as", 256, 1024, 2048), ("-aa", 0.0, 0.0, 0.0), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.001, 0.0002))
-#    linked = bpy.props.BoolProperty(default=False)
 
     def init(self, context):
         self.inputs.new('ViLoc', 'Location in')
@@ -481,12 +441,10 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         return gn
 
     def export(self, scene, export_op):
-#        scene = context.scene
         locnode = self.inputs['Location in'].links[0].from_node
         geonode = self.outputs['Context out'].links[0].to_node.inputs['Geometry in'].links[0].from_node
         self['skynum'] = 4
         scene['liparams']['cfe'] = 0
-   #     quotes = ('"') if sys.platform == 'win32' else ("'")
         self['simalg'] = ("rcalc  -e $1=(47.4*$1+120*$2+11.6*$3)/1000 ", "rcalc  -e $1=($1+$2+$3)/3000",
         "rcalc  -e $1=(47.4*$1+120*$2+11.6*$3)", "rcalc  -e $1=($1+$2+$3)/3", "rcalc  -e $1=(47.4*$1+120*$2+11.6*$3)")[int(self.analysismenu)]
         self['wd'] = (7, 5)[self.weekdays]
@@ -532,27 +490,19 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
                     self['vecvals'] = vecvals
                     self['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
                     with open("{}-whitesky.oct".format(scene['viparams']['filebase'])) as wsfile:
-#                    oconvcmd = "oconv -w - > {0}-whitesky.oct".format(scene['viparams']['filebase'])
-                        oconvcmd = "oconv -w -"
-                    
+                        oconvcmd = "oconv -w -"                    
                         Popen(shlex.split(oconvcmd), stdin = PIPE, stdout = wsfile).communicate(input = self['whitesky'].encode('utf-8'))
-#                        wsfile.write(oconvrun.stdout)
-                    
                     if int(self.analysismenu) < 2 or self.hdr:
                         vwcmd = "vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0"
                         rcontribcmd = "rcontrib -bn 146 -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o p%d.hdr -m sky_glow {}-whitesky.oct".format(scene['viparams']['nproc'], scene['viparams']['filename'])
                         vwrun = Popen(vwcmd.split(), stdout = PIPE)
                         Popen(rcontribcmd.split(), stdin = vwrun.stdout).wait()
-#                        output,err = rcontribrun.communicate()
-#                        vwcmd = "vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0 | rcontrib -bn 146 -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o p%d.hdr -m sky_glow {}-whitesky.oct".format(scene['viparams']['nproc'], scene['viparams']['filename'])
-#                        subprocess.call(vwcmd.split())
-#                        [subprocess.call("pcomb -s {0} p{1}.hdr > ps{1}.hdr".format(vals[j], j).split()) for j in range(146)]
+
                         for j in range(146):
                             with open("ps{}.hdr".format(j), 'w') as psfile:
                                 Popen("pcomb -s {0} p{1}.hdr".format(vals[j], j).split(), stdout = psfile)
                         with open(os.path.join(scene['viparams']['newdir'], epwbase[0]+".hdr"), 'w') as epwhdr:
                             Popen("pcomb -h {}".format(pcombfiles).split(), stdout = epwhdr)
-#                        subprocess.call("pcomb -h {} > {}".format(pcombfiles, os.path.join(scene['viparams']['newdir'], epwbase[0]+".hdr")).split())
                         [os.remove(os.path.join(scene['viparams']['newdir'], 'p{}.hdr'.format(i))) for i in range (146)]
                         [os.remove(os.path.join(scene['viparams']['newdir'], 'ps{}.hdr'.format(i))) for i in range (146)]
                         self.hdrname = os.path.join(scene['viparams']['newdir'], epwbase[0]+".hdr")                    
@@ -607,8 +557,6 @@ class ViLiCNode(bpy.types.Node, ViNodes):
         socklink(self.outputs['Context out'], self['nodeid'].split('@')[1])
 
     def export(self, export_op, scene):
-#        quotes = ('"') if sys.platform == 'win32' else ("'")
-#        scene = context.scene
         if self.analysismenu in ('0', '1'):
             self['simalg'] = "rcalc  -e $1=(47.4*$1+120*$2+11.6*$3)/100"# if str(sys.platform) != 'win32' else ' |  rcalc  -e "$1=(47.4*$1+120*$2+11.6*$3)/100" '
         self['resname'] = 'breaamout' if self.analysismenu == '0' else 'cfsh'
@@ -617,15 +565,12 @@ class ViLiCNode(bpy.types.Node, ViNodes):
         nodecolour(self, 0)
         scene['liparams']['cfe'] = 0
         scene['liparams']['compnode'] = self['nodeid']
-        skyfileslist = []
-        with open("{}-{}.sky".format(scene['viparams']['filebase'], 0), 'a') as skyfilea:
-            skyexport(self, skyfilea)
-        with open("{}-{}.sky".format(scene['viparams']['filebase'], 0), 'r') as skyfiler:
-            skyfileslist.append(skyfiler.read())
-        if self.hdr == True:
-            hdrexport(scene, 0, self)
+        skyfileslist = [sunexport(scene, self, 0, 0)]
+        skyfileslist[0] += skyexport(self)
         self['skyfiles'] = skyfileslist
-
+        if self.hdr == True:
+            hdrexport(scene, 0, 0, self, self['skyfiles'][0])
+        
 class ViLiSNode(bpy.types.Node, ViNodes):
     '''Node describing a LiVi simulation'''
     bl_idname = 'ViLiSNode'
@@ -655,9 +600,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
         self['nodeid'] = nodeid(self)
         self.inputs.new('ViLiG', 'Geometry in')
         self.inputs.new('ViLiC', 'Context in')
-#        self.outputs.new('LiViWOut', 'Data out')
         self.outputs.new('ViR', 'Results out')
-#        self.outputs['Data out'].hide = True
         self.outputs['Results out'].hide = True
         nodecolour(self, 1)
         self['maxres'], self['minres'], self['avres'], self['exportstate'] = {}, {}, {}, ''

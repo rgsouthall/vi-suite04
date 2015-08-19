@@ -108,13 +108,15 @@ def li_display(simnode, connode, geonode):
                 bm.transform(o.matrix_world)
                 bm.to_mesh(ores.data)
                 bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
-            
-            if connode and connode.bl_label == 'LiVi Compliance':
-                ores.compdisplay(scene)
-            elif connode and connode.bl_label == 'LiVi CBDM' and 'UDI' in scene['liparams']['unit']:
-                ores.udidisplay(scene)
-            else:
-                ores.ldisplay(scene)
+            ores.lividisplay(scene)
+#            if connode and connode.bl_label == 'LiVi Compliance':
+#                ores.compdisplay(scene)
+#            elif connode and connode.bl_label == 'LiVi CBDM' and 'UDI' in scene['liparams']['unit']:
+#                ores.udidisplay(scene)
+#            elif connode and connode.bl_label == 'LiVi CBDM' and scene['liparams']['unit'] in ('kLuxHours', 'kWh/m'+ u'\u00b2'):
+#                ores.lhcwdisplay(scene)
+#            else:
+#                ores.ldisplay(scene)
         
         bm.free()
         if scene.vi_disp_3d == 1:

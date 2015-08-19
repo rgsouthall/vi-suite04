@@ -21,7 +21,7 @@ if "bpy" in locals():
 else:
     from .vi_node import vinode_categories, envinode_categories
     from .envi_mat import envi_materials, envi_constructions
-    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, fvmat, radmat, resnameunits, recalculate_text, rtpoints, udicalcapply, udidisplay, compcalcapply, basiccalcapply, ldisplay, setscenelivivals, compdisplay
+    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, fvmat, radmat, resnameunits, recalculate_text, rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, lividisplay, setscenelivivals, cwcalcapply
     from .vi_operators import *
     from .vi_ui import *
 
@@ -70,24 +70,24 @@ def eupdate(self, context):
     inv = 0        
     for frame in range(scene['liparams']['fe'], scene['liparams']['fe'] + 1):
         for o in [obj for obj in bpy.data.objects if obj.lires == 1]:
-            maxo, mino = max(o['omax'].values()), min(o['omin'].values())
+            maxo, mino = scene.vi_leg_max, scene.vi_leg_min
             bm = bmesh.new()
             bm.from_mesh(o.data)  
             bm.transform(o.matrix_world)
             if str(frame) in o['omax']:
                 if bm.faces.layers.float.get('res{}'.format(frame)):
                     res = bm.faces.layers.float['res{}'.format(frame)] #if context.scene['cp'] == '0' else bm.verts.layers.float['res{}'.format(frame)]                
-                    faces = [f for f in bm.faces if f[res] > 0 and f.select]
-                    extrudes = [0.1 * scene.vi_disp_3dlevel * (abs(inv - math.log10(10000 * (f[res] + 1 - mino)/(maxo - mino))) * f.normal) for f in faces] if scene.vi_leg_scale == '1' else \
-                    [scene.vi_disp_3dlevel * (abs(inv - (f[res]-mino)/(maxo - mino)) * f.normal) for f in faces]
+                    faces = [f for f in bm.faces if f.select]
+                    extrudes = [0.1 * scene.vi_disp_3dlevel * (abs(inv - math.log10(10000 * (f[res] + 1 - mino)/(maxo - mino))) * f.normal.normalized()) for f in faces] if scene.vi_leg_scale == '1' else \
+                            [scene.vi_disp_3dlevel * (abs(inv - (f[res]-mino)/(maxo - mino)) * f.normal.normalized()) for f in faces]
                     for f, face in enumerate(faces):
                         for v in face.verts:
                             o.data.shape_keys.key_blocks[str(frame)].data[v.index].co = o.data.shape_keys.key_blocks['Basis'].data[v.index].co + extrudes[f]
                 elif bm.verts.layers.float.get('res{}'.format(frame)):
                     res = bm.verts.layers.float['res{}'.format(frame)]
-                    verts = [v for v in bm.verts if v[res] > 0]
-                    extrudes = [scene.vi_disp_3dlevel * (abs(inv - (v[res]-mino)/(maxo - mino)) * v.normal) for v in verts] if scene.vi_leg_scale == '0' else \
-                                [0.1 * scene.vi_disp_3dlevel * (abs(inv - math.log10(10000 * (v[res]-mino)/(maxo - mino))) * v.normal) for v in verts]    
+                    verts = [v for v in bm.verts]
+                    extrudes = [scene.vi_disp_3dlevel * (abs(inv - (v[res]-mino)/(maxo - mino)) * v.normal.normalized()) for v in verts] if scene.vi_leg_scale == '0' else \
+                                [0.1 * scene.vi_disp_3dlevel * (abs(inv - math.log10(10000 * (v[res]-mino)/(maxo - mino))) * v.normal.normalized()) for v in verts]  
                     for v, vert in enumerate(verts):
                         o.data.shape_keys.key_blocks[str(frame)].data[vert.index].co = o.data.shape_keys.key_blocks['Basis'].data[vert.index].co + extrudes[v]
                         
@@ -135,20 +135,22 @@ def legupdate(self, context):
                 f.keyframe_insert('material_index', frame=frame)
     scene.frame_set(scene.frame_current)
 
-def udiupdate(self, context):
-    for o in [o for o in bpy.data.objects if o.lires]:
-        o.udidisplay(context.scene)   
-        
-def compupdate(self, context):
+def liviresupdate(self, context):
     setscenelivivals(context.scene)
     for o in [o for o in bpy.data.objects if o.lires]:
-        o.compdisplay(context.scene)
-
-def basicupdate(self, context):
-    setscenelivivals(context.scene)
-    for o in [o for o in bpy.data.objects if o.lires]:
-        o.ldisplay(context.scene)
-        
+        o.lividisplay(context.scene)  
+    eupdate(self, context)
+#        
+#def compupdate(self, context):
+#    setscenelivivals(context.scene)
+#    for o in [o for o in bpy.data.objects if o.lires]:
+#        o.lividisplay(context.scene)
+#
+#def basicupdate(self, context):
+#    setscenelivivals(context.scene)
+#    for o in [o for o in bpy.data.objects if o.lires]:
+#        o.lividisplay(context.scene)
+#        
 def settemps(self, context):
     scene = context.scene
     bpy.app.handlers.frame_change_pre.clear()
@@ -278,11 +280,14 @@ def register():
     Object.compcalcapply = compcalcapply    
     Object.basiccalcapply = basiccalcapply 
     Object.rtpoints = rtpoints
-    Object.udicalcapply = udicalcapply
+    Object.udidacalcapply = udidacalcapply
     
-    Object.udidisplay = udidisplay
-    Object.ldisplay = ldisplay
-    Object.compdisplay = compdisplay
+#    Object.udidisplay = udidisplay
+    Object.lividisplay = lividisplay
+#    Object.compdisplay = compdisplay
+    Object.lhcalcapply = lhcalcapply
+    Object.cwcalcapply = cwcalcapply
+#    Object.lhcwdisplay = lhcwdisplay
 
 # EnVi zone definitions
     Object.envi_type = eprop([("0", "None", "Not an EnVi zone"), ("1", "Thermal", "Thermal Zone"), ("2", "Shading", "Shading Object")], "EnVi object type", "Specify the EnVi object type", "0")
@@ -585,13 +590,13 @@ def register():
     Scene.vi_display_rp_off = fprop("", "Surface offset for number display", 0, 1, 0.001)
     Scene.vi_disp_trans = bpy.props.FloatProperty(name = "", description = "Sensing material transparency", min = 0, max = 1, default = 1, update = tupdate)
     Scene.vi_disp_wire = bpy.props.BoolProperty(name = "", description = "Draw wire frame", default = 0, update=wupdate)
-    Scene.li_disp_sv = bpy.props.EnumProperty(items = [("0", "Daylight Factor", "Display Daylight factor"),("1", "Sky view", "Display the Sky View")], name = "", description = "Compliance data type", default = "0", update = compupdate)
+    Scene.li_disp_sv = bpy.props.EnumProperty(items = [("0", "Daylight Factor", "Display Daylight factor"),("1", "Sky view", "Display the Sky View")], name = "", description = "Compliance data type", default = "0", update = liviresupdate)
     Scene.li_projname = sprop("", "Name of the building project", 1024, '')
     Scene.li_assorg = sprop("", "Name of the assessing organisation", 1024, '')
     Scene.li_assind = sprop("", "Name of the assessing individual", 1024, '')
     Scene.li_jobno = sprop("", "Project job number", 1024, '')
-    Scene.li_disp_udi = bpy.props.EnumProperty(items = [("0", "Low", "Percentage of hours below minimum threshold"),("1", "Supplementary", "Percentage of hours requiring supplementary lighting"), ("2", "Autonomous", "Percentage of hours with autonomous lighting"), ("3", "Upper", "Percentage of hours excedding the upper limit")], name = "", description = "UDI range selection", default = "1", update = udiupdate)
-    Scene.li_disp_basic = bpy.props.EnumProperty(items = [("0", "Illuminance", "Display Illuminance values"), ("1", "Irradiance", "Display Irradiance values"), ("2", "DF", "Display Daylight factor values")], name = "", description = "Basic metric selection", default = "0", update = basicupdate)
+    Scene.li_disp_udi = bpy.props.EnumProperty(items = [("0", "Low", "Percentage of hours below minimum threshold"),("1", "Supplementary", "Percentage of hours requiring supplementary lighting"), ("2", "Autonomous", "Percentage of hours with autonomous lighting"), ("3", "Upper", "Percentage of hours excedding the upper limit")], name = "", description = "UDI range selection", default = "2", update = liviresupdate)
+    Scene.li_disp_basic = bpy.props.EnumProperty(items = [("0", "Illuminance", "Display Illuminance values"), ("1", "Irradiance", "Display Irradiance values"), ("2", "DF", "Display Daylight factor values")], name = "", description = "Basic metric selection", default = "0", update = liviresupdate)
 
     (Scene.resaa_disp, Scene.resaws_disp, Scene.resawd_disp, Scene.resah_disp, Scene.resas_disp, Scene.reszt_disp, Scene.reszh_disp, Scene.reszhw_disp, Scene.reszcw_disp, Scene.reszsg_disp, Scene.reszppd_disp, 
      Scene.reszpmv_disp, Scene.resvls_disp, Scene.resvmh_disp, Scene.resim_disp, Scene.resiach_disp, Scene.reszco_disp, Scene.resihl_disp, Scene.reszlf_disp,

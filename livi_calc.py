@@ -49,9 +49,14 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                     else: 
                         rtcmd = "rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                     if connode.bl_label == 'LiVi Compliance':
-                        o.compcalcapply(scene, frame, rtcmd)
+                        o.compcalcapply(scene, frame, rtcmd, connode)
                     elif connode.bl_label == 'LiVi Basic':
                         o.basiccalcapply(scene, frame, rtcmd)
+                    elif connode.bl_label == 'LiVi CBDM':
+                        if connode.analysismenu == '0':
+                            o.lhcalcapply(scene, frame, rtcmd)
+                        if connode.analysismenu == '1':
+                            o.lhcalcapply(scene, frame, rtcmd)
 #                    elif connode.bl_label == 'LiVi Basic' and connode.analysismenu == '1':
 #                        o.dfcalcapply(scene, frame, rtcmd, connode['simalg'])
     #                with open("{}.rtrace".format(scene['viparams']['filebase']), 'r') as rtfile:
@@ -77,60 +82,63 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
 #                    print(res) 
 #    
                 if connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) > 1:
-                    vecvals = numpy.array(connode['vecvals'])                
-                    
-                    oconvcmd = "oconv - "
-                    if connode.sourcemenu == '1':
-                        connode['vecvals'], vals = mtx2vals(open(connode.mtxname, "r").readlines(), datetime.datetime(2010, 1, 1).weekday(), '')
-                    
-                    with open("{}-ws.oct".format(scene['viparams']['filebase']), 'w') as wsfile:
-                        Popen(oconvcmd.split(), stdin = PIPE, stdout=wsfile, stderr=STDOUT).communicate(input = (connode['whitesky']+geonode['radfiles'][frame]).encode('utf-8'))
-                    senscmd = "rcontrib -w  -h -I -fo -bn 146 {} -n {} -f tregenza.cal -b tbin -m sky_glow {}-ws.oct".format(simnode['radparams'], scene['viparams']['nproc'], scene['viparams']['filebase'])
-    #                with  open(scene['viparams']['filebase']+".rtrace", 'r') as rtraceinput: 
-#                    for o in [o for o in bpy.data.objects if o.get('rtpoints')]:
-                    sensarray = numpy.zeros((reslen, 146))
-                    sensrun = Popen(senscmd.split(), stdin=PIPE, stdout=PIPE).communicate(input=o['rtpoints'].encode('utf-8'))
-
-                    for li, line in enumerate(sensrun[0].decode("utf-8").splitlines()): 
-                        reslist = [float(ld) for ld in line.split() if ld not in ('\n', '\r\n')]
-
-                        if connode.analysismenu in ('2', '4'):
-                            sensarray[li] = [179*((reslist[v]*0.265)+ (reslist[v+1]*0.67) + (reslist[v+2]*0.065)) for v in range(0, 438, 3)]
-                        elif connode.analysismenu == '3':
-                            sensarray[li] = [sum(reslist[v:v+3]) for v in range(0, 438, 3)]
-                
-                    if connode.analysismenu in ('2', '4'):
-                        vecvals = numpy.array([vv[2:] for vv in vecvals if connode.cbdm_start_hour <= vv[0] < connode.cbdm_end_hour and vv[1] < connode['wd']])      
-    
-                    elif connode.analysismenu == '3':
-                        vecvals = [vv[2:] for vv in vecvals]
-                        
-                    hours = len(vecvals)
-                    finalillu = numpy.inner(sensarray, vecvals)
-
-                    if connode.analysismenu == '2':
-                        res[findex] = [numpy.sum([i >= connode.dalux for i in f])*100/hours for f in finalillu]
-                        with open(os.path.join(scene['viparams']['newdir'], connode['resname']+"-"+str(frame)+".res"), "w") as daresfile:
-                            [daresfile.write("{:.2f}\n".format(r)) for r in res[findex]]
-                    elif connode.analysismenu == '3':
-                        res = numpy.zeros([len(frames), reslen, hours])
-                        res[findex] = finalillu
-                        o.lapply
-                    elif connode.analysismenu == '4':
-                        res = numpy.zeros([len(frames), reslen, 4])
-                        res[findex] = [[(f<connode.damin).sum()*100/hours, ((connode.damin<f)&(f<connode.dasupp)).sum()*100/hours,
-                                ((connode.dasupp<f)&(f<connode.daauto)).sum()*100/hours, (connode.daauto<f).sum()*100/hours] for f in finalillu]
-                        
-                        restext += ''.join(["{} {:.2f} {:.2f} {:.2f}\n".format(o.name, r[0], r[1], r[2], r[3]) for r in res[findex]])
-                        simnode['resdict']['{}-{}-{}'.format(o.name, 'low', frame)] = ['{}-{}-{}'.format(o.name, 'low', frame)] 
-                        simnode['allresdict']['{}-{}-{}'.format(o.name, 'low', frame)] = [r[0] for r in res[findex]]
-                        simnode['resdict']['{}-{}-{}'.format(o.name, 'supp', frame)] = ['{}-{}-{}'.format(o.name, 'supp', frame)] 
-                        simnode['allresdict']['{}-{}-{}'.format(o.name, 'supp', frame)] = [r[1] for r in res[findex]]
-                        simnode['resdict']['{}-{}-{}'.format(o.name, 'auto', frame)] = ['{}-{}-{}'.format(o.name, 'auto', frame)] 
-                        simnode['allresdict']['{}-{}-{}'.format(o.name, 'auto', frame)] = [r[2] for r in res[findex]]
-                        simnode['resdict']['{}-{}-{}'.format(o.name, 'high', frame)] = ['{}-{}-{}'.format(o.name, 'high', frame)] 
-                        simnode['allresdict']['{}-{}-{}'.format(o.name, 'high', frame)] = [r[3] for r in res[findex]]
-                        o.udiapply(scene, frame, res[findex])
+                    o.udidacalcapply(scene, frame, connode, connode['whitesky']+geonode['radfiles'][frame], "rcontrib -w  -h -I -fo -bn 146 {} -n {} -f tregenza.cal -b tbin -m sky_glow {}-ws.oct".format(simnode['radparams'], scene['viparams']['nproc'], scene['viparams']['filebase']), simnode)
+#                    vecvals = numpy.array(connode['vecvals'])                
+#                    
+#                    oconvcmd = "oconv - "
+#                    if connode.sourcemenu == '1':
+#                        connode['vecvals'], vals = mtx2vals(open(connode.mtxname, "r").readlines(), datetime.datetime(2010, 1, 1).weekday(), '')
+#                    
+#                    with open("{}-ws.oct".format(scene['viparams']['filebase']), 'w') as wsfile:
+#                        Popen(oconvcmd.split(), stdin = PIPE, stdout=wsfile, stderr=STDOUT).communicate(input = (connode['whitesky']+geonode['radfiles'][frame]).encode('utf-8'))
+#                    senscmd = "rcontrib -w  -h -I -fo -bn 146 {} -n {} -f tregenza.cal -b tbin -m sky_glow {}-ws.oct".format(simnode['radparams'], scene['viparams']['nproc'], scene['viparams']['filebase'])
+#    #                with  open(scene['viparams']['filebase']+".rtrace", 'r') as rtraceinput: 
+##                    for o in [o for o in bpy.data.objects if o.get('rtpoints')]:
+#                    sensarray = numpy.zeros((reslen, 146))
+#                    sensrun = Popen(senscmd.split(), stdin=PIPE, stdout=PIPE).communicate(input=o['rtpoints'].encode('utf-8'))
+#
+#                    for li, line in enumerate(sensrun[0].decode("utf-8").splitlines()): 
+#                        reslist = [float(ld) for ld in line.split() if ld not in ('\n', '\r\n')]
+#
+#                        if connode.analysismenu in ('2', '4'):
+#                            sensarray[li] = [179*((reslist[v]*0.265)+ (reslist[v+1]*0.67) + (reslist[v+2]*0.065)) for v in range(0, 438, 3)]
+#                        elif connode.analysismenu == '3':
+#                            sensarray[li] = [sum(reslist[v:v+3]) for v in range(0, 438, 3)]
+#                
+#                    if connode.analysismenu in ('2', '4'):
+#                        vecvals = numpy.array([vv[2:] for vv in vecvals if connode.cbdm_start_hour <= vv[0] < connode.cbdm_end_hour and vv[1] < connode['wd']])      
+#    
+#                    elif connode.analysismenu == '3':
+#                        vecvals = [vv[2:] for vv in vecvals]
+#                        
+#                    hours = len(vecvals)
+#                    finalillu = numpy.inner(sensarray, vecvals)
+#
+#                    if connode.analysismenu == '2':
+#                        res = numpy.zeros([len(frames), reslen])
+#                        res[findex] = [numpy.sum([i >= connode.dalux for i in f])*100/hours for f in finalillu]
+#                        o.daapply(scene, frame, res[findex])
+#                        with open(os.path.join(scene['viparams']['newdir'], connode['resname']+"-"+str(frame)+".res"), "w") as daresfile:
+#                            [daresfile.write("{:.2f}\n".format(r)) for r in res[findex]]
+#                    elif connode.analysismenu == '3':
+#                        res = numpy.zeros([len(frames), reslen, hours])
+#                        res[findex] = finalillu
+#                        o.lapply
+#                    elif connode.analysismenu == '4':
+#                        res = numpy.zeros([len(frames), reslen, 4])
+#                        res[findex] = [[(f<connode.damin).sum()*100/hours, ((connode.damin<f)&(f<connode.dasupp)).sum()*100/hours,
+#                                ((connode.dasupp<f)&(f<connode.daauto)).sum()*100/hours, (connode.daauto<f).sum()*100/hours] for f in finalillu]
+#                        
+#                        restext += ''.join(["{} {:.2f} {:.2f} {:.2f}\n".format(o.name, r[0], r[1], r[2], r[3]) for r in res[findex]])
+#                        simnode['resdict']['{}-{}-{}'.format(o.name, 'low', frame)] = ['{}-{}-{}'.format(o.name, 'low', frame)] 
+#                        simnode['allresdict']['{}-{}-{}'.format(o.name, 'low', frame)] = [r[0] for r in res[findex]]
+#                        simnode['resdict']['{}-{}-{}'.format(o.name, 'supp', frame)] = ['{}-{}-{}'.format(o.name, 'supp', frame)] 
+#                        simnode['allresdict']['{}-{}-{}'.format(o.name, 'supp', frame)] = [r[1] for r in res[findex]]
+#                        simnode['resdict']['{}-{}-{}'.format(o.name, 'auto', frame)] = ['{}-{}-{}'.format(o.name, 'auto', frame)] 
+#                        simnode['allresdict']['{}-{}-{}'.format(o.name, 'auto', frame)] = [r[2] for r in res[findex]]
+#                        simnode['resdict']['{}-{}-{}'.format(o.name, 'high', frame)] = ['{}-{}-{}'.format(o.name, 'high', frame)] 
+#                        simnode['allresdict']['{}-{}-{}'.format(o.name, 'high', frame)] = [r[3] for r in res[findex]]
+#                        o.udiapply(scene, frame, res[findex])
 
 #            scene['liparams']['maxres'][str(frame)] = max([o['omax'][str(frame)] for o in bpy.data.objects if o.get('rtpoints')])
 #            scene['liparams']['minres'][str(frame)] = min([o['omin'][str(frame)] for o in bpy.data.objects if o.get('rtpoints')])

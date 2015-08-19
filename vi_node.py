@@ -174,7 +174,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
 
     def nodeupdate(self, context):
         scene = context.scene
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.analysismenu, self.animmenu, self.skymenu, self.shour, self.sdoy, self.ehour, self.edoy, self.interval, self.hdr, self.hdrname, self.skyname, self.resname)])
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.analysismenu, self.animmenu, self.skymenu, self.shour, self.sdoy, self.ehour, self.edoy, self.interval, self.hdr, self.hdrname, self.skyname, self.resname, self.turb)])
         if self.edoy < self.sdoy:
             self.edoy = self.sdoy
         if self.edoy == self.sdoy:
@@ -217,6 +217,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
     hdrname = bpy.props.StringProperty(name="", description="Name of the HDR image file", default="", update = nodeupdate)
     skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="", update = nodeupdate)
     resname = bpy.props.StringProperty()
+    turb = bpy.props.FloatProperty(name="", description="Sky Turbidity", min=1.0, max=5.0, default=1.0, update = nodeupdate)
 #    rp_display = bpy.props.BoolProperty(default = False)
 #    needloc = bpy.props.BoolProperty(default = True)
 #    ready = bpy.props.BoolProperty(default = False)
@@ -249,6 +250,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
                 newrow(layout, "End hour:", self, 'ehour')
                 newrow(layout, "End day of year:", self, 'edoy')
                 newrow(layout, "Interval (hours):", self, 'interval')
+            newrow(layout, "Turbidity", self, 'turb')
         elif self.skymenu == '4':
             row = layout.row()
             row.label("HDR file:")
@@ -328,7 +330,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
             self['skyfiles'] = ['']
  
         nodecolour(self, 0)
-        self['exportstate'] = [str(x) for x in (self.analysismenu, self.animmenu, self.skymenu, self.shour, self.sdoy, self.ehour, self.edoy, self.interval, self.hdr, self.hdrname, self.skyname, self.resname)]
+        self['exportstate'] = [str(x) for x in (self.analysismenu, self.animmenu, self.skymenu, self.shour, self.sdoy, self.ehour, self.edoy, self.interval, self.hdr, self.hdrname, self.skyname, self.resname, self.turb)]
 #        self.exported = 1
 #        self.inputs['Location in'].links[0].from_node.exported = 1
            
@@ -445,8 +447,8 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
         geonode = self.outputs['Context out'].links[0].to_node.inputs['Geometry in'].links[0].from_node
         self['skynum'] = 4
         scene['liparams']['cfe'] = 0
-        self['simalg'] = ("rcalc  -e $1=(47.4*$1+120*$2+11.6*$3)/1000 ", "rcalc  -e $1=($1+$2+$3)/3000",
-        "rcalc  -e $1=(47.4*$1+120*$2+11.6*$3)", "rcalc  -e $1=($1+$2+$3)/3", "rcalc  -e $1=(47.4*$1+120*$2+11.6*$3)")[int(self.analysismenu)]
+#        self['simalg'] = ("rcalc  -e $1=(47.4*$1+120*$2+11.6*$3)*0.001 ", "rcalc  -e $1=($1+$2+$3)/3000",
+#        "rcalc  -e $1=(47.4*$1+120*$2+11.6*$3)", "rcalc  -e $1=($1+$2+$3)/3", "rcalc  -e $1=(47.4*$1+120*$2+11.6*$3)")[int(self.analysismenu)]
         self['wd'] = (7, 5)[self.weekdays]
         self['resname'] = ('kluxhours', 'cumwatth', 'dayauto', 'hourrad', 'udi')[int(self.analysismenu)]
         self['exportstate'] = [str(x) for x in (self.analysismenu, self.animmenu, self.weekdays, self.cbdm_start_hour, self.cbdm_end_hour, self.dalux, self.damin, self.dasupp,
@@ -472,24 +474,29 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
                             with open("{}.wea".format(os.path.join(scene['viparams']['newdir'], epwbase[0])), 'w') as weafile:  
                                 [weafile.write(line) for line in weaheader + wearange] 
                         gdmcmd = ("gendaymtx -m 1 {} {}".format(('', '-O1')[self.analysismenu in ('1', '3')], "{0}.wea".format(os.path.join(scene['viparams']['newdir'], epwbase[0]))))
-                        with open(os.path.join(scene['viparams']['newdir'], epwbase[0]+".mtx"), "w") as mtxfile:
-                            Popen(gdmcmd.split(), stdout = mtxfile, stderr=STDOUT).wait()
-                        mtxfile = open(os.path.join(scene['viparams']['newdir'], "{}.mtx".format(epwbase[0])), "r")
+                        self['mtx'] = Popen(gdmcmd.split(), stdout = PIPE, stderr=STDOUT).communicate()[0].decode()
+#                        with open(os.path.join(scene['viparams']['newdir'], epwbase[0]+".mtx"), "w") as mtxfile:
+#                            Popen(gdmcmd.split(), stdout = mtxfile, stderr=STDOUT).wait()
+#                        mtxfile = open(os.path.join(scene['viparams']['newdir'], "{}.mtx".format(epwbase[0])), "r")
+#                        self['mtx'] = mtxfile.read()
+#                        print('hi2')
                 else:
                     export_op.report({'ERROR'}, "Not a valid EPW file")
                     return
             
-            elif self['source'] == '1' and int(self.analysismenu) > 1:
-                mtxfile = open(self.mtxname, "r")
+#            elif self['source'] == '1' and int(self.analysismenu) > 1:
+#                mtxfile = open(self.mtxname, "r")
     
             if self['source'] == '0':
                 if self.inputs['Location in'].is_linked:
-                    mtxlines = mtxfile.readlines()
-                    vecvals, vals = mtx2vals(mtxlines, datetime.datetime(int(epwyear), self.startmonth, 1).weekday(), self)
-                    mtxfile.close()
+#                    mtxlines = mtxfile.readlines()
+#                    print(mtxlines)
+                    vecvals, vals = mtx2vals(self['mtx'].splitlines(), datetime.datetime(int(epwyear), self.startmonth, 1).weekday(), self)
+
+#                    mtxfile.close()
                     self['vecvals'] = vecvals
                     self['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
-                    with open("{}-whitesky.oct".format(scene['viparams']['filebase'])) as wsfile:
+                    with open("{}-whitesky.oct".format(scene['viparams']['filebase']), 'w') as wsfile:
                         oconvcmd = "oconv -w -"                    
                         Popen(shlex.split(oconvcmd), stdin = PIPE, stdout = wsfile).communicate(input = self['whitesky'].encode('utf-8'))
                     if int(self.analysismenu) < 2 or self.hdr:
@@ -501,14 +508,14 @@ class ViLiCBNode(bpy.types.Node, ViNodes):
                         for j in range(146):
                             with open("ps{}.hdr".format(j), 'w') as psfile:
                                 Popen("pcomb -s {0} p{1}.hdr".format(vals[j], j).split(), stdout = psfile)
-                        with open(os.path.join(scene['viparams']['newdir'], epwbase[0]+".hdr"), 'w') as epwhdr:
+                        with open(os.path.join(scene['viparams']['newdir'], epwbase[0]+"{}.hdr".format(('l', 'w')[self.analysismenu in ('1', '3')])), 'w') as epwhdr:
                             Popen("pcomb -h {}".format(pcombfiles).split(), stdout = epwhdr)
                         [os.remove(os.path.join(scene['viparams']['newdir'], 'p{}.hdr'.format(i))) for i in range (146)]
                         [os.remove(os.path.join(scene['viparams']['newdir'], 'ps{}.hdr'.format(i))) for i in range (146)]
-                        self.hdrname = os.path.join(scene['viparams']['newdir'], epwbase[0]+".hdr")                    
+                        self.hdrname = os.path.join(scene['viparams']['newdir'], epwbase[0]+"{}.hdr".format(('l', 'w')[self.analysismenu in ('1', '3')]))                    
                     if self.hdr:
                         Popen("oconv -w - > {}.oct".format(os.path.join(scene['viparams']['newdir'], epwbase[0])).split(), stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = hdrsky(os.path.join(scene['viparams']['newdir'], epwbase[0]+".hdr").encode('utf-8')))
-                        subprocess.call('cnt 750 1500 | rcalc -f "'+os.path.join(scene.vipath, 'Radfiles', 'lib', 'latlong.cal')+'" -e "XD=1500;YD=750;inXD=0.000666;inYD=0.001333" | rtrace -af pan.af -n {} -x 1500 -y 750 -fac "{}{}{}.oct" > '.format(scene['viparams']['nproc'], os.path.join(scene['viparams']['newdir'], epwbase[0])) + '"'+os.path.join(scene['viparams']['newdir'], epwbase[0]+'p.hdr')+'"', shell=True)
+                        subprocess.call('cnt 750 1500 | rcalc -f "'+os.path.join(scene.vipath, 'Radfiles', 'lib', 'latlong.cal')+'" -e "XD=1500;YD=750;inXD=0.000666;inYD=0.001333" | rtrace -af pan.af -n {} -x 1500 -y 750 -fac "{}{}{}.oct" > '.format(scene['viparams']['nproc'], os.path.join(scene['viparams']['newdir'], epwbase[0])) + '"'+os.path.join(scene['viparams']['newdir'], '{}{}p.hdr'.format(epwbase[0], ('l', 'w')[self.analysismenu in ('1', '3')]))+'"', shell=True)
                 else:
                     export_op.report({'ERROR'}, "No location node connected")
                     return
@@ -647,7 +654,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
     def export(self, op):
         connode = self.connodes()
         geonode = self.geonodes()
-        unitdict = {'LiVi Basic': ("Lux", "W/m"+ u'\u00b2', "DF %", '', '')[int(connode.analysismenu)], 'LiVi Compliance': 'DF (%)', 'LiVi CBDM': ('kLuxHours', 'kWh', 'DA (%)', '', 'UDI-a (%)')[int(connode.analysismenu)]}
+        unitdict = {'LiVi Basic': ("Lux", "W/m"+ u'\u00b2', "DF %", '', '')[int(connode.analysismenu)], 'LiVi Compliance': 'DF (%)', 'LiVi CBDM': ('kLuxHours', 'kWh/m'+ u'\u00b2', 'DA (%)', '', 'UDI-a (%)')[int(connode.analysismenu)]}
         if op == 'LiVi simulation':
             if connode.bl_label == 'LiVi Basic':
                 self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rtracebasic], [n[int(self.simacc)+1] for n in self.rtracebasic]))

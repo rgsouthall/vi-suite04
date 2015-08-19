@@ -249,7 +249,7 @@ def sunexport(scene, node, locnode, frame):
     if locnode:
         simtime = node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
         solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour + (simtime.minute)*0.016666, scene.latitude, scene.longitude)
-        gsrun = Popen("gensky -ang {} {} {}".format(solalt, solazi, node['skytypeparams']).split(), stdout = PIPE)
+        gsrun = Popen("gensky -ang {} {} {} -t {}".format(solalt, solazi, node['skytypeparams'], node.turb).split(), stdout = PIPE)
         return gsrun.stdout.read().decode()
     else:
         gsrun = Popen("gensky -ang {} {} {}".format(45, 0, node['skytypeparams']).split(), stdout = PIPE)

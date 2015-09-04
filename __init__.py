@@ -68,7 +68,7 @@ def confunc(i):
 def eupdate(self, context):
     scene = context.scene
     inv = 0        
-    for frame in range(scene['liparams']['fe'], scene['liparams']['fe'] + 1):
+    for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
         for o in [obj for obj in bpy.data.objects if obj.lires == 1]:
             maxo, mino = scene.vi_leg_max, scene.vi_leg_min
             bm = bmesh.new()

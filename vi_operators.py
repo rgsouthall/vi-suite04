@@ -148,10 +148,6 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
         scene.frame_start = 0
         scene.frame_set(0)
 
-        if 'LiVi Basic' in node.bl_label:
-            node.starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(node.shour), int((node.shour - int(node.shour))*60)) + datetime.timedelta(node.sdoy - 1) if node['skynum'] < 3 else datetime.datetime(datetime.datetime.now().year, 1, 1, 12)
-            if node.animmenu == 'Time' and node['skynum'] < 3:
-                node.endtime = datetime.datetime(2013, 1, 1, int(node.ehour), int((node.ehour - int(node.ehour))*60)) + datetime.timedelta(node.edoy - 1)
         if bpy.data.filepath:
             objmode()
 #            radcexport(self, node, locnode, geonode)
@@ -392,7 +388,7 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
 #            scene['liparams']['fe'] = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
             li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
         scene.vi_display = 1 if connode.analysismenu != '3' or connode.bl_label != 'LiVi CBDM' else 0  
-        context.scene['liparams']['fe'] = framerange(context.scene, simnode['Animation'])[-1]
+        context.scene['liparams']['fe'] = max(context.scene['liparams']['gfe'], context.scene['liparams']['cfe'])
         scene['viparams']['vidisp'] = 'li'
         context.scene['viparams']['resnode'] = simnode.name
         context.scene['viparams']['restree'] = self.nodeid.split('@')[1]
@@ -605,6 +601,49 @@ class NODE_OT_CSVExport(bpy.types.Operator, io_utils.ExportHelper):
     def invoke(self,context,event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
+        
+class NODE_OT_TextExport(bpy.types.Operator, io_utils.ExportHelper):
+    bl_idname = "node.textexport"
+    bl_label = "Export a text file"
+    bl_description = "Select the text file to export"
+    filename = ""
+    filename_ext = ".txt"
+    filter_glob = bpy.props.StringProperty(default="*.txt", options={'HIDDEN'})
+    bl_register = True
+    bl_undo = True
+    nodeid = bpy.props.StringProperty()
+
+    def draw(self,context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Specify the Text export file with the file browser", icon='WORLD_DATA')
+
+    def execute(self, context):
+        hostnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        textsocket = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].inputs['Text in'].links[0].from_socket
+        resstring = '\n'.join(textsocket['Text'])
+        with open(self.filepath, 'w') as textfile:
+            textfile.write(resstring)
+        if hostnode.etoggle:
+            if self.filepath not in [im.filepath for im in bpy.data.texts]:
+                bpy.data.texts.load(self.filepath)
+
+            imname = [im.name for im in bpy.data.texts if im.filepath == self.filepath][0]
+            text = bpy.data.texts[imname]
+            for area in bpy.context.screen.areas:
+                if area.type == 'TEXT_EDITOR':
+                    area.spaces.active.text = text 
+                    ctx = bpy.context.copy()
+                    ctx['edit_text'] = text
+                    ctx['area'] = area 
+                    ctx['region'] = area.regions[-1]
+                    bpy.ops.text.resolve_conflict(ctx, resolution = 'RELOAD')
+            
+        return {'FINISHED'}
+
+    def invoke(self,context,event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
 class NODE_OT_EnGExport(bpy.types.Operator):
     bl_idname = "node.engexport"
@@ -677,6 +716,9 @@ class NODE_OT_EnSim(bpy.types.Operator):
                     return {'PASS_THROUGH'}
                 except:
                     return {'PASS_THROUGH'} 
+            elif self.nframe < scene['enparams']['fe']:
+                self.frame += 1
+                bpy.ops.node.ensim('INVOKE_DEFAULT')
             else:
                 for fname in [fname for fname in os.listdir('.') if fname.split(".")[0] == self.simnode.resname]:                
                     os.remove(os.path.join(scene['viparams']['newdir'], fname))
@@ -706,6 +748,7 @@ class NODE_OT_EnSim(bpy.types.Operator):
             
     def invoke(self, context, event):
         scene = context.scene
+        self.frame = scene.frame_start
         if viparams(self, scene):
             return {'CANCELLED'}
         context.scene['viparams']['visimcontext'] = 'EnVi'

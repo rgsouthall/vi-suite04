@@ -134,6 +134,7 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
         self['nodeid'] = nodeid(self)
         self.outputs.new('ViLiG', 'Geometry out')
         self.inputs.new('ViGen', 'Generative in')
+        self.outputs['Geometry out']['Text'] = ''
 #        if not context.scene.get('liparams'):
 #            context.scene['liparams'] = {}
 #        context.scene['liparams']['gfe'] = 0
@@ -156,7 +157,7 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
         self['frames'] = {'Material': 0, 'Geometry': 0, 'Lights':0}
         for mglfr in self['frames']:
             self['frames'][mglfr] = scene.frame_end if self.animmenu == mglfr else 0
-            scene['liparams']['gfe'] = max(self['frames'].values())
+        scene['liparams']['gfe'] = max(self['frames'].values())
         scene.vi_display_rp_off = self.offset
 
 class ViLiNode(bpy.types.Node, ViNodes):
@@ -181,11 +182,11 @@ class ViLiNode(bpy.types.Node, ViNodes):
             if self.ehour < self.shour:
                 self.ehour = self.shour
         self['skynum'] = int(self.skymenu) if self.analysismenu != "1" else 3
-        starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(self.shour), int((self.shour - int(self.shour))*60)) + datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(2013, 1, 1, 12)
-#        endtime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(self.ehour), int((self.ehour - int(self.ehour))*60)) + datetime.timedelta(self.edoy - 1) if self.animmenu == 'Time' else starttime
+        self['starttime'] = datetime.datetime(datetime.datetime.now().year, 1, 1, int(self.shour), int((self.shour - int(self.shour))*60)) + datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(2013, 1, 1, 12)
+        self['endtime'] = datetime.datetime(datetime.datetime.now().year, 1, 1, int(self.ehour), int((self.ehour - int(self.ehour))*60)) + datetime.timedelta(self.edoy - 1) if self.animmenu == 'Time' else self['starttime']
         
         suns = [ob for ob in scene.objects if ob.type == 'LAMP' and ob.get('VIType') and ob.get('VIType') == 'Sun']
-        if self['skynum'] < 4:
+        if self['skynum'] < 2:
             frames = range(scene.frame_start, int(((24 * (self.edoy - self.sdoy) + self.ehour - self.shour)/self.interval))) if self.animmenu == 'Time' else [scene.frame_start]
             if suns:
                 sun = suns[0]
@@ -199,7 +200,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
                 sun['VIType'] = 'Sun'
                         
             if self.inputs['Location in'].links:
-                sunposlivi(scene, self, frames, sun, self.inputs['Location in'].links[0].from_node, starttime)
+                sunposlivi(scene, self, frames, sun, self.inputs['Location in'].links[0].from_node, self['starttime'])
         else:
             for so in suns:
                 selobj(scene, so)
@@ -224,13 +225,14 @@ class ViLiNode(bpy.types.Node, ViNodes):
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
+        self['exportstate'] = ''
         self.inputs.new('ViLoc', 'Location in')
         self.inputs.new('ViTar', 'Target in')
         self.outputs.new('ViLiC', 'Context out')
-#        self.starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, 12, 0)
-#        self.endtime = datetime.datetime(datetime.datetime.now().year, 1, 1, 12, 0)
-        self['hours'], self['frames'], self['resname'], context.scene['liparams']['unit'] = 0, {'Time':0}, 'illumout', "Lux"
-        self['exportstate'] = ''
+        self.starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, 12, 0)
+        self.endtime = datetime.datetime(datetime.datetime.now().year, 1, 1, 12, 0)
+        self['hours'], self['frames'], self['resname'], bpy.context.scene['liparams']['unit'] = 0, {'Time':0}, 'illumout', "Lux"
+        self.outputs['Context out']['Text'] = ''
         self['skynum'] = int(self.skymenu)
         nodecolour(self, 1)
         self.shour = 12
@@ -294,8 +296,10 @@ class ViLiNode(bpy.types.Node, ViNodes):
         skyfileslist = []
         scene = context.scene
         locnode = self.inputs['Location in'].links[0].from_node
+        self.starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(self.shour), int((self.shour - int(self.shour))*60)) + datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(datetime.datetime.now().year, 1, 1, 12)        
+        self.endtime = datetime.datetime(2013, 1, 1, int(self.ehour), int((self.ehour - int(self.ehour))*60)) + datetime.timedelta(self.edoy - 1) if self.animmenu == 'Time' and self['skynum'] < 3 else self.starttime
         self['skynum'] = int(self.skymenu)
-        self['hours'] = 0 if self.animmenu == 'Static' or int(self.skymenu) > 2  else (self.endtime-self.starttime).days*24 + (self.endtime-self.starttime).seconds/3600
+        self['hours'] = 0 if self.animmenu == 'Static' or int(self.skymenu) > 2  else (self.endtime-self.starttime).seconds/3600
         self['frames']['Time'] = scene['liparams']['cfe'] = scene['liparams']['fs'] + int(self['hours']/self.interval)
         self['resname'] = ("basicout", '')[int(self.analysismenu)]
         if self['skynum'] < 4:
@@ -316,6 +320,7 @@ class ViLiNode(bpy.types.Node, ViNodes):
                     hdrexport(scene, f, frame, self, skyfileslist[f])
                     
             self['skyfiles'] = skyfileslist
+            self.outputs['Context out']['Text'] = skyfileslist
             
         elif self['skynum'] == 4:
             if self.hdrname not in bpy.data.images:
@@ -655,6 +660,8 @@ class ViLiSNode(bpy.types.Node, ViNodes):
         connode = self.connodes()
         geonode = self.geonodes()
         unitdict = {'LiVi Basic': ("Lux", "W/m"+ u'\u00b2', "DF %", '', '')[int(connode.analysismenu)], 'LiVi Compliance': 'DF (%)', 'LiVi CBDM': ('kLuxHours', 'kWh/m'+ u'\u00b2', 'DA (%)', '', 'UDI-a (%)')[int(connode.analysismenu)]}
+        scene = bpy.context.scene
+        scene['liparams']['fe'] = max(scene['liparams']['gfe'], scene['liparams']['cfe']) if connode.bl_label == 'LiVi Basic' else scene['liparams']['gfe']
         if op == 'LiVi simulation':
             if connode.bl_label == 'LiVi Basic':
                 self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rtracebasic], [n[int(self.simacc)+1] for n in self.rtracebasic]))
@@ -897,12 +904,14 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
     resname = bpy.props.StringProperty(name="", description="Base name for the results files", default="results", update = nodeupdate)
     resfilename = bpy.props.StringProperty(name = "", default = 'results')
     dsdoy, dedoy, run  = bpy.props.IntProperty(), bpy.props.IntProperty(), bpy.props.IntProperty(min = -1, default = -1)
+    animated = bpy.props.BoolProperty(name = '', description = 'Enable EnergyPlus animation', default = 0)
 
     def draw_buttons(self, context, layout):
         if self.run > -1:
             row = layout.row()
             row.label('Calculating {}%'.format(self.run))
         elif self.inputs['Context in'].links and not self.inputs['Context in'].links[0].from_node.use_custom_color:
+            newrow(layout, 'Animation:', self, 'animated')
             newrow(layout, 'Results name:', self, 'resname')
             row = layout.row()
             row.operator("node.ensim", text = 'Calculate').nodeid = self['nodeid']
@@ -1195,7 +1204,7 @@ class ViLiGSock(bpy.types.NodeSocket):
     bl_idname = 'ViLiG'
     bl_label = 'Geometry'
 
-    valid = ['LiVi Geometry']
+    valid = ['LiVi Geometry', 'text']
     link_limit = 1
 
     def draw(self, context, layout, node, text):
@@ -1209,7 +1218,7 @@ class ViLiCSock(bpy.types.NodeSocket):
     bl_idname = 'ViLiC'
     bl_label = 'Context'
 
-    valid = ['LiVi Context']
+    valid = ['LiVi Context', 'text']
     link_limit = 1
 
     def draw(self, context, layout, node, text):
@@ -1274,19 +1283,19 @@ class ViR(bpy.types.NodeSocket):
     def draw_color(self, context, node):
         return (0.0, 1.0, 0.0, 0.75)
         
-#class ViLiR(bpy.types.NodeSocket):
-#    '''LiVi results socket'''
-#    bl_idname = 'ViLiR'
-#    bl_label = 'LiVi results'
-#
-#    valid = ['LiVi Results']
-#    link_limit = 1
-#
-#    def draw(self, context, layout, node, text):
-#        layout.label(text)
-#
-#    def draw_color(self, context, node):
-#        return (0.2, 1.0, 0.0, 0.75)
+class ViText(bpy.types.NodeSocket):
+    '''VI text socket'''
+    bl_idname = 'ViText'
+    bl_label = 'VI text export'
+
+    valid = ['text']
+    link_limit = 1
+
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+
+    def draw_color(self, context, node):
+        return (0.2, 1.0, 0.0, 0.75)
 
 class ViEnC(bpy.types.NodeSocket):
     '''EnVi context socket'''
@@ -1405,6 +1414,27 @@ class ViCSVExport(bpy.types.Node, ViNodes):
         if self.inputs['Results in'].links:
             row = layout.row()
             row.operator('node.csvexport', text = 'Export CSV file').nodeid = self['nodeid']
+
+    def update(self):
+        pass
+    
+class ViTextExport(bpy.types.Node, ViNodes):
+    '''Text Export Node'''
+    bl_idname = 'ViText'
+    bl_label = 'VI Text Export'
+    bl_icon = 'LAMP'
+    
+    etoggle = bpy.props.BoolProperty(name = '', default = False)
+
+    def init(self, context):
+        self['nodeid'] = nodeid(self)
+        self.inputs.new('ViText', 'Text in')
+
+    def draw_buttons(self, context, layout):
+        if self.inputs['Text in'].links:
+            newrow(layout, 'Edit:', self, 'etoggle')
+            row = layout.row()
+            row.operator('node.textexport', text = 'Export text file').nodeid = self['nodeid']
 
     def update(self):
         pass
@@ -1652,7 +1682,7 @@ vinodecat = [NodeItem("ViLiSNode", label="LiVi Simulation"), NodeItem("ViFVSimNo
 
 vigennodecat = [NodeItem("ViGenNode", label="VI-Suite Generative"), NodeItem("ViTarNode", label="VI-Suite Target")]
 
-vidisnodecat = [NodeItem("ViChNode", label="VI-Suite Chart"), NodeItem("ViCSV", label="VI-Suite CSV")]
+vidisnodecat = [NodeItem("ViChNode", label="VI-Suite Chart"), NodeItem("ViCSV", label="VI-Suite CSV"), NodeItem("ViText", label="VI-Suite Text")]
 viinnodecat = [NodeItem("ViEnInNode", label="EnergyPlus input file"), NodeItem("ViEnRFNode", label="EnergyPlus result file"), NodeItem("ViASCImport", label="Import ESRI Grid file")]
 
 vinode_categories = [ViNodeCategory("Input", "Input Nodes", items=viinnodecat), ViNodeCategory("Display", "Display Nodes", items=vidisnodecat), ViNodeCategory("Generative", "Generative Nodes", items=vigennodecat), ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat), ViNodeCategory("Export", "Export Nodes", items=viexnodecat)]

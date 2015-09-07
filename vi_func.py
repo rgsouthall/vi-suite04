@@ -84,13 +84,13 @@ def clearlayers(bm):
         bm.verts.layers.float.remove(bm.verts.layers.float[0])
 
 def setscenelivivals(scene):
-    if scene['liparams']['type'] == 'LiVi Basic':
+    if scene['liparams']['type'] == 'Basic':
         udict = {'0': 'Lux', '1': "W/m"+ u'\u00b2', '2': 'DF (%)'}
         scene['liparams']['unit'] = udict[scene.li_disp_basic]
-    if scene['liparams']['type'] == 'LiVi CBDM' and 'UDI' in scene['liparams']['unit']:
+    if scene['liparams']['type'] == 'CBDM' and 'UDI' in scene['liparams']['unit']:
         udict = {'0': 'UDI-f (%)', '1': 'UDI-s (%)', '2': 'UDI-a (%)', '3': 'UDI-e (%)'}
         scene['liparams']['unit'] = udict[scene.li_disp_udi]
-    if scene['liparams']['type'] == 'LiVi Compliance':
+    if scene['liparams']['type'] == 'Compliance':
         udict = {'0': 'DF (%)', '1': 'Sky View'}
         scene['liparams']['unit'] = udict[scene.li_disp_sv]
     olist = [scene.objects[on] for on in scene['liparams']['livic']]

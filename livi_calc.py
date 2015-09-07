@@ -39,7 +39,7 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
         else:
             for frame in frames:
                 findex = frame - scene['liparams']['fs'] if not kwargs.get('genframe') else 0
-                if connode.bl_label in ('LiVi Basic', 'LiVi Compliance') or (connode.bl_label == 'LiVi CBDM' and int(connode.analysismenu) < 2):
+                if connode.contextmenu in ('Basic', 'Compliance') or (connode.contextmenu == 'CBDM' and int(connode.cbanalysismenu) < 2):
                     if os.path.isfile("{}-{}.af".format(scene['viparams']['filebase'], frame)):
                         os.remove("{}-{}.af".format(scene['viparams']['filebase'], frame))
                     if simnode.pmap:
@@ -48,14 +48,14 @@ def li_calc(calc_op, simnode, connode, geonode, simacc, **kwargs):
                         rtcmd = "rtrace -n {0} -ap {2}-{3}.gpm 50 -ab 1 -h -ov {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame, connode['simalg']) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                     else: 
                         rtcmd = "rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
-                    if connode.bl_label == 'LiVi Compliance':
+                    if connode.contextmenu == 'Compliance':
                         o.compcalcapply(scene, frame, rtcmd, connode)
-                    elif connode.bl_label == 'LiVi Basic':
+                    elif connode.contextmenu == 'Basic':
                         o.basiccalcapply(scene, frame, rtcmd)
-                    elif connode.bl_label == 'LiVi CBDM':
-                        if connode.analysismenu == '0':
+                    elif connode.contextmenu == 'CBDM':
+                        if connode.cbanalysismenu == '0':
                             o.lhcalcapply(scene, frame, rtcmd)
-                        if connode.analysismenu == '1':
+                        if connode.cbanalysismenu == '1':
                             o.lhcalcapply(scene, frame, rtcmd)
 #                    elif connode.bl_label == 'LiVi Basic' and connode.analysismenu == '1':
 #                        o.dfcalcapply(scene, frame, rtcmd, connode['simalg'])

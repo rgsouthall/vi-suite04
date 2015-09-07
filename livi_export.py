@@ -154,9 +154,10 @@ def radgexport(export_op, node, **kwargs):
             
             sradfile = "# Sky \n\n"
         radfiles.append(mradfile+gradfile+lradfile+sradfile)
+        node.outputs['Geometry out']['Text'][str(frame)] = mradfile+gradfile+lradfile+sradfile
     node['reslen'] = rti - 1
     node['radfiles'] = radfiles
-    node.outputs['Geometry out']['Text'] = radfiles
+#    node.outputs['Geometry out']['Text'] = radfiles
     
     with open(scene['viparams']['filebase']+".rtrace", "w") as rtrace:
         rtrace.write(rtpoints)

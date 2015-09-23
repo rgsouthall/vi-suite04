@@ -33,7 +33,7 @@ nh = 768
 def ss_display():
     pass
 
-def li_display(simnode, connode, geonode):
+def li_display(simnode):
     scene, obreslist, obcalclist = bpy.context.scene, [], []
     setscenelivivals(scene)
     
@@ -59,12 +59,10 @@ def li_display(simnode, connode, geonode):
     scene.objects.active = None
     
     for i, o in enumerate([scene.objects[oname] for oname in scene['liparams']['{}c'.format(mtype)]]):
-        me = bpy.data.meshes.new(o.name+"res") 
-        ores = bpy.data.objects.new(o.name+"res", me) 
-        cv = ores.cycles_visibility
-        cv.diffuse, cv.glossy, cv.transmission, cv.scatter, cv.shadow = 0, 0, 0, 0, 0
+        
         bm = bmesh.new()
         bm.from_mesh(o.data)  
+        bm.transform(o.matrix_world)
         
         if scene['liparams']['cp'] == '0':  
             cindex = bm.faces.layers.int['cindex']
@@ -83,14 +81,24 @@ def li_display(simnode, connode, geonode):
             avfvec = mathutils.Vector((0,0,0))
             for fn in [f.normal for f in v.link_faces]:
                 avfvec += fn
-            v.co += avfvec/len(v.link_faces)  * geonode.offset if geonode else avfvec/len(v.link_faces) * simnode.offset
+            v.co += avfvec/len(v.link_faces)  * simnode['goptions']['offset']# if geonode else avfvec/len(v.link_faces) * simnode.offset
         
-        bm.normal_update()    
-        bpy.context.scene.objects.link(ores)  
+        bm.normal_update()   
+        selobj(scene, o)
+        bpy.ops.object.duplicate()
+#        me = bpy.data.meshes.new(o.name+"res") 
+        ores = bpy.context.active_object
+        ores.name = o.name+"res"
+        while ores.material_slots:
+            bpy.ops.object.material_slot_remove()
+#        ores = bpy.data.objects.new(o.name+"res", me) 
+        cv = ores.cycles_visibility
+        cv.diffuse, cv.glossy, cv.transmission, cv.scatter, cv.shadow = 0, 0, 0, 0, 0
+#        bpy.context.scene.objects.link(ores)  
         
         obreslist.append(ores)
         ores['omax'], ores['omin'], ores['oave'], ores['lires']  = o['omax'], o['omin'], o['oave'], 1 
-        if connode and connode.bl_label == 'LiVi Compliance':
+        if scene['viparams']['visimcontext'] == 'LiVi Compliance':
             for c in ('compmat', 'comps', 'crit', 'ecrit', 'ecomps'):
                 ores[c] = o[c]
         selobj(scene, ores)
@@ -100,15 +108,15 @@ def li_display(simnode, connode, geonode):
                 bpy.ops.object.material_slot_add()
                 ores.material_slots[-1].material = bpy.data.materials[matname]
         
-        for fr, frame in enumerate(range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)):             
-            if fr == 0:
-                if scene.vi_disp_3d == 1 and scene['liparams']['cp'] == '0':
-                    for face in bmesh.ops.extrude_discrete_faces(bm, faces = bm.faces)['faces']:
-                        face.select = True
-                bm.transform(o.matrix_world)
-                bm.to_mesh(ores.data)
-                bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
-            ores.lividisplay(scene)
+#        for fr, frame in enumerate(range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)):             
+#            if fr == 0:
+        if scene.vi_disp_3d == 1 and scene['liparams']['cp'] == '0':
+            for face in bmesh.ops.extrude_discrete_faces(bm, faces = bm.faces)['faces']:
+                face.select = True
+        bm.transform(o.matrix_world.inverted())
+        bm.to_mesh(ores.data)
+        bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
+        ores.lividisplay(scene)
 #            if connode and connode.bl_label == 'LiVi Compliance':
 #                ores.compdisplay(scene)
 #            elif connode and connode.bl_label == 'LiVi CBDM' and 'UDI' in scene['liparams']['unit']:
@@ -122,11 +130,12 @@ def li_display(simnode, connode, geonode):
         if scene.vi_disp_3d == 1:
             selobj(scene, ores)
             bpy.ops.object.shape_key_add(from_mix = False)
-            for frame in framerange(scene, simnode['Animation']):
+            for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
+                print(frame)
                 bpy.ops.object.shape_key_add(from_mix = False)
                 ores.active_shape_key.name, ores.active_shape_key.value = str(frame), 1
                 
-    skframe('', scene, obreslist, simnode['Animation'])                                   
+    skframe('', scene, obreslist)                                   
     bpy.ops.wm.save_mainfile(check_existing = False)
     scene.frame_set(scene['liparams']['fs'])
 #    scene['viparams']['vidisp'] = 'lipanel'
@@ -163,7 +172,7 @@ def spnumdisplay(disp_op, context, simnode):
     else:
         return
 
-def linumdisplay(disp_op, context, simnode, connode, geonode):
+def linumdisplay(disp_op, context, simnode):
     scene = context.scene    
     if scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'licpanel'):
         return
@@ -248,7 +257,7 @@ def linumdisplay(disp_op, context, simnode, connode, geonode):
         bm.free()
     blf.disable(0, 4)
 
-def li3D_legend(self, context, simnode, connode, geonode):
+def li3D_legend(self, context, simnode):
     scene = context.scene
     fc = str(scene.frame_current)
     try:
@@ -265,10 +274,11 @@ def li3D_legend(self, context, simnode, connode, geonode):
     
             for i in range(20):
                 h = 0.75 - 0.75*(i/19)
-                if connode:
-                    bgl.glColor4f(colorsys.hsv_to_rgb(h, 1.0, 1.0)[0], colorsys.hsv_to_rgb(h, 1.0, 1.0)[1], colorsys.hsv_to_rgb(h, 1.0, 1.0)[2], 1.0)
-                else:
+                if scene['viparams']['visimcontext'] == 'Shadow Study':
                     bgl.glColor4f(i/19, i/19, i/19, 1)
+                else:
+                    bgl.glColor4f(colorsys.hsv_to_rgb(h, 1.0, 1.0)[0], colorsys.hsv_to_rgb(h, 1.0, 1.0)[1], colorsys.hsv_to_rgb(h, 1.0, 1.0)[2], 1.0)
+                    
                 bgl.glBegin(bgl.GL_POLYGON)
                 bgl.glVertex2i(20, (i*20)+height - 460)
                 bgl.glVertex2i(60, (i*20)+height - 460)
@@ -528,7 +538,7 @@ def viwr_legend(self, context, simnode):
         resvals[-1] = resvals[-1][:-int(len('{:.0f}'.format(simnode['maxres'])))] + u"\u221E"
         height, lenres, font_id = context.region.height, len(resvals[-1]) + 1 , 0
         hscale, newheight, newwidth = height/nh, height-50, 20     
-        drawpoly(newwidth, newheight, newwidth + int(hscale*(40 + lenres*8)), int((newheight - hscale*(simnode['nbins']+3.5)*20)))
+        drawpoly(newwidth, newheight, newwidth + int(hscale*(40 + lenres*8)), int((newheight - hscale*(simnode['nbins']+3.5)*20)), 0.7, 1, 1, 1)
         drawloop(newwidth - 1, newheight, newwidth + int(hscale*(40 + lenres*8)), int((newheight - hscale*(simnode['nbins']+3.5)*20)))
         cm = matplotlib.cm.jet if simnode.wrtype in ('0', '1') else matplotlib.cm.hot
         for i in range(simnode['nbins']):
@@ -562,13 +572,13 @@ def lipanel():
     pass
     
         
-def li_compliance(self, context, connode):
+def li_compliance(self, context, simnode):
     height, scene = context.region.height, context.scene
     if not scene.get('li_compliance') or scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or scene['viparams']['vidisp'] != 'licpanel':
         return
-    if connode.analysismenu == '0':
-        buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retail', 'Office & Other')[int(connode.bambuildmenu)]
-    elif connode.analysismenu == '1':
+    if simnode['coptions']['canalysis'] == '0':
+        buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retail', 'Office & Other')[int(simnode['coptions']['bambuild'])]
+    elif simnode['coptions']['canalysis'] == '1':
         buildtype = 'Residential'
         cfshpfsdict = {'totkit': 0, 'kitdf': 0, 'kitsv': 0, 'totliv': 0, 'livdf': 0, 'livsv': 0}
 
@@ -581,7 +591,7 @@ def li_compliance(self, context, connode):
 
     font_id = 0
     blf.size(font_id, 20, 54)
-    drawfont('Standard: '+('BREEAM HEA1', 'CfSH', 'LEED EQ8.1', 'Green Star')[int(connode.analysismenu)], font_id, 0, height, 110, 58)
+    drawfont('Standard: '+('BREEAM HEA1', 'CfSH', 'LEED EQ8.1', 'Green Star')[int(simnode['coptions']['Type'])], font_id, 0, height, 110, 58)
     drawfont('Project Name: '+scene.li_projname, font_id, 0, height, 643, 58)
     blf.size(font_id, 20, 40)
 
@@ -602,14 +612,14 @@ def li_compliance(self, context, connode):
                 pf = 'PASS'
             pfs.append(pf)
 
-            if connode.analysismenu == '1':
+            if simnode['coptions']['canalysis'] == '1':
                 cfshpfsdict[('totkit', 'totliv')[mat.crspacemenu == '1']] += 1
                 if o['cr4'][0] == 'pass':
                     cfshpfsdict[('kitdf', 'livdf')[mat.crspacemenu == '1']] += 1
                 if o['cr4'][1] == 'pass':
                     cfshpfsdict[('kitsv', 'livsv')[mat.crspacemenu == '1']] += 1
 
-            if connode.analysismenu == '0':
+            if simnode['coptions']['canalysis'] == '0':
                 ecrit = o['ecrit']
                 o['ecr4'] = [('fail', 'pass')[int(com)] for com in o['ecomps'][frame][:][::2]]
                 o['ecr6'] = [ecri[4] for ecri in ecrit]
@@ -630,9 +640,9 @@ def li_compliance(self, context, connode):
             drawpoly(100, height - 70, 900, height - 70  - (lencrit)*25, 0.7, 1, 1, 1)
             drawloop(100, height - 70, 900, height - 70  - (lencrit)*25)
             mat = bpy.data.materials[o['compmat']]
-            if connode.analysismenu == '0':
-                buildspace = ('', '', (' - Public/Staff', ' - Patient')[int(mat.hspacemenu)], (' - Kitchen', ' - Living/Dining/Study', ' - Communal')[int(mat.brspacemenu)], (' - Sales', ' - Office')[int(mat.respacemenu)], '')[int(connode.bambuildmenu)]
-            elif connode.analysismenu == '1':
+            if simnode['coptions']['canalysis'] == '0':
+                buildspace = ('', '', (' - Public/Staff', ' - Patient')[int(mat.hspacemenu)], (' - Kitchen', ' - Living/Dining/Study', ' - Communal')[int(mat.brspacemenu)], (' - Sales', ' - Office')[int(mat.respacemenu)], '')[int(simnode['coptions']['bambuild'])]
+            elif simnode['coptions']['canalysis'] == '1':
                 buildspace = (' - Kitchen', ' - Living/Dining/Study')[int(mat.crspacemenu)]
 
             titles = ('Zone Metric', 'Target', 'Achieved', 'PASS/FAIL')
@@ -654,7 +664,7 @@ def li_compliance(self, context, connode):
                 elif cr[0] == 'Average':
                     tables[c] = ('Average {} (%)'.format('Daylight Factor'), cr[3], '{:.2f}'.format(o['comps'][frame][:][c*2 + 1]), o['cr4'][c].upper())
 
-            if connode.analysismenu == '0':
+            if simnode['coptions']['canalysis'] == '0':
                 for e, ecr in enumerate(ecrit):
                     if ecr[0] == 'Percent':
                         if ecr[2] == 'skyview':
@@ -687,12 +697,14 @@ def li_compliance(self, context, connode):
         else:
             etables = []
             lencrit = 0
+        
 
         tpf = 'FAIL' if 'FAIL' in pfs or 'FAIL*' in pfs else 'PASS'
-        if connode.analysismenu == '0':            
+        if simnode['coptions']['canalysis'] == '0':            
             (tpf, lencrit) = ('EXEMPLARY', lencrit + len(o['ecrit'])) if tpf == 'PASS' and ('FAIL' not in epfs and 'FAIL*' not in epfs) else (tpf, lencrit)
 
         return(tpf, lencrit, buildspace, etables)
+
     
     build_compliance, lencrit, bs, etables = space_compliance([o for o in bpy.data.objects if o.get('lires')])
 
@@ -720,7 +732,7 @@ def li_compliance(self, context, connode):
 
     blf.size(font_id, 20, 52)
     blf.position(font_id, 110, height - 87 - lencrit*26, 0)
-    if connode.analysismenu == '0':
+    if simnode['coptions']['canalysis'] == '0':
         drawpoly(100, height - 70 - lencrit*26, 525, height - 95 - lencrit*26, 0.7, 1, 1, 1)
         drawloop(100, height - 70 - lencrit*26, 350, height - 95 - lencrit*26)
         drawloop(100, height - 70 - lencrit*26, 350, height - 95 - lencrit*26)
@@ -731,13 +743,13 @@ def li_compliance(self, context, connode):
         blf.draw(font_id, 'Credits achieved:')
         blf.position(font_id, 480, height - 87 - lencrit*26, 0)
         if build_compliance == 'PASS':
-           blf.draw(font_id,  ('1', '2', '2', '1', '1', '1')[int(connode.bambuildmenu)])
+           blf.draw(font_id,  ('1', '2', '2', '1', '1', '1')[int(simnode['coptions']['bambuild'])])
         elif build_compliance == 'EXEMPLARY':
-            blf.draw(font_id,  ('2', '3', '3', '2', '2', '2')[int(connode.bambuildmenu)])
+            blf.draw(font_id,  ('2', '3', '3', '2', '2', '2')[int(simnode['coptions']['bambuild'])])
         else:
             blf.draw(font_id, '0')
 
-    elif connode.analysismenu == '1':
+    elif simnode['coptions']['canalysis'] == '1':
         drawpoly(100, height - 70 - lencrit*26, 300, height - 95 - lencrit*26, 0.7, 1, 1, 1)
         drawloop(100, height - 70 - lencrit*26, 300, height - 95 - lencrit*26)
         drawfont('Credits achieved:', 0, lencrit, height, 110, 87)

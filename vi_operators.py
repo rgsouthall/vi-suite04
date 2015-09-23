@@ -1,4 +1,4 @@
-import bpy, datetime, mathutils, os, time, bmesh, shutil, subprocess
+import bpy, datetime, mathutils, os, bmesh, shutil, subprocess
 from os import rename
 import numpy
 from numpy import arange, histogram
@@ -16,7 +16,7 @@ except:
     mp = 0
 
 from .livi_export import radgexport, cyfc1, createoconv, createradfile
-from .livi_calc  import li_calc, resapply
+from .livi_calc  import li_calc
 from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend, en_air, en_panel
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
@@ -37,16 +37,12 @@ class NODE_OT_LiGExport(bpy.types.Operator):
         scene = context.scene
         if viparams(self, scene):
             return {'CANCELLED'}
-#        scene['liparams']['fs'] = 0
-#        scene['liparams']['fe'] = 0
-#        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         scene['viparams']['vidisp'] = ''
         objmode()
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        node.export(scene)
-        scene.frame_start, bpy.data.node_groups[self.nodeid.split('@')[1]].use_fake_user = 0, 1
-        scene.frame_set(0)
+        node.preexport(scene)
         radgexport(self, node)
+        node.postexport(scene)
         return {'FINISHED'}
 
 class NODE_OT_FileSelect(bpy.types.Operator, io_utils.ImportHelper):
@@ -140,84 +136,15 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
         if viparams(self, scene):
             return {'CANCELLED'}
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-#        locnode = 0 if node.bl_label == 'LiVi Compliance' or (node.bl_label == 'LiVi CBDM' and node.sm != '0') else node.inputs['Location in'].links[0].from_node
-#        geonode = node.outputs['Context out'].links[0].to_node.inputs['Geometry in'].links[0].from_node if node.bl_label == 'LiVi CBDM' else 0
-#        node.export(context, self)
         scene['viparams']['vidisp'] = ''
-#        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
-        scene.frame_start = 0
-        scene.frame_set(0)
-
+              
         if bpy.data.filepath:
             objmode()
-#            radcexport(self, node, locnode, geonode)
+            node.preexport()
             node.export(scene, self)
+            node.postexport()
             return {'FINISHED'}
 
-class NODE_OT_LiBasicExport(bpy.types.Operator, io_utils.ExportHelper):
-    bl_idname = "node.libasicexport"
-    bl_label = "LiVi context export"
-    bl_description = "Export the scene to the Radiance file format"
-    bl_register = True
-    bl_undo = True
-    nodeid = bpy.props.StringProperty()
-
-    def invoke(self, context, event):
-#        scene = context.scene
-        if viparams(self, context.scene):
-            return {'CANCELLED'}
-        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-#        locnode = node.inputs['Location in'].links[0].from_node
- #       geonode = node.outputs['Context out'].links[0].to_node.inputs['Geometry in'].links[0].from_node if node.bl_label == 'LiVi CBDM' else 0
-        node.export(self, context.scene)
-#        scene['viparams']['vidisp'] = ''
-##        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
-#        scene.frame_start = 0
-#        scene.frame_set(0)
-#
-##        if 'LiVi Basic' in node.bl_label:
-#        node.starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(node.shour), int((node.shour - int(node.shour))*60)) + datetime.timedelta(node.sdoy - 1) if node['skynum'] < 3 else datetime.datetime(datetime.datetime.now().year, 1, 1, 12)
-#        if node.animmenu == 'Time' and node['skynum'] < 3:
-#            node.endtime = datetime.datetime(2013, 1, 1, int(node.ehour), int((node.ehour - int(node.ehour))*60)) + datetime.timedelta(node.edoy - 1)
-#        if bpy.data.filepath:
-#            objmode()
-#            radbasicexport(self, node, locnode)
-#            node.export(context)
-        return {'FINISHED'}
-
-class NODE_OT_LiCompExport(bpy.types.Operator, io_utils.ExportHelper):
-    bl_idname = "node.licompexport"
-    bl_label = "LiVi context export"
-    bl_description = "Export the scene to the Radiance file format"
-    bl_register = True
-    bl_undo = True
-    nodeid = bpy.props.StringProperty()
-
-    def invoke(self, context, event):
-        if viparams(self, context.scene):
-            return {'CANCELLED'}
-        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        node.export(self, context.scene)
-        return {'FINISHED'}
-
-class NODE_OT_LiCBDMExport(bpy.types.Operator, io_utils.ExportHelper):
-    bl_idname = "node.licbdmexport"
-    bl_label = "LiVi context export"
-    bl_description = "Export the scene to the Radiance file format"
-    bl_register = True
-    bl_undo = True
-    nodeid = bpy.props.StringProperty()
-
-    def invoke(self, context, event):
-        if viparams(self, context.scene):
-            return {'CANCELLED'}
-#        scene = context.scene
-        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-#        locnode = 0 if node.bl_label == 'LiVi Compliance' or (node.bl_label == 'LiVi CBDM' and node.sm != '0') else node.inputs['Location in'].links[0].from_node
-#        geonode = node.outputs['Context out'].links[0].to_node.inputs['Geometry in'].links[0].from_node if node.bl_label == 'LiVi CBDM' else 0
-        node.export(context.scene, self)
-#        radcbdmexport(scene, self, node, locnode, geonode)
-        return {'FINISHED'}
 
 class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
     bl_idname = "node.radpreview"
@@ -233,46 +160,35 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
             return {'CANCELLED'}
         objmode()
         simnode, frame = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]], scene.frame_current
-        connode, geonode =  simnode.export(self.bl_label)
+        simnode.preexport()
+
         if frame not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
             self.report({'ERROR'}, "Current frame is not within the exported frame range")
             return {'CANCELLED'}
-        if not simnode.edit_file:
-            createradfile(scene, frame, self, connode, geonode)
-        elif not os.path.isfile(os.path.join(scene['viparams']['newdir'], scene['viparams']['filename']+'-{}.rad'.format(frame))):
-            self.report({'ERROR'}, "There is no saved radiance input file. Turn off the edit file option")
-            return {'CANCELLED'}
-        createoconv(scene, frame, self)
-
-        if os.path.isfile("{}-{}.rad".format(scene['viparams']['filebase'], scene.frame_current)):
-            cam = scene.camera
-            if cam:
-                cang = '180 -vth' if connode.analysismenu == '3' else cam.data.angle*180/pi
-                vv = 180 if connode.analysismenu == '3' else cang * scene.render.resolution_y/scene.render.resolution_x
-                vd = (0.001, 0, -1*cam.matrix_world[2][2]) if (round(-1*cam.matrix_world[0][2], 3), round(-1*cam.matrix_world[1][2], 3)) == (0.0, 0.0) else [-1*cam.matrix_world[i][2] for i in range(3)]
-                if simnode.pmap:
-                    pmcmd = ('mkpmap', '+fo', '+bv', '-apD', '0.001', '-apo', ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.pport]), '-apg', '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), '{}'.format(simnode.pmapgno), '-apc', '{}-{}.cpm'.format(scene['viparams']['filebase'], frame), '{}'.format(simnode.pmapcno), '{}-{}.oct'.format(scene['viparams']['filebase'], frame))
-                    subprocess.call(pmcmd)
-                    rvucmd = "rvu -w -ap {8} 50 -ap {9} 50 -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -ab 1 {6}-{7}.oct".format(scene['viparams']['nproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), '{}-{}.cpm'.format(scene['viparams']['filebase'], frame))
-                else:
-                    rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['nproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current)
-                rvurun = Popen(rvucmd.split(), stdout = PIPE, stderr = PIPE)
-        #        time.sleep(0.1)
- #               if rvurun.poll() is not None:
-                for line in rvurun.stderr:
-                    if 'view up parallel to view direction' in line.decode():
-                        self.report({'ERROR'}, "Camera cannot point directly upwards")
-                    if 'X11' in line.decode():
-                        self.report({'ERROR'}, "No X11 display server found. You may need to install XQuartz")
-
-#                self.report({'ERROR'}, "Something wrong with the Radiance preview. Try rerunning the geometry and context export")
-#                return {'CANCELLED'}
-                return {'FINISHED'}
+        createradfile(scene, frame, self, simnode)
+        createoconv(scene, frame, self, simnode)
+        cam = scene.camera
+        if cam:
+            cang = '180 -vth' if simnode['coptions']['Context'] == 'Basic' and simnode['coptions']['Type'] == '1' else cam.data.angle*180/pi
+            vv = 180 if simnode['coptions']['Context'] == 'Basic' and simnode['coptions']['Type'] == '1' else cang * scene.render.resolution_y/scene.render.resolution_x
+            vd = (0.001, 0, -1*cam.matrix_world[2][2]) if (round(-1*cam.matrix_world[0][2], 3), round(-1*cam.matrix_world[1][2], 3)) == (0.0, 0.0) else [-1*cam.matrix_world[i][2] for i in range(3)]
+            if simnode.pmap:
+                pmcmd = ('mkpmap', '+fo', '+bv', '-apD', '0.001', '-apo', ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.pport]), '-apg', '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), '{}'.format(simnode.pmapgno), '-apc', '{}-{}.cpm'.format(scene['viparams']['filebase'], frame), '{}'.format(simnode.pmapcno), '{}-{}.oct'.format(scene['viparams']['filebase'], frame))
+                subprocess.call(pmcmd)
+                rvucmd = "rvu -w -ap {8} 50 -ap {9} 50 -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -ab 1 {6}-{7}.oct".format(scene['viparams']['nproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), '{}-{}.cpm'.format(scene['viparams']['filebase'], frame))
             else:
-                self.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
-                return {'CANCELLED'}
+                rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['nproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current)
+            rvurun = Popen(rvucmd.split(), stdout = PIPE, stderr = PIPE)
+
+            for line in rvurun.stderr:
+                if 'view up parallel to view direction' in line.decode():
+                    self.report({'ERROR'}, "Camera cannot point directly upwards")
+                if 'X11' in line.decode():
+                    self.report({'ERROR'}, "No X11 display server found. You may need to install XQuartz")
+
+            return {'FINISHED'}
         else:
-            self.report({'ERROR'},"Missing export file. Make sure you have exported the scene or that the current frame is within the exported frame range.")
+            self.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
             return {'CANCELLED'}
 
 class NODE_OT_LiVIGlare(bpy.types.Operator):
@@ -286,33 +202,43 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
     def modal(self, context, event):
         if event.type == 'TIMER':
             if self.egrun.poll() is not None:
-                if self.frame > self.scene.fs:
-                    time = datetime.datetime(2014, 1, 1, self.connode.shour, 0) + datetime.timedelta(self.connode.sdoy - 1) if self.connode.animmenu == '0' else \
-                    datetime.datetime(2014, 1, 1, int(self.connode.shour), int(60*(self.connode.shour - int(self.connode.shour)))) + datetime.timedelta(self.connode.sdoy - 1) + datetime.timedelta(hours = int(self.connode.interval*(self.frame-self.scene.fs)), seconds = int(60*(self.connode.interval*(self.frame-self.scene.fs) - int(self.connode.interval*(self.frame-self.scene.fs)))))
-                    rpictcmd = "rpict -w -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct | evalglare -c {5}".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, os.path.join(self.scene['viparams']['newdir'], 'glare{}.hdr'.format(self.frame)))
-                    self.egrun = Popen(rpictcmd.split(), stdout = PIPE)
+                if self.frame > self.frameold:
+                    self.frameold = self.frame
+                    rpictcmd = "rpict -w -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame)
+                    self.rprun = Popen(rpictcmd.split(), stdout = PIPE)                    
+                    self.egcmd = 'evalglare -c {}'.format(os.path.join(self.scene['viparams']['newdir'], 'glare{}.hdr'.format(self.frame)))                    
+                    self.egrun = Popen(self.egcmd.split(), stdin = self.rprun.stdout, stdout = PIPE)
                     return {'RUNNING_MODAL'}
-                time = datetime.datetime(2014, 1, 1, self.connode.shour, 0) + datetime.timedelta(self.connode.sdoy - 1) if self.connode.animmenu == '0' else \
-                    datetime.datetime(2014, 1, 1, int(self.connode.shour), int(60*(self.connode.shour - int(self.connode.shour)))) + datetime.timedelta(self.connode.sdoy - 1) + datetime.timedelta(hours = int(self.connode.interval*(self.frame-self.scene.fs)), seconds = int(60*(self.connode.interval*(self.frame-self.scene.fs) - int(self.connode.interval*(self.frame-self.scene.fs)))))
+
+                time = datetime.datetime(2014, 1, 1, self.simnode['coptions']['shour'], 0) + datetime.timedelta(self.simnode['coptions']['sdoy'] - 1) if self.simnode['coptions']['anim'] == '0' else \
+                    datetime.datetime(2014, 1, 1, int(self.simnode['coptions']['shour']), int(60*(self.simnode['coptions']['shour'] - int(self.simnode['coptions']['shour'])))) + datetime.timedelta(self.simnode['coptions']['sdoy'] - 1) + datetime.timedelta(hours = int(self.simnode['coptions']['interval']*(self.frame-self.scene['liparams']['fs'])), seconds = int(60*(self.simnode['coptions']['interval']*(self.frame-self.scene['liparams']['fs']) - int(self.simnode['coptions']['interval']*(self.frame-self.scene['liparams']['fs'])))))
                 with open(self.scene['viparams']['filebase']+".glare", "w") as glaretf:
                     for line in self.egrun.stdout:
                         if line.decode().split(",")[0] == 'dgp':
                             glaretext = line.decode().replace(',', ' ').replace("#INF", "").split(' ')
-                            glaretf.write("{0:0>2d}/{1:0>2d} {2:0>2d}:{3:0>2d}\ndgp: {4:.3f}\ndgi: {5:.3f}\nugr: {6:.3f}\nvcp: {7:.3f}\ncgi: {8:.3f}\nLveil: {9:.3f}\n".format(time.day, time.month, time.hour, time.minute, *[float(x) for x in glaretext[6:12]]))
-                pcondcmd = "pcond -u 300 {0}.hdr > {0}.temphdr".format(os.path.join(self.scene['viparams']['newdir'], 'glare'+str(self.frame)))
-                Popen(pcondcmd.split()).communicate()
-                psigncmd = "{0} {1}.glare | psign -h 32 -cb 0 0 0 -cf 40 40 40 | pcompos {3}.temphdr 0 0 - 800 550 > {3}.hdr" .format(self.scene['viparams']['cat'], self.scene['viparams']['filebase'], self.frame, os.path.join(self.scene['viparams']['newdir'], 'glare'+str(self.frame)))
-                Popen(psigncmd.split()).communicate()
+                            glaretf.write("{0:0>2d}/{1:0>2d} {2:0>2d}:{3:0>2d}\ndgp: {4:.2f}\ndgi: {5:.2f}\nugr: {6:.2f}\nvcp: {7:.2f}\ncgi: {8:.2f}\nLv: {9:.0f}\n".format(time.day, time.month, time.hour, time.minute, *[float(x) for x in glaretext[6:12]]))
+                pcondcmd = "pcond -u 300 {0}.hdr".format(os.path.join(self.scene['viparams']['newdir'], 'glare'+str(self.frame)))
+                with open('{}.temphdr'.format(os.path.join(self.scene['viparams']['newdir'], 'glare'+str(self.frame))), 'w') as temphdr:
+                    Popen(pcondcmd.split(), stdout = temphdr).communicate()
+                catcmd = "{0} {1}.glare".format(self.scene['viparams']['cat'], self.scene['viparams']['filebase'])
+                catrun = Popen(catcmd.split(), stdout = PIPE)
+                psigncmd = "psign -h 32 -cb 0 0 0 -cf 40 40 40"
+                psignrun = Popen(psigncmd.split(), stdin = catrun.stdout, stdout = PIPE)
+                pcompcmd = "pcompos {0}.temphdr 0 0 - 800 550".format(os.path.join(self.scene['viparams']['newdir'], 'glare'+str(self.frame)))
+                with open("{}.hdr".format(os.path.join(self.scene['viparams']['newdir'], 'glare'+str(self.frame))), 'w') as ghdr:
+                    Popen(pcompcmd.split(), stdin = psignrun.stdout, stdout = ghdr).communicate()
                 os.remove(os.path.join(self.scene['viparams']['newdir'], 'glare{}.temphdr'.format(self.frame)))
 
                 if  'glare{}.hdr'.format(self.frame) in bpy.data.images:
                     bpy.data.images['glare{}.hdr'.format(self.frame)].reload()
                 else:
                     bpy.data.images.load(os.path.join(self.scene['viparams']['newdir'], 'glare{}.hdr'.format(self.frame)))
+
                 self.frame += 1
-                if self.frame > self.scene.fe:
+                if self.frame > self.scene['liparams']['fe']:
                     nodecolour(self.simnode, 0)
                     self.simnode.run = 0
+                    self.simnode.postexport()
                     return {'FINISHED'}
                 else:
                     return {'RUNNING_MODAL'}
@@ -325,24 +251,27 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
 
     def execute(self, context):
         wm = context.window_manager
-        self._timer = wm.event_timer_add(0.5, context.window)
+        self._timer = wm.event_timer_add(1, context.window)
         wm.modal_handler_add(self)
         self.scene = bpy.context.scene
         self.cam = self.scene.camera
         if self.cam:
             self.simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-            self.connode, self.geonode = self.simnode.export(self.bl_label)
-            self.frame = self.scene.fs
-            for frame in range(self.scene.fs, self.scene.fe + 1):
-                if not self.simnode.edit_file:
-                    createradfile(self.scene, frame, self, self.connode, self.geonode)
-                elif not os.path.isfile(os.path.join(self.scene['viparams']['newdir'], self.scene['viparams']['filename']+'-{}.rad'.format(frame))):
-                    self.report({'ERROR'}, "There is no saved radiance input file. Turn off the edit file option")
-                    return {'CANCELLED'}
-                createoconv(self.scene, frame, self)
+            self.simnode.preexport()
+            nodecolour(self.simnode, 1)
+            self.simnode.run = 1
+            self.scene['liparams']['fs'] = min([c['fs'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
+            self.scene['liparams']['fe'] = max([c['fe'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
+            self.frame = self.scene['liparams']['fs']
+            self.frameold = self.frame
+            for frame in range(self.scene['liparams']['fs'], self.scene['liparams']['fe'] + 1):
+                createradfile(self.scene, frame, self, self.simnode)
+                createoconv(self.scene, frame, self, self.simnode)
 
-            rpictcmd = "rpict -w -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct | evalglare -c {5}".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, os.path.join(self.scene['viparams']['newdir'], 'glare{}.hdr'.format(self.frame)))
-            self.egrun = Popen(rpictcmd.split(), stdout=PIPE)
+            rpictcmd = "rpict -w -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]:.3f} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame)
+            self.rprun = Popen(rpictcmd.split(), stdout=PIPE)
+            egcmd = "evalglare -c {}".format(os.path.join(self.scene['viparams']['newdir'], 'glare{}.hdr'.format(self.frame)))
+            self.egrun = Popen(egcmd.split(), stdin = self.rprun.stdout, stdout=PIPE)
             return {'RUNNING_MODAL'}
         else:
             self.report({'ERROR'}, "There is no camera in the scene. Create one for glare analysis")
@@ -362,36 +291,55 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
 #        scene['viparams']['vidisp'] = 'li'
         clearscene(scene, self)
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        connode, geonode = simnode.export(self.bl_label)
-        scene['viparams']['visimcontext'] = connode.bl_label
+        simnode.preexport()
+        
+#        subcontext = simnode.inputs['Context in'].links[0].from_socket['Options']['Type']
+        
+        contextdict = {'Basic': 'LiVi Basic', 'Compliance': 'LiVi Compliance', 'CBDM': 'LiVi CBDM'}        
+#        links = (list(simnode.inputs['Geometry in'].links[:]) + list(simnode.inputs['Context in'].links[:]))
+#        frames = [sorted([int(k) for k in link.from_socket['Text'].keys]) for link in links]
+        
+        # Set scene parameters
+        scene['viparams']['visimcontext'] = contextdict[simnode['coptions']['Context']]
+        scene['liparams']['fs'] = min((simnode['coptions']['fs'], simnode['goptions']['fs'])) 
+        scene['liparams']['fe'] = max((simnode['coptions']['fe'], simnode['goptions']['fe'])) 
+        scene['liparams']['cp'] = simnode['goptions']['cp']
+        scene['liparams']['unit'] = simnode['coptions']['unit']
+        scene['liparams']['type'] = simnode['coptions']['Type']
+        scene.frame_start, scene.frame_end = scene['liparams']['fs'], scene['liparams']['fe']
 
+#        if simnode['coptions']['Context'] in ('Basic', 'Compliance') or (simnode['coptions']['Context'] == 'CBDM' and simnode['coptions']['Type'] in ('0', '1')):
         for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
-            if not simnode.edit_file:
-                createradfile(scene, frame, self, connode, geonode)
-            elif not os.path.isfile(os.path.join(scene['viparams']['newdir'], scene['viparams']['filename']+'-{}.rad'.format(frame))):
-                self.report({'ERROR'}, "There is no saved radiance input file. Turn off the edit file option")
-                return {'CANCELLED'}
-            createoconv(scene, frame, self)
+#            if not simnode.edit_file:
+            createradfile(scene, frame, self, simnode)
+#            elif not os.path.isfile(os.path.join(scene['viparams']['newdir'], scene['viparams']['filename']+'-{}.rad'.format(frame))):
+#                self.report({'ERROR'}, "There is no saved radiance input file. Turn off the edit file option")
+#                return {'CANCELLED'}
+            createoconv(scene, frame, self, simnode)
 
-        if connode.contextmenu == 'Basic':
-            geogennode = geonode.inputs['Generative in'].links[0].from_node if geonode.inputs['Generative in'].links else 0
-            tarnode = connode.inputs['Target in'].links[0].from_node if connode.inputs['Target in'].is_linked else 0
-            if geogennode and tarnode:
-                simnode['Animation'] = 'Animated'
-                vigen(self, li_calc, resapply, geonode, connode, simnode, geogennode, tarnode)
-            elif connode.banalysismenu != '3':
-                simnode['Animation'] = 'Animated' if scene['liparams']['gfe'] > 0 or scene['liparams']['cfe'] > 0 else 'Static'
-                li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
-        else:
-            simnode['Animation'] = 'Animated' if scene['liparams']['gfe'] > 0 or scene['liparams']['cfe'] > 0 else 'Static'
-            scene['liparams']['fs'] = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
+#        if simnode['coptions']['Context'] != 'Basic' and simnode['coptions']['Context'] != '1':
+#            geogennode = geonode.inputs['Generative in'].links[0].from_node if geonode.inputs['Generative in'].links else 0
+#            tarnode = connode.inputs['Target in'].links[0].from_node if connode.inputs['Target in'].is_linked else 0
+#            if geogennode and tarnode:
+#                simnode['Animation'] = 'Animated'
+#                vigen(self, li_calc, resapply, geonode, connode, simnode, geogennode, tarnode)
+#            if simnode['coptions']['Type']  != '1':
+#                scene['liparams']['type'] = 'Basic'
+#                simnode['Animation'] = 'Animated' if scene['liparams']['gfe'] > 0 or scene['liparams']['cfe'] > 0 else 'Static'
+        li_calc(self, simnode, livisimacc(simnode))
+        if simnode['coptions']['Context'] != 'CBDM' and simnode['coptions']['Context'] != '3':
+            scene.vi_display = 1
+#        else:
+#            simnode['Animation'] = 'Animated' if scene['liparams']['gfe'] > 0 or scene['liparams']['cfe'] > 0 else 'Static'
+#            scene['liparams']['fs'] = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
 #            scene['liparams']['fe'] = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
-            li_calc(self, simnode, connode, geonode, livisimacc(simnode, connode))
-        scene.vi_display = 1 if connode.banalysismenu != '1' or connode.contextmenu != 'CBDM' else 0
-        context.scene['liparams']['fe'] = max(context.scene['liparams']['gfe'], context.scene['liparams']['cfe'])
+#            li_calc(self, simnode, livisimacc(simnode))
+#        scene.vi_display = 1 if simnode['coptions']['Type'] != '1' or simnode['coptions']['Context'] != 'CBDM' else 0
+#        scene['liparams']['fe'] = max(context.scene['liparams']['gfe'], context.scene['liparams']['cfe'])
         scene['viparams']['vidisp'] = 'li'
-        context.scene['viparams']['resnode'] = simnode.name
-        context.scene['viparams']['restree'] = self.nodeid.split('@')[1]
+        scene['viparams']['resnode'] = simnode.name
+        scene['viparams']['restree'] = self.nodeid.split('@')[1]
+        simnode.postexport()
         return {'FINISHED'}
 
 class VIEW3D_OT_LiDisplay(bpy.types.Operator):
@@ -429,6 +377,8 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
                     return {'RUNNING_MODAL'}
 
 #        if (scene.li_disp_panel < 2 and scene.ss_disp_panel < 2) or self.disp != scene.li_disp_count:
+        if  not [o for o in bpy.data.objects if o.get('lires')]:
+            scene['viparams']['vidisp'] = ''
         if (scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'licpanel')) or self.disp != scene.li_disp_count:
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
@@ -442,25 +392,25 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context):
-        dispdict = {'Compliance': 'licpanel', 'Basic': 'lipanel', 'CBDM': 'lipanel'}
+        dispdict = {'LiVi Compliance': 'licpanel', 'LiVi Basic': 'lipanel', 'LiVi CBDM': 'lipanel'}
         scene = context.scene
         clearscene(scene, self)
         scene.li_disp_count = scene.li_disp_count + 1 if scene.li_disp_count < 10 else 0
         scene.vi_disp_wire = 0
         self.disp = scene.li_disp_count
         self.simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
-        (connode, geonode) = (0, 0) if self.simnode.bl_label == 'VI Shadow Study' else (self.simnode.export(self.bl_label))
+#        (connode, geonode) = (0, 0) if self.simnode.bl_label == 'VI Shadow Study' else (self.simnode.export(self.bl_label))
         if self.simnode.bl_label == 'VI Shadow Study':
             scene['viparams']['vidisp'] = 'sspanel'
         else:
-            scene['viparams']['vidisp'] = dispdict[connode.contextmenu]
+            scene['viparams']['vidisp'] = dispdict[scene['viparams']['visimcontext']]
 #        (scene.li_disp_panel, scene.ss_disp_panel) = (0, 2) if self.simnode.bl_label == 'VI Shadow Study' else (2, 0)
-        li_display(self.simnode, connode, geonode)
-        self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, self.simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')
-        self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(li3D_legend, (self, context, self.simnode, connode, geonode), 'WINDOW', 'POST_PIXEL')
+        li_display(self.simnode)
+        self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
+        self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(li3D_legend, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
-        if connode and connode.bl_label == 'LiVi Compliance':
-            self._handle_comp = bpy.types.SpaceView3D.draw_handler_add(li_compliance, (self, context, connode), 'WINDOW', 'POST_PIXEL')
+        if scene['viparams']['visimcontext'] == 'LiVi Compliance':
+            self._handle_comp = bpy.types.SpaceView3D.draw_handler_add(li_compliance, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
         return {'RUNNING_MODAL'}
 
 class IES_Select(bpy.types.Operator, io_utils.ImportHelper):
@@ -610,7 +560,8 @@ class NODE_OT_TextUpdate(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
 
     def execute(self, context):
-        bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].textupdate()
+        tenode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        tenode.textupdate(tenode['bt'])
         return {'FINISHED'}
 
 class NODE_OT_TextExport(bpy.types.Operator, io_utils.ExportHelper):
@@ -961,7 +912,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
         for doy in range(0, 363):
             for hour in range(1, 25):
-                ([solalt, solazi]) = solarPosition(doy, hour, scene['latitude'], scene['longitude'])[2:]
+                ([solalt, solazi]) = solarPosition(doy, hour, scene.latitude, scene.longitude)[2:]
                 bm.verts.new().co = [-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
         for v in range(24, len(bm.verts)):
             if hasattr(bm.verts, "ensure_lookup_table"):
@@ -972,7 +923,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
         for doy in (79, 172, 355):
             for hour in range(1, 241):
-                ([solalt, solazi]) = solarPosition(doy, hour*0.1, scene['latitude'], scene['longitude'])[2:]
+                ([solalt, solazi]) = solarPosition(doy, hour*0.1, scene.latitude, scene.longitude)[2:]
                 bm.verts.new().co = [-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
                 if hasattr(bm.verts, "ensure_lookup_table"):
                     bm.verts.ensure_lookup_table()
@@ -1029,7 +980,7 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
     def modal(self, context, event):
         if context.area:
             context.area.tag_redraw()
-        if context.scene.vi_display == 0 or not context.scene.sp_disp_panel:
+        if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'sp':
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_spnum, 'WINDOW')
             return {'CANCELLED'}
         return {'PASS_THROUGH'}
@@ -1110,7 +1061,7 @@ class VIEW3D_OT_WRLegDisplay(bpy.types.Operator):
     def modal(self, context, event):
         if context.area:
             context.area.tag_redraw()
-        if context.scene.vi_display == 0 or context.scene.wr_disp_panel != 1:
+        if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'wr':
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_spnum, 'WINDOW')
             return {'CANCELLED'}
         return {'PASS_THROUGH'}

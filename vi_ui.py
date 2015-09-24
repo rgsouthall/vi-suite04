@@ -506,9 +506,9 @@ class VIZonePanel(bpy.types.Panel):
         layout = self.layout
         row = layout.row()
         row.prop(obj, "vi_type")
-#        if obj.vi_type == '1':
-#            row = layout.row()
-#            row.prop(obj, "envi_type")
+        if obj.vi_type == '1':
+            row = layout.row()
+            row.prop(obj, "envi_type")
 #            row = layout.row()
 #            if obj.envi_type == '1':
 #                row = layout.row()

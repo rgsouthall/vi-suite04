@@ -207,7 +207,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 
 
 #    hcoiobjs = [hcoiwrite(obj) for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type == '1']
-    zonenames = [o.name for o in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type == '1']
+    zonenames = [o.name for o in bpy.context.scene.objects if o.layers[1] == True and o.envi_type == '1']
     bpy.context.scene['viparams']['hvactemplate'] = 0
     zonenodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in zonenames]
     

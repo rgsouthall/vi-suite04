@@ -19,7 +19,7 @@
 import bpy, os, math, subprocess, datetime, bmesh, shutil
 from math import sin, cos, tan, pi
 from subprocess import PIPE, Popen, STDOUT
-from .vi_func import retsky, retobj, retmesh, clearscene, solarPosition, mtx2vals, retobjs, selobj, selmesh, vertarea, radpoints, clearlayers, radmesh
+from .vi_func import clearscene, solarPosition, mtx2vals, retobjs, selobj, selmesh, vertarea, radpoints, clearlayers, radmesh
 
 
 def radgexport(export_op, node, **kwargs):
@@ -172,15 +172,15 @@ def radgexport(export_op, node, **kwargs):
         for o in lightlist:
             iesname = os.path.splitext(os.path.basename(o.ies_name))[0]
             if os.path.isfile(o.ies_name):
-                iescmd = "ies2rad -t default -m {0} -c {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} -p {2} -d{3} -o {4}-{5} {6}".format(o.ies_strength, o.ies_colour, scene['viparams']['newdir'], o.ies_unit, iesname, frame, o.ies_name)
+                iescmd = "ies2rad -t default -m {0} -c {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} -p {2} -d{3} -o {4}-{5} {6}".format(o.ies_strength, o.ies_colour, scene['liparams']['lightfilebase'], o.ies_unit, iesname, frame, o.ies_name)
                 subprocess.call(iescmd.split())
                 if o.type == 'LAMP':
                     if o.parent:
                         o = o.parent
-                    lradfile += "!xform -rx {0[0]} -ry {0[1]} -rz {0[2]} -t {1[0]} {1[1]} {1[2]} {2}.rad\n\n".format([(180/pi)*o.rotation_euler[i] for i in range(3)], o.location, os.path.join(scene['viparams']['newdir'], iesname+"-{}".format(frame)))
+                    lradfile += "!xform -rx {0[0]} -ry {0[1]} -rz {0[2]} -t {1[0]} {1[1]} {1[2]} {2}.rad\n\n".format([(180/pi)*o.rotation_euler[i] for i in range(3)], o.location, os.path.join(scene['liparams']['lightfilebase'], iesname+"-{}".format(frame)))
                 elif o.type == 'MESH':
                     for face in o.data.polygons:
-                        lradfile += "!xform -rx {0[0]:.3f} -ry {0[1]:.3f} -rz {0[2]:.3f} -t {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} {2}{3}".format([(180/pi)*o.rotation_euler[i] for i in range(3)], o.matrix_world * face.center, os.path.join(scene['viparams']['newdir'], iesname+"-{}.rad".format(frame)), ('\n', '\n\n')[face == o.data.polygons[-1]])
+                        lradfile += "!xform -rx {0[0]:.3f} -ry {0[1]:.3f} -rz {0[2]:.3f} -t {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} {2}{3}".format([(180/pi)*o.rotation_euler[i] for i in range(3)], o.matrix_world * face.center, os.path.join(scene['liparams']['lightfilebase'], iesname+"-{}.rad".format(frame)), ('\n', '\n\n')[face == o.data.polygons[-1]])
             elif iesname:
                 export_op.report({'ERROR'}, 'The IES file associated with {} cannot be found'.format(o.name))
 

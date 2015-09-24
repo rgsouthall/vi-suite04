@@ -880,7 +880,7 @@ def viparams(op, scene):
         os.makedirs(os.path.join(fd, fn, 'Openfoam', "0"))
         
     nd = os.path.join(fd, fn)
-    fb, ofb, offb, idf  = os.path.join(nd, fn), os.path.join(nd, 'obj'), os.path.join(nd, 'Openfoam'), os.path.join(nd, 'in.idf')
+    fb, ofb, lfb, offb, idf  = os.path.join(nd, fn), os.path.join(nd, 'obj'), os.path.join(nd, 'lights'), os.path.join(nd, 'Openfoam'), os.path.join(nd, 'in.idf')
     offzero, offs, offc, offcp, offcts = os.path.join(offb, '0'), os.path.join(offb, 'system'), os.path.join(offb, 'constant'), os.path.join(offb, 'constant', "polyMesh"), os.path.join(offb, 'constant', "triSurface")
     if not scene.get('viparams'):
         scene['viparams'] = {}
@@ -894,6 +894,7 @@ def viparams(op, scene):
     if not scene.get('liparams'):
         scene['liparams'] = {}
     scene['liparams']['objfilebase'] = ofb
+    scene['liparams']['lightfilebase'] = lfb
     if not scene.get('enparams'):
         scene['enparams'] = {}
     scene['enparams']['idf_file'] = idf
@@ -1033,6 +1034,11 @@ def clearanim(scene, obs):
             bpy.context.object.active_shape_key_index = 0
             bpy.ops.object.shape_key_remove(all=True)
             
+def clearfiles(filebase):
+    fileList = os.listdir(filebase)
+    for fileName in fileList:
+        os.remove(os.path.join(filebase, fileName))
+                    
 def clearscene(scene, op):
     for ob in [ob for ob in scene.objects if ob.type == 'MESH' and ob.layers[scene.active_layer]]:
         if ob.mode != 'OBJECT':

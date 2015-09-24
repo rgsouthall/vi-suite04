@@ -76,7 +76,6 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                     em.gmat_write(en_idf, matname[-1], list(em.matdat[presetmat]), str(thicklist[pm]/1000))
             curlaynames = matname[-(pm + 1):]
             namelist.append(conname)
-            print(curlaynames)
             ec.con_write(en_idf, mat.envi_con_type, conname, str(namelist.count(conname)-1), mat.name, curlaynames)
 
         elif mat.envi_con_makeup == '1' and mat.envi_con_type not in ('None', 'Shading', 'Aperture'):

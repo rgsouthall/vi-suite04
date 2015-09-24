@@ -20,7 +20,7 @@ from .livi_calc  import li_calc
 from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend, en_air, en_panel
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
-from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, framerange, viparams, objmode, nodecolour, cmap, vertarea, wind_rose, compass, windnum, envizres, envilres
+from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, vertarea, wind_rose, compass, windnum, envizres, envilres
 from .vi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, sunposenvi, recalculate_text
 from .vi_chart import chart_disp
 from .vi_gen import vigen
@@ -39,6 +39,8 @@ class NODE_OT_LiGExport(bpy.types.Operator):
             return {'CANCELLED'}
         scene['viparams']['vidisp'] = ''
         objmode()
+        clearfiles(scene['liparams']['objfilebase'])
+        clearfiles(scene['liparams']['lightfilebase'])
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         node.preexport(scene)
         radgexport(self, node)
@@ -618,12 +620,10 @@ class NODE_OT_EnGExport(bpy.types.Operator):
         if viparams(self, scene):
             return {'CANCELLED'}
         scene['viparams']['vidisp'] = ''
-#        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
-        scene['viparams']['vidisp'] = ''
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        node.preexport(scene)
         pregeo(self)
-        node.export()
-        node.outputs[0].hide = False
+        node.postexport()
         return {'FINISHED'}
 
 class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
@@ -678,7 +678,7 @@ class NODE_OT_EnSim(bpy.types.Operator):
                     return {'PASS_THROUGH'}
                 except:
                     return {'PASS_THROUGH'}
-            elif self.nframe < scene['enparams']['fe']:
+            elif self.frame < scene['enparams']['fe']:
                 self.frame += 1
                 bpy.ops.node.ensim('INVOKE_DEFAULT')
             else:

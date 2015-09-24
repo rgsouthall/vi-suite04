@@ -12,7 +12,9 @@ try:
     import matplotlib.pyplot as plt
     import matplotlib.cm as cm
     mp = 1
-except:
+except Exception as e:
+    print(e)
+    
     mp = 0
 
 from .livi_export import radgexport, cyfc1, createoconv, createradfile

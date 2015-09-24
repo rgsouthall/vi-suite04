@@ -290,7 +290,7 @@ def register():
 #    Object.lhcwdisplay = lhcwdisplay
 
 # EnVi zone definitions
-    Object.envi_type = eprop([("0", "None", "Not an EnVi zone"), ("1", "Thermal", "Thermal Zone"), ("2", "Shading", "Shading Object")], "EnVi object type", "Specify the EnVi object type", "0")
+    Object.envi_type = eprop([("0", "Thermal", "Thermal Zone"), ("1", "Shading", "Shading Object")], "EnVi object type", "Specify the EnVi object type", "0")
     
 # EnVi HVAC Template definitions
     Object.envi_hvacsched = bprop("", "Create a system level schedule", False)

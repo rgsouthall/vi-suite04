@@ -139,7 +139,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     em.thickdict = {}
 
     en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: ZONES ===========\n\n")
-    for obj in [obj for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type == '1']:
+    for obj in [obj for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type == '0']:
         if obj.type == 'MESH':
             params = ('Name', 'Direction of Relative North (deg)', 'X Origin (m)', 'Y Origin (m)', 'Z Origin (m)', 'Type', 'Multiplier', 'Ceiling Height (m)', 'Volume (m3)',
                       'Floor Area (m2)', 'Zone Inside Convection Algorithm', 'Zone Outside Convection Algorithm', 'Part of Total Floor Area')
@@ -154,7 +154,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 
     wfrparams = ['Name', 'Surface Type', 'Construction Name', 'Zone Name', 'Outside Boundary Condition', 'Outside Boundary Condition Object', 'Sun Exposure', 'Wind Exposure', 'View Factor to Ground', 'Number of Vertices']
 
-    for obj in [obj for obj in bpy.data.objects if obj.layers[1] and obj.type == 'MESH' and obj.envi_type != '0']:
+    for obj in [obj for obj in bpy.data.objects if obj.layers[1] and obj.type == 'MESH' and obj.vi_type == '1']:
         obm, odv = obj.matrix_world, obj.data.vertices
 #        obj["floorarea"] = sum([facearea(obj, face) for face in obj.data.polygons if obj.data.materials[face.material_index].envi_con_type =='floor'] and obj.envi_type == '1')
 
@@ -184,7 +184,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format((xav+((obm * odv[v].co)[0]-xav)*0.95, yav+((obm * odv[v].co)[1]-yav)*0.95, zav+((obm * odv[v].co)[2]-zav)*0.95)) for v in poly.vertices]
                 en_idf.write(epentry('FenestrationSurface:Detailed', params, paramvs))
 
-            elif mat.envi_con_type == 'Shading' or obj.envi_type == 'Shading':
+            elif mat.envi_con_type == 'Shading' or obj.envi_type == '1':
                 params = ['Name', 'Transmittance Schedule Name', 'Number of Vertices'] + ['X,Y,Z ==> Vertex {} (m)'.format(v) for v in range(len(poly.vertices))]
                 paramvs = ['{}_{}'.format(obj.name, poly.index), '', len(poly.vertices)] + ['{0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}'.format(obm * odv[poly.vertices[v]].co) for v in range(len(poly.vertices))]
                 en_idf.write(epentry('Shading:Building:Detailed', params, paramvs))
@@ -207,7 +207,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 
 
 #    hcoiobjs = [hcoiwrite(obj) for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type == '1']
-    zonenames = [o.name for o in bpy.context.scene.objects if o.layers[1] == True and o.envi_type == '1']
+    zonenames = [o.name for o in bpy.context.scene.objects if o.layers[1] == True and o.envi_type == '0']
     bpy.context.scene['viparams']['hvactemplate'] = 0
     zonenodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in zonenames]
     
@@ -396,7 +396,7 @@ def pregeo(op):
         if materials.users == 0:
             bpy.data.materials.remove(materials)
     
-    enviobjs = [obj for obj in scene.objects if obj.envi_type in ('1', '2') and obj.layers[0] == True and obj.hide == False]
+    enviobjs = [obj for obj in scene.objects if obj.vi_type == '1' and obj.layers[0] == True and obj.hide == False]
 
     if not [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network']:
         bpy.ops.node.new_node_tree(type='EnViN', name ="EnVi Network") 
@@ -410,7 +410,7 @@ def pregeo(op):
     [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and node.zone[3:] not in [o.name for o in enviobjs]]
                 
     for obj in enviobjs:
-        obj["floorarea"] = sum([facearea(obj, face) for face in obj.data.polygons if obj.data.materials[face.material_index].envi_con_type =='Floor' and obj.envi_type == '1'])
+        obj["floorarea"] = sum([facearea(obj, face) for face in obj.data.polygons if obj.data.materials[face.material_index].envi_con_type =='Floor' and obj.envi_type == '0'])
 
         for mats in obj.data.materials:
             if 'en_'+mats.name not in [mat.name for mat in bpy.data.materials]:
@@ -445,7 +445,7 @@ def pregeo(op):
         bm.to_mesh(en_obj.data)        
         bm.free()
         
-        if en_obj.envi_type == '1':
+        if en_obj.envi_type == '0':
             if en_obj.name not in [node.zone for node in enng.nodes if hasattr(node, 'zone')]:
                 enng.nodes.new(type = 'EnViZone').zone = en_obj.name
             else:

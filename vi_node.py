@@ -70,7 +70,7 @@ class ViLoc(bpy.types.Node, ViNodes):
                     allresdict[str(c[1])] = list(epwcolumns[c[1]])
                     ctypes.append(c[0])
                 self['resdict'], self['allresdict'], self['ctypes'] = resdict, allresdict, ctypes
-            self.outputs['Location out']['epwtext'] = epwfile
+                self.outputs['Location out']['epwtext'] = epwfile.read()
             self.outputs['Location out']['valid'] = ['Location', 'EnVi Results']
         else:
             self.outputs['Location out']['epwtext'] = ''

@@ -12,7 +12,8 @@ try:
     import matplotlib.colors as colors
     from .windrose import WindroseAxes
     mp = 1
-except:
+except Exception as e:
+    print(e)
     mp = 0
 
 dtdf = datetime.date.fromordinal
@@ -160,7 +161,6 @@ def setscenelivivals(scene):
     unitdict = {'Lux': 'illu', "W/m"+ u'\u00b2': 'irrad', 'DF (%)': 'df', 'Sky View': 'sv', 'kLuxHours': 'res', u'kWh/m\u00b2': 'res', 'DA (%)': 'da', 'UDI-f (%)': 'low', 'UDI-s (%)': 'sup', 'UDI-a (%)': 'auto', 'UDI-e (%)': 'high'}
   
     for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
-        print(frame, olist)
         scene['liparams']['maxres'][str(frame)] = max([o['omax']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])
         scene['liparams']['minres'][str(frame)] = min([o['omin']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])
         scene['liparams']['avres'][str(frame)] = sum([o['omin']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])/len([o['omin']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])
@@ -866,6 +866,8 @@ def viparams(op, scene):
         os.makedirs(os.path.join(fd, fn))
     if not os.path.isdir(os.path.join(fd, fn, 'obj')):
         os.makedirs(os.path.join(fd, fn, 'obj'))
+    if not os.path.isdir(os.path.join(fd, fn, 'lights')):
+        os.makedirs(os.path.join(fd, fn, 'lights'))
     if not os.path.isdir(os.path.join(fd, fn, 'Openfoam')):
         os.makedirs(os.path.join(fd, fn, 'Openfoam'))
     if not os.path.isdir(os.path.join(fd, fn, 'Openfoam', 'system')):
@@ -1785,9 +1787,10 @@ def selmesh(sel):
 
 def draw_index(context, leg, mid_x, mid_y, width, height, posis, res):
     vecs = [mathutils.Vector((vec[0] / vec[3], vec[1] / vec[3], vec[2] / vec[3])) for vec in posis]
+    bds = [blf.dimensions(0, ('{:.1f}', '{:.0f}')[r > 100 or context.scene['viparams']['resnode'] == 'VI Sun Path'].format(r)) for r in res]
     xs = [int(mid_x + vec[0] * mid_x) for vec in vecs]
     ys = [int(mid_y + vec[1] * mid_y) for vec in vecs]
-    [(blf.position(0, xs[ri], ys[ri], 0), blf.draw(0, ('{:.1f}', '{:.0f}')[r > 100 or context.scene['viparams']['resnode'] == 'VI Sun Path'].format(r))) for ri, r in enumerate(res) if (leg == 1 and (xs[ri] > 120 or ys[ri] < height - 530)) or leg == 0]
+    [(blf.position(0, xs[ri] - int(0.5*bds[ri][0]), ys[ri] - int(0.5 * bds[ri][1]), 0), blf.draw(0, ('{:.1f}', '{:.0f}')[r > 100 or context.scene['viparams']['resnode'] == 'VI Sun Path'].format(r))) for ri, r in enumerate(res) if (leg == 1 and (xs[ri] > 120 or ys[ri] < height - 530)) or leg == 0]
         
 def edgelen(ob, edge):
     omw = ob.matrix_world

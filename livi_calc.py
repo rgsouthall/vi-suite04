@@ -32,7 +32,8 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
     context = simnode['coptions']['Context']
     subcontext = simnode['coptions']['Type']
     scene['liparams']['maxres'], scene['liparams']['minres'], scene['liparams']['avres'] = {}, {}, {}
-    for o in [o for o in bpy.data.objects if o.get('rtpoints')]:
+#    rtos = [o for o in bpy.data.objects if o.get('rtpoints')]
+    for o in [scene.objects[on] for on in scene['liparams']['livic']]:
         o['omax'], o['omin'], o['oave'] = {}, {}, {}
         rtcmds, rccmds = [], []
         frames = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) if not kwargs.get('genframe') else [kwargs['genframe']]
@@ -59,5 +60,6 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
         elif context == 'CBDM' and int(subcontext) > 1:
             o.udidacalcapply(scene, frames, rccmds, simnode)
         elif context == 'Compliance':
-            o.compcalcapply(scene, frames, rtcmds, simnode)               
+            o.compcalcapply(scene, frames, rtcmds, simnode)     
+            
 

@@ -165,6 +165,8 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
         objmode()
         simnode, frame = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]], scene.frame_current
         simnode.preexport()
+        scene['liparams']['fs'] = min([c['fs'] for c in (simnode['goptions'], simnode['coptions'])])
+        scene['liparams']['fe'] = max([c['fe'] for c in (simnode['goptions'], simnode['coptions'])])
 
         if frame not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
             self.report({'ERROR'}, "Current frame is not within the exported frame range")
@@ -290,6 +292,8 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
         scene = context.scene
         if viparams(self, scene):
             return {'CANCELLED'}
+        
+            
         objmode()
 #        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel, scene.li_disp_count = 0, 0, 0, 0, 0, 0, 0, 0
 #        scene['viparams']['vidisp'] = 'li'

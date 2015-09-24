@@ -271,7 +271,8 @@ def li3D_legend(self, context, simnode):
             font_id = 0
             drawpoly(20, height - 40, 70 + lenres*8, height - 520, 0.7, 1, 1, 1)
             drawloop(19, height - 40, 70 + lenres*8, height - 520)
-    
+            blf.enable(0, 4)
+            blf.shadow(0, 5, 0, 0, 0, 0.7)
             for i in range(20):
                 h = 0.75 - 0.75*(i/19)
                 if scene['viparams']['visimcontext'] == 'Shadow Study':
@@ -305,6 +306,7 @@ def li3D_legend(self, context, simnode):
                 drawfont("Ave: {:.1f}".format(simnode['avres'][fc]), font_id, 0, height, 22, 480)
                 drawfont("Max: {:.1f}".format(simnode['maxres'][fc]), font_id, 0, height, 22, 495)
                 drawfont("Min: {:.1f}".format(simnode['minres'][fc]), font_id, 0, height, 22, 510)
+        blf.disable(0, 4)
     
     except Exception as e:
         print(e, 'Turning off legend display')
@@ -538,8 +540,8 @@ def viwr_legend(self, context, simnode):
         resvals[-1] = resvals[-1][:-int(len('{:.0f}'.format(simnode['maxres'])))] + u"\u221E"
         height, lenres, font_id = context.region.height, len(resvals[-1]) + 1 , 0
         hscale, newheight, newwidth = height/nh, height-50, 20     
-        drawpoly(newwidth, newheight, newwidth + int(hscale*(40 + lenres*8)), int((newheight - hscale*(simnode['nbins']+3.5)*20)), 0.7, 1, 1, 1)
-        drawloop(newwidth - 1, newheight, newwidth + int(hscale*(40 + lenres*8)), int((newheight - hscale*(simnode['nbins']+3.5)*20)))
+        drawpoly(newwidth, newheight, newwidth + int(hscale*(45 + lenres*8)), int((newheight - hscale*(simnode['nbins']+3.5)*20)), 0.7, 1, 1, 1)
+        drawloop(newwidth - 1, newheight, newwidth + int(hscale*(45 + lenres*8)), int((newheight - hscale*(simnode['nbins']+3.5)*20)))
         cm = matplotlib.cm.jet if simnode.wrtype in ('0', '1') else matplotlib.cm.hot
         for i in range(simnode['nbins']):
             bgl.glColor4f(*cm(i * 1/(simnode['nbins']-1), 1))

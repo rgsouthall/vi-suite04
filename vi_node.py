@@ -30,9 +30,6 @@ from .livi_export import sunexport, skyexport, hdrexport
 #
 #bpy.app.handlers.load_post.append(load_handler)
 
-
-
-
 class ViNetwork(bpy.types.NodeTree):
     '''A node tree for VI-Suite analysis.'''
     bl_idname = 'ViN'
@@ -362,7 +359,10 @@ class LiViNode(bpy.types.Node, ViNodes):
         if (self.contextmenu == 'Basic' and int(self.skymenu) > 2) or self.contextmenu == 'Compliance' or (self.contextmenu == 'CBDM' and self.sourcemenu == '1') or self.inputs['Location in'].links:
             row = layout.row()
             row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
-
+    
+    def update(self):
+        socklink(self.outputs['Context out'], self['nodeid'].split('@')[1])
+    
     def preexport(self):
         self.starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(self.shour), int((self.shour - int(self.shour))*60)) + datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(datetime.datetime.now().year, 1, 1, 12)
         self.endtime = datetime.datetime(2013, 1, 1, int(self.ehour), int((self.ehour - int(self.ehour))*60)) + datetime.timedelta(self.edoy - 1) if self.animated and self['skynum'] < 3 else self.starttime
@@ -374,7 +374,7 @@ class LiViNode(bpy.types.Node, ViNodes):
         locnode = self.inputs['Location in'].links[0].from_node
         self.startframe = self.startframe if self.animated and self.contextmenu == 'Basic' and self.banalysismenu in ('0', '1', '2') else scene.frame_current 
         self['endframe'] = self.startframe + int(((24 * (self.edoy - self.sdoy) + self.ehour - self.shour)/self.interval)) if self.contextmenu == 'Basic' and self.banalysismenu in ('0', '1', '2') and self.animated else scene.frame_current
-
+        self['mtxfile'] = ''
         if self.contextmenu == "Basic":        
             if self['skynum'] < 4:
                 self['skytypeparams'] = ("+s", "+i", "-c", "-b 22.86 -c")[self['skynum']]
@@ -509,7 +509,8 @@ class ViLiSNode(bpy.types.Node, ViNodes):
         self['maxres'], self['minres'], self['avres'], self['exportstate'] = {}, {}, {}, ''
         
 
-    def draw_buttons(self, context, layout):        
+    def draw_buttons(self, context, layout): 
+        scene = context.scene
         if self.inputs['Geometry in'].links and self.inputs['Context in'].links:
             cinsock = self.inputs['Context in'].links[0].from_socket
             newrow(layout, 'Photon map:', self, 'pmap')
@@ -530,7 +531,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
                 row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']
                 if cinsock['Options']['Context'] == 'Basic' and cinsock['Options']['Type'] == '1':
                     row.operator("node.liviglare", text = 'Calculate').nodeid = self['nodeid']
-                else:
+                elif [scene.objects[on] for on in scene['liparams']['livic']]:
                     row.operator("node.livicalc", text = 'Calculate').nodeid = self['nodeid']
 
     def update(self):

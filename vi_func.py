@@ -888,6 +888,7 @@ def viparams(op, scene):
         scene['viparams'] = {}
     scene['viparams']['cat'] = ('cat ', 'type ')[str(sys.platform) == 'win32']
     scene['viparams']['nproc'] = str(multiprocessing.cpu_count())
+    scene['viparams']['wnproc'] = str(multiprocessing.cpu_count()) if str(sys.platform) != 'win32' else '1'
     scene['viparams']['filepath'] = bpy.data.filepath
     scene['viparams']['filename'] = fn
     scene['viparams']['filedir'] = fd

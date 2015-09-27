@@ -71,7 +71,7 @@ class ViLoc(bpy.types.Node, ViNodes):
                     ctypes.append(c[0])
                 self['resdict'], self['allresdict'], self['ctypes'] = resdict, allresdict, ctypes
                 self.outputs['Location out']['epwtext'] = epwfile.read()
-            self.outputs['Location out']['valid'] = ['Location', 'EnVi Results']
+            self.outputs['Location out']['valid'] = ['Location', 'Vi Results']
         else:
             self.outputs['Location out']['epwtext'] = ''
             self.outputs['Location out']['valid'] = ['Location']
@@ -480,7 +480,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
     bl_icon = 'LAMP'
 
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.cusacc, self.simacc, self.csimacc)])
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.cusacc, self.simacc, self.csimacc, self.pmap, self.pmapcno, self.pmapgno)])
         
     simacc = bpy.props.EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),("3", "Custom", "Edit Radiance parameters"), ],
             name="", description="Simulation accuracy", default="0", update = nodeupdate)
@@ -549,7 +549,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             self['radparams'] = self.cusacc if self.csimacc == '0' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rtraceadvance], [n[int(self.csimacc)] for n in self.rtraceadvance]))
            
     def postexport(self):
-        self['exportstate'] = [str(x) for x in (self.cusacc, self.simacc, self.csimacc)]
+        self['exportstate'] = [str(x) for x in (self.cusacc, self.simacc, self.csimacc, self.pmap, self.pmapcno, self.pmapgno)]
         self.outputs['Results out'].hide = False
         nodecolour(self, 0)
 
@@ -597,6 +597,7 @@ class ViSSNode(bpy.types.Node, ViNodes):
         self['nodeid'] = nodeid(self)
         self.inputs.new('ViLoc', 'Location in')
         self['exportstate'] = ''
+        self['goptions'] = {}
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
@@ -615,10 +616,14 @@ class ViSSNode(bpy.types.Node, ViNodes):
 #            else:
 #                row.label('{}% Completed'.format(self.running))
 
-    def export(self, scene):
+    def preexport(self):
+#        self['minres'], self['maxres'], self['avres'] = {}, {}, {}
+        self['goptions']['offset'] = self.offset
+
+    def postexport(self, scene):
         nodecolour(self, 0)
         self['exportstate'] = [str(x) for x in (self.animmenu, self.startmonth, self.endmonth, self.starthour, self.endhour, self.interval, self.cpoint, self.offset)]
-        self['minres'], self['maxres'], self['avres'] = {}, {}, {}
+        
 
 class ViWRNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite wind rose generator'''
@@ -780,21 +785,21 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
 
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [self.resname])
-        self.outputs['Results out'].hide = True
+#        self.outputs['Results out'].hide = True
         if self.inputs['Context in'].is_linked:
             self.resfilename = os.path.join(self.inputs['Context in'].links[0].from_node.newdir, self.resname+'.eso')
 
     resname = bpy.props.StringProperty(name="", description="Base name for the results files", default="results", update = nodeupdate)
     resfilename = bpy.props.StringProperty(name = "", default = 'results')
     dsdoy, dedoy, run  = bpy.props.IntProperty(), bpy.props.IntProperty(), bpy.props.IntProperty(min = -1, default = -1)
-    animated = bpy.props.BoolProperty(name = '', description = 'Enable EnergyPlus animation', default = 0)
+#    animated = bpy.props.BoolProperty(name = '', description = 'Enable EnergyPlus animation', default = 0)
 
     def draw_buttons(self, context, layout):
         if self.run > -1:
             row = layout.row()
             row.label('Calculating {}%'.format(self.run))
         elif self.inputs['Context in'].links and not self.inputs['Context in'].links[0].from_node.use_custom_color:
-            newrow(layout, 'Animation:', self, 'animated')
+#            newrow(layout, 'Animation:', self, 'animated')
             newrow(layout, 'Results name:', self, 'resname')
             row = layout.row()
             row.operator("node.ensim", text = 'Calculate').nodeid = self['nodeid']
@@ -886,8 +891,8 @@ class ViEnInNode(bpy.types.Node, ViNodes):
     def update(self):
         socklink(self.outputs['Context out'], self['nodeid'].split('@')[1])
 
-class ViEnRIn(bpy.types.NodeSocket):
-    '''Results in socket'''
+class ViResSock(bpy.types.NodeSocket):
+    '''Results socket'''
     bl_idname = 'ViEnRIn'
     bl_label = 'Results axis'
     valid = ['Vi Results']
@@ -908,11 +913,11 @@ class ViEnRIn(bpy.types.NodeSocket):
     def draw_color(self, context, node):
         return (0.0, 1.0, 0.0, 0.75)
 
-class ViEnRInU(bpy.types.NodeSocket):
-    '''EnVi Results in socket'''
+class ViResUSock(bpy.types.NodeSocket):
+    '''Vi unlinked esults socket'''
     bl_idname = 'ViEnRInU'
     bl_label = 'Axis'
-    valid = ['EnVi Results']
+    valid = ['Vi Results']
 
     def draw_color(self, context, node):
         return (0.0, 1.0, 0.0, 0.75)
@@ -965,7 +970,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
 
     def update(self):
         if not self.inputs['X-axis'].links:
-            class ViEnRXIn(ViEnRInU):
+            class ViEnRXIn(ViResUSock):
                 '''Energy geometry out socket'''
                 bl_idname = 'ViEnRXIn'
                 bl_label = 'X-axis'
@@ -979,7 +984,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
             if self.inputs.get('Y-axis 1'):
                 self.inputs['Y-axis 1'].hide = False
 
-            class ViEnRXIn(ViEnRIn):
+            class ViEnRXIn(ViResSock):
                 '''Energy geometry out socket'''
                 bl_idname = 'ViEnRXIn'
                 bl_label = 'X-axis'
@@ -991,7 +996,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
 
         if self.inputs.get('Y-axis 1'):
             if not self.inputs['Y-axis 1'].links:
-                class ViEnRY1In(ViEnRInU):
+                class ViEnRY1In(ViResUSock):
                     '''Energy geometry out socket'''
                     bl_idname = 'ViEnRY1In'
                     bl_label = 'Y-axis 1'
@@ -1001,7 +1006,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
             else:
                 innode = self.inputs['Y-axis 1'].links[0].from_node
 
-                class ViEnRY1In(ViEnRIn):
+                class ViEnRY1In(ViResSock):
                     '''Energy geometry out socket'''
                     bl_idname = 'ViEnRY1In'
                     bl_label = 'Y-axis 1'
@@ -1012,7 +1017,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
 
         if self.inputs.get('Y-axis 2'):
             if not self.inputs['Y-axis 2'].links:
-                class ViEnRY2In(ViEnRInU):
+                class ViEnRY2In(ViResUSock):
                     '''Energy geometry out socket'''
                     bl_idname = 'ViEnRY2In'
                     bl_label = 'Y-axis 2'
@@ -1022,7 +1027,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
             else:
                 innode = self.inputs[2].links[0].from_node
 
-                class ViEnRY2In(ViEnRIn):
+                class ViEnRY2In(ViResSock):
                     '''Energy geometry out socket'''
                     bl_idname = 'ViEnRY2In'
                     bl_label = 'Y-axis 2'
@@ -1035,14 +1040,14 @@ class ViEnRNode(bpy.types.Node, ViNodes):
 
         if self.inputs.get('Y-axis 3'):
             if not self.inputs['Y-axis 3'].links:
-                class ViEnRY3In(ViEnRInU):
+                class ViEnRY3In(ViResUSock):
                     '''Energy geometry out socket'''
                     bl_idname = 'ViEnRY3In'
                     bl_label = 'Y-axis 3'
             else:
                 innode = self.inputs[3].links[0].from_node
 
-                class ViEnRY3In(ViEnRIn):
+                class ViEnRY3In(ViResSock):
                     '''Energy geometry out socket'''
                     bl_idname = 'ViEnRY3In'
                     bl_label = 'Y-axis 3'

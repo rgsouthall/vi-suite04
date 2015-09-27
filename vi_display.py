@@ -131,7 +131,6 @@ def li_display(simnode):
             selobj(scene, ores)
             bpy.ops.object.shape_key_add(from_mix = False)
             for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
-                print(frame)
                 bpy.ops.object.shape_key_add(from_mix = False)
                 ores.active_shape_key.name, ores.active_shape_key.value = str(frame), 1
                 
@@ -261,7 +260,7 @@ def li3D_legend(self, context, simnode):
     scene = context.scene
     fc = str(scene.frame_current)
     try:
-        if scene['viparams']['vidisp'] not in ('licpanel', 'lipanel') or scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or not scene.vi_leg_display:
+        if scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or not scene.vi_leg_display:
             return
         else:
             resvals = [('{:.1f}', '{:.0f}')[scene.vi_leg_max >= 100].format(scene.vi_leg_min + i*(scene.vi_leg_max - scene.vi_leg_min)/19) for i in range(20)] if scene.vi_leg_scale == '0' else \
@@ -275,7 +274,7 @@ def li3D_legend(self, context, simnode):
             blf.shadow(0, 5, 0, 0, 0, 0.7)
             for i in range(20):
                 h = 0.75 - 0.75*(i/19)
-                if scene['viparams']['visimcontext'] == 'Shadow Study':
+                if scene['viparams']['visimcontext'] == 'Shadow':
                     bgl.glColor4f(i/19, i/19, i/19, 1)
                 else:
                     bgl.glColor4f(colorsys.hsv_to_rgb(h, 1.0, 1.0)[0], colorsys.hsv_to_rgb(h, 1.0, 1.0)[1], colorsys.hsv_to_rgb(h, 1.0, 1.0)[2], 1.0)

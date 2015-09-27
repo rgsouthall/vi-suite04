@@ -45,9 +45,10 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
                 if os.path.isfile("{}-{}.af".format(scene['viparams']['filebase'], frame)):
                     os.remove("{}-{}.af".format(scene['viparams']['filebase'], frame))
                 if simnode.pmap:
-                    pmcmd = ('mkpmap', '+fo', '-apD', '0.001', '-apo', ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.pport]), '-apg', '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), '{}'.format(simnode.pmapgno), '-aps', ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.mattype == '1']), '{}-{}.oct'.format(scene['viparams']['filebase'], frame))
-                    subprocess.call(pmcmd)
-                    rtcmds.append("rtrace -n {0} -ap {2}-{3}.gpm 50 -ab 1 -h -ov {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame, simnode['coptions']['simalg'])) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
+                    pmcmd = ('mkpmap -bv+ +fo -apD 0.001 -apo {0} -apg {1}-{2}.gpm {3} -apc {1}-{2}.cpm {4} -aps {5} {1}-{2}.oct'.format(' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.pport]), scene['viparams']['filebase'], frame, simnode.pmapgno, simnode.pmapcno, ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.mattype == '1' and mat.radmatmenu == '7'])))
+                    print(pmcmd)                    
+                    subprocess.call(pmcmd.split())
+                    rtcmds.append("rtrace -n {0} -w {1} -ap {2}-{3}.gpm 50 -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                 else: 
                     rtcmds.append("rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
             else:

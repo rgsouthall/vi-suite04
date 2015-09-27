@@ -22,8 +22,8 @@ from .livi_calc  import li_calc
 from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend, en_air, en_panel
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
-from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, vertarea, wind_rose, compass, windnum, envizres, envilres
-from .vi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, sunposenvi, recalculate_text
+from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum, envizres, envilres, retobjs
+from .vi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, sunposenvi, recalculate_text, clearlayers
 from .vi_chart import chart_disp
 from .vi_gen import vigen
 
@@ -179,9 +179,10 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
             vv = 180 if simnode['coptions']['Context'] == 'Basic' and simnode['coptions']['Type'] == '1' else cang * scene.render.resolution_y/scene.render.resolution_x
             vd = (0.001, 0, -1*cam.matrix_world[2][2]) if (round(-1*cam.matrix_world[0][2], 3), round(-1*cam.matrix_world[1][2], 3)) == (0.0, 0.0) else [-1*cam.matrix_world[i][2] for i in range(3)]
             if simnode.pmap:
-                pmcmd = ('mkpmap', '+fo', '+bv', '-apD', '0.001', '-apo', ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.pport]), '-apg', '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), '{}'.format(simnode.pmapgno), '-apc', '{}-{}.cpm'.format(scene['viparams']['filebase'], frame), '{}'.format(simnode.pmapcno), '{}-{}.oct'.format(scene['viparams']['filebase'], frame))
-                subprocess.call(pmcmd)
-                rvucmd = "rvu -w -ap {8} 50 -ap {9} 50 -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -ab 1 {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), '{}-{}.cpm'.format(scene['viparams']['filebase'], frame))
+                pmcmd = 'mkpmap -fo+ -bv+ -apD 0.001 -apo {0} -apg {1}-{2}.gpm {3} -apc {1}-{2}.cpm {4} {1}-{2}.oct'.format(' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.pport]), scene['viparams']['filebase'], frame, simnode.pmapgno, simnode.pmapcno)
+                subprocess.call(pmcmd.split())
+                rvucmd = "rvu -w -ap {8} 50 -ap {9} 50 -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -ab 1 {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), '{}-{}.cpm'.format(scene['viparams']['filebase'], frame))
+                print(pmcmd, rvucmd)
             else:
                 rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current)
             rvurun = Popen(rvucmd.split(), stdout = PIPE, stderr = PIPE)
@@ -197,6 +198,73 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
             self.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
             return {'CANCELLED'}
 
+class NODE_OT_LiViCalc(bpy.types.Operator):
+    bl_idname = "node.livicalc"
+    bl_label = "LiVi simulation"
+    nodeid = bpy.props.StringProperty()
+
+    def invoke(self, context, event):
+        scene = context.scene
+        if viparams(self, scene):
+            return {'CANCELLED'}
+        
+            
+        objmode()
+#        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel, scene.li_disp_count = 0, 0, 0, 0, 0, 0, 0, 0
+#        scene['viparams']['vidisp'] = 'li'
+        clearscene(scene, self)
+        simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        simnode.preexport()
+        
+#        subcontext = simnode.inputs['Context in'].links[0].from_socket['Options']['Type']
+        
+        contextdict = {'Basic': 'LiVi Basic', 'Compliance': 'LiVi Compliance', 'CBDM': 'LiVi CBDM'}        
+#        links = (list(simnode.inputs['Geometry in'].links[:]) + list(simnode.inputs['Context in'].links[:]))
+#        frames = [sorted([int(k) for k in link.from_socket['Text'].keys]) for link in links]
+        
+        # Set scene parameters
+        scene['viparams']['visimcontext'] = contextdict[simnode['coptions']['Context']]
+        scene['liparams']['fs'] = min((simnode['coptions']['fs'], simnode['goptions']['fs'])) 
+        scene['liparams']['fe'] = max((simnode['coptions']['fe'], simnode['goptions']['fe'])) 
+        scene['liparams']['cp'] = simnode['goptions']['cp']
+        scene['liparams']['unit'] = simnode['coptions']['unit']
+        scene['liparams']['type'] = simnode['coptions']['Type']
+        scene.frame_start, scene.frame_end = scene['liparams']['fs'], scene['liparams']['fe']
+
+#        if simnode['coptions']['Context'] in ('Basic', 'Compliance') or (simnode['coptions']['Context'] == 'CBDM' and simnode['coptions']['Type'] in ('0', '1')):
+        for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
+#            if not simnode.edit_file:
+            createradfile(scene, frame, self, simnode)
+#            elif not os.path.isfile(os.path.join(scene['viparams']['newdir'], scene['viparams']['filename']+'-{}.rad'.format(frame))):
+#                self.report({'ERROR'}, "There is no saved radiance input file. Turn off the edit file option")
+#                return {'CANCELLED'}
+            createoconv(scene, frame, self, simnode)
+
+#        if simnode['coptions']['Context'] != 'Basic' and simnode['coptions']['Context'] != '1':
+#            geogennode = geonode.inputs['Generative in'].links[0].from_node if geonode.inputs['Generative in'].links else 0
+#            tarnode = connode.inputs['Target in'].links[0].from_node if connode.inputs['Target in'].is_linked else 0
+#            if geogennode and tarnode:
+#                simnode['Animation'] = 'Animated'
+#                vigen(self, li_calc, resapply, geonode, connode, simnode, geogennode, tarnode)
+#            if simnode['coptions']['Type']  != '1':
+#                scene['liparams']['type'] = 'Basic'
+#                simnode['Animation'] = 'Animated' if scene['liparams']['gfe'] > 0 or scene['liparams']['cfe'] > 0 else 'Static'
+        li_calc(self, simnode, livisimacc(simnode))
+        if simnode['coptions']['Context'] != 'CBDM' and simnode['coptions']['Context'] != '3':
+            scene.vi_display = 1
+#        else:
+#            simnode['Animation'] = 'Animated' if scene['liparams']['gfe'] > 0 or scene['liparams']['cfe'] > 0 else 'Static'
+#            scene['liparams']['fs'] = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
+#            scene['liparams']['fe'] = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
+#            li_calc(self, simnode, livisimacc(simnode))
+#        scene.vi_display = 1 if simnode['coptions']['Type'] != '1' or simnode['coptions']['Context'] != 'CBDM' else 0
+#        scene['liparams']['fe'] = max(context.scene['liparams']['gfe'], context.scene['liparams']['cfe'])
+        scene['viparams']['vidisp'] = 'li'
+        scene['viparams']['resnode'] = simnode.name
+        scene['viparams']['restree'] = self.nodeid.split('@')[1]
+        simnode.postexport()
+        return {'FINISHED'}
+        
 class NODE_OT_LiVIGlare(bpy.types.Operator):
     bl_idname = "node.liviglare"
     bl_label = "LiVi glare"
@@ -283,73 +351,6 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
             self.report({'ERROR'}, "There is no camera in the scene. Create one for glare analysis")
             return {'FINISHED'}
 
-class NODE_OT_LiViCalc(bpy.types.Operator):
-    bl_idname = "node.livicalc"
-    bl_label = "LiVi simulation"
-    nodeid = bpy.props.StringProperty()
-
-    def invoke(self, context, event):
-        scene = context.scene
-        if viparams(self, scene):
-            return {'CANCELLED'}
-        
-            
-        objmode()
-#        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel, scene.li_disp_count = 0, 0, 0, 0, 0, 0, 0, 0
-#        scene['viparams']['vidisp'] = 'li'
-        clearscene(scene, self)
-        simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        simnode.preexport()
-        
-#        subcontext = simnode.inputs['Context in'].links[0].from_socket['Options']['Type']
-        
-        contextdict = {'Basic': 'LiVi Basic', 'Compliance': 'LiVi Compliance', 'CBDM': 'LiVi CBDM'}        
-#        links = (list(simnode.inputs['Geometry in'].links[:]) + list(simnode.inputs['Context in'].links[:]))
-#        frames = [sorted([int(k) for k in link.from_socket['Text'].keys]) for link in links]
-        
-        # Set scene parameters
-        scene['viparams']['visimcontext'] = contextdict[simnode['coptions']['Context']]
-        scene['liparams']['fs'] = min((simnode['coptions']['fs'], simnode['goptions']['fs'])) 
-        scene['liparams']['fe'] = max((simnode['coptions']['fe'], simnode['goptions']['fe'])) 
-        scene['liparams']['cp'] = simnode['goptions']['cp']
-        scene['liparams']['unit'] = simnode['coptions']['unit']
-        scene['liparams']['type'] = simnode['coptions']['Type']
-        scene.frame_start, scene.frame_end = scene['liparams']['fs'], scene['liparams']['fe']
-
-#        if simnode['coptions']['Context'] in ('Basic', 'Compliance') or (simnode['coptions']['Context'] == 'CBDM' and simnode['coptions']['Type'] in ('0', '1')):
-        for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
-#            if not simnode.edit_file:
-            createradfile(scene, frame, self, simnode)
-#            elif not os.path.isfile(os.path.join(scene['viparams']['newdir'], scene['viparams']['filename']+'-{}.rad'.format(frame))):
-#                self.report({'ERROR'}, "There is no saved radiance input file. Turn off the edit file option")
-#                return {'CANCELLED'}
-            createoconv(scene, frame, self, simnode)
-
-#        if simnode['coptions']['Context'] != 'Basic' and simnode['coptions']['Context'] != '1':
-#            geogennode = geonode.inputs['Generative in'].links[0].from_node if geonode.inputs['Generative in'].links else 0
-#            tarnode = connode.inputs['Target in'].links[0].from_node if connode.inputs['Target in'].is_linked else 0
-#            if geogennode and tarnode:
-#                simnode['Animation'] = 'Animated'
-#                vigen(self, li_calc, resapply, geonode, connode, simnode, geogennode, tarnode)
-#            if simnode['coptions']['Type']  != '1':
-#                scene['liparams']['type'] = 'Basic'
-#                simnode['Animation'] = 'Animated' if scene['liparams']['gfe'] > 0 or scene['liparams']['cfe'] > 0 else 'Static'
-        li_calc(self, simnode, livisimacc(simnode))
-        if simnode['coptions']['Context'] != 'CBDM' and simnode['coptions']['Context'] != '3':
-            scene.vi_display = 1
-#        else:
-#            simnode['Animation'] = 'Animated' if scene['liparams']['gfe'] > 0 or scene['liparams']['cfe'] > 0 else 'Static'
-#            scene['liparams']['fs'] = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_start
-#            scene['liparams']['fe'] = scene.frame_current if simnode['Animation'] == 'Static' else scene.frame_end
-#            li_calc(self, simnode, livisimacc(simnode))
-#        scene.vi_display = 1 if simnode['coptions']['Type'] != '1' or simnode['coptions']['Context'] != 'CBDM' else 0
-#        scene['liparams']['fe'] = max(context.scene['liparams']['gfe'], context.scene['liparams']['cfe'])
-        scene['viparams']['vidisp'] = 'li'
-        scene['viparams']['resnode'] = simnode.name
-        scene['viparams']['restree'] = self.nodeid.split('@')[1]
-        simnode.postexport()
-        return {'FINISHED'}
-
 class VIEW3D_OT_LiDisplay(bpy.types.Operator):
     bl_idname = "view3d.lidisplay"
     bl_label = "LiVi display"
@@ -400,18 +401,14 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context):
-        dispdict = {'LiVi Compliance': 'licpanel', 'LiVi Basic': 'lipanel', 'LiVi CBDM': 'lipanel'}
+        dispdict = {'LiVi Compliance': 'licpanel', 'LiVi Basic': 'lipanel', 'LiVi CBDM': 'lipanel', 'Shadow': 'sspanel'}
         scene = context.scene
         clearscene(scene, self)
         scene.li_disp_count = scene.li_disp_count + 1 if scene.li_disp_count < 10 else 0
         scene.vi_disp_wire = 0
         self.disp = scene.li_disp_count
         self.simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
-#        (connode, geonode) = (0, 0) if self.simnode.bl_label == 'VI Shadow Study' else (self.simnode.export(self.bl_label))
-        if self.simnode.bl_label == 'VI Shadow Study':
-            scene['viparams']['vidisp'] = 'sspanel'
-        else:
-            scene['viparams']['vidisp'] = dispdict[scene['viparams']['visimcontext']]
+        scene['viparams']['vidisp'] = dispdict[scene['viparams']['visimcontext']]
 #        (scene.li_disp_panel, scene.ss_disp_panel) = (0, 2) if self.simnode.bl_label == 'VI Shadow Study' else (2, 0)
         li_display(self.simnode)
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
@@ -878,6 +875,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         else:
             sun = [ob for ob in context.scene.objects if ob.get('VIType') == 'Sun'][0]
             sun.animation_data_clear()
+            bpy.data.lamps[sun.name].shadow_soft_size = 0.01
 
         if scene.render.engine == 'CYCLES' and bpy.data.worlds['World'].get('node_tree') and 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
             bpy.data.worlds['World'].node_tree.animation_data_clear()
@@ -965,7 +963,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         bpy.ops.mesh.bisect(plane_co=(0.0, 0.0, 0.0), plane_no=(0.0, 0.0, 1.0), use_fill=True, clear_inner=True, clear_outer=False)
         bpy.ops.object.mode_set(mode='OBJECT')
         bpy.ops.object.select_all(action='DESELECT')
-        compass((0,0,-sd*0.01), sd, spathob, bpy.data.materials['SPBase'])
+        compass((0,0,0), sd, spathob, bpy.data.materials['SPBase'])
 
         for ob in (spathob, sunob):
             spathob.cycles_visibility.diffuse, spathob.cycles_visibility.shadow, spathob.cycles_visibility.glossy, spathob.cycles_visibility.transmission = [False] * 4
@@ -1088,9 +1086,11 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
     def invoke(self, context, event):
         scene = context.scene
-        scene['shadc'] = [ob.name for ob in scene.objects if ob.type == 'MESH' and not ob.hide and len([f for f in ob.data.polygons if ob.data.materials[f.material_index].mattype == '2'])]
+        if viparams(self, scene):
+            return {'CANCELLED'}
+        scene['liparams']['shadc'] = [ob.name for ob in scene.objects if ob.type == 'MESH' and not ob.hide and len([f for f in ob.data.polygons if ob.data.materials[f.material_index].mattype == '2'])]
 
-        if not scene['shadc']:
+        if not scene['liparams']['shadc']:
             self.report({'ERROR'},"No objects have a VI Shadow material attached.")
             return {'CANCELLED'}
 
@@ -1104,8 +1104,9 @@ class NODE_OT_Shadow(bpy.types.Operator):
         if not scene.get('liparams'):
            scene['liparams'] = {}
         scene['liparams']['cp'], scene['liparams']['unit'], scene['liparams']['type'] = simnode.cpoint, '% Sunlit', 'VI Shadow'
-        simnode.export(scene)
-        (scene.fs, scene.fe) = (scene.frame_current, scene.frame_current) if simnode.animmenu == 'Static' else (scene.frame_start, scene.frame_end)
+        scene['liparams']['maxres'], scene['liparams']['minres'], scene['liparams']['avres'] = {}, {}, {}
+        simnode.preexport()
+        (scene['liparams']['fs'], scene['liparams']['fe']) = (scene.frame_current, scene.frame_current) if simnode.animmenu == 'Static' else (scene.frame_start, scene.frame_end)
         cmap('grey')
 
         if simnode.starthour > simnode.endhour:
@@ -1114,64 +1115,83 @@ class NODE_OT_Shadow(bpy.types.Operator):
         scene['viparams']['resnode'], simnode['Animation'] = simnode.name, simnode.animmenu
 
         if simnode['Animation'] == 'Static':
-            scmaxres, scminres, scavres, scene.fs = [0], [100], [0], scene.frame_current
+            scmaxres, scminres, scavres, scene['liparams']['fs'] = [0], [100], [0], scene.frame_current
         else:
             (scmaxres, scminres, scavres) = [[x] * (scene.frame_end - scene.frame_start + 1) for x in (0, 100, 0)]
-        frange = range(scene.fs, scene.fe + 1)
+        frange = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
         fdiff =  1 if simnode['Animation'] == 'Static' else scene.frame_end - scene.frame_start + 1
         time = datetime.datetime(datetime.datetime.now().year, simnode.startmonth, 1, simnode.starthour - 1)
         y =  datetime.datetime.now().year if simnode.endmonth >= simnode.startmonth else datetime.datetime.now().year + 1
         endtime = datetime.datetime(y, simnode.endmonth, (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)[simnode.endmonth - 1], simnode.endhour - 1)
         interval = datetime.timedelta(hours = modf(simnode.interval)[0], minutes = 60 * modf(simnode.interval)[1])
         times = [time + interval*t for t in range(int((endtime - time)/interval)) if simnode.starthour <= (time + interval*t).hour <= simnode.endhour]
-        sps = [solarPosition(t.timetuple().tm_yday, t.hour+t.minute/60, scene['latitude'], scene['longitude'])[2:] for t in times]
+        sps = [solarPosition(t.timetuple().tm_yday, t.hour+t.minute/60, scene.latitude, scene.longitude)[2:] for t in times]
         direcs = [mathutils.Vector((-sin(sp[1]), -cos(sp[1]), tan(sp[0]))) for sp in sps if sp[0] > 0]
 
-        for o in [scene.objects[on] for on in scene['shadc']]:
-            o['omin'], o['omax'], o['oave'] = [0] * fdiff, [100] * fdiff, [100] * fdiff
+        for o in [scene.objects[on] for on in scene['liparams']['shadc']]:
+            o['omin'], o['omax'], o['oave'] = {}, {}, {}
             bm = bmesh.new()
             bm.from_mesh(o.data)
+            clearlayers(bm)
             bm.transform(o.matrix_world)
-            obcalcarea = sum([f.calc_area() for f in bm.faces if o.data.materials[f.material_index].mattype == '2'])
-            if bm.faces.layers.int.get('cindex'):
-                bm.faces.layers.int.remove(bm.faces.layers.int['cindex'])
-            if bm.verts.layers.int.get('cindex'):
-                bm.verts.layers.int.remove(bm.verts.layers.int['cindex'])
-            if simnode.cpoint == '0':
-                bm.faces.layers.int.new('cindex')
-                cindex = bm.faces.layers.int['cindex']
-                [bm.faces.layers.float.new('res{}'.format(fi)) for fi in frange]
-            else:
-                bm.verts.layers.int.new('cindex')
-                cindex = bm.verts.layers.int['cindex']
-                bm.verts.layers.int.new('cindex')
-                [bm.verts.layers.float.new('res{}'.format(fi)) for fi in frange]
+#            obcalcarea = sum([f.calc_area() for f in bm.faces if o.data.materials[f.material_index].mattype == '2'])
+            geom = bm.faces if simnode.cpoint == '0' else bm.verts
+            geom.layers.int.new('cindex')
+            cindex = geom.layers.int['cindex']
+            [geom.layers.float.new('res{}'.format(fi)) for fi in frange]
+#            if simnode.cpoint == '0':
+#                bm.faces.layers.int.new('cindex')
+#                cindex = bm.faces.layers.int['cindex']
+#                [bm.faces.layers.float.new('res{}'.format(fi)) for fi in frange]
+#            else:
+#                bm.verts.layers.int.new('cindex')
+#                cindex = bm.verts.layers.int['cindex']
+#                bm.verts.layers.int.new('cindex')
+#                [bm.verts.layers.float.new('res{}'.format(fi)) for fi in frange]
 
             for fi, frame in enumerate(frange):
                 scene.frame_set(frame)
+                shadres = geom.layers.float['res{}'.format(frame)]
                 if simnode.cpoint == '0':
-                    shadres = bm.faces.layers.float['res{}'.format(frame)]
-                    cfaces = [f for f in bm.faces if o.data.materials[f.material_index].mattype == '2']
-                    for ci, f in enumerate([f for f in cfaces]):
-                        f[cindex] = ci + 1
-                        f[shadres] = 100 * (1 - sum([bpy.data.scenes[0].ray_cast(f.calc_center_median() + (simnode.offset * f.normal), f.calc_center_median() + 10000*direc)[0] for direc in direcs])/len(direcs))
-                    o['omin'][fi], o['omax'][fi], o['oave'][fi] = min([f[shadres] for f in cfaces]), max([f[shadres] for f in cfaces]), sum([f[shadres] for f in cfaces])/len(cfaces)
-                else:
-                    shadres = bm.verts.layers.float['res{}'.format(frame)]
-                    cverts = [v for v in bm.verts if any([o.data.materials[f.material_index].mattype == '2' for f in v.link_faces])]
-                    for ci, v in enumerate([v for v in cverts]):
-                        v[cindex] = ci + 1
-                        v[shadres] = 100 * (1 - sum([bpy.data.scenes[0].ray_cast(v.co + simnode.offset*v.normal, v.co + 10000*direc)[0] for direc in direcs])/len(direcs))
-                    o['omin'][fi], o['omax'][fi], o['oave'][fi] = min([v[shadres] for v in cverts]), max([v[shadres] for v in cverts]) , obcalcarea * sum([v[shadres]/vertarea(bm,v) for v in cverts])/len(cverts)
+                    gpoints = [f for f in geom if o.data.materials[f.material_index].mattype == '2']
+                if simnode.cpoint == '1':
+                    gpoints = [v for v in geom if any([o.data.materials[f.material_index].mattype == '2' for f in v.link_faces])]
+                for g, gp in enumerate([gpoint for gpoint in gpoints]):
+                    gp[cindex] = g + 1
+                    if simnode.cpoint == '0':
+                        gp[shadres] = 100 * (1 - sum([bpy.data.scenes[0].ray_cast(gp.calc_center_median() + (simnode.offset * gp.normal), gp.calc_center_median() + 10000*direc)[0] for direc in direcs])/len(direcs))
+                    else:
+                        gp[shadres] = 100 * (1 - sum([bpy.data.scenes[0].ray_cast(gp.co + simnode.offset*gp.normal, gp.co + 10000*direc)[0] for direc in direcs])/len(direcs))
+                o['omin']['res{}'.format(frame)], o['omax']['res{}'.format(frame)], o['oave']['res{}'.format(frame)] = min([gp[shadres] for gp in gpoints]), max([gp[shadres] for gp in gpoints]), sum([gp[shadres] for gp in gpoints])/len(gpoints)
+#                if simnode.cpoint == '0':
+#                     = 
+#                else:
+#                    o['oave'][fi] = obcalcarea * sum([gp[shadres]/vertarea(bm,gp) for gp in gpoints])/len(gpoints)
+
+#                if simnode.cpoint == '0':
+#                    
+#                    cfaces = [f for f in geom if o.data.materials[f.material_index].mattype == '2']
+#                    for ci, f in enumerate([f for f in cfaces]):
+#                        f[cindex] = ci + 1
+#                        f[shadres] = 100 * (1 - sum([bpy.data.scenes[0].ray_cast(f.calc_center_median() + (simnode.offset * f.normal), f.calc_center_median() + 10000*direc)[0] for direc in direcs])/len(direcs))
+#                    o['omin'][fi], o['omax'][fi], o['oave'][fi] = min([f[shadres] for f in cfaces]), max([f[shadres] for f in cfaces]), sum([f[shadres] for f in cfaces])/len(cfaces)
+#                else:
+##                    shadres = bm.verts.layers.float['res{}'.format(frame)]
+#                    cverts = [v for v in geom if any([o.data.materials[f.material_index].mattype == '2' for f in v.link_faces])]
+#                    for ci, v in enumerate([v for v in cverts]):
+#                        v[cindex] = ci + 1
+#                        v[shadres] = 100 * (1 - sum([bpy.data.scenes[0].ray_cast(v.co + simnode.offset*v.normal, v.co + 10000*direc)[0] for direc in direcs])/len(direcs))
+#                    o['omin'][fi], o['omax'][fi], o['oave'][fi] = min([v[shadres] for v in cverts]), max([v[shadres] for v in cverts]) , obcalcarea * sum([v[shadres]/vertarea(bm,v) for v in cverts])/len(cverts)
             bm.transform(o.matrix_world.inverted())
             bm.to_mesh(o.data)
             bm.free()
 
-        for fi, frame in enumerate(frange):
-            simnode['minres']['{}'.format(frame)], simnode['maxres']['{}'.format(frame)], simnode['avres']['{}'.format(frame)] = 0, 100, sum([scene.objects[on]['oave'][fi] for on in scene['shadc']])/len(scene['shadc'])
+#        for fi, frame in enumerate(frange):
+#            simnode['minres']['{}'.format(frame)], simnode['maxres']['{}'.format(frame)], simnode['avres']['{}'.format(frame)] = 0, 100, sum([scene.objects[on]['oave'][fi] for on in scene['liparams']['shadc']])/len(scene['liparams']['shadc'])
         scene.vi_leg_max, scene.vi_leg_min = 100, 0
-        scene.frame_set(scene.fs)
+        scene.frame_set(scene['liparams']['fs'])
 #        simnode.running = 0
+        simnode.postexport(scene)
         return {'FINISHED'}
 
 # Openfoam operators

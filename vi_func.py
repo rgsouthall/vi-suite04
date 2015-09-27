@@ -147,20 +147,22 @@ def cbdmhdr(node, scene):
     return skyentry
        
 def setscenelivivals(scene):
+    scene['liparams']['maxres'], scene['liparams']['minres'], scene['liparams']['avres'] = {}, {}, {}
     if scene['viparams']['visimcontext'] == 'LiVi Basic':
         udict = {'0': 'Lux', '1': "W/m"+ u'\u00b2', '2': 'DF (%)'}
         scene['liparams']['unit'] = udict[scene.li_disp_basic]
     if scene['viparams']['visimcontext'] == 'LiVi CBDM' and 'UDI' in scene['liparams']['unit']:
         udict = {'0': 'UDI-f (%)', '1': 'UDI-s (%)', '2': 'UDI-a (%)', '3': 'UDI-e (%)'}
         scene['liparams']['unit'] = udict[scene.li_disp_udi]
-    if scene['viparams']['visimcontext'] == 'LiVi Compliance':
-        
+    if scene['viparams']['visimcontext'] == 'LiVi Compliance':        
         udict = {'0': 'DF (%)', '1': 'Sky View'}
         scene['liparams']['unit'] = udict[scene.li_disp_sv]
-    olist = [scene.objects[on] for on in scene['liparams']['livic']]
-    unitdict = {'Lux': 'illu', "W/m"+ u'\u00b2': 'irrad', 'DF (%)': 'df', 'Sky View': 'sv', 'kLuxHours': 'res', u'kWh/m\u00b2': 'res', 'DA (%)': 'da', 'UDI-f (%)': 'low', 'UDI-s (%)': 'sup', 'UDI-a (%)': 'auto', 'UDI-e (%)': 'high'}
-  
+    olist = [scene.objects[on] for on in scene['liparams']['shadc']] if scene['viparams']['visimcontext'] == 'Shadow' else [scene.objects[on] for on in scene['liparams']['livic']]
+    unitdict = {'Lux': 'illu', "W/m"+ u'\u00b2': 'irrad', 'DF (%)': 'df', 'Sky View': 'sv', 'kLuxHours': 'res', u'kWh/m\u00b2': 'res', 'DA (%)': 'da', 'UDI-f (%)': 'low', 'UDI-s (%)': 'sup', 'UDI-a (%)': 'auto', 'UDI-e (%)': 'high', '% Sunlit': 'res'}
+    print(olist)
     for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
+        print(scene['liparams']['maxres'])
+        print(max([o['omax']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist]))
         scene['liparams']['maxres'][str(frame)] = max([o['omax']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])
         scene['liparams']['minres'][str(frame)] = min([o['omin']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])
         scene['liparams']['avres'][str(frame)] = sum([o['omin']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])/len([o['omin']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])
@@ -276,7 +278,7 @@ def cwcalcapply(self, scene, frame, rtcmd):
     
 def lividisplay(self, scene): 
     unitdict = {'Lux': 'illu', u'W/m\u00b2': 'irrad', 'DF (%)': 'df', 'DA (%)': 'res', 'UDI-f (%)': 'low', 'UDI-s (%)': 'sup', 'UDI-a (%)': 'auto', 'UDI-e (%)': 'high',
-                'Sky View': 'sv', 'kLuxHours': 'res', u'kWh/m\u00b2': 'res'}
+                'Sky View': 'sv', 'kLuxHours': 'res', u'kWh/m\u00b2': 'res', '% Sunlit': 'res'}
     
     for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):  
         bm = bmesh.new()
@@ -1501,7 +1503,7 @@ def compass(loc, scale, wro, mat):
     matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
     
     for i in range(1, 11):
-        bmesh.ops.create_circle(bm, cap_ends=False, diameter=scale*i*0.1, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')*Matrix.Translation((0, 0, scale*0.005)))
+        bmesh.ops.create_circle(bm, cap_ends=False, diameter=scale*i*0.1, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')*Matrix.Translation((0, 0, 0)))
     
     for edge in bm.edges:
         edge.select_set(False) if edge.index % 3 or edge.index > 1187 else edge.select_set(True)
@@ -1511,9 +1513,9 @@ def compass(loc, scale, wro, mat):
     
     for v, vert in enumerate(newgeo['geom'][:1320]):
         vert.co = vert.co + (vert.co - coo.location).normalized() * scale * (0.0025, 0.005)[v > 1187]
-        vert.co[2] = scale*0.005
+        vert.co[2] = 0
            
-    bmesh.ops.create_circle(bm, cap_ends=True, diameter=scale *0.005, segments=8, matrix=Matrix.Rotation(-pi/8, 4, 'Z')*Matrix.Translation((0, 0, scale*0.005)))
+    bmesh.ops.create_circle(bm, cap_ends=True, diameter=scale *0.005, segments=8, matrix=Matrix.Rotation(-pi/8, 4, 'Z')*Matrix.Translation((0, 0, 0)))
     matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
     tmatrot = Matrix.Rotation(0, 4, 'Z')
     direc = Vector((0, 1, 0))
@@ -1521,10 +1523,10 @@ def compass(loc, scale, wro, mat):
         verts = bmesh.ops.extrude_edge_only(bm, edges = [edge], use_select_history=False)['geom'][:2]
         for vert in verts:
             vert.co = 1.5*vert.co + 1.025*scale*(tmatrot*direc)
-            vert.co[2] = scale*0.005
+            vert.co[2] = 0
         bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + scale*1.05*(tmatrot*direc), rotation=tmatrot.to_euler())
         txt = bpy.context.active_object
-        txt.scale, txt.data.body, txt.data.align, txt.location[2]  = (scale*0.1, scale*0.1, scale*0.1), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER', txt.location[2] + scale*0.005
+        txt.scale, txt.data.body, txt.data.align, txt.location[2]  = (scale*0.1, scale*0.1, scale*0.1), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER', txt.location[2]
         
         bpy.ops.object.convert(target='MESH')
         bpy.ops.object.material_slot_add()
@@ -1730,8 +1732,7 @@ def retobjs(otypes):
     elif otypes == 'envig':
         return([geo for geo in scene.objects if geo.type == 'MESH' and geo.hide == False and geo.layers[0] == True])
     elif otypes == 'ssc':
-        return([geo for geo in scene.objects if geo.type == 'MESH' and geo.licalc and geo.lires == 0 and geo.hide == False and geo.layers[scene.active_layer] == True])
-
+        return [geo for geo in scene.objects if geo.type == 'MESH' and geo.licalc and geo.lires == 0 and geo.hide == False and geo.layers[scene.active_layer] == True and any([m.mattype == '2' for m in geo.data.materials])]
 
 def radmesh(scene, obs, export_op):
 #    matnames = []
@@ -1829,7 +1830,7 @@ def sunpath():
                 for blnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Blackbody']:
                     blnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5 if beta > 0 else 2500
                 for emnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Emission']:
-                    emnode.inputs[1].default_value = 10 * sin(beta) if beta > 0 else 0
+                    emnode.inputs[1].default_value = 30 * sin(beta)**0.5 if beta > 0 else 0
             if sunob.data.materials[0].node_tree:
                 for smblnode in [node for node in sunob.data.materials[0].node_tree.nodes if sunob.data.materials and node.bl_label == 'Blackbody']:
                     smblnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5 if beta > 0 else 2500

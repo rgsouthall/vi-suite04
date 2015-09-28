@@ -83,6 +83,7 @@ def eupdate(self, context):
                     for f, face in enumerate(faces):
                         for v in face.verts:
                             o.data.shape_keys.key_blocks[str(frame)].data[v.index].co = o.data.shape_keys.key_blocks['Basis'].data[v.index].co + extrudes[f]
+                
                 elif bm.verts.layers.float.get('res{}'.format(frame)):
                     res = bm.verts.layers.float['res{}'.format(frame)]
                     verts = [v for v in bm.verts]

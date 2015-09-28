@@ -159,15 +159,31 @@ def setscenelivivals(scene):
         scene['liparams']['unit'] = udict[scene.li_disp_sv]
     olist = [scene.objects[on] for on in scene['liparams']['shadc']] if scene['viparams']['visimcontext'] == 'Shadow' else [scene.objects[on] for on in scene['liparams']['livic']]
     unitdict = {'Lux': 'illu', "W/m"+ u'\u00b2': 'irrad', 'DF (%)': 'df', 'Sky View': 'sv', 'kLuxHours': 'res', u'kWh/m\u00b2': 'res', 'DA (%)': 'da', 'UDI-f (%)': 'low', 'UDI-s (%)': 'sup', 'UDI-a (%)': 'auto', 'UDI-e (%)': 'high', '% Sunlit': 'res'}
-    print(olist)
     for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
-        print(scene['liparams']['maxres'])
-        print(max([o['omax']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist]))
         scene['liparams']['maxres'][str(frame)] = max([o['omax']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])
         scene['liparams']['minres'][str(frame)] = min([o['omin']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])
         scene['liparams']['avres'][str(frame)] = sum([o['omin']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])/len([o['omin']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])
     scene.vi_leg_max = max(scene['liparams']['maxres'].values())
     scene.vi_leg_min = min(scene['liparams']['minres'].values())
+    
+#def rettree(scene, obs):
+#    for soi, so in enumerate(obs):
+#        if soi == 0:
+#            bmob = bmesh.new()
+#            bmob.from_mesh(so.data)
+#            bmob.transform(so.matrix_world)
+#        else:
+#            btemp = bpy.data.meshes.new("temp")
+#            bmtemp = bmesh.new()
+#            bmtemp.from_mesh(so.data)
+#            bmtemp.transform(so.matrix_world)
+#            bmtemp.to_mesh(btemp)
+#            bmob.from_mesh(btemp)
+#            bpy.data.meshes.remove(btemp)
+#    tree = BVHTree.FromBMesh(bmob)
+#    bmob.free()
+#    bmtemp.free()
+#    return tree
     
 def basiccalcapply(self, scene, frames, rtcmds):
     selobj(scene, self)

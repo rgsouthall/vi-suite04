@@ -16,12 +16,8 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, subprocess, datetime, bmesh
-from subprocess import PIPE, Popen, STDOUT
-from .vi_func import mtx2vals, retobjs, selobj
+import bpy, os, subprocess
 from . import livi_export
-import numpy
-
 
 def radfexport(scene, export_op, connode, geonode, frames):
     for frame in frames:
@@ -32,7 +28,7 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
     context = simnode['coptions']['Context']
     subcontext = simnode['coptions']['Type']
     scene['liparams']['maxres'], scene['liparams']['minres'], scene['liparams']['avres'] = {}, {}, {}
-#    rtos = [o for o in bpy.data.objects if o.get('rtpoints')]
+
     for o in [scene.objects[on] for on in scene['liparams']['livic']]:
         o['omax'], o['omin'], o['oave'] = {}, {}, {}
         rtcmds, rccmds = [], []
@@ -40,13 +36,11 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
         os.chdir(scene['viparams']['newdir'])
 
         for frame in frames:
-#            findex = frame - scene['liparams']['fs'] if not kwargs.get('genframe') else 0
             if context in ('Basic', 'Compliance') or (context == 'CBDM' and int(subcontext) < 2):
                 if os.path.isfile("{}-{}.af".format(scene['viparams']['filebase'], frame)):
                     os.remove("{}-{}.af".format(scene['viparams']['filebase'], frame))
                 if simnode.pmap:
-                    pmcmd = ('mkpmap -bv+ +fo -apD 0.001 -apo {0} -apg {1}-{2}.gpm {3} -apc {1}-{2}.cpm {4} -aps {5} {1}-{2}.oct'.format(' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.pport]), scene['viparams']['filebase'], frame, simnode.pmapgno, simnode.pmapcno, ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.mattype == '1' and mat.radmatmenu == '7'])))
-                    print(pmcmd)                    
+                    pmcmd = ('mkpmap -bv+ +fo -apD 0.001 -apo {0} -apg {1}-{2}.gpm {3} -apc {1}-{2}.cpm {4} -aps {5} {1}-{2}.oct'.format(' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.pport]), scene['viparams']['filebase'], frame, simnode.pmapgno, simnode.pmapcno, ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.mattype == '1' and mat.radmatmenu == '7'])))                   
                     subprocess.call(pmcmd.split())
                     rtcmds.append("rtrace -n {0} -w {1} -ap {2}-{3}.gpm 50 -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
                 else: 

@@ -162,7 +162,7 @@ def setscenelivivals(scene):
     for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
         scene['liparams']['maxres'][str(frame)] = max([o['omax']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])
         scene['liparams']['minres'][str(frame)] = min([o['omin']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])
-        scene['liparams']['avres'][str(frame)] = sum([o['omin']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])/len([o['omin']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])
+        scene['liparams']['avres'][str(frame)] = sum([o['oave']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])/len([o['oave']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])
     scene.vi_leg_max = max(scene['liparams']['maxres'].values())
     scene.vi_leg_min = min(scene['liparams']['minres'].values())
     
@@ -263,34 +263,34 @@ def lhcalcapply(self, scene, frames, rtcmds):
     bm.to_mesh(self.data)
     bm.free()
     
-def cwcalcapply(self, scene, frame, rtcmd):
-    if frame == scene.frame_start:
-        self['omax'], self['omin'], self['oave'] = {}, {}, {}
-    if str(frame) in self['rtpoints']:
-        rtframe = frame
-    else:
-        kints = [int(k) for k in self["rtpoints"].keys()]
-        rtframe  = max(kints) if frame > max(kints) else  min(kints)
-    rtrun = Popen(rtcmd.split(), stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = self["rtpoints"][str(rtframe)].encode('utf-8'))
-    reslines = [[float(rv) for rv in r.split('\t')[:3]] for r in rtrun[0].decode().splitlines()]    
-    rescw = [(0.26 * r[0] + 0.67 * r[1] + 0.065 * r[2]) * 0.001 for r in reslines]
-    self['omax']['cw{}'.format(frame)] = max(rescw)
-    self['omin']['cw{}'.format(frame)] = min(rescw)
-    self['oave']['cw{}'.format(frame)] = sum(rescw)/len(rescw)
-
-    selobj(scene, self)
-    bm = bmesh.new()
-    bm.from_mesh(self.data)
-    clearlayers(bm)
-    geom = bm.verts if self['cpoint'] == 1 else bm.faces
-    cindex = geom.layers.int['cindex']
-    geom.layers.float.new('res{}'.format(frame))
-    res =  geom.layers.float['res{}'.format(frame)]
-    for g in [g for g in geom if g[cindex] > 0]:
-        g[res] = rescw[g[cindex] - 1]
-        
-    bm.to_mesh(self.data)
-    bm.free()
+#def cwcalcapply(self, scene, frame, rtcmd):
+#    if frame == scene.frame_start:
+#        self['omax'], self['omin'], self['oave'] = {}, {}, {}
+#    if str(frame) in self['rtpoints']:
+#        rtframe = frame
+#    else:
+#        kints = [int(k) for k in self["rtpoints"].keys()]
+#        rtframe  = max(kints) if frame > max(kints) else  min(kints)
+#    rtrun = Popen(rtcmd.split(), stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = self["rtpoints"][str(rtframe)].encode('utf-8'))
+#    reslines = [[float(rv) for rv in r.split('\t')[:3]] for r in rtrun[0].decode().splitlines()]    
+#    rescw = [(0.26 * r[0] + 0.67 * r[1] + 0.065 * r[2]) * 0.001 for r in reslines]
+#    self['omax']['cw{}'.format(frame)] = max(rescw)
+#    self['omin']['cw{}'.format(frame)] = min(rescw)
+#    self['oave']['cw{}'.format(frame)] = sum(rescw)/len(rescw)
+#
+#    selobj(scene, self)
+#    bm = bmesh.new()
+#    bm.from_mesh(self.data)
+#    clearlayers(bm)
+#    geom = bm.verts if self['cpoint'] == 1 else bm.faces
+#    cindex = geom.layers.int['cindex']
+#    geom.layers.float.new('res{}'.format(frame))
+#    res =  geom.layers.float['res{}'.format(frame)]
+#    for g in [g for g in geom if g[cindex] > 0]:
+#        g[res] = rescw[g[cindex] - 1]
+#        
+#    bm.to_mesh(self.data)
+#    bm.free()
     
 def lividisplay(self, scene): 
     unitdict = {'Lux': 'illu', u'W/m\u00b2': 'irrad', 'DF (%)': 'df', 'DA (%)': 'res', 'UDI-f (%)': 'low', 'UDI-s (%)': 'sup', 'UDI-a (%)': 'auto', 'UDI-e (%)': 'high',
@@ -300,7 +300,6 @@ def lividisplay(self, scene):
         bm = bmesh.new()
         bm.from_mesh(self.data)
         geom = bm.verts if scene['liparams']['cp'] == '1' else bm.faces  
-        print(geom, unitdict[scene['liparams']['unit']], frame)
         livires = geom.layers.float['{}{}'.format(unitdict[scene['liparams']['unit']], frame)]
         res = geom.layers.float['res{}'.format(frame)]
         oreslist = [g[livires] for g in geom]
@@ -402,7 +401,6 @@ def compcalcapply(self, scene, frames, rtcmds, simnode):
     geom = bm.verts if simnode['goptions']['cp'] == '1' else bm.faces
     
     for f, frame in enumerate(frames):
-#        pstart = 0
         if str(frame) in self['rtpoints']:
             rtframe = frame
         else:
@@ -437,12 +435,11 @@ def compcalcapply(self, scene, frames, rtcmds, simnode):
             g[svreslayer] = ressv[g[cindex] - 1]
             g[res] = (resdf[g[cindex] - 1], ressv[g[cindex] - 1])[int(scene.li_disp_sv)]
         
-#        
         dftotarea, dfpassarea, edfpassarea, edftotarea = 0, 0, 0, 0
         oareas = self['lisenseareas'][str(frame)]
         oarea = sum(oareas)
         passarea = 0
-#        print(pstart, pend)
+
         for c in self['crit']:
             if c[0] == 'Percent':
                 if c[2] == 'DF':
@@ -1974,7 +1971,7 @@ def socklink(sock, ng):
         valid1 = sock.valid if not sock.get('valid') else sock['valid']
         for link in sock.links:
             valid2 = link.to_socket.valid if not link.to_socket.get('valid') else link.to_socket['valid'] 
-            if not set(valid1)&set(valid2):
+            if not set(valid1)&set(valid2) or sock.node.use_custom_color:
                 bpy.data.node_groups[ng].links.remove(link)
     except Exception as e:
         print(e)

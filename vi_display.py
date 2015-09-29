@@ -85,17 +85,14 @@ def li_display(simnode):
         
         bm.normal_update()   
         selobj(scene, o)
-        bpy.ops.object.duplicate()
-#        me = bpy.data.meshes.new(o.name+"res") 
+        bpy.ops.object.duplicate() 
         ores = bpy.context.active_object
-        ores.name = o.name+"res"
+        ores.name, ores.show_wire = o.name+"res", 1
         while ores.material_slots:
             bpy.ops.object.material_slot_remove()
-#        ores = bpy.data.objects.new(o.name+"res", me) 
+
         cv = ores.cycles_visibility
-        cv.diffuse, cv.glossy, cv.transmission, cv.scatter, cv.shadow = 0, 0, 0, 0, 0
-#        bpy.context.scene.objects.link(ores)  
-        
+        cv.diffuse, cv.glossy, cv.transmission, cv.scatter, cv.shadow = 0, 0, 0, 0, 0        
         obreslist.append(ores)
         ores['omax'], ores['omin'], ores['oave'], ores['lires']  = o['omax'], o['omin'], o['oave'], 1 
         if scene['viparams']['visimcontext'] == 'LiVi Compliance':
@@ -108,8 +105,6 @@ def li_display(simnode):
                 bpy.ops.object.material_slot_add()
                 ores.material_slots[-1].material = bpy.data.materials[matname]
         
-#        for fr, frame in enumerate(range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)):             
-#            if fr == 0:
         if scene.vi_disp_3d == 1 and scene['liparams']['cp'] == '0':
             for face in bmesh.ops.extrude_discrete_faces(bm, faces = bm.faces)['faces']:
                 face.select = True
@@ -117,15 +112,6 @@ def li_display(simnode):
         bm.to_mesh(ores.data)
         bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
         ores.lividisplay(scene)
-#            if connode and connode.bl_label == 'LiVi Compliance':
-#                ores.compdisplay(scene)
-#            elif connode and connode.bl_label == 'LiVi CBDM' and 'UDI' in scene['liparams']['unit']:
-#                ores.udidisplay(scene)
-#            elif connode and connode.bl_label == 'LiVi CBDM' and scene['liparams']['unit'] in ('kLuxHours', 'kWh/m'+ u'\u00b2'):
-#                ores.lhcwdisplay(scene)
-#            else:
-#                ores.ldisplay(scene)
-        
         bm.free()
         if scene.vi_disp_3d == 1:
             selobj(scene, ores)
@@ -195,7 +181,6 @@ def linumdisplay(disp_op, context, simnode):
     fn = context.scene.frame_current - scene['liparams']['fs']
     mid_x, mid_y, width, height = viewdesc(context)
     view_mat = context.space_data.region_3d.perspective_matrix
-#    view_pivot = context.region_data.view_location bpy.context.active_object.location if bpy.context.active_object and context.user_preferences.view.use_rotate_around_active else context.region_data.view_location
     view_pivot = context.region_data.view_location
 
     if context.space_data.region_3d.is_perspective:
@@ -222,7 +207,6 @@ def linumdisplay(disp_op, context, simnode):
         bm.from_mesh(obm)
         bm.transform(omw)
 
-#        if scene['liparams']['cp'] == "0":
         if bm.faces.layers.float.get('res{}'.format(scene.frame_current)):
             livires = bm.faces.layers.float['res{}'.format(scene.frame_current)]
             if not scene.vi_disp_3d:
@@ -289,6 +273,7 @@ def li3D_legend(self, context, simnode):
                 bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
                 blf.position(font_id, 65, (i*20)+height - 455, 0)
                 blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])    
+            
             blf.size(font_id, 20, 56)    
             drawfont(scene['liparams']['unit'], font_id, 0, height, 25, 57)
             bgl.glLineWidth(1)
@@ -297,14 +282,15 @@ def li3D_legend(self, context, simnode):
             font_id = 0
             bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
             blf.size(font_id, 20, 48)
+            
             if context.active_object and context.active_object.get('lires'):
                 drawfont("Ave: {:.1f}".format(context.active_object['oave'][fc]), font_id, 0, height, 22, 480)
                 drawfont("Max: {:.1f}".format(context.active_object['omax'][fc]), font_id, 0, height, 22, 495)
                 drawfont("Min: {:.1f}".format(context.active_object['omin'][fc]), font_id, 0, height, 22, 510)
             else:
-                drawfont("Ave: {:.1f}".format(simnode['avres'][fc]), font_id, 0, height, 22, 480)
-                drawfont("Max: {:.1f}".format(simnode['maxres'][fc]), font_id, 0, height, 22, 495)
-                drawfont("Min: {:.1f}".format(simnode['minres'][fc]), font_id, 0, height, 22, 510)
+                drawfont("Ave: {:.1f}".format(scene['liparams']['avres'][fc]), font_id, 0, height, 22, 480)
+                drawfont("Max: {:.1f}".format(scene['liparams']['maxres'][fc]), font_id, 0, height, 22, 495)
+                drawfont("Min: {:.1f}".format(scene['liparams']['minres'][fc]), font_id, 0, height, 22, 510)
         blf.disable(0, 4)
     
     except Exception as e:

@@ -21,7 +21,7 @@ if "bpy" in locals():
 else:
     from .vi_node import vinode_categories, envinode_categories
     from .envi_mat import envi_materials, envi_constructions
-    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, fvmat, radmat, resnameunits, recalculate_text, rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, lividisplay, setscenelivivals, cwcalcapply
+    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, fvmat, radmat, resnameunits, recalculate_text, rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, lividisplay, setscenelivivals
     from .vi_operators import *
     from .vi_ui import *
 
@@ -67,10 +67,10 @@ def confunc(i):
 
 def eupdate(self, context):
     scene = context.scene
+    maxo, mino = scene.vi_leg_max, scene.vi_leg_min
     inv = 0        
     for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
-        for o in [obj for obj in bpy.data.objects if obj.lires == 1 and obj.data.shape_keys]:
-            maxo, mino = scene.vi_leg_max, scene.vi_leg_min
+        for o in [obj for obj in bpy.data.objects if obj.lires == 1 and obj.data.shape_keys]:            
             bm = bmesh.new()
             bm.from_mesh(o.data)  
             bm.transform(o.matrix_world)
@@ -78,7 +78,7 @@ def eupdate(self, context):
                 if bm.faces.layers.float.get('res{}'.format(frame)):
                     res = bm.faces.layers.float['res{}'.format(frame)] #if context.scene['cp'] == '0' else bm.verts.layers.float['res{}'.format(frame)]                
                     faces = [f for f in bm.faces if f.select]
-                    extrudes = [0.1 * scene.vi_disp_3dlevel * (abs(inv - math.log10(10000 * (f[res] + 1 - mino)/(maxo - mino))) * f.normal.normalized()) for f in faces] if scene.vi_leg_scale == '1' else \
+                    extrudes = [0.1 * scene.vi_disp_3dlevel * (abs(inv - math.log10(maxo * (f[res] + 1 - mino)/(maxo - mino))) * f.normal.normalized()) for f in faces] if scene.vi_leg_scale == '1' else \
                             [scene.vi_disp_3dlevel * (abs(inv - (f[res]-mino)/(maxo - mino)) * f.normal.normalized()) for f in faces]
                     for f, face in enumerate(faces):
                         for v in face.verts:
@@ -88,7 +88,7 @@ def eupdate(self, context):
                     res = bm.verts.layers.float['res{}'.format(frame)]
                     verts = [v for v in bm.verts]
                     extrudes = [scene.vi_disp_3dlevel * (abs(inv - (v[res]-mino)/(maxo - mino)) * v.normal.normalized()) for v in verts] if scene.vi_leg_scale == '0' else \
-                                [0.1 * scene.vi_disp_3dlevel * (abs(inv - math.log10(10000 * (v[res]-mino)/(maxo - mino))) * v.normal.normalized()) for v in verts]  
+                                [0.1 * scene.vi_disp_3dlevel * (abs(inv - math.log10(maxo * (v[res] + 1 - mino)/(maxo - mino))) * v.normal.normalized()) for v in verts]  
                     for v, vert in enumerate(verts):
                         o.data.shape_keys.key_blocks[str(frame)].data[vert.index].co = o.data.shape_keys.key_blocks['Basis'].data[vert.index].co + extrudes[v]
                         
@@ -141,17 +141,7 @@ def liviresupdate(self, context):
     for o in [o for o in bpy.data.objects if o.lires]:
         o.lividisplay(context.scene)  
     eupdate(self, context)
-#        
-#def compupdate(self, context):
-#    setscenelivivals(context.scene)
-#    for o in [o for o in bpy.data.objects if o.lires]:
-#        o.lividisplay(context.scene)
-#
-#def basicupdate(self, context):
-#    setscenelivivals(context.scene)
-#    for o in [o for o in bpy.data.objects if o.lires]:
-#        o.lividisplay(context.scene)
-#        
+      
 def settemps(self, context):
     scene = context.scene
     bpy.app.handlers.frame_change_pre.clear()
@@ -282,13 +272,8 @@ def register():
     Object.basiccalcapply = basiccalcapply 
     Object.rtpoints = rtpoints
     Object.udidacalcapply = udidacalcapply
-    
-#    Object.udidisplay = udidisplay
     Object.lividisplay = lividisplay
-#    Object.compdisplay = compdisplay
     Object.lhcalcapply = lhcalcapply
-    Object.cwcalcapply = cwcalcapply
-#    Object.lhcwdisplay = lhcwdisplay
 
 # EnVi zone definitions
     Object.envi_type = eprop([("0", "Thermal", "Thermal Zone"), ("1", "Shading", "Shading Object")], "EnVi object type", "Specify the EnVi object type", "0")

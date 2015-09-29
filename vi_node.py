@@ -151,7 +151,6 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
 
         newrow(layout, 'Result point:', self, 'cpoint')
         newrow(layout, 'Offset:', self, 'offset')
-#        if (self.inputs['Generative in'].links and not self.inputs['Generative in'].links[0].from_node.use_custom_color) or not self.inputs['Generative in'].links:
         row = layout.row()
         row.operator("node.ligexport", text = "Export").nodeid = self['nodeid']
 
@@ -166,18 +165,6 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
         bpy.data.node_groups[self['nodeid'].split('@')[1]].use_fake_user = 1
         self['exportstate'] = [str(x) for x in (self.animated, self.startframe, self.endframe, self.cpoint, self.offset)]
         nodecolour(self, 0)
-        
-        
-#        self['frames'] = {'Material': 0, 'Geometry': 0, 'Lights':0}
-#        for mglfr in self['frames']:
-#            self['frames'][mglfr] = scene.frame_end if self.animmenu == mglfr else 0
-#        scene['liparams']['gfe'] = max(self['frames'].values())
- #        scene['liparams']['offset'] = self.offset
-#        scene['liparams']['fs'] = scene.frame_start if self.animmenu != '0' else scene.frame_current 
-#        scene['liparams']['fs'] = self.startframe if self.animated else scene.frame_current 
-#        scene.frame_start = self.startframe if self.animated else scene.frame_current
-#        scene['liparams']['gfe'] = self.endframe if self.animated else scene.frame_current
-#        scene.frame_end = self.endframe if self.animated else scene.frame_current
 
 class LiViNode(bpy.types.Node, ViNodes):
     '''Node for creating a LiVi analysis'''
@@ -196,14 +183,12 @@ class LiViNode(bpy.types.Node, ViNodes):
         if self.edoy == self.sdoy:
             if self.ehour < self.shour:
                 self.ehour = self.shour
-                
+        
+        self['skynum'] = int(self.skymenu)         
         suns = [ob for ob in scene.objects if ob.type == 'LAMP' and ob.get('VIType') and ob.get('VIType') == 'Sun'] 
+        
         if self.contextmenu == 'Basic' and self['skynum'] < 2:
-            starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(self.shour), int((self.shour - int(self.shour))*60)) + datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(2013, 1, 1, 12)
-    #        endtime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(self.ehour), int((self.ehour - int(self.ehour))*60)) + datetime.timedelta(self.edoy - 1) if self.animmenu == 'Time' else starttime
-    
-            self['skynum'] = int(self.skymenu) 
-                       
+            starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(self.shour), int((self.shour - int(self.shour))*60)) + datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(2013, 1, 1, 12)                                       
             self['endframe'] = self.startframe + int(((24 * (self.edoy - self.sdoy) + self.ehour - self.shour)/self.interval)) if self.animated else [scene.frame_current]
             frames = range(self.startframe, self['endframe']) if self.animated else [scene.frame_current]
             scene.frame_start, scene.frame_end = self.startframe, frames[-1]
@@ -269,7 +254,6 @@ class LiViNode(bpy.types.Node, ViNodes):
     startmonth = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 12, description = 'Start Month', update = nodeupdate)
     endmonth = bpy.props.IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month', update = nodeupdate)
     startframe = bpy.props.IntProperty(name = '', default = 0, min = 0, description = 'Start Frame', update = nodeupdate)
-#    num = (("-ab", 2, 3, 5), ("-ad", 512, 2048, 4096), ("-ar", 128, 512, 1024), ("-as", 256, 1024, 2048), ("-aa", 0.0, 0.0, 0.0), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 2, 3), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.05, 0.001, 0.0002))
 
     def init(self, context):
         self['exportstate'], self['skynum'], self['watts'] = '', 0, 0
@@ -362,6 +346,8 @@ class LiViNode(bpy.types.Node, ViNodes):
     
     def update(self):
         socklink(self.outputs['Context out'], self['nodeid'].split('@')[1])
+        if self.inputs.get('Location in'):
+            self.nodeupdate(bpy.context) 
     
     def preexport(self):
         self.starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(self.shour), int((self.shour - int(self.shour))*60)) + datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(datetime.datetime.now().year, 1, 1, 12)

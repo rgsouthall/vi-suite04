@@ -1,5 +1,5 @@
 import bpy, os, itertools, subprocess, datetime, shutil, mathutils, bmesh
-from .vi_func import epentry, objvol, ceilheight, selobj, facearea, boundpoly, rettimes, epschedwrite, selmesh
+from .vi_func import epentry, ceilheight, selobj, facearea, boundpoly, rettimes, epschedwrite, selmesh
 dtdf = datetime.date.fromordinal
 
 def enpolymatexport(exp_op, node, locnode, em, ec):
@@ -50,7 +50,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         en_idf.write(epentry('Material', params[:-2], paramvs[:-2]))
         en_idf.write(epentry('Construction', params[-2:], paramvs[-2:]))
 
-    for mat in [mat for mat in bpy.data.materials if mat.envi_export == True and mat.envi_con_type != "None"]:
+    for mat in [mat for mat in bpy.data.materials if mat.envi_export == True and mat.envi_con_type != "None" and not (mat.envi_con_makeup == '1' and mat.envi_layero == '0')]:
         conlist = []
         if mat.envi_con_makeup == '0' and mat.envi_con_type not in ('None', 'Shading', 'Aperture'):
             thicklist = (mat.envi_export_lo_thi, mat.envi_export_l1_thi, mat.envi_export_l2_thi, mat.envi_export_l3_thi, mat.envi_export_l4_thi)
@@ -431,9 +431,9 @@ def pregeo(op):
                 slots.material.diffuse_color = dcdict[slots.material.envi_con_type]
 
         for poly in en_obj.data.polygons:
-            if en_obj.data.materials[poly.material_index].envi_con_type == 'None':
-                poly.select = True
-
+            if en_obj.data.materials[poly.material_index].envi_con_type == 'None' or (en_obj.data.materials[poly.material_index].envi_con_makeup == '1' and en_obj.data.materials[poly.material_index].envi_layero == '0'):
+                poly.select = True 
+                
         selmesh('delf')
         en_obj.select = False
         bm = bmesh.new()

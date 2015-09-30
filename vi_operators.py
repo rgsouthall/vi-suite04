@@ -358,7 +358,8 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
                         scene.vi_leg_min = 0
                     return {'RUNNING_MODAL'}
 
-        if (scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'licpanel')) or self.disp != scene.li_disp_count:
+        if (scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel')) or self.disp != scene.li_disp_count or not scene.vi_display:   
+            
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
             if scene['liparams']['type'] == 'LiVi Compliance':
@@ -367,15 +368,17 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
                 except:
                     pass
                 scene.li_compliance = 0
+            scene['viparams']['vidisp'] = scene['viparams']['vidisp'][0:2]
+            [scene.objects.unlink(o) for o in scene.objects if o.lires]
             return {'CANCELLED'}
         return {'PASS_THROUGH'}
 
     def execute(self, context):
-        dispdict = {'LiVi Compliance': 'licpanel', 'LiVi Basic': 'lipanel', 'LiVi CBDM': 'lipanel', 'Shadow': 'sspanel'}
+        dispdict = {'LiVi Compliance': 'lcpanel', 'LiVi Basic': 'lipanel', 'LiVi CBDM': 'lipanel', 'Shadow': 'sspanel'}
         scene = context.scene
         clearscene(scene, self)
         scene.li_disp_count = scene.li_disp_count + 1 if scene.li_disp_count < 10 else 0
-        scene.vi_disp_wire = 0
+        scene.vi_disp_wire, scene.vi_display = 1, 1
         self.disp = scene.li_disp_count
         self.simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
         scene['viparams']['vidisp'] = dispdict[scene['viparams']['visimcontext']]

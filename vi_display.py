@@ -159,7 +159,7 @@ def spnumdisplay(disp_op, context, simnode):
 
 def linumdisplay(disp_op, context, simnode):
     scene = context.scene    
-    if scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'licpanel'):
+    if scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel'):
         return
     if scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
         disp_op.report({'INFO'},"Outside result frame range")
@@ -561,7 +561,7 @@ def lipanel():
         
 def li_compliance(self, context, simnode):
     height, scene = context.region.height, context.scene
-    if not scene.get('li_compliance') or scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or scene['viparams']['vidisp'] != 'licpanel':
+    if not scene.get('li_compliance') or scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or scene['viparams']['vidisp'] != 'lcpanel':
         return
     if simnode['coptions']['canalysis'] == '0':
         buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retail', 'Office & Other')[int(simnode['coptions']['bambuild'])]

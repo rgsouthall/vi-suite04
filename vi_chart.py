@@ -72,7 +72,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
             if rn['resdict'][rd][0:2] == [dnode.inputs['Y-axis 1'].rtypemenu, dnode.inputs['Y-axis 1'].climmenu]:
                 y1data = timedata(ard[rd][si:ei+1], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, ard['Month'], ard['Day'], ard['dos'], dnode, si, ei, Sdate, Edate) 
                 ylabel = label('Climate', dnode.inputs['Y-axis 1'].statmenu, dnode.timemenu, dnode.inputs['Y-axis 1'].climmenu)
-                line, = plt.plot(xdata, [dnode.inputs['Y-axis 1'].multfactor * yd for yd in y1data], color='k', linewidth = 0.2, label='Ambient ' + (" ("+dnode.inputs['Y-axis 1'].statmenu + ")", "")[dnode.timemenu == '0'])    
+                line, = plt.plot(xdata, [dnode.inputs['Y-axis 1'].multfactor * float(yd) for yd in y1data], color='k', linewidth = 0.2, label='Ambient ' + (" ("+dnode.inputs['Y-axis 1'].statmenu + ")", "")[dnode.timemenu == '0'])    
 
         else:
             menus = retmenu(dnode, 'Y-axis 1', dnode.inputs['Y-axis 1'].rtypemenu)
@@ -89,7 +89,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
             if dnode.inputs['Y-axis 2'].rtypemenu == 'Climate':
                 if dnode.inputs['Y-axis 2'].links[0].from_node['resdict'][rd][0:2] == [dnode.inputs['Y-axis 2'].rtypemenu, dnode.inputs['Y-axis 2'].climmenu]:
                     y2data = timedata(ard[rd][si:ei+1], dnode.timemenu, dnode.inputs['Y-axis 2'].statmenu, ard['Month'], ard['Day'], ard['dos'], dnode, si, ei, Sdate, Edate)
-                    line, = plt.plot(xdata, [dnode.inputs['Y-axis 2'].multfactor * yd for yd in y2data], linestyle = '--', color = '0.75', label = 'Ambient ' + (" ("+dnode.inputs['Y-axis 2'].statmenu + ")", "")[dnode.timemenu == '0'])
+                    line, = plt.plot(xdata, [dnode.inputs['Y-axis 2'].multfactor * float(yd) for yd in y2data], linestyle = '--', color = '0.75', label = 'Ambient ' + (" ("+dnode.inputs['Y-axis 2'].statmenu + ")", "")[dnode.timemenu == '0'])
             else:                 
                 if (rn['resdict'][rd][0:2]) == (menus):
                     y2data = timedata(ard[rd][si:ei+1], dnode.timemenu, dnode.inputs['Y-axis 2'].statmenu, ard['Month'], ard['Day'], ard['dos'], dnode, si, ei, Sdate, Edate)
@@ -103,7 +103,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
             if dnode.inputs['Y-axis 3'].rtypemenu == 'Climate':
                 if rn['resdict'][rd][0:2] == [dnode.inputs['Y-axis 3'].rtypemenu, dnode.inputs['Y-axis 3'].climmenu]:
                     y3data = timedata(ard[rd][si:ei+1], dnode.timemenu, dnode.inputs['Y-axis 3'].statmenu, ard['Month'], ard['Day'], ard['dos'], dnode, si, ei, Sdate, Edate)
-                    line, = plt.plot(xdata, [dnode.inputs['Y-axis 3'].multfactor * yd for yd in y3data], linestyle = ':', color = '0.5',label = 'Ambient ' + (" ("+dnode.inputs['Y-axis 3'].statmenu + ")", "")[dnode.timemenu == '0'])
+                    line, = plt.plot(xdata, [dnode.inputs['Y-axis 3'].multfactor * float(yd) for yd in y3data], linestyle = ':', color = '0.5',label = 'Ambient ' + (" ("+dnode.inputs['Y-axis 3'].statmenu + ")", "")[dnode.timemenu == '0'])
             else:              
                 if (rn['resdict'][rd][0:2]) == (menus):
                     y3data = timedata(ard[rd][si:ei+1], dnode.timemenu, dnode.inputs['Y-axis 3'].statmenu, ard['Month'], ard['Day'], ard['dos'], dnode, si, ei, Sdate, Edate)

@@ -1328,8 +1328,8 @@ class ViTextEdit(bpy.types.Node, ViNodes):
         if self.inputs['Text in'].links:
             inodename = self.inputs['Text in'].links[0].from_node.name
             row = layout.row()
-            row.label(text = 'Text name: {}'.format(inodename))
-            if self['bt'] != bpy.data.texts[inodename].as_string():
+            row.label(text = 'Text name: {}'.format(inodename))            
+            if inodename in [im.name for im in bpy.data.texts] and self['bt'] != bpy.data.texts[inodename].as_string():
                 row = layout.row()
                 row.operator('node.textupdate', text = 'Update').nodeid = self['nodeid']
 

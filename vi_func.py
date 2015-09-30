@@ -121,6 +121,7 @@ def cbdmhdr(node, scene):
     skyentry = hdrsky(targethdr)
 
     if not os.path.isfile(targethdr):
+        vecvals, vals = mtx2vals(open(node['mtxfile'], 'r').readlines(), datetime.datetime(2010, 1, 1).weekday(), '')
         pcombfiles = ''.join(["ps{}.hdr ".format(i) for i in range(146)])
         vwcmd = "vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0"
         rcontribcmd = "rcontrib -bn 146 -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o p%d.hdr -m sky_glow {}-whitesky.oct".format(scene['viparams']['nproc'], scene['viparams']['filename'])
@@ -129,7 +130,7 @@ def cbdmhdr(node, scene):
     
         for j in range(146):
             with open("ps{}.hdr".format(j), 'w') as psfile:
-                Popen("pcomb -s {0} p{1}.hdr".format(node['vals'][j], j).split(), stdout = psfile)
+                Popen("pcomb -s {0} p{1}.hdr".format(vals[j], j).split(), stdout = psfile)
         with open(targethdr, 'w') as epwhdr:
             Popen("pcomb -h {}".format(pcombfiles).split(), stdout = epwhdr).wait()
         [os.remove(os.path.join(scene['viparams']['newdir'], 'p{}.hdr'.format(i))) for i in range (146)]

@@ -185,7 +185,7 @@ class LiViNode(bpy.types.Node, ViNodes):
                 self.ehour = self.shour
         
         self['skynum'] = int(self.skymenu)         
-        suns = [ob for ob in scene.objects if ob.type == 'LAMP' and ob.get('VIType') and ob.get('VIType') == 'Sun'] 
+        suns = [ob for ob in scene.objects if ob.type == 'LAMP' and ob.data.type == 'SUN'] 
         
         if self.contextmenu == 'Basic' and self['skynum'] < 2:
             starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(self.shour), int((self.shour - int(self.shour))*60)) + datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(2013, 1, 1, 12)                                       
@@ -194,10 +194,12 @@ class LiViNode(bpy.types.Node, ViNodes):
             scene.frame_start, scene.frame_end = self.startframe, frames[-1]
             if suns:
                 sun = suns[0]
-                if len(suns) > 1:
-                    for so in suns[1:]:
-                        selobj(scene, so)
-                        bpy.ops.object.delete()
+                sun['VIType'] = 'Sun'
+                [scene.objects.unlink(o) for o in suns[1:]]
+#                if len(suns) > 1:
+#                    for so in suns[1:]:
+#                        selobj(scene, so)
+#                        bpy.ops.object.delete()
             else:
                 bpy.ops.object.lamp_add(type='SUN')
                 sun = bpy.context.object

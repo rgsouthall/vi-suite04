@@ -1493,7 +1493,7 @@ def wind_rose(maxws, wrsvg, wrtype):
     bm.to_mesh(wro.data)
     bm.free()
     
-    bpy.ops.mesh.primitive_circle_add(vertices = 132, fill_type='NGON', radius=scale*1.2, view_align=False, enter_editmode=False, location=(0, 0, 0))
+    bpy.ops.mesh.primitive_circle_add(vertices = 132, fill_type='NGON', radius=scale*1.2, view_align=False, enter_editmode=False, location=(0, 0, -0.001))
     wrbo = bpy.context.active_object
     if 'wr-base'not in [mat.name for mat in bpy.data.materials]:
         bpy.data.materials.new('wr-base')
@@ -1528,7 +1528,7 @@ def compass(loc, scale, wro, mat):
         vert.co = vert.co + (vert.co - coo.location).normalized() * scale * (0.0025, 0.005)[v > 1187]
         vert.co[2] = 0
            
-    bmesh.ops.create_circle(bm, cap_ends=True, diameter=scale *0.005, segments=8, matrix=Matrix.Rotation(-pi/8, 4, 'Z')*Matrix.Translation((0, 0, 0)))
+    bmesh.ops.create_circle(bm, cap_ends=True, diameter=scale *0.005, segments=8, matrix=Matrix.Rotation(-pi/8, 4, 'Z')*Matrix.Translation((0, 0, -0.1)))
     matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
     tmatrot = Matrix.Rotation(0, 4, 'Z')
     direc = Vector((0, 1, 0))

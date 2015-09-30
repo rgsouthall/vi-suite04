@@ -829,7 +829,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         node.export()
         scene, scene['viparams']['resnode'], scene['viparams']['restree'] = context.scene, node.name, self.nodeid.split('@')[1]
-#        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 1, 0, 0, 0, 0, 0
         scene['viparams']['vidisp'] = 'sp'
         context.scene['viparams']['visimcontext'] = 'SunPath'
         scene.cursor_location = (0.0, 0.0, 0.0)
@@ -838,17 +837,18 @@ class NODE_OT_SunPath(bpy.types.Operator):
             bpy.data.materials.new(mat[0])
             bpy.data.materials[mat[0]].diffuse_color = mat[1]
 
-        if 'SUN' in [ob.data.type for ob in context.scene.objects if ob.data == 'LAMP' and ob.hide == False]:
-            [ob.data.type for ob in context.scene.objects if ob.data == 'LAMP' and ob.data.type == 'SUN'][0]['VIType'] = 'Sun'
-        elif 'Sun' not in [ob.get('VIType') for ob in context.scene.objects]:
-            bpy.ops.object.lamp_add(type = "SUN")
-#            sun = context.active_object
-            context.active_object['VIType'] = 'Sun'
-        else:
-            sun = [ob for ob in context.scene.objects if ob.get('VIType') == 'Sun'][0]
+        suns = [ob for ob in context.scene.objects if ob.type == 'LAMP' and ob.data.type == 'SUN']
+        if suns:
+            sun = suns[0]
+            [scene.objects.unlink(sun) for sun in suns[1:]]
             sun.animation_data_clear()
-            bpy.data.lamps[sun.name].shadow_soft_size = 0.01
-
+        else: 
+            bpy.ops.object.lamp_add(type = "SUN")
+            sun = context.active_object
+          
+        bpy.data.lamps[sun.name].shadow_soft_size = 0.01            
+        sun['VIType'] = 'Sun'
+        
         if scene.render.engine == 'CYCLES' and bpy.data.worlds['World'].get('node_tree') and 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
             bpy.data.worlds['World'].node_tree.animation_data_clear()
 
@@ -1020,10 +1020,10 @@ class NODE_OT_WindRose(bpy.types.Operator):
         wro['maxres'], wro['minres'], wro['avres'] = max(aws), min(aws), sum(aws)/len(aws)
         windnum(simnode['maxfreq'], (0,0,0), scale, compass((0,0,0), scale, wro, wro.data.materials['wr-000000']))
         bpy.ops.view3d.wrlegdisplay('INVOKE_DEFAULT')
-        if simnode.wrtype == '4':
-            (fig, ax) = wr_axes()
-            ax.contour(awd, aws, bins=sbinvals, normed=True, cmap=cm.hot)
-            plt.savefig(scene['viparams']['newdir']+'/disp_wind.svg')
+#        if simnode.wrtype == '4':
+#            (fig, ax) = wr_axes()
+#            ax.contour(awd, aws, bins=sbinvals, normed=True, cmap=cm.hot)
+#            plt.savefig(scene['viparams']['newdir']+'/disp_wind.svg')
         return {'FINISHED'}
 
 class VIEW3D_OT_WRLegDisplay(bpy.types.Operator):

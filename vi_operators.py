@@ -851,7 +851,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
             bpy.ops.object.lamp_add(type = "SUN")
             sun = context.active_object
           
-        bpy.data.lamps[sun.name].shadow_soft_size = 0.01            
+        sun.data.shadow_soft_size = 0.01            
         sun['VIType'] = 'Sun'
         
         if scene.render.engine == 'CYCLES' and bpy.data.worlds['World'].get('node_tree') and 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:

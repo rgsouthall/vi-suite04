@@ -826,10 +826,14 @@ class NODE_OT_SunPath(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
+        scene = context.scene
+        if viparams(self, scene):
+            self.report({'ERROR'},"Save the Blender file")
+            return {'CANCELLED'}
         solringnum, sd, numpos = 0, 100, {}
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         node.export()
-        scene, scene['viparams']['resnode'], scene['viparams']['restree'] = context.scene, node.name, self.nodeid.split('@')[1]
+        scene['viparams']['resnode'], scene['viparams']['restree'] = node.name, self.nodeid.split('@')[1]
         scene['viparams']['vidisp'] = 'sp'
         context.scene['viparams']['visimcontext'] = 'SunPath'
         scene.cursor_location = (0.0, 0.0, 0.0)

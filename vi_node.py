@@ -17,18 +17,11 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, glob, os, inspect, sys, datetime, shutil, shlex
-import subprocess
-from subprocess import Popen, STDOUT, PIPE
+import bpy, glob, os, inspect, datetime, shutil
 from nodeitems_utils import NodeCategory, NodeItem
-from .vi_func import objvol, socklink, newrow, epwlatilongi, nodeid, nodeinputs, remlink, rettimes, epentry, sockhide, selobj, mtx2vals, cbdmhdr, cbdmmtx
-from .vi_func import hdrsky, nodecolour, epschedwrite, facearea, retelaarea, retrmenus, resnameunits, enresprops, iprop, bprop, eprop, fprop, sprop, fvprop, sunposlivi
+from .vi_func import objvol, socklink, newrow, epwlatilongi, nodeid, nodeinputs, remlink, rettimes, epentry, sockhide, selobj, cbdmhdr, cbdmmtx
+from .vi_func import hdrsky, nodecolour, epschedwrite, facearea, retelaarea, retrmenus, resnameunits, enresprops, iprop, bprop, eprop, fprop, sunposlivi
 from .livi_export import sunexport, skyexport, hdrexport
-#@persistent
-#def load_handler(dummy):
-#    if bpy.context.scene.get('viparams'):
-#
-#bpy.app.handlers.load_post.append(load_handler)
 
 class ViNetwork(bpy.types.NodeTree):
     '''A node tree for VI-Suite analysis.'''
@@ -81,8 +74,6 @@ class ViLoc(bpy.types.Node, ViNodes):
     weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]
     weather = bpy.props.EnumProperty(items = weatherlist, name="", description="Weather for this project", update = updatelatlong)
     loc = bpy.props.EnumProperty(items = [("0", "Manual", "Manual location"), ("1", "EPW ", "Get location from EPW file")], name = "", description = "Location", default = "0", update = updatelatlong)
-#    lat = bpy.props.FloatProperty(name="Latitude", description="Site Latitude", min=-90, max=90, default=52, update = updatelatlong)
-#    long = bpy.props.FloatProperty(name="Longitude", description="Site Longitude (East is positive, West is negative)", min=-180, max=180, default=0, update = updatelatlong)
     maxws = bpy.props.FloatProperty(name="", description="Max wind speed", min=0, max=90, default=0)
     minws = bpy.props.FloatProperty(name="", description="Min wind speed", min=0, max=90, default=0)
     avws = bpy.props.FloatProperty(name="", description="Average wind speed", min=0, max=90, default=0)
@@ -93,13 +84,9 @@ class ViLoc(bpy.types.Node, ViNodes):
         self['nodeid'] = nodeid(self)
         bpy.data.node_groups[nodeid(self).split('@')[1]].use_fake_user = True
         self.outputs.new('ViLoc', 'Location out')
-#        if not context.scene.get('viparams'):
-#            context.scene['viparams'] = {}
-#        bpy.context.scene['viparams']['latitude'], bpy.context.scene['viparams']['longitude'] = self.lat, self.long
 
     def update(self):
         socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])
-        nodecolour(self, any([link.to_node.bl_label in ('LiVi CBDM', 'EnVi Export') and self.loc != "1" for link in self.outputs['Location out'].links]))
 
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -496,7 +483,6 @@ class ViLiSNode(bpy.types.Node, ViNodes):
         nodecolour(self, 1)
         self['maxres'], self['minres'], self['avres'], self['exportstate'] = {}, {}, {}, ''
         
-
     def draw_buttons(self, context, layout): 
         scene = context.scene
         if self.inputs['Geometry in'].links and self.inputs['Context in'].links:
@@ -981,7 +967,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 bl_idname = 'ViEnRXIn'
                 bl_label = 'X-axis'
 
-                if len(innode['rtypes']) > 0:
+                if innode['rtypes']:
                     (valid, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor) = retrmenus(innode)
 
         bpy.utils.register_class(ViEnRXIn)

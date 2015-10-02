@@ -2,7 +2,7 @@ bl_info = {
     "name": "VI-Suite v03",
     "author": "Ryan Southall",
     "version": (0, 3, 0),
-    "blender": (2, 7, 5),
+    "blender": (2, 7, 6),
     "api":"",
     "location": "Node Editor & 3D View > Properties Panel",
     "description": "Radiance/EnergyPlus exporter and results visualiser",
@@ -70,7 +70,7 @@ def eupdate(self, context):
     maxo, mino = scene.vi_leg_max, scene.vi_leg_min
     inv = 0        
     for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
-        for o in [obj for obj in bpy.data.objects if obj.lires == 1 and obj.data.shape_keys]:            
+        for o in [obj for obj in bpy.data.objects if obj.lires == 1 and obj.data.shape_keys and str(frame) in [sk.name for sk in obj.data.shape_keys.key_blocks]]:            
             bm = bmesh.new()
             bm.from_mesh(o.data)  
             bm.transform(o.matrix_world)

@@ -500,6 +500,10 @@ class ViLiSNode(bpy.types.Node, ViNodes):
     def draw_buttons(self, context, layout): 
         scene = context.scene
         if self.inputs['Geometry in'].links and self.inputs['Context in'].links:
+            row = layout.row()
+            row.label(text = 'Frame start: {}'.format(min([c['fs'] for c in (self.inputs['Context in'].links[0].from_socket['Options'], self.inputs['Geometry in'].links[0].from_socket['Options'])])))
+            row = layout.row()
+            row.label(text = 'Frame end: {}'.format(max([c['fe'] for c in (self.inputs['Context in'].links[0].from_socket['Options'], self.inputs['Geometry in'].links[0].from_socket['Options'])])))
             cinsock = self.inputs['Context in'].links[0].from_socket
             newrow(layout, 'Photon map:', self, 'pmap')
             if self.pmap:
@@ -519,7 +523,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
                 row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']
                 if cinsock['Options']['Context'] == 'Basic' and cinsock['Options']['Type'] == '1':
                     row.operator("node.liviglare", text = 'Calculate').nodeid = self['nodeid']
-                elif [scene.objects[on] for on in scene['liparams']['livic']]:
+                elif [o.name for o in scene.objects if o.name in scene['liparams']['livic']]:
                     row.operator("node.livicalc", text = 'Calculate').nodeid = self['nodeid']
 
     def update(self):

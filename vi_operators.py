@@ -23,6 +23,7 @@ from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum, envizres, envilres
 from .vi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, sunposenvi, recalculate_text, clearlayers
+from .vi_func import retobjs, rettree
 from .vi_chart import chart_disp
 #from .vi_gen import vigen
 
@@ -358,8 +359,7 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
                         scene.vi_leg_min = 0
                     return {'RUNNING_MODAL'}
 
-        if (scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel')) or self.disp != scene.li_disp_count or not scene.vi_display:   
-            
+        if scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel') or not scene.vi_display or self.disp != scene['liparams']['disp_count']:              
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
             if scene['liparams']['type'] == 'LiVi Compliance':
@@ -368,21 +368,24 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
                 except:
                     pass
                 scene.li_compliance = 0
-            scene['viparams']['vidisp'] = scene['viparams']['vidisp'][0:2]
-            [scene.objects.unlink(o) for o in scene.objects if o.lires]
+
+            if scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel') or not scene.vi_display: 
+                 scene['viparams']['vidisp'] = scene['viparams']['vidisp'][0:2]
+                 [scene.objects.unlink(o) for o in scene.objects if o.lires]
+
             return {'CANCELLED'}
         return {'PASS_THROUGH'}
 
     def execute(self, context):
         dispdict = {'LiVi Compliance': 'lcpanel', 'LiVi Basic': 'lipanel', 'LiVi CBDM': 'lipanel', 'Shadow': 'sspanel'}
         scene = context.scene
+        scene['liparams']['disp_count'] = scene['liparams']['disp_count'] + 1 if scene['liparams']['disp_count'] < 10 else 0 
+        self.disp = scene['liparams']['disp_count']
         clearscene(scene, self)
-        scene.li_disp_count = scene.li_disp_count + 1 if scene.li_disp_count < 10 else 0
-        scene.vi_disp_wire, scene.vi_display = 1, 1
-        self.disp = scene.li_disp_count
         self.simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
         scene['viparams']['vidisp'] = dispdict[scene['viparams']['visimcontext']]
         li_display(self.simnode)
+        scene.vi_disp_wire, scene.vi_display = 1, 1
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
         self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(li3D_legend, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
@@ -614,7 +617,6 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
         if viparams(self, scene):
             return {'CANCELLED'}
         scene['viparams']['vidisp'] = ''
-#        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         node.sdoy = datetime.datetime(datetime.datetime.now().year, node.startmonth, 1).timetuple().tm_yday
         node.edoy = (datetime.date(datetime.datetime.now().year, node.endmonth + (1, -11)[node.endmonth == 12], 1) - datetime.timedelta(days = 1)).timetuple().tm_yday
@@ -677,7 +679,6 @@ class NODE_OT_EnSim(bpy.types.Operator):
                     processf(self, self.simnode)
                     self.report({'INFO'}, "Calculation is finished.")
                     scene['viparams']['resnode'], scene['viparams']['connode'], scene['viparams']['vidisp'] = self.nodeid, '{}@{}'.format(self.connode.name, self.nodeid.split('@')[1]), 'en'
-#                    scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 0, 0, 0, 0, 0, 0, 0
                     self.simnode.run = -1
                     return {'FINISHED'}
         else:
@@ -935,7 +936,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         bpy.ops.mesh.bisect(plane_co=(0.0, 0.0, 0.0), plane_no=(0.0, 0.0, 1.0), use_fill=True, clear_inner=True, clear_outer=False)
         bpy.ops.object.mode_set(mode='OBJECT')
         bpy.ops.object.select_all(action='DESELECT')
-        compass((0,0,0), sd, spathob, bpy.data.materials['SPBase'])
+        compass((0,0,0.01), sd, spathob, bpy.data.materials['SPBase'])
 
         for ob in (spathob, sunob):
             spathob.cycles_visibility.diffuse, spathob.cycles_visibility.shadow, spathob.cycles_visibility.glossy, spathob.cycles_visibility.transmission = [False] * 4
@@ -954,18 +955,21 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
     bl_undo = True
 
     def modal(self, context, event):
+        scene = context.scene
         if context.area:
             context.area.tag_redraw()
-        if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'sp':
+        if scene.vi_display == 0 or scene['viparams']['vidisp'] != 'sp':
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_spnum, 'WINDOW')
+            [scene.objects.unlink(o) for o in scene.objects if o.get('VIType') and o['VIType'] in ('SunMesh', 'SkyMesh')]
             return {'CANCELLED'}
         return {'PASS_THROUGH'}
 
     def invoke(self, context, event):
-        simnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]
+        scene = context.scene
+        simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
         self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(spnumdisplay, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
-        context.scene.vi_display = 1
+        scene.vi_display = 1
         return {'RUNNING_MODAL'}
 
 class NODE_OT_WindRose(bpy.types.Operator):
@@ -991,8 +995,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
         simnode.export()
         locnode = simnode.inputs['Location in'].links[0].from_node
         scene['viparams']['resnode'], scene['viparams']['restree'] = simnode.name, self.nodeid.split('@')[1]
-#        scene.vi_display, scene.sp_disp_panel, scene.li_disp_panel, scene.lic_disp_panel, scene.en_disp_panel, scene.ss_disp_panel, scene.wr_disp_panel = 1, 0, 0, 0, 0, 0, 1
-        scene['viparams']['vidisp'] = 'wr'
+        scene['viparams']['vidisp'], scene.vi_display = 'wr', 1
         context.scene['viparams']['visimcontext'] = 'Wind'
         mon = [int(mo) for mo in locnode['allresdict']['Month']]
         awd = [float(wd) for mi, wd in enumerate(locnode['allresdict']['20']) if simnode.startmonth <= mon[mi] <= simnode.endmonth]
@@ -1057,11 +1060,16 @@ class NODE_OT_Shadow(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        scene = context.scene
-        if viparams(self, scene):
+        scene = context.scene        
+        if viparams(self, scene):            
             return {'CANCELLED'}
-        scene['liparams']['shadc'] = [ob.name for ob in scene.objects if ob.type == 'MESH' and not ob.hide and len([f for f in ob.data.polygons if ob.data.materials[f.material_index].mattype == '2'])]
 
+        shadobs = retobjs('livig')
+        if not shadobs:
+            self.report({'ERROR'},"No shading objects have a material attached.")
+            return {'CANCELLED'}
+            
+        scene['liparams']['shadc'] = [ob.name for ob in retobjs('ssc')]
         if not scene['liparams']['shadc']:
             self.report({'ERROR'},"No objects have a VI Shadow material attached.")
             return {'CANCELLED'}
@@ -1089,7 +1097,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
         else:
             (scmaxres, scminres, scavres) = [[x] * (scene.frame_end - scene.frame_start + 1) for x in (0, 100, 0)]
         frange = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
-        fdiff =  1 if simnode['Animation'] == 'Static' else scene.frame_end - scene.frame_start + 1
         time = datetime.datetime(datetime.datetime.now().year, simnode.startmonth, 1, simnode.starthour - 1)
         y =  datetime.datetime.now().year if simnode.endmonth >= simnode.startmonth else datetime.datetime.now().year + 1
         endtime = datetime.datetime(y, simnode.endmonth, (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)[simnode.endmonth - 1], simnode.endhour - 1)
@@ -1111,8 +1118,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
             for fi, frame in enumerate(frange):
                 scene.frame_set(frame)
-#               Use BVHTree in 2.76
-#                shadtree = rettree(scene, [o for o in retobjs('livig') if o.name not in scene['liparams']['shadc']])
+                shadtree = rettree(scene, shadobs)
                 shadres = geom.layers.float['res{}'.format(frame)]
                 if simnode.cpoint == '0':
                     gpoints = [f for f in geom if o.data.materials[f.material_index].mattype == '2']
@@ -1121,13 +1127,9 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 for g, gp in enumerate([gpoint for gpoint in gpoints]):
                     gp[cindex] = g + 1
                     if simnode.cpoint == '0':
-#                       Use BVHTree in 2.76
-#                        gp[shadres] = 100 * (1 - sum([(1, 0)[shadtree.ray_cast(gp.calc_center_median(), direc)[3] == None] for direc in direcs])/len(direcs))
-                        gp[shadres] = 100 * (1 - sum([bpy.data.scenes[0].ray_cast(gp.calc_center_median() + (simnode.offset * gp.normal), gp.calc_center_median() + 10000*direc)[0] for direc in direcs])/len(direcs))
+                        gp[shadres] = 100 * (1 - sum([(1, 0)[shadtree.ray_cast(gp.calc_center_median(), direc)[3] == None] for direc in direcs])/len(direcs))
                     else:
-#                        gp[shadres] = 100 * (1 - sum([(1, 0)[shadtree.ray_cast(gp.co, direc)[3] == None] for direc in direcs])/len(direcs))
-                     
-                        gp[shadres] = 100 * (1 - sum([bpy.data.scenes[0].ray_cast(gp.co + simnode.offset*gp.normal, gp.co + 10000*direc)[0] for direc in direcs])/len(direcs))
+                        gp[shadres] = 100 * (1 - sum([(1, 0)[shadtree.ray_cast(gp.co, direc)[3] == None] for direc in direcs])/len(direcs))
                 o['omin']['res{}'.format(frame)], o['omax']['res{}'.format(frame)], o['oave']['res{}'.format(frame)] = min([gp[shadres] for gp in gpoints]), max([gp[shadres] for gp in gpoints]), sum([gp[shadres] for gp in gpoints])/len(gpoints)
 
             bm.transform(o.matrix_world.inverted())
@@ -1154,10 +1156,10 @@ class NODE_OT_Blockmesh(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         expnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-
-        if viparams(self, scene):
-            return {'CANCELLED'}
         bmos = [o for o in scene.objects if o.vi_type == '2']
+        
+        if viparams(self, scene):
+            return {'CANCELLED'}        
         if len(bmos) != 1:
             ({'ERROR'},"One and only one object with the CFD Domain property is allowed")
             return {'ERROR'}
@@ -1174,7 +1176,7 @@ class NODE_OT_Blockmesh(bpy.types.Operator):
             fvblbmgen(bmos[0].data.materials, open(os.path.join(scene['viparams']['ofcpfilebase'], 'faces'), 'r'), open(os.path.join(scene['viparams']['ofcpfilebase'], 'points'), 'r'), open(os.path.join(scene['viparams']['ofcpfilebase'], 'boundary'), 'r'), 'blockMesh')
         else:
             pass
-#            fvrbm(bmos[0])
+
         expnode.export()
         return {'FINISHED'}
 

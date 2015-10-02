@@ -4,6 +4,7 @@ from numpy import array, digitize, amax, amin, average, zeros, inner
 from numpy import sum as nsum
 from math import sin, cos, asin, acos, pi, isnan, tan
 from mathutils import Vector, Matrix
+from mathutils.bvhtree import BVHTree
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
 try:
     import matplotlib
@@ -24,10 +25,12 @@ def cmap(cm):
         if not bpy.data.materials.get('{}#{}'.format(cmdict[cm], i)):
             bpy.data.materials.new('{}#{}'.format(cmdict[cm], i))
         bpy.data.materials['{}#{}'.format(cmdict[cm], i)].diffuse_color = colorsys.hsv_to_rgb(0.75 - 0.75*(i/19), 1, 1) if cm == 'hot' else colorsys.hsv_to_rgb(1, 0, (i/19))
+        if cm == 'grey':
+            bpy.data.materials['{}#{}'.format(cmdict[cm], i)].diffuse_intensity = i/19
+        bpy.data.materials['{}#{}'.format(cmdict[cm], i)].specular_intensity = 0
 
 def radmat(self, scene):
     radname = self.name.replace(" ", "_") 
-#    modifier = 'pmapam' if self.radmatmenu == '7' and self.mattype == '1' else 'pport' if self.pport else 'void'
     radentry = '# ' + ('plastic', 'glass', 'dielectric', 'translucent', 'mirror', 'light', 'metal', 'antimatter')[int(self.radmatmenu)] + ' material\n' + \
             '{} {} {}\n'.format('void', ('plastic', 'glass', 'dielectric', 'trans', 'mirror', 'light', 'metal', 'antimatter')[int(self.radmatmenu)], radname) + \
            {'0': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough), 
@@ -41,10 +44,7 @@ def radmat(self, scene):
 
     self['radentry'] = radentry
     return(radentry)
-    
-def radgeo(self, scene, tempmat):
-    radname = self.name.replace(" ", "_") 
-    
+        
 def rtpoints(self, bm, offset, frame):    
     geom = bm.verts if self['cpoint'] == '1' else bm.faces 
     cindex = geom.layers.int['cindex']
@@ -58,12 +58,12 @@ def rtpoints(self, bm, offset, frame):
         self['cverts'], self['lisenseareas'][frame] = [], [f.calc_area() for f in gpoints]       
 
     elif self['cpoint'] == '1': 
-        gpoints = set([item for sublist in [face.verts[:] for face in bm.faces if face.index in self['cfaces']] for item in sublist])
-        self['rtpoints'][frame]  = ''.join(['{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([vert.co[i] + offset * vert.normal[i] for i in range(3)], vert.normal) for vert in gpoints])
-        self['cverts'], self['lisenseareas'][frame] = [cv.index for cv in gpoints], [vertarea(bm, vert, ) for vert in gpoints]
+        gpoints = sorted(set([item.index for sublist in [face.verts[:] for face in bm.faces if face.index in self['cfaces']] for item in sublist]))
+        self['rtpoints'][frame]  = ''.join(['{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([bm.verts[vi].co[i] + offset * bm.verts[vi].normal[i] for i in range(3)], bm.verts[vi].normal) for vi in gpoints])
+        self['cverts'], self['lisenseareas'][frame] = gpoints, [vertarea(bm, bm.verts[vi]) for vi in gpoints]
     
     for g, gp in enumerate(gpoints):
-        gp[cindex] = g + 1
+        bm.verts[gp][cindex] = g + 1
 
     self['rtpnum'] = g + 1
                     
@@ -167,24 +167,24 @@ def setscenelivivals(scene):
     scene.vi_leg_max = max(scene['liparams']['maxres'].values())
     scene.vi_leg_min = min(scene['liparams']['minres'].values())
     
-#def rettree(scene, obs):
-#    for soi, so in enumerate(obs):
-#        if soi == 0:
-#            bmob = bmesh.new()
-#            bmob.from_mesh(so.data)
-#            bmob.transform(so.matrix_world)
-#        else:
-#            btemp = bpy.data.meshes.new("temp")
-#            bmtemp = bmesh.new()
-#            bmtemp.from_mesh(so.data)
-#            bmtemp.transform(so.matrix_world)
-#            bmtemp.to_mesh(btemp)
-#            bmob.from_mesh(btemp)
-#            bpy.data.meshes.remove(btemp)
-#    tree = BVHTree.FromBMesh(bmob)
-#    bmob.free()
-#    bmtemp.free()
-#    return tree
+def rettree(scene, obs):
+    
+    for soi, so in enumerate(obs):
+        if soi == 0:
+            bmob = bmesh.new()
+            bmob.from_mesh(so.data)
+            bmob.transform(so.matrix_world)
+        btemp = bpy.data.meshes.new("temp")
+        bmtemp = bmesh.new()
+        bmtemp.from_mesh(so.data)
+        bmtemp.transform(so.matrix_world)
+        bmtemp.to_mesh(btemp)
+        bmob.from_mesh(btemp)
+        bpy.data.meshes.remove(btemp)
+    tree = BVHTree.FromBMesh(bmob)
+    bmob.free()
+    bmtemp.free()
+    return tree
     
 def basiccalcapply(self, scene, frames, rtcmds):
     selobj(scene, self)
@@ -914,6 +914,7 @@ def viparams(op, scene):
         scene['liparams'] = {}
     scene['liparams']['objfilebase'] = ofb
     scene['liparams']['lightfilebase'] = lfb
+    scene['liparams']['disp_count'] = 0
     if not scene.get('enparams'):
         scene['enparams'] = {}
     scene['enparams']['idf_file'] = idf
@@ -1494,7 +1495,7 @@ def wind_rose(maxws, wrsvg, wrtype):
     bm.to_mesh(wro.data)
     bm.free()
     
-    bpy.ops.mesh.primitive_circle_add(vertices = 132, fill_type='NGON', radius=scale*1.2, view_align=False, enter_editmode=False, location=(0, 0, -0.001))
+    bpy.ops.mesh.primitive_circle_add(vertices = 132, fill_type='NGON', radius=scale*1.2, view_align=False, enter_editmode=False, location=(0, 0, -0.01))
     wrbo = bpy.context.active_object
     if 'wr-base'not in [mat.name for mat in bpy.data.materials]:
         bpy.data.materials.new('wr-base')
@@ -1529,7 +1530,7 @@ def compass(loc, scale, wro, mat):
         vert.co = vert.co + (vert.co - coo.location).normalized() * scale * (0.0025, 0.005)[v > 1187]
         vert.co[2] = 0
            
-    bmesh.ops.create_circle(bm, cap_ends=True, diameter=scale *0.005, segments=8, matrix=Matrix.Rotation(-pi/8, 4, 'Z')*Matrix.Translation((0, 0, -0.1)))
+    bmesh.ops.create_circle(bm, cap_ends=True, diameter=scale *0.005, segments=8, matrix=Matrix.Rotation(-pi/8, 4, 'Z')*Matrix.Translation((0, 0, 0)))
     matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
     tmatrot = Matrix.Rotation(0, 4, 'Z')
     direc = Vector((0, 1, 0))
@@ -1567,59 +1568,59 @@ def windnum(maxws, loc, scale, wr):
     objoin(txts + [wr]).name = 'Wind Rose'
     bpy.context.active_object['VIType']  = 'Wind_Plane'
     
-def windcompass():
-    rad1 = 1.4
-    dep = 2.8
-    lettwidth = 0.3
-    lettheight = 0.15
-    bpy.ops.mesh.primitive_torus_add(location=(0.0, 0.0, 0.0), view_align=False, rotation=(0.0, 0.0, 0.0), major_segments=48, minor_segments=12, major_radius=2.5, minor_radius=0.01)
-    bpy.ops.mesh.primitive_cone_add(location=(0.0, rad1, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, 0.0), radius1 = 0.01, depth = dep)
-    bpy.ops.mesh.primitive_cone_add(location=((rad1**2/2)**0.5, (rad1**2/2)**0.5, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-0.25), radius1 = 0.01, depth = dep)
-    bpy.ops.mesh.primitive_cone_add(location=(rad1, 0.0, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-0.5), radius1 = 0.01, depth = dep)
-    bpy.ops.mesh.primitive_cone_add(location=((rad1**2/2)**0.5, -(rad1**2/2)**0.5, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-0.75), radius1 = 0.01, depth = dep)
-    bpy.ops.mesh.primitive_cone_add(location=(0.0, -rad1, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-1), radius1 = 0.01, depth = dep)
-    bpy.ops.mesh.primitive_cone_add(location=(-(rad1**2/2)**0.5, -(rad1**2/2)**0.5, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-1.25), radius1 = 0.01, depth = dep)
-    bpy.ops.mesh.primitive_cone_add(location=(-rad1, 0.0, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-1.5), radius1 = 0.01, depth = dep)
-    bpy.ops.mesh.primitive_cone_add(location=(-(rad1**2/2)**0.5, (rad1**2/2)**0.5, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-1.75), radius1 = 0.01, depth = dep)
-    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-lettheight*1.3, dep, 0.0), rotation=(0.0, 0.0, 0.0))
-    txt = bpy.context.active_object
-    txt.data.body = 'N'
-    txt.scale = (0.5, 0.5, 0.5)
-    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=((dep**2/2)**0.5-lettheight, (1+dep**2/2)**0.5, 0.0), rotation=(0.0, 0.0, pi*-0.25))
-    txt = bpy.context.active_object
-    txt.data.body = 'NE'
-    txt.scale = (0.4, 0.4, 0.4)
-    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(dep, -lettheight, 0.0), rotation=(0.0, 0.0, 0.0))
-    txt = bpy.context.active_object
-    txt.data.body = 'W'
-    txt.scale = (0.5, 0.5, 0.5)
-    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=((dep**2/2)**0.5, -lettwidth-lettheight-(dep**2/2)**0.5, 0.0), rotation=(0.0, 0.0, pi*0.25))
-    txt = bpy.context.active_object
-    txt.data.body = 'SW'
-    txt.scale = (0.4, 0.4, 0.4)
-    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-lettwidth/3, -dep-lettwidth*1.3, 0.0), rotation=(0.0, 0.0, 0.0))
-    txt = bpy.context.active_object
-    txt.data.body = 'S'
-    txt.scale = (0.5, 0.5, 0.5)
-    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-(dep**2/2)**0.5-lettwidth-0.1, -lettwidth/2-(dep**2/2)**0.5, 0.0), rotation=(0.0, 0.0, pi*-0.25))
-    txt = bpy.context.active_object
-    txt.data.body = 'SE'
-    txt.scale = (0.4, 0.4, 0.4)
-    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-lettwidth-dep, -lettheight, 0.0), rotation=(0.0, 0.0, 0.0))
-    txt = bpy.context.active_object
-    txt.data.body = 'E'
-    txt.scale = (0.5, 0.5, 0.5)
-    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-(dep**2/2)**0.5-lettwidth, -(lettheight+lettwidth)*0.5+(dep**2/2)**0.5, 0.0), rotation=(0.0, 0.0, pi*0.25))
-    txt = bpy.context.active_object
-    txt.data.body = 'NW'
-    txt.scale = (0.4, 0.4, 0.4)
-    arrverts = ((0.05, -0.25, 0.0), (-0.05, -0.25, 0.0), (0.05, 0.25, 0.0), (-0.05, 0.25, 0.0), (0.15, 0.1875, 0.0), (-0.15, 0.1875, 0.0), (0.0, 0.5, 0.0))
-    arrfaces = ((1, 0, 2, 3), (2, 4, 6, 5, 3))
-    arrme = bpy.data.meshes.new('windarrow')
-    arrob = bpy.data.objects.new('windarrow', arrme)
-    arrme.from_pydata(arrverts, [], arrfaces)
-    arrme.update()
-    bpy.context.scene.objects.link(arrob)
+#def windcompass():
+#    rad1 = 1.4
+#    dep = 2.8
+#    lettwidth = 0.3
+#    lettheight = 0.15
+#    bpy.ops.mesh.primitive_torus_add(location=(0.0, 0.0, 0.0), view_align=False, rotation=(0.0, 0.0, 0.0), major_segments=48, minor_segments=12, major_radius=2.5, minor_radius=0.01)
+#    bpy.ops.mesh.primitive_cone_add(location=(0.0, rad1, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, 0.0), radius1 = 0.01, depth = dep)
+#    bpy.ops.mesh.primitive_cone_add(location=((rad1**2/2)**0.5, (rad1**2/2)**0.5, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-0.25), radius1 = 0.01, depth = dep)
+#    bpy.ops.mesh.primitive_cone_add(location=(rad1, 0.0, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-0.5), radius1 = 0.01, depth = dep)
+#    bpy.ops.mesh.primitive_cone_add(location=((rad1**2/2)**0.5, -(rad1**2/2)**0.5, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-0.75), radius1 = 0.01, depth = dep)
+#    bpy.ops.mesh.primitive_cone_add(location=(0.0, -rad1, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-1), radius1 = 0.01, depth = dep)
+#    bpy.ops.mesh.primitive_cone_add(location=(-(rad1**2/2)**0.5, -(rad1**2/2)**0.5, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-1.25), radius1 = 0.01, depth = dep)
+#    bpy.ops.mesh.primitive_cone_add(location=(-rad1, 0.0, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-1.5), radius1 = 0.01, depth = dep)
+#    bpy.ops.mesh.primitive_cone_add(location=(-(rad1**2/2)**0.5, (rad1**2/2)**0.5, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-1.75), radius1 = 0.01, depth = dep)
+#    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-lettheight*1.3, dep, 0.0), rotation=(0.0, 0.0, 0.0))
+#    txt = bpy.context.active_object
+#    txt.data.body = 'N'
+#    txt.scale = (0.5, 0.5, 0.5)
+#    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=((dep**2/2)**0.5-lettheight, (1+dep**2/2)**0.5, 0.0), rotation=(0.0, 0.0, pi*-0.25))
+#    txt = bpy.context.active_object
+#    txt.data.body = 'NE'
+#    txt.scale = (0.4, 0.4, 0.4)
+#    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(dep, -lettheight, 0.0), rotation=(0.0, 0.0, 0.0))
+#    txt = bpy.context.active_object
+#    txt.data.body = 'W'
+#    txt.scale = (0.5, 0.5, 0.5)
+#    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=((dep**2/2)**0.5, -lettwidth-lettheight-(dep**2/2)**0.5, 0.0), rotation=(0.0, 0.0, pi*0.25))
+#    txt = bpy.context.active_object
+#    txt.data.body = 'SW'
+#    txt.scale = (0.4, 0.4, 0.4)
+#    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-lettwidth/3, -dep-lettwidth*1.3, 0.0), rotation=(0.0, 0.0, 0.0))
+#    txt = bpy.context.active_object
+#    txt.data.body = 'S'
+#    txt.scale = (0.5, 0.5, 0.5)
+#    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-(dep**2/2)**0.5-lettwidth-0.1, -lettwidth/2-(dep**2/2)**0.5, 0.0), rotation=(0.0, 0.0, pi*-0.25))
+#    txt = bpy.context.active_object
+#    txt.data.body = 'SE'
+#    txt.scale = (0.4, 0.4, 0.4)
+#    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-lettwidth-dep, -lettheight, 0.0), rotation=(0.0, 0.0, 0.0))
+#    txt = bpy.context.active_object
+#    txt.data.body = 'E'
+#    txt.scale = (0.5, 0.5, 0.5)
+#    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-(dep**2/2)**0.5-lettwidth, -(lettheight+lettwidth)*0.5+(dep**2/2)**0.5, 0.0), rotation=(0.0, 0.0, pi*0.25))
+#    txt = bpy.context.active_object
+#    txt.data.body = 'NW'
+#    txt.scale = (0.4, 0.4, 0.4)
+#    arrverts = ((0.05, -0.25, 0.0), (-0.05, -0.25, 0.0), (0.05, 0.25, 0.0), (-0.05, 0.25, 0.0), (0.15, 0.1875, 0.0), (-0.15, 0.1875, 0.0), (0.0, 0.5, 0.0))
+#    arrfaces = ((1, 0, 2, 3), (2, 4, 6, 5, 3))
+#    arrme = bpy.data.meshes.new('windarrow')
+#    arrob = bpy.data.objects.new('windarrow', arrme)
+#    arrme.from_pydata(arrverts, [], arrfaces)
+#    arrme.update()
+#    bpy.context.scene.objects.link(arrob)
 
 def rgb2h(rgb):
     return colorsys.rgb_to_hsv(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0)[0]
@@ -1730,23 +1731,26 @@ def frameindex(scene, anim):
 
 def retobjs(otypes):
     scene = bpy.context.scene
+    validobs = [o for o in scene.objects if o.hide == False and o.layers[scene.active_layer] == True]
     if otypes == 'livig':
-        return([geo for geo in scene.objects if geo.type == 'MESH' and len(geo.data.materials) and not (geo.parent and os.path.isfile(geo.iesname)) and not geo.lila \
-        and geo.hide == False and geo.layers[scene.active_layer] == True and geo.lires == 0 and geo.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')])
-    elif otypes == 'livigengeo':
-        return([geo for geo in scene.objects if geo.type == 'MESH' and not any([m.livi_sense for m in geo.data.materials])])
+        return([o for o in validobs if o.type == 'MESH' and o.data.materials and  any([m.mattype == '0' for m in o.data.materials]) and not (o.parent and os.path.isfile(o.iesname)) and not o.lila \
+        and o.lires == 0 and o.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')])
+    elif otypes == 'livigeno':
+        return([o for o in validobs if o.type == 'MESH' and o.data.materials and not any([m.livi_sense for m in o.data.materials])])
     elif otypes == 'livigengeosel':
-        return([geo for geo in scene.objects if geo.type == 'MESH' and geo.select == True and not any([m.livi_sense for m in geo.data.materials])])
+        return([o for o in validobs if o.type == 'MESH' and o.select == True and o.data.materials and not any([m.livi_sense for m in o.data.materials])])
     elif otypes == 'livil':
-        return([geo for geo in scene.objects if (geo.type == 'LAMP' or geo.lila) and geo.hide == False and geo.layers[scene.active_layer] == True])
+        return([o for o in validobs if (o.type == 'LAMP' or o.lila) and o.hide == False and o.layers[scene.active_layer] == True])
     elif otypes == 'livic':
-        return([geo for geo in scene.objects if geo.type == 'MESH' and li_calcob(geo, 'livi') and geo.lires == 0 and geo.hide == False and geo.layers[scene.active_layer] == True])
+        return([o for o in validobs if o.type == 'MESH' and li_calcob(o, 'livi') and o.lires == 0 and o.hide == False and o.layers[scene.active_layer] == True])
+#    elif otypes == 'shadc':
+#        return([o for o in scene.objects if o.type == 'MESH' and li_calcob(o, 'livi') and o.lires == 0 and o.hide == False and o.layers[scene.active_layer] == True])
     elif otypes == 'livir':
-        return([geo for geo in bpy.data.objects if geo.type == 'MESH' and True in [m.livi_sense for m in geo.data.materials] and geo.licalc and geo.layers[scene.active_layer] == True])
+        return([o for o in validobs if o.type == 'MESH' and True in [m.livi_sense for m in o.data.materials] and o.licalc and o.layers[scene.active_layer] == True])
     elif otypes == 'envig':
-        return([geo for geo in scene.objects if geo.type == 'MESH' and geo.hide == False and geo.layers[0] == True])
+        return([o for o in validobs if o.type == 'MESH' and o.hide == False and o.layers[0] == True])
     elif otypes == 'ssc':
-        return [geo for geo in scene.objects if geo.type == 'MESH' and geo.licalc and geo.lires == 0 and geo.hide == False and geo.layers[scene.active_layer] == True and any([m.mattype == '2' for m in geo.data.materials])]
+        return [o for o in validobs if o.type == 'MESH' and o.lires == 0 and o.hide == False and o.layers[scene.active_layer] == True and any([m.mattype == '2' for m in o.data.materials])]
 
 def radmesh(scene, obs, export_op):
 #    matnames = []
@@ -2394,7 +2398,6 @@ def fvobjwrite(scene, o, bmo):
             objfile.write('g {}\n'.format(mat.name) + ''.join(['f {} {} {}\n'.format(*[v.index + 1 for v in f.verts]) for f in bmesh.ops.triangulate(bm, faces = bm.faces)['faces'] if f.material_index == m]))
         objfile.write('#{}'.format(len(bm.faces)))
     bm.free()
-#    print(objheader + vcos + fverts)
     
 def sunposenvi(scene, resnode, frames, sun, valheaders):
 #    if resnode.bl_label == 'EnVi Simulation':

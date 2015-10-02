@@ -18,23 +18,23 @@ class Vi3DPanel(bpy.types.Panel):
             view = context.space_data
             layout = self.layout
 
-            if scene['viparams']['vidisp'] == 'wr':            
+            if scene['viparams']['vidisp'] == 'wr' and scene.vi_display:            
                 newrow(layout, 'Legend', scene, "vi_leg_display")
 
-            elif scene['viparams']['vidisp'] == 'sp':
+            elif scene['viparams']['vidisp'] == 'sp' and scene.vi_display:
                 for i in (("Day of year:", "solday"), ("Time of day:", "solhour"), ("Sunpath scale:", "soldistance"), ("Display hours:", "hourdisp")):
                     newrow(layout, i[0], scene, i[1])
                 if scene.hourdisp:
                     for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_fsh")):
                         newrow(layout, i[0], scene, i[1])
 
-            elif scene['viparams']['vidisp'] in ('ss', 'li', 'sspanel', 'lipanel', 'licpanel'):
+            elif scene['viparams']['vidisp'] in ('ss', 'li', 'lc', 'sspanel', 'lipanel', 'lcpanel'):
                 row = layout.row()
                 row.prop(scene, "vi_disp_3d")                
                 row = layout.row()
                 row.operator("view3d.lidisplay", text="Shadow Display") if scene['viparams']['visimcontext'] == 'Shadow' else row.operator("view3d.lidisplay", text="Radiance Display")
 
-                if scene['viparams']['vidisp'] in ('sspanel', 'lipanel', 'licpanel') and [o for o in bpy.data.objects if o.lires]:
+                if scene['viparams']['vidisp'] in ('sspanel', 'lipanel', 'lcpanel') and [o for o in bpy.data.objects if o.lires]:
                     row = layout.row()
                     row.prop(view, "show_only_render")
                     newrow(layout, 'Legend', scene, "vi_leg_display")
@@ -67,7 +67,7 @@ class Vi3DPanel(bpy.types.Panel):
                         row = layout.row()
                         row.label(text="{:-<60}".format(""))
  
-                    if scene['viparams']['vidisp'] == 'licpanel':
+                    if scene['viparams']['vidisp'] == 'lcpanel':
                         propdict = OrderedDict([("Compliance Panel", "li_compliance"), ("Asessment organisation:", "li_assorg"), ("Assesment individiual:", "li_assind"), ("Job number:", "li_jobno"), ("Project name:", "li_projname")])
                         for prop in propdict.items():
                             newrow(layout, prop[0], scene, prop[1])

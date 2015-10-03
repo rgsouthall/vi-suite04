@@ -62,8 +62,9 @@ def rtpoints(self, bm, offset, frame):
         self['rtpoints'][frame]  = ''.join(['{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([bm.verts[vi].co[i] + offset * bm.verts[vi].normal[i] for i in range(3)], bm.verts[vi].normal) for vi in gpoints])
         self['cverts'], self['lisenseareas'][frame] = gpoints, [vertarea(bm, bm.verts[vi]) for vi in gpoints]
     
+#    bm.verts.ensure_lookup_table()
     for g, gp in enumerate(gpoints):
-        bm.verts[gp][cindex] = g + 1
+        geom[g][cindex] = g + 1
 
     self['rtpnum'] = g + 1
                     

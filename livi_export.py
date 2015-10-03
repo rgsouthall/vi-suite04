@@ -63,36 +63,21 @@ def radgexport(export_op, node, **kwargs):
 #        (scene['liparams']['fs'], scene['liparams']['gfe'], node['frames']['Material'], node['frames']['Geometry'], node['frames']['Lights']) = [kwargs['genframe']] * 5 if kwargs.get('genframe') else (0, 0, 0, 0, 0)
 #    scene['liparams']['cfe'] = 0
     
-    for o in set(geooblist + caloblist):
-        
+    for o in set(geooblist + caloblist):        
         if not node.animated:
             o.animation_data_clear()
             o.data.animation_data_clear()
-#        bm = bmesh.new()
-#        bm.from_mesh(o.data)
-#        clearlayers(bm)
-#        if o in caloblist:
-#            geom = (bm.faces, bm.verts)[int(node.cpoint)]
-
-#            geom.layers.int.new('cindex')
-#            o['cpoint'] = node.cpoint
-        
         if o.get('rtpoints'):
             del o['rtpoints']
             del o['lisenseareas']
         if o in caloblist:
             o['rtpoints'] = {}
             o['lisenseareas'] = {}
-#        bm.to_mesh(o.data)
-#        bm.free()
-
 
     for frame in frames:
-#        if export == 'geoexport':
-            
         scene.frame_set(frame)
         mradfile, matnames = "# Materials \n\n", []
-        for o in [bpy.data.objects[on] for on in scene['liparams']['livig']]:
+        for o in [bpy.data.objects[on] for on in scene['liparams']['livig'] + scene['liparams']['livic']]:
             mradfile +=  ''.join([m.radmat(scene) for m in o.data.materials if m.name not in matnames])
             for mat in [m for m in o.data.materials if m.name not in matnames]:
                 matnames.append(mat.name)
@@ -124,29 +109,26 @@ def radgexport(export_op, node, **kwargs):
 #                if not kwargs.get('mo') or (kwargs.get('mo') and o in kwargs['mo']):
                 if not o.get('merr'):
 #                    if node.animated:# or export_op.nodeid.split('@')[0] == 'LiVi Simulation':
-                    bpy.ops.export_scene.obj(filepath=os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(o.name.replace(" ", "_"), frame)), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
-                    objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(o.name.replace(" ", "_"), frame)), os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(o.name.replace(" ", "_"), frame)))
-#                    elif export_op.nodeid.split('@')[0] == 'LiVi Simulation':
-#                        bpy.ops.export_scene.obj(filepath=retobj(o.name, scene.frame_start, node, scene), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
-#                        objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, retobj(o.name, scene.frame_start, node, scene), retmesh(o.name, scene.frame_start, node, scene))
-#                    else:
-#                        if frame == scene['liparams']['fs']:
-#                            bpy.ops.export_scene.obj(filepath=retobj(o.name, frame, node, scene), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
-#                            objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, retobj(o.name, scene.frame_current, node, scene), retmesh(o.name, scene.frame_current, node, scene))
-#                        else:
-#                            objcmd = ''
-
-                    objrun = Popen(objcmd.split(), stdout = PIPE, stderr=STDOUT)
-                    for line in objrun.stdout:
-                        if 'non-triangle' in line.decode():
-                            export_op.report({'INFO'}, o.name+" has an incompatible mesh. Doing a simplified export")
-                            o['merr'] = 1
-                            break
-
-                    o.select = False
+                    try:
+                        bpy.ops.export_scene.obj(filepath=os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(o.name.replace(" ", "_"), frame)), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
+                        objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(o.name.replace(" ", "_"), frame)), os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(o.name.replace(" ", "_"), frame)))
+                        objrun = Popen(objcmd.split(), stdout = PIPE, stderr=STDOUT)
+                        for line in objrun.stdout:
+                            if 'non-triangle' in line.decode():
+                                export_op.report({'INFO'}, o.name+" has an incompatible mesh. Doing a simplified export")
+                                o['merr'] = 1
+                                break 
+                    except:
+                        o['merr'] = 1
+                
+                if not o.get('merr'):
                     gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(o.name.replace(" ", "_"), frame)))
+                if o.get('merr'):
+                    gradfile += radpoints(o, [face for face in bm.faces if o.data.materials and face.material_index < len(o.data.materials)], 0)
+                    
 
-                elif o.get('merr'):
+                if o.get('merr'):
+                    del o['merr']
 #                    genframe = frame + 1 if not kwargs else kwargs['genframe']
 #                    if o.data.shape_keys and o.data.shape_keys.key_blocks[0] and o.data.shape_keys.key_blocks[genframe]:
 #                        skv0, skv1 = o.data.shape_keys.key_blocks[0].value, o.data.shape_keys.key_blocks[genframe].value
@@ -154,9 +136,9 @@ def radgexport(export_op, node, **kwargs):
 #                        skl0, skl1 = bm.verts.layers.shape[sk0], bm.verts.layers.shape[sk1]
 #                        gradfile += radpoints(o, [face for face in bm.faces if o.data.materials and face.material_index < len(o.data.materials)], (skv0, skv1, skl0, skl1))
 #                    else:
-                    gradfile += radpoints(o, [face for face in bm.faces if o.data.materials and face.material_index < len(o.data.materials)], 0)
+                    
 
-                    del o['merr']
+                    
 
             # rtrace export routine
 

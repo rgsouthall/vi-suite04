@@ -451,21 +451,21 @@ def compcalcapply(self, scene, frames, rtcmds, simnode):
             if c[0] == 'Percent':
                 if c[2] == 'DF':
                     dfpass[str(frame)] = 1
-                    dfpassarea = dfpassarea + oarea if sum(resdf)/reslen > int(c[3]) else dfpassarea
-                    comps[str(frame)].append((0, 1)[sum(resdf)/reslen > int(c[3])])
+                    dfpassarea = dfpassarea + oarea if sum(resdf)/reslen > float(c[3]) else dfpassarea
+                    comps[str(frame)].append((0, 1)[sum(resdf)/reslen > float(c[3])])
                     comps[str(frame)].append(sum(resdf)/reslen)
                     dftotarea += oarea
                     
                 if c[2] == 'PDF':
                     dfpass[str(frame)] = 1
                     dfpassarea = sum([area for p, area in enumerate(oareas) if resdf[p] > int(c[3])])
-                    comps[str(frame)].append((0, 1)[dfpassarea > int(c[1])*oarea/100])
+                    comps[str(frame)].append((0, 1)[dfpassarea > float(c[1])*oarea/100])
                     comps[str(frame)].append(100*dfpassarea/oarea)
                     dftotarea += oarea
     
                 elif c[2] == 'Skyview':
                     passarea = sum([area for p, area in enumerate(oareas) if ressv[p] > 0])
-                    comps[str(frame)].append((0, 1)[passarea >= int(c[1])*oarea/100])
+                    comps[str(frame)].append((0, 1)[passarea >= float(c[1])*oarea/100])
                     comps[str(frame)].append(100*passarea/oarea)
                     passarea = 0
     
@@ -484,16 +484,16 @@ def compcalcapply(self, scene, frames, rtcmds, simnode):
         for e in self['ecrit']:
             if e[0] == 'Percent':
                 if e[2] == 'DF':
-                    edfpass[str(frame)] = [1, (0, 1)[sum(resdf)/reslen > int(e[3])], sum(resdf)/reslen]
-                    edfpassarea = edfpassarea + oarea if sum(resdf)/(reslen) > int(e[3]) else edfpassarea
-                    ecomps[str(frame)].append((0, 1)[sum(resdf)/reslen > int(e[3])])
+                    edfpass[str(frame)] = [1, (0, 1)[sum(resdf)/reslen > float(e[3])], sum(resdf)/reslen]
+                    edfpassarea = edfpassarea + oarea if sum(resdf)/(reslen) > float(e[3]) else edfpassarea
+                    ecomps[str(frame)].append((0, 1)[sum(resdf)/reslen > float(e[3])])
                     ecomps[str(frame)].append(sum(resdf)/reslen)
                     edftotarea += oarea
                     
                 if e[2] == 'PDF':
                     edfpass[str(frame)] = 1
-                    edfpassarea = sum([area for p, area in enumerate(oareas) if resdf[p] > int(e[3])])      
-                    ecomps[str(frame)].append((0, 1)[dfpassarea > int(e[1])*oarea/100])
+                    edfpassarea = sum([area for p, area in enumerate(oareas) if resdf[p] > float(e[3])])      
+                    ecomps[str(frame)].append((0, 1)[dfpassarea > float(e[1])*oarea/100])
                     ecomps[str(frame)].append(100*edfpassarea/oarea)
                     edftotarea += oarea
     
@@ -2421,7 +2421,7 @@ def sunposenvi(scene, resnode, frames, sun, valheaders):
 
     sizevals = [beamvals[t]/skyvals[t] for t in range(len(times))]
     values = list(zip(sizevals, beamvals, skyvals))
-    sunapply(scene, times, sun, values, solposs)
+    sunapply(scene, sun, values, solposs, frames)
 #    simtime = node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
 #    else:
 #        sun.data.shadow_method, sun.data.shadow_ray_samples, sun.data.sky.use_sky = 'RAY_SHADOW', 8, 1
@@ -2454,60 +2454,6 @@ def sunposenvi(scene, resnode, frames, sun, valheaders):
 def hdrsky(hdrfile):
     return("# Sky material\nvoid colorpict hdr_env\n7 red green blue {} angmap.cal sb_u sb_v\n0\n0\n\nhdr_env glow env_glow\n0\n0\n4 1 1 1 0\n\nenv_glow bubble sky\n0\n0\n4 0 0 0 5000\n\n".format(hdrfile))
    
-#def cbdmhdr(self, export_op, scene):
-#    locnode = self.inputs['Location in'].links[0].from_node
-#    os.chdir(scene['viparams']['newdir'])
-#    pcombfiles = ''.join(["ps{}.hdr ".format(i) for i in range(146)])
-#    epwbase = os.path.splitext(os.path.basename(locnode.weather))
-#    if epwbase[1] in (".epw", ".EPW"):
-#        with open(locnode.weather, "r") as epwfile:
-#            epwlines = epwfile.readlines()
-#            epwyear = epwlines[8].split(",")[0]
-#            Popen(("epw2wea", locnode.weather, "{}.wea".format(os.path.join(scene['viparams']['newdir'], epwbase[0])))).wait()
-#            if self.startmonth != 1 or self.endmonth != 12:
-#                with open("{}.wea".format(os.path.join(scene['viparams']['newdir'], epwbase[0])), 'r') as weafile:
-#                    wealines = weafile.readlines()
-#                    weaheader = [line for line in wealines[:6]]
-#                    wearange = [line for line in wealines[6:] if int(line.split()[0]) in range (self.startmonth, self.endmonth + 1)]
-#                with open("{}.wea".format(os.path.join(scene['viparams']['newdir'], epwbase[0])), 'w') as weafile:
-#                    [weafile.write(line) for line in weaheader + wearange]
-#            gdmcmd = ("gendaymtx -m 1 {} {}".format(('', '-O1')[self.analysismenu in ('1', '3')], "{0}.wea".format(os.path.join(scene['viparams']['newdir'], epwbase[0]))))
-#            self['mtx'] = Popen(gdmcmd.split(), stdout = PIPE, stderr=STDOUT).communicate()[0].decode()
-#    if self.sourcemenu == '0':
-#        if self.inputs['Location in'].is_linked:
-##                    mtxlines = mtxfile.readlines()
-##                    print(mtxlines)
-#            vecvals, vals = mtx2vals(self['mtx'].splitlines(), datetime.datetime(int(epwyear), self.startmonth, 1).weekday(), self)
-#
-##                    mtxfile.close()
-#            self['vecvals'] = vecvals
-#            self['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
-#            with open("{}-whitesky.oct".format(scene['viparams']['filebase']), 'w') as wsfile:
-#                oconvcmd = "oconv -w -"
-#                Popen(shlex.split(oconvcmd), stdin = PIPE, stdout = wsfile).communicate(input = self['whitesky'].encode('utf-8'))
-#            if self.hdr:
-#                vwcmd = "vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0"
-#                rcontribcmd = "rcontrib -bn 146 -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o p%d.hdr -m sky_glow {}-whitesky.oct".format(scene['viparams']['nproc'], scene['viparams']['filename'])
-#                vwrun = Popen(vwcmd.split(), stdout = PIPE)
-#                Popen(rcontribcmd.split(), stdin = vwrun.stdout).wait()
-#
-#                for j in range(146):
-#                    with open("ps{}.hdr".format(j), 'w') as psfile:
-#                        Popen("pcomb -s {0} p{1}.hdr".format(vals[j], j).split(), stdout = psfile)
-#                with open(os.path.join(scene['viparams']['newdir'], epwbase[0]+"{}.hdr".format(('l', 'w')[self.analysismenu in ('1', '3')])), 'w') as epwhdr:
-#                    Popen("pcomb -h {}".format(pcombfiles).split(), stdout = epwhdr)
-#                [os.remove(os.path.join(scene['viparams']['newdir'], 'p{}.hdr'.format(i))) for i in range (146)]
-#                [os.remove(os.path.join(scene['viparams']['newdir'], 'ps{}.hdr'.format(i))) for i in range (146)]
-#                self.hdrname = os.path.join(scene['viparams']['newdir'], epwbase[0]+"{}.hdr".format(('l', 'w')[self.analysismenu in ('1', '3')]))
-##                    if self.hdr:
-#                with open('{}.oct'.format(os.path.join(scene['viparams']['newdir'], epwbase[0])), 'w') as hdroct:
-#                    Popen(shlex.split("oconv -w - "), stdin = PIPE, stdout=hdroct, stderr=STDOUT).communicate(input = hdrsky(os.path.join(scene['viparams']['newdir'], epwbase[0]+".hdr").encode('utf-8')))
-#                subprocess.call('cnt 750 1500 | rcalc -f "'+os.path.join(scene.vipath, 'Radfiles', 'lib', 'latlong.cal')+'" -e "XD=1500;YD=750;inXD=0.000666;inYD=0.001333" | rtrace -af pan.af -n {} -x 1500 -y 750 -fac "{}{}{}.oct" > '.format(scene['viparams']['nproc'], os.path.join(scene['viparams']['newdir'], epwbase[0])) + '"'+os.path.join(scene['viparams']['newdir'], '{}{}p.hdr'.format(epwbase[0], ('l', 'w')[self.analysismenu in ('1', '3')]))+'"', shell=True)
-#        else:
-#            export_op.report({'ERROR'}, "No location node connected")
-#            return
-#    if self.hdrname and os.path.isfile(self.hdrname) and self.hdrname not in bpy.data.images:
-#        bpy.data.images.load(self.hdrname)
     
 def sunposlivi(scene, skynode, frames, sun, stime):
     sun.data.shadow_method, sun.data.shadow_ray_samples, sun.data.sky.use_sky = 'RAY_SHADOW', 8, 1

@@ -87,7 +87,8 @@ class ViLoc(bpy.types.Node, ViNodes):
 
     def update(self):
         socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])
-
+        nodecolour(self, any([link.to_node.bl_label in ('LiVi CBDM', 'EnVi Export') and self.loc != "1" for link in self.outputs['Location out'].links]))
+        
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.label(text = 'Source:')
@@ -487,9 +488,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
         scene = context.scene
         if self.inputs['Geometry in'].links and self.inputs['Context in'].links:
             row = layout.row()
-            row.label(text = 'Frame start: {}'.format(min([c['fs'] for c in (self.inputs['Context in'].links[0].from_socket['Options'], self.inputs['Geometry in'].links[0].from_socket['Options'])])))
-            row = layout.row()
-            row.label(text = 'Frame end: {}'.format(max([c['fe'] for c in (self.inputs['Context in'].links[0].from_socket['Options'], self.inputs['Geometry in'].links[0].from_socket['Options'])])))
+            row.label(text = 'Frames: {} - {}'.format(min([c['fs'] for c in (self.inputs['Context in'].links[0].from_socket['Options'], self.inputs['Geometry in'].links[0].from_socket['Options'])]), max([c['fe'] for c in (self.inputs['Context in'].links[0].from_socket['Options'], self.inputs['Geometry in'].links[0].from_socket['Options'])])))
             cinsock = self.inputs['Context in'].links[0].from_socket
             newrow(layout, 'Photon map:', self, 'pmap')
             if self.pmap:
@@ -763,7 +762,6 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
 
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [self.resname])
-#        self.outputs['Results out'].hide = True
         if self.inputs['Context in'].is_linked:
             self.resfilename = os.path.join(self.inputs['Context in'].links[0].from_node.newdir, self.resname+'.eso')
 

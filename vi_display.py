@@ -258,7 +258,7 @@ def li3D_legend(self, context, simnode):
     scene = context.scene
     fc = str(scene.frame_current)
     try:
-        if scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or not scene.vi_leg_display:
+        if scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or not scene.vi_leg_display  or not any([o.lires for o in scene.objects]):
             return
         else:
             resvals = [('{:.1f}', '{:.0f}')[scene.vi_leg_max >= 100].format(scene.vi_leg_min + i*(scene.vi_leg_max - scene.vi_leg_min)/19) for i in range(20)] if scene.vi_leg_scale == '0' else \
@@ -320,7 +320,7 @@ def en_air(self, context, resnode, valheaders):
         return
     else:
         height, width, font_id = context.region.height, context.region.width, 0
-        hscale, tmar, rmar = height/nh, 50, 20
+        hscale, tmar, rmar = height/nh, 20, 20
         bheight, bwidth = hscale * 250, hscale * 350
         topheight = height - tmar
         leftwidth = width - int(rmar + bwidth)
@@ -333,7 +333,7 @@ def en_air(self, context, resnode, valheaders):
         blf.shadow(0, 3, 0, 0, 0, 0.5)
         
         # Temperature
-        resvals = resnode['allresdict'][valheaders[0]][resstart:resend]
+        resvals = resnode['allresdict'][valheaders[2]][resstart:resend]
         maxval, minval = max(resvals), min(resvals)
         maxval, minval = max(resvals), min(resvals)
         reslevel = (resvals[scene.frame_current] - minval)/(maxval - minval)
@@ -356,15 +356,15 @@ def en_air(self, context, resnode, valheaders):
         orot = atan2(vw[1],vw[0]) - atan2(1,0)
     
         scene, font_id, height = context.scene, 0, context.region.height
-        resvalss = resnode['allresdict'][valheaders[1]][resstart:resend]
+        resvalss = resnode['allresdict'][valheaders[3]][resstart:resend]
         maxvals = max(resvalss)
-        resvalsd = resnode['allresdict'][valheaders[2]][resstart:resend] 
+        resvalsd = resnode['allresdict'][valheaders[4]][resstart:resend] 
         radius, hscale = 110, height/nh
         posx, posy = int(rightwidth - radius * hscale), int(topheight - hscale * radius * 1.2)
         blf.position(font_id, int(leftwidth + hscale * 160), int(topheight - hscale * 20), 0)
-        blf.draw(font_id, "W: {:.1f}(m/s)".format(resvalss[scene.frame_current]))
-        blf.position(font_id, int(leftwidth + hscale * 245), int(topheight - hscale * 20), 0)
-        blf.draw(font_id, "W: {:.1f}deg".format(resvalsd[scene.frame_current]))
+        blf.draw(font_id, "WS: {:.1f}(m/s)".format(resvalss[scene.frame_current]))
+        blf.position(font_id, int(leftwidth + hscale * 255), int(topheight - hscale * 20), 0)
+        blf.draw(font_id, "WD: {:.0f}deg".format(resvalsd[scene.frame_current]))
 
         for i in range(1, 6):
             drawcircle(mathutils.Vector((posx, posy)), 0.15 * hscale * radius * i, 36, 0, 0.7, 0, 0, 0) 
@@ -386,7 +386,7 @@ def en_air(self, context, resnode, valheaders):
         drawtri(posx, posy, resvalss[scene.frame_current]/maxvals, resvalsd[scene.frame_current] + orot*180/pi, hscale, radius)
         
         # Humidity
-        resvals = resnode['allresdict'][valheaders[3]]
+        resvals = resnode['allresdict'][valheaders[5]]
         maxval, minval = 100, 0
         reslevel = (resvals[scene.frame_current] - minval)/(maxval - minval)
         bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
@@ -403,7 +403,7 @@ def en_panel(self, context, resnode):
     metrics = set
     height, font_id = context.region.height, 0
     hscale = height/nh
-    startx, starty, rowheight, totwidth = 50, height - 50, 20, 200
+    startx, starty, rowheight, totwidth = 20, height - 20, 20, 200
     resstart = 24 * (resnode['Start'] - resnode.dsdoy)
     resend = resstart + 24 * (1 + resnode['End'] - resnode['Start'])
     
@@ -442,7 +442,7 @@ def en_panel(self, context, resnode):
             
             if 'Humidity (%)' in metrics:
                 vals = resnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'Humidity (%)'][0]]
-                avval, maxval, minval, percenta, percentb = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val > scene.en_temp_max for val in vals])/len(vals), 100 * sum([val < scene.en_temp_min for val in vals])/len(vals) 
+                avval, maxval, minval, percenta, percentb = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val > scene.en_hum_max for val in vals])/len(vals), 100 * sum([val < scene.en_hum_min for val in vals])/len(vals) 
                 blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
                 blf.draw(font_id, 'Humidities:')
                 for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.1f}'.format(scene.en_hum_max), '% below {:.1f}'.format(scene.en_hum_min))):

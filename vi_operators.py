@@ -661,9 +661,9 @@ class NODE_OT_EnSim(bpy.types.Operator):
                     return {'PASS_THROUGH'}
                 except:
                     return {'PASS_THROUGH'}
-            elif self.frame < scene['enparams']['fe']:
-                self.frame += 1
-                bpy.ops.node.ensim('INVOKE_DEFAULT')
+#            elif self.frame < scene['enparams']['fe']:
+#                self.frame += 1
+#                bpy.ops.node.ensim('INVOKE_DEFAULT').nodeid = self.nodeid
             else:
                 for fname in [fname for fname in os.listdir('.') if fname.split(".")[0] == self.simnode.resname]:
                     os.remove(os.path.join(scene['viparams']['newdir'], fname))
@@ -722,13 +722,9 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
         scene = context.scene
         if scene['viparams']['vidisp'] not in ('en', 'enpanel'):
             try:
-#                if self.get('_handle_air'):
                 bpy.types.SpaceView3D.draw_handler_remove(self._handle_air, 'WINDOW')
             except:
                 pass
-#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_hum, 'WINDOW')
-#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_wind, 'WINDOW')
-#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_ztemp, 'WINDOW')
             if not scene.get('enpanel_disp'):
                 bpy.types.SpaceView3D.draw_handler_remove(self._handle_enpanel, 'WINDOW')
             return {'CANCELLED'}

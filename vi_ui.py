@@ -164,22 +164,23 @@ class VIMatPanel(bpy.types.Panel):
         if cm.mattype != '3':
             try:
                 if scene['viparams']['visimcontext'] == 'LiVi Compliance':
-                    connode = bpy.data.node_groups[scene['liparams']['compnode'].split('@')[1]].nodes[scene['liparams']['compnode'].split('@')[0]]
+                    simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
+                    coptions = simnode.inputs['Context in'].links[0].from_socket['Options']
                     if cm.mattype == '1':
-                        if connode.analysismenu == '0':
-                            if connode.bambuildmenu == '2':
+                        if coptions['cbanalysis'] == '0':
+                            if coptions['bambuild'] == '2':
                                 newrow(layout, "Space type:", cm, 'hspacemenu')
-                            elif connode.bambuildmenu == '3':
+                            elif coptions['bambuild'] == '3':
                                 newrow(layout, "Space type:", cm, 'brspacemenu')
                                 if cm.brspacemenu == '2':
                                     row = layout.row()
                                     row.prop(cm, 'gl_roof')
-                            elif connode.bambuildmenu == '4':
+                            elif coptions['bambuild'] == '4':
                                 newrow(layout, "Space type:", cm, 'respacemenu')
-                        elif connode.analysismenu == '1':
+                        elif coptions['cbanalysis'] == '1':
                             newrow(layout, "Space type:", cm, 'crspacemenu')
-            except:
-                pass
+            except Exception as e:
+                print(e)
     
             row = layout.row()
             row.label('LiVi Radiance type:')

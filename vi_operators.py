@@ -237,6 +237,7 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
         scene['viparams']['resnode'] = simnode.name
         scene['viparams']['restree'] = self.nodeid.split('@')[1]
         simnode.postexport()
+        self.report({'INFO'},"Simulation is finished")
         return {'FINISHED'}
         
 class NODE_OT_LiVIGlare(bpy.types.Operator):
@@ -488,11 +489,16 @@ class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
                 if node.splitmesh or file == ascfiles[-1]:
                     (basename, vpos) = (file.split(os.sep)[-1].split('.')[0], vpos) if node.splitmesh else ('Terrain', [(v[0] - minstartx, v[1] - minstarty, v[2]) for v in vpos])
                     me = bpy.data.meshes.new("{} mesh".format(basename))
-                    me.from_pydata(vpos,[],faces)
-                    me.update(calc_edges=True)
+                    bm = bmesh.new()
+                    [bm.verts.new(vco) for vco in vpos]
+                    bm.verts.ensure_lookup_table()
+#                    for face in faces:
+                    [bm.faces.new([bm.verts[fv] for fv in face]) for face in faces]
+                    bm.to_mesh(me)
                     ob = bpy.data.objects.new(basename, me)
                     ob.location = (ostartx - minstartx, ostarty - minstarty, 0) if node.splitmesh else (0, 0, 0)   # position object at 3d-cursor
                     bpy.context.scene.objects.link(ob)
+                    bm.free()
         bpy.context.user_preferences.edit.use_global_undo = True
         return {'FINISHED'}
 

@@ -189,6 +189,8 @@ def rettree(scene, obs):
     
 def basiccalcapply(self, scene, frames, rtcmds):
     selobj(scene, self)
+    oi = scene['liparams']['livic'].index(self.name)
+    onum, fnum = len(scene['liparams']['livic']), len(frames)
     bm = bmesh.new()
     bm.from_mesh(self.data)
     self['omax'], self['omin'], self['oave'] = {}, {}, {}
@@ -229,6 +231,9 @@ def basiccalcapply(self, scene, frames, rtcmds):
             g[illures] = resillu[g[cindex] - 1]
             g[dfres] = resdf[g[cindex] - 1]
             g[res] = g[illures]
+        print('Radiance simulation {:.0f}% complete'.format((oi + (f+1)/fnum)/onum * 100))
+
+        
         
     bm.to_mesh(self.data)
     bm.free()
@@ -393,9 +398,9 @@ def compcalcapply(self, scene, frames, rtcmds, simnode):
     self['compmat'] = [material.name for material in self.data.materials if material.mattype == '1'][0]
     self['omax'], self['omin'], self['oave'] = {}, {}, {}
     self['crit'], self['ecrit'] = retcrits(simnode, self['compmat'])
-    comps, ecomps =  [[[] * fra for fra in frames] for x in range(2)], [[[] * fra for fra in frames] for x in range(2)]
-    comps, ecomps =  [[] * fra for fra in frames], [[] * fra for fra in frames]
-    crits, dfpass, edfpass = [], [0 for f in frames], [0 for f in frames] 
+    comps, ecomps =  {str(f): [] for f in frames}, {str(f): [] for f in frames}
+#    comps, ecomps =  [[] * fra for fra in frames], [[] * fra for fra in frames]
+    crits, dfpass, edfpass = [], {str(f): 0 for f in frames}, {str(f): 0 for f in frames} 
     selobj(scene, self)
     bm = bmesh.new()
     bm.from_mesh(self.data)
@@ -445,77 +450,77 @@ def compcalcapply(self, scene, frames, rtcmds, simnode):
         for c in self['crit']:
             if c[0] == 'Percent':
                 if c[2] == 'DF':
-                    dfpass[frame] = 1
+                    dfpass[str(frame)] = 1
                     dfpassarea = dfpassarea + oarea if sum(resdf)/reslen > int(c[3]) else dfpassarea
-                    comps[frame].append((0, 1)[sum(resdf)/reslen > int(c[3])])
-                    comps[frame].append(sum(resdf)/reslen)
+                    comps[str(frame)].append((0, 1)[sum(resdf)/reslen > int(c[3])])
+                    comps[str(frame)].append(sum(resdf)/reslen)
                     dftotarea += oarea
                     
                 if c[2] == 'PDF':
-                    dfpass[frame] = 1
+                    dfpass[str(frame)] = 1
                     dfpassarea = sum([area for p, area in enumerate(oareas) if resdf[p] > int(c[3])])
-                    comps[frame].append((0, 1)[dfpassarea > int(c[1])*oarea/100])
-                    comps[frame].append(100*dfpassarea/oarea)
+                    comps[str(frame)].append((0, 1)[dfpassarea > int(c[1])*oarea/100])
+                    comps[str(frame)].append(100*dfpassarea/oarea)
                     dftotarea += oarea
     
                 elif c[2] == 'Skyview':
                     passarea = sum([area for p, area in enumerate(oareas) if ressv[p] > 0])
-                    comps[frame].append((0, 1)[passarea >= int(c[1])*oarea/100])
-                    comps[frame].append(100*passarea/oarea)
+                    comps[str(frame)].append((0, 1)[passarea >= int(c[1])*oarea/100])
+                    comps[str(frame)].append(100*passarea/oarea)
                     passarea = 0
     
             elif c[0] == 'Min':
-                comps[frame].append((0, 1)[min(resdf) > float(c[3])])
-                comps[frame].append(min(resdf))
+                comps[str(frame)].append((0, 1)[min(resdf) > float(c[3])])
+                comps[str(frame)].append(min(resdf))
     
             elif c[0] == 'Ratio':
-                comps[frame].append((0, 1)[min(resdf)/(sum(resdf)/reslen) >= float(c[3])])
-                comps[frame].append(min(resdf)/(sum(resdf)/reslen))
+                comps[str(frame)].append((0, 1)[min(resdf)/(sum(resdf)/reslen) >= float(c[3])])
+                comps[str(frame)].append(min(resdf)/(sum(resdf)/reslen))
     
             elif c[0] == 'Average':
-                comps[frame].append((0, 1)[sum([area * resdf[p] for p, area in enumerate(oareas)])/oarea > float(c[3])])
-                comps[frame].append(sum([area * resdf[p] for p, area in enumerate(oareas)])/oarea)
+                comps[str(frame)].append((0, 1)[sum([area * resdf[p] for p, area in enumerate(oareas)])/oarea > float(c[3])])
+                comps[str(frame)].append(sum([area * resdf[p] for p, area in enumerate(oareas)])/oarea)
     
         for e in self['ecrit']:
             if e[0] == 'Percent':
                 if e[2] == 'DF':
-                    edfpass[frame] = [1, (0, 1)[sum(resdf)/reslen > int(e[3])], sum(resdf)/reslen]
+                    edfpass[str(frame)] = [1, (0, 1)[sum(resdf)/reslen > int(e[3])], sum(resdf)/reslen]
                     edfpassarea = edfpassarea + oarea if sum(resdf)/(reslen) > int(e[3]) else edfpassarea
-                    ecomps[frame].append((0, 1)[sum(resdf)/reslen > int(e[3])])
-                    ecomps[frame].append(sum(resdf)/reslen)
+                    ecomps[str(frame)].append((0, 1)[sum(resdf)/reslen > int(e[3])])
+                    ecomps[str(frame)].append(sum(resdf)/reslen)
                     edftotarea += oarea
                     
                 if e[2] == 'PDF':
-                    edfpass[frame] = 1
+                    edfpass[str(frame)] = 1
                     edfpassarea = sum([area for p, area in enumerate(oareas) if resdf[p] > int(e[3])])      
-                    ecomps[frame].append((0, 1)[dfpassarea > int(e[1])*oarea/100])
-                    ecomps[frame].append(100*edfpassarea/oarea)
+                    ecomps[str(frame)].append((0, 1)[dfpassarea > int(e[1])*oarea/100])
+                    ecomps[str(frame)].append(100*edfpassarea/oarea)
                     edftotarea += oarea
     
                 elif e[2] == 'Skyview':
                     passarea = sum([area for p, area in enumerate(oareas) if ressv[p] > 0])
-                    ecomps[frame].append((0, 1)[passarea >= int(e[1]) * oarea/100])
-                    ecomps[frame].append(100*passarea/oarea)
+                    ecomps[str(frame)].append((0, 1)[passarea >= int(e[1]) * oarea/100])
+                    ecomps[str(frame)].append(100*passarea/oarea)
                     passarea = 0
     
             elif e[0] == 'Min':
-                ecomps[frame].append((0, 1)[min(resdf) > float(e[3])])
-                ecomps[frame].append(min(resdf))
+                ecomps[str(frame)].append((0, 1)[min(resdf) > float(e[3])])
+                ecomps[str(frame)].append(min(resdf))
     
             elif e[0] == 'Ratio':
-                ecomps[frame].append((0, 1)[min(resdf)/(sum(resdf)/reslen) >= float(e[3])])
-                ecomps[frame].append(min(resdf)/(sum(resdf)/reslen))
+                ecomps[str(frame)].append((0, 1)[min(resdf)/(sum(resdf)/reslen) >= float(e[3])])
+                ecomps[str(frame)].append(min(resdf)/(sum(resdf)/reslen))
     
             elif e[0] == 'Average':
-                ecomps[frame].append((0, 1)[sum(resdf)/reslen > float(e[3])])
-                ecomps[frame].append(sum(resdf)/reslen)
+                ecomps[str(frame)].append((0, 1)[sum(resdf)/reslen > float(e[3])])
+                ecomps[str(frame)].append(sum(resdf)/reslen)
     
             crits.append(self['crit'])
     
-        if dfpass[frame] == 1:
-            dfpass[frame] = 2 if dfpassarea/dftotarea >= (0.8, 0.35)[simnode['coptions']['canalysis'] == '0' and simnode['coptions']['bambuild'] == '4'] else dfpass[frame]
-        if edfpass[frame] == 1:
-            edfpass[frame] = 2 if edfpassarea/edftotarea >= (0.8, 0.5)[simnode['coptions']['canalysis'] == '0' and simnode['coptions']['bambuild'] == '4'] else edfpass[frame]
+        if dfpass[str(frame)] == 1:
+            dfpass[str(frame)] = 2 if dfpassarea/dftotarea >= (0.8, 0.35)[simnode['coptions']['canalysis'] == '0' and simnode['coptions']['bambuild'] == '4'] else dfpass[frame]
+        if edfpass[str(frame)] == 1:
+            edfpass[str(frame)] = 2 if edfpassarea/edftotarea >= (0.8, 0.5)[simnode['coptions']['canalysis'] == '0' and simnode['coptions']['bambuild'] == '4'] else edfpass[frame]
     self['comps'], self['ecomps'] = comps, ecomps
 
     scene['liparams']['crits'], scene['liparams']['dfpass'] = crits, dfpass

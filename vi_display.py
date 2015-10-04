@@ -574,7 +574,7 @@ def lipanel():
     
         
 def li_compliance(self, context, simnode):
-    height, scene = context.region.height, context.scene
+    height, scene, swidth, ewidth = context.region.height, context.scene, 120, 920
     if not scene.get('li_compliance') or scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or scene['viparams']['vidisp'] != 'lcpanel':
         return
     if simnode['coptions']['canalysis'] == '0':
@@ -582,27 +582,28 @@ def li_compliance(self, context, simnode):
     elif simnode['coptions']['canalysis'] == '1':
         buildtype = 'Residential'
         cfshpfsdict = {'totkit': 0, 'kitdf': 0, 'kitsv': 0, 'totliv': 0, 'livdf': 0, 'livsv': 0}
-
-    drawpoly(100, height - 40, 900, height - 65, 0.7, 1, 1, 1)
+    blf.enable(0, 4)
+    blf.shadow(0, 3, 0, 0, 0, 0.5)
+    drawpoly(swidth, height - 40, ewidth, height - 65, 0.7, 1, 1, 1)
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-    horpos, widths = (100, 317, 633, 900), (100, 450, 600, 750, 900)
+    horpos, widths = (swidth, 337, 653, ewidth), (swidth, 480, 620, 770, ewidth)
 
     for p in range(3):
         drawloop(horpos[p], height - 40, horpos[p+1], height - 65)
 
     font_id = 0
     blf.size(font_id, 20, 54)
-    drawfont('Standard: '+('BREEAM HEA1', 'CfSH', 'LEED EQ8.1', 'Green Star')[int(simnode['coptions']['Type'])], font_id, 0, height, 110, 58)
-    drawfont('Project Name: '+scene.li_projname, font_id, 0, height, 643, 58)
+    drawfont('Standard: '+('BREEAM HEA1', 'CfSH', 'LEED EQ8.1', 'Green Star')[int(simnode['coptions']['Type'])], font_id, 0, height, 130, 58)
+    drawfont('Project Name: '+scene.li_projname, font_id, 0, height, 663, 58)
     blf.size(font_id, 20, 40)
 
     def space_compliance(os):
         frame, buildspace, pfs, epfs, lencrit = scene.frame_current, '', [], [], 0
         for o in os:
             mat = bpy.data.materials[o['compmat']]
-            o['cr4'] = [('fail', 'pass')[int(com)] for com in o['comps'][frame][:][::2]]
+            o['cr4'] = [('fail', 'pass')[int(com)] for com in o['comps'][str(frame)][:][::2]]
             o['cr6'] = [cri[4] for cri in o['crit']]
-            if 'fail' in [c for i, c in enumerate(o['cr4']) if o['cr6'][i] == '1'] or bpy.context.scene['liparams']['dfpass'][frame] == 1:
+            if 'fail' in [c for i, c in enumerate(o['cr4']) if o['cr6'][i] == '1'] or bpy.context.scene['liparams']['dfpass'][str(frame)] == 1:
                 pf = 'FAIL'
             elif 'pass' not in [c for i, c in enumerate(o['cr4']) if o['cr6'][i] == '0.75'] and len([c for i, c in enumerate(o['cr4']) if o['cr6'][i] == '0.75']) > 0:
                 if 'pass' not in [c for i, c in enumerate(o['cr4']) if o['cr6'][i] == '0.5'] and len([c for i, c in enumerate(o['cr4']) if o['cr6'][i] == '0.5']) > 0:
@@ -622,9 +623,9 @@ def li_compliance(self, context, simnode):
 
             if simnode['coptions']['canalysis'] == '0':
                 ecrit = o['ecrit']
-                o['ecr4'] = [('fail', 'pass')[int(com)] for com in o['ecomps'][frame][:][::2]]
+                o['ecr4'] = [('fail', 'pass')[int(com)] for com in o['ecomps'][str(frame)][:][::2]]
                 o['ecr6'] = [ecri[4] for ecri in ecrit]
-                if 'fail' in [c for i, c in enumerate(o['ecr4']) if o['ecr6'][i] == '1'] or bpy.context.scene['liparams']['dfpass'][frame] == 1:
+                if 'fail' in [c for i, c in enumerate(o['ecr4']) if o['ecr6'][i] == '1'] or bpy.context.scene['liparams']['dfpass'][str(frame)] == 1:
                     epf = 'FAIL'
                 elif 'pass' not in [c for i, c in enumerate(o['ecr4']) if o['ecr6'][i] == '0.75'] and len([c for i, c in enumerate(o['ecr4']) if o['ecr6'][i] == '0.75']) > 0:
                     if 'pass' not in [c for i, c in enumerate(o['ecr4']) if o['ecr6'][i] == '0.5'] and len([c for i, c in enumerate(o['ecr4']) if o['ecr6'][i] == '0.5']) > 0:
@@ -638,8 +639,8 @@ def li_compliance(self, context, simnode):
         if bpy.context.active_object in os:
             o = bpy.context.active_object
             lencrit = 1 + len(o['crit'])
-            drawpoly(100, height - 70, 900, height - 70  - (lencrit)*25, 0.7, 1, 1, 1)
-            drawloop(100, height - 70, 900, height - 70  - (lencrit)*25)
+            drawpoly(swidth, height - 70, ewidth, height - 70  - (lencrit)*25, 0.7, 1, 1, 1)
+            drawloop(swidth, height - 70, ewidth, height - 70  - (lencrit)*25)
             mat = bpy.data.materials[o['compmat']]
             if simnode['coptions']['canalysis'] == '0':
                 buildspace = ('', '', (' - Public/Staff', ' - Patient')[int(mat.hspacemenu)], (' - Kitchen', ' - Living/Dining/Study', ' - Communal')[int(mat.brspacemenu)], (' - Sales', ' - Office')[int(mat.respacemenu)], '')[int(simnode['coptions']['bambuild'])]
@@ -653,29 +654,29 @@ def li_compliance(self, context, simnode):
             for c, cr in enumerate(o['crit']):
                 if cr[0] == 'Percent':
                     if cr[2] == 'Skyview':
-                        tables[c] = ('Percentage area with Skyview (%)', cr[1], '{:.2f}'.format(o['comps'][frame][:][c*2 + 1]), o['cr4'][c].upper())
+                        tables[c] = ('Percentage area with Skyview (%)', cr[1], '{:.2f}'.format(o['comps'][str(frame)][:][c*2 + 1]), o['cr4'][c].upper())
                     elif cr[2] == 'DF':  
-                        tables[c] = ('Average Daylight Factor (%)', cr[3], '{:.2f}'.format(o['comps'][frame][:][c*2 + 1]), o['cr4'][c].upper())
+                        tables[c] = ('Average Daylight Factor (%)', cr[3], '{:.2f}'.format(o['comps'][str(frame)][:][c*2 + 1]), o['cr4'][c].upper())
                     elif cr[2] == 'PDF':    
-                        tables[c] = ('Area with point Daylight Factor above {}'.format(cr[3]), cr[1], '{:.2f}'.format(o['comps'][frame][:][c*2 + 1]), o['cr4'][c].upper())
+                        tables[c] = ('Area with point Daylight Factor above {}'.format(cr[3]), cr[1], '{:.2f}'.format(o['comps'][str(frame)][:][c*2 + 1]), o['cr4'][c].upper())
                 elif cr[0] == 'Ratio':
-                    tables[c] = ('Uniformity ratio', cr[3], '{:.2f}'.format(o['comps'][frame][:][c*2 + 1]), o['cr4'][c].upper())
+                    tables[c] = ('Uniformity ratio', cr[3], '{:.2f}'.format(o['comps'][str(frame)][:][c*2 + 1]), o['cr4'][c].upper())
                 elif cr[0] == 'Min':
-                    tables[c] = ('Minimum {} (%)'.format('Point Daylight Factor'), cr[3], '{:.2f}'.format(o['comps'][frame][:][c*2 + 1]), o['cr4'][c].upper())
+                    tables[c] = ('Minimum {} (%)'.format('Point Daylight Factor'), cr[3], '{:.2f}'.format(o['comps'][str(frame)][:][c*2 + 1]), o['cr4'][c].upper())
                 elif cr[0] == 'Average':
-                    tables[c] = ('Average {} (%)'.format('Daylight Factor'), cr[3], '{:.2f}'.format(o['comps'][frame][:][c*2 + 1]), o['cr4'][c].upper())
+                    tables[c] = ('Average {} (%)'.format('Daylight Factor'), cr[3], '{:.2f}'.format(o['comps'][str(frame)][:][c*2 + 1]), o['cr4'][c].upper())
 
             if simnode['coptions']['canalysis'] == '0':
                 for e, ecr in enumerate(ecrit):
                     if ecr[0] == 'Percent':
                         if ecr[2] == 'skyview':
-                            etables[e] = ('Percentage area with Skyview (%)', ecr[1], '{:.2f}'.format(o['ecomps'][frame][:][e*2 + 1]), o['ecr4'][e].upper())
+                            etables[e] = ('Percentage area with Skyview (%)', ecr[1], '{:.2f}'.format(o['ecomps'][str(frame)][:][e*2 + 1]), o['ecr4'][e].upper())
                         elif ecr[2] == 'DF':  
-                            etables[e] = ('Average Daylight Factor (%)', ecr[3], '{:.2f}'.format(o['ecomps'][frame][:][e*2 + 1]), o['ecr4'][e].upper())
+                            etables[e] = ('Average Daylight Factor (%)', ecr[3], '{:.2f}'.format(o['ecomps'][str(frame)][:][e*2 + 1]), o['ecr4'][e].upper())
                         elif ecr[2] == 'PDF':    
-                            etables[e] = ('Area with point Daylight Factor above {}'.format(ecr[3]), ecr[1], '{:.2f}'.format(o['ecomps'][frame][:][e*2 + 1]), o['ecr4'][e].upper())
+                            etables[e] = ('Area with point Daylight Factor above {}'.format(ecr[3]), ecr[1], '{:.2f}'.format(o['ecomps'][str(frame)][:][e*2 + 1]), o['ecr4'][e].upper())
                     elif ecr[0] == 'Min':
-                        etables[e] = ('Minimum {} (%)'.format('Point Daylight Factor'), ecr[3], '{:.2f}'.format(o['ecomps'][frame][:][e*2 + 1]), o['ecr4'][e].upper())
+                        etables[e] = ('Minimum {} (%)'.format('Point Daylight Factor'), ecr[3], '{:.2f}'.format(o['ecomps'][str(frame)][:][e*2 + 1]), o['ecr4'][e].upper())
 
             for j in range(4):
                 drawloop(widths[j], height - 70, widths[j+1], height - 95)
@@ -701,8 +702,9 @@ def li_compliance(self, context, simnode):
         
 
         tpf = 'FAIL' if 'FAIL' in pfs or 'FAIL*' in pfs else 'PASS'
-        if simnode['coptions']['canalysis'] == '0':            
-            (tpf, lencrit) = ('EXEMPLARY', lencrit + len(o['ecrit'])) if tpf == 'PASS' and ('FAIL' not in epfs and 'FAIL*' not in epfs) else (tpf, lencrit)
+        if simnode['coptions']['canalysis'] == '0': 
+            lencrit = lencrit + len(o['ecrit']) if bpy.context.active_object in os else 0
+            tpf = 'EXEMPLARY' if tpf == 'PASS' and ('FAIL' not in epfs and 'FAIL*' not in epfs) else tpf
 
         return(tpf, lencrit, buildspace, etables)
 
@@ -712,8 +714,8 @@ def li_compliance(self, context, simnode):
     if build_compliance == 'EXEMPLARY':
         for t, tab in enumerate(etables):
             if t == 0:
-                drawpoly(100, height - 70 - (lencrit * 25), 900, height - 70 - ((lencrit - len(etables)) * 25), 0.7, 1, 1, 1)
-                drawloop(100, height - 70 - (lencrit * 25), 900, height - 70 - ((lencrit - len(etables)) * 25))
+                drawpoly(swidth, height - 70 - (lencrit * 25), ewidth, height - 70 - ((lencrit - len(etables)) * 25), 0.7, 1, 1, 1)
+                drawloop(swidth, height - 70 - (lencrit * 25), ewidth, height - 70 - ((lencrit - len(etables)) * 25))
             for j in range(4):
                 bgl.glEnable(bgl.GL_LINE_STIPPLE)
                 drawloop(widths[j], height - 95 - (lencrit - len(etables) + t - 1) * 25, widths[j+1], height - 120 - (lencrit - len(etables) + t - 1) * 25)
@@ -727,22 +729,22 @@ def li_compliance(self, context, simnode):
                 bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
                 bgl.glDisable(bgl.GL_LINE_STIPPLE)
 
-    blf.position(font_id, 327, height - 58, 0)
+    blf.position(font_id, 347, height - 58, 0)
     blf.size(font_id, 20, 54)
     blf.draw(font_id, 'Buildtype: '+buildtype+bs)
 
     blf.size(font_id, 20, 52)
-    blf.position(font_id, 110, height - 87 - lencrit*26, 0)
+    blf.position(font_id, 130, height - 87 - lencrit*26, 0)
     if simnode['coptions']['canalysis'] == '0':
-        drawpoly(100, height - 70 - lencrit*26, 525, height - 95 - lencrit*26, 0.7, 1, 1, 1)
-        drawloop(100, height - 70 - lencrit*26, 350, height - 95 - lencrit*26)
-        drawloop(100, height - 70 - lencrit*26, 350, height - 95 - lencrit*26)
-        drawloop(350, height - 70 - lencrit*26, 525, height - 95 - lencrit*26)
+        drawpoly(swidth, height - 70 - lencrit*26, 525, height - 95 - lencrit*26, 0.7, 1, 1, 1)
+        drawloop(swidth, height - 70 - lencrit*26, 370, height - 95 - lencrit*26)
+        drawloop(swidth, height - 70 - lencrit*26, 370, height - 95 - lencrit*26)
+        drawloop(370, height - 70 - lencrit*26, 525, height - 95 - lencrit*26)
         blf.draw(font_id, 'Building Compliance:')
-        drawfont(build_compliance, 0, lencrit, height, 250, 87)
-        blf.position(font_id, 360, height - 87 - lencrit*26, 0)
+        drawfont(build_compliance, 0, lencrit, height, 270, 87)
+        blf.position(font_id, 380, height - 87 - lencrit*26, 0)
         blf.draw(font_id, 'Credits achieved:')
-        blf.position(font_id, 480, height - 87 - lencrit*26, 0)
+        blf.position(font_id, 500, height - 87 - lencrit*26, 0)
         if build_compliance == 'PASS':
            blf.draw(font_id,  ('1', '2', '2', '1', '1', '1')[int(simnode['coptions']['bambuild'])])
         elif build_compliance == 'EXEMPLARY':
@@ -751,8 +753,8 @@ def li_compliance(self, context, simnode):
             blf.draw(font_id, '0')
 
     elif simnode['coptions']['canalysis'] == '1':
-        drawpoly(100, height - 70 - lencrit*26, 300, height - 95 - lencrit*26, 0.7, 1, 1, 1)
-        drawloop(100, height - 70 - lencrit*26, 300, height - 95 - lencrit*26)
+        drawpoly(swidth, height - 70 - lencrit*26, 320, height - 95 - lencrit*26, 0.7, 1, 1, 1)
+        drawloop(swidth, height - 70 - lencrit*26, 320, height - 95 - lencrit*26)
         drawfont('Credits achieved:', 0, lencrit, height, 110, 87)
         cfshcred = 0
         if cfshpfsdict['kitdf'] == cfshpfsdict['totkit'] and cfshpfsdict['totkit'] != 0:
@@ -788,6 +790,7 @@ def li_compliance(self, context, simnode):
     blf.draw(font_id, 'Job Number:')
     blf.position(font_id, 490 + aolen*sw + ailen*sw, 32, 0)
     blf.draw(font_id, scene.li_jobno)
+    blf.disable(0, 4)
 
 def rendview(i):
     for scrn in bpy.data.screens:

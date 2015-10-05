@@ -346,13 +346,13 @@ class LiViNode(bpy.types.Node, ViNodes):
         self['hours'] = 0 if not self.animated or int(self.skymenu) > 2  else (self.endtime-self.starttime).seconds/3600
         self.outputs['Context out']['Text'] = {}
         
-    def export(self, scene, export_op):
-        locnode = self.inputs['Location in'].links[0].from_node
+    def export(self, scene, export_op):        
         self.startframe = self.startframe if self.animated and self.contextmenu == 'Basic' and self.banalysismenu in ('0', '1', '2') else scene.frame_current 
         self['endframe'] = self.startframe + int(((24 * (self.edoy - self.sdoy) + self.ehour - self.shour)/self.interval)) if self.contextmenu == 'Basic' and self.banalysismenu in ('0', '1', '2') and self.animated else scene.frame_current
         self['mtxfile'] = ''
         if self.contextmenu == "Basic":        
             if self['skynum'] < 4:
+                locnode = self.inputs['Location in'].links[0].from_node
                 self['skytypeparams'] = ("+s", "+i", "-c", "-b 22.86 -c")[self['skynum']]
                 for f, frame in enumerate(range(self.startframe, self['endframe'] + 1)):
                     if self['skynum'] < 2:
@@ -377,7 +377,7 @@ class LiViNode(bpy.types.Node, ViNodes):
                     self.outputs['Context out']['Text'][str(scene['liparams']['fs'])] =  [radfiler.read()]
                 hdrexport(scene, 0, 0, self, self['skyfiles'][0])
             elif self['skynum'] == 6:
-                self.outputs['Context out']['Text'][str(scene['liparams']['fs'])] = ''
+                self.outputs['Context out']['Text'][str(scene.frame_current)] = ''
         
         elif self.contextmenu == "CBDM":
             if (self.cbanalysismenu in ('0', '1') and self.sourcemenu == '0') or (self.cbanalysismenu in ('2', '3', '4') and self.sourcemenu2 == '0'):

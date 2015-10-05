@@ -31,8 +31,10 @@ def radgexport(export_op, node, **kwargs):
         export_op.report({'INFO'}, "Active geometry is not on the active layer. You may need to lock layers.")
     geooblist, caloblist, lightlist = retobjs('livig'), retobjs('livic'), retobjs('livil')
     scene['liparams']['livig'], scene['liparams']['livic'], scene['liparams']['livil'] = [o.name for o in geooblist], [o.name for o in caloblist], [o.name for o in lightlist]
+    eolist = set(geooblist + caloblist)
+    mats = set([item for sublist in [o.data.materials for o in eolist] for item in sublist])
     
-    for o in set(geooblist + caloblist):        
+    for o in eolist:        
         if not node.animated:
             o.animation_data_clear()
             o.data.animation_data_clear()
@@ -42,15 +44,11 @@ def radgexport(export_op, node, **kwargs):
         if o in caloblist:
             o['rtpoints'] = {}
             o['lisenseareas'] = {}
-
+    
     for frame in frames:
         scene.frame_set(frame)
-        mradfile, matnames = "# Materials \n\n", []
-        for o in set(geooblist + caloblist):
-            mradfile +=  ''.join([m.radmat(scene) for m in o.data.materials if m.name not in matnames])
-            for mat in [m for m in o.data.materials if m.name not in matnames]:
-                matnames.append(mat.name)
-
+        mradfile = "# Materials \n\n"
+        mradfile +=  ''.join([m.radmat(scene) for m in mats])
         bpy.ops.object.select_all(action='DESELECT')
         tempmatfilename = scene['viparams']['filebase']+".tempmat"
         with open(tempmatfilename, "w") as tempmatfile:
@@ -60,8 +58,8 @@ def radgexport(export_op, node, **kwargs):
 
  #       rtpoints = ''
         gradfile = "# Geometry \n\n"
-        radmesh(scene, set(geooblist + caloblist), export_op)
-        for o in set(geooblist + caloblist):
+        radmesh(scene, eolist, export_op)
+        for o in eolist:
             bm = bmesh.new()
             bm.from_mesh(o.data)
             bm.transform(o.matrix_world)

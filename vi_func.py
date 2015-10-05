@@ -1839,7 +1839,7 @@ def sunpath():
         spathob = [ob for ob in scene.objects if ob.get('VIType') == 'SPathMesh'][0]
         beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
         sunob.location.z = sun.location.z = spathob.location.z + scene.soldistance * sin(beta)
-        sunob.location.x = sun.location.x = spathob.location.x -(scene.soldistance**2 - (sun.location.z-spathob.location.z)**2)**0.5  * sin(phi)
+        sunob.location.x = sun.location.x = spathob.location.x -(scene.soldistance**2 - (sun.location.z-spathob.location.z)**2)**0.5 * sin(phi)
         sunob.location.y = sun.location.y = spathob.location.y -(scene.soldistance**2 - (sun.location.z-spathob.location.z)**2)**0.5 * cos(phi)
         sun.rotation_euler = pi * 0.5 - beta, 0, -phi
         spathob.scale = 3 * [scene.soldistance/100]
@@ -1847,9 +1847,9 @@ def sunpath():
         sunob.scale = 3*[scene.soldistance/100]
 
         if scene.render.engine == 'CYCLES':
-            if bpy.data.worlds['World'].node_tree:
-                if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
-                    bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
+            if scene.world.node_tree:
+                for stnode in [no for no in scene.world.node_tree.nodes if no.bl_label == 'Sky Texture']:
+                    stnode.sun_direction = -sin(phi), -cos(phi), sin(beta)
             if sun.data.node_tree:
                 for blnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Blackbody']:
                     blnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5 if beta > 0 else 2500
@@ -1859,8 +1859,8 @@ def sunpath():
                 for smblnode in [node for node in sunob.data.materials[0].node_tree.nodes if sunob.data.materials and node.bl_label == 'Blackbody']:
                     smblnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5 if beta > 0 else 2500
             if skysphere and not skysphere.hide and skysphere.data.materials[0].node_tree:
-                if 'Sky Texture' in [no.bl_label for no in skysphere.data.materials[0].node_tree.nodes]:
-                    skysphere.data.materials[0].node_tree.nodes['Sky Texture'].sun_direction = sin(phi), -cos(phi), sin(beta)
+                for stnode in [no for no in skysphere.data.materials[0].node_tree.nodes if no.bl_label == 'Sky Texture']:
+                    stnode.sun_direction = sin(phi), -cos(phi), sin(beta)
 
         sun['solhour'], sun['solday'], sun['soldistance'] = scene.solhour, scene.solday, scene.soldistance
     else:
@@ -2433,10 +2433,10 @@ def sunposenvi(scene, resnode, frames, sun, valheaders):
 #        solalt, solazi, beta, phi = solarPosition(time.timetuple()[7], time.hour + (time.minute)*0.016666, scene['latitude'], scene['longitude'])
 ##        if node['skynum'] < 2:
 #        sun.location, sun.rotation_euler = [x*20 for x in (-sin(phi), -cos(phi), tan(beta))], [(pi/2) - beta, 0, -phi]
-#        if scene.render.engine == 'CYCLES' and bpy.data.worlds['World'].use_nodes:
-#            if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
-#                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)#sin(phi), -cos(phi), -2* beta/math.pi
-#                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = t) 
+#        if scene.render.engine == 'CYCLES' and scene.world.use_nodes:
+#            if 'Sky Texture' in [no.bl_label for no in scene.world.node_tree.nodes]:
+#                scene.world.node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)#sin(phi), -cos(phi), -2* beta/math.pi
+#                scene.world.node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = t) 
 #            if sun.data.node_tree:
 #                for emnode in [emnode for emnode in sun.data.node_tree.nodes if emnode.bl_label == 'Emission']:
 #                    emnode.inputs[0].default_value[2] = solalt/90
@@ -2482,16 +2482,16 @@ def sunapply(scene, sun, values, solposs, frames):
         scene.frame_set(frame)
 #        solalt, solazi, beta, phi = solarPosition(time.timetuple()[7], time.hour + (time.minute)*0.016666, scene['latitude'], scene['longitude'])
         sun.location, sun.rotation_euler = [x*20 for x in (-sin(solposs[f][3]), -cos(solposs[f][3]), tan(solposs[f][2]))], [(pi/2) - solposs[f][2], 0, -solposs[f][3]]
-        if scene.render.engine == 'CYCLES' and bpy.data.worlds['World'].use_nodes:
-            if 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
+        if scene.render.engine == 'CYCLES' and scene.world.use_nodes:
+            if 'Sky Texture' in [no.bl_label for no in scene.world.node_tree.nodes]:
                 if f == 0:
-                    bpy.data.worlds['World'].node_tree.animation_data_clear()
-                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(solposs[f][3]), -cos(solposs[f][3]), sin(solposs[f][2])#sin(phi), -cos(phi), -2* beta/math.pi
-                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = frame) 
+                    scene.world.node_tree.animation_data_clear()
+                scene.world.node_tree.nodes['Sky Texture'].sun_direction = -sin(solposs[f][3]), -cos(solposs[f][3]), sin(solposs[f][2])#sin(phi), -cos(phi), -2* beta/math.pi
+                scene.world.node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = frame) 
 #            if t == 0:
-#                bpy.data.worlds['World'].node_tree.nodes['background'].inputs[1].animation_data_clear()
-            bpy.data.worlds['World'].node_tree.nodes['Background'].inputs[1].default_value = values[f][2]
-            bpy.data.worlds['World'].node_tree.nodes['Background'].inputs[1].keyframe_insert(data_path = 'default_value', frame = frame)
+#                scene.world.node_tree.nodes['background'].inputs[1].animation_data_clear()
+            scene.world.node_tree.nodes['Background'].inputs[1].default_value = values[f][2]
+            scene.world.node_tree.nodes['Background'].inputs[1].keyframe_insert(data_path = 'default_value', frame = frame)
             if sun.data.node_tree:
                 if f == 0:
                     sun.data.node_tree.animation_data_clear()

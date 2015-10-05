@@ -856,8 +856,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
         sun.data.shadow_soft_size = 0.01            
         sun['VIType'] = 'Sun'
         
-        if scene.render.engine == 'CYCLES' and bpy.data.worlds['World'].get('node_tree') and 'Sky Texture' in [no.bl_label for no in bpy.data.worlds['World'].node_tree.nodes]:
-            bpy.data.worlds['World'].node_tree.animation_data_clear()
+        if scene.render.engine == 'CYCLES' and scene.world.get('node_tree') and 'Sky Texture' in [no.bl_label for no in scene.world.node_tree.nodes]:
+            scene.world.node_tree.animation_data_clear()
 
         sun['solhour'], sun['solday'], sun['soldistance'] = scene.solhour, scene.solday, scene.soldistance
 

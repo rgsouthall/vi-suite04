@@ -1944,7 +1944,7 @@ def gentarget(tarnode, result):
         return(0)
 
 def selobj(scene, geo):
-    if scene.objects.active and scene.objects.active.mode != 'EDIT':
+    if scene.objects.active and scene.objects.active.hide == 'False':
         bpy.ops.object.mode_set(mode = 'OBJECT') 
     for ob in scene.objects:
         ob.select = True if ob == geo else False

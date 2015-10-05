@@ -207,15 +207,14 @@ def linumdisplay(disp_op, context, simnode):
         bm.from_mesh(obm)
         bm.transform(omw)
 
-        if bm.faces.layers.float.get('res{}'.format(scene.frame_current)):
-            livires = bm.faces.layers.float['res{}'.format(scene.frame_current)]
-            
-            if not scene.vi_disp_3d:
+        if bm.faces.layers.float.get('res{}'.format(scene.frame_current)):            
+            livires = bm.faces.layers.float['res{}'.format(scene.frame_current)]            
+            if not scene.vi_disp_3d or (ob.data.shape_keys and len(ob.data.shape_keys.key_blocks) > len(ob.data.shape_keys.key_blocks) > scene['liparams']['fe'] - scene['liparams']['fs'] + 2):
                 faces = [f for f in bm.faces if not f.hide and mathutils.Vector.angle(vw, view_location - f.calc_center_median()) < pi * 0.5]
                 faces = [f for f in faces if not scene.ray_cast(f.calc_center_median() + scene.vi_display_rp_off * f.normal, view_location)[0]] if scene.vi_display_vis_only else faces
-                if len(ob.data.shape_keys.key_blocks) > 1:
+                if ob.data.shape_keys and len(ob.data.shape_keys.key_blocks) > scene['liparams']['fe'] - scene['liparams']['fs'] + 2:
                     skval = ob.data.shape_keys.key_blocks[-1].value
-                    shape_layer = bm.faces.layers.shape[ob.data.shape_keys.key_blocks[-1].name] 
+                    shape_layer = bm.verts.layers.shape[ob.data.shape_keys.key_blocks[-1].name] 
                     fcs = [view_mat*(f.calc_center_bounds() + skval*(f[shape_layer] - f.calc_center_bounds())).to_4d() for f in faces]
                 else:
                     fcs = [view_mat*f.calc_center_bounds().to_4d() for f in faces]
@@ -232,12 +231,11 @@ def linumdisplay(disp_op, context, simnode):
             draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, fcs, res)
         
         elif bm.verts.layers.float.get('res{}'.format(scene.frame_current)):
-            livires = bm.verts.layers.float['res{}'.format(scene.frame_current)]  
-                       
-            if not scene.vi_disp_3d or len(ob.data.shape_keys.key_blocks) > 1:
+            livires = bm.verts.layers.float['res{}'.format(scene.frame_current)]                         
+            if not scene.vi_disp_3d or (ob.data.shape_keys and len(ob.data.shape_keys.key_blocks) > scene['liparams']['fe'] - scene['liparams']['fs'] + 2):
                 verts = [v for v in bm.verts if not v.hide and mathutils.Vector.angle(vw, view_location - v.co) < pi * 0.5]
                 verts = [v for v in verts if not scene.ray_cast(v.co + scene.vi_display_rp_off * v.normal, view_location)[0]] if scene.vi_display_vis_only else verts
-                if len(ob.data.shape_keys.key_blocks) > 1:
+                if ob.data.shape_keys and len(ob.data.shape_keys.key_blocks) > len(ob.data.shape_keys.key_blocks) > scene['liparams']['fe'] - scene['liparams']['fs'] + 2:
                     skval = ob.data.shape_keys.key_blocks[-1].value
                     shape_layer = bm.verts.layers.shape[ob.data.shape_keys.key_blocks[-1].name] 
                     vcs = [view_mat*(v.co + skval*(v[shape_layer] - v.co)).to_4d() for v in verts]

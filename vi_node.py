@@ -1997,13 +1997,11 @@ class EnViOcc(bpy.types.Node, EnViNodes):
         self.inputs.new('EnViSchedSocket', 'WSchedule')
         self.inputs.new('EnViSchedSocket', 'VSchedule')
         self.inputs.new('EnViSchedSocket', 'CSchedule')
-        self.inputs.new('EnViSenseSocket', 'Sensor')
         self.inputs['OSchedule'].hide = True
         self.inputs['ASchedule'].hide = True
         self.inputs['WSchedule'].hide = True
         self.inputs['VSchedule'].hide = True
         self.inputs['CSchedule'].hide = True
-        self.inputs['Sensor'].hide = True
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Type:', self, "envi_occtype")
@@ -2020,7 +2018,6 @@ class EnViOcc(bpy.types.Node, EnViNodes):
                 if not self.inputs['CSchedule'].links:
                     newrow(layout, 'Clothing:', self, 'envi_cloth')
                 newrow(layout, 'CO2:', self, 'envi_co2')
-                newrow(layout, 'Sensor:', self, 'sensortype')
 
     def update(self):
         if self.inputs.get('CSchedule'):
@@ -2069,14 +2066,12 @@ class EnViEq(bpy.types.Node, EnViNodes):
         self['nodeid'] = nodeid(self)
         self.outputs.new('EnViEqSocket', 'Equipment')
         self.inputs.new('EnViSchedSocket', 'Schedule')
-        self.inputs.new('EnViSenseSocket', 'Sensor')
         self.inputs['Schedule'].hide = True
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Type:', self, "envi_equiptype")
         if self.envi_equiptype != '0':
             newrow(layout, 'Max level:', self, "envi_equipmax")
-            newrow(layout, 'Sensor:', self, "sensortype")
 
     def update(self):
         for sock in [sock for sock in self.inputs[:] + self.outputs[:] if sock.links]:
@@ -2362,9 +2357,6 @@ class EnViZone(bpy.types.Node, EnViNodes):
     mvof = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 1)
     lowerlim = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 100)
     upperlim = bpy.props.FloatProperty(default = 50, name = "", min = 0, max = 100)
-    sensorlist = [("0", "Zone Temperature", "Sense the zone temperature"), ("1", "Zone Humidity", "Sense the zone humidity")]
-    sensortype = bpy.props.EnumProperty(name="", description="Linkage type", items=sensorlist, default='0', update = supdate)
-    sensordict = {'0':  ('Temp', 'Zone Mean Air Temperature'), '1': ('RH', 'Zone Air Relative Humidity')}
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
@@ -2376,7 +2368,6 @@ class EnViZone(bpy.types.Node, EnViNodes):
         self.inputs.new('EnViSchedSocket', 'TSPSchedule')
         self.inputs['TSPSchedule'].hide = True
         self.inputs.new('EnViSchedSocket', 'VASchedule')
-        self.inputs.new('EnViSenseSocket', 'Sensor')
 
     def update(self):
         if self.inputs.get('VASchedule'):
@@ -2418,7 +2409,6 @@ class EnViZone(bpy.types.Node, EnViNodes):
         yesno = (1, 1, self.control == 'Temperature', self.control == 'Temperature', self.control == 'Temperature')
         vals = (("Volume:", "zonevolume"), ("Control type:", "control"), ("Minimum OF:", "mvof"), ("Lower:", "lowerlim"), ("Upper:", "upperlim"))
         [newrow(layout, val[0], self, val[1]) for v, val in enumerate(vals) if yesno[v]]
-        newrow(layout, 'Sensor', self, 'sensortype')
 
     def epwrite(self):
         (tempschedname, mvof, lowerlim, upperlim) = (self.zone + '_tspsched', self.mvof, self.lowerlim, self.upperlim) if self.inputs['TSPSchedule'].is_linked else ('', '', '', '')

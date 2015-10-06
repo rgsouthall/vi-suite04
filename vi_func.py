@@ -147,7 +147,16 @@ def cbdmhdr(node, scene):
             rtcmd = 'rtrace -af pan.af -n {} -x 1500 -y 750 -fac {}.oct'.format(scene['viparams']['nproc'], os.path.join(scene['viparams']['newdir'], node['epwbase'][0]))
             Popen(rtcmd.split(), stdin = rcalcrun.stdout, stdout = panohdr)
     return skyentry
-       
+
+def retpmap(node, frame, scene):
+    pportmats = ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.pport and mat.get('radmat')])
+    ammats = ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.mattype == '1' and mat.radmatmenu == '7' and mat.get('radmat')])
+    pportentry = '-apo {}'.format(pportmats) if pportmats else ''
+    amentry = '-aps {}'.format(ammats) if ammats else ''
+    cpentry = '-apc {}-{}.cpm {}'.format(scene['viparams']['filebase'], frame, node.pmapcno) if node.pmapcno else ''
+    cpfileentry = '-ap {}-{}.cpm 50'.format(scene['viparams']['filebase'], frame) if node.pmapcno else ''  
+    return amentry, pportentry, cpentry, cpfileentry     
+
 def setscenelivivals(scene):
     scene['liparams']['maxres'], scene['liparams']['minres'], scene['liparams']['avres'] = {}, {}, {}
     if scene['viparams']['visimcontext'] == 'LiVi Basic':

@@ -1313,7 +1313,6 @@ class ViTextEdit(bpy.types.Node, ViNodes):
         self.outputs['Text out']['Text'] = {}
         self.outputs['Text out']['Options'] = {}
         
-
     def draw_buttons(self, context, layout):
         if self.inputs['Text in'].links:
             inodename = self.inputs['Text in'].links[0].from_node.name

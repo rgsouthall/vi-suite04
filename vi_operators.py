@@ -1,4 +1,4 @@
-import bpy, datetime, mathutils, os, bmesh, shutil, subprocess
+import bpy, datetime, mathutils, os, bmesh, shutil
 from os import rename
 import numpy
 from numpy import arange, histogram
@@ -13,7 +13,7 @@ try:
     import matplotlib.cm as cm
     mp = 1
 except Exception as e:
-    print(e)    
+    print('Matplotlib problem:', e)    
     mp = 0
 
 from .livi_export import radgexport, cyfc1, createoconv, createradfile
@@ -182,18 +182,23 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
             if simnode.pmap:
                 amentry, pportentry, cpentry, cpfileentry = retpmap(simnode, frame, scene)
                 pmcmd = 'mkpmap -fo+ -bv+ -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, scene['viparams']['filebase'], frame, simnode.pmapgno, cpentry, amentry)
-                subprocess.call(pmcmd.split())
+                pmrun = Popen(pmcmd.split(), stderr = PIPE)
+                for line in pmrun.stderr: 
+                    if 'too many prepasses' in line.decode():
+                        self.report({'ERROR'}, "Too many prepasses have ocurred. Turn off caustic photons and encompass the scene")
+                        return {'CANCELLED'}
                 rvucmd = "rvu -w -ap {8} 50 {9} -n {0} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), cpfileentry)
             else:
                 rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current)
-            
+
             rvurun = Popen(rvucmd.split(), stdout = PIPE, stderr = PIPE)
             for line in rvurun.stderr:
                 if 'view up parallel to view direction' in line.decode():
                     self.report({'ERROR'}, "Camera cannot point directly upwards")
-                if 'X11' in line.decode():
+                    return {'CANCELLED'}
+                elif 'X11' in line.decode():
                     self.report({'ERROR'}, "No X11 display server found. You may need to install XQuartz")
-
+                    return {'CANCELLED'}
             return {'FINISHED'}
         else:
             self.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
@@ -340,23 +345,17 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
             height = context.region.height
             if event.mouse_region_x in range(100) and event.mouse_region_y in range(height - 100, height):
                 if event.type == 'WHEELUPMOUSE':
-                    scene.vi_leg_max += 10
+                    scene.vi_leg_max += scene.vi_leg_max * 0.05
                     return {'RUNNING_MODAL'}
                 if event.type == 'WHEELDOWNMOUSE':
-                    if scene.vi_leg_max >= 10:
-                        scene.vi_leg_max -= 10
-                    else:
-                        scene.vi_leg_max = 0
+                    scene.vi_leg_max -= (scene.vi_leg_max - scene.vi_leg_min) * 0.05
                     return {'RUNNING_MODAL'}
             elif event.mouse_region_x in range(100) and event.mouse_region_y in range(height - 520, height - 420):
                 if event.type == 'WHEELUPMOUSE':
-                    scene.vi_leg_min += 10
+                    scene.vi_leg_min += (scene.vi_leg_max - scene.vi_leg_min) * 0.05
                     return {'RUNNING_MODAL'}
                 if event.type == 'WHEELDOWNMOUSE':
-                    if scene.vi_leg_min >= 10:
-                        scene.vi_leg_min -= 10
-                    else:
-                        scene.vi_leg_min = 0
+                    scene.vi_leg_min -= scene.vi_leg_min * 0.05
                     return {'RUNNING_MODAL'}
 
         if scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel') or not scene.vi_display or self.disp != scene['liparams']['disp_count']:              

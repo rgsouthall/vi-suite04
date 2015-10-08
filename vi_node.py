@@ -352,7 +352,7 @@ class LiViNode(bpy.types.Node, ViNodes):
         self['mtxfile'] = ''
         if self.contextmenu == "Basic":        
             if self['skynum'] < 4:
-                locnode = self.inputs['Location in'].links[0].from_node
+                locnode = self.inputs['Location in'].links[0].from_node if self['skynum'] < 3  else 0
                 self['skytypeparams'] = ("+s", "+i", "-c", "-b 22.86 -c")[self['skynum']]
                 for f, frame in enumerate(range(self.startframe, self['endframe'] + 1)):
                     if self['skynum'] < 2:
@@ -422,33 +422,33 @@ class LiViNode(bpy.types.Node, ViNodes):
                    self.ehour, self.edoy, self.interval, self.hdr, self.hdrname, self.skyname, self.resname, self.turb, self.mtxname, self.cbdm_start_hour,
                    self.cbdm_end_hour, self.bambuildmenu)]
 
-class ViCombine(bpy.types.Node, ViNodes):
-    '''Node for input combination'''
-    bl_idname = 'ViCombine'
-    bl_label = 'VI Combine'
-    bl_icon = 'LAMP'
-
-    def init(self, context):
-        self.inputs.new('ViText', 'Input 1')
-        self.inputs.new('ViText', 'Input 2')
-        self.outputs.new('ViText', 'Out')
-    
-    def update(self):
-        frange = []
-        links = (list(self.inputs['Input 1'].links[:]) + list(self.inputs['Input 2'].links[:]))
-        for link in links:
-            frange += [int(k) for k in link.from_socket['Text'].keys()]
-        self.outputs['Out']['Text'] = {str(f): '' for f in set(frange)}
-
-        for frame in set(frange):
-            for link in links:
-                if str(frame) in link.from_socket['Text']:
-                    self.outputs['Out']['Text'][str(frame)] += link.from_socket['Text'][str(frame)]
-                elif frame < min([int(k) for k in link.from_socket['Text'].keys()]):
-                    self.outputs['Out']['Text'][str(frame)] += link.from_socket['Text'][str(min([int(k) for k in link.from_socket['Text'].keys()]))]
-                elif frame > max([int(k) for k in link.from_socket['Text'].keys()]):
-                    self.outputs['Out']['Text'][str(frame)] += link.from_socket['Text'][str(max([int(k) for k in link.from_socket['Text'].keys()]))]
-                                   
+#class ViCombine(bpy.types.Node, ViNodes):
+#    '''Node for input combination'''
+#    bl_idname = 'ViCombine'
+#    bl_label = 'VI Combine'
+#    bl_icon = 'LAMP'
+#
+#    def init(self, context):
+#        self.inputs.new('ViText', 'Input 1')
+#        self.inputs.new('ViText', 'Input 2')
+#        self.outputs.new('ViText', 'Out')
+#    
+#    def update(self):
+#        frange = []
+#        links = (list(self.inputs['Input 1'].links[:]) + list(self.inputs['Input 2'].links[:]))
+#        for link in links:
+#            frange += [int(k) for k in link.from_socket['Text'].keys()]
+#        self.outputs['Out']['Text'] = {str(f): '' for f in set(frange)}
+#
+#        for frame in set(frange):
+#            for link in links:
+#                if str(frame) in link.from_socket['Text']:
+#                    self.outputs['Out']['Text'][str(frame)] += link.from_socket['Text'][str(frame)]
+#                elif frame < min([int(k) for k in link.from_socket['Text'].keys()]):
+#                    self.outputs['Out']['Text'][str(frame)] += link.from_socket['Text'][str(min([int(k) for k in link.from_socket['Text'].keys()]))]
+#                elif frame > max([int(k) for k in link.from_socket['Text'].keys()]):
+#                    self.outputs['Out']['Text'][str(frame)] += link.from_socket['Text'][str(max([int(k) for k in link.from_socket['Text'].keys()]))]
+#                                   
 class ViLiSNode(bpy.types.Node, ViNodes):
     '''Node describing a LiVi simulation'''
     bl_idname = 'ViLiSNode'
@@ -470,7 +470,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
     rvuadvance = (("-ab", 3, 5), ("-ad", 2048, 4096), ("-as", 1024, 2048), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 0.00001, 0.000002), ("-lr", 3, 5))
     pmap = bpy.props.BoolProperty(name = '', default = False)
     pmapgno = bpy.props.IntProperty(name = '', default = 50000)
-    pmapcno = bpy.props.IntProperty(name = '', default = 500000)
+    pmapcno = bpy.props.IntProperty(name = '', default = 0)
     run = bpy.props.IntProperty(default = 0)
 
     def init(self, context):

@@ -180,7 +180,7 @@ class VIMatPanel(bpy.types.Panel):
                         elif coptions['cbanalysis'] == '1':
                             newrow(layout, "Space type:", cm, 'crspacemenu')
             except Exception as e:
-                print(e)
+                print('Compliance specification problem', e)
     
             row = layout.row()
             row.label('LiVi Radiance type:')

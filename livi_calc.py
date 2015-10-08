@@ -16,7 +16,8 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, subprocess
+import bpy, os
+from subprocess import Popen, PIPE
 from . import livi_export
 from .vi_func import retpmap
 
@@ -39,7 +40,11 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
             if simnode.pmap:
                 amentry, pportentry, cpentry, cpfileentry = retpmap(simnode, frame, scene)
                 pmcmd = ('mkpmap -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, scene['viparams']['filebase'], frame, simnode.pmapgno, cpentry, amentry))                   
-                subprocess.call(pmcmd.split())
+                pmrun = Popen(pmcmd.split(), stderr = PIPE)
+                for line in pmrun.stderr: 
+                    if 'too many prepasses' in line.decode():
+                        calc_op.report({'ERROR'}, "Too many prepasses have ocurred. Turn off caustic photons and encompass the scene")
+                        return 
                 rtcmds.append("rtrace -n {0} -w {1} -ap {2}-{3}.gpm 50 {4} -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame, cpfileentry)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
             else: 
                 rtcmds.append("rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"

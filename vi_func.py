@@ -48,24 +48,27 @@ def radmat(self, scene):
 def rtpoints(self, bm, offset, frame):    
     geom = bm.verts if self['cpoint'] == '1' else bm.faces 
     cindex = geom.layers.int['cindex']
+    for gp in geom:
+        gp[cindex] = 0 
     geom.ensure_lookup_table()
-    self['cfaces'] = [face.index for face in bm.faces if self.data.materials[face.material_index].mattype == '1']
+    resfaces = [face for face in bm.faces if self.data.materials[face.material_index].mattype == '1']
+    self['cfaces'] = [face.index for face in resfaces]
        
     if self['cpoint'] == '0': 
-        gpoints = [face for face in bm.faces if face.index in self['cfaces']]
+        gpoints = resfaces
         csfc = [face.calc_center_median() for face in gpoints]                      
         self['rtpoints'][frame] = ''.join(['{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([csfc[fi][i] + offset * f.normal.normalized()[i] for i in range(3)], f.normal[:]) for fi, f in enumerate(gpoints)])
         self['cverts'], self['lisenseareas'][frame] = [], [f.calc_area() for f in gpoints]       
 
     elif self['cpoint'] == '1': 
-        gpoints = sorted(set([item.index for sublist in [face.verts[:] for face in bm.faces if face.index in self['cfaces']] for item in sublist]))
-        self['rtpoints'][frame]  = ''.join(['{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([bm.verts[vi].co[i] + offset * bm.verts[vi].normal[i] for i in range(3)], bm.verts[vi].normal) for vi in gpoints])
-        self['cverts'], self['lisenseareas'][frame] = gpoints, [vertarea(bm, bm.verts[vi]) for vi in gpoints]
+        gis = sorted(set([item.index for sublist in [face.verts[:] for face in resfaces] for item in sublist]))
+        gpoints = [geom[gi] for gi in gis]
+        self['rtpoints'][frame]  = ''.join(['{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([gp.co[i] + offset * gp.normal[i] for i in range(3)], gp.normal) for gp in gpoints])
+        self['cverts'], self['lisenseareas'][frame] = gp.index, [vertarea(bm, gp) for gp in gpoints]
     
-#    bm.verts.ensure_lookup_table()
     for g, gp in enumerate(gpoints):
-        geom[g][cindex] = g + 1
-
+        gp[cindex] = g + 1
+        
     self['rtpnum'] = g + 1
                     
 def regresults(scene, frames, simnode, res):    
@@ -206,6 +209,7 @@ def basiccalcapply(self, scene, frames, rtcmds):
     clearlayers(bm)
     geom = bm.verts if self['cpoint'] == '1' else bm.faces
     cindex = geom.layers.int['cindex']
+
     for f, frame in enumerate(frames):
         if str(frame) in self['rtpoints']:
             rtframe = frame
@@ -320,12 +324,11 @@ def lividisplay(self, scene):
         res = geom.layers.float['res{}'.format(frame)]
         oreslist = [g[livires] for g in geom]
         self['omax'][str(frame)], self['omin'][str(frame)], self['oave'][str(frame)] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
-         
-        try:
-            vals = array([(f[livires] - min(scene['liparams']['minres'].values()))/(max(scene['liparams']['maxres'].values()) - min(scene['liparams']['minres'].values())) for f in bm.faces]) if scene['liparams']['cp'] == '0' else \
-                    ([(sum([vert[livires] for vert in f.verts])/len(f.verts) - min(scene['liparams']['minres'].values()))/(max(scene['liparams']['maxres'].values()) - min(scene['liparams']['minres'].values())) for f in bm.faces])
-        except Exception as e:
-            print(e)
+        smaxres, sminres =  max(scene['liparams']['maxres'].values()), min(scene['liparams']['minres'].values())
+        if smaxres > sminres:
+            vals = array([(f[livires] - sminres)/(smaxres - sminres) for f in bm.faces]) if scene['liparams']['cp'] == '0' else \
+                    ([(sum([vert[livires] for vert in f.verts])/len(f.verts) - sminres)/(smaxres - sminres) for f in bm.faces])
+        else:
             vals = array([max(scene['liparams']['maxres'].values()) for g in geom])
             
         if livires != res:
@@ -1748,7 +1751,7 @@ def retobjs(otypes):
     scene = bpy.context.scene
     validobs = [o for o in scene.objects if o.hide == False and o.layers[scene.active_layer] == True]
     if otypes == 'livig':
-        return([o for o in validobs if o.type == 'MESH' and o.data.materials and  any([m.mattype == '0' for m in o.data.materials]) and not (o.parent and os.path.isfile(o.iesname)) and not o.lila \
+        return([o for o in validobs if o.type == 'MESH' and o.data.materials and not (o.parent and os.path.isfile(o.iesname)) and not o.lila \
         and o.lires == 0 and o.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')])
     elif otypes == 'livigeno':
         return([o for o in validobs if o.type == 'MESH' and o.data.materials and not any([m.livi_sense for m in o.data.materials])])

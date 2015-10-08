@@ -19,6 +19,7 @@
 
 import bpy, blf, colorsys, bgl, mathutils, bmesh
 from math import pi, sin, cos, atan2, log10
+from mathutils.bvhtree import BVHTree
 try:
     import matplotlib
     mp = 1
@@ -200,54 +201,70 @@ def linumdisplay(disp_op, context, simnode):
         if ob.data.shape_keys and str(fn) in [sk.name for sk in ob.data.shape_keys.key_blocks] and ob.active_shape_key.name != str(fn):
             ob.active_shape_key_index = [sk.name for sk in ob.data.shape_keys.key_blocks].index(str(fn))
 
-        obm = ob.data
+#        obm = ob.data
         omw = ob.matrix_world
         total_mat = view_mat * omw
         bm = bmesh.new()
-        bm.from_mesh(obm)
+        bm.from_object(ob, scene, deform = True)
         bm.transform(omw)
+#        shadtree = BVHTree.FromBMesh(bm)
 
-        if bm.faces.layers.float.get('res{}'.format(scene.frame_current)):            
-            livires = bm.faces.layers.float['res{}'.format(scene.frame_current)]            
-            if not scene.vi_disp_3d or (ob.data.shape_keys and len(ob.data.shape_keys.key_blocks) > len(ob.data.shape_keys.key_blocks) > scene['liparams']['fe'] - scene['liparams']['fs'] + 2):
-                faces = [f for f in bm.faces if not f.hide and mathutils.Vector.angle(vw, view_location - f.calc_center_median()) < pi * 0.5]
-                faces = [f for f in faces if not scene.ray_cast(f.calc_center_median() + scene.vi_display_rp_off * f.normal, view_location)[0]] if scene.vi_display_vis_only else faces
-                if ob.data.shape_keys and len(ob.data.shape_keys.key_blocks) > scene['liparams']['fe'] - scene['liparams']['fs'] + 2:
-                    skval = ob.data.shape_keys.key_blocks[-1].value
-                    shape_layer = bm.verts.layers.shape[ob.data.shape_keys.key_blocks[-1].name] 
-                    fcs = [view_mat*(f.calc_center_bounds() + skval*(f[shape_layer] - f.calc_center_bounds())).to_4d() for f in faces]
-                else:
-                    fcs = [view_mat*f.calc_center_bounds().to_4d() for f in faces]
-                
-            else:
-                faces = [f for f in bm.faces if f.select and not f.hide]
-                fpos = [skfpos(ob, scene.frame_current, [v.index for v in f.verts]) for f in faces]
-                faces = [f for fi, f in enumerate(faces) if mathutils.Vector.angle(vw, view_location - f.calc_center_median()) < pi * 0.5]
-                fpos = [skfpos(ob, scene.frame_current, [v.index for v in f.verts]) for f in faces]
-                faces = [f for fi, f in enumerate(faces) if not scene.ray_cast(fpos[fi] + scene.vi_display_rp_off * f.normal, view_location)[0]] if scene.vi_display_vis_only else faces
-                fpos = [skfpos(ob, scene.frame_current, [v.index for v in f.verts]) for f in faces]
-                fcs = [view_mat*fpos[fi].to_4d() for fi, f in enumerate(faces)]
+        if bm.faces.layers.float.get('res{}'.format(scene.frame_current)): 
+            faces = [f for f in bm.faces if f.select and mathutils.Vector.angle(vw, view_location - f.calc_center_bounds()) < pi * 0.5] if scene.vi_disp_3d else \
+                        [f for f in bm.faces if  mathutils.Vector.angle(vw, view_location - f.calc_center_bounds()) < pi * 0.5]
+            faces = [f for f in faces if not scene.ray_cast(f.calc_center_median() + scene.vi_display_rp_off * f.normal, view_location)[0]] if scene.vi_display_vis_only else faces
+            livires = bm.faces.layers.float['res{}'.format(scene.frame_current)]
+            pcs = [view_mat*f.calc_center_bounds().to_4d() for f in faces]  
+            
             res = [f[livires] for f in faces]
-            draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, fcs, res)
+#            draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, fcs, res)
+            
+#            livires = bm.faces.layers.float['res{}'.format(scene.frame_current)]            
+#            if not scene.vi_disp_3d or (ob.data.shape_keys and len(ob.data.shape_keys.key_blocks) > len(ob.data.shape_keys.key_blocks) > scene['liparams']['fe'] - scene['liparams']['fs'] + 2):
+#                faces = [f for f in bm.faces if not f.hide and mathutils.Vector.angle(vw, view_location - f.calc_center_median()) < pi * 0.5]
+#                faces = [f for f in faces if not scene.ray_cast(f.calc_center_median() + scene.vi_display_rp_off * f.normal, view_location)[0]] if scene.vi_display_vis_only else faces
+#                if ob.data.shape_keys and len(ob.data.shape_keys.key_blocks) > scene['liparams']['fe'] - scene['liparams']['fs'] + 2:
+#                    skval = ob.data.shape_keys.key_blocks[-1].value
+#                    shape_layer = bm.verts.layers.shape[ob.data.shape_keys.key_blocks[-1].name] 
+#                    fcs = [view_mat*(f.calc_center_bounds() + skval*(f[shape_layer] - f.calc_center_bounds())).to_4d() for f in faces]
+#                else:
+#                    fcs = [view_mat*f.calc_center_bounds().to_4d() for f in faces]
+#                
+#            else:
+#                faces = [f for f in bm.faces if f.select and not f.hide]
+#                fpos = [skfpos(ob, scene.frame_current, [v.index for v in f.verts]) for f in faces]
+#                faces = [f for fi, f in enumerate(faces) if mathutils.Vector.angle(vw, view_location - f.calc_center_median()) < pi * 0.5]
+#                fpos = [skfpos(ob, scene.frame_current, [v.index for v in f.verts]) for f in faces]
+#                faces = [f for fi, f in enumerate(faces) if not scene.ray_cast(fpos[fi] + scene.vi_display_rp_off * f.normal, view_location)[0]] if scene.vi_display_vis_only else faces
+#                fpos = [skfpos(ob, scene.frame_current, [v.index for v in f.verts]) for f in faces]
+#                fcs = [view_mat*fpos[fi].to_4d() for fi, f in enumerate(faces)]
+#            res = [f[livires] for f in faces]
+#            draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, fcs, res)
         
         elif bm.verts.layers.float.get('res{}'.format(scene.frame_current)):
             livires = bm.verts.layers.float['res{}'.format(scene.frame_current)]                         
-            if not scene.vi_disp_3d or (ob.data.shape_keys and len(ob.data.shape_keys.key_blocks) > scene['liparams']['fe'] - scene['liparams']['fs'] + 2):
-                verts = [v for v in bm.verts if not v.hide and mathutils.Vector.angle(vw, view_location - v.co) < pi * 0.5]
-                verts = [v for v in verts if not scene.ray_cast(v.co + scene.vi_display_rp_off * v.normal, view_location)[0]] if scene.vi_display_vis_only else verts
-                if ob.data.shape_keys and len(ob.data.shape_keys.key_blocks) > len(ob.data.shape_keys.key_blocks) > scene['liparams']['fe'] - scene['liparams']['fs'] + 2:
-                    skval = ob.data.shape_keys.key_blocks[-1].value
-                    shape_layer = bm.verts.layers.shape[ob.data.shape_keys.key_blocks[-1].name] 
-                    vcs = [view_mat*(v.co + skval*(v[shape_layer] - v.co)).to_4d() for v in verts]
-                else:
-                    vcs = [view_mat*v.co.to_4d() for v in verts]   
-
-            else:
-                verts = [v for v in bm.verts if not v.hide and mathutils.Vector.angle(vw, view_location - omw*(ob.data.shape_keys.key_blocks[str(scene.frame_current)].data[v.index].co)) < pi * 0.5]
-                verts = [v for v in verts if not scene.ray_cast(omw*(ob.data.shape_keys.key_blocks[str(scene.frame_current)].data[v.index].co) + scene.vi_display_rp_off * v.normal, view_location)[0]] if scene.vi_display_vis_only else verts
-                vcs = [total_mat*ob.data.shape_keys.key_blocks[str(scene.frame_current)].data[v.index].co.to_4d() for v in verts]
+#            if not scene.vi_disp_3d or (ob.data.shape_keys and len(ob.data.shape_keys.key_blocks) > scene['liparams']['fe'] - scene['liparams']['fs'] + 2):
+#                verts = [v for v in bm.verts if not v.hide and mathutils.Vector.angle(vw, view_location - v.co) < pi * 0.5]
+#                verts = [v for v in verts if not scene.ray_cast(v.co + scene.vi_display_rp_off * v.normal, view_location)[0]] if scene.vi_display_vis_only else verts
+#                if ob.data.shape_keys and len(ob.data.shape_keys.key_blocks) > len(ob.data.shape_keys.key_blocks) > scene['liparams']['fe'] - scene['liparams']['fs'] + 2:
+#                    skval = ob.data.shape_keys.key_blocks[-1].value
+#                    shape_layer = bm.verts.layers.shape[ob.data.shape_keys.key_blocks[-1].name] 
+#                    pcs = [view_mat*(v.co + skval*(v[shape_layer] - v.co)).to_4d() for v in verts]
+#                else:
+#                    pcs = [view_mat*v.co.to_4d() for v in verts]   
+#
+#            else:
+#                verts = [v for v in bm.verts if not v.hide and mathutils.Vector.angle(vw, view_location - omw*(ob.data.shape_keys.key_blocks[str(scene.frame_current)].data[v.index].co)) < pi * 0.5]
+#                verts = [v for v in verts if not scene.ray_cast(omw*(ob.data.shape_keys.key_blocks[str(scene.frame_current)].data[v.index].co) + scene.vi_display_rp_off * v.normal, view_location)[0]] if scene.vi_display_vis_only else verts
+#                pcs = [total_mat*ob.data.shape_keys.key_blocks[str(scene.frame_current)].data[v.index].co.to_4d() for v in verts]
+#            res = [v[livires] for v in verts]
+#            pcs = [total_mat*ob.data.shape_keys.key_blocks[str(scene.frame_current)].data[v.index].co.to_4d() for v in verts]
+            verts = [v for v in bm.verts if not v.hide and mathutils.Vector.angle(vw, view_location - v.co) < pi * 0.5]
+            verts = [v for v in verts if not scene.ray_cast(v.co + scene.vi_display_rp_off * v.normal, view_location)[0]] if scene.vi_display_vis_only else verts
+            
+            pcs = [view_mat*v.co.to_4d() for v in verts] 
             res = [v[livires] for v in verts]
-            draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, vcs, res)
+        draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, pcs, res)
 
         bm.free()
     blf.disable(0, 4)

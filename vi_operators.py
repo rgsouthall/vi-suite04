@@ -837,10 +837,11 @@ class NODE_OT_SunPath(bpy.types.Operator):
         scene['viparams']['vidisp'] = 'sp'
         context.scene['viparams']['visimcontext'] = 'SunPath'
         scene.cursor_location = (0.0, 0.0, 0.0)
-        matdict = {'SolEquoRings': (1, 0, 0), 'HourRings': (1, 1, 0), 'SPBase': (1, 1, 1), 'Sun': (1, 1, 1)}
-        for mat in [mat for mat in matdict.items() if mat[0] not in bpy.data.materials]:
-            bpy.data.materials.new(mat[0])
-            bpy.data.materials[mat[0]].diffuse_color = mat[1]
+        matdict = {'SolEquoRings': (1, 0, 0), 'HourRings': (1, 1, 0), 'SPBase': (1, 1, 1), 'Sun': (1, 1, 1), 'PathDash': (1, 1, 1)}
+        for mat in [mat for mat in matdict if mat not in bpy.data.materials]:
+            bpy.data.materials.new(mat)
+            bpy.data.materials[mat].diffuse_color = matdict[mat]
+            bpy.data.materials[mat].use_shadeless = 1
 
         suns = [ob for ob in context.scene.objects if ob.type == 'LAMP' and ob.data.type == 'SUN']
         if suns:
@@ -891,16 +892,17 @@ class NODE_OT_SunPath(bpy.types.Operator):
         bm = bmesh.new()
         bm.from_mesh(spathmesh)
 
-        for doy in range(0, 363):
+        for doy in range(0, 365):
             for hour in range(1, 25):
                 ([solalt, solazi]) = solarPosition(doy, hour, scene.latitude, scene.longitude)[2:]
                 bm.verts.new().co = [-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
+        if hasattr(bm.verts, "ensure_lookup_table"):
+            bm.verts.ensure_lookup_table()
+        print(len(bm.verts))
         for v in range(24, len(bm.verts)):
-            if hasattr(bm.verts, "ensure_lookup_table"):
-                bm.verts.ensure_lookup_table()
             bm.edges.new((bm.verts[v], bm.verts[v - 24]))
-            if v in range(8568, 8736):
-                bm.edges.new((bm.verts[v], bm.verts[v - 8568]))
+        if v in range(8568, 8761):
+            bm.edges.new((bm.verts[v], bm.verts[v - 8568]))
 
         for doy in (79, 172, 355):
             for hour in range(1, 241):
@@ -924,15 +926,21 @@ class NODE_OT_SunPath(bpy.types.Operator):
         spathob.data.bevel_depth, spathob.data.bevel_resolution = 0.15, 6
         bpy.context.object.data.fill_mode = 'FULL'
         bpy.ops.object.convert(target='MESH')
+        
         bpy.ops.object.material_slot_add()
         spathob.material_slots[0].material, spathob['numpos'] = bpy.data.materials['HourRings'], numpos
+        bpy.ops.object.material_slot_add()
+        spathob.material_slots[1].material = bpy.data.materials['PathDash']
+        for face in spathob.data.polygons:
+            face.material_index = 0 if not int(face.index/16)%2 else 1
+                
 
         for vert in spathob.data.vertices[0:16 * (solringnum + 3)]:
             vert.select = True
 
         bpy.ops.object.material_slot_add()
         spathob.material_slots[-1].material = bpy.data.materials['SolEquoRings']
-        spathob.active_material_index = 1
+        spathob.active_material_index = 2
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_mode(type="VERT")
         bpy.ops.object.material_slot_assign()
@@ -944,6 +952,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
         for ob in (spathob, sunob):
             spathob.cycles_visibility.diffuse, spathob.cycles_visibility.shadow, spathob.cycles_visibility.glossy, spathob.cycles_visibility.transmission = [False] * 4
+            spathob.show_transparent = True
 
         if cyfc1 not in bpy.app.handlers.frame_change_pre:
             bpy.app.handlers.frame_change_pre.append(cyfc1)

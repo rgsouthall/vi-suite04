@@ -196,13 +196,12 @@ def cyfc1(self):
 
     if scene['viparams']['resnode'] == 'VI Sun Path':
         spoblist = {ob.get('VIType'):ob for ob in scene.objects if ob.get('VIType') in ('Sun', 'SPathMesh')}
-        beta, phi = solarPosition(scene.solday, scene.solhour, scene['latitude'], scene['longitude'])[2:]
-        if bpy.data.worlds.get('World'):
-            if bpy.data.worlds["World"].use_nodes == False:
-                bpy.data.worlds["World"].use_nodes = True
-            nt = bpy.data.worlds[0].node_tree
-            if nt and nt.nodes.get('Sky Texture'):
-                bpy.data.worlds['World'].node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
+        beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
+        if scene.world.use_nodes == False:
+            scene.world.use_nodes = True
+        nt = bpy.data.worlds[0].node_tree
+        if nt and nt.nodes.get('Sky Texture'):
+            scene.world.node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
 
         for ob in scene.objects:
             if ob.get('VIType') == 'Sun':

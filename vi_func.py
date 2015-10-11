@@ -87,23 +87,25 @@ def clearlayers(bm):
 def cbdmmtx(self, scene, locnode, export_op):
     if self.sourcemenu == '0':
         os.chdir(scene['viparams']['newdir'])        
-        self['epwbase'] = os.path.splitext(os.path.basename(locnode.weather))
         if self['epwbase'][1] in (".epw", ".EPW"):
             with open(locnode.weather, "r") as epwfile:
                 epwlines = epwfile.readlines()
                 self['epwyear'] = epwlines[8].split(",")[0]
-                Popen(("epw2wea", locnode.weather, "{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])))).wait()
-                if self.startmonth != 1 or self.endmonth != 12:
-                    with open("{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'r') as weafile:
-                        wealines = weafile.readlines()
-                        weaheader = [line for line in wealines[:6]]
-                        wearange = [line for line in wealines[6:] if int(line.split()[0]) in range (self.startmonth, self.endmonth + 1)]
-                    with open("{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'w') as weafile:
-                        [weafile.write(line) for line in weaheader + wearange]
-                gdmcmd = ("gendaymtx -m 1 {} {}".format(('', '-O1')[self['watts']], "{0}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0]))))
-                with open("{}.mtx".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'w') as mtxfile:
+            Popen(("epw2wea", locnode.weather, "{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])))).wait()
+            if self.startmonth != 1 or self.endmonth != 12:
+                with open("{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'r') as weafile:
+                    wealines = weafile.readlines()
+                    weaheader = [line for line in wealines[:6]]
+                    wearange = [line for line in wealines[6:] if int(line.split()[0]) in range (self.startmonth, self.endmonth + 1)]
+                with open("{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'w') as weafile:
+                    [weafile.write(line) for line in weaheader + wearange]
+            gdmcmd = ("gendaymtx -m 1 {} {}".format(('', '-O1')[self['watts']], "{0}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0]))))
+            with open("{}.mtx".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'w') as mtxfile:
 #                    Popen(gdmcmd.split(), stdout = mtxfile, stderr=STDOUT).communicate()[0].decode()
-                    Popen(gdmcmd.split(), stdout = mtxfile, stderr=STDOUT).communicate()
+                Popen(gdmcmd.split(), stdout = mtxfile, stderr=STDOUT).communicate()
+            with open("{}-whitesky.oct".format(scene['viparams']['filebase']), 'w') as wsfile:
+                oconvcmd = "oconv -w -"
+                Popen(shlex.split(oconvcmd), stdin = PIPE, stdout = wsfile).communicate(input = self['whitesky'].encode('utf-8'))
             return "{}.mtx".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0]))
 
         else:
@@ -530,9 +532,9 @@ def compcalcapply(self, scene, frames, rtcmds, simnode):
             crits.append(self['crit'])
     
         if dfpass[str(frame)] == 1:
-            dfpass[str(frame)] = 2 if dfpassarea/dftotarea >= (0.8, 0.35)[simnode['coptions']['canalysis'] == '0' and simnode['coptions']['bambuild'] == '4'] else dfpass[frame]
+            dfpass[str(frame)] = 2 if dfpassarea/dftotarea >= (0.8, 0.35)[simnode['coptions']['canalysis'] == '0' and simnode['coptions']['bambuild'] == '4'] else dfpass[str(frame)]
         if edfpass[str(frame)] == 1:
-            edfpass[str(frame)] = 2 if edfpassarea/edftotarea >= (0.8, 0.5)[simnode['coptions']['canalysis'] == '0' and simnode['coptions']['bambuild'] == '4'] else edfpass[frame]
+            edfpass[str(frame)] = 2 if edfpassarea/edftotarea >= (0.8, 0.5)[simnode['coptions']['canalysis'] == '0' and simnode['coptions']['bambuild'] == '4'] else edfpass[str(frame)]
     self['comps'], self['ecomps'] = comps, ecomps
 
     scene['liparams']['crits'], scene['liparams']['dfpass'] = crits, dfpass

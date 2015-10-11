@@ -756,9 +756,8 @@ def li_compliance(self, context, simnode):
         drawloop(swidth, height - 70 - lencrit*26, 370, height - 95 - lencrit*26)
         drawloop(370, height - 70 - lencrit*26, 525, height - 95 - lencrit*26)
         blf.draw(font_id, 'Building Compliance:')
-        drawfont(build_compliance, 0, lencrit, height, 270, 87)
-        blf.position(font_id, 380, height - 87 - lencrit*26, 0)
-        blf.draw(font_id, 'Credits achieved:')
+        drawfont(build_compliance, 0, lencrit, height, swidth + 150, 87)
+        drawfont('Credits achieved:', 0, lencrit, height, 380, 87)
         blf.position(font_id, 500, height - 87 - lencrit*26, 0)
         if build_compliance == 'PASS':
            blf.draw(font_id,  ('1', '2', '2', '1', '1', '1')[int(simnode['coptions']['bambuild'])])
@@ -770,7 +769,7 @@ def li_compliance(self, context, simnode):
     elif simnode['coptions']['canalysis'] == '1':
         drawpoly(swidth, height - 70 - lencrit*26, 320, height - 95 - lencrit*26, 0.7, 1, 1, 1)
         drawloop(swidth, height - 70 - lencrit*26, 320, height - 95 - lencrit*26)
-        drawfont('Credits achieved:', 0, lencrit, height, 110, 87)
+        drawfont('Credits achieved:', 0, lencrit, height, swidth + 10, 87)
         cfshcred = 0
         if cfshpfsdict['kitdf'] == cfshpfsdict['totkit'] and cfshpfsdict['totkit'] != 0:
             cfshcred += 1
@@ -778,7 +777,7 @@ def li_compliance(self, context, simnode):
             cfshcred += 1
         if (cfshpfsdict['kitsv'] == cfshpfsdict['totkit'] and  cfshpfsdict['totkit'] != 0) or (cfshpfsdict['livsv'] == cfshpfsdict['totliv'] and cfshpfsdict['totliv'] != 0):
             cfshcred += 1
-        blf.position(font_id, 250, height - 87 - lencrit*26, 0)
+        blf.position(font_id, 270, height - 87 - lencrit*26, 0)
         blf.draw(font_id, '{} of {}'.format(cfshcred, '3' if 0 not in (cfshpfsdict['totkit'], cfshpfsdict['totliv']) else '2'))
 
     bgl.glEnable(bgl.GL_BLEND)

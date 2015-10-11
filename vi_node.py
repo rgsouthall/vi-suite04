@@ -248,6 +248,7 @@ class LiViNode(bpy.types.Node, ViNodes):
     def init(self, context):
         self['exportstate'], self['skynum'], self['watts'] = '', 0, 0
         self['nodeid'] = nodeid(self)
+        self['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
         self.outputs.new('ViLiC', 'Context out')
         self.inputs.new('ViLoc', 'Location in')
         self.outputs['Context out']['Text'] = {}
@@ -329,10 +330,18 @@ class LiViNode(bpy.types.Node, ViNodes):
                 row.prop(self, 'hdrname')
             else:
                 newrow(layout, 'HDR:', self, 'hdr')
-
-        if (self.contextmenu == 'Basic' and int(self.skymenu) > 2) or self.contextmenu == 'Compliance' or (self.contextmenu == 'CBDM' and self.sourcemenu == '1') or self.inputs['Location in'].links:
+        
+        if self.contextmenu == 'Basic':
+            if int(self.skymenu) > 2 or (int(self.skymenu) < 3 and self.inputs['Location in'].links):
+                row = layout.row()
+                row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
+        elif self.contextmenu == 'Compliance':
             row = layout.row()
             row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
+        elif (self.contextmenu == 'CBDM' and self.sourcemenu == '1') or \
+            (self.contextmenu == 'CBDM' and self.sourcemenu == '0' and self.inputs['Location in'].links and self.inputs['Location in'].links[0].from_node.loc == '1'):
+            row = layout.row()
+            row.operator("node.liexport", text = "Export").nodeid = self['nodeid']            
     
     def update(self):
         socklink(self.outputs['Context out'], self['nodeid'].split('@')[1])
@@ -344,6 +353,7 @@ class LiViNode(bpy.types.Node, ViNodes):
         self.endtime = datetime.datetime(2013, 1, 1, int(self.ehour), int((self.ehour - int(self.ehour))*60)) + datetime.timedelta(self.edoy - 1) if self.animated and self['skynum'] < 3 else self.starttime
         self['skynum'] = int(self.skymenu)
         self['hours'] = 0 if not self.animated or int(self.skymenu) > 2  else (self.endtime-self.starttime).seconds/3600
+        self['epwbase'] = os.path.splitext(os.path.basename(self.inputs['Location in'].links[0].from_node.weather))
         self.outputs['Context out']['Text'] = {}
         
     def export(self, scene, export_op):        

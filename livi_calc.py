@@ -33,19 +33,23 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
     frames = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) if not kwargs.get('genframe') else [kwargs['genframe']]
     os.chdir(scene['viparams']['newdir'])
     rtcmds, rccmds = [], []
+    
     for f, frame in enumerate(frames):
         if context in ('Basic', 'Compliance') or (context == 'CBDM' and int(subcontext) < 2):
             if os.path.isfile("{}-{}.af".format(scene['viparams']['filebase'], frame)):
                 os.remove("{}-{}.af".format(scene['viparams']['filebase'], frame))
             if simnode.pmap:
+                errdict = {'fatal - too many prepasses, no global photons stored\n': "Too many prepasses have ocurred. Make sure light sources can see your geometry",
+                'fatal - too many prepasses, no global photons stored, no caustic photons stored\n': "Too many prepasses have ocurred. Turn off caustic photons and encompass the scene",
+               'fatal - zero flux from light sources\n': "No light flux, make sure there is a light source and that photon port normals point inwards",
+               'fatal - no light sources\n': "No light sources. Photon mapping does not work with HDR skies"}
                 amentry, pportentry, cpentry, cpfileentry = retpmap(simnode, frame, scene)
                 pmcmd = ('mkpmap -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, scene['viparams']['filebase'], frame, simnode.pmapgno, cpentry, amentry))                   
-                print(pmcmd)
                 pmrun = Popen(pmcmd.split(), stderr = PIPE)
                 for line in pmrun.stderr: 
                     print(line)
-                    if 'too many prepasses' in line.decode():
-                        calc_op.report({'ERROR'}, "Too many prepasses have ocurred. Turn off caustic photons and encompass the scene")
+                    if line.decode() in errdict:
+                        calc_op.report({'ERROR'}, errdict[line.decode()])
                         return 
                 rtcmds.append("rtrace -n {0} -w {1} -ap {2}-{3}.gpm 50 {4} -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame, cpfileentry)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
             else: 

@@ -163,11 +163,11 @@ class VIMatPanel(bpy.types.Panel):
         newrow(layout, 'Material type', cm, "mattype")
         if cm.mattype != '3':
             try:
-                if scene['viparams']['visimcontext'] == 'LiVi Compliance':
+                if scene.get('viparams') and scene['viparams']['visimcontext'] == 'LiVi Compliance':
                     simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
                     coptions = simnode.inputs['Context in'].links[0].from_socket['Options']
                     if cm.mattype == '1':
-                        if coptions['cbanalysis'] == '0':
+                        if coptions['canalysis'] == '0':
                             if coptions['bambuild'] == '2':
                                 newrow(layout, "Space type:", cm, 'hspacemenu')
                             elif coptions['bambuild'] == '3':
@@ -177,7 +177,7 @@ class VIMatPanel(bpy.types.Panel):
                                     row.prop(cm, 'gl_roof')
                             elif coptions['bambuild'] == '4':
                                 newrow(layout, "Space type:", cm, 'respacemenu')
-                        elif coptions['cbanalysis'] == '1':
+                        elif coptions['canalysis'] == '1':
                             newrow(layout, "Space type:", cm, 'crspacemenu')
             except Exception as e:
                 print('Compliance specification problem', e)

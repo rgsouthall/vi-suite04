@@ -732,7 +732,7 @@ class NODE_OT_EnSim(bpy.types.Operator):
         self.connode = self.simnode.inputs['Context in'].links[0].from_node
         self.simnode.resfilename = os.path.join(scene['viparams']['newdir'], self.simnode.resname+'.eso')
         os.chdir(scene['viparams']['newdir'])
-        esimcmd = "EnergyPlus"
+        esimcmd = "energyplus"
         self.esimrun = Popen(esimcmd.split(), stderr = PIPE)
         self.simnode.run = 0
         return {'RUNNING_MODAL'}

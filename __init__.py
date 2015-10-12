@@ -29,7 +29,7 @@ import sys, os, inspect, bpy, nodeitems_utils, bmesh, shutil, colorsys, math
 from numpy import array, digitize
 
 
-epversion = "8-3-0"
+epversion = "8-4-0"
 addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 matpath, epwpath, envi_mats, envi_cons, conlayers  = addonpath+'/EPFiles/Materials/Materials.data', addonpath+'/EPFiles/Weather/', envi_materials(), envi_constructions(), 5
 
@@ -39,7 +39,7 @@ eplatbdict = {'linux': ('/usr/local/EnergyPlus-{}'.format(epversion)), 'win32': 
 platdict = {'linux': 'linux', 'win32': 'windows', 'darwin': 'osx'}
 evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
 
-if 'RAYPATH' not in os.environ:
+if os.path.join('{}'.format(addonpath), 'Radfiles', 'lib') not in os.environ['RAYPATH']:
     radldir = [d for d in rplatldict[str(sys.platform)] if os.path.isdir(d)]
     radbdir = [d for d in rplatbdict[str(sys.platform)] if os.path.isdir(d)]
     epdir = eplatbdict[str(sys.platform)] if os.path.isdir(eplatbdict[str(sys.platform)]) else os.path.join('{}'.format(addonpath), 'EPFiles', 'bin',  platdict[str(sys.platform)])
@@ -49,8 +49,6 @@ if 'RAYPATH' not in os.environ:
         radbdir, radldir = [os.path.join('{}'.format(addonpath), 'Radfiles', 'bin', platdict[str(sys.platform)])], [os.path.join('{}'.format(addonpath), 'Radfiles', 'lib')]
     os.environ["RAYPATH"] = '{0}{1}{2}'.format(radldir[0], evsep[str(sys.platform)], os.path.join(addonpath, 'Radfiles', 'lib'))        
     os.environ["PATH"] = os.environ["PATH"] + "{0}{1}{0}{2}".format(evsep[str(sys.platform)], radbdir[0], epdir)    
-else:
-    os.environ["RAYPATH"] += '{0}{1}'.format(evsep[str(sys.platform)], os.path.join(addonpath, 'Radfiles', 'lib'))
 
 def matfunc(i):
     matfuncdict = {'0': envi_mats.brick_dat.keys(), '1': envi_mats.stone_dat.keys(), '2': envi_mats.metal_dat.keys(), '3': envi_mats.wood_dat.keys(), '4': envi_mats.gas_dat.keys(),

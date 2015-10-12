@@ -1997,7 +1997,7 @@ def socklink(sock, ng):
         for link in sock.links:
             valid2 = link.to_socket.valid if not link.to_socket.get('valid') else link.to_socket['valid'] 
             valset = set(valid1)&set(valid2) 
-            if not valset or len(valset) < min((len(valid1), len(valid2))) or sock.node.use_custom_color:
+            if not valset or len(valset) < min((len(valid1), len(valid2))):# or sock.node.use_custom_color:
                 bpy.data.node_groups[ng].links.remove(link)
     except Exception as e:
         print(e)

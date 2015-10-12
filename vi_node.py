@@ -1974,29 +1974,15 @@ class EnViOcc(bpy.types.Node, EnViNodes):
     bl_label = 'Occupancy'
     bl_icon = 'SOUND'
 
-    def oupdate(self, context):
-        (self.inputs['OSchedule'].hide, self.inputs['ASchedule'].hide) = (True, True) if self.envi_occtype == '0' else (False, False)
-        (self.inputs['WSchedule'].hide, self.inputs['VSchedule'].hide, self.inputs['CSchedule'].hide) = (False, False, False) if self.envi_comfort and self.envi_occtype != '0' else (True, True, True)
-        ssocks = [sock for sock in self.inputs if sock.bl_idname == 'EnViSenseSocket']
-        if self.envi_occtype != '0' and self.outputs['Occupancy'].links:
-            ssocks[0].hide = False
-            znode = self.outputs['Occupancy'].links[0].to_node
-            ssocks[0].name = '{}_{}'.format(znode.zone, self.sensordict[self.sensortype][0])
-        else:
-            ssocks[0].hide = True
-
     envi_occwatts = bpy.props.IntProperty(name = "W/p", description = "Watts per person", min = 1, max = 800, default = 90)
     envi_weff = bpy.props.FloatProperty(name = "", description = "Work efficiency", min = 0, max = 1, default = 0.0)
     envi_airv = bpy.props.FloatProperty(name = "", description = "Average air velocity", min = 0, max = 1, default = 0.1)
     envi_cloth = bpy.props.FloatProperty(name = "", description = "Clothing level", min = 0, max = 10, default = 0.5)
     envi_occtype = bpy.props.EnumProperty(items = [("0", "None", "No occupancy"),("1", "Occupants", "Actual number of people"), ("2", "Person/m"+ u'\u00b2', "Number of people per squared metre floor area"),
-                                              ("3", "m"+ u'\u00b2'+"/Person", "Floor area per person")], name = "", description = "The type of zone occupancy specification", default = "0", update = oupdate)
+                                              ("3", "m"+ u'\u00b2'+"/Person", "Floor area per person")], name = "", description = "The type of zone occupancy specification", default = "0")
     envi_occsmax = bpy.props.FloatProperty(name = "", description = "Maximum level of occupancy that will occur in this schedule", min = 1, max = 500, default = 1)
-    envi_comfort = bpy.props.BoolProperty(name = "", description = "Enable comfort calculations for this space", default = False, update = oupdate)
+    envi_comfort = bpy.props.BoolProperty(name = "", description = "Enable comfort calculations for this space", default = False)
     envi_co2 = bpy.props.BoolProperty(name = "", description = "Enable CO2 concentration calculations", default = False)
-    sensorlist = [("0", "Zone CO2", "Sense the zone CO2"), ("1", "Zone Occupancy", "Sense the zone occupancy")]
-    sensortype = bpy.props.EnumProperty(name="", description="Linkage type", items=sensorlist, default='0', update = oupdate)
-    sensordict = {'0': ('CO2', 'AFN Node CO2 Concentration'), '1': ('Occ', 'Zone Occupancy')}
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
@@ -2006,11 +1992,6 @@ class EnViOcc(bpy.types.Node, EnViNodes):
         self.inputs.new('EnViSchedSocket', 'WSchedule')
         self.inputs.new('EnViSchedSocket', 'VSchedule')
         self.inputs.new('EnViSchedSocket', 'CSchedule')
-        self.inputs['OSchedule'].hide = True
-        self.inputs['ASchedule'].hide = True
-        self.inputs['WSchedule'].hide = True
-        self.inputs['VSchedule'].hide = True
-        self.inputs['CSchedule'].hide = True
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Type:', self, "envi_occtype")
@@ -2030,7 +2011,7 @@ class EnViOcc(bpy.types.Node, EnViNodes):
 
     def update(self):
         if self.inputs.get('CSchedule'):
-            for sock in self.inputs[:] + self.outputs[:]:
+            for sock in  self.outputs:
                 socklink(sock, self['nodeid'].split('@')[1])
 
     def epwrite(self, zn):
@@ -2053,29 +2034,14 @@ class EnViEq(bpy.types.Node, EnViNodes):
     bl_label = 'Equipment'
     bl_icon = 'SOUND'
 
-    def zupdate(self, context):
-        self.inputs['Schedule'].hide = True if self.envi_equiptype == '0' else False
-        ssocks = [sock for sock in self.inputs if sock.bl_idname == 'EnViSenseSocket']
-        if self.envi_equiptype != '0' and self.outputs['Equipment'].links:
-            ssocks[0].hide = False
-            znode = self.outputs['Equipment'].links[0].to_node
-            ssocks[0].name = '{}_{}'.format(znode.zone, self.sensordict[self.sensortype][0])
-        else:
-            ssocks[0].hide = True
-
-
     envi_equiptype = bpy.props.EnumProperty(items = [("0", "None", "No equipment"),("1", "EquipmentLevel", "Overall equpiment gains"), ("2", "Watts/Area", "Equipment gains per square metre floor area"),
-                                              ("3", "Watts/Person", "Equipment gains per occupant")], name = "", description = "The type of zone equipment gain specification", default = "0", update = zupdate)
+                                              ("3", "Watts/Person", "Equipment gains per occupant")], name = "", description = "The type of zone equipment gain specification", default = "0")
     envi_equipmax = bpy.props.FloatProperty(name = "", description = "Maximum level of equipment gain", min = 1, max = 50000, default = 1)
-    sensorlist = [("0", "Zone Equipment", "Sense the equipment level")]
-    sensortype = bpy.props.EnumProperty(name="", description="Linkage type", items=sensorlist, default='0', update = zupdate)
-    sensordict = {'0': ('Equip', 'Equipment level')}
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
         self.outputs.new('EnViEqSocket', 'Equipment')
         self.inputs.new('EnViSchedSocket', 'Schedule')
-        self.inputs['Schedule'].hide = True
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Type:', self, "envi_equiptype")
@@ -2083,7 +2049,7 @@ class EnViEq(bpy.types.Node, EnViNodes):
             newrow(layout, 'Max level:', self, "envi_equipmax")
 
     def update(self):
-        for sock in [sock for sock in self.inputs[:] + self.outputs[:] if sock.links]:
+        for sock in self.outputs:
             socklink(sock, self['nodeid'].split('@')[1])
 
     def oewrite(self, zn):
@@ -2101,19 +2067,15 @@ class EnViInf(bpy.types.Node, EnViNodes):
     bl_label = 'Infiltration'
     bl_icon = 'SOUND'
 
-    def zupdate(self, context):
-        self.inputs['Schedule'].hide = True if self.envi_inftype == '0' else False
-
     envi_inftype = bpy.props.EnumProperty(items = [("0", "None", "No infiltration"), ("1", 'Flow/Zone', "Absolute flow rate in m{}/s".format(u'\u00b3')), ("2", "Flow/Area", 'Flow in m{}/s per m{} floor area'.format(u'\u00b3', u'\u00b2')),
                                  ("3", "Flow/ExteriorArea", 'Flow in m{}/s per m{} external surface area'.format(u'\u00b3', u'\u00b2')), ("4", "Flow/ExteriorWallArea", 'Flow in m{}/s per m{} external wall surface area'.format(u'\u00b3', u'\u00b2')),
-                                 ("4", "ACH", "ACH flow rate")], name = "", description = "The type of zone infiltration specification", default = "0", update = zupdate)
+                                 ("4", "ACH", "ACH flow rate")], name = "", description = "The type of zone infiltration specification", default = "0")
     envi_inflevel = bpy.props.FloatProperty(name = "Level", description = "Level of Infiltration", min = 0, max = 500, default = 0.001)
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
         self.outputs.new('EnViInfSocket', 'Infiltration')
         self.inputs.new('EnViSchedSocket', 'Schedule')
-        self.inputs['Schedule'].hide = True
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Type:', self, "envi_inftype")
@@ -2121,16 +2083,14 @@ class EnViInf(bpy.types.Node, EnViNodes):
             newrow(layout, 'Level:', self, "envi_inflevel")
 
     def update(self):
-        for sock in [sock for sock in self.inputs[:] + self.outputs[:] if sock.links]:
+        for sock in self.outputs:
             socklink(sock, self['nodeid'].split('@')[1])
 
     def epwrite(self, zn):
-#        self.infiltype = self.envi_inftype
         infildict = {'0': '', '1': 'Flow/Zone', '2': 'Flow/Area', '3': 'Flow/ExteriorArea', '4': 'Flow/ExteriorWallArea',
                           '5': 'AirChanges/Hour', '6': 'Flow/Zone'}
         inflist = ['', '', '', '']
         infdict = {'1': '0', '2': '1', '3':'2', '4':'2', '5': '3', '6': '0'}
-#        inflevel = self.envi_inflevel if self.envi_occtype != '1' or self.envi_occinftype != '6' else self.envi_inflevel * 0.001 * self.envi_occsmax
         inflist[int(infdict[self.envi_inftype])] = '{:.4f}'.format(self.envi_inflevel)
         params = ('Name', 'Zone or ZoneList Name', 'Schedule Name', 'Design Flow Rate Calculation Method', 'Design Flow Rate {m3/s}', 'Flow per Zone Floor Area {m3/s-m2}',
                'Flow per Exterior Surface Area {m3/s-m2}', 'Air Changes per Hour {1/hr}', 'Constant Term Coefficient', 'Temperature Term Coefficient',
@@ -2177,10 +2137,8 @@ class EnViHvac(bpy.types.Node, EnViNodes):
         self.outputs.new('EnViHvacSocket', 'HVAC')
         self.inputs.new('EnViTSchedSocket', 'HSchedule')
         self.inputs.new('EnViTSchedSocket', 'CSchedule')
-        self.inputs.new('EnViActSocket', 'Actuator')
         self.inputs['HSchedule'].hide = True
         self.inputs['CSchedule'].hide = True
-        self.inputs['Actuator'].hide = True
 
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -2225,10 +2183,9 @@ class EnViHvac(bpy.types.Node, EnViNodes):
                 newrow(layout, 'Flow/area (m3/s.a):', self, 'envi_hvacfrzfa')
             if self.envi_hvacoam in ('4', '5', '6') and not self.envi_hvact:
                 newrow(layout, 'ACH', self, 'envi_hvacfach')
-            newrow(layout, 'Actuator', self, 'acttype')
 
     def update(self):
-        for sock in [sock for sock in self.inputs[:] + self.outputs[:] if sock.links]:
+        for sock in self.outputs:
             socklink(sock, self['nodeid'].split('@')[1])
 
     def hupdate(self):
@@ -2354,14 +2311,9 @@ class EnViZone(bpy.types.Node, EnViNodes):
             if not self.inputs.get(sock):
                 self.inputs.new('EnViSSFlowSocket', sock).sn = sock.split('_')[-2]
 
-    def supdate(self, context):
-        for sock in [sock for sock in self.inputs if sock.bl_idname == 'EnViSenseSocket']:
-            sock.name = '{}_{}'.format(self.zone, self.sensordict[self.sensortype][0])
-        self.update()
-
     zone = bpy.props.StringProperty(update = zupdate)
     controltype = [("NoVent", "None", "No ventilation control"), ("Constant", "Constant", "From vent availability schedule"), ("Temperature", "Temperature", "Temperature control")]
-    control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='NoVent', update = supdate)
+    control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='NoVent')
     zonevolume = bpy.props.FloatProperty(name = '')
     mvof = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 1)
     lowerlim = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 100)
@@ -2380,6 +2332,8 @@ class EnViZone(bpy.types.Node, EnViNodes):
 
     def update(self):
         if self.inputs.get('VASchedule'):
+            for sock in self.outputs:
+                socklink(sock, self['nodeid'].split('@')[1])
             [bi, si, ssi, bo, so , sso] = [1, 1, 1, 1, 1, 1]
             if self.control != 'Temperature' and self.inputs['TSPSchedule'].links:
                 remlink(self, self.inputs['TSPSchedule'].links)
@@ -2394,18 +2348,22 @@ class EnViZone(bpy.types.Node, EnViNodes):
                 for inp in [inp for inp in self.inputs if inp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
                     if inp.bl_idname == 'EnViBoundSocket' and not inp.hide and not inp.links:
                         bi = 0
-                    if inp.bl_idname == 'EnViSFlowSocket' and not inp.hide and not inp.links:
-                        si = 0
-                    if inp.bl_idname == 'EnViSSFlowSocket' and not inp.hide and not inp.links:
-                        ssi = 0
+                    if inp.bl_idname == 'EnViSFlowSocket':
+                        if (not inp.hide and not inp.links) or (inp.links and inp.links[0].from_node.bl_label != 'Envi surface flow'):
+                            si = 0
+                    if inp.bl_idname == 'EnViSSFlowSocket':
+                        if (not inp.hide and not inp.links) or (inp.links and inp.links[0].from_node.bl_label != 'Envi sub-surface flow'):
+                            ssi = 0
 
                 for outp in [outp for outp in self.outputs if outp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
                     if outp.bl_idname == 'EnViBoundSocket' and not outp.hide and not outp.links:
                         bo = 0
-                    if outp.bl_idname == 'EnViSFlowSocket' and not outp.hide and not outp.links:
-                        so = 0
-                    if outp.bl_idname == 'EnViSSFlowSocket' and not outp.hide and not outp.links:
-                        sso = 0
+                    if outp.bl_idname == 'EnViSFlowSocket':
+                        if (not outp.hide and not outp.links) or (outp.links and outp.links[0].to_node.bl_label != 'Envi surface flow'):
+                            so = 0
+                    if outp.bl_idname == 'EnViSSFlowSocket':
+                        if (not outp.hide and not outp.links) or (outp.links and outp.links[0].to_node.bl_label != 'Envi sub-surface flow'):
+                            sso = 0
 
             except Exception as e:
                 print('Tuple', e)
@@ -2433,7 +2391,6 @@ class EnViZone(bpy.types.Node, EnViNodes):
 
         paramvs = (self.zone, self.control, tempschedname, mvof, lowerlim, upperlim, '0.0', '300000.0', vaschedname)
         return epentry('AirflowNetwork:MultiZone:Zone', params, paramvs)
-
 
 class EnViTC(bpy.types.Node, EnViNodes):
     '''Zone Thermal Chimney node'''
@@ -2508,7 +2465,7 @@ class EnViTC(bpy.types.Node, EnViNodes):
             self['Distance {}'.format(z)] = fheights[z]
             self['Relative Ratio {}'.format(z)] = 1.0
             self['Cross Section {}'.format(z)] = fareas[z]
-        for sock in [sock for sock in self.inputs[:] + self.outputs[:] if sock.links]:
+        for sock in self.outputs:
             socklink(sock, self['nodeid'].split('@')[1])
 
     def epwrite(self):
@@ -2595,7 +2552,6 @@ class EnViSSFlowNode(bpy.types.Node, EnViNodes):
         self['ela'] = 1.0
         self.inputs.new('EnViSchedSocket', 'VASchedule')
         self.inputs.new('EnViSchedSocket', 'TSPSchedule')
-        self.inputs.new('EnViActSocket', 'Actuator')
         self.inputs['TSPSchedule'].hide = True
         self.inputs.new('EnViSSFlowSocket', 'Node 1', identifier = 'Node1_s')
         self.inputs.new('EnViSSFlowSocket', 'Node 2', identifier = 'Node2_s')
@@ -2612,7 +2568,7 @@ class EnViSSFlowNode(bpy.types.Node, EnViNodes):
 
     def update(self):
         if self.get('layoutdict'):
-            for sock in self.inputs[:] + self.outputs[:]:
+            for sock in self.outputs:
                 socklink(sock, self['nodeid'].split('@')[1])
             if self.linkmenu == 'ELA':
                 retelaarea(self)
@@ -2623,14 +2579,14 @@ class EnViSSFlowNode(bpy.types.Node, EnViNodes):
                         self.extnode = 1
             if self.outputs.get('Node 2'):
                 sockhide(self, ('Node 1', 'Node 2'))
-            znodes =  [(sock.links[0].from_node, sock.links[0].to_node)[sock.is_output] for sock in self.inputs[:] + self.outputs[:] if sock.links and sock.bl_idname == 'EnViSSFlowSocket' and (sock.links[0].from_node, sock.links[0].to_node)[sock.is_output].bl_idname == 'EnViZone']
+#            znodes =  [(sock.links[0].from_node, sock.links[0].to_node)[sock.is_output] for sock in self.inputs[:] + self.outputs[:] if sock.links and sock.bl_idname == 'EnViSSFlowSocket' and (sock.links[0].from_node, sock.links[0].to_node)[sock.is_output].bl_idname == 'EnViZone']
 
-            if znodes:
-                for sock in self.inputs:
-                    if sock.bl_idname == 'EnViActSocket':
-                        obj = bpy.data.objects[znodes[0].zone]
-                        odm = obj.data.materials
-                        sock.name = ['{}_{}_{}'.format(self.adict[odm[face.material_index].envi_con_type], znodes[0].zone, face.index) for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type in ('Window', 'Door')][0]
+#            if znodes:
+#                for sock in self.inputs:
+#                    if sock.bl_idname == 'EnViActSocket':
+#                        obj = bpy.data.objects[znodes[0].zone]
+#                        odm = obj.data.materials
+#                        sock.name = ['{}_{}_{}'.format(self.adict[odm[face.material_index].envi_con_type], znodes[0].zone, face.index) for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type in ('Window', 'Door')][0]
             self.legal()
 
     def draw_buttons(self, context, layout):
@@ -2638,7 +2594,6 @@ class EnViSSFlowNode(bpy.types.Node, EnViNodes):
         if self.linkmenu in ('SO', 'DO', 'HO'):
             newrow(layout, 'Win/Door OF:', self, 'wdof1')
             newrow(layout, "Control type:", self, 'controls')
-            newrow(layout, "Actuator:", self, 'acttype')
             if self.linkmenu in ('SO', 'DO') and self.controls == 'Temperature':
                 newrow(layout, "Limit OF:", self, 'mvof')
                 newrow(layout, "Lower OF:", self, 'lvof')
@@ -2767,7 +2722,7 @@ class EnViSFlowNode(bpy.types.Node, EnViNodes):
         self.outputs.new('EnViSFlowSocket', 'Node 2')
 
     def update(self):
-        for sock in (self.inputs[:] + self.outputs[:]):
+        for sock in self.outputs:
             socklink(sock, self['nodeid'].split('@')[1])
         if self.linkmenu == 'ELA':
             retelaarea(self)
@@ -2863,7 +2818,7 @@ class EnViExtNode(bpy.types.Node, EnViNodes):
             row.prop(self, 'wpc{}'.format(w))
 
     def update(self):
-        for sock in self.inputs[:] + self.outputs[:]:
+        for sock in self.outputs:
             socklink(sock, self['nodeid'].split('@')[1])
         sockhide(self, ('Sub surface', 'Surface'))
 
@@ -2940,7 +2895,7 @@ class EnViSched(bpy.types.Node, EnViNodes):
             u += 1
 
     def update(self):
-        for sock in [sock for sock in self.inputs[:] + self.outputs[:] if sock.links]:
+        for sock in self.outputs:
             socklink(sock, self['nodeid'].split('@')[1])
         bpy.data.node_groups[self['nodeid'].split('@')[1]].interface_update(bpy.context)
 
@@ -3008,7 +2963,7 @@ class EnViProgNode(bpy.types.Node, EnViNodes):
         layout.prop_search(self, 'text_file', bpy.data, 'texts', text='File', icon='TEXT')
 
     def update(self):
-        for sock in [sock for sock in self.inputs if sock.links]:
+        for sock in self.outputs:
             socklink(sock, self['nodeid'].split('@')[1])
         nodecolour(self, not all([sock.links for sock in self.outputs]))
 

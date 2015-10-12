@@ -156,7 +156,6 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 
     for obj in [obj for obj in bpy.data.objects if obj.layers[1] and obj.type == 'MESH' and obj.vi_type == '1']:
         obm, odv = obj.matrix_world, obj.data.vertices
-#        obj["floorarea"] = sum([facearea(obj, face) for face in obj.data.polygons if obj.data.materials[face.material_index].envi_con_type =='floor'] and obj.envi_type == '1')
 
         for poly in obj.data.polygons:
             mat = obj.data.materials[poly.material_index]
@@ -166,8 +165,6 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 params = list(wfrparams) + ["X,Y,Z ==> Vertex {} (m)".format(v) for v in poly.vertices]
                 paramvs = ['{}_{}'.format(obj.name, poly.index), mat.envi_con_type, mat.name, obj.name, obc, obco, se, we, 'autocalculate', len(poly.vertices)]+ ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format(obm * odv[v].co) for v in poly.vertices]
                 en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))
-#                if mat.envi_con_type == "Floor":
-#                    obj["floorarea"] += poly.area
 
             elif mat.envi_con_type in ('Door', 'Window')  and mat.envi_con_makeup != "2":
                 if len(poly.vertices) > 4:
@@ -189,7 +186,6 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 paramvs = ['{}_{}'.format(obj.name, poly.index), '', len(poly.vertices)] + ['{0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}'.format(obm * odv[poly.vertices[v]].co) for v in range(len(poly.vertices))]
                 en_idf.write(epentry('Shading:Building:Detailed', params, paramvs))
 
-#    co2 = 0
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: SCHEDULES ===========\n\n")
     params = ('Name', 'Lower Limit Value', 'Upper Limit Value', 'Numeric Type', 'Unit Type')
     paramvs = ("Temperature", -60, 200, "CONTINUOUS", "Temperature")
@@ -205,8 +201,6 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     en_idf.write(epentry('ScheduleTypeLimits', params, paramvs))
     en_idf.write(epschedwrite('Default outdoor CO2 levels 400 ppm', 'Any number', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format('400')]]]]))
 
-
-#    hcoiobjs = [hcoiwrite(obj) for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type == '1']
     zonenames = [o.name for o in bpy.context.scene.objects if o.layers[1] == True and o.envi_type == '0']
     bpy.context.scene['viparams']['hvactemplate'] = 0
     zonenodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in zonenames]
@@ -236,10 +230,6 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                         except Exception as e:
                             en_idf.write(epschedwrite(zn.zone + osdict[sschedtype], svariant, ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{:.3f}'.format(ovaldict[sschedtype])]]]]))
 
-#                            en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links[0].from_node.epwrite(zn.zone + osdict[sschedtype], svariant))
-#                    if zn.inputs[schedtype].links[0].from_node.envi_comfort and zn.inputs[schedtype].links[0].from_node.envi_co2:
-#                        en_idf.write(epschedwrite('Default outdoor CO2 levels 400 ppm', 'Any number', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format('400')]]]]))
-
                 elif schedtype == 'Equipment' and zn.inputs[schedtype].links:
                     if not zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links:
                         en_idf.write(epschedwrite(zn.zone + '_eqsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,1']]]]))
@@ -266,62 +256,48 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: THERMOSTSTATS ===========\n\n")
     for zn in zonenodes:
-        try:
-            en_idf.write(zn.inputs['HVAC'].links[0].from_node.ephspwrite(zn.zone))
-        except Exception as e:
-            print('Thermo', e)
+        for hvaclink in zn.inputs['HVAC'].links:
+            en_idf.write(hvaclink.from_node.ephspwrite(zn.zone))
 
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: EQUIPMENT ===========\n\n")
     for zn in zonenodes:
-        try:
-            hvaczone = zn.inputs['HVAC'].links[0].from_node
+        for hvaclink in zn.inputs['HVAC'].links:
+            hvaczone = hvaclink.from_node
             if not hvaczone.envi_hvact:
                 en_idf.write(zn.inputs['HVAC'].links[0].from_node.epewrite(zn.zone))
-        except Exception as e:
-            print('Equip', e)
     
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: HVAC ===========\n\n")
     for zn in zonenodes:
-        try:
-            hvacnode = zn.inputs['HVAC'].links[0].from_node
+        for hvaclink in zn.inputs['HVAC'].links:
+            hvacnode = hvaclink.from_node
             if hvacnode.envi_hvact:
                 en_idf.write(hvacnode.hvactwrite(zn.zone))
             else:
                 en_idf.write(hvacnode.ephwrite(zn.zone))
-        except Exception as e:
-            print('HVAC', e)
 
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: OCCUPANCY ===========\n\n")
     for zn in zonenodes:
-        try:
-            en_idf.write(zn.inputs['Occupancy'].links[0].from_node.epwrite(zn.zone))
-        except:
-            pass
+        for occlink in zn.inputs['Occupancy'].links:
+            en_idf.write(occlink.from_node.epwrite(zn.zone))
 
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: OTHER EQUIPMENT ===========\n\n")
     for zn in zonenodes:
-        try:
-            en_idf.write(zn.inputs['Equipment'].links[0].from_node.oewrite(zn.zone))
-        except:
-            pass
+        for eqlink in zn.inputs['Equipment'].links:
+            en_idf.write(eqlink.from_node.oewrite(zn.zone))
    
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: CONTAMINANTS ===========\n\n")
     for zn in zonenodes:
-        try:
-            if zn.inputs['Occupancy'].links[0].from_node.envi_co2 and zn.inputs['Occupancy'].links[0].from_node.envi_comfort:
+        for occlink in zn.inputs['Occupancy'].links:
+            if occlink.from_node.envi_co2 and occlink.from_node.envi_comfort:
                 params = ('Carbon Dioxide Concentration', 'Outdoor Carbon Dioxide Schedule Name', 'Generic Contaminant Concentration', 'Outdoor Generic Contaminant Schedule Name')
                 paramvs = ('Yes', 'Default outdoor CO2 levels 400 ppm', 'No', '')
                 en_idf.write(epentry('ZoneAirContaminantBalance', params, paramvs))
                 break
-        except:
-            pass
 
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: INFILTRATION ===========\n\n")
     for zn in zonenodes:
-        try:
-            en_idf.write(zn.inputs['Infiltration'].links[0].from_node.epwrite(zn.zone))
-        except:
-            pass
+        for inflink in zn.inputs['Infiltration'].links:
+            en_idf.write(inflink.from_node.epwrite(zn.zone))
 
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: AIRFLOW NETWORK ===========\n\n")
     
@@ -373,7 +349,6 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         os.chdir(scene['viparams']['newdir'])
         ehtempcmd = "ExpandObjects {}".format(os.path.join(scene['viparams']['newdir'], 'in.idf'))
         subprocess.call(ehtempcmd.split())
-#        subprocess.call('{} {} {}'.format(scene['viparams']['cp'], os.path.join(scene['viparams']['newdir'], 'expanded.idf'), os.path.join(scene['viparams']['newdir'], 'in.idf')), shell = True)
         shutil.copyfile(os.path.join(scene['viparams']['newdir'], 'expanded.idf'), os.path.join(scene['viparams']['newdir'], 'in.idf')) 
     
     if 'in.idf' not in [im.name for im in bpy.data.texts]:

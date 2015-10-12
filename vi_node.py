@@ -2495,7 +2495,6 @@ class EnViSSFlowNode(bpy.types.Node, EnViNodes):
             if self.inputs['VASchedule'].is_linked:
                 remlink(self, self.inputs['VASchedule'].links)
 
-
         self.inputs['TSPSchedule'].hide = False if self.linkmenu in ('SO', 'DO', 'HO') and self.controls == 'Temperature' else True
         (self.inputs['VASchedule'].hide, self.inputs['Actuator'].hide) = (False, False) if self.linkmenu in ('SO', 'DO', 'HO') else (True, True)
         self.legal()
@@ -2579,14 +2578,6 @@ class EnViSSFlowNode(bpy.types.Node, EnViNodes):
                         self.extnode = 1
             if self.outputs.get('Node 2'):
                 sockhide(self, ('Node 1', 'Node 2'))
-#            znodes =  [(sock.links[0].from_node, sock.links[0].to_node)[sock.is_output] for sock in self.inputs[:] + self.outputs[:] if sock.links and sock.bl_idname == 'EnViSSFlowSocket' and (sock.links[0].from_node, sock.links[0].to_node)[sock.is_output].bl_idname == 'EnViZone']
-
-#            if znodes:
-#                for sock in self.inputs:
-#                    if sock.bl_idname == 'EnViActSocket':
-#                        obj = bpy.data.objects[znodes[0].zone]
-#                        odm = obj.data.materials
-#                        sock.name = ['{}_{}_{}'.format(self.adict[odm[face.material_index].envi_con_type], znodes[0].zone, face.index) for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type in ('Window', 'Door')][0]
             self.legal()
 
     def draw_buttons(self, context, layout):

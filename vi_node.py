@@ -219,7 +219,7 @@ class LiViNode(bpy.types.Node, ViNodes):
     hdr = bpy.props.BoolProperty(name="", description="Export HDR panoramas", default=False, update = nodeupdate)
     skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="", update = nodeupdate)
     resname = bpy.props.StringProperty()
-    turb = bpy.props.FloatProperty(name="", description="Sky Turbidity", min=1.0, max=5.0, default=1.0, update = nodeupdate)
+    turb = bpy.props.FloatProperty(name="", description="Sky Turbidity", min=1.0, max=5.0, default=2.75, update = nodeupdate)
     canalysistype = [('0', "BREEAM", "BREEAM HEA1 calculation"), ('1', "CfSH", "Code for Sustainable Homes calculation"), ('2', "LEED", "LEED EQ8.1 calculation")]#, ('3', "Green Star", "Green Star Calculation")]
     bambuildtype = [('0', "School", "School lighting standard"), ('1', "Higher Education", "Higher education lighting standard"), ('2', "Healthcare", "Healthcare lighting standard"), ('3', "Residential", "Residential lighting standard"), ('4', "Retail", "Retail lighting standard"), ('5', "Office & other", "Office and other space lighting standard")]
     canalysismenu = bpy.props.EnumProperty(name="", description="Type of analysis", items = canalysistype, default = '0', update = nodeupdate)

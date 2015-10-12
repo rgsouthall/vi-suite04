@@ -348,7 +348,7 @@ def en_air(self, context, resnode, valheaders):
         blf.shadow(0, 3, 0, 0, 0, 0.5)
         
         # Temperature
-        resvals = resnode['allresdict'][valheaders[2]][resstart:resend]
+        resvals = resnode['allresdict'][valheaders[0]][resstart:resend]
         maxval, minval = max(resvals), min(resvals)
         maxval, minval = max(resvals), min(resvals)
         reslevel = (resvals[scene.frame_current] - minval)/(maxval - minval)
@@ -364,16 +364,15 @@ def en_air(self, context, resnode, valheaders):
         if context.space_data.region_3d.is_perspective:
             view_mat = context.space_data.region_3d.perspective_matrix
             vw = mathutils.Vector((view_mat[3][0], view_mat[3][1], 0)).normalized()
-#            orot = atan2(vw[1],vw[0]) - atan2(1,0)
         else:
             vw =  mathutils.Vector((0.0, 0.0, -1.0))
             vw.rotate(bpy.context.region_data.view_rotation)
         orot = atan2(vw[1],vw[0]) - atan2(1,0)
     
         scene, font_id, height = context.scene, 0, context.region.height
-        resvalss = resnode['allresdict'][valheaders[3]][resstart:resend]
+        resvalss = resnode['allresdict'][valheaders[1]][resstart:resend]
         maxvals = max(resvalss)
-        resvalsd = resnode['allresdict'][valheaders[4]][resstart:resend] 
+        resvalsd = resnode['allresdict'][valheaders[2]][resstart:resend] 
         radius, hscale = 110, height/nh
         posx, posy = int(rightwidth - radius * hscale), int(topheight - hscale * radius * 1.2)
         blf.position(font_id, int(leftwidth + hscale * 160), int(topheight - hscale * 20), 0)
@@ -401,7 +400,7 @@ def en_air(self, context, resnode, valheaders):
         drawtri(posx, posy, resvalss[scene.frame_current]/maxvals, resvalsd[scene.frame_current] + orot*180/pi, hscale, radius)
         
         # Humidity
-        resvals = resnode['allresdict'][valheaders[5]]
+        resvals = resnode['allresdict'][valheaders[3]]
         maxval, minval = 100, 0
         reslevel = (resvals[scene.frame_current] - minval)/(maxval - minval)
         bgl.glColor4f(0.0, 0.0, 0.0, 1.0)

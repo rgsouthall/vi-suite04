@@ -39,7 +39,7 @@ eplatbdict = {'linux': ('/usr/local/EnergyPlus-{}'.format(epversion)), 'win32': 
 platdict = {'linux': 'linux', 'win32': 'windows', 'darwin': 'osx'}
 evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
 
-if os.path.join('{}'.format(addonpath), 'Radfiles', 'lib') not in os.environ['RAYPATH']:
+if not os.environ.get('RAYPATH') or os.path.join('{}'.format(addonpath), 'Radfiles', 'lib') not in os.environ['RAYPATH']:
     radldir = [d for d in rplatldict[str(sys.platform)] if os.path.isdir(d)]
     radbdir = [d for d in rplatbdict[str(sys.platform)] if os.path.isdir(d)]
     epdir = eplatbdict[str(sys.platform)] if os.path.isdir(eplatbdict[str(sys.platform)]) else os.path.join('{}'.format(addonpath), 'EPFiles', 'bin',  platdict[str(sys.platform)])

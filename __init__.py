@@ -66,31 +66,35 @@ def confunc(i):
 def eupdate(self, context):
     scene = context.scene
     maxo, mino = scene.vi_leg_max, scene.vi_leg_min
-    inv = 0        
+      
     for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
         for o in [obj for obj in bpy.data.objects if obj.lires == 1 and obj.data.shape_keys and str(frame) in [sk.name for sk in obj.data.shape_keys.key_blocks]]:  
-            skfd = o.data.shape_keys.key_blocks[str(frame)].data
             bm = bmesh.new()
             bm.from_mesh(o.data)  
-            bm.transform(o.matrix_world)
+            bm.normal_update()
+            bm.transform(o.matrix_world)            
             skb = bm.verts.layers.shape['Basis']
+            skf = bm.verts.layers.shape[str(frame)]
+
             if str(frame) in o['omax']:
                 if bm.faces.layers.float.get('res{}'.format(frame)):
                     res = bm.faces.layers.float['res{}'.format(frame)] #if context.scene['cp'] == '0' else bm.verts.layers.float['res{}'.format(frame)]                
                     faces = [f for f in bm.faces if f.select]
-                    extrudes = [0.1 * scene.vi_disp_3dlevel * (abs(inv - math.log10(maxo * (f[res] + 1 - mino)/(maxo - mino))) * f.normal.normalized()) for f in faces] if scene.vi_leg_scale == '1' else \
-                            [scene.vi_disp_3dlevel * (abs(inv - (f[res] - mino)/(maxo - mino)) * f.normal.normalized()) for f in faces]
+                    extrudes = [0.1 * scene.vi_disp_3dlevel * (math.log10(maxo * (f[res] + 1 - mino)/(maxo - mino))) * f.normal.normalized() for f in faces] if scene.vi_leg_scale == '1' else \
+                            [scene.vi_disp_3dlevel * ((f[res] - mino)/(maxo - mino)) * f.normal.normalized() for f in faces]
                     for f, face in enumerate(faces):
                         for v in face.verts:
-                            skfd[v.index].co = v[skb] + extrudes[f]
+                            v[skf] = v[skb] + extrudes[f]
                 
                 elif bm.verts.layers.float.get('res{}'.format(frame)):
                     res = bm.verts.layers.float['res{}'.format(frame)]
-                    verts = [v for v in bm.verts]
-                    extrudes = [scene.vi_disp_3dlevel * (abs(inv - (v[res]-mino)/(maxo - mino)) * v.normal.normalized()) for v in verts] if scene.vi_leg_scale == '0' else \
-                                [0.1 * scene.vi_disp_3dlevel * (abs(inv - math.log10(maxo * (v[res] + 1 - mino)/(maxo - mino))) * v.normal.normalized()) for v in verts]  
-                    for v, vert in enumerate(verts):
-                        skfd[vert.index].co = vert[skb] + extrudes[v]
+                    extrudes = [scene.vi_disp_3dlevel * ((v[res]-mino)/(maxo - mino)) * v.normal.normalized() for v in bm.verts] if scene.vi_leg_scale == '0' else \
+                                [0.1 * scene.vi_disp_3dlevel * (math.log10(maxo * (v[res] + 1 - mino)/(maxo - mino))) * v.normal.normalized() for v in bm.verts]  
+                    for v, vert in enumerate(bm.verts):
+                        vert[skf] = vert[skb] + extrudes[v]
+
+            bm.transform(o.matrix_world.inverted())
+            bm.to_mesh(o.data)
             bm.free()
 
 def tupdate(self, context):

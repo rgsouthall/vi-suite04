@@ -2135,10 +2135,9 @@ class EnViHvac(bpy.types.Node, EnViNodes):
     def init(self, context):
         self['nodeid'] = nodeid(self)
         self.outputs.new('EnViHvacSocket', 'HVAC')
+        self.inputs.new('EnViSchedSocket', 'Schedule')
         self.inputs.new('EnViTSchedSocket', 'HSchedule')
         self.inputs.new('EnViTSchedSocket', 'CSchedule')
-        self.inputs['HSchedule'].hide = True
-        self.inputs['CSchedule'].hide = True
 
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -2189,8 +2188,6 @@ class EnViHvac(bpy.types.Node, EnViNodes):
             socklink(sock, self['nodeid'].split('@')[1])
 
     def hupdate(self):
-        self.inputs['HSchedule'].hide = True if self.envi_hvachlt == '4' else False
-        self.inputs['CSchedule'].hide = True if self.envi_hvacclt == '4' else False
         self.h = 1 if self.envi_hvachlt != '4' else 0
         self.c = 1 if self.envi_hvacclt != '4' else 0
         self['hc'] = ('', 'SingleHeating', 'SingleCooling', 'DualSetpoint')[(not self.h and not self.c, self.h and not self.c, not self.h and self.c, self.h and self.c).index(1)]
@@ -2198,9 +2195,13 @@ class EnViHvac(bpy.types.Node, EnViNodes):
         self['limittype'] = {'0': 'LimitFlowRate', '1': 'LimitCapacity', '2': 'LimitFlowRateAndCapacity', '3': 'NoLimit', '4': ''}
 
     def eptcwrite(self, zn):
-        return epschedwrite(zn + '_thermocontrol', 'Control Type', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(self['ctdict'][self['hc']])]]]])
-
-    def ephspwrite(self, zn):
+        if self['hc'] in ('SingleHeating', 'SingleCooling', 'DualSetpoint'):
+            return epschedwrite(zn + '_thermocontrol', 'Control Type', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(self['ctdict'][self['hc']])]]]])
+        else:
+            return ''
+            
+    def eptspwrite(self, zn):
+        self.hupdate()
         params = ['Name', 'Setpoint Temperature Schedule Name']
         if self['hc'] ==  'DualSetpoint':
             params += ['Setpoint Temperature Schedule Name 2']
@@ -2210,9 +2211,12 @@ class EnViHvac(bpy.types.Node, EnViNodes):
         elif self['hc'] == 'SingleCooling':
             paramvs = [zn +'_tsp', zn + '_ctspsched']
 
-        params2 = ('Name', 'Zone or Zonelist Name', 'Control Type Schedule Name', 'Control 1 Object Type', 'Control 1 Name')
-        paramvs2 = (zn+'_thermostat', zn, zn +'_thermocontrol', 'ThermostatSetpoint:{}'.format(self['hc']), zn + '_tsp')
-        return epentry('ThermostatSetpoint:{}'.format(self['hc']), params, paramvs) + epentry('ZoneControl:Thermostat', params2, paramvs2)
+        if self['hc'] in ('SingleHeating', 'SingleCooling', 'DualSetpoint'):
+            params2 = ('Name', 'Zone or Zonelist Name', 'Control Type Schedule Name', 'Control 1 Object Type', 'Control 1 Name')
+            paramvs2 = (zn+'_thermostat', zn, zn +'_thermocontrol', 'ThermostatSetpoint:{}'.format(self['hc']), zn + '_tsp')
+            return epentry('ThermostatSetpoint:{}'.format(self['hc']), params, paramvs) + epentry('ZoneControl:Thermostat', params2, paramvs2)
+        else:
+            return ''
 
     def ephwrite(self, zn):
         self.hupdate()

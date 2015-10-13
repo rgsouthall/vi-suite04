@@ -210,15 +210,11 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
             try:
                 if schedtype == 'HVAC' and zn.inputs[schedtype].links:
                     en_idf.write(zn.inputs[schedtype].links[0].from_node.eptcwrite(zn.zone))
-#                    adict = {'Schedule': '_hvacsched'}
                     try:
                         en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.epwrite(zn.zone+'_hvacsched', 'Fraction'))                            
-                    except Exception as e:
- #                       pass
+                    except:
                         en_idf.write(epschedwrite(zn.zone + '_hvacsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00, 1']]]]))
 
-                        
-                    
                     hsdict = {'HSchedule': '_htspsched', 'CSchedule': '_ctspsched'}
                     tvaldict = {'HSchedule': zn.inputs[schedtype].links[0].from_node.envi_htsp, 'CSchedule': zn.inputs[schedtype].links[0].from_node.envi_ctsp}
                     for sschedtype in hsdict: 

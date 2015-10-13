@@ -1,5 +1,5 @@
 import bpy, os, itertools, subprocess, datetime, shutil, mathutils, bmesh
-from .vi_func import epentry, ceilheight, selobj, facearea, boundpoly, rettimes, epschedwrite, selmesh
+from .vi_func import epentry, ceilheight, selobj, facearea, boundpoly, epschedwrite, selmesh
 dtdf = datetime.date.fromordinal
 
 def enpolymatexport(exp_op, node, locnode, em, ec):
@@ -246,18 +246,12 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                     else:
                         en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.epwrite(zn.zone+'_infsched', 'Fraction'))
                 elif schedtype == 'VASchedule':
-                    
                     if zn.inputs[schedtype].links:
-#                        print('sched', zn.zone)
                         en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite(zn.zone+'_vasched', 'Fraction'))
-#                    else:
-#                        print('nosched', zn.zone)
-#                        en_idf.write(epschedwrite(zn.zone + '_vasched', 'Temperature', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,1']]]]))
+
                 elif schedtype == 'TSPSchedule':
                     if zn.inputs[schedtype].links:
                         en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite(zn.zone+'_tspsched', 'Temperature'))
-#                    else:
-#                        pass
 
             except Exception as e:
                 print('Tuple', e)

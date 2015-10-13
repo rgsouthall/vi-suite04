@@ -183,16 +183,14 @@ def setscenelivivals(scene):
     scene.vi_leg_min = min(scene['liparams']['minres'].values())
     
 def rettree(scene, obs):
-    
+    bmob = bmesh.new()
     for soi, so in enumerate(obs):
-        if soi == 0:
-            bmob = bmesh.new()
-            bmob.from_mesh(so.data)
-            bmob.transform(so.matrix_world)
         btemp = bpy.data.meshes.new("temp")
         bmtemp = bmesh.new()
         bmtemp.from_mesh(so.data)
         bmtemp.transform(so.matrix_world)
+        delfaces = [face for face in bmtemp.faces if so.data.materials[face.material_index].mattype == '2']
+        bmesh.ops.delete(bmtemp, geom = delfaces, context = 5)
         bmtemp.to_mesh(btemp)
         bmob.from_mesh(btemp)
         bpy.data.meshes.remove(btemp)

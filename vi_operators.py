@@ -1138,6 +1138,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             scmaxres, scminres, scavres, scene['liparams']['fs'] = [0], [100], [0], scene.frame_current
         else:
             (scmaxres, scminres, scavres) = [[x] * (scene.frame_end - scene.frame_start + 1) for x in (0, 100, 0)]
+        
         frange = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
         time = datetime.datetime(datetime.datetime.now().year, simnode.startmonth, 1, simnode.starthour - 1)
         y =  datetime.datetime.now().year if simnode.endmonth >= simnode.startmonth else datetime.datetime.now().year + 1
@@ -1158,7 +1159,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             cindex = geom.layers.int['cindex']
             [geom.layers.float.new('res{}'.format(fi)) for fi in frange]
 
-            for fi, frame in enumerate(frange):
+            for frame in frange:
                 scene.frame_set(frame)
                 shadtree = rettree(scene, shadobs)
                 shadres = geom.layers.float['res{}'.format(frame)]
@@ -1166,12 +1167,13 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     gpoints = [f for f in geom if o.data.materials[f.material_index].mattype == '2']
                 if simnode.cpoint == '1':
                     gpoints = [v for v in geom if any([o.data.materials[f.material_index].mattype == '2' for f in v.link_faces])]
-                for g, gp in enumerate([gpoint for gpoint in gpoints]):
-                    gp[cindex] = g + 1
+                for g, gp in enumerate(gpoints):
+                    gp[cindex] = g + 1                    
                     if simnode.cpoint == '0':
-                        gp[shadres] = 100 * (1 - sum([(1, 0)[shadtree.ray_cast(gp.calc_center_median(), direc)[3] == None] for direc in direcs])/len(direcs))
+                        gp[shadres] = 100 * (1 - sum([(1, 0)[shadtree.ray_cast(gp.calc_center_bounds(), direc)[3] == None] for direc in direcs])/len(direcs))
                     else:
                         gp[shadres] = 100 * (1 - sum([(1, 0)[shadtree.ray_cast(gp.co, direc)[3] == None] for direc in direcs])/len(direcs))
+                
                 o['omin']['res{}'.format(frame)], o['omax']['res{}'.format(frame)], o['oave']['res{}'.format(frame)] = min([gp[shadres] for gp in gpoints]), max([gp[shadres] for gp in gpoints]), sum([gp[shadres] for gp in gpoints])/len(gpoints)
 
             bm.transform(o.matrix_world.inverted())

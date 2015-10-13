@@ -163,7 +163,7 @@ class VIMatPanel(bpy.types.Panel):
         newrow(layout, 'Material type', cm, "mattype")
         if cm.mattype != '3':
             try:
-                if scene.get('viparams') and scene['viparams']['visimcontext'] == 'LiVi Compliance':
+                if scene.get('viparams') and scene['viparams'].get('visimcontext') and scene['viparams']['visimcontext'] == 'LiVi Compliance':
                     simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
                     coptions = simnode.inputs['Context in'].links[0].from_socket['Options']
                     if cm.mattype == '1':

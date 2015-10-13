@@ -144,7 +144,6 @@ def sunexport(scene, node, locnode, frame):
         return gsrun.stdout.read().decode()
 
 def hdrexport(scene, f, frame, node, skytext):
-    print(skytext)
     with open('{}-{}sky.oct'.format(scene['viparams']['filebase'], frame), 'w') as skyoct:
         Popen('oconv -w -'.split(), stdin = PIPE, stdout = skyoct).communicate(input = skytext.encode('utf-8'))
     with open(os.path.join(scene['viparams']['newdir'], str(frame)+".hdr"), 'w') as hdrfile:

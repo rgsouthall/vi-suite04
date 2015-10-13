@@ -242,6 +242,7 @@ def linumdisplay(disp_op, context, simnode):
 #            draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, fcs, res)
         
         elif bm.verts.layers.float.get('res{}'.format(scene.frame_current)):
+            
             livires = bm.verts.layers.float['res{}'.format(scene.frame_current)]                         
 #            if not scene.vi_disp_3d or (ob.data.shape_keys and len(ob.data.shape_keys.key_blocks) > scene['liparams']['fe'] - scene['liparams']['fs'] + 2):
 #                verts = [v for v in bm.verts if not v.hide and mathutils.Vector.angle(vw, view_location - v.co) < pi * 0.5]

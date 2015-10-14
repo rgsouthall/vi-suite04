@@ -242,7 +242,7 @@ class LiViNode(bpy.types.Node, ViNodes):
     startframe = bpy.props.IntProperty(name = '', default = 0, min = 0, description = 'Start Frame', update = nodeupdate)
 
     def init(self, context):
-        self['exportstate'], self['skynum'], self['watts'] = '', 0, 0
+        self['exportstate'], self['skynum'] = '', 0
         self['nodeid'] = nodeid(self)
         self['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
         self.outputs.new('ViLiC', 'Context out')
@@ -351,6 +351,7 @@ class LiViNode(bpy.types.Node, ViNodes):
         self['hours'] = 0 if not self.animated or int(self.skymenu) > 2  else (self.endtime-self.starttime).seconds/3600
         self['epwbase'] = os.path.splitext(os.path.basename(self.inputs['Location in'].links[0].from_node.weather))
         self.outputs['Context out']['Text'] = {}
+        self['watts'] = 1 if self.contextmenu == "CBDM" and self.cbanalysismenu in ('1', '3') else 0
         
     def export(self, scene, export_op):        
         self.startframe = self.startframe if self.animated and self.contextmenu == 'Basic' and self.banalysismenu in ('0', '1', '2') else scene.frame_current 

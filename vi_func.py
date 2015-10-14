@@ -87,41 +87,29 @@ def clearlayers(bm):
         bm.verts.layers.float.remove(bm.verts.layers.float[0])
 
 def cbdmmtx(self, scene, locnode, export_op):
-    if self.sourcemenu == '0':
-        os.chdir(scene['viparams']['newdir'])        
-        if self['epwbase'][1] in (".epw", ".EPW"):
-            with open(locnode.weather, "r") as epwfile:
-                epwlines = epwfile.readlines()
-                self['epwyear'] = epwlines[8].split(",")[0]
-            Popen(("epw2wea", locnode.weather, "{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])))).wait()
-            if self.startmonth != 1 or self.endmonth != 12:
-                with open("{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'r') as weafile:
-                    wealines = weafile.readlines()
-                    weaheader = [line for line in wealines[:6]]
-                    wearange = [line for line in wealines[6:] if int(line.split()[0]) in range (self.startmonth, self.endmonth + 1)]
-                with open("{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'w') as weafile:
-                    [weafile.write(line) for line in weaheader + wearange]
-            gdmcmd = ("gendaymtx -m 1 {} {}".format(('', '-O1')[self['watts']], "{0}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0]))))
-            with open("{}.mtx".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'w') as mtxfile:
-#                    Popen(gdmcmd.split(), stdout = mtxfile, stderr=STDOUT).communicate()[0].decode()
-                Popen(gdmcmd.split(), stdout = mtxfile, stderr=STDOUT).communicate()
-            with open("{}-whitesky.oct".format(scene['viparams']['filebase']), 'w') as wsfile:
-                oconvcmd = "oconv -w -"
-                Popen(shlex.split(oconvcmd), stdin = PIPE, stdout = wsfile).communicate(input = self['whitesky'].encode('utf-8'))
-            return "{}.mtx".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0]))
-
-        else:
-            export_op.report({'ERROR'}, "Not a valid EPW file")
-            return
-
-#    if self.sourcemenu == '0':
-#        if self.inputs['Location in'].is_linked:
-#            vecvals, vals = mtx2vals(self['mtx'].splitlines(), datetime.datetime(int(epwyear), self.startmonth, 1).weekday(), self)
-#            self['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
-#            with open("{}-whitesky.oct".format(scene['viparams']['filebase']), 'w') as wsfile:
-#                oconvcmd = "oconv -w -"
-#                Popen(shlex.split(oconvcmd), stdin = PIPE, stdout = wsfile).communicate(input = self['whitesky'].encode('utf-8'))
-#        return (vecvals, vals)
+    os.chdir(scene['viparams']['newdir'])        
+    if self['epwbase'][1] in (".epw", ".EPW"):
+        with open(locnode.weather, "r") as epwfile:
+            epwlines = epwfile.readlines()
+            self['epwyear'] = epwlines[8].split(",")[0]
+        Popen(("epw2wea", locnode.weather, "{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])))).wait()
+        if self.startmonth != 1 or self.endmonth != 12:
+            with open("{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'r') as weafile:
+                wealines = weafile.readlines()
+                weaheader = [line for line in wealines[:6]]
+                wearange = [line for line in wealines[6:] if int(line.split()[0]) in range (self.startmonth, self.endmonth + 1)]
+            with open("{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'w') as weafile:
+                [weafile.write(line) for line in weaheader + wearange]
+        gdmcmd = ("gendaymtx -m 1 {} {}".format(('', '-O1')[self['watts']], "{0}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0]))))
+        with open("{}.mtx".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'w') as mtxfile:
+            Popen(gdmcmd.split(), stdout = mtxfile, stderr=STDOUT).communicate()
+        with open("{}-whitesky.oct".format(scene['viparams']['filebase']), 'w') as wsfile:
+            oconvcmd = "oconv -w -"
+            Popen(shlex.split(oconvcmd), stdin = PIPE, stdout = wsfile).communicate(input = self['whitesky'].encode('utf-8'))
+        return "{}.mtx".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0]))
+    else:
+        export_op.report({'ERROR'}, "Not a valid EPW file")
+        return ''
 
 def cbdmhdr(node, scene):
     targethdr = os.path.join(scene['viparams']['newdir'], node['epwbase'][0]+"{}.hdr".format(('l', 'w')[node['watts']]))
@@ -145,13 +133,13 @@ def cbdmhdr(node, scene):
         [os.remove(os.path.join(scene['viparams']['newdir'], 'ps{}.hdr'.format(i))) for i in range (146)]
         node.hdrname = targethdr
 
-    if not os.path.isfile(latlonghdr):
+    if node.hdr and not os.path.isfile(latlonghdr):
         with open('{}.oct'.format(os.path.join(scene['viparams']['newdir'], node['epwbase'][0])), 'w') as hdroct:
             Popen(shlex.split("oconv -w - "), stdin = PIPE, stdout=hdroct, stderr=STDOUT).communicate(input = skyentry.encode('utf-8'))
         cntrun = Popen('cnt 750 1500'.split(), stdout = PIPE)
         rcalcrun = Popen('rcalc -f {} -e XD=1500;YD=750;inXD=0.000666;inYD=0.001333'.format(os.path.join(scene.vipath, 'Radfiles', 'lib', 'latlong.cal')).split(), stdin = cntrun.stdout, stdout = PIPE)
         with open(latlonghdr, 'w') as panohdr:
-            rtcmd = 'rtrace -af pan.af -n {} -x 1500 -y 750 -fac {}.oct'.format(scene['viparams']['nproc'], os.path.join(scene['viparams']['newdir'], node['epwbase'][0]))
+            rtcmd = 'rtrace -n {} -x 1500 -y 750 -fac {}.oct'.format(scene['viparams']['nproc'], os.path.join(scene['viparams']['newdir'], node['epwbase'][0]))
             Popen(rtcmd.split(), stdin = rcalcrun.stdout, stdout = panohdr)
     return skyentry
 
@@ -248,18 +236,17 @@ def basiccalcapply(self, scene, frames, rtcmds):
             g[res] = g[illures]
         print('Radiance simulation {:.0f}% complete'.format((oi + (f+1)/fnum)/onum * 100))
 
-        
-        
     bm.to_mesh(self.data)
     bm.free()
 #    scene.li_disp_basic = '2'
     
 def lhcalcapply(self, scene, frames, rtcmds):
+    selobj(scene, self)
     bm = bmesh.new()
     bm.from_mesh(self.data)
     self['omax'], self['omin'], self['oave'] = {}, {}, {}
     clearlayers(bm)
-    geom = bm.verts if self['cpoint'] == 1 else bm.faces
+    geom = bm.verts if self['cpoint'] == '1' else bm.faces
     cindex = geom.layers.int['cindex']
     for f, frame in enumerate(frames):        
         if str(frame) in self['rtpoints']:
@@ -280,8 +267,7 @@ def lhcalcapply(self, scene, frames, rtcmds):
         geom.layers.float.new('res{}'.format(frame))
         res =  geom.layers.float['res{}'.format(frame)]
         for g in [g for g in geom if g[cindex] > 0]:
-            g[res] = resvals[g[cindex] - 1]
-        
+            g[res] = resvals[g[cindex] - 1]    
     bm.to_mesh(self.data)
     bm.free()
     

@@ -152,7 +152,7 @@ def hdrexport(scene, f, frame, node, skytext):
     cntrun = Popen('cnt 750 1500'.split(), stdout = PIPE)
     rcalccmd = 'rcalc -f {} -e XD=1500;YD=750;inXD=0.000666;inYD=0.001333'.format(os.path.join(scene.vipath, 'Radfiles', 'lib', 'latlong.cal'))
     rcalcrun = Popen(rcalccmd.split(), stdin = cntrun.stdout, stdout = PIPE)
-    rtracecmd = 'rtrace -af pan.af -n {} -x 1500 -y 750 -fac {}-{}sky.oct'.format(scene['viparams']['nproc'], scene['viparams']['filebase'], frame)
+    rtracecmd = 'rtrace -af {} -n {} -x 1500 -y 750 -fac {}-{}sky.oct'.format(os.path.join(scene['viparams']['newdir'], 'pan.af'), scene['viparams']['nproc'], scene['viparams']['filebase'], frame)
     with open('{}p.hdr'.format(os.path.join(scene['viparams']['newdir'], str(frame))), 'w') as hdrim:
         Popen(rtracecmd.split(), stdin = rcalcrun.stdout, stdout = hdrim).communicate()
     if '{}p.hdr'.format(frame) not in bpy.data.images:

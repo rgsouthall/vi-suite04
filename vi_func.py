@@ -28,6 +28,8 @@ def cmap(cm):
         if cm == 'grey':
             bpy.data.materials['{}#{}'.format(cmdict[cm], i)].diffuse_intensity = i/19
         bpy.data.materials['{}#{}'.format(cmdict[cm], i)].specular_intensity = 0
+        bpy.data.materials['{}#{}'.format(cmdict[cm], i)].specular_color = (0, 0, 0)
+        bpy.data.materials['{}#{}'.format(cmdict[cm], i)].use_shadeless = 1
 
 def radmat(self, scene):
     radname = self.name.replace(" ", "_") 

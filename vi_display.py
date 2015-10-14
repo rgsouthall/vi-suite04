@@ -84,7 +84,7 @@ def li_display(simnode):
         selobj(scene, o)
         bpy.ops.object.duplicate() 
         ores = bpy.context.active_object
-        ores.name, ores.show_wire = o.name+"res", 1
+        ores.name, ores.show_wire, ores.draw_type = o.name+"res", 1, 'SOLID'
         while ores.material_slots:
             bpy.ops.object.material_slot_remove()
 
@@ -107,7 +107,6 @@ def li_display(simnode):
                 face.select = True
         bm.transform(o.matrix_world.inverted())
         bm.to_mesh(ores.data)
-        bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
         ores.lividisplay(scene)
         bm.free()
         

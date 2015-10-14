@@ -1999,8 +1999,10 @@ def socklink(sock, ng):
             valset = set(valid1)&set(valid2) 
             if not valset or len(valset) < min((len(valid1), len(valid2))):# or sock.node.use_custom_color:
                 bpy.data.node_groups[ng].links.remove(link)
-    except Exception as e:
-        print(e)
+    except:
+        if sock.links:
+            bpy.data.node_groups[ng].links.remove(sock.links[-1])
+#        print(valid1, valid2, e)
     
 def rettimes(ts, fs, us):
     tot = range(min(len(ts), len(fs), len(us)))

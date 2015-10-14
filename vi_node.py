@@ -184,10 +184,6 @@ class LiViNode(bpy.types.Node, ViNodes):
                 sun = suns[0]
                 sun['VIType'] = 'Sun'
                 [scene.objects.unlink(o) for o in suns[1:]]
-#                if len(suns) > 1:
-#                    for so in suns[1:]:
-#                        selobj(scene, so)
-#                        bpy.ops.object.delete()
             else:
                 bpy.ops.object.lamp_add(type='SUN')
                 sun = bpy.context.object
@@ -1609,18 +1605,19 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
         nodecolour(self, 0)
 ####################### Vi Nodes Catagories ##############################
 
-viexnodecat = [NodeItem("ViLoc", label="VI Location"), NodeItem("ViGExLiNode", label="LiVi Geometry"), NodeItem("LiViNode", label="LiVi Context"),
-                NodeItem("ViGExEnNode", label="EnVi Geometry"), NodeItem("ViExEnNode", label="EnVi Export"), NodeItem("ViFloCdNode", label="FloVi Control"),
+viexnodecat = [NodeItem("ViGExLiNode", label="LiVi Geometry"), NodeItem("LiViNode", label="LiVi Context"),
+                NodeItem("ViGExEnNode", label="EnVi Geometry"), NodeItem("ViExEnNode", label="EnVi Context"), NodeItem("ViFloCdNode", label="FloVi Control"),
                  NodeItem("ViBMExNode", label="FloVi BlockMesh"), NodeItem("ViSHMExNode", label="FloVi SnappyHexMesh")]
                 
 vifilenodecat = [NodeItem("ViTextEdit", label="Text Edit"), NodeItem("ViCombine", label="Combine inputs")]
-vinodecat = [NodeItem("ViLiSNode", label="LiVi Simulation"), NodeItem("ViFVSimNode", label="FloVi Simulation"),\
-             NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), NodeItem("ViEnSimNode", label="EnVi Simulation")]
+vinodecat = [NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), 
+             NodeItem("ViLiSNode", label="LiVi Simulation"), NodeItem("ViEnSimNode", label="EnVi Simulation"), NodeItem("ViFVSimNode", label="FloVi Simulation")]
 
 vigennodecat = [NodeItem("ViGenNode", label="VI-Suite Generative"), NodeItem("ViTarNode", label="VI-Suite Target")]
 
 vidisnodecat = [NodeItem("ViChNode", label="VI-Suite Chart"), NodeItem("ViCSV", label="VI-Suite CSV"), NodeItem("ViText", label="VI-Suite Text")]
-viinnodecat = [NodeItem("ViEnInNode", label="EnergyPlus input file"), NodeItem("ViEnRFNode", label="EnergyPlus result file"), NodeItem("ViASCImport", label="Import ESRI Grid file")]
+viinnodecat = [NodeItem("ViLoc", label="VI Location"), NodeItem("ViEnInNode", label="EnergyPlus input file"), NodeItem("ViEnRFNode", label="EnergyPlus result file"), 
+               NodeItem("ViASCImport", label="Import ESRI Grid file")]
 
 vinode_categories = [ViNodeCategory("Edit", "Edit Nodes", items=vifilenodecat), ViNodeCategory("Input", "Input Nodes", items=viinnodecat), ViNodeCategory("Display", "Display Nodes", items=vidisnodecat), ViNodeCategory("Generative", "Generative Nodes", items=vigennodecat), ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat), ViNodeCategory("Export", "Export Nodes", items=viexnodecat)]
 
@@ -2104,13 +2101,18 @@ class EnViHvac(bpy.types.Node, EnViNodes):
     bl_label = 'HVAC'
     bl_icon = 'SOUND'
 
+    def hupdate(self, context):
+        self.h = 1 if self.envi_hvachlt != '4' else 0
+        self.c = 1 if self.envi_hvacclt != '4' else 0
+        self['hc'] = ('', 'SingleHeating', 'SingleCooling', 'DualSetpoint')[(not self.h and not self.c, self.h and not self.c, not self.h and self.c, self.h and self.c).index(1)]
+        
     envi_hvact = bprop("", "", False)
     envi_hvacht = fprop("", "Heating temperature:", 1, 99, 50)
     envi_hvacct = fprop("", "Cooling temperature:", -10, 20, 13)
-    envi_hvachlt = eprop([('0', 'LimitFlowRate', 'LimitFlowRate'), ('1', 'LimitCapacity', 'LimitCapacity'), ('2', 'LimitFlowRateAndCapacity', 'LimitFlowRateAndCapacity'), ('3', 'NoLimit', 'NoLimit'), ('4', 'None', 'No heating')], '', "Heating limit type", '4')
+    envi_hvachlt = bpy.props.EnumProperty(items = [('0', 'LimitFlowRate', 'LimitFlowRate'), ('1', 'LimitCapacity', 'LimitCapacity'), ('2', 'LimitFlowRateAndCapacity', 'LimitFlowRateAndCapacity'), ('3', 'NoLimit', 'NoLimit'), ('4', 'None', 'No heating')], name = '', description = "Heating limit type", default = '4', update = hupdate)
     envi_hvachaf = bpy.props.FloatProperty(name = "", description = "Heating air flow rate", min = 0, max = 60, default = 1, precision = 4)
     envi_hvacshc = fprop("", "Sensible heating capacity", 0, 10000, 1000)
-    envi_hvacclt = eprop([('0', 'LimitFlowRate', 'LimitFlowRate'), ('1', 'LimitCapacity', 'LimitCapacity'), ('2', 'LimitFlowRateAndCapacity', 'LimitFlowRateAndCapacity'), ('3', 'NoLimit', 'NoLimit'), ('4', 'None', 'No cooling')], '', "Cooling limit type", '4')
+    envi_hvacclt = bpy.props.EnumProperty(items = [('0', 'LimitFlowRate', 'LimitFlowRate'), ('1', 'LimitCapacity', 'LimitCapacity'), ('2', 'LimitFlowRateAndCapacity', 'LimitFlowRateAndCapacity'), ('3', 'NoLimit', 'NoLimit'), ('4', 'None', 'No cooling')], name = '', description = "Cooling limit type", default = '4', update = hupdate)
     envi_hvaccaf = bpy.props.FloatProperty(name = "", description = "Cooling air flow rate", min = 0, max = 60, default = 1, precision = 4)
     envi_hvacscc = fprop("", "Sensible cooling capacity", 0, 10000, 1000)
     envi_hvacoam = eprop([('0', 'None', 'None'), ('1', 'Flow/Zone', 'Flow/Zone'), ('2', 'Flow/Person', 'Flow/Person'), ('3', 'Flow/Area', 'Flow/Area'), ('4', 'Sum', 'Sum'), ('5', 'Maximum ', 'Maximum'), ('6', 'ACH/Detailed', 'ACH/Detailed')], '', "Cooling limit type", '2')
@@ -2134,6 +2136,9 @@ class EnViHvac(bpy.types.Node, EnViNodes):
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
+        self['hc'] = ''
+        self['ctdict'] = {'DualSetpoint': 4, 'SingleHeating': 1, 'SingleCooling': 2}
+        self['limittype'] = {'0': 'LimitFlowRate', '1': 'LimitCapacity', '2': 'LimitFlowRateAndCapacity', '3': 'NoLimit', '4': ''}
         self.outputs.new('EnViHvacSocket', 'HVAC')
         self.inputs.new('EnViSchedSocket', 'Schedule')
         self.inputs.new('EnViTSchedSocket', 'HSchedule')
@@ -2186,14 +2191,7 @@ class EnViHvac(bpy.types.Node, EnViNodes):
     def update(self):
         for sock in self.outputs:
             socklink(sock, self['nodeid'].split('@')[1])
-
-    def hupdate(self):
-        self.h = 1 if self.envi_hvachlt != '4' else 0
-        self.c = 1 if self.envi_hvacclt != '4' else 0
-        self['hc'] = ('', 'SingleHeating', 'SingleCooling', 'DualSetpoint')[(not self.h and not self.c, self.h and not self.c, not self.h and self.c, self.h and self.c).index(1)]
-        self['ctdict'] = {'DualSetpoint': 4, 'SingleHeating': 1, 'SingleCooling': 2}
-        self['limittype'] = {'0': 'LimitFlowRate', '1': 'LimitCapacity', '2': 'LimitFlowRateAndCapacity', '3': 'NoLimit', '4': ''}
-
+    
     def eptcwrite(self, zn):
         if self['hc'] in ('SingleHeating', 'SingleCooling', 'DualSetpoint'):
             return epschedwrite(zn + '_thermocontrol', 'Control Type', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(self['ctdict'][self['hc']])]]]])
@@ -2201,7 +2199,6 @@ class EnViHvac(bpy.types.Node, EnViNodes):
             return ''
             
     def eptspwrite(self, zn):
-        self.hupdate()
         params = ['Name', 'Setpoint Temperature Schedule Name']
         if self['hc'] ==  'DualSetpoint':
             params += ['Setpoint Temperature Schedule Name 2']
@@ -2219,7 +2216,6 @@ class EnViHvac(bpy.types.Node, EnViNodes):
             return ''
 
     def ephwrite(self, zn):
-        self.hupdate()
         params = ('Name', 'Availability Schedule Name', 'Zone Supply Air Node Name', 'Zone Exhaust Air Node Name',
               "Maximum Heating Supply Air Temperature (degC)", "Minimum Cooling Supply Air Temperature (degC)",
               'Maximum Heating Supply Air Humidity Ratio (kgWater/kgDryAir)', 'Minimum Cooling Supply Air Humidity Ratio (kgWater/kgDryAir)',
@@ -2342,35 +2338,35 @@ class EnViZone(bpy.types.Node, EnViNodes):
             if self.control != 'Temperature' and self.inputs['TSPSchedule'].links:
                 remlink(self, self.inputs['TSPSchedule'].links)
             self.inputs['TSPSchedule'].hide = False if self.control == 'Temperature' else True
-            try:
-                for inp in [inp for inp in self.inputs if inp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
-                    self.outputs[inp.name].hide = True if inp.is_linked and self.outputs[inp.name].bl_idname == inp.bl_idname else False
+#            try:
+            for inp in [inp for inp in self.inputs if inp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
+                self.outputs[inp.name].hide = True if inp.is_linked and self.outputs[inp.name].bl_idname == inp.bl_idname else False
 
-                for outp in [outp for outp in self.outputs if outp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
-                    self.inputs[outp.name].hide = True if outp.is_linked and self.inputs[outp.name].bl_idname == outp.bl_idname else False
+            for outp in [outp for outp in self.outputs if outp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
+                self.inputs[outp.name].hide = True if outp.is_linked and self.inputs[outp.name].bl_idname == outp.bl_idname else False
 
-                for inp in [inp for inp in self.inputs if inp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
-                    if inp.bl_idname == 'EnViBoundSocket' and not inp.hide and not inp.links:
-                        bi = 0
-                    if inp.bl_idname == 'EnViSFlowSocket':
-                        if (not inp.hide and not inp.links) or (inp.links and inp.links[0].from_node.bl_label != 'Envi surface flow'):
-                            si = 0
-                    if inp.bl_idname == 'EnViSSFlowSocket':
-                        if (not inp.hide and not inp.links) or (inp.links and inp.links[0].from_node.bl_label != 'Envi sub-surface flow'):
-                            ssi = 0
+            for inp in [inp for inp in self.inputs if inp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
+                if inp.bl_idname == 'EnViBoundSocket' and not inp.hide and not inp.links:
+                    bi = 0
+                elif inp.bl_idname == 'EnViSFlowSocket':
+                    if (not inp.hide and not inp.links) or (inp.links and inp.links[0].from_node.bl_label != 'Envi surface flow'):
+                        si = 0
+                elif inp.bl_idname == 'EnViSSFlowSocket':
+                    if (not inp.hide and not inp.links) or (inp.links and inp.links[0].from_node.bl_label != 'Envi sub-surface flow'):
+                        ssi = 0
 
-                for outp in [outp for outp in self.outputs if outp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
-                    if outp.bl_idname == 'EnViBoundSocket' and not outp.hide and not outp.links:
-                        bo = 0
-                    if outp.bl_idname == 'EnViSFlowSocket':
-                        if (not outp.hide and not outp.links) or (outp.links and outp.links[0].to_node.bl_label != 'Envi surface flow'):
-                            so = 0
-                    if outp.bl_idname == 'EnViSSFlowSocket':
-                        if (not outp.hide and not outp.links) or (outp.links and outp.links[0].to_node.bl_label != 'Envi sub-surface flow'):
-                            sso = 0
+            for outp in [outp for outp in self.outputs if outp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
+                if outp.bl_idname == 'EnViBoundSocket' and not outp.hide and not outp.links:
+                    bo = 0
+                elif outp.bl_idname == 'EnViSFlowSocket':
+                    if (not outp.hide and not outp.links) or (outp.links and outp.links[0].to_node.bl_label != 'Envi surface flow'):
+                        so = 0
+                elif outp.bl_idname == 'EnViSSFlowSocket':
+                    if (not outp.hide and not outp.links) or (outp.links and outp.links[0].to_node.bl_label != 'Envi sub-surface flow'):
+                        sso = 0
 
-            except Exception as e:
-                print('Tuple', e)
+#            except Exception as e:
+#                print('Tuple', e)
 
             nodecolour(self, (self.control == 'Temperature' and not self.inputs['TSPSchedule'].is_linked) or not all((bi, si, ssi, bo, so, sso)))
 

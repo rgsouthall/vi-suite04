@@ -207,54 +207,52 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     
     for zn in zonenodes:
         for schedtype in ('VASchedule', 'TSPSchedule', 'HVAC', 'Occupancy', 'Equipment', 'Infiltration'):
-            try:
-                if schedtype == 'HVAC' and zn.inputs[schedtype].links:
-                    en_idf.write(zn.inputs[schedtype].links[0].from_node.eptcwrite(zn.zone))
-                    try:
-                        en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.epwrite(zn.zone+'_hvacsched', 'Fraction'))                            
-                    except:
-                        en_idf.write(epschedwrite(zn.zone + '_hvacsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00, 1']]]]))
+#            try:
+            if schedtype == 'HVAC' and zn.inputs[schedtype].links:
+                en_idf.write(zn.inputs[schedtype].links[0].from_node.eptcwrite(zn.zone))
+                try:
+                    en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.epwrite(zn.zone+'_hvacsched', 'Fraction'))                            
+                except:
+                    en_idf.write(epschedwrite(zn.zone + '_hvacsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00, 1']]]]))
 
-                    hsdict = {'HSchedule': '_htspsched', 'CSchedule': '_ctspsched'}
-                    tvaldict = {'HSchedule': zn.inputs[schedtype].links[0].from_node.envi_htsp, 'CSchedule': zn.inputs[schedtype].links[0].from_node.envi_ctsp}
-                    for sschedtype in hsdict: 
-                        try:
-                            en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links[0].from_node.epwrite(zn.zone+hsdict[sschedtype], 'Temperature'))                            
-                        except Exception as e:
-                            en_idf.write(epschedwrite(zn.zone + hsdict[sschedtype], 'Temperature', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(tvaldict[sschedtype])]]]]))
-
-                elif schedtype == 'Occupancy' and zn.inputs[schedtype].links:
-                    osdict = {'OSchedule': '_occsched', 'ASchedule': '_actsched', 'WSchedule': '_wesched', 'VSchedule': '_avsched', 'CSchedule': '_closched'}
-                    ovaldict = {'OSchedule': 1, 'ASchedule': zn.inputs[schedtype].links[0].from_node.envi_occwatts, 
-                                'WSchedule': zn.inputs[schedtype].links[0].from_node.envi_weff, 'VSchedule': zn.inputs[schedtype].links[0].from_node.envi_airv, 
-                                'CSchedule': zn.inputs[schedtype].links[0].from_node.envi_cloth}
-                    for sschedtype in osdict:
-                        svariant = 'Fraction' if sschedtype == 'OSchedule' else 'Any Number'
-                        try:
-                            en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links[0].from_node.epwrite(zn.zone + osdict[sschedtype], svariant))
-                        except Exception as e:
-                            en_idf.write(epschedwrite(zn.zone + osdict[sschedtype], svariant, ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{:.3f}'.format(ovaldict[sschedtype])]]]]))
-
-                elif schedtype == 'Equipment' and zn.inputs[schedtype].links:
-                    if not zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links:
-                        en_idf.write(epschedwrite(zn.zone + '_eqsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,1']]]]))
+                hsdict = {'HSchedule': '_htspsched', 'CSchedule': '_ctspsched'}
+                tvaldict = {'HSchedule': zn.inputs[schedtype].links[0].from_node.envi_htsp, 'CSchedule': zn.inputs[schedtype].links[0].from_node.envi_ctsp}
+                for sschedtype in hsdict: 
+                    if zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links:
+                        en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links[0].from_node.epwrite(zn.zone+hsdict[sschedtype], 'Temperature'))                            
                     else:
-                        en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.epwrite(zn.zone+'_eqsched', 'Fraction'))
-                elif schedtype == 'Infiltration':
-                    if not zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links:
-                        en_idf.write(epschedwrite(zn.zone + '_infsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(1)]]]]))
+                        en_idf.write(epschedwrite(zn.zone + hsdict[sschedtype], 'Temperature', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(tvaldict[sschedtype])]]]]))
+
+            elif schedtype == 'Occupancy' and zn.inputs[schedtype].links:
+                osdict = {'OSchedule': '_occsched', 'ASchedule': '_actsched', 'WSchedule': '_wesched', 'VSchedule': '_avsched', 'CSchedule': '_closched'}
+                ovaldict = {'OSchedule': 1, 'ASchedule': zn.inputs[schedtype].links[0].from_node.envi_occwatts, 
+                            'WSchedule': zn.inputs[schedtype].links[0].from_node.envi_weff, 'VSchedule': zn.inputs[schedtype].links[0].from_node.envi_airv, 
+                            'CSchedule': zn.inputs[schedtype].links[0].from_node.envi_cloth}
+                for sschedtype in osdict:
+                    svariant = 'Fraction' if sschedtype == 'OSchedule' else 'Any Number'
+                    if zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links:
+                        en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs[sschedtype].links[0].from_node.epwrite(zn.zone + osdict[sschedtype], svariant))
                     else:
-                        en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.epwrite(zn.zone+'_infsched', 'Fraction'))
-                elif schedtype == 'VASchedule':
-                    if zn.inputs[schedtype].links:
-                        en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite(zn.zone+'_vasched', 'Fraction'))
+                        en_idf.write(epschedwrite(zn.zone + osdict[sschedtype], svariant, ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{:.3f}'.format(ovaldict[sschedtype])]]]]))
 
-                elif schedtype == 'TSPSchedule':
-                    if zn.inputs[schedtype].links:
-                        en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite(zn.zone+'_tspsched', 'Temperature'))
+            elif schedtype == 'Equipment' and zn.inputs[schedtype].links:
+                if not zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links:
+                    en_idf.write(epschedwrite(zn.zone + '_eqsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,1']]]]))
+                else:
+                    en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.epwrite(zn.zone+'_eqsched', 'Fraction'))
+            elif schedtype == 'Infiltration' and zn.inputs[schedtype].links:
+                if not zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links:
+                    en_idf.write(epschedwrite(zn.zone + '_infsched', 'Fraction', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format(1)]]]]))
+                else:
+                    en_idf.write(zn.inputs[schedtype].links[0].from_node.inputs['Schedule'].links[0].from_node.epwrite(zn.zone+'_infsched', 'Fraction'))
+            elif schedtype == 'VASchedule' and zn.inputs[schedtype].links:
+                en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite(zn.zone+'_vasched', 'Fraction'))
 
-            except Exception as e:
-                print('Tuple', e)
+            elif schedtype == 'TSPSchedule' and zn.inputs[schedtype].links:
+                en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite(zn.zone+'_tspsched', 'Temperature'))
+
+#            except Exception as e:
+#                print('Tuple', e)
 
     en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: THERMOSTSTATS ===========\n\n")
     for zn in zonenodes:

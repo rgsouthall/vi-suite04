@@ -130,14 +130,14 @@ def sunexport(scene, node, locnode, frame):
         solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour + (simtime.minute)*0.016666, scene.latitude, scene.longitude)
         gsrun = Popen("gensky -ang {} {} {} -t {}".format(solalt, solazi, node['skytypeparams'], node.turb).split(), stdout = PIPE)
         return gsrun.stdout.read().decode()
-    elif locnode and node.contextmenu == 'Compliance':
-        simtimes = (node.starttime, node.starttime + datetime.timedelta(seconds = 3600 *6 ))
-        skies = []
-        for simtime in simtimes:
-            solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour + (simtime.minute)*0.016666, scene.latitude, scene.longitude)
-            gsrun = Popen("gensky -ang {} {} {} -t {}".format(solalt, solazi, node['skytypeparams'], 2.46).split(), stdout = PIPE) 
-            skies.append(gsrun.stdout.read().decode() + skyexport(0)) 
-        return '{}# LEED Split\n{}'.format(skies[0], skies[1]) 
+#    elif locnode and node.contextmenu == 'Compliance':
+#        simtimes = (node.starttime, node.starttime + datetime.timedelta(seconds = 3600 *6 ))
+#        skies = []
+#        for simtime in simtimes:
+#            solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour + (simtime.minute)*0.016666, scene.latitude, scene.longitude)
+#            gsrun = Popen("gensky -ang {} {} {} -t {}".format(solalt, solazi, node['skytypeparams'], 2.46).split(), stdout = PIPE) 
+#            skies.append(gsrun.stdout.read().decode() + skyexport(0)) 
+#        return '{}# LEED Split\n{}'.format(skies[0], skies[1]) 
             
     else:
         gsrun = Popen("gensky -ang {} {} {}".format(45, 0, node['skytypeparams']).split(), stdout = PIPE)

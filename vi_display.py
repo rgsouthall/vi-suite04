@@ -19,7 +19,7 @@
 
 import bpy, blf, colorsys, bgl, mathutils, bmesh
 from math import pi, sin, cos, atan2, log10
-from mathutils.bvhtree import BVHTree
+from numpy import sum as nsum
 try:
     import matplotlib
     mp = 1
@@ -75,11 +75,14 @@ def li_display(simnode):
             cindex =  bm.verts.layers.int['cindex']
             for v in [v for v in bm.verts if v[cindex] < 1]:
                 bm.verts.remove(v)
+            for v in bm.verts:
+                v.select = True
+        
         while bm.verts.layers.shape:
             bm.verts.layers.shape.remove(bm.verts.layers.shape[-1])
         
         for v in bm.verts:
-            v.co += v.normal  * simnode['goptions']['offset']
+            v.co += mathutils.Vector((nsum([f.normal for f in v.link_faces], axis = 0))).normalized()  * simnode['goptions']['offset']
         
         selobj(scene, o)
         bpy.ops.object.duplicate() 
@@ -105,6 +108,8 @@ def li_display(simnode):
         if scene.vi_disp_3d == 1 and scene['liparams']['cp'] == '0':
             for face in bmesh.ops.extrude_discrete_faces(bm, faces = bm.faces)['faces']:
                 face.select = True
+        
+                
         bm.transform(o.matrix_world.inverted())
         bm.to_mesh(ores.data)
         ores.lividisplay(scene)
@@ -212,8 +217,8 @@ def linumdisplay(disp_op, context, simnode):
         
         elif bm.verts.layers.float.get('res{}'.format(scene.frame_current)):            
             livires = bm.verts.layers.float['res{}'.format(scene.frame_current)]                         
-            verts = [v for v in bm.verts if not v.hide and mathutils.Vector.angle(vw, view_location - v.co) < pi * 0.5]
-            verts = [v for v in verts if not scene.ray_cast(v.co + scene.vi_display_rp_off * v.normal, view_location)[0]] if scene.vi_display_vis_only else verts            
+            verts = [v for v in bm.verts if not v.hide and v.select and mathutils.Vector.angle(vw, view_location - v.co) < pi * 0.5]
+            verts = [v for v in verts if not scene.ray_cast(v.co + scene.vi_display_rp_off * v.normal, view_location)[0]] if scene.vi_display_vis_only else verts 
             pcs = [view_mat*v.co.to_4d() for v in verts] 
             res = [v[livires] for v in verts]
         draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, pcs, res)

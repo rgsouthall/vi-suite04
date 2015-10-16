@@ -382,7 +382,7 @@ class LiViNode(bpy.types.Node, ViNodes):
                 shutil.copyfile(self.radname, "{}-0.sky".format(scene['viparams']['filebase']))
                 with open(self.radname, 'r') as radfiler:
                     self.outputs['Context out']['Text'][str(scene['liparams']['fs'])] =  [radfiler.read()]
-                hdrexport(scene, 0, 0, self, self['skyfiles'][0])
+                hdrexport(scene, 0, 0, self, radfiler.read())
             elif self['skynum'] == 6:
                 self.outputs['Context out']['Text'][str(scene.frame_current)] = ''
         
@@ -410,7 +410,7 @@ class LiViNode(bpy.types.Node, ViNodes):
                 self.starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, 12)
                 locnode = 0
                 if self.hdr == True:
-                    hdrexport(scene, 0, 0, self, self['skyfiles'][0])
+                    hdrexport(scene, f, frame, self, skyexport(3))
             else:
                 self.starttime = datetime.datetime(datetime.datetime.now().year, 9, 11, 9)
             self.outputs['Context out']['Text'][str(scene['liparams']['fs'])] = sunexport(scene, self, locnode, 0) + skyexport(self['skynum'])

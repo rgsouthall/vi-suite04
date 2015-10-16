@@ -126,7 +126,7 @@ def cbdmhdr(node, scene):
     
         for j in range(146):
             with open("ps{}.hdr".format(j), 'w') as psfile:
-                Popen("pcomb -s {0} p{1}.hdr".format(vals[j], j).split(), stdout = psfile)
+                Popen("pcomb -s {0} p{1}.hdr".format(vals[j], j).split(), stdout = psfile).wait()
         with open(targethdr, 'w') as epwhdr:
             Popen("pcomb -h {}".format(pcombfiles).split(), stdout = epwhdr).wait()
         [os.remove(os.path.join(scene['viparams']['newdir'], 'p{}.hdr'.format(i))) for i in range (146)]

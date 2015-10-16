@@ -36,17 +36,17 @@ matpath, epwpath, envi_mats, envi_cons, conlayers  = addonpath+'/EPFiles/Materia
 rplatbdict = {'linux': ('/usr/share/radiance/bin', '/usr/local/radiance/bin'), 'win32': (r"C:\Program Files (x86)\Radiance\bin", r"C:\Program Files\Radiance\bin"), 'darwin': ['/usr/local/radiance/bin']}
 rplatldict = {'linux': ('/usr/share/radiance/lib', '/usr/local/radiance/lib'), 'win32': (r"C:\Program Files (x86)\Radiance\lib", r"C:\Program Files\Radiance\lib"), 'darwin': ['/usr/local/radiance/lib']}
 eplatbdict = {'linux': ('/usr/local/EnergyPlus-{}'.format(epversion)), 'win32': 'C:\EnergyPlusV{}'.format(epversion), 'darwin': '/Applications/EnergyPlus-{}'.format(epversion)}
-platdict = {'linux': 'linux', 'win32': 'windows', 'darwin': 'osx'}
+#platdict = {'linux': 'linux', 'win32': 'windows', 'darwin': 'osx'}
 evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
 
 if not os.environ.get('RAYPATH') or os.path.join('{}'.format(addonpath), 'Radfiles', 'lib') not in os.environ['RAYPATH']:
     radldir = [d for d in rplatldict[str(sys.platform)] if os.path.isdir(d)]
     radbdir = [d for d in rplatbdict[str(sys.platform)] if os.path.isdir(d)]
-    epdir = eplatbdict[str(sys.platform)] if os.path.isdir(eplatbdict[str(sys.platform)]) else os.path.join('{}'.format(addonpath), 'EPFiles', 'bin',  platdict[str(sys.platform)])
+    epdir = eplatbdict[str(sys.platform)] if os.path.isdir(eplatbdict[str(sys.platform)]) else os.path.join('{}'.format(addonpath), 'EPFiles', 'bin')
     if epdir == eplatbdict[str(sys.platform)] and os.path.isfile(os.path.join(eplatbdict[str(sys.platform)], 'Energy+.idd')):
         shutil.copyfile(os.path.join(eplatbdict[str(sys.platform)], 'Energy+.idd'), os.path.join('{}'.format(addonpath), 'EPFiles', 'Energy+.idd'))            
     if not radldir:
-        radbdir, radldir = [os.path.join('{}'.format(addonpath), 'Radfiles', 'bin', platdict[str(sys.platform)])], [os.path.join('{}'.format(addonpath), 'Radfiles', 'lib')]
+        radbdir, radldir = [os.path.join('{}'.format(addonpath), 'Radfiles', 'bin')], [os.path.join('{}'.format(addonpath), 'Radfiles', 'lib')]
     os.environ["RAYPATH"] = '{0}{1}{2}'.format(radldir[0], evsep[str(sys.platform)], os.path.join(addonpath, 'Radfiles', 'lib'))        
     os.environ["PATH"] = os.environ["PATH"] + "{0}{1}{0}{2}".format(evsep[str(sys.platform)], radbdir[0], epdir)    
 

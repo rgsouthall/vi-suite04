@@ -16,7 +16,7 @@ except Exception as e:
     print('Matplotlib problem:', e)    
     mp = 0
 
-from .livi_export import radgexport, cyfc1, createoconv, createradfile
+from .livi_export import radgexport, cyfc1, createoconv, createradfile, genbsdf
 from .livi_calc  import li_calc
 from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend, en_air, en_panel
 from .envi_export import enpolymatexport, pregeo
@@ -47,6 +47,30 @@ class NODE_OT_LiGExport(bpy.types.Operator):
         node.preexport(scene)
         radgexport(self, node)
         node.postexport(scene)
+        return {'FINISHED'}
+        
+class OBJECT_OT_GenBSDF(bpy.types.Operator):
+    bl_idname = "object.gen_bsdf"
+    bl_label = "Gen BSDF"
+    bl_description = "Generate a BSDF for the current selected object"
+    bl_register = True
+    bl_undo = True
+    
+    def execute(self, context):
+        o = context.active_object
+        genbsdf(context.scene, self, o)
+        return {'FINISHED'}
+    
+class OBJECT_OT_DelBSDF(bpy.types.Operator):
+    bl_idname = "object.del_bsdf"
+    bl_label = "Del BSDF"
+    bl_description = "Delete a BSDF for the current selected object"
+    bl_register = True
+    bl_undo = True
+    
+    def execute(self, context):
+        o = context.active_object
+        o.delete('bsdf')
         return {'FINISHED'}
 
 class NODE_OT_FileSelect(bpy.types.Operator, io_utils.ImportHelper):
@@ -654,8 +678,14 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         node.sdoy = datetime.datetime(datetime.datetime.now().year, node.startmonth, 1).timetuple().tm_yday
         node.edoy = (datetime.date(datetime.datetime.now().year, node.endmonth + (1, -11)[node.endmonth == 12], 1) - datetime.timedelta(days = 1)).timetuple().tm_yday
+        scene['enparams']['fs'], scene['enparams']['fe'] = node.fs, node.fe
         locnode = node.inputs['Location in'].links[0].from_node
-        shutil.copyfile(locnode.weather, os.path.join(scene['viparams']['newdir'], "in.epw"))
+#        if 'nodes["{}"].{}'.format(locnode.name, 'weather') in [bpy.data.node_groups['NodeTree'].animation_data.action.fcurves.data_path]:
+        for frame in range(node.fs, node.fe + 1):
+            scene.frame_set(frame)
+            shutil.copyfile(locnode.weather, os.path.join(scene['viparams']['newdir'], "in{}.epw".format(frame)))
+#        else:
+#            shutil.copyfile(locnode.weather, os.path.join(scene['viparams']['newdir'], "in.epw"))
         shutil.copyfile(os.path.join(os.path.dirname(os.path.abspath(os.path.realpath( __file__ ))), "EPFiles", "Energy+.idd"), os.path.join(scene['viparams']['newdir'], "Energy+.idd"))
 
         if bpy.context.active_object and not bpy.context.active_object.hide:
@@ -682,26 +712,28 @@ class NODE_OT_EnSim(bpy.types.Operator):
             if self.esimrun.poll() is None:
                 nodecolour(self.simnode, 1)
                 try:
-                    with open(os.path.join(scene['viparams']['newdir'], 'eplusout.eso'), 'r') as resfile:
+                    with open(os.path.join(scene['viparams']['newdir'], '{}{}out.eso'.format(self.resname, self.frame)), 'r') as resfile:
                         for resline in [line for line in resfile.readlines()[::-1] if line.split(',')[0] == '2' and len(line.split(',')) == 9]:
-                            self.simnode.run = int(100 * int(resline.split(',')[1])/(self.simnode.dedoy - self.simnode.dsdoy))
+                            self.simnode.run = int((100/self.lenframes) * (self.frame - scene['enparams']['fs'])) + int((100/self.lenframes) * int(resline.split(',')[1])/(self.simnode.dedoy - self.simnode.dsdoy))
                             break
                     return {'PASS_THROUGH'}
                 except:
                     return {'PASS_THROUGH'}
-#            elif self.frame < scene['enparams']['fe']:
-#                self.frame += 1
-#                bpy.ops.node.ensim('INVOKE_DEFAULT').nodeid = self.nodeid
+            elif self.frame < scene['enparams']['fe']:
+                self.frame += 1
+                esimcmd = "energyplus {0} -w in{1}.epw -i {2} -p {3} in{1}.idf".format(self.expand, self.frame, self.eidd, ('{}{}'.format(self.resname, self.frame))) 
+                self.esimrun = Popen(esimcmd.split(), stderr = PIPE)
+                return {'PASS_THROUGH'}
             else:
                 for fname in [fname for fname in os.listdir('.') if fname.split(".")[0] == self.simnode.resname]:
                     os.remove(os.path.join(scene['viparams']['newdir'], fname))
 
-                nfns = [fname for fname in os.listdir('.') if fname.split(".")[0] == "eplusout"]
+                nfns = [fname for fname in os.listdir('.') if fname.split(".")[0] == "{}{}out".format(self.resname, self.frame)]
                 for fname in nfns:
                     rename(os.path.join(scene['viparams']['newdir'], fname), os.path.join(scene['viparams']['newdir'],fname.replace("eplusout", self.simnode.resname)))
 
-                if self.simnode.resname+".err" not in [im.name for im in bpy.data.texts]:
-                    bpy.data.texts.load(os.path.join(scene['viparams']['newdir'], self.simnode.resname+".err"))
+                if "{}{}out.err".format(self.resname, self.frame) not in [im.name for im in bpy.data.texts]:
+                    bpy.data.texts.load(os.path.join(scene['viparams']['newdir'], "{}{}out.err".format(self.resname, self.frame)))
 
                 if 'EnergyPlus Terminated--Error(s) Detected' in self.esimrun.stderr.read().decode() or not [f for f in nfns if f.split(".")[1] == "eso"] or self.simnode.run == 0:
                     errtext = "There is no results file. Check you have selected results outputs and that there are no errors in the .err file in the Blender text editor." if not [f for f in nfns if f.split(".")[1] == "eso"] else "There was an error in the input IDF file. Check the *.err file in Blender's text editor."
@@ -710,7 +742,7 @@ class NODE_OT_EnSim(bpy.types.Operator):
                     return {'CANCELLED'}
                 else:
                     nodecolour(self.simnode, 0)
-                    processf(self, self.simnode)
+                    processf(self, scene, self.simnode)
                     self.report({'INFO'}, "Calculation is finished.")
                     scene['viparams']['resnode'], scene['viparams']['connode'], scene['viparams']['vidisp'] = self.nodeid, '{}@{}'.format(self.connode.name, self.nodeid.split('@')[1]), 'en'
                     self.simnode.run = -1
@@ -720,7 +752,8 @@ class NODE_OT_EnSim(bpy.types.Operator):
 
     def invoke(self, context, event):
         scene = context.scene
-        self.frame = scene.frame_start
+        self.frame = scene['enparams']['fs']
+        self.lenframes = len(range(scene['enparams']['fs'], scene['enparams']['fe'] + 1)) 
         if viparams(self, scene):
             return {'CANCELLED'}
         context.scene['viparams']['visimcontext'] = 'EnVi'
@@ -731,8 +764,11 @@ class NODE_OT_EnSim(bpy.types.Operator):
         self.simnode.sim()
         self.connode = self.simnode.inputs['Context in'].links[0].from_node
         self.simnode.resfilename = os.path.join(scene['viparams']['newdir'], self.simnode.resname+'.eso')
+        self.expand = "-x" if scene['viparams'].get('hvactemplate') else ""
+        self.eidd = os.path.join(os.path.dirname(os.path.abspath(os.path.realpath( __file__ ))), "EPFiles", "Energy+.idd")  
+        self.resname = (self.simnode.resname, 'eplus')[self.simnode.resname == '']
         os.chdir(scene['viparams']['newdir'])
-        esimcmd = "energyplus"
+        esimcmd = "energyplus {0} -w in{1}.epw -i {2} -p {3} in{1}.idf".format(self.expand, self.frame, self.eidd, ('{}{}'.format(self.resname, self.frame))) 
         self.esimrun = Popen(esimcmd.split(), stderr = PIPE)
         self.simnode.run = 0
         return {'RUNNING_MODAL'}
@@ -759,7 +795,7 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context):
-        scene, valheaders = context.scene, []
+        scene, solvalheaders, airvalheaders = context.scene, [], []
         resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
         eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in [rval[0] for rval in resnode['resdict'].values()]}
 #        ereslinks = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in [rval[0] for rval in resnode['resdict'].values()]}
@@ -774,18 +810,18 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                 sun = suns[0]
             for headvals in resnode['resdict'].items():
                 if len(headvals[1]) == 2 and headvals[1][1] == 'Direct Solar (W/m^2)':
-                    valheaders.append(headvals[0])
+                    solvalheaders.append(headvals[0])
                 if len(headvals[1]) == 2 and headvals[1][1] == 'Diffuse Solar (W/m^2)':
-                     valheaders.append(headvals[0])
-            sunposenvi(scene, resnode, range(scene.frame_start, scene.frame_end), sun, valheaders)
+                    solvalheaders.append(headvals[0])
+            sunposenvi(scene, resnode, range(scene.frame_start, scene.frame_end), sun, solvalheaders)
 
         if scene.resaa_disp:
             for rtype in ('Temperature (degC)', 'Wind Speed (m/s)', 'Wind Direction (deg)', 'Humidity (%)'):
                 for headvals in resnode['resdict'].items():
                     if headvals[1][0] == 'Climate' and headvals[1][1] == rtype:
-                        valheaders.append(headvals[0])
+                        airvalheaders.append(headvals[0])
 
-            self._handle_air = bpy.types.SpaceView3D.draw_handler_add(en_air, (self, context, resnode, valheaders), 'WINDOW', 'POST_PIXEL')
+            self._handle_air = bpy.types.SpaceView3D.draw_handler_add(en_air, (self, context, resnode, airvalheaders), 'WINDOW', 'POST_PIXEL')
 
         if scene.reszt_disp:
             envizres(scene, eresobs, resnode, 'Temp')
@@ -821,7 +857,7 @@ class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         innodes = list(OrderedDict.fromkeys([inputs.links[0].from_node for inputs in node.inputs if inputs.links]))
 
-        if not len(innodes[0]['allresdict']['Hour']):
+        if not len(innodes[0]['allresdict'][node.inputs['X-axis'].framemenu]['Hour']):
             self.report({'ERROR'},"There are no results in the results file. Check the results.err file in Blender")
             return {'CANCELLED'}
         if not mp:
@@ -881,6 +917,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         else: 
             bpy.ops.object.lamp_add(type = "SUN")
             sun = context.active_object
+        
           
         sun.data.shadow_soft_size = 0.01            
         sun['VIType'] = 'Sun'
@@ -899,6 +936,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
             smesh.material_slots[0].material = bpy.data.materials['SkyMesh']
             bpy.ops.object.shade_smooth()
             smesh.hide = True
+        else:
+            smesh =  [ob for ob in context.scene.objects if ob.get('VIType') and ob['VIType'] == "SkyMesh"][0]
 
         if "SunMesh" not in [ob.get('VIType') for ob in context.scene.objects]:
             bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=12, size=1)
@@ -919,6 +958,9 @@ class NODE_OT_SunPath(bpy.types.Operator):
         bpy.ops.object.add(type = "MESH")
         spathob = context.active_object
         spathob.location, spathob.name,  spathob['VIType'], spathmesh = (0, 0, 0), "SPathMesh", "SPathMesh", spathob.data
+        sun.parent = spathob
+        sunob.parent = sun
+        smesh.parent = spathob
         bm = bmesh.new()
         bm.from_mesh(spathmesh)
 
@@ -979,9 +1021,9 @@ class NODE_OT_SunPath(bpy.types.Operator):
         bpy.ops.object.select_all(action='DESELECT')
         compass((0,0,0.01), sd, spathob, bpy.data.materials['SPBase'])
 
-        for ob in (spathob, sunob):
-            spathob.cycles_visibility.diffuse, spathob.cycles_visibility.shadow, spathob.cycles_visibility.glossy, spathob.cycles_visibility.transmission = [False] * 4
-            spathob.show_transparent = True
+        for ob in (spathob, sunob, smesh):
+            ob.cycles_visibility.diffuse, ob.cycles_visibility.shadow, ob.cycles_visibility.glossy, ob.cycles_visibility.transmission, ob.cycles_visibility.scatter = [False] * 5
+            ob.show_transparent = True
 
         if cyfc1 not in bpy.app.handlers.frame_change_pre:
             bpy.app.handlers.frame_change_pre.append(cyfc1)
@@ -1102,6 +1144,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
+#        return context.window_manager.invoke_props_dialog(self)
         scene = context.scene        
         if viparams(self, scene):            
             return {'CANCELLED'}
@@ -1132,6 +1175,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         if simnode.starthour > simnode.endhour:
             self.report({'ERROR'},"End hour is before start hour.")
             return{'CANCELLED'}
+        
         scene['viparams']['resnode'], simnode['Animation'] = simnode.name, simnode.animmenu
 
         if simnode['Animation'] == 'Static':
@@ -1147,8 +1191,12 @@ class NODE_OT_Shadow(bpy.types.Operator):
         times = [time + interval*t for t in range(int((endtime - time)/interval)) if simnode.starthour <= (time + interval*t).hour <= simnode.endhour]
         sps = [solarPosition(t.timetuple().tm_yday, t.hour+t.minute/60, scene.latitude, scene.longitude)[2:] for t in times]
         direcs = [mathutils.Vector((-sin(sp[1]), -cos(sp[1]), tan(sp[0]))) for sp in sps if sp[0] > 0]
-
-        for o in [scene.objects[on] for on in scene['liparams']['shadc']]:
+        calcno = len(frange) * sum(len([f for f in o.data.polygons if o.data.materials[f.material_index].mattype == '2']) for o in [scene.objects[on] for on in scene['liparams']['shadc']])
+        calcsteps = [int(i * calcno/20) for i in range(0, 21)]     
+        curres = 0
+        starttime = time.now()
+        
+        for oi, o in enumerate([scene.objects[on] for on in scene['liparams']['shadc']]):
             o['omin'], o['omax'], o['oave'] = {}, {}, {}
             bm = bmesh.new()
             bm.from_mesh(o.data)
@@ -1159,7 +1207,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             cindex = geom.layers.int['cindex']
             [geom.layers.float.new('res{}'.format(fi)) for fi in frange]
 
-            for frame in frange:
+            for frame in frange:                
                 scene.frame_set(frame)
                 shadtree = rettree(scene, shadobs)
                 shadres = geom.layers.float['res{}'.format(frame)]
@@ -1173,7 +1221,15 @@ class NODE_OT_Shadow(bpy.types.Operator):
                         gp[shadres] = 100 * (1 - sum([(1, 0)[shadtree.ray_cast(gp.calc_center_bounds(), direc)[3] == None] for direc in direcs])/len(direcs))
                     else:
                         gp[shadres] = 100 * (1 - sum([(1, 0)[shadtree.ray_cast(gp.co, direc)[3] == None] for direc in direcs])/len(direcs))
-                
+                    curres += 1
+                    if curres in calcsteps:
+                        with open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'r') as progressfile:
+                            if 'Cancel' in progressfile.read():
+                                return {'CANCELLED'}
+                                
+                        with open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'w') as progressfile:
+                            progressfile.write('{} {}'.format(5 * calcsteps.index(curres), (time.now() - starttime)/calcsteps.index(curres) * (20 - calcsteps.index(curres))))
+                    
                 o['omin']['res{}'.format(frame)], o['omax']['res{}'.format(frame)], o['oave']['res{}'.format(frame)] = min([gp[shadres] for gp in gpoints]), max([gp[shadres] for gp in gpoints]), sum([gp[shadres] for gp in gpoints])/len(gpoints)
 
             bm.transform(o.matrix_world.inverted())

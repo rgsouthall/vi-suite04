@@ -1,4 +1,4 @@
-import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, subprocess, shlex
+import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex
 from subprocess import Popen, PIPE, STDOUT
 from numpy import array, digitize, amax, amin, average, zeros, inner
 from numpy import sum as nsum
@@ -58,7 +58,9 @@ def rtpoints(self, bm, offset, frame):
        
     if self['cpoint'] == '0': 
         gpoints = resfaces
-        csfc = [face.calc_center_median() for face in gpoints]                      
+        csfc = [face.calc_center_median() for face in gpoints]   
+#        self.data.polygons.foreach_get('center', fcents) 
+#        self.data.polygons.foreach_get('normal', fnorms)                   
         self['rtpoints'][frame] = ''.join(['{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([csfc[fi][i] + offset * f.normal.normalized()[i] for i in range(3)], f.normal[:]) for fi, f in enumerate(gpoints)])
         self['cverts'], self['lisenseareas'][frame] = [], [f.calc_area() for f in gpoints]       
 
@@ -238,7 +240,6 @@ def basiccalcapply(self, scene, frames, rtcmds):
 
     bm.to_mesh(self.data)
     bm.free()
-#    scene.li_disp_basic = '2'
     
 def lhcalcapply(self, scene, frames, rtcmds):
     selobj(scene, self)
@@ -271,35 +272,6 @@ def lhcalcapply(self, scene, frames, rtcmds):
     bm.to_mesh(self.data)
     bm.free()
     
-#def cwcalcapply(self, scene, frame, rtcmd):
-#    if frame == scene.frame_start:
-#        self['omax'], self['omin'], self['oave'] = {}, {}, {}
-#    if str(frame) in self['rtpoints']:
-#        rtframe = frame
-#    else:
-#        kints = [int(k) for k in self["rtpoints"].keys()]
-#        rtframe  = max(kints) if frame > max(kints) else  min(kints)
-#    rtrun = Popen(rtcmd.split(), stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = self["rtpoints"][str(rtframe)].encode('utf-8'))
-#    reslines = [[float(rv) for rv in r.split('\t')[:3]] for r in rtrun[0].decode().splitlines()]    
-#    rescw = [(0.26 * r[0] + 0.67 * r[1] + 0.065 * r[2]) * 0.001 for r in reslines]
-#    self['omax']['cw{}'.format(frame)] = max(rescw)
-#    self['omin']['cw{}'.format(frame)] = min(rescw)
-#    self['oave']['cw{}'.format(frame)] = sum(rescw)/len(rescw)
-#
-#    selobj(scene, self)
-#    bm = bmesh.new()
-#    bm.from_mesh(self.data)
-#    clearlayers(bm)
-#    geom = bm.verts if self['cpoint'] == 1 else bm.faces
-#    cindex = geom.layers.int['cindex']
-#    geom.layers.float.new('res{}'.format(frame))
-#    res =  geom.layers.float['res{}'.format(frame)]
-#    for g in [g for g in geom if g[cindex] > 0]:
-#        g[res] = rescw[g[cindex] - 1]
-#        
-#    bm.to_mesh(self.data)
-#    bm.free()
-    
 def lividisplay(self, scene): 
     unitdict = {'Lux': 'illu', u'W/m\u00b2': 'irrad', 'DF (%)': 'df', 'DA (%)': 'res', 'UDI-f (%)': 'low', 'UDI-s (%)': 'sup', 'UDI-a (%)': 'auto', 'UDI-e (%)': 'high',
                 'Sky View': 'sv', 'kLuxHours': 'res', u'kWh/m\u00b2': 'res', '% Sunlit': 'res'}
@@ -317,18 +289,17 @@ def lividisplay(self, scene):
             vals = array([(f[livires] - sminres)/(smaxres - sminres) for f in bm.faces]) if scene['liparams']['cp'] == '0' else \
                     ([(sum([vert[livires] for vert in f.verts])/len(f.verts) - sminres)/(smaxres - sminres) for f in bm.faces])
         else:
-            vals = array([max(scene['liparams']['maxres'].values()) for g in geom])
+            vals = array([max(scene['liparams']['maxres'].values()) for x in range(len(bm.faces))])
             
         if livires != res:
             for g in geom:
                 g[res] = g[livires]        
         bins = array([0.05*i for i in range(1, 20)])
         nmatis = digitize(vals, bins)
-        for fi, f in enumerate(bm.faces):
-            f.material_index = nmatis[fi]
         bm.to_mesh(self.data)
         bm.free()
-        if scene['liparams']['fe'] - scene['liparams']['fs'] > 0:
+        self.data.polygons.foreach_set('material_index', nmatis)
+        if scene['liparams']['fe'] > scene['liparams']['fs']:
             [face.keyframe_insert('material_index', frame=frame) for face in self.data.polygons] 
             
 def retcrits(simnode, matname):
@@ -399,7 +370,6 @@ def compcalcapply(self, scene, frames, rtcmds, simnode):
     self['omax'], self['omin'], self['oave'] = {}, {}, {}
     self['crit'], self['ecrit'] = retcrits(simnode, self['compmat'])
     comps, ecomps =  {str(f): [] for f in frames}, {str(f): [] for f in frames}
-#    comps, ecomps =  [[] * fra for fra in frames], [[] * fra for fra in frames]
     crits, dfpass, edfpass = [], {str(f): 0 for f in frames}, {str(f): 0 for f in frames} 
     selobj(scene, self)
     bm = bmesh.new()
@@ -526,22 +496,6 @@ def compcalcapply(self, scene, frames, rtcmds, simnode):
     scene['liparams']['crits'], scene['liparams']['dfpass'] = crits, dfpass
     bm.to_mesh(self.data)
     bm.free()
-#        simnode.outputs['Data out'].hide = True
-#else:
-#    for fr, frame in enumerate(range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)):
-#        scene.frame_set(frame)
-#        sof, sov = 0, 0
-#        for geo in retobjs('livic'):
-#            bpy.ops.object.select_all(action = 'DESELECT')
-#            eof, eov, hours, scene.objects.active = sof + len(geo['cfaces']), sov + len(geo['cverts']), len(res[0][0]), None
-#            oarea = sum(geo['lisenseareas'])
-#            geo['wattres'] = {str(frame):[0 for x in range(len(res[0].T))]}
-#            for i in range(hours):
-#                if geonode.cpoint == '0':
-#                    geo['wattres'][str(frame)][i] = sum([res[fr].T[i][sof:eof][j] * geo['lisenseareas'][j] for j in range(sof, eof)])
-#                else:
-#                    geo['wattres'][str(frame)][i] = sum([res[fr].T[i][sov:eov][j] * geo['lisenseareas'][j] for j in range(sov, eov)])
-#            sov, sof = eov, eof
 
 def compdisplay(self, scene): 
     unitdict = {'0': 'df', '1': 'sv'}
@@ -579,7 +533,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode):
     bm = bmesh.new()
     bm.from_mesh(self.data)
     clearlayers(bm)
-    geom = bm.verts if self['cpoint'] == 1 else bm.faces
+    geom = bm.verts if self['cpoint'] == '1' else bm.faces
     cindex = geom.layers.int['cindex']
     if self.get('wattres'):
         del self['wattres']
@@ -665,8 +619,22 @@ def udidacalcapply(self, scene, frames, rccmds, simnode):
             simnode['allresdict']['{}-{}-{}'.format(self.name, 'high', frame)] = [r[3] for r in res]
             simnode['resdict']['{}-{}-{}'.format(self.name, 'lux', frame)] = ['{}-{}-{}'.format(self.name, 'lux', frame)] 
             simnode['allresdict']['{}-{}-{}'.format(self.name, 'lux', frame)] = [f for f in finalillu]
+            
     bm.to_mesh(self.data)
     bm.free()
+    
+def retvpvloc(context):
+    view_mat = context.space_data.region_3d.perspective_matrix
+    view_pivot = context.region_data.view_location
+
+    if context.space_data.region_3d.is_perspective:
+        vw = mathutils.Vector((-view_mat[3][0], -view_mat[3][1], -view_mat[3][2])).normalized()
+        view_location = view_pivot + (vw * bpy.context.region_data.view_distance)    
+    else:
+        vw =  mathutils.Vector((0.0, 0.0, 1.0))
+        vw.rotate(bpy.context.region_data.view_rotation)
+        view_location = view_pivot + vw.normalized()*bpy.context.region_data.view_distance * 100 
+    return (view_location, view_mat, vw)
           
 def fvmat(self, mn, bound):
 #    fvname = on.replace(" ", "_") + self.name.replace(" ", "_") 
@@ -888,6 +856,8 @@ def viparams(op, scene):
         os.makedirs(os.path.join(fd, fn))
     if not os.path.isdir(os.path.join(fd, fn, 'obj')):
         os.makedirs(os.path.join(fd, fn, 'obj'))
+    if not os.path.isdir(os.path.join(fd, fn, 'bsdfs')):
+        os.makedirs(os.path.join(fd, fn, 'bsdfs'))
     if not os.path.isdir(os.path.join(fd, fn, 'lights')):
         os.makedirs(os.path.join(fd, fn, 'lights'))
     if not os.path.isdir(os.path.join(fd, fn, 'Openfoam')):
@@ -1121,6 +1091,7 @@ def retmenu(dnode, axis, mtype):
         return [dnode.inputs[axis].enmenu, dnode.inputs[axis].enrmenu]
 
 def retrmenus(innode): 
+    ftype = [(frame, frame, "Plot "+frame) for frame in innode['frames']]
     rtype = [(restype, restype, "Plot "+restype) for restype in innode['rtypes']]
     ctype = [(clim, clim, "Plot "+clim) for clim in innode['ctypes']]
     ztype = [(zone, zone, "Plot "+zone) for zone in innode['ztypes']]
@@ -1129,6 +1100,7 @@ def retrmenus(innode):
     lrtype = [(linkr, linkr, "Plot "+linkr) for linkr in innode['lrtypes']]
     entype = [(en, en, "Plot "+en) for en in innode['entypes']]
     enrtype = [(enr, enr, "Plot "+enr) for enr in innode['enrtypes']]
+    fmenu = bpy.props.EnumProperty(items=ftype, name="", description="Frame number", default = ftype[0][0])
     rtypemenu = bpy.props.EnumProperty(items=rtype, name="", description="Result types", default = rtype[0][0])
     statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
     valid = ['Vi Results']    
@@ -1141,11 +1113,9 @@ def retrmenus(innode):
     enrmenu = bpy.props.EnumProperty(items=enrtype, name="", description="External node result", default = enrtype[0][0]) if 'External node' in innode['rtypes'] else ''
     multfactor = bpy.props.FloatProperty(name = "", description = "Result multiplication factor", min = 0.0001, max = 10000, default = 1)
     
-    return (valid, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor)
+    return (valid, fmenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor)
         
-def processf(pro_op, node):
-    ctypes, ztypes, zrtypes, ltypes, lrtypes, entypes, enrtypes = [], [], [], [], [], [], []
-
+def processf(pro_op, scene, node):
     envdict = {'Site Outdoor Air Drybulb Temperature [C] !Hourly': "Temperature (degC)",
                'Site Outdoor Air Relative Humidity [%] !Hourly': 'Humidity (%)',
                 'Site Wind Direction [deg] !Hourly': 'Wind Direction (deg)',
@@ -1177,138 +1147,140 @@ def processf(pro_op, node):
     resdict = {}
     allresdict = {}
     objlist = []
-    
-    with open(node.resfilename, 'r') as resfile:
-        intro = 1    
-        for line in resfile.readlines():
-            linesplit = line.strip('\n').split(',')
-            if intro:
-                if len(linesplit) == 1:
-                    intro = 0
-                elif linesplit[1] == '1' and '!Hourly' in linesplit[-1]:
-                    if linesplit[3] in zresdict and linesplit[2][-10:] == '_OCCUPANCY' and linesplit[2].strip('_OCCUPANCY') not in objlist and 'ExtNode' not in linesplit[2]:
-                        objlist.append(linesplit[2].strip('_OCCUPANCY'))
-                    elif linesplit[3] in zresdict and linesplit[2][-4:] == '_AIR' and linesplit[2].strip('_AIR') not in objlist and 'ExtNode' not in linesplit[2]:
-                        objlist.append(linesplit[2].strip('_AIR'))
-                    elif 'IDEAL LOADS AIR SYSTEM' in linesplit[2]:
-                        if linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip() not in objlist:
-                            
-                            objlist.append(linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip())
-                    elif linesplit[3] in zresdict and linesplit[2] not in objlist and 'ExtNode' not in linesplit[2]:
-                        objlist.append(linesplit[2])
-                    allresdict[linesplit[0]] = []
-            elif not intro and len(linesplit) == 2:
-                allresdict[linesplit[0]].append(float(linesplit[1]))
-            
-            if linesplit[0] in resdict:
-                if linesplit[0] == dos:
-                    allresdict['Month'].append(int(linesplit[2]))
-                    allresdict['Day'].append(int(linesplit[3]))
-                    allresdict['Hour'].append(int(linesplit[5]))
-                    allresdict['dos'].append(int(linesplit[1]))
-                        
-            elif len(linesplit) > 3 and linesplit[2] == 'Day of Simulation[]':
-                resdict[linesplit[0]], allresdict['Month'],  allresdict['Day'], allresdict['Hour'], allresdict['dos'], dos, node['rtypes'] = ['Day of Simulation'], [], [], [], [], linesplit[0], ['Time']
-    
-            elif len(linesplit) > 3 and linesplit[2] == 'Environment':
-                if 'Climate' not in node['rtypes']:
-                    node['rtypes']+= ['Climate']
-                try:
-                    resdict[linesplit[0]] = ['Climate', envdict[linesplit[3]]]
-                    ctypes.append(envdict[linesplit[3]])
-                except:
-                    pass
-    
-            elif len(linesplit) > 3 and linesplit[2][-10:] == '_OCCUPANCY' and linesplit[2][:-10] in objlist:
-                if 'Zone' not in node['rtypes']:
-                   node['rtypes'] += ['Zone']
-                try:
-                    resdict[linesplit[0]] = [linesplit[2][:-10], zresdict[linesplit[3]]]
-                    if linesplit[2][:-10] not in ztypes:
-                        ztypes.append(linesplit[2][:-10])
-                    if zresdict[linesplit[3]] not in zrtypes:
-                        zrtypes.append(zresdict[linesplit[3]])
-                except:
-                    pass
-            
-            elif len(linesplit) > 3 and linesplit[2][-4:] == '_AIR' and linesplit[2][:-4] in objlist:
-                if 'Zone' not in node['rtypes']:
-                   node['rtypes'] += ['Zone']
-                try:
-                    resdict[linesplit[0]] = [linesplit[2][:-4], zresdict[linesplit[3]]]
-                    if linesplit[2][:-4] not in ztypes:
-                        ztypes.append(linesplit[2][:-4])
-                    if zresdict[linesplit[3]] not in zrtypes:
-                        zrtypes.append(zresdict[linesplit[3]])
-                except:
-                    pass
+    frames = range(scene['enparams']['fs'], scene['enparams']['fe'] + 1)
+    for frame in frames:
+        ctypes, ztypes, zrtypes, ltypes, lrtypes, entypes, enrtypes = [], [], [], [], [], [], []
+        with open(os.path.join(scene['viparams']['newdir'], '{}{}out.eso'.format(pro_op.resname, frame)), 'r') as resfile:
+            allresdict[str(frame)], resdict[str(frame)] = {}, {}
+            intro = 1    
+            for line in resfile.readlines():
+                linesplit = line.strip('\n').split(',')
+                if intro:
+                    if len(linesplit) == 1:
+                        intro = 0
+                    elif linesplit[1] == '1' and '!Hourly' in linesplit[-1]:
+                        if linesplit[3] in zresdict and linesplit[2][-10:] == '_OCCUPANCY' and linesplit[2].strip('_OCCUPANCY') not in objlist and 'ExtNode' not in linesplit[2]:
+                            objlist.append(linesplit[2].strip('_OCCUPANCY'))
+                        elif linesplit[3] in zresdict and linesplit[2][-4:] == '_AIR' and linesplit[2].strip('_AIR') not in objlist and 'ExtNode' not in linesplit[2]:
+                            objlist.append(linesplit[2].strip('_AIR'))
+                        elif 'IDEAL LOADS AIR SYSTEM' in linesplit[2]:
+                            if linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip() not in objlist:                                
+                                objlist.append(linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip())
+                        elif linesplit[3] in zresdict and linesplit[2] not in objlist and 'ExtNode' not in linesplit[2]:
+                            objlist.append(linesplit[2])
+                        allresdict[str(frame)][linesplit[0]] = []
+                elif not intro and len(linesplit) == 2:
+                    allresdict[str(frame)][linesplit[0]].append(float(linesplit[1]))
                 
-            elif len(linesplit) > 3 and 'IDEAL LOADS AIR SYSTEM' in linesplit[2] and linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip() in objlist:
-                if 'Zone' not in node['rtypes']:
-                   node['rtypes'] += ['Zone']
-                try:
-                    resdict[linesplit[0]] = [linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip(), zresdict[linesplit[3]]]
-                    if linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip() not in ztypes:
-                        ztypes.append(linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip())
-                    if zresdict[linesplit[3]] not in zrtypes:
-                        zrtypes.append(zresdict[linesplit[3]])
-                except Exception as e:
-                    print(e)
-            
-            elif len(linesplit) > 3 and linesplit[2] in objlist:
-                if 'Zone' not in node['rtypes']:
-                   node['rtypes'] += ['Zone']
-                try:
-                    resdict[linesplit[0]] = [linesplit[2], zresdict[linesplit[3]]]
-                    if linesplit[2] not in ztypes:
-                        ztypes.append(linesplit[2])
-                    if zresdict[linesplit[3]] not in zrtypes:
-                        zrtypes.append(zresdict[linesplit[3]])
-                except:
-                    pass
-            
-            elif len(linesplit) > 3 and linesplit[3] in lresdict:
-                if 'Linkage' not in node['rtypes']:
-                   node['rtypes'] += ['Linkage']
-                try:
-                    resdict[linesplit[0]] = [linesplit[2], lresdict[linesplit[3]]]
-                    if linesplit[2] not in ltypes:
-                        ltypes.append(linesplit[2])
-                    if lresdict[linesplit[3]] not in lrtypes:
-                        lrtypes.append(lresdict[linesplit[3]])
-                except:
-                    pass
-            
-            elif len(linesplit) > 3 and linesplit[3] in enresdict:
-                if 'External node' not in node['rtypes']:
-                   node['rtypes'] += ['External node']
-                try:
-                    resdict[linesplit[0]] = [linesplit[2], enresdict[linesplit[3]]]
-                    if linesplit[2] not in entypes:
-                        entypes.append(linesplit[2])
-                    if enresdict[linesplit[3]] not in enrtypes:
-                        enrtypes.append(enresdict[linesplit[3]])
-                except Exception as e:
-                    print('ext', e)
+                if linesplit[0] in resdict[str(frame)]:
+                    if linesplit[0] == dos:
+                        allresdict[str(frame)]['Month'].append(int(linesplit[2]))
+                        allresdict[str(frame)]['Day'].append(int(linesplit[3]))
+                        allresdict[str(frame)]['Hour'].append(int(linesplit[5]))
+                        allresdict[str(frame)]['dos'].append(int(linesplit[1]))
+                            
+                elif len(linesplit) > 3 and linesplit[2] == 'Day of Simulation[]':
+                    resdict[str(frame)][linesplit[0]], allresdict[str(frame)]['Month'], allresdict[str(frame)]['Day'], allresdict[str(frame)]['Hour'], allresdict[str(frame)]['dos'], dos, node['rtypes'] = ['Day of Simulation'], [], [], [], [], linesplit[0], ['Time']
+
+                elif len(linesplit) > 3 and linesplit[2] == 'Environment':
+                    if 'Climate' not in node['rtypes']:
+                        node['rtypes']+= ['Climate']
+                    try:
+                        resdict[str(frame)][linesplit[0]] = ['Climate', envdict[linesplit[3]]]
+                        ctypes.append(envdict[linesplit[3]])
+                    except Exception as e:
+                        print(e)
         
-    node.dsdoy = datetime.datetime(datetime.datetime.now().year, allresdict['Month'][0], allresdict['Day'][0]).timetuple().tm_yday
-    node.dedoy = datetime.datetime(datetime.datetime.now().year, allresdict['Month'][-1], allresdict['Day'][-1]).timetuple().tm_yday
-    node['dos'], node['resdict'], node['ctypes'], node['ztypes'], node['zrtypes'], node['ltypes'], node['lrtypes'], node['entypes'], node['enrtypes'] = dos, resdict, ctypes, ztypes, zrtypes, ltypes, lrtypes, entypes, enrtypes
+                elif len(linesplit) > 3 and linesplit[2][-10:] == '_OCCUPANCY' and linesplit[2][:-10] in objlist:
+                    if 'Zone' not in node['rtypes']:
+                       node['rtypes'] += ['Zone']
+                    try:
+                        resdict[str(frame)][linesplit[0]] = [linesplit[2][:-10], zresdict[linesplit[3]]]
+                        if linesplit[2][:-10] not in ztypes:
+                            ztypes.append(linesplit[2][:-10])
+                        if zresdict[linesplit[3]] not in zrtypes:
+                            zrtypes.append(zresdict[linesplit[3]])
+                    except Exception as e:
+                        print(e)
+                
+                elif len(linesplit) > 3 and linesplit[2][-4:] == '_AIR' and linesplit[2][:-4] in objlist:
+                    if 'Zone' not in node['rtypes']:
+                       node['rtypes'] += ['Zone']
+                    try:
+                        resdict[str(frame)][linesplit[0]] = [linesplit[2][:-4], zresdict[linesplit[3]]]
+                        if linesplit[2][:-4] not in ztypes:
+                            ztypes.append(linesplit[2][:-4])
+                        if zresdict[linesplit[3]] not in zrtypes:
+                            zrtypes.append(zresdict[linesplit[3]])
+                    except Exception as e:
+                        print(e)
+                    
+                elif len(linesplit) > 3 and 'IDEAL LOADS AIR SYSTEM' in linesplit[2] and linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip() in objlist:
+                    if 'Zone' not in node['rtypes']:
+                       node['rtypes'] += ['Zone']
+                    try:
+                        resdict[str(frame)][linesplit[0]] = [linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip(), zresdict[linesplit[3]]]
+                        if linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip() not in ztypes:
+                            ztypes.append(linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip())
+                        if zresdict[linesplit[3]] not in zrtypes:
+                            zrtypes.append(zresdict[linesplit[3]])
+                    except Exception as e:
+                        print(e)
+                
+                elif len(linesplit) > 3 and linesplit[2] in objlist:
+                    if 'Zone' not in node['rtypes']:
+                       node['rtypes'] += ['Zone']
+                    try:
+                        resdict[str(frame)][linesplit[0]] = [linesplit[2], zresdict[linesplit[3]]]
+                        if linesplit[2] not in ztypes:
+                            ztypes.append(linesplit[2])
+                        if zresdict[linesplit[3]] not in zrtypes:
+                            zrtypes.append(zresdict[linesplit[3]])
+                    except Exception as e:
+                        print(e)
+                
+                elif len(linesplit) > 3 and linesplit[3] in lresdict:
+                    if 'Linkage' not in node['rtypes']:
+                       node['rtypes'] += ['Linkage']
+                    try:
+                        resdict[str(frame)][linesplit[0]] = [linesplit[2], lresdict[linesplit[3]]]
+                        if linesplit[2] not in ltypes:
+                            ltypes.append(linesplit[2])
+                        if lresdict[linesplit[3]] not in lrtypes:
+                            lrtypes.append(lresdict[linesplit[3]])
+                    except Exception as e:
+                        print(e)
+                
+                elif len(linesplit) > 3 and linesplit[3] in enresdict:
+                    if 'External node' not in node['rtypes']:
+                       node['rtypes'] += ['External node']
+                    try:
+                        resdict[str(frame)][linesplit[0]] = [linesplit[2], enresdict[linesplit[3]]]
+                        if linesplit[2] not in entypes:
+                            entypes.append(linesplit[2])
+                        if enresdict[linesplit[3]] not in enrtypes:
+                            enrtypes.append(enresdict[linesplit[3]])
+                    except Exception as e:
+                        print('ext', e)
+
+        for o in bpy.data.objects:
+            if 'EN_'+o.name.upper() in objlist:
+                o['enviresults'] = {}
+        for zres in resdict.items():
+            for o in bpy.data.objects:
+                if ['EN_'+o.name.upper(), 'Zone air heating (W)'] == zres[1]:            
+                    o['enviresults'][str(frame)]['Zone air heating (kWh)'] = sum(allresdict[str(frame)][zres[0]])*0.001
+                elif ['EN_'+o.name.upper(), 'Zone air cooling (W)'] == zres[1]:            
+                    o['enviresults'][str(frame)]['Zone air cooling (kWh)'] = sum(allresdict[str(frame)][zres[0]])*0.001        
+
+    node.dsdoy = datetime.datetime(datetime.datetime.now().year, allresdict[str(frame)]['Month'][0], allresdict[str(frame)]['Day'][0]).timetuple().tm_yday
+    node.dedoy = datetime.datetime(datetime.datetime.now().year, allresdict[str(frame)]['Month'][-1], allresdict[str(frame)]['Day'][-1]).timetuple().tm_yday
+    node['frames'], node['dos'], node['resdict'], node['ctypes'], node['ztypes'], node['zrtypes'], node['ltypes'], node['lrtypes'], node['entypes'], node['enrtypes'] = [str(frame) for frame in frames], dos, resdict, ctypes, ztypes, zrtypes, ltypes, lrtypes, entypes, enrtypes
     node['allresdict'] = allresdict
     if node.outputs['Results out'].links:
        node.outputs['Results out'].links[0].to_node.update() 
 
-    for o in bpy.data.objects:
-        if 'EN_'+o.name.upper() in objlist:
-            o['enviresults'] = {}
-    for zres in resdict.items():
-        for o in bpy.data.objects:
-            if ['EN_'+o.name.upper(), 'Zone air heating (W)'] == zres[1]:            
-                o['enviresults']['Zone air heating (kWh)'] = sum(allresdict[zres[0]])*0.001
-            elif ['EN_'+o.name.upper(), 'Zone air cooling (W)'] == zres[1]:            
-                o['enviresults']['Zone air cooling (kWh)'] = sum(allresdict[zres[0]])*0.001
-                
-#    node['envdict'], node['zresdict'], node['enresdict'], node['lresdict'] = envdict, zresdict, enresdict, lresdict
+
 
 def iprop(iname, idesc, imin, imax, idef):
     return(IntProperty(name = iname, description = idesc, min = imin, max = imax, default = idef))
@@ -1404,7 +1376,6 @@ def vertarea(mesh, vert):
             elif len(ovs) == 2:
                 eps = [mathutils.geometry.intersect_line_line(face.calc_center_median(), ofaces[i].calc_center_median(), ovs[i][0].co, ovs[i][1].co)[1] for i in range(2)]
             else:
-#               op.report({'ERROR'}, "Sensing mesh is too complex for vertex calculation use face sensors instead.") 
                return 0
             area += mathutils.geometry.area_tri(vert.co, *eps) + mathutils.geometry.area_tri(face.calc_center_median(), *eps)
     elif len(faces) == 1:
@@ -1469,7 +1440,7 @@ def wind_rose(maxws, wrsvg, wrtype):
                 lcolsplit = line.split(';')
                 for lcol in lcolsplit:                
                     if 'style="fill:#' in lcol and lcol[-6:] != 'ffffff':
-                        for pos in spos + lpos:
+                        for pos in spos + lpos[::-1]:
                             vs.append(bm.verts.new(pos))                        
                         if len(vs) > 2:
                             nf = bm.faces.new(vs)
@@ -1510,7 +1481,6 @@ def wind_rose(maxws, wrsvg, wrtype):
     wrbo.material_slots[-1].material = bpy.data.materials['wr-base']
     return (objoin((wrbo, wro)), scale)
     
-
 def compass(loc, scale, wro, mat):
     txts = []
     come = bpy.data.meshes.new("Compass")   
@@ -1574,60 +1544,6 @@ def windnum(maxws, loc, scale, wr):
     objoin(txts + [wr]).name = 'Wind Rose'
     bpy.context.active_object['VIType']  = 'Wind_Plane'
     
-#def windcompass():
-#    rad1 = 1.4
-#    dep = 2.8
-#    lettwidth = 0.3
-#    lettheight = 0.15
-#    bpy.ops.mesh.primitive_torus_add(location=(0.0, 0.0, 0.0), view_align=False, rotation=(0.0, 0.0, 0.0), major_segments=48, minor_segments=12, major_radius=2.5, minor_radius=0.01)
-#    bpy.ops.mesh.primitive_cone_add(location=(0.0, rad1, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, 0.0), radius1 = 0.01, depth = dep)
-#    bpy.ops.mesh.primitive_cone_add(location=((rad1**2/2)**0.5, (rad1**2/2)**0.5, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-0.25), radius1 = 0.01, depth = dep)
-#    bpy.ops.mesh.primitive_cone_add(location=(rad1, 0.0, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-0.5), radius1 = 0.01, depth = dep)
-#    bpy.ops.mesh.primitive_cone_add(location=((rad1**2/2)**0.5, -(rad1**2/2)**0.5, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-0.75), radius1 = 0.01, depth = dep)
-#    bpy.ops.mesh.primitive_cone_add(location=(0.0, -rad1, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-1), radius1 = 0.01, depth = dep)
-#    bpy.ops.mesh.primitive_cone_add(location=(-(rad1**2/2)**0.5, -(rad1**2/2)**0.5, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-1.25), radius1 = 0.01, depth = dep)
-#    bpy.ops.mesh.primitive_cone_add(location=(-rad1, 0.0, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-1.5), radius1 = 0.01, depth = dep)
-#    bpy.ops.mesh.primitive_cone_add(location=(-(rad1**2/2)**0.5, (rad1**2/2)**0.5, 0.0), view_align=False, rotation=(pi*-0.5, 0.0, pi*-1.75), radius1 = 0.01, depth = dep)
-#    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-lettheight*1.3, dep, 0.0), rotation=(0.0, 0.0, 0.0))
-#    txt = bpy.context.active_object
-#    txt.data.body = 'N'
-#    txt.scale = (0.5, 0.5, 0.5)
-#    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=((dep**2/2)**0.5-lettheight, (1+dep**2/2)**0.5, 0.0), rotation=(0.0, 0.0, pi*-0.25))
-#    txt = bpy.context.active_object
-#    txt.data.body = 'NE'
-#    txt.scale = (0.4, 0.4, 0.4)
-#    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(dep, -lettheight, 0.0), rotation=(0.0, 0.0, 0.0))
-#    txt = bpy.context.active_object
-#    txt.data.body = 'W'
-#    txt.scale = (0.5, 0.5, 0.5)
-#    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=((dep**2/2)**0.5, -lettwidth-lettheight-(dep**2/2)**0.5, 0.0), rotation=(0.0, 0.0, pi*0.25))
-#    txt = bpy.context.active_object
-#    txt.data.body = 'SW'
-#    txt.scale = (0.4, 0.4, 0.4)
-#    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-lettwidth/3, -dep-lettwidth*1.3, 0.0), rotation=(0.0, 0.0, 0.0))
-#    txt = bpy.context.active_object
-#    txt.data.body = 'S'
-#    txt.scale = (0.5, 0.5, 0.5)
-#    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-(dep**2/2)**0.5-lettwidth-0.1, -lettwidth/2-(dep**2/2)**0.5, 0.0), rotation=(0.0, 0.0, pi*-0.25))
-#    txt = bpy.context.active_object
-#    txt.data.body = 'SE'
-#    txt.scale = (0.4, 0.4, 0.4)
-#    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-lettwidth-dep, -lettheight, 0.0), rotation=(0.0, 0.0, 0.0))
-#    txt = bpy.context.active_object
-#    txt.data.body = 'E'
-#    txt.scale = (0.5, 0.5, 0.5)
-#    bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=(-(dep**2/2)**0.5-lettwidth, -(lettheight+lettwidth)*0.5+(dep**2/2)**0.5, 0.0), rotation=(0.0, 0.0, pi*0.25))
-#    txt = bpy.context.active_object
-#    txt.data.body = 'NW'
-#    txt.scale = (0.4, 0.4, 0.4)
-#    arrverts = ((0.05, -0.25, 0.0), (-0.05, -0.25, 0.0), (0.05, 0.25, 0.0), (-0.05, 0.25, 0.0), (0.15, 0.1875, 0.0), (-0.15, 0.1875, 0.0), (0.0, 0.5, 0.0))
-#    arrfaces = ((1, 0, 2, 3), (2, 4, 6, 5, 3))
-#    arrme = bpy.data.meshes.new('windarrow')
-#    arrob = bpy.data.objects.new('windarrow', arrme)
-#    arrme.from_pydata(arrverts, [], arrfaces)
-#    arrme.update()
-#    bpy.context.scene.objects.link(arrob)
-
 def rgb2h(rgb):
     return colorsys.rgb_to_hsv(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0)[0]
 
@@ -1739,7 +1655,7 @@ def retobjs(otypes):
     scene = bpy.context.scene
     validobs = [o for o in scene.objects if o.hide == False and o.layers[scene.active_layer] == True]
     if otypes == 'livig':
-        return([o for o in validobs if o.type == 'MESH' and o.data.materials and not (o.parent and os.path.isfile(o.iesname)) and not o.lila \
+        return([o for o in validobs if o.type == 'MESH' and o.data.materials and not (o.parent and os.path.isfile(o.ies_name)) and not o.lila \
         and o.lires == 0 and o.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')])
     elif otypes == 'livigeno':
         return([o for o in validobs if o.type == 'MESH' and o.data.materials and not any([m.livi_sense for m in o.data.materials])])
@@ -1749,8 +1665,6 @@ def retobjs(otypes):
         return([o for o in validobs if (o.type == 'LAMP' or o.lila) and o.hide == False and o.layers[scene.active_layer] == True])
     elif otypes == 'livic':
         return([o for o in validobs if o.type == 'MESH' and li_calcob(o, 'livi') and o.lires == 0 and o.hide == False and o.layers[scene.active_layer] == True])
-#    elif otypes == 'shadc':
-#        return([o for o in scene.objects if o.type == 'MESH' and li_calcob(o, 'livi') and o.lires == 0 and o.hide == False and o.layers[scene.active_layer] == True])
     elif otypes == 'livir':
         return([o for o in validobs if o.type == 'MESH' and True in [m.livi_sense for m in o.data.materials] and o.licalc and o.layers[scene.active_layer] == True])
     elif otypes == 'envig':
@@ -1759,10 +1673,8 @@ def retobjs(otypes):
         return [o for o in validobs if o.type == 'MESH' and o.lires == 0 and o.hide == False and o.layers[scene.active_layer] == True and any([m.mattype == '2' for m in o.data.materials])]
 
 def radmesh(scene, obs, export_op):
-#    matnames = []
     for o in obs:
         for mat in o.data.materials:
-#            matnames.append(mat.name)
             if mat['radentry'].split(' ')[1] in ('light', 'mirror', 'antimatter') or mat.pport:
                 export_op.report({'INFO'}, o.name+" has an antimatter, photon port, emission or mirror material. Basic export routine used with no modifiers.")
                 o['merr'] = 1 
@@ -1838,13 +1750,10 @@ def sunpath():
         sunob = [ob for ob in scene.objects if ob.get('VIType') == 'SunMesh'][0]
         spathob = [ob for ob in scene.objects if ob.get('VIType') == 'SPathMesh'][0]
         beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
-        sunob.location.z = sun.location.z = spathob.location.z + scene.soldistance * sin(beta)
-        sunob.location.x = sun.location.x = spathob.location.x -(scene.soldistance**2 - (sun.location.z-spathob.location.z)**2)**0.5 * sin(phi)
-        sunob.location.y = sun.location.y = spathob.location.y -(scene.soldistance**2 - (sun.location.z-spathob.location.z)**2)**0.5 * cos(phi)
+        sun.location.z = spathob.location.z + 100 * sin(beta)
+        sun.location.x = spathob.location.x -(100**2 - (sun.location.z-spathob.location.z)**2)**0.5 * sin(phi)
+        sun.location.y = spathob.location.y -(100**2 - (sun.location.z-spathob.location.z)**2)**0.5 * cos(phi)
         sun.rotation_euler = pi * 0.5 - beta, 0, -phi
-        spathob.scale = 3 * [scene.soldistance/100]
-        skysphere.scale = 3 * [1.05 * scene.soldistance/100]
-        sunob.scale = 3*[scene.soldistance/100]
 
         if scene.render.engine == 'CYCLES':
             if scene.world.node_tree:
@@ -1870,8 +1779,6 @@ def epwlatilongi(scene, node):
     with open(node.weather, "r") as epwfile:
         fl = epwfile.readline()
         latitude, longitude = float(fl.split(",")[6]), float(fl.split(",")[7])
-#    else:
-#        latitude, longitude = node.latitude, node.longitude
     return latitude, longitude
 
 #Compute solar position (altitude and azimuth in degrees) based on day of year (doy; integer), local solar time (lst; decimal hours), latitude (lat; decimal degrees), and longitude (lon; decimal degrees).
@@ -1988,7 +1895,6 @@ def socklink(sock, ng):
     except:
         if sock.links:
             bpy.data.node_groups[ng].links.remove(sock.links[-1])
-#        print(valid1, valid2, e)
     
 def rettimes(ts, fs, us):
     tot = range(min(len(ts), len(fs), len(us)))
@@ -2031,11 +1937,8 @@ def fvboundwrite(o):
         for face in faces:
             boundary += "      ("+" ".join([str(v) for v in face.vertices])+")\n"
         boundary += "    );\n  }\n"
-#        fvvarwrite(mat, solver)
     boundary += ");\n\nmergePatchPairs\n(\n);"
     return boundary
-#    self.p += "}"   
-#    self.U += "}" 
     
 def fvbmwrite(o, expnode):
     omw, bmovs = o.matrix_world, [vert for vert in o.data.vertices]
@@ -2118,142 +2021,14 @@ def fvvarwrite(scene, obs, node):
                 Uentry += mat.fvmat(matname, 'U')
                 if node.solver != 'icoFoam':
                     nutentry += mat.fvmat(matname, 'nut')
-#                    matbnuttype = mat.flovi_bmwnut_type
                     if node.turbulence ==  'SpalartAllmaras':
                         nutildaentry += mat.fvmat(matname, 'nutilda')
-#                        matbnutildatype = mat.flovi_bmwnutilda_type
                     elif node.turbulence ==  'kEpsilon':
                         kentry += mat.fvmat(matname, 'k')
                         eentry += mat.fvmat(matname, 'e')
-#                        matbktype = mat.flovi_bmwk_type
-#                        matbetype = mat.flovi_bmwe_type
                     elif node.turbulence ==  'kOmega':
                         kentry += mat.fvmat(matname, 'k')
                         oentry += mat.fvmat(matname, 'o')
-#                        matbktype = mat.flovi_bmwk_type
-#                        matbotype = mat.flovi_bmwe_type
-#                if mat.flovi_bmb_type == '0':
-#                    matbptype = mat.flovi_bmwp_type
-#                    matbUtype = mat.flovi_bmwu_type
-#                    Uentry += "  {}\n  {{\n    type    {};\n    value  uniform ({} {} {});\n  }}\n".format(matname, mat.flovi_bmwu_type, mat.flovi_bmu_x, mat.flovi_bmu_y, mat.flovi_bmu_z) 
-#                    pentry += "  {}\n  {{\n    type    {};\n  }}\n".format(matname, matbptype)
-#                    if node.solver != 'icoFoam':
-#                        matbnuttype = mat.flovi_bmwnut_type
-#                        if node.turbulence ==  'SpalartAllmaras':
-#                            matbnutildatype = mat.flovi_bmwnutilda_type
-#                        elif node.turbulence ==  'kEpsilon':
-#                            matbktype = mat.flovi_bmwk_type
-#                            matbetype = mat.flovi_bmwe_type
-#                        elif node.turbulence ==  'kOmega':
-#                            matbktype = mat.flovi_bmwk_type
-#                            matbotype = mat.flovi_bmwe_type
-#                elif mat.flovi_bmb_type == '1':
-#                    matbptype = mat.flovi_bmip_type
-#                    matbUtype = mat.flovi_bmiu_type
-#                    Uentry += "  {}\n  {{\n    type    {};\n    value  uniform ({} {} {});\n  }}\n".format(matname, mat.flovi_bmiu_type, mat.flovi_bmu_x, mat.flovi_bmu_y, mat.flovi_bmu_z) 
-#                    if node.solver != 'icoFoam':
-#                        matbnuttype = mat.flovi_bminut_type
-#                        if node.turbulence ==  'SpalartAllmaras':
-#                            matbnutildatype = mat.flovi_bminutilda_type
-#                        elif node.turbulence ==  'kEpsilon':
-#                            matbktype = mat.flovi_bmik_type
-#                            matbetype = mat.flovi_bmie_type
-#                        elif node.turbulence ==  'kOmega':
-#                            matbktype = mat.flovi_bmik_type
-#                            matbotype = mat.flovi_bmio_type
-#                elif mat.flovi_bmb_type == '2':
-#                    matbptype = mat.flovi_bmop_type
-#                    matbUtype = mat.flovi_bmou_type
-#                    Uentry += "  {}\n  {{\n    type    {};\n".format(matname, mat.flovi_bmou_type)
-#                    if node.solver != 'icoFoam':
-#                        matbnuttype = mat.flovi_bmonut_type
-#                        if node.turbulence ==  'SpalartAllmaras':
-#                            matbnutildatype = mat.flovi_bmonutilda_type
-#                        elif node.turbulence ==  'kEpsilon':
-#                            matbktype = mat.flovi_bmok_type
-#                            matbetype = mat.flovi_bmoe_type
-#                        elif node.turbulence ==  'kOmega':
-#                            matbktype = mat.flovi_bmok_type
-#                            matbotype = mat.flovi_bmoo_type
-#                
-#                elif mat.flovi_bmb_type == '4':
-#                    matbptype = 'empty'
-#                    matbUtype = 'empty'
-#                    if node.solver != 'icoFoam':
-#                        matbnuttype = 'empty'
-#                        matbnutildatype = 'empty'
-#                        matbktype = 'empty'
-#                        matbotype = 'empty'
-#                        matbetype = 'empty'
-#                    Uentry += "  {}\n  {{\n    type    {};\n  }}\n".format(matname, 'empty') 
-#                
-#                pentry += "  {}\n  {{\n    type    {};\n  }}\n".format(matname, matbptype) 
-##                if matbUtype == 'empty':
-##                    Uentry += "  {}\n  {{\n    type    {};\n  }}\n".format(matname, matbUtype) 
-##                else:
-##                    Uentry += "  {}\n  {{\n    type    {};\n    value  uniform ({} {} {});\n  }}\n".format(matname, matbUtype, mat.flovi_bmwu_x, mat.flovi_bmwu_y, mat.flovi_bmwu_z) 
-#                if node.solver != 'icoFoam':
-#                    if mat.flovi_bmb_type == '0':
-#                        nutentry += "  {0}\n  {{\n    type    {1};\n    value  $internalField;\n  }}\n".format(matname, matbnuttype) 
-#                        if node.turbulence ==  'SpalartAllmaras':                    
-#                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbnutildatype, 'value', node.nutildaval) 
-#                        elif node.turbulence ==  'kEpsilon':
-#                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbktype, 'value', node.kval) 
-#                            eentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbetype, 'value', node.epval)
-#                        elif node.turbulence ==  'kOmega':
-#                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbktype, 'value', node.kval) 
-#                            oentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbotype, 'value', node.oval)
-#                    if mat.flovi_bmb_type == '1':
-#                        nutentry += "  {0}\n  {{\n    type    {1};\n    value $internalField;\n  }}\n".format(matname, matbnuttype) 
-#                        if node.turbulence ==  'SpalartAllmaras':
-#                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    uniform {3};\n  }}\n".format(matname, matbnutildatype, 'freestreamValue', mat.flovi_bmnut) 
-#                        elif node.turbulence ==  'kEpsilon':
-#                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbktype, 'value', node.kval) 
-#                            eentry += "  {0}\n  {{\n    type    {1};\n    {2}  $internalField;\n  }}\n".format(matname, matbetype, 'value')
-#                        elif node.turbulence ==  'kOmega':
-#                            kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbktype, 'value', node.kval) 
-#                            oentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbotype, 'value', node.oval)
-#                    if mat.flovi_bmb_type == '2':
-#                        nutentry += "  {0}\n  {{\n    type    {1};\n    value  $internalField;\n  }}\n".format(matname, matbnuttype)
-#                        if node.turbulence ==  'SpalartAllmaras':
-#                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbnutildatype, 'freestreamValue', mat.flovi_bmnut) 
-#                        elif node.turbulence ==  'kEpsilon':
-#                            kentry += "  {0}\n  {{\n    type    {1};\n    inletValue    $internalField;\n    value    $internalField;\n  }}\n".format(matname, matbktype) 
-#                            eentry += "  {0}\n  {{\n    type    {1};\n    inletValue    $internalField;\n    value    $internalField;\n  }}\n".format(matname, matbetype)
-#                        elif node.turbulence ==  'kOmega':
-#                            kentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(matname, matbktype) 
-#                            oentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(matname, matbotype)
-#                    if mat.flovi_bmb_type == '3':
-#                        nutentry += "  {0}\n  {{\n    type    {1};\n    value  $internalField;\n  }}\n".format(matname, matbnuttype)
-#                        if node.turbulence ==  'SpalartAllmaras':
-#                            nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(matname, matbnutildatype, 'freestreamValue', mat.flovi_bmnut) 
-#                        elif node.turbulence ==  'kEpsilon':
-#                            kentry += "  {0}\n  {{\n    type    {1};\n    inletValue    $internalField;\n    value    $internalField;\n  }}\n".format(matname, matbktype) 
-#                            eentry += "  {0}\n  {{\n    type    {1};\n    inletValue    $internalField;\n    value    $internalField;\n  }}\n".format(matname, matbetype)
-#                        elif node.turbulence ==  'kOmega':
-#                            kentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(matname, matbktype) 
-#                            oentry += "  {0}\n  {{\n    type    {1};\n  }}\n".format(matname, matbotype)
-#                    if mat.flovi_bmb_type == '4':
-#                        nutentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
-#                        if node.turbulence ==  'SpalartAllmaras':
-#                            nutildaentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
-#                        elif node.turbulence ==  'kEpsilon':
-#                            kentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
-#                            eentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
-#                        elif node.turbulence ==  'kOmega':
-#                            kentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
-#                            oentry += "  {}\n  {{\n    type    empty;\n  }}\n".format(matname)
-#            else:
-#                if node.turbulence ==  'SpalartAllmaras':
-#                    nutentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, ('value', 'freestreamValue')[matbnuttype == 'freestream'], mat.flovi_bmnut) 
-#                    nutildaentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnutildatype, ('value', 'freestreamValue')[matbnutildatype == 'freestream'], mat.flovi_bmnut) 
-#                elif node.turbulence ==  'kEpsilon':
-#                    
-#                    kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, ('value', 'freestreamValue')[matbktype == 'freestream'], mat.flovi_bmnut)
-#                    eentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, ('value', 'freestreamValue')[matbnuttype == 'freestream'], mat.flovi_bmnut)
-#                elif node.turbulence ==  'kOmega':
-#                    kentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, ('value', 'freestreamValue')[matbnuttype == 'freestream'], mat.flovi_bmnut)
-#                    oentry += "  {0}\n  {{\n    type    {1};\n    {2}  uniform {3};\n  }}\n".format(mat.name, matbnuttype, ('value', 'freestreamValue')[matbnuttype == 'freestream'], mat.flovi_bmnut)
 
     pentry += '}'
     Uentry += '}'
@@ -2408,50 +2183,17 @@ def fvobjwrite(scene, o, bmo):
     bm.free()
     
 def sunposenvi(scene, resnode, frames, sun, valheaders):
-#    if resnode.bl_label == 'EnVi Simulation':
     allresdict = resnode['allresdict']
     resstart = 24 * (resnode['Start'] - resnode.dsdoy)
     resend = resstart + 24 * (1 + resnode['End'] - resnode['Start'])
- #       resrange = (24 * (resnode['Start'] - resnode.dsdoy), -24 * (resnode.dedoy - resnode['End']) - 1)
-#        node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
     datetime.datetime(datetime.datetime.now().year, int(allresdict['Month'][resstart]), int(allresdict['Day'][resstart]), 0, 0)
     times = [datetime.datetime(datetime.datetime.now().year, int(allresdict['Month'][h]), int(allresdict['Day'][h]), int(allresdict['Hour'][h]) - 1, 0) for h in range(resstart, resend)]
     solposs = [solarPosition(time.timetuple()[7], time.hour + (time.minute)*0.016666, scene.latitude, scene.longitude) for time in times]
     beamvals = [0.01 * float(bv) for bv in allresdict[valheaders[0]][resstart:resend]]
     skyvals = [1 + (0.01 * float(sv)) for sv in allresdict[valheaders[1]][resstart:resend]]
-#    sizevals = [(skyvals[t]/(beamvals[t] + 1), 0.01)[skyvals[t]/beamvals[t] < 0.01] for t in range(len(times))]
-
     sizevals = [beamvals[t]/skyvals[t] for t in range(len(times))]
     values = list(zip(sizevals, beamvals, skyvals))
     sunapply(scene, sun, values, solposs, frames)
-#    simtime = node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
-#    else:
-#        sun.data.shadow_method, sun.data.shadow_ray_samples, sun.data.sky.use_sky = 'RAY_SHADOW', 8, 1
-#        shaddict = {'0': (0.01, 5), '1': (3, 3)}
-#        (sun.data.shadow_soft_size, sun.data.energy) = shaddict[str(resnode['skynum'])]
-#    for t, time in enumerate(times):
-#        scene.frame_set(t)
-#        val = allresdict[valheader][t]
-#        solalt, solazi, beta, phi = solarPosition(time.timetuple()[7], time.hour + (time.minute)*0.016666, scene['latitude'], scene['longitude'])
-##        if node['skynum'] < 2:
-#        sun.location, sun.rotation_euler = [x*20 for x in (-sin(phi), -cos(phi), tan(beta))], [(pi/2) - beta, 0, -phi]
-#        if scene.render.engine == 'CYCLES' and scene.world.use_nodes:
-#            if 'Sky Texture' in [no.bl_label for no in scene.world.node_tree.nodes]:
-#                scene.world.node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)#sin(phi), -cos(phi), -2* beta/math.pi
-#                scene.world.node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = t) 
-#            if sun.data.node_tree:
-#                for emnode in [emnode for emnode in sun.data.node_tree.nodes if emnode.bl_label == 'Emission']:
-#                    emnode.inputs[0].default_value[2] = solalt/90
-#                    emnode.inputs[1].default_value = val*0.01
-#                    emnode.inputs[0].keyframe_insert(data_path = 'default_value', frame = t)
-#                    emnode.inputs[1].keyframe_insert(data_path = 'default_value', frame = t)
-#        sun.data.energy = val*0.01               
-#        sun.data.keyframe_insert(data_path = 'energy', frame = t)
-#        sun.keyframe_insert(data_path = 'location', frame = t)
-#        sun.keyframe_insert(data_path = 'rotation_euler', frame = t)
-#            
-#        bpy.ops.object.select_all()
-#    sun.data.cycles.use_multiple_importance_sampling = True
 
 def hdrsky(hdrfile):
     return("# Sky material\nvoid colorpict hdr_env\n7 red green blue {} angmap.cal sb_u sb_v\n0\n0\n\nhdr_env glow env_glow\n0\n0\n4 1 1 1 0\n\nenv_glow bubble sky\n0\n0\n4 0 0 0 5000\n\n".format(hdrfile))
@@ -2477,12 +2219,8 @@ def sunapply(scene, sun, values, solposs, frames):
     sun.data.animation_data_clear()
     sun.animation_data_clear()
     for f, frame in enumerate(frames):
-#        time = times[f]
-    
-#    for t, time in enumerate(times):
         (sun.data.shadow_soft_size, sun.data.energy) = values[f][:2]
         scene.frame_set(frame)
-#        solalt, solazi, beta, phi = solarPosition(time.timetuple()[7], time.hour + (time.minute)*0.016666, scene['latitude'], scene['longitude'])
         sun.location, sun.rotation_euler = [x*20 for x in (-sin(solposs[f][3]), -cos(solposs[f][3]), tan(solposs[f][2]))], [(pi/2) - solposs[f][2], 0, -solposs[f][3]]
         if scene.render.engine == 'CYCLES' and scene.world.use_nodes:
             if 'Sky Texture' in [no.bl_label for no in scene.world.node_tree.nodes]:
@@ -2490,8 +2228,6 @@ def sunapply(scene, sun, values, solposs, frames):
                     scene.world.node_tree.animation_data_clear()
                 scene.world.node_tree.nodes['Sky Texture'].sun_direction = -sin(solposs[f][3]), -cos(solposs[f][3]), sin(solposs[f][2])#sin(phi), -cos(phi), -2* beta/math.pi
                 scene.world.node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = frame) 
-#            if t == 0:
-#                scene.world.node_tree.nodes['background'].inputs[1].animation_data_clear()
             scene.world.node_tree.nodes['Background'].inputs[1].default_value = values[f][2]
             scene.world.node_tree.nodes['Background'].inputs[1].keyframe_insert(data_path = 'default_value', frame = frame)
             if sun.data.node_tree:
@@ -2506,7 +2242,5 @@ def sunapply(scene, sun, values, solposs, frames):
         sun.data.keyframe_insert(data_path = 'energy', frame = frame)
         sun.keyframe_insert(data_path = 'location', frame = frame)
         sun.keyframe_insert(data_path = 'rotation_euler', frame = frame)
-#    scene.frame_end = len(times)
-            
-#        bpy.ops.object.select_all()
+
     sun.data.cycles.use_multiple_importance_sampling = True

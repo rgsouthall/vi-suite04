@@ -27,7 +27,7 @@ except:
     mp = 0
 
 from . import livi_export
-from .vi_func import cmap, skframe, selobj, retobjs, framerange, viewdesc, drawloop, drawpoly, draw_index, drawfont, skfpos, objmode, drawcircle, drawtri, setscenelivivals
+from .vi_func import cmap, skframe, selobj, retvpvloc, framerange, viewdesc, drawloop, drawpoly, draw_index, drawfont, skfpos, objmode, drawcircle, drawtri, setscenelivivals
 
 nh = 768
 
@@ -138,17 +138,7 @@ def spnumdisplay(disp_op, context, simnode):
             bgl.glColor4f(scene.vi_display_rp_fc[0], scene.vi_display_rp_fc[1], scene.vi_display_rp_fc[2], scene.vi_display_rp_fc[3])
             blf.size(0, scene.vi_display_rp_fs, 72)
             mid_x, mid_y, width, height = viewdesc(context)
-            view_mat = context.space_data.region_3d.perspective_matrix
-            view_pivot = bpy.context.active_object.location if bpy.context.active_object and context.user_preferences.view.use_rotate_around_active else context.region_data.view_location
-
-            if context.space_data.region_3d.is_perspective:
-                vw = mathutils.Vector((-view_mat[3][0], -view_mat[3][1], -view_mat[3][2])).normalized()
-                view_location = view_pivot + vw.normalized() * bpy.context.region_data.view_distance        
-            else:
-                vw =  mathutils.Vector((0.0, 0.0, 1.0))
-                vw.rotate(bpy.context.region_data.view_rotation)
-                view_location = view_pivot + vw.normalized()*bpy.context.region_data.view_distance*10 
-
+            (view_location, view_mat, vw) = retvpvloc(context) 
             ob_mat = ob.matrix_world
             total_mat = view_mat * ob_mat
             posis = [total_mat*mathutils.Vector(co).to_4d() for co in ob['numpos'].values() if mathutils.Vector.angle(vw, view_location - ob_mat*mathutils.Vector(co)) < pi * 0.5 and not scene.ray_cast(0.95*ob_mat*mathutils.Vector(co), view_location)[0]]
@@ -181,16 +171,7 @@ def linumdisplay(disp_op, context, simnode):
     bgl.glColor3f = scene.vi_display_rp_fc
     fn = context.scene.frame_current - scene['liparams']['fs']
     mid_x, mid_y, width, height = viewdesc(context)
-    view_mat = context.space_data.region_3d.perspective_matrix
-    view_pivot = context.region_data.view_location
-
-    if context.space_data.region_3d.is_perspective:
-        vw = mathutils.Vector((-view_mat[3][0], -view_mat[3][1], -view_mat[3][2])).normalized()
-        view_location = view_pivot + (vw * bpy.context.region_data.view_distance)    
-    else:
-        vw =  mathutils.Vector((0.0, 0.0, 1.0))
-        vw.rotate(bpy.context.region_data.view_rotation)
-        view_location = view_pivot + vw.normalized()*bpy.context.region_data.view_distance * 100       
+    (view_location, view_mat, vw) = retvpvloc(context)      
 
     if scene.vi_display_sel_only == False:
         obd = obreslist
@@ -380,11 +361,7 @@ def en_panel(self, context, resnode):
     
     if bpy.context.active_object and 'EN_{}'.format(bpy.context.active_object.name.upper()) in reszones:
         metrics = [res[1][1] for res in resitems if 'EN_{}'.format(bpy.context.active_object.name.upper()) == res[1][0]]
-#        headers = [res[0] for res in simnode['resdict'].items() if 'EN_{}'.format(bpy.context.active_object.name.upper()) == res[1][0]]
-#        vals = [simnode['allresdict'][head] for head in headers]
         metricno = 6 * (0, 1)['Temperature (degC)' in metrics] + 6 * (0, 1)['Humidity (%)' in metrics] + 8 * (0, 1)['Heating (W)' in metrics] + 8 * (0, 1)['Zone air heating (W)' in metrics] + 8 * (0, 1)['Cooling (W)' in metrics] + 6 * (0, 1)['CO2 (ppm)' in metrics]
-#        valheaders = [val[1] for val in vals]
-#        print(valheaders)
         rowno = 1
         if metricno:
             drawpoly(startx, starty, startx + int(hscale*totwidth), starty - int(hscale*rowheight*(1 + metricno)), 0.7, 1, 1, 1)

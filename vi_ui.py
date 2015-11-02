@@ -22,7 +22,7 @@ class Vi3DPanel(bpy.types.Panel):
                 newrow(layout, 'Legend', scene, "vi_leg_display")
 
             elif scene['viparams']['vidisp'] == 'sp' and scene.vi_display:
-                for i in (("Day of year:", "solday"), ("Time of day:", "solhour"), ("Sunpath scale:", "soldistance"), ("Display hours:", "hourdisp")):
+                for i in (("Day of year:", "solday"), ("Time of day:", "solhour"), ("Display hours:", "hourdisp")):
                     newrow(layout, i[0], scene, i[1])
                 if scene.hourdisp:
                     for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_fsh")):
@@ -74,7 +74,7 @@ class Vi3DPanel(bpy.types.Panel):
             
             elif scene['viparams']['vidisp'] in ('en', 'enpanel'):
                 resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
-                resitems = resnode['resdict'].items()
+                resitems = resnode['resdict'][str(scene.frame_current)].items()
 #                self["_RNA_UI"] = {"Start": {"min":resnode.dsdoy, "max":resnode.dedoy}, "End": {"min":resnode.dsdoy, "max":resnode.dedoy}}
 
                 zonemetrics = set([res[1][1] for res in resitems if res[1][0] in ['EN_{}'.format(ob.name.upper()) for ob in bpy.data.objects]])
@@ -92,7 +92,7 @@ class Vi3DPanel(bpy.types.Panel):
                 row.prop(scene, 'resaa_disp')
                 row.prop(scene, 'resas_disp')
                 
-                for ri, rname in enumerate(set([rname[1] for rname in resnode['resdict'].values() if rname[0][:3] == 'EN_' and rname[0][3:] in [o.name.upper() for o in bpy.data.objects]])):
+                for ri, rname in enumerate(set([rname[1] for rname in resnode['resdict'][str(scene.frame_current)].values() if rname[0][:3] == 'EN_' and rname[0][3:] in [o.name.upper() for o in bpy.data.objects]])):
                     if ri == 0:                    
                         row = layout.row()
                         row.label(text = 'Zone')                    
@@ -101,7 +101,7 @@ class Vi3DPanel(bpy.types.Panel):
                     if rname in zresdict:
                         row.prop(scene, zresdict[rname])
                 
-                for ri, rname in enumerate(set([rname[1] for rname in resnode['resdict'].values() if rname[0][:4] == 'WIN-' and rname[1] in vresdict])):
+                for ri, rname in enumerate(set([rname[1] for rname in resnode['resdict'][str(scene.frame_current)].values() if rname[0][:4] == 'WIN-' and rname[1] in vresdict])):
                     if ri == 0:                    
                         row = layout.row()
                         row.label(text = 'Ventilation')                    
@@ -462,7 +462,7 @@ class VIMatPanel(bpy.types.Panel):
                         newrow(layout, "Omega type:", cm, "flovi_bmoo_type")
                 
 class IESPanel(bpy.types.Panel):
-    bl_label = "LiVi IES file"
+    bl_label = "VI Object Properties"
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "data"
@@ -474,7 +474,14 @@ class IESPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout, lamp = self.layout, context.active_object
-        if lamp.type != 'LAMP': 
+        if context.mesh: 
+            row = layout.row()
+            row.label('Generate BSDF')
+            row.operator("object.gen_bsdf", text="BSDF")
+            if lamp.get('bsdf'):
+                row = layout.row()
+                row.label('Delete BSDF')
+                row.operator("object.del_bsdf", text="Delete BSDF")
             newrow(layout, 'Light Array', lamp, 'lila')
         if (lamp.type == 'LAMP' and lamp.data.type != 'SUN') or lamp.lila: 
             row = layout.row()

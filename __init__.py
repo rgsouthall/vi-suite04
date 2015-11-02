@@ -1,7 +1,7 @@
 bl_info = {
-    "name": "VI-Suite v03",
+    "name": "VI-Suite v04",
     "author": "Ryan Southall",
-    "version": (0, 3, 0),
+    "version": (0, 4, 0),
     "blender": (2, 7, 6),
     "api":"",
     "location": "Node Editor & 3D View > Properties Panel",
@@ -36,7 +36,6 @@ matpath, epwpath, envi_mats, envi_cons, conlayers  = addonpath+'/EPFiles/Materia
 rplatbdict = {'linux': ('/usr/share/radiance/bin', '/usr/local/radiance/bin'), 'win32': (r"C:\Program Files (x86)\Radiance\bin", r"C:\Program Files\Radiance\bin"), 'darwin': ['/usr/local/radiance/bin']}
 rplatldict = {'linux': ('/usr/share/radiance/lib', '/usr/local/radiance/lib'), 'win32': (r"C:\Program Files (x86)\Radiance\lib", r"C:\Program Files\Radiance\lib"), 'darwin': ['/usr/local/radiance/lib']}
 eplatbdict = {'linux': ('/usr/local/EnergyPlus-{}'.format(epversion)), 'win32': 'C:\EnergyPlusV{}'.format(epversion), 'darwin': '/Applications/EnergyPlus-{}'.format(epversion)}
-#platdict = {'linux': 'linux', 'win32': 'windows', 'darwin': 'osx'}
 evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
 
 if not os.environ.get('RAYPATH') or os.path.join('{}'.format(addonpath), 'Radfiles', 'lib') not in os.environ['RAYPATH']:
@@ -66,36 +65,46 @@ def confunc(i):
 def eupdate(self, context):
     scene = context.scene
     maxo, mino = scene.vi_leg_max, scene.vi_leg_min
-      
-    for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
-        for o in [obj for obj in bpy.data.objects if obj.lires == 1 and obj.data.shape_keys and str(frame) in [sk.name for sk in obj.data.shape_keys.key_blocks]]:  
-            bm = bmesh.new()
-            bm.from_mesh(o.data)  
-            bm.normal_update()
-            bm.transform(o.matrix_world)            
-            skb = bm.verts.layers.shape['Basis']
-            skf = bm.verts.layers.shape[str(frame)]
-
-            if str(frame) in o['omax']:
-                if bm.faces.layers.float.get('res{}'.format(frame)):
-                    res = bm.faces.layers.float['res{}'.format(frame)] #if context.scene['cp'] == '0' else bm.verts.layers.float['res{}'.format(frame)]                
-                    faces = [f for f in bm.faces if f.select]
-                    extrudes = [0.1 * scene.vi_disp_3dlevel * (math.log10(maxo * (f[res] + 1 - mino)/(maxo - mino))) * f.normal.normalized() for f in faces] if scene.vi_leg_scale == '1' else \
-                            [scene.vi_disp_3dlevel * ((f[res] - mino)/(maxo - mino)) * f.normal.normalized() for f in faces]
-                    for f, face in enumerate(faces):
-                        for v in face.verts:
-                            v[skf] = v[skb] + extrudes[f]
-                
-                elif bm.verts.layers.float.get('res{}'.format(frame)):
-                    res = bm.verts.layers.float['res{}'.format(frame)]
-                    extrudes = [scene.vi_disp_3dlevel * ((v[res]-mino)/(maxo - mino)) * v.normal.normalized() for v in bm.verts] if scene.vi_leg_scale == '0' else \
-                                [0.1 * scene.vi_disp_3dlevel * (math.log10(maxo * (v[res] + 1 - mino)/(maxo - mino))) * v.normal.normalized() for v in bm.verts]  
-                    for v, vert in enumerate(bm.verts):
-                        vert[skf] = vert[skb] + extrudes[v]
-
-            bm.transform(o.matrix_world.inverted())
-            bm.to_mesh(o.data)
-            bm.free()
+    odiff = scene.vi_leg_max - scene.vi_leg_min
+    if odiff:      
+        for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
+            for o in [obj for obj in bpy.data.objects if obj.lires == 1 and obj.data.shape_keys and str(frame) in [sk.name for sk in obj.data.shape_keys.key_blocks]]:  
+                bm = bmesh.new()
+                bm.from_mesh(o.data)  
+                bm.normal_update()
+                bm.transform(o.matrix_world)            
+                skb = bm.verts.layers.shape['Basis']
+                skf = bm.verts.layers.shape[str(frame)]
+    
+                if str(frame) in o['omax']:
+                    if bm.faces.layers.float.get('res{}'.format(frame)):
+                        res = bm.faces.layers.float['res{}'.format(frame)] #if context.scene['cp'] == '0' else bm.verts.layers.float['res{}'.format(frame)]                
+                        faces = [f for f in geom if f.select]
+                        extrudes = [0.1 * scene.vi_disp_3dlevel * (math.log10(maxo * (f[res] + 1 - mino)/odiff)) * f.normal.normalized() for f in faces] if scene.vi_leg_scale == '1' else \
+                            [scene.vi_disp_3dlevel * ((f[res] - mino)/odiff) * f.normal.normalized() for f in faces]
+    
+                        for f, face in enumerate(faces):
+                            for v in face.verts:
+                                v[skf] = v[skb] + extrudes[f]
+                    
+                    elif bm.verts.layers.float.get('res{}'.format(frame)):
+                        res = bm.verts.layers.float['res{}'.format(frame)]
+                        extrudes = [scene.vi_disp_3dlevel * ((v[res]-mino)/odiff) * v.normal.normalized() for v in bm.verts] if scene.vi_leg_scale == '0' else \
+                            [0.1 * scene.vi_disp_3dlevel * (math.log10(maxo * (v[res] + 1 - mino)/odiff)) * v.normal.normalized() for v in bm.verts]  
+    #                    earray = numpy.add(array(extrudes), array([vert[skb] for vert in bm.verts])).flatten()    
+                        for v, vert in enumerate(bm.verts):
+    #                        vert[skf] = earray[v]
+                            vert[skf] = vert[skb] + extrudes[v]
+    #            vecs = [v[skb] + extrudes[vi] for vi, v in enumerate(bm.verts)]
+    #            coords = [0] * 
+    #            print(earray)
+    #            print(len([v[skb] + extrudes[vi] for vi, v in enumerate(bm.verts)]), len(o.data.shape_keys.key_blocks[str(frame)].data))            
+    #            o.data.shape_keys.key_blocks[str(frame)].data.foreach_set('co', earray)
+    #            o.data.update()
+    
+                bm.transform(o.matrix_world.inverted())
+                bm.to_mesh(o.data)
+                bm.free()
 
 def tupdate(self, context):
     for o in [o for o in context.scene.objects if o.type == 'MESH'  and 'lightarray' not in o.name and o.hide == False and o.layers[context.scene.active_layer] == True and o.get('lires')]:
@@ -550,7 +559,6 @@ def register():
     Scene.vipath = sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
     Scene.solday = bpy.props.IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
     Scene.solhour = bpy.props.FloatProperty(name = "", description = "Time of day", min = 0, max = 24, default = 12, update=sunpath1)
-    Scene.soldistance = bpy.props.IntProperty(name = "", description = "Sun path scale", min = 1, max = 5000, default = 100, update=sunpath1)
     (Scene.hourdisp, Scene.spupdate) = [bprop("", "",0)] * 2
     Scene.li_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
     Scene.li_disp_count = iprop("", "", 0, 1000, 0)

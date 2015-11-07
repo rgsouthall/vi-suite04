@@ -680,12 +680,11 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
         node.edoy = (datetime.date(datetime.datetime.now().year, node.endmonth + (1, -11)[node.endmonth == 12], 1) - datetime.timedelta(days = 1)).timetuple().tm_yday
         scene['enparams']['fs'], scene['enparams']['fe'] = node.fs, node.fe
         locnode = node.inputs['Location in'].links[0].from_node
-#        if 'nodes["{}"].{}'.format(locnode.name, 'weather') in [bpy.data.node_groups['NodeTree'].animation_data.action.fcurves.data_path]:
+
         for frame in range(node.fs, node.fe + 1):
             scene.frame_set(frame)
             shutil.copyfile(locnode.weather, os.path.join(scene['viparams']['newdir'], "in{}.epw".format(frame)))
-#        else:
-#            shutil.copyfile(locnode.weather, os.path.join(scene['viparams']['newdir'], "in.epw"))
+
         shutil.copyfile(os.path.join(os.path.dirname(os.path.abspath(os.path.realpath( __file__ ))), "EPFiles", "Energy+.idd"), os.path.join(scene['viparams']['newdir'], "Energy+.idd"))
 
         if bpy.context.active_object and not bpy.context.active_object.hide:

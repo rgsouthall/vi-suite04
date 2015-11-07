@@ -60,7 +60,7 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
     for oi, o in enumerate([scene.objects[on] for on in scene['liparams']['livic']]):
         o['omax'], o['omin'], o['oave'] = {}, {}, {}
         if context == 'Basic':
-            o.basiccalcapply(scene, frames, rtcmds)
+            o.basiccalcapply(scene, frames, rtcmds, simnode)
         elif context == 'CBDM' and int(subcontext) < 2:
             o.lhcalcapply(scene, frames, rtcmds)
         elif context == 'CBDM' and int(subcontext) > 1:

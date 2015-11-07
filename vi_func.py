@@ -191,18 +191,20 @@ def rettree(scene, obs):
     bmtemp.free()
     return tree
     
-def basiccalcapply(self, scene, frames, rtcmds):
+def basiccalcapply(self, scene, frames, rtcmds, simnode):
     selobj(scene, self)
     oi = scene['liparams']['livic'].index(self.name)
     onum, fnum = len(scene['liparams']['livic']), len(frames)
     bm = bmesh.new()
     bm.from_mesh(self.data)
+    bm.transform(self.matrix_world)
     self['omax'], self['omin'], self['oave'] = {}, {}, {}
     clearlayers(bm)
     geom = bm.verts if self['cpoint'] == '1' else bm.faces
     cindex = geom.layers.int['cindex']
-
+    simnode['allresdict'], simnode['allresdict'] = {}, {}
     for f, frame in enumerate(frames):
+        simnode['resdict'][str(frame)], simnode['allresdict'][str(frame)] = {}, {}
         if str(frame) in self['rtpoints']:
             rtframe = frame
         else:
@@ -236,6 +238,19 @@ def basiccalcapply(self, scene, frames, rtcmds):
             g[illures] = resillu[g[cindex] - 1]
             g[dfres] = resdf[g[cindex] - 1]
             g[res] = g[illures]
+        posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 1]
+        simnode['resdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'x')] = ['{} {}'.format(self.name, frame), 'x']
+        simnode['resdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'y')] = ['{} {}'.format(self.name, frame), 'y']
+        simnode['resdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'z')] = ['{} {}'.format(self.name, frame), 'z']
+        simnode['resdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'lux')] = ['{} {}'.format(self.name, frame), 'lux']
+        simnode['resdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'DF')] = ['{} {}'.format(self.name, frame), 'DF']
+        simnode['resdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'W/m2')] = ['{} {}'.format(self.name, frame), 'W/m2']
+        simnode['allresdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'x')] = [p[0] for p in posis] 
+        simnode['allresdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'y')] = [p[1] for p in posis] 
+        simnode['allresdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'z')] = [p[2] for p in posis]
+        simnode['allresdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'lux')] = [g[illures] for g in geom if g[cindex] > 0]
+        simnode['allresdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'DF')] = [g[dfres] for g in geom if g[cindex] > 0]
+        simnode['allresdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'W/m2')] = [g[irradres] for g in geom if g[cindex] > 0]
         print('Radiance simulation {:.0f}% complete'.format((oi + (f+1)/fnum)/onum * 100))
 
     bm.to_mesh(self.data)
@@ -728,7 +743,6 @@ def envilres(scene, resnode):
                 fcone = bpy.context.active_object
                 fcone.rotation_euler = resob.rotation_euler if scene.envi_flink else mathutils.angle(fcone.matrix_world * fcone.data.polygons[-1].normal, resob.matrix_word * resob.data.polygons[int(resnode['resdict'][rd][0].split('_')[-1])].normal)
                 fcone.parent = resob
- #               fcone.location = resob.location if scene.envi_flink else resob.matrix_word * resob.data.polygons[int(resnode['resdict'][rd][0].split('_')[-1])].center
                 fcone['envires'] = {}
                 fi = resnode['allresdict'][rd]
                 
@@ -1144,10 +1158,11 @@ def processf(pro_op, scene, node):
     lresdict = {'AFN Linkage Node 1 to Node 2 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow out',
                 'AFN Linkage Node 2 to Node 1 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow in',
                 'AFN Surface Venting Window or Door Opening Factor [] !Hourly': 'Opening Factor'}
-    resdict = {}
-    allresdict = {}
-    objlist = []
+
+    resdict, allresdict, objlist = {}, {}, []
     frames = range(scene['enparams']['fs'], scene['enparams']['fe'] + 1)
+    if len(frames) > 1:
+        allresdict['All'], resdict['All'] = {}, {}
     for frame in frames:
         ctypes, ztypes, zrtypes, ltypes, lrtypes, entypes, enrtypes = [], [], [], [], [], [], []
         with open(os.path.join(scene['viparams']['newdir'], '{}{}out.eso'.format(pro_op.resname, frame)), 'r') as resfile:
@@ -1265,22 +1280,36 @@ def processf(pro_op, scene, node):
 
         for o in bpy.data.objects:
             if 'EN_'+o.name.upper() in objlist:
-                o['enviresults'] = {}
-        for zres in resdict.items():
+                o['enviresults'][str(frame)] = {}
+        for zres in resdict[str(frame)].items():
             for o in bpy.data.objects:
                 if ['EN_'+o.name.upper(), 'Zone air heating (W)'] == zres[1]:            
                     o['enviresults'][str(frame)]['Zone air heating (kWh)'] = sum(allresdict[str(frame)][zres[0]])*0.001
+                    if len(frames) > 1:
+                        if frame == frames[0]:
+                            allresdict['All']['EN_'+o.name.upper()+'_h'] = []
+                            allresdict['All']['EN_'+o.name.upper()+'_hm'] = []
+                        resdict['All']['EN_'+o.name.upper()+'_h'] = ['EN_'+o.name.upper(), 'Annual Heating (kWh)']
+                        resdict['All']['EN_'+o.name.upper()+'_hm'] = ['EN_'+o.name.upper(), 'Annual Heating (kWh/m2)']
+                        allresdict['All']['EN_'+o.name.upper()+'_h'].append(sum(allresdict[str(frame)][zres[0]])*0.001)
+                        allresdict['All']['EN_'+o.name.upper()+'_hm'].append(sum(allresdict[str(frame)][zres[0]])*0.001/o['floorarea'])
+                    
                 elif ['EN_'+o.name.upper(), 'Zone air cooling (W)'] == zres[1]:            
                     o['enviresults'][str(frame)]['Zone air cooling (kWh)'] = sum(allresdict[str(frame)][zres[0]])*0.001        
-
+                    if len(frames) > 1:
+                        if frame == frames[0]:
+                            allresdict['All']['EN_'+o.name.upper()+'_c'] = []
+                            allresdict['All']['EN_'+o.name.upper()+'_cm'] = []
+                        resdict['All']['EN_'+o.name.upper()+'_c'] = ['EN_'+o.name.upper(), 'Annual Heating (kWh)']
+                        resdict['All']['EN_'+o.name.upper()+'_cm'] = ['EN_'+o.name.upper(), 'Annual Heating (kWh/m2)']
+                        allresdict['All']['EN_'+o.name.upper()+'_c'].append(sum(allresdict[str(frame)][zres[0]])*0.001)
+                        allresdict['All']['EN_'+o.name.upper()+'_cm'].append(sum(allresdict[str(frame)][zres[0]])*0.001/o['floorarea'])
     node.dsdoy = datetime.datetime(datetime.datetime.now().year, allresdict[str(frame)]['Month'][0], allresdict[str(frame)]['Day'][0]).timetuple().tm_yday
     node.dedoy = datetime.datetime(datetime.datetime.now().year, allresdict[str(frame)]['Month'][-1], allresdict[str(frame)]['Day'][-1]).timetuple().tm_yday
-    node['frames'], node['dos'], node['resdict'], node['ctypes'], node['ztypes'], node['zrtypes'], node['ltypes'], node['lrtypes'], node['entypes'], node['enrtypes'] = [str(frame) for frame in frames], dos, resdict, ctypes, ztypes, zrtypes, ltypes, lrtypes, entypes, enrtypes
+    node['frames'], node['dos'], node['resdict'], node['ctypes'], node['ztypes'], node['zrtypes'], node['ltypes'], node['lrtypes'], node['entypes'], node['enrtypes'] = ['All'] + [str(frame) for frame in frames], dos, resdict, ctypes, ztypes, zrtypes, ltypes, lrtypes, entypes, enrtypes
     node['allresdict'] = allresdict
     if node.outputs['Results out'].links:
        node.outputs['Results out'].links[0].to_node.update() 
-
-
 
 def iprop(iname, idesc, imin, imax, idef):
     return(IntProperty(name = iname, description = idesc, min = imin, max = imax, default = idef))

@@ -39,7 +39,7 @@ class ViLoc(bpy.types.Node, ViNodes):
     '''Node describing a geographical location manually or with an EPW file'''
     bl_idname = 'ViLoc'
     bl_label = 'VI Location'
-    bl_icon = 'LAMP'
+    bl_icon = 'FORCE_WIND'
 
     def updatelatlong(self, context):
         scene = context.scene

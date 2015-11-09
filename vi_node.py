@@ -47,8 +47,12 @@ class ViLoc(bpy.types.Node, ViNodes):
         nodecolour(self, any([link.to_node.bl_label in ('LiVi CBDM', 'EnVi Export') and self.loc != "1" for link in self.outputs['Location out'].links]))
         if self.loc == '1' and self.weather:
             resdict, allresdict, self['rtypes'], self['dos'], ctypes = {}, {}, ['Time', 'Climate'], '0', []
+            resdictnew = {}
+            resdictnew['0'] = {}
             resdict['0'], allresdict['0'] = {}, {}
             resdict['0']['0'] = ['Day of Simulation']
+            resdictnew['0']['Time'] = {}
+            resdictnew['0']['Climate'] = {}
             for d in range(1, 366):
                 resdict['0']['0'] += [str(d) for x in range(1,25)]
             for rtype in ('ztypes', 'zrtypes', 'ltypes', 'lrtypes', 'entypes', 'enrtypes'):
@@ -58,10 +62,13 @@ class ViLoc(bpy.types.Node, ViNodes):
                 epwlines = epwfile.readlines()[8:]
                 epwcolumns = list(zip(*[epwline.split(',') for epwline in epwlines]))
                 allresdict['0']['Month'], allresdict['0']['Day'], allresdict['0']['Hour'] = [epwcolumns[c] for c in range(1,4)]
+                resdictnew['0']['Time']['Month'], allresdict['0']['Time']['Day'], allresdict['0']['Time']['Hour'] = [epwcolumns[c] for c in range(1,4)]
                 allresdict['0']['dos'] = [int(d/24) + 1 for d in range(len(epwlines))]
+                resdictnew['0']['Time']['dos'] = [int(d/24) + 1 for d in range(len(epwlines))]
                 for c in {"Temperature ("+ u'\u00b0'+"C)": 6, 'Humidity (%)': 8, "Direct Solar (W/m"+u'\u00b2'+")": 14, "Diffuse Solar (W/m"+u'\u00b2'+")": 15,
                           'Wind Direction (deg)': 20, 'Wind Speed (m/s)': 21}.items():
                     resdict['0'][str(c[1])] = ['Climate', c[0]]
+                    resdictnew['0']['Climate'][c[0]] = ' '.join([cdata for cdata in list(epwcolumns[c[1]])])
                     allresdict['0'][str(c[1])] = list(epwcolumns[c[1]])
                     ctypes.append(c[0])
                 self['resdict'], self['allresdict'], self['ctypes'] = resdict, allresdict, ctypes

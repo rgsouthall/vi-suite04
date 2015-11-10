@@ -562,7 +562,7 @@ class NODE_OT_CSVExport(bpy.types.Operator, io_utils.ExportHelper):
     bl_idname = "node.csvexport"
     bl_label = "Export a CSV file"
     bl_description = "Select the CSV file to export"
-    filename = ""
+    filename = "results"
     filename_ext = ".csv"
     filter_glob = bpy.props.StringProperty(default="*.csv", options={'HIDDEN'})
     bl_register = True
@@ -575,13 +575,29 @@ class NODE_OT_CSVExport(bpy.types.Operator, io_utils.ExportHelper):
         row.label(text="Specify the CSV export file with the file browser", icon='WORLD_DATA')
 
     def execute(self, context):
+        resstring = ''
         resnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].inputs['Results in'].links[0].from_node
-        resstring = ' '.join(['Month,', 'Day,', 'Hour,'] + ['{} {},'.format(resnode['resdict'][k][0], resnode['resdict'][k][1]) for k in sorted(resnode['resdict'].keys(), key=lambda x: float(x)) if len(resnode['resdict'][k]) == 2] + ['\n'])
-        resdata = [resnode['allresdict']['Month'], resnode['allresdict']['Day'], resnode['allresdict']['Hour']] + [list(resnode['allresdict'][k]) for k in sorted(resnode['resdict'].keys(), key=lambda x: float(x)) if k in resnode['allresdict']]
-        for rline in zip(*resdata):
+        rd = resnode['resdictnew']
+        fks = sorted([int(k) for k in rd.keys()])
+        if 'Time' in rd[str(fks[0])]:
+            rdft = rd[str(fks[0])]['Time']
+            resstring, data = ['Month,', 'Day,', 'Hour,', 'DOS,'], [rdft['Month'].split(), rdft['Day'].split(), rdft['Hour'].split(), rdft['dos'].split()]
+        else:
+            resstring, data = [], []
+         
+        for fk in fks:
+            tkeys = rd[str(fk)].keys()
+            for tk in [tk for tk in tkeys if tk != 'Time']:
+                resstring += ['{} {} {},'.format(str(fk), tk, k) for k in sorted(rd[str(fk)][tk].keys())]
+                data += [rd[str(fk)][tk][k].split() for k in sorted(rd[str(fk)][tk].keys())]
+
+        resstring += ['\n']
+        resstring = ' '.join(resstring)
+        for rline in zip(*data):
             for r in rline:
                 resstring += '{},'.format(r)
             resstring += '\n'
+
         with open(self.filepath, 'w') as csvfile:
             csvfile.write(resstring)
         return {'FINISHED'}

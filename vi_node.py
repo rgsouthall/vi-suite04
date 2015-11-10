@@ -53,6 +53,7 @@ class ViLoc(bpy.types.Node, ViNodes):
             resdict['0']['0'] = ['Day of Simulation']
             resdictnew['0']['Time'] = {}
             resdictnew['0']['Climate'] = {}
+            resdictnew['0']['AClimate'] = {}
             for d in range(1, 366):
                 resdict['0']['0'] += [str(d) for x in range(1,25)]
             for rtype in ('ztypes', 'zrtypes', 'ltypes', 'lrtypes', 'entypes', 'enrtypes'):
@@ -62,16 +63,22 @@ class ViLoc(bpy.types.Node, ViNodes):
                 epwlines = epwfile.readlines()[8:]
                 epwcolumns = list(zip(*[epwline.split(',') for epwline in epwlines]))
                 allresdict['0']['Month'], allresdict['0']['Day'], allresdict['0']['Hour'] = [epwcolumns[c] for c in range(1,4)]
-                resdictnew['0']['Time']['Month'], allresdict['0']['Time']['Day'], allresdict['0']['Time']['Hour'] = [epwcolumns[c] for c in range(1,4)]
+                resdictnew['0']['Time']['Month'], resdictnew['0']['Time']['Day'], resdictnew['0']['Time']['Hour'] = [' '.join(epwcolumns[c]) for c in range(1,4)]
                 allresdict['0']['dos'] = [int(d/24) + 1 for d in range(len(epwlines))]
-                resdictnew['0']['Time']['dos'] = [int(d/24) + 1 for d in range(len(epwlines))]
+                resdictnew['0']['Time']['dos'] = ' '.join(['{}'.format(int(d/24) + 1) for d in range(len(epwlines))])
                 for c in {"Temperature ("+ u'\u00b0'+"C)": 6, 'Humidity (%)': 8, "Direct Solar (W/m"+u'\u00b2'+")": 14, "Diffuse Solar (W/m"+u'\u00b2'+")": 15,
                           'Wind Direction (deg)': 20, 'Wind Speed (m/s)': 21}.items():
                     resdict['0'][str(c[1])] = ['Climate', c[0]]
                     resdictnew['0']['Climate'][c[0]] = ' '.join([cdata for cdata in list(epwcolumns[c[1]])])
+                    if c[0] == "Temperature ("+ u'\u00b0'+"C)":
+                        tdata = [cdata for cdata in list(epwcolumns[c[1]])]
+                        resdictnew['0']['AClimate']['Max Temp'] = str(max(tdata))
+                        resdictnew['0']['AClimate']['Min Temp'] = str(min(tdata))
+                        resdictnew['0']['AClimate']['Ave Temp'] = str(sum(tdata)/len(tdata))
                     allresdict['0'][str(c[1])] = list(epwcolumns[c[1]])
                     ctypes.append(c[0])
                 self['resdict'], self['allresdict'], self['ctypes'] = resdict, allresdict, ctypes
+                self['resdictnew'] = resdictnew
                 self.outputs['Location out']['epwtext'] = epwfile.read()
             self.outputs['Location out']['valid'] = ['Location', 'Vi Results']
         else:
@@ -934,6 +941,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
     timemenu = bpy.props.EnumProperty(items=[("0", "Hourly", "Hourly results"),("1", "Daily", "Daily results"), ("2", "Monthly", "Monthly results")],
                 name="", description="Results frequency", default="0")
     bl_width_max = 800
+    animated = bpy.props.BoolProperty(name = "", description = "Plot the results from an animation", default = 0)
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
@@ -948,22 +956,25 @@ class ViEnRNode(bpy.types.Node, ViNodes):
         self.update()
 
     def draw_buttons(self, context, layout):
-        row = layout.row()
-        row.label("Day:")
-        row.prop(self, '["Start"]')
-        row.prop(self, '["End"]')
-        row = layout.row()
-        row.label("Hour:")
-        row.prop(self, "dsh")
-        row.prop(self, "deh")
-        row = layout.row()
-        row.prop(self, "charttype")
-        row.prop(self, "timemenu")
+        if self.inputs['X-axis'].links:
+            if len(self.inputs['X-axis'].links[0].from_node['resdictnew']) > 1:
+                newrow(layout, 'Animated:', self, 'animated')
+            row = layout.row()
+            row.label("Day:")
+            row.prop(self, '["Start"]')
+            row.prop(self, '["End"]')
+            row = layout.row()
+            row.label("Hour:")
+            row.prop(self, "dsh")
+            row.prop(self, "deh")
+            row = layout.row()
+            row.prop(self, "charttype")
+            row.prop(self, "timemenu")
 
-        if self.inputs['X-axis'].links and self.inputs['Y-axis 1'].links and 'NodeSocketUndefined' not in [sock.bl_idname for sock in self.inputs if sock.links]:
-            layout.operator("node.chart", text = 'Create plot').nodeid = self['nodeid']
-        row = layout.row()
-        row.label("------------------")
+            if self.inputs['Y-axis 1'].links and 'NodeSocketUndefined' not in [sock.bl_idname for sock in self.inputs if sock.links]:
+                layout.operator("node.chart", text = 'Create plot').nodeid = self['nodeid']
+                row = layout.row()
+                row.label("------------------")
 
     def update(self):
         if not self.inputs['X-axis'].links:
@@ -975,8 +986,16 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 valid = ['Vi Results']
         else:
             innode = self.inputs['X-axis'].links[0].from_node
-            self["_RNA_UI"] = {"Start": {"min":innode.dsdoy, "max":innode.dedoy}, "End": {"min":innode.dsdoy, "max":innode.dedoy}}
-            self['Start'], self['End'] = innode.dsdoy, innode.dedoy
+            if len(innode['resdictnew']) == 1 or not self.node.animated:
+                doss = innode['resdictnew'][innode['resdictnew'].keys()[0]]['Time']['dos'].split()
+                startday, endday = int(doss[0]), int(doss[-1])
+                self["_RNA_UI"] = {"Start": {"min":startday, "max":endday}, "End": {"min":startday, "max":endday}}
+                self['Start'], self['End'] = startday, endday
+            else:
+                frames = [int(k) for k in innode['resdictnew'].keys()]
+                startframe, endframe = min(frames), max(frames)
+                self["_RNA_UI"] = {"Start": {"min":startframe, "max":endframe}, "End": {"min":startframe, "max":endframe}}
+                self['Start'], self['End'] = startframe, endframe
 
             if self.inputs.get('Y-axis 1'):
                 self.inputs['Y-axis 1'].hide = False
@@ -987,7 +1006,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 bl_label = 'X-axis'
 
                 if innode['rtypes']:
-                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor) = retrmenus(innode)
+                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor) = retrmenus(innode, self)
 
         bpy.utils.register_class(ViEnRXIn)
 
@@ -1007,7 +1026,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     '''Energy geometry out socket'''
                     bl_idname = 'ViEnRY1In'
                     bl_label = 'Y-axis 1'
-                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor) = retrmenus(innode)
+                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor) = retrmenus(innode, self)
 
                 self.inputs['Y-axis 2'].hide = False
             bpy.utils.register_class(ViEnRY1In)
@@ -1029,7 +1048,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     bl_idname = 'ViEnRY2In'
                     bl_label = 'Y-axis 2'
 
-                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor) = retrmenus(innode)
+                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor) = retrmenus(innode, self)
 
                 self.inputs['Y-axis 3'].hide = False
 
@@ -1049,7 +1068,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     bl_idname = 'ViEnRY3In'
                     bl_label = 'Y-axis 3'
 
-                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor) = retrmenus(innode)
+                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor) = retrmenus(innode, self)
 
             bpy.utils.register_class(ViEnRY3In)
 

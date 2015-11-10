@@ -202,9 +202,10 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode):
     clearlayers(bm)
     geom = bm.verts if self['cpoint'] == '1' else bm.faces
     cindex = geom.layers.int['cindex']
-    simnode['allresdict'], simnode['allresdict'] = {}, {}
+    simnode['resdictnew'] = {}
     for f, frame in enumerate(frames):
-        simnode['resdict'][str(frame)], simnode['allresdict'][str(frame)] = {}, {}
+        simnode['resdictnew'][str(frame)] = {}
+        simnode['resdictnew'][str(frame)]['Position'], simnode['resdictnew'][str(frame)]['Result'] = {}, {}
         if str(frame) in self['rtpoints']:
             rtframe = frame
         else:
@@ -239,18 +240,12 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode):
             g[dfres] = resdf[g[cindex] - 1]
             g[res] = g[illures]
         posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 1]
-        simnode['resdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'x')] = ['{} {}'.format(self.name, frame), 'x']
-        simnode['resdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'y')] = ['{} {}'.format(self.name, frame), 'y']
-        simnode['resdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'z')] = ['{} {}'.format(self.name, frame), 'z']
-        simnode['resdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'lux')] = ['{} {}'.format(self.name, frame), 'lux']
-        simnode['resdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'DF')] = ['{} {}'.format(self.name, frame), 'DF']
-        simnode['resdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'W/m2')] = ['{} {}'.format(self.name, frame), 'W/m2']
-        simnode['allresdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'x')] = [p[0] for p in posis] 
-        simnode['allresdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'y')] = [p[1] for p in posis] 
-        simnode['allresdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'z')] = [p[2] for p in posis]
-        simnode['allresdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'lux')] = [g[illures] for g in geom if g[cindex] > 0]
-        simnode['allresdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'DF')] = [g[dfres] for g in geom if g[cindex] > 0]
-        simnode['allresdict'][str(frame)]['{} {} {}'.format(self.name, frame, 'W/m2')] = [g[irradres] for g in geom if g[cindex] > 0]
+        simnode['resdictnew'][str(frame)]['Position']['X'] = ' '.join([str(p[0]) for p in posis]) 
+        simnode['resdictnew'][str(frame)]['Position']['Y'] = ' '.join([str(p[1]) for p in posis]) 
+        simnode['resdictnew'][str(frame)]['Position']['Z'] = ' '.join([str(p[2]) for p in posis])
+        simnode['resdictnew'][str(frame)]['Result']['Illuminance(lux)'] = ' '.join([str(g[illures]) for g in geom if g[cindex] > 0])
+        simnode['resdictnew'][str(frame)]['Result']['DF (%)'] = ' '.join([str(g[dfres]) for g in geom if g[cindex] > 0])
+        simnode['resdictnew'][str(frame)]['Result']['Irradiance (W/m2)'] = ' '.join([str(g[irradres]) for g in geom if g[cindex] > 0])
         print('Radiance simulation {:.0f}% complete'.format((oi + (f+1)/fnum)/onum * 100))
 
     bm.to_mesh(self.data)
@@ -1104,11 +1099,21 @@ def retmenu(dnode, axis, mtype):
     elif mtype == 'External node':
         return [dnode.inputs[axis].enmenu, dnode.inputs[axis].enrmenu]
 
-def retrmenus(innode): 
-    ftype = [(frame, frame, "Plot "+frame) for frame in innode['frames']]
-    rtype = [(restype, restype, "Plot "+restype) for restype in innode['rtypes']]
-    ctype = [(clim, clim, "Plot "+clim) for clim in innode['ctypes']]
-    ztype = [(zone, zone, "Plot "+zone) for zone in innode['ztypes']]
+def retrmenus(innode, node): 
+    ftype = [(frame, frame, "Plot "+frame) for frame in innode['resdictnew'].keys()]
+    frame = innode['resdictnew'].keys()[0]
+    if not node.animated or len(innode['resdictnew']) == 1:
+        rtype = [(restype, restype, "Plot "+restype) for restype in innode['resdictnew'][frame].keys() if restype in ('Time', 'Climate', 'Zone', 'Linkage')]
+        if 'Climate' in innode['resdictnew'][frame].keys():
+            ctype = [(clim, clim, "Plot " + clim) for clim in innode['resdictnew'][frame]['Climate'].keys()]
+        if 'Zone' in innode['resdictnew'][frame].keys():
+            ztype = [(zone, zone, "Plot " + zone) for zone in innode['resdictnew'][frame]['Zone'].keys()]
+    else:
+        rtype = [(restype, restype, "Plot "+restype) for restype in innode['resdictnew'][frame].keys() if restype in ('Frames', 'AClimate', 'AZone', 'ALinkage')]
+        if 'AClimate' in innode['resdictnew'][frame].keys():
+            ctype = [(clim, clim, "Plot "+clim) for clim in innode['resdictnew'][frame]['AClimate'].keys()]
+        if 'AZone' in innode['resdictnew'][frame].keys():
+            ztype = [(zone, zone, "Plot "+zone) for zone in innode['resdictnew'][frame]['Zone'].keys()]
     zrtype = [(zoner, zoner, "Plot "+zoner) for zoner in innode['zrtypes']]
     ltype = [(link, link, "Plot "+link) for link in innode['ltypes']]
     lrtype = [(linkr, linkr, "Plot "+linkr) for linkr in innode['lrtypes']]
@@ -1118,7 +1123,7 @@ def retrmenus(innode):
     rtypemenu = bpy.props.EnumProperty(items=rtype, name="", description="Result types", default = rtype[0][0])
     statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
     valid = ['Vi Results']    
-    climmenu = bpy.props.EnumProperty(items=ctype, name="", description="Climate type", default = ctype[0][0]) if 'Climate' in innode['rtypes'] else ''     
+    climmenu = bpy.props.EnumProperty(items=ctype, name="", description="Climate type", default = ctype[0][0]) if 'Climate' in innode['resdictnew'][frame] else ''     
     zonemenu = bpy.props.EnumProperty(items=ztype, name="", description="Zone", default = ztype[0][0]) if 'Zone' in innode['rtypes'] else ''
     zonermenu = bpy.props.EnumProperty(items=zrtype, name="", description="Zone result", default = zrtype[0][0])  if 'Zone' in innode['rtypes'] else ''
     linkmenu = bpy.props.EnumProperty(items=ltype, name="", description="Flow linkage result", default = ltype[0][0]) if 'Linkage' in innode['rtypes'] else ''

@@ -33,8 +33,10 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
     frames = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) if not kwargs.get('genframe') else [kwargs['genframe']]
     os.chdir(scene['viparams']['newdir'])
     rtcmds, rccmds = [], []
+    simnode['resdictnew'] = {}
     
     for f, frame in enumerate(frames):
+        simnode['resdictnew'][str(frame)] = {}
         if context in ('Basic', 'Compliance') or (context == 'CBDM' and int(subcontext) < 2):
             if os.path.isfile("{}-{}.af".format(scene['viparams']['filebase'], frame)):
                 os.remove("{}-{}.af".format(scene['viparams']['filebase'], frame))

@@ -202,10 +202,9 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode):
     clearlayers(bm)
     geom = bm.verts if self['cpoint'] == '1' else bm.faces
     cindex = geom.layers.int['cindex']
-    simnode['resdictnew'] = {}
+
     for f, frame in enumerate(frames):
-        simnode['resdictnew'][str(frame)] = {}
-        simnode['resdictnew'][str(frame)]['Position'], simnode['resdictnew'][str(frame)]['Result'] = {}, {}
+        simnode['resdictnew'][str(frame)]['{} Position'.format(self.name)], simnode['resdictnew'][str(frame)]['{} Result'.format(self.name)] = {}, {}
         if str(frame) in self['rtpoints']:
             rtframe = frame
         else:
@@ -240,12 +239,12 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode):
             g[dfres] = resdf[g[cindex] - 1]
             g[res] = g[illures]
         posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 1]
-        simnode['resdictnew'][str(frame)]['Position']['X'] = ' '.join([str(p[0]) for p in posis]) 
-        simnode['resdictnew'][str(frame)]['Position']['Y'] = ' '.join([str(p[1]) for p in posis]) 
-        simnode['resdictnew'][str(frame)]['Position']['Z'] = ' '.join([str(p[2]) for p in posis])
-        simnode['resdictnew'][str(frame)]['Result']['Illuminance(lux)'] = ' '.join([str(g[illures]) for g in geom if g[cindex] > 0])
-        simnode['resdictnew'][str(frame)]['Result']['DF (%)'] = ' '.join([str(g[dfres]) for g in geom if g[cindex] > 0])
-        simnode['resdictnew'][str(frame)]['Result']['Irradiance (W/m2)'] = ' '.join([str(g[irradres]) for g in geom if g[cindex] > 0])
+        simnode['resdictnew'][str(frame)]['{} Position'.format(self.name)]['X'] = ' '.join([str(p[0]) for p in posis]) 
+        simnode['resdictnew'][str(frame)]['{} Position'.format(self.name)]['Y'] = ' '.join([str(p[1]) for p in posis]) 
+        simnode['resdictnew'][str(frame)]['{} Position'.format(self.name)]['Z'] = ' '.join([str(p[2]) for p in posis])
+        simnode['resdictnew'][str(frame)]['{} Result'.format(self.name)]['Illuminance(lux)'] = ' '.join([str(g[illures]) for g in geom if g[cindex] > 0])
+        simnode['resdictnew'][str(frame)]['{} Result'.format(self.name)]['DF (%)'] = ' '.join([str(g[dfres]) for g in geom if g[cindex] > 0])
+        simnode['resdictnew'][str(frame)]['{} Result'.format(self.name)]['Irradiance (W/m2)'] = ' '.join([str(g[irradres]) for g in geom if g[cindex] > 0])
         print('Radiance simulation {:.0f}% complete'.format((oi + (f+1)/fnum)/onum * 100))
 
     bm.to_mesh(self.data)
@@ -1133,8 +1132,8 @@ def retrmenus(innode, node):
     multfactor = bpy.props.FloatProperty(name = "", description = "Result multiplication factor", min = 0.0001, max = 10000, default = 1)
     
     return (valid, fmenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor)
-        
-def processf(pro_op, scene, node):
+
+def processh(lines):
     envdict = {'Site Outdoor Air Drybulb Temperature [C] !Hourly': "Temperature (degC)",
                'Site Outdoor Air Relative Humidity [%] !Hourly': 'Humidity (%)',
                 'Site Wind Direction [deg] !Hourly': 'Wind Direction (deg)',
@@ -1163,17 +1162,39 @@ def processf(pro_op, scene, node):
     lresdict = {'AFN Linkage Node 1 to Node 2 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow out',
                 'AFN Linkage Node 2 to Node 1 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow in',
                 'AFN Surface Venting Window or Door Opening Factor [] !Hourly': 'Opening Factor'}
+    hdict = {}
+    
+    for line in lines:
+        linesplit = line.strip('\n').split(',')
+        while len(linesplit) > 1:
+            if linesplit[2] == 'Day of Simulation[]':
+                hdict['Time'] = linesplit[0]
+            if linesplit[2] == 'Environment':
+                hdict[linesplit[3]] = linesplit[0]
+            if linesplit[3] in zresdict:
+                hdict['{},{}'.format(linesplit[2],linesplit[3])] = linesplit[0]
+            if linesplit[3] in enresdict:
+                hdict['{},{}'.format(linesplit[2],linesplit[3])] = linesplit[0]
+            if linesplit[3] in lresdict:
+                hdict['{},{}'.format(linesplit[2],linesplit[3])] = linesplit[0]
+    print(hdict)
+        
+def processf(pro_op, scene, node):
 
-    resdict, allresdict, objlist = {}, {}, []
+
+    resdictnew, objlist = {}, []
     frames = range(scene['enparams']['fs'], scene['enparams']['fe'] + 1)
     if len(frames) > 1:
-        allresdict['All'], resdict['All'] = {}, {}
+        resdictnew['All'] = {}
     for frame in frames:
-        ctypes, ztypes, zrtypes, ltypes, lrtypes, entypes, enrtypes = [], [], [], [], [], [], []
+#        ctypes, ztypes, zrtypes, ltypes, lrtypes, entypes, enrtypes = [], [], [], [], [], [], []
         with open(os.path.join(scene['viparams']['newdir'], '{}{}out.eso'.format(pro_op.resname, frame)), 'r') as resfile:
-            allresdict[str(frame)], resdict[str(frame)] = {}, {}
+            lines = resfile.readlines()
+            processh(lines)
+            resdictnew[str(frame)] = {}
+            resdictnew[str(frame)]['Time'] = {}
             intro = 1    
-            for line in resfile.readlines():
+            for line in lines:
                 linesplit = line.strip('\n').split(',')
                 if intro:
                     if len(linesplit) == 1:
@@ -1188,19 +1209,19 @@ def processf(pro_op, scene, node):
                                 objlist.append(linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip())
                         elif linesplit[3] in zresdict and linesplit[2] not in objlist and 'ExtNode' not in linesplit[2]:
                             objlist.append(linesplit[2])
-                        allresdict[str(frame)][linesplit[0]] = []
+                        resdictnew[str(frame)][linesplit[0]] = {}
                 elif not intro and len(linesplit) == 2:
-                    allresdict[str(frame)][linesplit[0]].append(float(linesplit[1]))
+                    resdictnew[str(frame)][linesplit[0]].append(float(linesplit[1]))
                 
-                if linesplit[0] in resdict[str(frame)]:
-                    if linesplit[0] == dos:
-                        allresdict[str(frame)]['Month'].append(int(linesplit[2]))
-                        allresdict[str(frame)]['Day'].append(int(linesplit[3]))
-                        allresdict[str(frame)]['Hour'].append(int(linesplit[5]))
-                        allresdict[str(frame)]['dos'].append(int(linesplit[1]))
+#                if linesplit[0] in resdictnew[str(frame)]:
+#                    if linesplit[0] == dos:
+                resdictnew[str(frame)]['Time']['Month'] = ' '.join([line.strip('\n').split(',')[2] for line in reslines if line.strip('\n').split(',')[0] == dos])
+                resdictnew[str(frame)]['Time']['Day'] = ' '.join([line.strip('\n').split(',')[3] for line in reslines if line.strip('\n').split(',')[0] == dos])
+                resdictnew[str(frame)]['Time']['Hour'] = ' '.join([line.strip('\n').split(',')[5] for line in reslines if line.strip('\n').split(',')[0] == dos])
+                resdictnew[str(frame)]['Time']['DOS'] = ' '.join([line.strip('\n').split(',')[1] for line in reslines if line.strip('\n').split(',')[0] == dos])
                             
-                elif len(linesplit) > 3 and linesplit[2] == 'Day of Simulation[]':
-                    resdict[str(frame)][linesplit[0]], allresdict[str(frame)]['Month'], allresdict[str(frame)]['Day'], allresdict[str(frame)]['Hour'], allresdict[str(frame)]['dos'], dos, node['rtypes'] = ['Day of Simulation'], [], [], [], [], linesplit[0], ['Time']
+#                elif len(linesplit) > 3 and linesplit[2] == 'Day of Simulation[]':
+#                    resdictnew[str(frame)]['Time']['DOS']], resdict[str(frame)]['Time']['Month'], allresdict[str(frame)]['Time']['Day'], allresdict[str(frame)]['Time']['Hour'], dos = ['Day of Simulation'], [], [], [], [], linesplit[0]
 
                 elif len(linesplit) > 3 and linesplit[2] == 'Environment':
                     if 'Climate' not in node['rtypes']:

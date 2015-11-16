@@ -74,7 +74,7 @@ class Vi3DPanel(bpy.types.Panel):
             
             elif scene['viparams']['vidisp'] in ('en', 'enpanel'):
                 resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
-                resitems = resnode['resdict'][str(scene.frame_current)].items()
+                resitems = resnode['resdictnew'][str(scene.frame_current)].items()
 #                self["_RNA_UI"] = {"Start": {"min":resnode.dsdoy, "max":resnode.dedoy}, "End": {"min":resnode.dsdoy, "max":resnode.dedoy}}
 
                 zonemetrics = set([res[1][1] for res in resitems if res[1][0] in ['EN_{}'.format(ob.name.upper()) for ob in bpy.data.objects]])
@@ -92,7 +92,7 @@ class Vi3DPanel(bpy.types.Panel):
                 row.prop(scene, 'resaa_disp')
                 row.prop(scene, 'resas_disp')
                 
-                for ri, rname in enumerate(set([rname[1] for rname in resnode['resdict'][str(scene.frame_current)].values() if rname[0][:3] == 'EN_' and rname[0][3:] in [o.name.upper() for o in bpy.data.objects]])):
+                for ri, rname in enumerate(set([rname[1] for rname in resnode['resdictnew'][str(scene.frame_current)].values() if rname[0][:3] == 'EN_' and rname[0][3:] in [o.name.upper() for o in bpy.data.objects]])):
                     if ri == 0:                    
                         row = layout.row()
                         row.label(text = 'Zone')                    
@@ -101,7 +101,7 @@ class Vi3DPanel(bpy.types.Panel):
                     if rname in zresdict:
                         row.prop(scene, zresdict[rname])
                 
-                for ri, rname in enumerate(set([rname[1] for rname in resnode['resdict'][str(scene.frame_current)].values() if rname[0][:4] == 'WIN-' and rname[1] in vresdict])):
+                for ri, rname in enumerate(set([rname[1] for rname in resnode['resdictnew'][str(scene.frame_current)].values() if rname[0][:4] == 'WIN-' and rname[1] in vresdict])):
                     if ri == 0:                    
                         row = layout.row()
                         row.label(text = 'Ventilation')                    
@@ -466,7 +466,7 @@ class IESPanel(bpy.types.Panel):
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "data"
-
+    
     @classmethod
     def poll(cls, context):
         if context.lamp or context.mesh:
@@ -477,6 +477,10 @@ class IESPanel(bpy.types.Panel):
         if context.mesh: 
             row = layout.row()
             row.label('Generate BSDF')
+            newrow(layout, 'Direction:', context.scene, 'li_bsdf_direc')
+            newrow(layout, 'Tensor:', context.scene, 'li_bsdf_tensor')
+            newrow(layout, 'resolution:', context.scene, 'li_bsdf_res')
+            newrow(layout, 'Samples:', context.scene, 'li_bsdf_samp')
             row.operator("object.gen_bsdf", text="BSDF")
             if lamp.get('bsdf'):
                 row = layout.row()

@@ -1,5 +1,5 @@
 import sys
-from .vi_func import retmenu
+from .vi_func import retmenu, retdata
 
 def label(cat, stat, time, metric):
     catdict = {'Climate': 'Ambient', 'Zone': 'Zone', 'Linkage': 'Linkage', 'External node': 'External node'} 
@@ -72,14 +72,11 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     framey1 = dnode.inputs['Y-axis 1'].framemenu if len(rnx['resdictnew']) > 1 else rny1['resdictnew'].keys()[0]
     rdy1f = rdy1[framey1]
     menusy1 = retmenu(dnode, 'Y-axis 1', dnode.inputs['Y-axis 1'].rtypemenu)
-    rdy1ft = rdy1f[dnode.inputs['Y-axis 1'].rtypemenu]
-
-    for rd in rdy1ft.keys():
-        if rd == menusy1[0]:
-            y1data = timedata(rdy1ft[rd].split()[si:ei + 1], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, rdy1f['Time']['Month'], rdy1f['Time']['Day'], rdy1f['Time']['dos'], dnode, si, ei, Sdate, Edate)
-            ylabel = label(dnode.inputs['Y-axis 1'].rtypemenu, dnode.inputs['Y-axis 1'].statmenu, dnode.timemenu, menusy1[0])
-            line, = plt.plot(xdata, [dnode.inputs['Y-axis 1'].multfactor * float(yd) for yd in y1data], color='k', linewidth = 0.2, label=dnode.inputs['Y-axis 1'].rtypemenu + (" ("+dnode.inputs['Y-axis 1'].statmenu + ")", "")[dnode.timemenu == '0'])    
-            break
+#    rdy1ft = rdy1f[dnode.inputs['Y-axis 1'].rtypemenu]
+    y1d = retdata(dnode, 'Y-axis 1', dnode.inputs['Y-axis 1'].rtypemenu, rdy1, framey1)
+    y1data = timedata(y1d.split()[si:ei + 1], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, rdy1f['Time']['Month'], rdy1f['Time']['Day'], rdy1f['Time']['DOS'], dnode, si, ei, Sdate, Edate)
+    ylabel = label(dnode.inputs['Y-axis 1'].rtypemenu, dnode.inputs['Y-axis 1'].statmenu, dnode.timemenu, menusy1[0])
+    line, = plt.plot(xdata, [dnode.inputs['Y-axis 1'].multfactor * float(yd) for yd in y1data], color='k', linewidth = 0.2, label=dnode.inputs['Y-axis 1'].rtypemenu + (" ("+dnode.inputs['Y-axis 1'].statmenu + ")", "")[dnode.timemenu == '0'])    
         
     if dnode.inputs['Y-axis 2'].links:
         rny2 = dnode.inputs['Y-axis 2'].links[0].from_node
@@ -87,27 +84,21 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
         framey2 = dnode.inputs['Y-axis 2'].framemenu if len(rnx['resdictnew']) > 1 else rny2['resdictnew'].keys()[0]
         rdy2f = rdy2[framey2]
         menus = retmenu(dnode, 'Y-axis 2', dnode.inputs['Y-axis 2'].rtypemenu)
-        rdy2ft = rdy1f[dnode.inputs['Y-axis 2'].rtypemenu]
-        
-        for rd in rdy1ft.keys():
-            if rd == menus[0]:
-                y2data = timedata(rdy2ft[rd].split()[si:ei + 1], dnode.timemenu, dnode.inputs['Y-axis 2'].statmenu, rdy2f['Time']['Month'], rdy1f['Time']['Day'], rdy2f['Time']['dos'], dnode, si, ei, Sdate, Edate)
-                ylabel = label(dnode.inputs['Y-axis 2'].rtypemenu, dnode.inputs['Y-axis 2'].statmenu, dnode.timemenu, menus[0])
-                line, = plt.plot(xdata, [dnode.inputs['Y-axis 2'].multfactor * float(yd) for yd in y2data], color='k', linewidth = 0.2, label=dnode.inputs['Y-axis 2'].rtypemenu + (" ("+dnode.inputs['Y-axis 2'].statmenu + ")", "")[dnode.timemenu == '0'])    
-                break
+        y2d = retdata(dnode, 'Y-axis 2', dnode.inputs['Y-axis 2'].rtypemenu, rdy2, framey2)
+        y2data = timedata(y2d.split()[si:ei + 1], dnode.timemenu, dnode.inputs['Y-axis 2'].statmenu, rdy2f['Time']['Month'], rdy1f['Time']['Day'], rdy2f['Time']['dos'], dnode, si, ei, Sdate, Edate)
+        ylabel = label(dnode.inputs['Y-axis 2'].rtypemenu, dnode.inputs['Y-axis 2'].statmenu, dnode.timemenu, menus[0])
+        line, = plt.plot(xdata, [dnode.inputs['Y-axis 2'].multfactor * float(yd) for yd in y2data], color='k', linewidth = 0.2, label=dnode.inputs['Y-axis 2'].rtypemenu + (" ("+dnode.inputs['Y-axis 2'].statmenu + ")", "")[dnode.timemenu == '0'])    
+ 
     if dnode.inputs['Y-axis 3'].links:
         rny3 = dnode.inputs['Y-axis 3'].links[0].from_node
         rdy3 = rny3['resdictnew']
         framey3 = dnode.inputs['Y-axis 3'].framemenu if len(rnx['resdictnew']) > 1 else rny3['resdictnew'].keys()[0]
         rdy3f = rdy3[framey3]
         menus = retmenu(dnode, 'Y-axis 3', dnode.inputs['Y-axis 3'].rtypemenu)
-        rdy3ft = rdy3f[dnode.inputs['Y-axis 3'].rtypemenu]
-        
-        for rd in rdy1ft.keys():
-            if rd == menus[0]:
-                y3data = timedata(rdy3ft[rd].split()[si:ei + 1], dnode.timemenu, dnode.inputs['Y-axis 3'].statmenu, rdy3f['Time']['Month'], rdy3f['Time']['Day'], rdy3f['Time']['dos'], dnode, si, ei, Sdate, Edate)
-                ylabel = label(dnode.inputs['Y-axis 3'].rtypemenu, dnode.inputs['Y-axis 3'].statmenu, dnode.timemenu, menus[0])
-                line, = plt.plot(xdata, [dnode.inputs['Y-axis 3'].multfactor * float(yd) for yd in y3data], color='k', linewidth = 0.2, label=dnode.inputs['Y-axis 3'].rtypemenu + (" ("+dnode.inputs['Y-axis 3'].statmenu + ")", "")[dnode.timemenu == '0'])    
+        y3d = retdata(dnode, 'Y-axis 2', dnode.inputs['Y-axis 3'].rtypemenu, rdy3, framey3)
+        y3data = timedata(y3d.split()[si:ei + 1], dnode.timemenu, dnode.inputs['Y-axis 3'].statmenu, rdy3f['Time']['Month'], rdy3f['Time']['Day'], rdy3f['Time']['dos'], dnode, si, ei, Sdate, Edate)
+        ylabel = label(dnode.inputs['Y-axis 3'].rtypemenu, dnode.inputs['Y-axis 3'].statmenu, dnode.timemenu, menus[0])
+        line, = plt.plot(xdata, [dnode.inputs['Y-axis 3'].multfactor * float(yd) for yd in y3data], color='k', linewidth = 0.2, label=dnode.inputs['Y-axis 3'].rtypemenu + (" ("+dnode.inputs['Y-axis 3'].statmenu + ")", "")[dnode.timemenu == '0'])    
 
     try:
         plt.xlabel(xlabel)    

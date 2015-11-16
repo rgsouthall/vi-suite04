@@ -426,14 +426,14 @@ def pregeo(op):
                     
             selmesh('delf')
             en_obj.select = False
-            bm = bmesh.new()
-            bm.from_mesh(en_obj.data)
-            bmesh.ops.triangulate(bm, faces = [face for face in bm.faces if en_obj.data.materials[face.material_index].envi_con_type == 'Shading'])
-            bm.transform(en_obj.matrix_world)
-            en_obj["volume"] = bm.calc_volume()
-            bm.transform(en_obj.matrix_world.inverted())
-            bm.to_mesh(en_obj.data)        
-            bm.free()
+#            bm = bmesh.new()
+#            bm.from_mesh(en_obj.data)
+#            bmesh.ops.triangulate(bm, faces = [face for face in bm.faces if en_obj.data.materials[face.material_index].envi_con_type == 'Shading'])
+#            bm.transform(en_obj.matrix_world)
+#            en_obj["volume"] = bm.calc_volume()
+#            bm.transform(en_obj.matrix_world.inverted())
+#            bm.to_mesh(en_obj.data)        
+#            bm.free()
             
             if en_obj.envi_type == '0':
                 if en_obj.name not in [node.zone for node in enng.nodes if hasattr(node, 'zone')]:

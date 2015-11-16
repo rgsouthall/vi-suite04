@@ -385,11 +385,11 @@ def register():
 # LiVi material definitions
                                  
     Material.radmat = radmat
-    Material.radmatdict = {'0': ['radcolour', 0, 'radrough', 'radspec'], '1': ['radcolour'], '2': ['radcolour', 0, 'radior'], '3': ['radcolour', 0, 'radspec', 'radrough', 0, 'radtrans',  'radtranspec'], '4': ['radcolour'], '5': ['radcolour', 0, 'radintensity'], '6': ['radcolour', 0, 'radrough', 'radspec'], '7': []}
+    Material.radmatdict = {'0': ['radcolour', 0, 'radrough', 'radspec'], '1': ['radcolour'], '2': ['radcolour', 0, 'radior'], '3': ['radcolour', 0, 'radspec', 'radrough', 0, 'radtrans',  'radtranspec'], '4': ['radcolour'], '5': ['radcolour', 0, 'radintensity'], '6': ['radcolour', 0, 'radrough', 'radspec'], '7': [], '8': []}
     Material.pport = bprop("", "Flag to signify whether the material represents a Photon Port", False)
     radtypes = [('0', 'Plastic', 'Plastic Radiance material'), ('1', 'Glass', 'Glass Radiance material'), ('2', 'Dielectric', 'Dialectric Radiance material'),
                 ('3', 'Translucent', 'Translucent Radiance material'), ('4', 'Mirror', 'Mirror Radiance material'), ('5', 'Light', 'Emission Radiance material'),
-                ('6', 'Metal', 'Metal Radiance material'), ('7', 'Anti-matter', 'Antimatter Radiance material')]
+                ('6', 'Metal', 'Metal Radiance material'), ('7', 'Anti-matter', 'Antimatter Radiance material'), ('8', 'BSDF', 'BSDF Radiance material')]
     Material.radmatmenu = eprop(radtypes, "", "Type of Radiance material", '0')
     Material.radcolour = fvprop(3, "Material Colour",'Material Colour', [1.0, 1.0, 1.0], 'COLOR', 0, 1)
     Material.radrough = fprop("Roughness", "Material roughness", 0, 1, 0.1)
@@ -409,6 +409,7 @@ def register():
     Material.brspacemenu = eprop(rspacetype, "", "Type of residential space", '0')
     Material.crspacemenu = eprop(rspacetype[:2], "", "Type of residential space", '0')
     Material.respacemenu = eprop(respacetype, "", "Type of retail space", '0')
+    Material.bsdf = bprop("BSDF", "Flag to signify a BSDF material", False)
 
 # EnVi material definitions
     Material.envi_con_type = eprop([("Wall", "Wall", "Wall construction"),("Floor", "Floor", "Floor construction"),("Roof", "Roof", "Roof construction"),("Window", "Window", "Window construction"), ("Door", "Door", "Door construction"),
@@ -593,6 +594,11 @@ def register():
     Scene.li_jobno = sprop("", "Project job number", 1024, '')
     Scene.li_disp_udi = bpy.props.EnumProperty(items = [("0", "Low", "Percentage of hours below minimum threshold"),("1", "Supplementary", "Percentage of hours requiring supplementary lighting"), ("2", "Autonomous", "Percentage of hours with autonomous lighting"), ("3", "Upper", "Percentage of hours excedding the upper limit")], name = "", description = "UDI range selection", default = "2", update = liviresupdate)
     Scene.li_disp_basic = bpy.props.EnumProperty(items = [("0", "Illuminance", "Display Illuminance values"), ("1", "Irradiance", "Display Irradiance values"), ("2", "DF", "Display Daylight factor values")], name = "", description = "Basic metric selection", default = "0", update = liviresupdate)
+    Scene.li_bsdf_direc = bpy.props.EnumProperty(items = [('+backwards', 'Backwards', 'Backwards BSDF'), ('+forwards', 'Forwards', 'Forwards BSDF'), ('+backwards +forwards', 'Bi-directional', 'Bi-directional BSDF')], name = '', description = 'BSDF direction', default = '+backwards')
+    Scene.li_bsdf_tensor = bpy.props.EnumProperty(items = [('-t3', 'Symmentric', 'Symmetric BSDF'), ('-t4', 'Assymmetric', 'Asymmetric BSDF')], name = '', description = 'BSDF tensor', default = '-t4')
+    Scene.li_bsdf_res = bpy.props.EnumProperty(items = [('1', '2x2', '2x2 sampling resolution'), ('2', '4x4', '4x4 sampling resolution'), ('3', '8x8', '8x8 sampling resolution'), ('4', '16x16', '16x16 sampling resolution'), ('5', '32x32', '32x32 sampling resolution'), ('6', '64x64', '64x64 sampling resolution'), ('7', '128x128', '128x128 sampling resolution')], name = '', description = 'BSDF resolution', default = '4')
+    Scene.li_bsdf_samp = bpy.props.IntProperty(name = '', description = 'BSDF resolution', min = 1, max = 20, default = 4)
+ 
 
     (Scene.resaa_disp, Scene.resaws_disp, Scene.resawd_disp, Scene.resah_disp, Scene.resas_disp, Scene.reszt_disp, Scene.reszh_disp, Scene.reszhw_disp, Scene.reszcw_disp, Scene.reszsg_disp, Scene.reszppd_disp, 
      Scene.reszpmv_disp, Scene.resvls_disp, Scene.resvmh_disp, Scene.resim_disp, Scene.resiach_disp, Scene.reszco_disp, Scene.resihl_disp, Scene.reszlf_disp,

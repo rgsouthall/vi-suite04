@@ -70,7 +70,7 @@ class OBJECT_OT_DelBSDF(bpy.types.Operator):
     
     def execute(self, context):
         o = context.active_object
-        o.delete('bsdf')
+        del o['bsdf']
         return {'FINISHED'}
 
 class NODE_OT_FileSelect(bpy.types.Operator, io_utils.ImportHelper):
@@ -581,15 +581,19 @@ class NODE_OT_CSVExport(bpy.types.Operator, io_utils.ExportHelper):
         fks = sorted([int(k) for k in rd.keys()])
         if 'Time' in rd[str(fks[0])]:
             rdft = rd[str(fks[0])]['Time']
-            resstring, data = ['Month,', 'Day,', 'Hour,', 'DOS,'], [rdft['Month'].split(), rdft['Day'].split(), rdft['Hour'].split(), rdft['dos'].split()]
+            resstring, data = ['Month,', 'Day,', 'Hour,', 'DOS,'], [rdft['Month'].split(), rdft['Day'].split(), rdft['Hour'].split(), rdft['DOS'].split()]
         else:
             resstring, data = [], []
          
         for fk in fks:
             tkeys = rd[str(fk)].keys()
-            for tk in [tk for tk in tkeys if tk != 'Time']:
+            for tk in [tk for tk in tkeys if tk in 'Climate']:
                 resstring += ['{} {} {},'.format(str(fk), tk, k) for k in sorted(rd[str(fk)][tk].keys())]
                 data += [rd[str(fk)][tk][k].split() for k in sorted(rd[str(fk)][tk].keys())]
+            for tk in [tk for tk in tkeys if tk in ('Linkage', 'Zone', 'External')]:
+                for k in sorted(rd[str(fk)][tk].keys()):
+                    resstring += ['{} {} {} {},'.format(str(fk), tk, k, m) for m in sorted(rd[str(fk)][tk][k].keys())]
+                    data += [rd[str(fk)][tk][k][m].split() for m in sorted(rd[str(fk)][tk][k].keys())]
 
         resstring += ['\n']
         resstring = ' '.join(resstring)
@@ -603,6 +607,8 @@ class NODE_OT_CSVExport(bpy.types.Operator, io_utils.ExportHelper):
         return {'FINISHED'}
 
     def invoke(self,context,event):
+        if self.filepath.split('.')[-1] not in ('csv', 'CSV'):
+            self.filepath = os.path.join(context.scene['viparams']['newdir'], context.scene['viparams']['filebase'] + '.csv')            
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
@@ -694,7 +700,7 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         node.sdoy = datetime.datetime(datetime.datetime.now().year, node.startmonth, 1).timetuple().tm_yday
         node.edoy = (datetime.date(datetime.datetime.now().year, node.endmonth + (1, -11)[node.endmonth == 12], 1) - datetime.timedelta(days = 1)).timetuple().tm_yday
-        scene['enparams']['fs'], scene['enparams']['fe'] = node.fs, node.fe
+        (scene['enparams']['fs'], scene['enparams']['fe']) = (node.fs, node.fe) if node.animated else (scene.frame_current, scene.frame_current)
         locnode = node.inputs['Location in'].links[0].from_node
 
         for frame in range(node.fs, node.fe + 1):
@@ -776,7 +782,7 @@ class NODE_OT_EnSim(bpy.types.Operator):
         self._timer = wm.event_timer_add(1, context.window)
         wm.modal_handler_add(self)
         self.simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        self.simnode.sim()
+        self.simnode.sim(context)
         self.connode = self.simnode.inputs['Context in'].links[0].from_node
         self.simnode.resfilename = os.path.join(scene['viparams']['newdir'], self.simnode.resname+'.eso')
         self.expand = "-x" if scene['viparams'].get('hvactemplate') else ""
@@ -872,7 +878,7 @@ class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         innodes = list(OrderedDict.fromkeys([inputs.links[0].from_node for inputs in node.inputs if inputs.links]))
 
-        if not len(innodes[0]['allresdict'][node.inputs['X-axis'].framemenu]['Hour']):
+        if not len(innodes[0]['resdictnew'][node.inputs['X-axis'].framemenu]['Time']['Hour']):
             self.report({'ERROR'},"There are no results in the results file. Check the results.err file in Blender")
             return {'CANCELLED'}
         if not mp:

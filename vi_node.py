@@ -62,10 +62,8 @@ class ViLoc(bpy.types.Node, ViNodes):
                 self['frames'] = ['0']
                 epwlines = epwfile.readlines()[8:]
                 epwcolumns = list(zip(*[epwline.split(',') for epwline in epwlines]))
-                allresdict['0']['Month'], allresdict['0']['Day'], allresdict['0']['Hour'] = [epwcolumns[c] for c in range(1,4)]
                 resdictnew['0']['Time']['Month'], resdictnew['0']['Time']['Day'], resdictnew['0']['Time']['Hour'] = [' '.join(epwcolumns[c]) for c in range(1,4)]
-                allresdict['0']['dos'] = [int(d/24) + 1 for d in range(len(epwlines))]
-                resdictnew['0']['Time']['dos'] = ' '.join(['{}'.format(int(d/24) + 1) for d in range(len(epwlines))])
+                resdictnew['0']['Time']['DOS'] = ' '.join(['{}'.format(int(d/24) + 1) for d in range(len(epwlines))])
                 for c in {"Temperature ("+ u'\u00b0'+"C)": 6, 'Humidity (%)': 8, "Direct Solar (W/m"+u'\u00b2'+")": 14, "Diffuse Solar (W/m"+u'\u00b2'+")": 15,
                           'Wind Direction (deg)': 20, 'Wind Speed (m/s)': 21}.items():
                     resdict['0'][str(c[1])] = ['Climate', c[0]]
@@ -75,9 +73,7 @@ class ViLoc(bpy.types.Node, ViNodes):
                         resdictnew['0']['AClimate']['Max Temp'] = str(max(tdata))
                         resdictnew['0']['AClimate']['Min Temp'] = str(min(tdata))
                         resdictnew['0']['AClimate']['Ave Temp'] = str(sum(tdata)/len(tdata))
-                    allresdict['0'][str(c[1])] = list(epwcolumns[c[1]])
                     ctypes.append(c[0])
-                self['resdict'], self['allresdict'], self['ctypes'] = resdict, allresdict, ctypes
                 self['resdictnew'] = resdictnew
                 self.outputs['Location out']['epwtext'] = epwfile.read()
             self.outputs['Location out']['valid'] = ['Location', 'Vi Results']
@@ -138,8 +134,6 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
         self['exportstate'] = ''
         self['nodeid'] = nodeid(self)
         self.outputs.new('ViLiG', 'Geometry out')
-        self.outputs['Geometry out']['Text'] = {}
-        self.outputs['Geometry out']['Text'] = {}
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
@@ -161,8 +155,8 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
         socklink(self.outputs['Geometry out'], self['nodeid'].split('@')[1])
 
     def preexport(self, scene):
-        self.outputs['Geometry out']['Text'] = {}
-        self.outputs['Geometry out']['Options'] = {'offset': self.offset, 'fs': (scene.frame_current, self.startframe)[self.animated], 'fe': (scene.frame_current, self.endframe)[self.animated], 'cp': self.cpoint, 'anim': self.animated}
+        self['Text'] = {}
+        self['Options'] = {'offset': self.offset, 'fs': (scene.frame_current, self.startframe)[self.animated], 'fe': (scene.frame_current, self.endframe)[self.animated], 'cp': self.cpoint, 'anim': self.animated}
         
     def postexport(self, scene):
         bpy.data.node_groups[self['nodeid'].split('@')[1]].use_fake_user = 1
@@ -262,7 +256,7 @@ class LiViNode(bpy.types.Node, ViNodes):
         self['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
         self.outputs.new('ViLiC', 'Context out')
         self.inputs.new('ViLoc', 'Location in')
-        self.outputs['Context out']['Text'] = {}
+#        self['Text'] = {}
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
@@ -363,7 +357,7 @@ class LiViNode(bpy.types.Node, ViNodes):
         self['skynum'] = int(self.skymenu)
         self['hours'] = 0 if not self.animated or int(self.skymenu) > 2  else (self.endtime-self.starttime).seconds/3600
         self['epwbase'] = os.path.splitext(os.path.basename(self.inputs['Location in'].links[0].from_node.weather))
-        self.outputs['Context out']['Text'] = {}
+        self['Text'], self['Options'] = {}, {}
         self['watts'] = 1 if self.contextmenu == "CBDM" and self.cbanalysismenu in ('1', '3') else 0
         
     def export(self, scene, export_op):        
@@ -386,20 +380,21 @@ class LiViNode(bpy.types.Node, ViNodes):
                                 sun['VIType'] = 'Sun'
                     if self.hdr:
                         hdrexport(scene, f, frame, self, skytext)
-                    self.outputs['Context out']['Text'][str(frame)] = skytext
+                    self['Text'][str(frame)] = skytext
 
             elif self['skynum'] == 4:
                 if self.hdrname not in bpy.data.images:
                     bpy.data.images.load(self.hdrname)
-                self.outputs['Context out']['Text'][str(scene['liparams']['fs'])] = hdrsky(self.hdrname)
+                self['Text'][str(scene['liparams']['fs'])] = hdrsky(self.hdrname)
+            
             elif self['skynum'] == 5:
                 shutil.copyfile(self.radname, "{}-0.sky".format(scene['viparams']['filebase']))
                 with open(self.radname, 'r') as radfiler:
-                    self.outputs['Context out']['Text'][str(scene['liparams']['fs'])] =  [radfiler.read()]
+                    self['Text'][str(scene['liparams']['fs'])] =  [radfiler.read()]
                     if self.hdr:
                         hdrexport(scene, 0, scene.frame_current, self, radfiler.read())
             elif self['skynum'] == 6:
-                self.outputs['Context out']['Text'][str(scene.frame_current)] = ''
+                self['Text'][str(scene.frame_current)] = ''
         
         elif self.contextmenu == "CBDM":
             if (self.cbanalysismenu in ('0', '1') and self.sourcemenu == '0') or (self.cbanalysismenu in ('2', '3', '4') and self.sourcemenu2 == '0'):
@@ -408,16 +403,16 @@ class LiViNode(bpy.types.Node, ViNodes):
                 self['mtxfile'] = self.mtxname
 
             if self.cbanalysismenu in ('0', '1'):
-                self.outputs['Context out']['Text'][str(scene['liparams']['fs'])] = cbdmhdr(self, scene)
+                self['Text'][str(scene['liparams']['fs'])] = cbdmhdr(self, scene)
             else:
-                self.outputs['Context out']['Text'][str(scene['liparams']['fs'])] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
+                self['Text'][str(scene['liparams']['fs'])] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
 
                 if self.sourcemenu2 == '0':
                     with open("{}.mtx".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'r') as mtxfile:
-                        self.outputs['Context out']['Options']['MTX'] = mtxfile.read()
+                        self['Options']['MTX'] = mtxfile.read()
                 else:
                     with open(self.mtxname, 'r') as mtxfile:
-                        self.outputs['Context out']['Options']['MTX'] = mtxfile.read()
+                        self['Options']['MTX'] = mtxfile.read()
 
         elif self.contextmenu == "Compliance":
             self['skytypeparams'] = ("-b 22.86 -c", "-b 22.86 -c", "+s")[int(self.canalysismenu)]
@@ -428,12 +423,12 @@ class LiViNode(bpy.types.Node, ViNodes):
                     hdrexport(scene, 0, scene.frame_current, self, skyentry)
             else:
                 self.starttime = datetime.datetime(datetime.datetime.now().year, 9, 11, 9)
-            self.outputs['Context out']['Text'][str(scene['liparams']['fs'])] = skyentry
+            self['Text'][str(scene['liparams']['fs'])] = skyentry
     
     def postexport(self):    
         typedict = {'Basic': self.banalysismenu, 'Compliance': self.canalysismenu, 'CBDM': self.cbanalysismenu}
         unitdict = {'Basic': ("Lux", '')[int(self.banalysismenu)], 'Compliance': ('DF (%)', 'DF (%)')[int(self.canalysismenu)], 'CBDM': ('kLuxHours', 'kWh/m'+ u'\u00b2', 'DA (%)', 'kW', 'UDI-a (%)')[int(self.cbanalysismenu)]}
-        self.outputs['Context out']['Options'] = {'Context': self.contextmenu, 'Type': typedict[self.contextmenu], 'fs': self.startframe, 'fe': self['endframe'],
+        self['Options'] = {'Context': self.contextmenu, 'Type': typedict[self.contextmenu], 'fs': self.startframe, 'fe': self['endframe'],
                     'anim': self.animated, 'shour': self.shour, 'sdoy': self.sdoy, 'interval': self.interval, 'bambuild': self.bambuildmenu, 'canalysis': self.canalysismenu, 'storey': self.buildstorey,
                     'cbanalysis': self.cbanalysismenu, 'unit': unitdict[self.contextmenu], 'damin': self.damin, 'dalux': self.dalux, 'dasupp': self.dasupp, 'daauto': self.daauto, 'cbdm_sh': self.cbdm_start_hour, 
                     'cbdm_eh': self.cbdm_end_hour, 'weekdays': (7, 5)[self.weekdays], 'sourcemenu': (self.sourcemenu, self.sourcemenu2)[self.cbanalysismenu not in ('2', '3', '4')],
@@ -510,8 +505,8 @@ class ViLiSNode(bpy.types.Node, ViNodes):
         scene = context.scene
         if self.inputs['Geometry in'].links and self.inputs['Context in'].links:
             row = layout.row()
-            row.label(text = 'Frames: {} - {}'.format(min([c['fs'] for c in (self.inputs['Context in'].links[0].from_socket['Options'], self.inputs['Geometry in'].links[0].from_socket['Options'])]), max([c['fe'] for c in (self.inputs['Context in'].links[0].from_socket['Options'], self.inputs['Geometry in'].links[0].from_socket['Options'])])))
-            cinsock = self.inputs['Context in'].links[0].from_socket
+            row.label(text = 'Frames: {} - {}'.format(min([c['fs'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])]), max([c['fe'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])])))
+            cinnode = self.inputs['Context in'].links[0].from_node
             newrow(layout, 'Photon map:', self, 'pmap')
             if self.pmap:
                newrow(layout, 'Global photons:', self, 'pmapgno')
@@ -519,16 +514,16 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             row = layout.row()
             row.label("Accuracy:")
             
-            row.prop(self, self['simdict'][cinsock['Options']['Context']])
-            if (self.simacc == '3' and cinsock['Options']['Context'] == 'Basic') or (self.csimacc == '0' and cinsock['Options']['Context'] in ('Compliance', 'CBDM')):
+            row.prop(self, self['simdict'][cinnode['Options']['Context']])
+            if (self.simacc == '3' and cinnode['Options']['Context'] == 'Basic') or (self.csimacc == '0' and cinnode['Options']['Context'] in ('Compliance', 'CBDM')):
                newrow(layout, "Radiance parameters:", self, 'cusacc')
-            if self.run and (self['coptions']['Context'] == 'Basic' and cinsock['Options']['Type'] == '1'):
+            if self.run and (self['coptions']['Context'] == 'Basic' and cinnode['Options']['Type'] == '1'):
                 row = layout.row()
                 row.label('Calculating'+(self.run%10 *'-'))
             else:
                 row = layout.row()
                 row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']
-                if cinsock['Options']['Context'] == 'Basic' and cinsock['Options']['Type'] == '1':
+                if cinnode['Options']['Context'] == 'Basic' and cinnode['Options']['Type'] == '1':
                     row.operator("node.liviglare", text = 'Calculate').nodeid = self['nodeid']
                 elif [o.name for o in scene.objects if o.name in scene['liparams']['livic']]:
                     row.operator("node.livicalc", text = 'Calculate').nodeid = self['nodeid']
@@ -539,8 +534,8 @@ class ViLiSNode(bpy.types.Node, ViNodes):
         self.run = 0
     
     def preexport(self):
-        self['coptions'] = self.inputs['Context in'].links[0].from_socket['Options']
-        self['goptions'] = self.inputs['Geometry in'].links[0].from_socket['Options']
+        self['coptions'] = self.inputs['Context in'].links[0].from_node['Options']
+        self['goptions'] = self.inputs['Geometry in'].links[0].from_node['Options']
         self['resdict'], self['allresdict'], self['radfiles'] = {}, {}, {}
         if self['coptions']['Context'] == 'Basic':
             self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rtracebasic], [n[int(self.simacc)+1] for n in self.rtracebasic]))
@@ -808,8 +803,9 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
         if self.outputs.get('Results out'):
             socklink(self.outputs['Results out'], self['nodeid'].split('@')[1])
 
-    def sim(self):
+    def sim(self, context):
         innode = self.inputs['Context in'].links[0].from_node
+        self['frames'] = range(context.scene['enparams']['fs'], context.scene['enparams']['fe'])
         self.dsdoy = innode.sdoy # (locnode.startmonthnode.sdoy
         self.dedoy = innode.edoy
 #        self.dsdoy.min =  self.dsdoy
@@ -987,7 +983,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
         else:
             innode = self.inputs['X-axis'].links[0].from_node
             if len(innode['resdictnew']) == 1 or not self.node.animated:
-                doss = innode['resdictnew'][innode['resdictnew'].keys()[0]]['Time']['dos'].split()
+                doss = innode['resdictnew'][innode['resdictnew'].keys()[0]]['Time']['DOS'].split()
                 startday, endday = int(doss[0]), int(doss[-1])
                 self["_RNA_UI"] = {"Start": {"min":startday, "max":endday}, "End": {"min":startday, "max":endday}}
                 self['Start'], self['End'] = startday, endday
@@ -1005,7 +1001,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 bl_idname = 'ViEnRXIn'
                 bl_label = 'X-axis'
 
-                if innode['rtypes']:
+                if innode['resdictnew']:
                     (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor) = retrmenus(innode, self)
 
         bpy.utils.register_class(ViEnRXIn)
@@ -1364,16 +1360,16 @@ class ViTextEdit(bpy.types.Node, ViNodes):
 
     def update(self):
         if self.inputs and self.inputs['Text in'].links:
-            self.outputs['Text out']['Options'] = self.inputs['Text in'].links[0].from_socket['Options']
-            self.outputs['Text out']['Text'] = self.inputs['Text in'].links[0].from_socket['Text']
+            self['Options'] = self.inputs['Text in'].links[0].from_node['Options']
+            self['Text'] = self.inputs['Text in'].links[0].from_node['Text']
             inodename = self.inputs['Text in'].links[0].from_node.name
-            sframes = sorted([int(frame) for frame in self.inputs['Text in'].links[0].from_socket['Text'].keys()])
-            t = ''.join(['# Frame {}\n{}\n\n'.format(f, self.inputs['Text in'].links[0].from_socket['Text'][str(f)]) for f in sframes])
+            sframes = sorted([int(frame) for frame in self.inputs['Text in'].links[0].from_node['Text'].keys()])
+            t = ''.join(['# Frame {}\n{}\n\n'.format(f, self.inputs['Text in'].links[0].from_node['Text'][str(f)]) for f in sframes])
             bt = bpy.data.texts.new(inodename) if inodename not in [im.name for im in bpy.data.texts] else bpy.data.texts[inodename]
             bt.from_string(t)
             self['bt'] = bt.as_string()
         else:
-            self.outputs['Text out']['Text'] = {}
+            self['Text'] = {}
 
     def textupdate(self, bt):
         inodename = self.inputs['Text in'].links[0].from_node.name
@@ -1384,7 +1380,7 @@ class ViTextEdit(bpy.types.Node, ViNodes):
         btstring = ''.join([self['bt'].replace(bth, '***') for bth in btheads])
         btbodies = btstring.split('***\n')[1:]
         btframes = [head.split()[2] for head in btheads]
-        self.outputs['Text out']['Text'] = {bthb[0]:bthb[1] for bthb in zip(btframes, btbodies)}
+        self['Text'] = {bthb[0]:bthb[1] for bthb in zip(btframes, btbodies)}
 
 class ViTextExport(bpy.types.Node, ViNodes):
     '''Text Export Node'''

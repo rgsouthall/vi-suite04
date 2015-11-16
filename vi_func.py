@@ -33,7 +33,12 @@ def cmap(cm):
 
 def radmat(self, scene):
     radname = self.name.replace(" ", "_") 
-    radentry = '# ' + ('plastic', 'glass', 'dielectric', 'translucent', 'mirror', 'light', 'metal', 'antimatter')[int(self.radmatmenu)] + ' material\n' + \
+    bsdfxml = os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.name)) if self.radmatmenu == '8' else ''
+    if self.radmatmenu == '8':
+        self['bsdf'] = {}
+        with open(bsdfxml, 'w') as bsdffile:
+            bsdffile.write(self['bsdf']['xml'].decode())
+    radentry = '# ' + ('plastic', 'glass', 'dielectric', 'translucent', 'mirror', 'light', 'metal', 'antimatter', 'BSDF')[int(self.radmatmenu)] + ' material\n' + \
             '{} {} {}\n'.format('void', ('plastic', 'glass', 'dielectric', 'trans', 'mirror', 'light', 'metal', 'antimatter')[int(self.radmatmenu)], radname) + \
            {'0': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough), 
             '1': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(self.radcolour), 
@@ -42,7 +47,8 @@ def radmat(self, scene):
             '4': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(self.radcolour),
             '5': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format([c * self.radintensity for c in self.radcolour]), 
             '6': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough), 
-            '7': '1 void\n0\n0\n'}[self.radmatmenu] + '\n'
+            '7': '1 void\n0\n0\n',
+            '8': '6 0 {} 0 0 1 .'.format(bsdfxml)}[self.radmatmenu] + '\n'
 
     self['radentry'] = radentry
     return(radentry)
@@ -1097,38 +1103,53 @@ def retmenu(dnode, axis, mtype):
         return [dnode.inputs[axis].linkmenu, dnode.inputs[axis].linkrmenu]
     elif mtype == 'External node':
         return [dnode.inputs[axis].enmenu, dnode.inputs[axis].enrmenu]
+        
+def retdata(dnode, axis, mtype, resdict, frame):
+    if mtype == 'Climate':
+        return resdict[frame][mtype][dnode.inputs[axis].climmenu]
+    if mtype == 'Zone':
+        return resdict[frame][mtype][dnode.inputs[axis].zonemenu][dnode.inputs[axis].zonermenu]
+    elif mtype == 'Linkage':
+        return resdict[frame][mtype][dnode.inputs[axis].linkmenu][dnode.inputs[axis].linkrmenu]
+    elif mtype == 'External node':
+        return resdict[frame][mtype][dnode.inputs[axis].enmenu][dnode.inputs[axis].enrmenu]
 
 def retrmenus(innode, node): 
     ftype = [(frame, frame, "Plot "+frame) for frame in innode['resdictnew'].keys()]
     frame = innode['resdictnew'].keys()[0]
+
     if not node.animated or len(innode['resdictnew']) == 1:
         rtype = [(restype, restype, "Plot "+restype) for restype in innode['resdictnew'][frame].keys() if restype in ('Time', 'Climate', 'Zone', 'Linkage')]
         if 'Climate' in innode['resdictnew'][frame].keys():
             ctype = [(clim, clim, "Plot " + clim) for clim in innode['resdictnew'][frame]['Climate'].keys()]
         if 'Zone' in innode['resdictnew'][frame].keys():
             ztype = [(zone, zone, "Plot " + zone) for zone in innode['resdictnew'][frame]['Zone'].keys()]
+            zrtype = [(zone, zone, "Plot " + zone) for zone in innode['resdictnew'][frame]['Zone'][innode['resdictnew'][frame]['Zone'].keys()[0]].keys()] if ztype else []
+        if 'Linkage' in innode['resdictnew'][frame].keys():
+            ltype = [(zone, zone, "Plot " + zone) for zone in innode['resdictnew'][frame]['Linkage'].keys()]
+            lrtype = [(zone, zone, "Plot " + zone) for zone in innode['resdictnew'][frame]['Linkage'][innode['resdictnew'][frame]['Linkage'].keys()[0]].keys()] if ltype else []
+        if 'External' in innode['resdictnew'][frame].keys():
+            entype = [(zone, zone, "Plot " + zone) for zone in innode['resdictnew'][frame]['External'].keys()]
+            enrtype = [(zone, zone, "Plot " + zone) for zone in innode['resdictnew'][frame]['External'][innode['resdictnew'][frame]['External'].keys()[0]].keys()] if entype else []
+
     else:
         rtype = [(restype, restype, "Plot "+restype) for restype in innode['resdictnew'][frame].keys() if restype in ('Frames', 'AClimate', 'AZone', 'ALinkage')]
         if 'AClimate' in innode['resdictnew'][frame].keys():
             ctype = [(clim, clim, "Plot "+clim) for clim in innode['resdictnew'][frame]['AClimate'].keys()]
         if 'AZone' in innode['resdictnew'][frame].keys():
             ztype = [(zone, zone, "Plot "+zone) for zone in innode['resdictnew'][frame]['Zone'].keys()]
-    zrtype = [(zoner, zoner, "Plot "+zoner) for zoner in innode['zrtypes']]
-    ltype = [(link, link, "Plot "+link) for link in innode['ltypes']]
-    lrtype = [(linkr, linkr, "Plot "+linkr) for linkr in innode['lrtypes']]
-    entype = [(en, en, "Plot "+en) for en in innode['entypes']]
-    enrtype = [(enr, enr, "Plot "+enr) for enr in innode['enrtypes']]
+
     fmenu = bpy.props.EnumProperty(items=ftype, name="", description="Frame number", default = ftype[0][0])
     rtypemenu = bpy.props.EnumProperty(items=rtype, name="", description="Result types", default = rtype[0][0])
     statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
     valid = ['Vi Results']    
-    climmenu = bpy.props.EnumProperty(items=ctype, name="", description="Climate type", default = ctype[0][0]) if 'Climate' in innode['resdictnew'][frame] else ''     
-    zonemenu = bpy.props.EnumProperty(items=ztype, name="", description="Zone", default = ztype[0][0]) if 'Zone' in innode['rtypes'] else ''
-    zonermenu = bpy.props.EnumProperty(items=zrtype, name="", description="Zone result", default = zrtype[0][0])  if 'Zone' in innode['rtypes'] else ''
-    linkmenu = bpy.props.EnumProperty(items=ltype, name="", description="Flow linkage result", default = ltype[0][0]) if 'Linkage' in innode['rtypes'] else ''
-    linkrmenu = bpy.props.EnumProperty(items=lrtype, name="", description="Flow linkage result", default = lrtype[0][0]) if 'Linkage' in innode['rtypes'] else ''
-    enmenu = bpy.props.EnumProperty(items=entype, name="", description="External node result", default = entype[0][0]) if 'External node' in innode['rtypes'] else ''
-    enrmenu = bpy.props.EnumProperty(items=enrtype, name="", description="External node result", default = enrtype[0][0]) if 'External node' in innode['rtypes'] else ''
+    climmenu = bpy.props.EnumProperty(items=ctype, name="", description="Climate type", default = ctype[0][0]) if ctype else ''     
+    zonemenu = bpy.props.EnumProperty(items=ztype, name="", description="Zone", default = ztype[0][0]) if ztype else ''
+    zonermenu = bpy.props.EnumProperty(items=zrtype, name="", description="Zone result", default = zrtype[0][0])  if ztype else ''
+    linkmenu = bpy.props.EnumProperty(items=ltype, name="", description="Flow linkage result", default = ltype[0][0]) if ltype else ''
+    linkrmenu = bpy.props.EnumProperty(items=lrtype, name="", description="Flow linkage result", default = lrtype[0][0]) if ltype else ''
+    enmenu = bpy.props.EnumProperty(items=entype, name="", description="External node result", default = entype[0][0]) if entype else ''
+    enrmenu = bpy.props.EnumProperty(items=enrtype, name="", description="External node result", default = enrtype[0][0]) if entype else ''
     multfactor = bpy.props.FloatProperty(name = "", description = "Result multiplication factor", min = 0.0001, max = 10000, default = 1)
     
     return (valid, fmenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor)
@@ -1156,7 +1177,8 @@ def processh(lines):
                 'Zone Thermal Comfort Fanger Model PMV [] !Hourly' :'PMV',               
                 'AFN Node CO2 Concentration [ppm] !Hourly': 'CO2 (ppm)',
                 'Zone Air CO2 Concentration [ppm] !Hourly': 'CO2 (ppm)',
-                'Zone Mean Radiant Temperature [C] !Hourly': 'MRT', 'Zone People Occupant Count [] !Hourly': 'Occupancy', 
+                'Zone Mean Radiant Temperature [C] !Hourly': 'MRT', 
+                'Zone People Occupant Count [] !Hourly': 'Occupancy', 
                 'Zone Air Heat Balance Surface Convection Rate [W] !Hourly': 'Heat balance (W)'}
     enresdict = {'AFN Node CO2 Concentration [ppm] !Hourly': 'CO2'}
     lresdict = {'AFN Linkage Node 1 to Node 2 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow out',
@@ -1164,176 +1186,212 @@ def processh(lines):
                 'AFN Surface Venting Window or Door Opening Factor [] !Hourly': 'Opening Factor'}
     hdict = {}
     
-    for line in lines:
+    for l, line in enumerate(lines):
         linesplit = line.strip('\n').split(',')
-        while len(linesplit) > 1:
+        if len(linesplit) > 3:
             if linesplit[2] == 'Day of Simulation[]':
-                hdict['Time'] = linesplit[0]
-            if linesplit[2] == 'Environment':
-                hdict[linesplit[3]] = linesplit[0]
-            if linesplit[3] in zresdict:
-                hdict['{},{}'.format(linesplit[2],linesplit[3])] = linesplit[0]
-            if linesplit[3] in enresdict:
-                hdict['{},{}'.format(linesplit[2],linesplit[3])] = linesplit[0]
-            if linesplit[3] in lresdict:
-                hdict['{},{}'.format(linesplit[2],linesplit[3])] = linesplit[0]
-    print(hdict)
+                hdict[linesplit[0]] = ['Time'] 
+            elif linesplit[3] in envdict:
+                hdict[linesplit[0]] = ['Climate',  envdict[linesplit[3]]]  
+            elif linesplit[3] in zresdict:
+                hdict[linesplit[0]] = ['Zone',  retzonename(linesplit[2]),  zresdict[linesplit[3]]]
+            elif linesplit[3] in enresdict:
+                hdict[linesplit[0]] = ['External',  linesplit[2],  enresdict[linesplit[3]]]
+            elif linesplit[3] in lresdict:
+                hdict[linesplit[0]] = ['Linkage',  linesplit[2],  lresdict[linesplit[3]]]
+        if line.strip('\n') == 'End of Data Dictionary':
+            break
+    return hdict,  l + 1
+    
+def retzonename(zn):
+    if  zn[-10:] == '_OCCUPANCY':
+        return zn.strip('_OCCUPANCY')
+    elif zn[-4:] == '_AIR':
+        return zn.strip('_AIR')
+    else:
+        return zn
         
 def processf(pro_op, scene, node):
-
-
     resdictnew, objlist = {}, []
     frames = range(scene['enparams']['fs'], scene['enparams']['fe'] + 1)
     if len(frames) > 1:
         resdictnew['All'] = {}
     for frame in frames:
-#        ctypes, ztypes, zrtypes, ltypes, lrtypes, entypes, enrtypes = [], [], [], [], [], [], []
         with open(os.path.join(scene['viparams']['newdir'], '{}{}out.eso'.format(pro_op.resname, frame)), 'r') as resfile:
             lines = resfile.readlines()
-            processh(lines)
+            hdict, lstart = processh(lines)
             resdictnew[str(frame)] = {}
-            resdictnew[str(frame)]['Time'] = {}
-            intro = 1    
-            for line in lines:
-                linesplit = line.strip('\n').split(',')
-                if intro:
-                    if len(linesplit) == 1:
-                        intro = 0
-                    elif linesplit[1] == '1' and '!Hourly' in linesplit[-1]:
-                        if linesplit[3] in zresdict and linesplit[2][-10:] == '_OCCUPANCY' and linesplit[2].strip('_OCCUPANCY') not in objlist and 'ExtNode' not in linesplit[2]:
-                            objlist.append(linesplit[2].strip('_OCCUPANCY'))
-                        elif linesplit[3] in zresdict and linesplit[2][-4:] == '_AIR' and linesplit[2].strip('_AIR') not in objlist and 'ExtNode' not in linesplit[2]:
-                            objlist.append(linesplit[2].strip('_AIR'))
-                        elif 'IDEAL LOADS AIR SYSTEM' in linesplit[2]:
-                            if linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip() not in objlist:                                
-                                objlist.append(linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip())
-                        elif linesplit[3] in zresdict and linesplit[2] not in objlist and 'ExtNode' not in linesplit[2]:
-                            objlist.append(linesplit[2])
-                        resdictnew[str(frame)][linesplit[0]] = {}
-                elif not intro and len(linesplit) == 2:
-                    resdictnew[str(frame)][linesplit[0]].append(float(linesplit[1]))
-                
-#                if linesplit[0] in resdictnew[str(frame)]:
-#                    if linesplit[0] == dos:
-                resdictnew[str(frame)]['Time']['Month'] = ' '.join([line.strip('\n').split(',')[2] for line in reslines if line.strip('\n').split(',')[0] == dos])
-                resdictnew[str(frame)]['Time']['Day'] = ' '.join([line.strip('\n').split(',')[3] for line in reslines if line.strip('\n').split(',')[0] == dos])
-                resdictnew[str(frame)]['Time']['Hour'] = ' '.join([line.strip('\n').split(',')[5] for line in reslines if line.strip('\n').split(',')[0] == dos])
-                resdictnew[str(frame)]['Time']['DOS'] = ' '.join([line.strip('\n').split(',')[1] for line in reslines if line.strip('\n').split(',')[0] == dos])
-                            
-#                elif len(linesplit) > 3 and linesplit[2] == 'Day of Simulation[]':
-#                    resdictnew[str(frame)]['Time']['DOS']], resdict[str(frame)]['Time']['Month'], allresdict[str(frame)]['Time']['Day'], allresdict[str(frame)]['Time']['Hour'], dos = ['Day of Simulation'], [], [], [], [], linesplit[0]
+            resdictnew[str(frame)]['Climate'] = {}
+            resdictnew[str(frame)]['External'] = {}
+            resdictnew[str(frame)]['Zone'] = {}
+            resdictnew[str(frame)]['Linkage'] = {}            
+            bodylines = lines[lstart:-2]            
+            bdict = {li: ' '.join([line.strip('\n').split(',')[1] for line in bodylines if line.strip('\n').split(',')[0] == li]) for li in hdict}
+            resdictnew[str(frame)]['Time'] = {}   
+            resdictnew[str(frame)]['Time']['Month'] = ' '.join([line.strip('\n').split(',')[2] for line in bodylines if line.strip('\n').split(',')[0] in hdict and hdict[line.strip('\n').split(',')[0]] == ['Time']]) 
+            resdictnew[str(frame)]['Time']['Day'] = ' '.join([line.strip('\n').split(',')[3] for line in bodylines if line.strip('\n').split(',')[0] in hdict and hdict[line.strip('\n').split(',')[0]] == ['Time']])
+            resdictnew[str(frame)]['Time']['Hour'] = ' '.join([line.strip('\n').split(',')[5] for line in bodylines if line.strip('\n').split(',')[0] in hdict and hdict[line.strip('\n').split(',')[0]] == ['Time']])
+            resdictnew[str(frame)]['Time']['DOS'] = ' '.join([line.strip('\n').split(',')[1] for line in bodylines if line.strip('\n').split(',')[0] in hdict and hdict[line.strip('\n').split(',')[0]] == ['Time']])            
 
-                elif len(linesplit) > 3 and linesplit[2] == 'Environment':
-                    if 'Climate' not in node['rtypes']:
-                        node['rtypes']+= ['Climate']
-                    try:
-                        resdict[str(frame)][linesplit[0]] = ['Climate', envdict[linesplit[3]]]
-                        ctypes.append(envdict[linesplit[3]])
-                    except Exception as e:
-                        print(e)
-        
-                elif len(linesplit) > 3 and linesplit[2][-10:] == '_OCCUPANCY' and linesplit[2][:-10] in objlist:
-                    if 'Zone' not in node['rtypes']:
-                       node['rtypes'] += ['Zone']
-                    try:
-                        resdict[str(frame)][linesplit[0]] = [linesplit[2][:-10], zresdict[linesplit[3]]]
-                        if linesplit[2][:-10] not in ztypes:
-                            ztypes.append(linesplit[2][:-10])
-                        if zresdict[linesplit[3]] not in zrtypes:
-                            zrtypes.append(zresdict[linesplit[3]])
-                    except Exception as e:
-                        print(e)
-                
-                elif len(linesplit) > 3 and linesplit[2][-4:] == '_AIR' and linesplit[2][:-4] in objlist:
-                    if 'Zone' not in node['rtypes']:
-                       node['rtypes'] += ['Zone']
-                    try:
-                        resdict[str(frame)][linesplit[0]] = [linesplit[2][:-4], zresdict[linesplit[3]]]
-                        if linesplit[2][:-4] not in ztypes:
-                            ztypes.append(linesplit[2][:-4])
-                        if zresdict[linesplit[3]] not in zrtypes:
-                            zrtypes.append(zresdict[linesplit[3]])
-                    except Exception as e:
-                        print(e)
-                    
-                elif len(linesplit) > 3 and 'IDEAL LOADS AIR SYSTEM' in linesplit[2] and linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip() in objlist:
-                    if 'Zone' not in node['rtypes']:
-                       node['rtypes'] += ['Zone']
-                    try:
-                        resdict[str(frame)][linesplit[0]] = [linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip(), zresdict[linesplit[3]]]
-                        if linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip() not in ztypes:
-                            ztypes.append(linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip())
-                        if zresdict[linesplit[3]] not in zrtypes:
-                            zrtypes.append(zresdict[linesplit[3]])
-                    except Exception as e:
-                        print(e)
-                
-                elif len(linesplit) > 3 and linesplit[2] in objlist:
-                    if 'Zone' not in node['rtypes']:
-                       node['rtypes'] += ['Zone']
-                    try:
-                        resdict[str(frame)][linesplit[0]] = [linesplit[2], zresdict[linesplit[3]]]
-                        if linesplit[2] not in ztypes:
-                            ztypes.append(linesplit[2])
-                        if zresdict[linesplit[3]] not in zrtypes:
-                            zrtypes.append(zresdict[linesplit[3]])
-                    except Exception as e:
-                        print(e)
-                
-                elif len(linesplit) > 3 and linesplit[3] in lresdict:
-                    if 'Linkage' not in node['rtypes']:
-                       node['rtypes'] += ['Linkage']
-                    try:
-                        resdict[str(frame)][linesplit[0]] = [linesplit[2], lresdict[linesplit[3]]]
-                        if linesplit[2] not in ltypes:
-                            ltypes.append(linesplit[2])
-                        if lresdict[linesplit[3]] not in lrtypes:
-                            lrtypes.append(lresdict[linesplit[3]])
-                    except Exception as e:
-                        print(e)
-                
-                elif len(linesplit) > 3 and linesplit[3] in enresdict:
-                    if 'External node' not in node['rtypes']:
-                       node['rtypes'] += ['External node']
-                    try:
-                        resdict[str(frame)][linesplit[0]] = [linesplit[2], enresdict[linesplit[3]]]
-                        if linesplit[2] not in entypes:
-                            entypes.append(linesplit[2])
-                        if enresdict[linesplit[3]] not in enrtypes:
-                            enrtypes.append(enresdict[linesplit[3]])
-                    except Exception as e:
-                        print('ext', e)
+            for hd in hdict:
+                if hdict[hd][0] == 'Climate':
+                    resdictnew[str(frame)][hdict[hd][0]][hdict[hd][1]] = bdict[hd]
+                if hdict[hd][0] == 'Zone':
+#                    zonename = retzonename(resdictnew[str(frame)][hdict[hd][1]])
+                    if hdict[hd][1] not in resdictnew[str(frame)][hdict[hd][0]]:
+                        resdictnew[str(frame)][hdict[hd][0]][hdict[hd][1]] = {}
+                    resdictnew[str(frame)][hdict[hd][0]][hdict[hd][1]][hdict[hd][2]] = bdict[hd]
+                if hdict[hd][0] == 'External':
+                    if hdict[hd][1] not in resdictnew[str(frame)][hdict[hd][0]]:
+                        resdictnew[str(frame)][hdict[hd][0]][hdict[hd][1]] = {}
+                    resdictnew[str(frame)][hdict[hd][0]][hdict[hd][1]][hdict[hd][2]] = bdict[hd]
+                if hdict[hd][0] == 'Linkage':
+                    if hdict[hd][1] not in resdictnew[str(frame)][hdict[hd][0]]:
+                        resdictnew[str(frame)][hdict[hd][0]][hdict[hd][1]] = {}
+                    resdictnew[str(frame)][hdict[hd][0]][hdict[hd][1]][hdict[hd][2]] = bdict[hd]
 
-        for o in bpy.data.objects:
-            if 'EN_'+o.name.upper() in objlist:
-                o['enviresults'][str(frame)] = {}
-        for zres in resdict[str(frame)].items():
-            for o in bpy.data.objects:
-                if ['EN_'+o.name.upper(), 'Zone air heating (W)'] == zres[1]:            
-                    o['enviresults'][str(frame)]['Zone air heating (kWh)'] = sum(allresdict[str(frame)][zres[0]])*0.001
-                    if len(frames) > 1:
-                        if frame == frames[0]:
-                            allresdict['All']['EN_'+o.name.upper()+'_h'] = []
-                            allresdict['All']['EN_'+o.name.upper()+'_hm'] = []
-                        resdict['All']['EN_'+o.name.upper()+'_h'] = ['EN_'+o.name.upper(), 'Annual Heating (kWh)']
-                        resdict['All']['EN_'+o.name.upper()+'_hm'] = ['EN_'+o.name.upper(), 'Annual Heating (kWh/m2)']
-                        allresdict['All']['EN_'+o.name.upper()+'_h'].append(sum(allresdict[str(frame)][zres[0]])*0.001)
-                        allresdict['All']['EN_'+o.name.upper()+'_hm'].append(sum(allresdict[str(frame)][zres[0]])*0.001/o['floorarea'])
-                    
-                elif ['EN_'+o.name.upper(), 'Zone air cooling (W)'] == zres[1]:            
-                    o['enviresults'][str(frame)]['Zone air cooling (kWh)'] = sum(allresdict[str(frame)][zres[0]])*0.001        
-                    if len(frames) > 1:
-                        if frame == frames[0]:
-                            allresdict['All']['EN_'+o.name.upper()+'_c'] = []
-                            allresdict['All']['EN_'+o.name.upper()+'_cm'] = []
-                        resdict['All']['EN_'+o.name.upper()+'_c'] = ['EN_'+o.name.upper(), 'Annual Heating (kWh)']
-                        resdict['All']['EN_'+o.name.upper()+'_cm'] = ['EN_'+o.name.upper(), 'Annual Heating (kWh/m2)']
-                        allresdict['All']['EN_'+o.name.upper()+'_c'].append(sum(allresdict[str(frame)][zres[0]])*0.001)
-                        allresdict['All']['EN_'+o.name.upper()+'_cm'].append(sum(allresdict[str(frame)][zres[0]])*0.001/o['floorarea'])
-    node.dsdoy = datetime.datetime(datetime.datetime.now().year, allresdict[str(frame)]['Month'][0], allresdict[str(frame)]['Day'][0]).timetuple().tm_yday
-    node.dedoy = datetime.datetime(datetime.datetime.now().year, allresdict[str(frame)]['Month'][-1], allresdict[str(frame)]['Day'][-1]).timetuple().tm_yday
-    node['frames'], node['dos'], node['resdict'], node['ctypes'], node['ztypes'], node['zrtypes'], node['ltypes'], node['lrtypes'], node['entypes'], node['enrtypes'] = ['All'] + [str(frame) for frame in frames], dos, resdict, ctypes, ztypes, zrtypes, ltypes, lrtypes, entypes, enrtypes
-    node['allresdict'] = allresdict
+#            for line in lines[lstart:]:
+#                linesplit = line.strip('\n').split(',')
+#                if hdict[linesplit[0]][0]  == ['Time']
+#                if intro:
+#                    if len(linesplit) == 1:
+#                        intro = 0
+#                    elif linesplit[1] == '1' and '!Hourly' in linesplit[-1]:
+#                        if linesplit[3] in zresdict and linesplit[2][-10:] == '_OCCUPANCY' and linesplit[2].strip('_OCCUPANCY') not in objlist and 'ExtNode' not in linesplit[2]:
+#                            objlist.append(linesplit[2].strip('_OCCUPANCY'))
+#                        elif linesplit[3] in zresdict and linesplit[2][-4:] == '_AIR' and linesplit[2].strip('_AIR') not in objlist and 'ExtNode' not in linesplit[2]:
+#                            objlist.append(linesplit[2].strip('_AIR'))
+#                        elif 'IDEAL LOADS AIR SYSTEM' in linesplit[2]:
+#                            if linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip() not in objlist:                                
+#                                objlist.append(linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip())
+#                        elif linesplit[3] in zresdict and linesplit[2] not in objlist and 'ExtNode' not in linesplit[2]:
+#                            objlist.append(linesplit[2])
+#                        resdictnew[str(frame)][linesplit[0]] = {}
+#                elif not intro and len(linesplit) == 2:
+#                    resdictnew[str(frame)][linesplit[0]].append(float(linesplit[1]))
+#                
+##                if linesplit[0] in resdictnew[str(frame)]:
+##                    if linesplit[0] == dos:
+#                resdictnew[str(frame)]['Time']['Month'] = ' '.join([line.strip('\n').split(',')[2] for line in reslines if line.strip('\n').split(',')[0] == dos])
+#                resdictnew[str(frame)]['Time']['Day'] = ' '.join([line.strip('\n').split(',')[3] for line in reslines if line.strip('\n').split(',')[0] == dos])
+#                resdictnew[str(frame)]['Time']['Hour'] = ' '.join([line.strip('\n').split(',')[5] for line in reslines if line.strip('\n').split(',')[0] == dos])
+#                resdictnew[str(frame)]['Time']['DOS'] = ' '.join([line.strip('\n').split(',')[1] for line in reslines if line.strip('\n').split(',')[0] == dos])
+#                            
+##                elif len(linesplit) > 3 and linesplit[2] == 'Day of Simulation[]':
+##                    resdictnew[str(frame)]['Time']['DOS']], resdict[str(frame)]['Time']['Month'], allresdict[str(frame)]['Time']['Day'], allresdict[str(frame)]['Time']['Hour'], dos = ['Day of Simulation'], [], [], [], [], linesplit[0]
+#
+#                elif len(linesplit) > 3 and linesplit[2] == 'Environment':
+#                    if 'Climate' not in node['rtypes']:
+#                        node['rtypes']+= ['Climate']
+#                    try:
+#                        resdict[str(frame)][linesplit[0]] = ['Climate', envdict[linesplit[3]]]
+#                        ctypes.append(envdict[linesplit[3]])
+#                    except Exception as e:
+#                        print(e)
+#        
+#                elif len(linesplit) > 3 and linesplit[2][-10:] == '_OCCUPANCY' and linesplit[2][:-10] in objlist:
+#                    if 'Zone' not in node['rtypes']:
+#                       node['rtypes'] += ['Zone']
+#                    try:
+#                        resdict[str(frame)][linesplit[0]] = [linesplit[2][:-10], zresdict[linesplit[3]]]
+#                        if linesplit[2][:-10] not in ztypes:
+#                            ztypes.append(linesplit[2][:-10])
+#                        if zresdict[linesplit[3]] not in zrtypes:
+#                            zrtypes.append(zresdict[linesplit[3]])
+#                    except Exception as e:
+#                        print(e)
+#                
+#                elif len(linesplit) > 3 and linesplit[2][-4:] == '_AIR' and linesplit[2][:-4] in objlist:
+#                    if 'Zone' not in node['rtypes']:
+#                       node['rtypes'] += ['Zone']
+#                    try:
+#                        resdict[str(frame)][linesplit[0]] = [linesplit[2][:-4], zresdict[linesplit[3]]]
+#                        if linesplit[2][:-4] not in ztypes:
+#                            ztypes.append(linesplit[2][:-4])
+#                        if zresdict[linesplit[3]] not in zrtypes:
+#                            zrtypes.append(zresdict[linesplit[3]])
+#                    except Exception as e:
+#                        print(e)
+#                    
+#                elif len(linesplit) > 3 and 'IDEAL LOADS AIR SYSTEM' in linesplit[2] and linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip() in objlist:
+#                    if 'Zone' not in node['rtypes']:
+#                       node['rtypes'] += ['Zone']
+#                    try:
+#                        resdict[str(frame)][linesplit[0]] = [linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip(), zresdict[linesplit[3]]]
+#                        if linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip() not in ztypes:
+#                            ztypes.append(linesplit[2].split('IDEAL LOADS AIR SYSTEM')[0].strip())
+#                        if zresdict[linesplit[3]] not in zrtypes:
+#                            zrtypes.append(zresdict[linesplit[3]])
+#                    except Exception as e:
+#                        print(e)
+#                
+#                elif len(linesplit) > 3 and linesplit[2] in objlist:
+#                    if 'Zone' not in node['rtypes']:
+#                       node['rtypes'] += ['Zone']
+#                    try:
+#                        resdict[str(frame)][linesplit[0]] = [linesplit[2], zresdict[linesplit[3]]]
+#                        if linesplit[2] not in ztypes:
+#                            ztypes.append(linesplit[2])
+#                        if zresdict[linesplit[3]] not in zrtypes:
+#                            zrtypes.append(zresdict[linesplit[3]])
+#                    except Exception as e:
+#                        print(e)
+#                
+#                elif len(linesplit) > 3 and linesplit[3] in lresdict:
+#                    if 'Linkage' not in node['rtypes']:
+#                       node['rtypes'] += ['Linkage']
+#                    try:
+#                        resdict[str(frame)][linesplit[0]] = [linesplit[2], lresdict[linesplit[3]]]
+#                        if linesplit[2] not in ltypes:
+#                            ltypes.append(linesplit[2])
+#                        if lresdict[linesplit[3]] not in lrtypes:
+#                            lrtypes.append(lresdict[linesplit[3]])
+#                    except Exception as e:
+#                        print(e)
+#                
+#                elif len(linesplit) > 3 and linesplit[3] in enresdict:
+#                    if 'External node' not in node['rtypes']:
+#                       node['rtypes'] += ['External node']
+#                    try:
+#                        resdict[str(frame)][linesplit[0]] = [linesplit[2], enresdict[linesplit[3]]]
+#                        if linesplit[2] not in entypes:
+#                            entypes.append(linesplit[2])
+#                        if enresdict[linesplit[3]] not in enrtypes:
+#                            enrtypes.append(enresdict[linesplit[3]])
+#                    except Exception as e:
+#                        print('ext', e)
+#
+#        for o in bpy.data.objects:
+#            if 'EN_'+o.name.upper() in objlist:
+#                o['enviresults'][str(frame)] = {}
+#        for zres in resdict[str(frame)].items():
+#            for o in bpy.data.objects:
+#                if ['EN_'+o.name.upper(), 'Zone air heating (W)'] == zres[1]:            
+#                    o['enviresults'][str(frame)]['Zone air heating (kWh)'] = sum(allresdict[str(frame)][zres[0]])*0.001
+#                    if len(frames) > 1:
+#                        if frame == frames[0]:
+#                            allresdict['All']['EN_'+o.name.upper()+'_h'] = []
+#                            allresdict['All']['EN_'+o.name.upper()+'_hm'] = []
+#                        resdict['All']['EN_'+o.name.upper()+'_h'] = ['EN_'+o.name.upper(), 'Annual Heating (kWh)']
+#                        resdict['All']['EN_'+o.name.upper()+'_hm'] = ['EN_'+o.name.upper(), 'Annual Heating (kWh/m2)']
+#                        allresdict['All']['EN_'+o.name.upper()+'_h'].append(sum(allresdict[str(frame)][zres[0]])*0.001)
+#                        allresdict['All']['EN_'+o.name.upper()+'_hm'].append(sum(allresdict[str(frame)][zres[0]])*0.001/o['floorarea'])
+#                    
+#                elif ['EN_'+o.name.upper(), 'Zone air cooling (W)'] == zres[1]:            
+#                    o['enviresults'][str(frame)]['Zone air cooling (kWh)'] = sum(allresdict[str(frame)][zres[0]])*0.001        
+#                    if len(frames) > 1:
+#                        if frame == frames[0]:
+#                            allresdict['All']['EN_'+o.name.upper()+'_c'] = []
+#                            allresdict['All']['EN_'+o.name.upper()+'_cm'] = []
+#                        resdict['All']['EN_'+o.name.upper()+'_c'] = ['EN_'+o.name.upper(), 'Annual Heating (kWh)']
+#                        resdict['All']['EN_'+o.name.upper()+'_cm'] = ['EN_'+o.name.upper(), 'Annual Heating (kWh/m2)']
+#                        allresdict['All']['EN_'+o.name.upper()+'_c'].append(sum(allresdict[str(frame)][zres[0]])*0.001)
+#                        allresdict['All']['EN_'+o.name.upper()+'_cm'].append(sum(allresdict[str(frame)][zres[0]])*0.001/o['floorarea'])
+    node['resdictnew'] = resdictnew
+#    node.dsdoy = datetime.datetime(datetime.datetime.now().year, resdictnew[str(frame)]['Time']['Month'][0], resdictnew[str(frame)]['Time']['Day'][0]).timetuple().tm_yday
+#    node.dedoy = datetime.datetime(datetime.datetime.now().year, resdictnew[str(frame)]['Time']['Month'][-1], resdictnew[str(frame)]['Time']['Day'][-1]).timetuple().tm_yday
+#    node['frames'], node['dos'], node['resdict'], node['ctypes'], node['ztypes'], node['zrtypes'], node['ltypes'], node['lrtypes'], node['entypes'], node['enrtypes'] = ['All'] + [str(frame) for frame in frames], dos, resdict, ctypes, ztypes, zrtypes, ltypes, lrtypes, entypes, enrtypes
+    
     if node.outputs['Results out'].links:
        node.outputs['Results out'].links[0].to_node.update() 
 

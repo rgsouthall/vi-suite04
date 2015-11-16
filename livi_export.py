@@ -76,9 +76,9 @@ def radgexport(export_op, node, **kwargs):
                     bsdfxml = os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}-{}.xml'.format(o.name, frame))
                     with open(bsdfxml, 'w') as bsdffile:
                         bsdffile.write(o['bsdf']['xml'].decode())
-                    gradfile += 'void BSDF {0}\n16 0 {1} {4} . -rx {2[0]} -ry {2[1]} -rz {2[2]} -t {3[0]} {3[1]} {3[2]}\n0\n0\n\n'.format(o.name, bsdfxml, [r*180/math.pi for r in o.rotation_euler], o.location, o['bsdf']['normal'])    
-
-                else:
+                    gradfile += 'void BSDF {0}\n16 0 {1} {4} . -rx {2[0]} -ry {2[1]} -rz {2[2]} -t {3[0]} {3[1]} {3[2]}\n0\n0\n\n'.format(o.name.replace(" ", "_"), bsdfxml, [r*180/math.pi for r in o['bsdf']['rotation']], o.location, o['bsdf']['normal'])    
+                    face = [face for face in o.data.polygons if face.select][0]
+                    gradfile += "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(o.name.replace(" ", "_"), o.name.replace(" ", "_"), face.index, 3*len(face.verts)) + ''.join([" {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n".format(o.matrix_world*o.data.vertices[v].co) for v in face.vertices]) + '\n'
                     if not o.get('merr'):
                         try:
                             bpy.ops.export_scene.obj(filepath=os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(o.name.replace(" ", "_"), frame)), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
@@ -127,7 +127,7 @@ def radgexport(export_op, node, **kwargs):
                 export_op.report({'ERROR'}, 'The IES file associated with {} cannot be found'.format(o.name))
 
         sradfile = "# Sky \n\n"
-        node.outputs['Geometry out']['Text'][str(frame)] = mradfile+gradfile+lradfile+sradfile
+        node['Text'][str(frame)] = mradfile+gradfile+lradfile+sradfile
 
 def sunexport(scene, node, locnode, frame):
     if locnode and node.contextmenu == 'Basic':        
@@ -174,12 +174,12 @@ def createradfile(scene, frame, export_op, simnode):
     links = (list(simnode.inputs['Geometry in'].links[:]) + list(simnode.inputs['Context in'].links[:]))
     
     for link in links:
-        if str(frame) in link.from_socket['Text']:
-            radtext += link.from_socket['Text'][str(frame)]
-        elif frame < min([int(k) for k in link.from_socket['Text'].keys()]):
-            radtext += link.from_socket['Text'][str(min([int(k) for k in link.from_socket['Text'].keys()]))]
-        elif frame > max([int(k) for k in link.from_socket['Text'].keys()]):
-            radtext += link.from_socket['Text'][str(max([int(k) for k in link.from_socket['Text'].keys()]))]
+        if str(frame) in link.from_node['Text']:
+            radtext += link.from_node['Text'][str(frame)]
+        elif frame < min([int(k) for k in link.from_node['Text'].keys()]):
+            radtext += link.from_node['Text'][str(min([int(k) for k in link.from_node['Text'].keys()]))]
+        elif frame > max([int(k) for k in link.from_node['Text'].keys()]):
+            radtext += link.from_node['Text'][str(max([int(k) for k in link.from_oode['Text'].keys()]))]
 
     simnode['radfiles'][str(frame)] = radtext
 
@@ -236,6 +236,11 @@ def cyfc1(self):
         return
         
 def genbsdf(scene, export_op, o): 
+    bsdfmats = [mat for mat in o.data.materials if mat.radmatmenu == '8']
+    if bsdfmats:
+        mat = bsdfmats[0]
+    else:
+        export_op.report({'ERROR'}, '{} does not have a BSDF material attached'.format(o.name))
     o['bsdf'] = {} 
     bm = bmesh.new()    
     bm.from_mesh(o.data) 
@@ -245,21 +250,35 @@ def genbsdf(scene, export_op, o):
     
     if selfaces:
         fvec = selfaces[0].normal
+        print(fvec)
         o['bsdf']['normal'] = '{0[0]} {0[1]} {0[2]}'.format(fvec)
     else:
         export_op.report({'ERROR'}, '{} does not have a mesh face selected'.format(o.name))
         return
     
-    zvec = mathutils.Vector((0, 0 , 1))
+    zvec, xvec = mathutils.Vector((0, 0, 1)), mathutils.Vector((1, 0, 0))
+    svec = fvec * mathutils.Matrix.Rotation(math.pi*0.5, 4, zvec)
     bm.faces.ensure_lookup_table()
-    bsdfrot = mathutils.Matrix.Rotation(mathutils.Vector.angle(fvec, zvec), 4, mathutils.Vector.cross(fvec, zvec))
-    bm.transform(bsdfrot)
+    bsdfrotz = mathutils.Matrix.Rotation(mathutils.Vector.angle(fvec, zvec), 4, mathutils.Vector.cross(fvec, zvec))
+    bm.transform(bsdfrotz)
+    bsdfrotx = mathutils.Matrix.Rotation(mathutils.Vector.angle(svec, xvec), 4, mathutils.Vector.cross(svec, xvec))
+    bm.transform(bsdfrotx)
     maxz = max([v.co[2] for v in bm.verts])
     bsdftrans = mathutils.Matrix.Translation(mathutils.Vector((0, 0, -maxz)))
     bm.transform(bsdftrans)
     mradfile = ''.join([m.radmat(scene) for m in o.data.materials])                  
     gradfile = radpoints(o, [face for face in bm.faces if o.data.materials and face.material_index < len(o.data.materials) and o.data.materials[face.material_index]['radentry'].split(' ')[1] != 'antimatter'], 0)
+
+    bsdfme = bpy.data.meshes.new('bsdfme')
+#    bm.transform(o.matrix_world.inverted())
+    bm.to_mesh(bsdfme)
+    ob = bpy.data.objects.new('bsdfob', bsdfme)
+#    ob.matrix_world = o.matrix_world
+    scene.objects.link(ob)
     bm.free()  
-    gbcmd = 'genBSDF +geom meter +forward +backward -n {}'.format(scene['viparams']['nproc'])
-    o['bsdf']['xml'] = Popen(gbcmd.split(), stdin = PIPE, stdout = PIPE).communicate(input = (mradfile+gradfile).encode('utf-8'))[0]
+    gbcmd = 'genBSDF -geom meter {} {} -c {} {} -n {}'.format(scene.li_bsdf_tensor, scene.li_bsdf_res, (2**int(scene.li_bsdf_res)**2) * int(scene.li_bsdf_samp), scene.li_bsdf_direc, scene['viparams']['nproc'])
+    print(gbcmd)
+    mat['bsdf']['xml'] = Popen(gbcmd.split(), stdin = PIPE, stdout = PIPE).communicate(input = (mradfile+gradfile).encode('utf-8'))[0]
+    mat['bsdf']['rotation'] = (bsdfrotz.inverted() * bsdfrotx.inverted()).to_euler('XYZ')
+    mat['bsdf']['translation'] = o.location
     

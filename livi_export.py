@@ -72,33 +72,29 @@ def radgexport(export_op, node, **kwargs):
                 
             if o in geooblist:
                 selobj(scene, o)
-                if o.get('bsdf'):
-                    bsdfxml = os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}-{}.xml'.format(o.name, frame))
-                    with open(bsdfxml, 'w') as bsdffile:
-                        bsdffile.write(o['bsdf']['xml'].decode())
-                    gradfile += 'void BSDF {0}\n16 0 {1} {4} . -rx {2[0]} -ry {2[1]} -rz {2[2]} -t {3[0]} {3[1]} {3[2]}\n0\n0\n\n'.format(o.name.replace(" ", "_"), bsdfxml, [r*180/math.pi for r in o['bsdf']['rotation']], o.location, o['bsdf']['normal'])    
-                    face = [face for face in o.data.polygons if face.select][0]
-                    gradfile += "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(o.name.replace(" ", "_"), o.name.replace(" ", "_"), face.index, 3*len(face.verts)) + ''.join([" {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n".format(o.matrix_world*o.data.vertices[v].co) for v in face.vertices]) + '\n'
-                    if not o.get('merr'):
-                        try:
-                            bpy.ops.export_scene.obj(filepath=os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(o.name.replace(" ", "_"), frame)), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
-                            objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(o.name.replace(" ", "_"), frame)), os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(o.name.replace(" ", "_"), frame)))
-                            objrun = Popen(objcmd.split(), stdout = PIPE, stderr=STDOUT)
-                            for line in objrun.stdout:
-                                if 'non-triangle' in line.decode():
-                                    export_op.report({'INFO'}, o.name+" has an incompatible mesh. Doing a simplified export")
-                                    o['merr'] = 1
-                                    break 
-                        except:
-                            o['merr'] = 1
-                    
-                    if not o.get('merr'):
-                        gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(o.name.replace(" ", "_"), frame)))
-                    if o.get('merr'):
+                if not o.get('merr') and (not [face for face in bm.faces if o.data.materials[face.material_index].BSDF] or not o.get('bsdf')):
+                    try:
+                        bpy.ops.export_scene.obj(filepath=os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(o.name.replace(" ", "_"), frame)), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
+                        objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(o.name.replace(" ", "_"), frame)), os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(o.name.replace(" ", "_"), frame)))
+                        objrun = Popen(objcmd.split(), stdout = PIPE, stderr=STDOUT)
+                        for line in objrun.stdout:
+                            if 'non-triangle' in line.decode():
+                                export_op.report({'INFO'}, o.name+" has an incompatible mesh. Doing a simplified export")
+                                o['merr'] = 1
+                                break 
+                    except:
+                        o['merr'] = 1
+                
+                if not o.get('merr') and (not [face for face in bm.faces if o.data.materials[face.material_index].BSDF] or not o.get('bsdf')):
+                    gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(o.name.replace(" ", "_"), frame)))
+                elif o.get('merr') or o.get('bsdf'):
+                    if not o.get('bsdf') or not [face for face in bm.faces if o.data.materials[face.material_index].BSDF]:
                         gradfile += radpoints(o, [face for face in bm.faces if o.data.materials and face.material_index < len(o.data.materials)], 0)
-                            
-                    if o.get('merr'):
-                        del o['merr']
+                    else:
+                        gradfile += radpoints(o, [face for face in bm.faces if o.data.materials[face.material_index].BSDF], 0)
+                        
+                if o.get('merr'):
+                    del o['merr']
                        
                 # rtrace export routine
     
@@ -236,24 +232,25 @@ def cyfc1(self):
         return
         
 def genbsdf(scene, export_op, o): 
-    bsdfmats = [mat for mat in o.data.materials if mat.radmatmenu == '8']
+    bsdfmats = [mat for mat in o.data.materials if mat.BSDF]
     if bsdfmats:
         mat = bsdfmats[0]
+        mat['bsdf'] = {} 
     else:
+        del o['bsdf']
         export_op.report({'ERROR'}, '{} does not have a BSDF material attached'.format(o.name))
     o['bsdf'] = {} 
     bm = bmesh.new()    
     bm.from_mesh(o.data) 
     bm.transform(o.matrix_world)
     bm.normal_update()
-    selfaces = [face  for face in bm.faces if face.select]    
+    bsdffaces = [face for face in bm.faces if o.data.materials[face.material_index].BSDF]    
     
-    if selfaces:
-        fvec = selfaces[0].normal
-        print(fvec)
+    if bsdffaces:
+        fvec = bsdffaces[0].normal
         o['bsdf']['normal'] = '{0[0]} {0[1]} {0[2]}'.format(fvec)
     else:
-        export_op.report({'ERROR'}, '{} does not have a mesh face selected'.format(o.name))
+        export_op.report({'ERROR'}, '{} does not have a BSDF material associated'.format(o.name))
         return
     
     zvec, xvec = mathutils.Vector((0, 0, 1)), mathutils.Vector((1, 0, 0))
@@ -276,7 +273,7 @@ def genbsdf(scene, export_op, o):
 #    ob.matrix_world = o.matrix_world
     scene.objects.link(ob)
     bm.free()  
-    gbcmd = 'genBSDF -geom meter {} {} -c {} {} -n {}'.format(scene.li_bsdf_tensor, scene.li_bsdf_res, (2**int(scene.li_bsdf_res)**2) * int(scene.li_bsdf_samp), scene.li_bsdf_direc, scene['viparams']['nproc'])
+    gbcmd = 'genBSDF -geom meter {} {} -c {} {} -n {}'.format(scene.li_bsdf_tensor, scene.li_bsdf_res, 2**(int(scene.li_bsdf_res) * 2) * int(scene.li_bsdf_samp), scene.li_bsdf_direc, scene['viparams']['nproc'])
     print(gbcmd)
     mat['bsdf']['xml'] = Popen(gbcmd.split(), stdin = PIPE, stdout = PIPE).communicate(input = (mradfile+gradfile).encode('utf-8'))[0]
     mat['bsdf']['rotation'] = (bsdfrotz.inverted() * bsdfrotx.inverted()).to_euler('XYZ')

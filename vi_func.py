@@ -32,13 +32,8 @@ def cmap(cm):
         bpy.data.materials['{}#{}'.format(cmdict[cm], i)].use_shadeless = 1
 
 def radmat(self, scene):
-    radname = self.name.replace(" ", "_") 
-    bsdfxml = os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.name)) if self.radmatmenu == '8' else ''
-    if self.radmatmenu == '8':
-        self['bsdf'] = {}
-        with open(bsdfxml, 'w') as bsdffile:
-            bsdffile.write(self['bsdf']['xml'].decode())
-    radentry = '# ' + ('plastic', 'glass', 'dielectric', 'translucent', 'mirror', 'light', 'metal', 'antimatter', 'BSDF')[int(self.radmatmenu)] + ' material\n' + \
+    radname = self.name.replace(" ", "_")         
+    radentry = '# ' + ('plastic', 'glass', 'dielectric', 'translucent', 'mirror', 'light', 'metal', 'antimatter')[int(self.radmatmenu)] + ' material\n' + \
             '{} {} {}\n'.format('void', ('plastic', 'glass', 'dielectric', 'trans', 'mirror', 'light', 'metal', 'antimatter')[int(self.radmatmenu)], radname) + \
            {'0': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough), 
             '1': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(self.radcolour), 
@@ -47,8 +42,13 @@ def radmat(self, scene):
             '4': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(self.radcolour),
             '5': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format([c * self.radintensity for c in self.radcolour]), 
             '6': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough), 
-            '7': '1 void\n0\n0\n',
-            '8': '6 0 {} 0 0 1 .'.format(bsdfxml)}[self.radmatmenu] + '\n'
+            '7': '1 void\n0\n0\n'}[self.radmatmenu] + '\n'
+
+    if self.BSDF and self.get('bsdf') and self['bsdf'].get('xml'):
+        bsdfxml = os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.name))
+        with open(bsdfxml, 'w') as bsdffile:
+            bsdffile.write(self['bsdf']['xml'].decode())
+        radentry = 'void BSDF {}\n6 0 {} 0 0 1 .\n0\n0\n\n'.format(radname, bsdfxml)
 
     self['radentry'] = radentry
     return(radentry)

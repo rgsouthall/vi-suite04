@@ -186,11 +186,14 @@ class VIMatPanel(bpy.types.Panel):
             row.label('LiVi Radiance type:')
             row.prop(cm, 'radmatmenu')
             row = layout.row()
+
             for prop in cm.radmatdict[cm.radmatmenu]:
                 if prop:
                      row.prop(cm, prop)
                 else:
                     row = layout.row()
+                    
+            newrow(layout, 'BSDF:', cm, 'BSDF')
             newrow(layout, 'Photon Port:', cm, 'pport')
             row = layout.row()
             row.label("-----------------------------------------")
@@ -475,17 +478,18 @@ class IESPanel(bpy.types.Panel):
     def draw(self, context):
         layout, lamp = self.layout, context.active_object
         if context.mesh: 
-            row = layout.row()
-            row.label('Generate BSDF')
-            newrow(layout, 'Direction:', context.scene, 'li_bsdf_direc')
-            newrow(layout, 'Tensor:', context.scene, 'li_bsdf_tensor')
-            newrow(layout, 'resolution:', context.scene, 'li_bsdf_res')
-            newrow(layout, 'Samples:', context.scene, 'li_bsdf_samp')
-            row.operator("object.gen_bsdf", text="BSDF")
-            if lamp.get('bsdf'):
+            if [mat for mat in lamp.data.materials if mat.BSDF]:
                 row = layout.row()
-                row.label('Delete BSDF')
-                row.operator("object.del_bsdf", text="Delete BSDF")
+                row.label('Generate BSDF')
+                newrow(layout, 'Direction:', context.scene, 'li_bsdf_direc')
+                newrow(layout, 'Tensor:', context.scene, 'li_bsdf_tensor')
+                newrow(layout, 'resolution:', context.scene, 'li_bsdf_res')
+                newrow(layout, 'Samples:', context.scene, 'li_bsdf_samp')
+                row.operator("object.gen_bsdf", text="BSDF")
+                if lamp.get('bsdf'):
+                    row = layout.row()
+                    row.label('Delete BSDF')
+                    row.operator("object.del_bsdf", text="Delete BSDF")
             newrow(layout, 'Light Array', lamp, 'lila')
         if (lamp.type == 'LAMP' and lamp.data.type != 'SUN') or lamp.lila: 
             row = layout.row()

@@ -409,7 +409,7 @@ def register():
     Material.brspacemenu = eprop(rspacetype, "", "Type of residential space", '0')
     Material.crspacemenu = eprop(rspacetype[:2], "", "Type of residential space", '0')
     Material.respacemenu = eprop(respacetype, "", "Type of retail space", '0')
-    Material.bsdf = bprop("BSDF", "Flag to signify a BSDF material", False)
+    Material.BSDF = bprop("", "Flag to signify a BSDF material", False)
 
 # EnVi material definitions
     Material.envi_con_type = eprop([("Wall", "Wall", "Wall construction"),("Floor", "Floor", "Floor construction"),("Roof", "Roof", "Roof construction"),("Window", "Window", "Window construction"), ("Door", "Door", "Door construction"),

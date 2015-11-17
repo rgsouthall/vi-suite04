@@ -1859,7 +1859,7 @@ def sunpath():
     sun = [ob for ob in scene.objects if ob.get('VIType') == 'Sun'][0]
     skysphere = [ob for ob in scene.objects if ob.get('VIType') == 'SkyMesh'][0]
 
-    if 0 in (sun['solhour'] == scene.solhour, sun['solday'] == scene.solday, sun['soldistance'] == scene.soldistance):
+    if 0 in (sun['solhour'] == scene.solhour, sun['solday'] == scene.solday):
         sunob = [ob for ob in scene.objects if ob.get('VIType') == 'SunMesh'][0]
         spathob = [ob for ob in scene.objects if ob.get('VIType') == 'SPathMesh'][0]
         beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
@@ -1925,6 +1925,15 @@ def solarPosition(doy, lst, lat, lon):
     phi = 2*pi - phi if ast<=12 or ast >= 24 else phi
     azimuth = radToDeg*phi
     return([altitude, azimuth, beta, phi])
+    
+def solarRiseSet(doy, beta, lat, lon, riseset):
+    degToRad = 2*pi/360
+    radToDeg = 1/degToRad
+    delta = degToRad*23.45 * sin(2*pi*(284+doy)/365)
+    l = degToRad*lat
+    phi = acos((sin(beta) * sin(l) - sin(delta))/(cos(beta) * cos(l)))
+    phi = pi - phi if riseset == 'morn' else pi + phi
+    return(phi*radToDeg)
 
 def set_legend(ax):
     l = ax.legend(borderaxespad = -4)

@@ -23,7 +23,7 @@ from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum, envizres, envilres
 from .vi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, sunposenvi, recalculate_text, clearlayers
-from .vi_func import retobjs, rettree, retpmap
+from .vi_func import retobjs, rettree, retpmap, solarRiseSet
 from .vi_chart import chart_disp
 #from .vi_gen import vigen
 
@@ -544,7 +544,6 @@ class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
                     bm = bmesh.new()
                     [bm.verts.new(vco) for vco in vpos]
                     bm.verts.ensure_lookup_table()
-#                    for face in faces:
                     [bm.faces.new([bm.verts[fv] for fv in face]) for face in faces]
                     bm.to_mesh(me)
                     ob = bpy.data.objects.new(basename, me)
@@ -946,7 +945,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         if scene.render.engine == 'CYCLES' and scene.world.get('node_tree') and 'Sky Texture' in [no.bl_label for no in scene.world.node_tree.nodes]:
             scene.world.node_tree.animation_data_clear()
 
-        sun['solhour'], sun['solday'], sun['soldistance'] = scene.solhour, scene.solday, scene.soldistance
+        sun['solhour'], sun['solday'] = scene.solhour, scene.solday
 
         if "SkyMesh" not in [ob.get('VIType') for ob in context.scene.objects]:
             bpy.data.materials.new('SkyMesh')
@@ -1010,7 +1009,13 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 if hour == 240:
                     bm.edges.new((bm.verts[-240], bm.verts[-1]))
                     solringnum += 1
-
+                    
+        print(solarRiseSet(355, 0, scene.latitude, scene.longitude, 'morn'))
+        print(solarRiseSet(355, 0, scene.latitude, scene.longitude, 'eve'))
+        print(solarRiseSet(177, 0, scene.latitude, scene.longitude, 'morn'))
+        print(solarRiseSet(177, 0, scene.latitude, scene.longitude, 'eve'))
+        print(solarRiseSet(80, 0, scene.latitude, scene.longitude, 'morn'))
+        print(solarRiseSet(80, 0, scene.latitude, scene.longitude, 'eve'))
         bm.to_mesh(spathmesh)
         bm.free()
 

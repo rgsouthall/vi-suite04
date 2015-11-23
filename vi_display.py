@@ -17,7 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, blf, colorsys, bgl, mathutils, bmesh
+import bpy, blf, colorsys, bgl, mathutils, bmesh, datetime
 from math import pi, sin, cos, atan2, log10
 from numpy import sum as nsum
 try:
@@ -27,7 +27,7 @@ except:
     mp = 0
 
 from . import livi_export
-from .vi_func import cmap, skframe, selobj, retvpvloc, framerange, viewdesc, drawloop, drawpoly, draw_index, drawfont, skfpos, objmode, drawcircle, drawtri, setscenelivivals
+from .vi_func import cmap, skframe, selobj, retvpvloc, framerange, viewdesc, drawloop, drawpoly, draw_index, drawfont, skfpos, objmode, drawcircle, drawtri, setscenelivivals, draw_time
 
 nh = 768
 
@@ -131,20 +131,41 @@ def spnumdisplay(disp_op, context, simnode):
     scene = context.scene
     leg = 0 if simnode.bl_label == 'VI Sun Path' else 1
     if bpy.data.objects.get('SPathMesh'):
-        ob = bpy.data.objects['SPathMesh']    
-        if scene.hourdisp == True:
+        spob = bpy.data.objects['SPathMesh'] 
+        ob_mat = spob.matrix_world
+        mid_x, mid_y, width, height = viewdesc(context)
+        (view_location, view_mat, vw) = retvpvloc(context) 
+        total_mat = view_mat * ob_mat
+        
+        if scene.hourdisp:
             blf.enable(0, 4)
             blf.shadow(0, 5,scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])
             bgl.glColor4f(scene.vi_display_rp_fc[0], scene.vi_display_rp_fc[1], scene.vi_display_rp_fc[2], scene.vi_display_rp_fc[3])
             blf.size(0, scene.vi_display_rp_fs, 72)
-            mid_x, mid_y, width, height = viewdesc(context)
-            (view_location, view_mat, vw) = retvpvloc(context) 
-            ob_mat = ob.matrix_world
-            total_mat = view_mat * ob_mat
-            posis = [total_mat*mathutils.Vector(co).to_4d() for co in ob['numpos'].values() if mathutils.Vector.angle(vw, view_location - ob_mat*mathutils.Vector(co)) < pi * 0.5 and not scene.ray_cast(0.95*ob_mat*mathutils.Vector(co), view_location)[0]]
-            hs = [int(t.split('-')[1]) for t in ob['numpos'].keys() if total_mat*mathutils.Vector(ob['numpos'][t]).to_4d() in posis]
+            
+            
+            posis = [total_mat*mathutils.Vector(co).to_4d() for co in spob['numpos'].values() if mathutils.Vector.angle(vw, view_location - ob_mat*mathutils.Vector(co)) < pi * 0.5 and not scene.ray_cast(0.95*ob_mat*mathutils.Vector(co), view_location)[0]]
+            hs = [int(t.split('-')[1]) for t in spob['numpos'].keys() if total_mat*mathutils.Vector(spob['numpos'][t]).to_4d() in posis]
             draw_index(context, leg, mid_x, mid_y, width, height, posis, hs)
             blf.disable(0, 4)
+        if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects]:
+            sob = [ob for ob in bpy.data.objects if ob.get('VIType') == 'Sun'][0]
+            if scene.timedisp:
+                blf.enable(0, 4)
+                blf.shadow(0, 5,scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])
+                bgl.glColor4f(scene.vi_display_rp_fc[0], scene.vi_display_rp_fc[1], scene.vi_display_rp_fc[2], scene.vi_display_rp_fc[3])
+                blf.size(0, scene.vi_display_rp_fs, 72)
+#                mid_x, mid_y, width, height = viewdesc(context)
+#                (view_location, view_mat, vw) = retvpvloc(context) 
+    #            ob_mat = ob.matrix_world
+    #            total_mat = view_mat * ob_mat
+                pos = total_mat*mathutils.Vector(sob.location).to_4d()
+                soltime = datetime.datetime.fromordinal(scene.solday)
+                soltime += datetime.timedelta(hours = scene.solhour)
+                draw_time(context, mid_x, mid_y, width, height, pos, soltime.strftime('%d %b %X'))
+                blf.disable(0, 4)
+            
+            
     else:
         return
 

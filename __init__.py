@@ -560,7 +560,7 @@ def register():
     Scene.vipath = sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
     Scene.solday = bpy.props.IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
     Scene.solhour = bpy.props.FloatProperty(name = "", description = "Time of day", min = 0, max = 24, default = 12, update=sunpath1)
-    (Scene.hourdisp, Scene.spupdate) = [bprop("", "",0)] * 2
+    (Scene.hourdisp, Scene.spupdate, Scene.timedisp) = [bprop("", "",0)] * 3
     Scene.li_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
     Scene.li_disp_count = iprop("", "", 0, 1000, 0)
     Scene.vi_disp_3d = bprop("VI 3D display", "Boolean for 3D results display",  False)

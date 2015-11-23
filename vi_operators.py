@@ -23,7 +23,7 @@ from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum, envizres, envilres
 from .vi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, sunposenvi, recalculate_text, clearlayers
-from .vi_func import retobjs, rettree, retpmap, solarRiseSet
+from .vi_func import retobjs, rettree, retpmap, solarRiseSet, spathrange, objoin
 from .vi_chart import chart_disp
 #from .vi_gen import vigen
 
@@ -923,7 +923,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
         scene['viparams']['vidisp'] = 'sp'
         context.scene['viparams']['visimcontext'] = 'SunPath'
         scene.cursor_location = (0.0, 0.0, 0.0)
-        matdict = {'SolEquoRings': (1, 0, 0), 'HourRings': (1, 1, 0), 'SPBase': (1, 1, 1), 'Sun': (1, 1, 1), 'PathDash': (1, 1, 1)}
+        matdict = {'SolEquoRings': (1, 0, 0), 'HourRings': (1, 1, 0), 'SPBase': (1, 1, 1), 'Sun': (1, 1, 1), 'PathDash': (1, 1, 1),
+                   'SumAng': (1, 0, 0), 'EquAng': (0, 1, 0), 'WinAng': (0, 0, 1)}
         for mat in [mat for mat in matdict if mat not in bpy.data.materials]:
             bpy.data.materials.new(mat)
             bpy.data.materials[mat].diffuse_color = matdict[mat]
@@ -1009,7 +1010,9 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 if hour == 240:
                     bm.edges.new((bm.verts[-240], bm.verts[-1]))
                     solringnum += 1
-                    
+        
+        
+           
         print(solarRiseSet(355, 0, scene.latitude, scene.longitude, 'morn'))
         print(solarRiseSet(355, 0, scene.latitude, scene.longitude, 'eve'))
         print(solarRiseSet(177, 0, scene.latitude, scene.longitude, 'morn'))
@@ -1045,7 +1048,11 @@ class NODE_OT_SunPath(bpy.types.Operator):
         bpy.ops.mesh.bisect(plane_co=(0.0, 0.0, 0.0), plane_no=(0.0, 0.0, 1.0), use_fill=True, clear_inner=True, clear_outer=False)
         bpy.ops.object.mode_set(mode='OBJECT')
         bpy.ops.object.select_all(action='DESELECT')
-        compass((0,0,0.01), sd, spathob, bpy.data.materials['SPBase'])
+        compassos = compass((0,0,0.01), sd, spathob, bpy.data.materials['SPBase'])
+        spro = spathrange([bpy.data.materials['SumAng'], bpy.data.materials['EquAng'], bpy.data.materials['WinAng']])
+        objoin(compassos + [spro] + [spathob])
+#        objoin(txts + [coo] + [wro])
+        
 
         for ob in (spathob, sunob, smesh):
             ob.cycles_visibility.diffuse, ob.cycles_visibility.shadow, ob.cycles_visibility.glossy, ob.cycles_visibility.transmission, ob.cycles_visibility.scatter = [False] * 5
@@ -1081,6 +1088,32 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         context.window_manager.modal_handler_add(self)
         scene.vi_display = 1
         return {'RUNNING_MODAL'}
+        
+#class VIEW3D_OT_SPTime(bpy.types.Operator):
+#    '''Display results legend and stats in the 3D View'''
+#    bl_idname = "view3d.sptimeisplay"
+#    bl_label = "Point numbers"
+#    bl_description = "Display the current solar time on the sunpath"
+#    bl_register = True
+#    bl_undo = True
+#
+#    def modal(self, context, event):
+#        scene = context.scene
+#        if context.area:
+#            context.area.tag_redraw()
+#        if scene.vi_display == 0 or scene['viparams']['vidisp'] != 'sp':
+#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_sptime, 'WINDOW')
+#            [scene.objects.unlink(o) for o in scene.objects if o.get('VIType') and o['VIType'] in ('SunMesh', 'SkyMesh')]
+#            return {'CANCELLED'}
+#        return {'PASS_THROUGH'}
+#
+#    def invoke(self, context, event):
+#        scene = context.scene
+#        simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
+#        self._handle_sptime = bpy.types.SpaceView3D.draw_handler_add(sptimedisplay, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
+#        context.window_manager.modal_handler_add(self)
+#        scene.vi_display = 1
+#        return {'RUNNING_MODAL'}
 
 class NODE_OT_WindRose(bpy.types.Operator):
     bl_idname = "node.windrose"

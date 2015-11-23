@@ -22,7 +22,7 @@ class Vi3DPanel(bpy.types.Panel):
                 newrow(layout, 'Legend', scene, "vi_leg_display")
 
             elif scene['viparams']['vidisp'] == 'sp' and scene.vi_display:
-                for i in (("Day of year:", "solday"), ("Time of day:", "solhour"), ("Display hours:", "hourdisp")):
+                for i in (("Day of year:", "solday"), ("Time of day:", "solhour"), ("Display hours:", "hourdisp"), ("Display time:", "timedisp")):
                     newrow(layout, i[0], scene, i[1])
                 if scene.hourdisp:
                     for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_fsh")):

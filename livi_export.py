@@ -102,6 +102,8 @@ def radgexport(export_op, node, **kwargs):
                     o.rtpoints(bm, node.offset, str(frame))
                     bm.transform(o.matrix_world.inverted())
                     bm.to_mesh(o.data)
+#                    
+                    
                 bm.free()
 
     # Lights export routine

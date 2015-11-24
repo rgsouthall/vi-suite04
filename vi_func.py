@@ -775,7 +775,10 @@ def envizres(scene, eresobs, resnode, restype):
         opos = o.matrix_world * mathutils.Vector([sum(ops)/8 for ops in zip(*o.bound_box)])
     
         if not o.children or not any([restype in oc['envires'] for oc in o.children if oc.get('envires')]):
-            bpy.ops.mesh.primitive_plane_add()                    
+            if scene.en_disp == '0':
+                bpy.ops.mesh.primitive_plane_add()  
+            elif scene.en_disp == '0':
+                bpy.ops.mesh.primitive_circle_add(fill = 'NGON')   
             ores = bpy.context.active_object
             ores['VIType'] = 'envi_{}'.format(restype.lower())
             if not ores.get('envires'):

@@ -571,6 +571,7 @@ def register():
     Scene.vi_leg_max = bpy.props.FloatProperty(name = "", description = "Legend maximum", min = 0, max = 1000000, default = 1000, update=legupdate)
     Scene.vi_leg_min = bpy.props.FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0, update=legupdate)
     Scene.vi_leg_scale = bpy.props.EnumProperty(items = [('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name = "", description = "Legend scale", default = '0', update=legupdate)    
+    Scene.en_disp = bpy.props.EnumProperty(items = [('0', 'Cylinder', 'Cylinder display'), ('1', 'Box', 'Box display')], name = "", description = "Type of EnVi metric display", default = '0')    
     Scene.en_temp_max = bpy.props.FloatProperty(name = "Max", description = "Temp maximum", default = 24, update=settemps)
     Scene.en_temp_min = bpy.props.FloatProperty(name = "Min", description = "Temp minimum", default = 18, update=settemps)
     Scene.en_hum_max = bpy.props.FloatProperty(name = "Max", description = "Humidity maximum", default = 100, update=sethums)

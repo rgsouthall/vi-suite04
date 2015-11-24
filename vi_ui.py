@@ -110,7 +110,8 @@ class Vi3DPanel(bpy.types.Panel):
                     if rname in vresdict:
                         row.prop(scene, vresdict[rname])  
                     
-                newrow(layout, 'Link to object', scene, 'envi_flink')        
+                newrow(layout, 'Link to object', scene, 'envi_flink')  
+                newrow(layout, 'Disply type:', scene, 'en_disp')
                 row = layout.row()    
                 row.operator("view3d.endisplay", text="EnVi Display")
                 if scene['viparams']['vidisp'] == 'enpanel':

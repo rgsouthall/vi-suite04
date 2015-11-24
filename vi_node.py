@@ -44,7 +44,7 @@ class ViLoc(bpy.types.Node, ViNodes):
     def updatelatlong(self, context):
         scene = context.scene
         (scene.latitude, scene.longitude) = epwlatilongi(context.scene, self) if self.loc == '1' and self.weather else (scene.latitude, scene.longitude)
-        nodecolour(self, any([link.to_node.bl_label in ('LiVi CBDM', 'EnVi Export') and self.loc != "1" for link in self.outputs['Location out'].links]))
+        nodecolour(self, self.ready())
         if self.loc == '1' and self.weather:
             resdict, allresdict, self['rtypes'], self['dos'], ctypes = {}, {}, ['Time', 'Climate'], '0', []
             resdictnew = {}
@@ -99,7 +99,7 @@ class ViLoc(bpy.types.Node, ViNodes):
 
     def update(self):
         socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])
-        nodecolour(self, any([link.to_node.bl_label in ('LiVi CBDM', 'EnVi Export') and self.loc != "1" for link in self.outputs['Location out'].links]))
+        nodecolour(self, self.ready())
         
     def draw_buttons(self, context, layout):
         row = layout.row()
@@ -113,6 +113,14 @@ class ViLoc(bpy.types.Node, ViNodes):
             row.prop(context.scene, "latitude")
             row = layout.row()
             row.prop(context.scene, "longitude")
+            
+    def ready(self):
+        if self.loc == '1' and not self.weather:
+            return 1
+        if any([link.to_node.bl_label in ('LiVi CBDM', 'EnVi Export') and self.loc != "1" for link in self.outputs['Location out'].links]):
+            return 1
+        return 0
+        
 
 class ViGExLiNode(bpy.types.Node, ViNodes):
     '''Node describing a LiVi geometry export node'''
@@ -760,8 +768,12 @@ class ViExEnNode(bpy.types.Node, ViNodes):
 
     def update(self):
         socklink(self.outputs['Context out'], self['nodeid'].split('@')[1])
-
-    def export(self):
+    
+    def preexport(self, scene):
+        (self.fs, self.fe) = (self.fs, self.fe) if self.animated else (scene.frame_current, scene.frame_current)
+        scene['enparams']['fs'], scene['enparams']['fe'] = self.fs, self.fe
+        
+    def postexport(self):
         nodecolour(self, 0)
         self['exportstate'] = [str(x) for x in (self.loc, self.terrain, self.timesteps, self.animated, self.fs, self.fe)]
 

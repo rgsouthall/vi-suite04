@@ -701,9 +701,10 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
         node.edoy = (datetime.date(datetime.datetime.now().year, node.endmonth + (1, -11)[node.endmonth == 12], 1) - datetime.timedelta(days = 1)).timetuple().tm_yday
         (scene['enparams']['fs'], scene['enparams']['fe']) = (node.fs, node.fe) if node.animated else (scene.frame_current, scene.frame_current)
         locnode = node.inputs['Location in'].links[0].from_node
-
+        node.preexport(scene)
+        
         for frame in range(node.fs, node.fe + 1):
-            scene.frame_set(frame)
+#            scene.frame_set(frame)
             shutil.copyfile(locnode.weather, os.path.join(scene['viparams']['newdir'], "in{}.epw".format(frame)))
 
         shutil.copyfile(os.path.join(os.path.dirname(os.path.abspath(os.path.realpath( __file__ ))), "EPFiles", "Energy+.idd"), os.path.join(scene['viparams']['newdir'], "Energy+.idd"))
@@ -715,7 +716,7 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
         enpolymatexport(self, node, locnode, envi_mats, envi_cons)
         node.bl_label = node.bl_label[1:] if node.bl_label[0] == '*' else node.bl_label
         node.exported, node.outputs['Context out'].hide = True, False
-        node.export()
+        node.postexport()
         return {'FINISHED'}
 
 class NODE_OT_EnSim(bpy.types.Operator):
@@ -816,8 +817,10 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
 
     def execute(self, context):
         scene, solvalheaders, airvalheaders = context.scene, [], []
+        scene.en_frame = scene.frame_current
         resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
-        eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in [rval[0] for rval in resnode['resdict'].values()]}
+        eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in [rval[0] for rval in resnode['resdictnew'][str(scene.en_frame)]['Zone'].keys()]}
+        
 #        ereslinks = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in [rval[0] for rval in resnode['resdict'].values()]}
 #        scene['enviparams']['resobs'] = [o.name for o in bpy.data.objects if 'EN_'+o.name.upper() in [rval[0] for rval in resnode['resdict'].values()]]
         scene.frame_start, scene.frame_end = 0, 24 * (resnode['End'] - (resnode['Start'] - 1)) - 1

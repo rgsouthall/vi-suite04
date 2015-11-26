@@ -576,31 +576,15 @@ class NODE_OT_CSVExport(bpy.types.Operator, io_utils.ExportHelper):
     def execute(self, context):
         resstring = ''
         resnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].inputs['Results in'].links[0].from_node
-        rd = resnode['resdictnew']
-        fks = sorted([int(k) for k in rd.keys()])
-        if 'Time' in rd[str(fks[0])]:
-            rdft = rd[str(fks[0])]['Time']
-            resstring, data = ['Month,', 'Day,', 'Hour,', 'DOS,'], [rdft['Month'].split(), rdft['Day'].split(), rdft['Hour'].split(), rdft['DOS'].split()]
-        else:
-            resstring, data = [], []
-         
-        for fk in fks:
-            tkeys = rd[str(fk)].keys()
-            for tk in [tk for tk in tkeys if tk in 'Climate']:
-                resstring += ['{} {} {},'.format(str(fk), tk, k) for k in sorted(rd[str(fk)][tk].keys())]
-                data += [rd[str(fk)][tk][k].split() for k in sorted(rd[str(fk)][tk].keys())]
-            for tk in [tk for tk in tkeys if tk in ('Linkage', 'Zone', 'External')]:
-                for k in sorted(rd[str(fk)][tk].keys()):
-                    resstring += ['{} {} {} {},'.format(str(fk), tk, k, m) for m in sorted(rd[str(fk)][tk][k].keys())]
-                    data += [rd[str(fk)][tk][k][m].split() for m in sorted(rd[str(fk)][tk][k].keys())]
+        rl = resnode['reslists']
+        rzl = list(zip(*rl))
+        resstring = ''.join(['{} {} {},'.format(r[0], r[2], r[3]) for r in rl]) + '\n'
+        metriclist = list(zip(*[r.split() for r in rzl[4]]))
 
-        resstring += ['\n']
-        resstring = ' '.join(resstring)
-        for rline in zip(*data):
-            for r in rline:
-                resstring += '{},'.format(r)
-            resstring += '\n'
+        for ml in metriclist:
+            resstring += ''.join(['{},'.format(m) for m in ml]) + '\n'
 
+        resstring += '\n'
         with open(self.filepath, 'w') as csvfile:
             csvfile.write(resstring)
         return {'FINISHED'}

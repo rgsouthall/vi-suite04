@@ -46,34 +46,32 @@ class ViLoc(bpy.types.Node, ViNodes):
         (scene.latitude, scene.longitude) = epwlatilongi(context.scene, self) if self.loc == '1' and self.weather else (scene.latitude, scene.longitude)
         nodecolour(self, self.ready())
         if self.loc == '1' and self.weather:
-            resdict, allresdict, self['rtypes'], self['dos'], ctypes = {}, {}, ['Time', 'Climate'], '0', []
             resdictnew = {}
             resdictnew['0'] = {}
-            resdict['0'], allresdict['0'] = {}, {}
-            resdict['0']['0'] = ['Day of Simulation']
             resdictnew['0']['Time'] = {}
             resdictnew['0']['Climate'] = {}
             resdictnew['0']['AClimate'] = {}
-            for d in range(1, 366):
-                resdict['0']['0'] += [str(d) for x in range(1,25)]
-            for rtype in ('ztypes', 'zrtypes', 'ltypes', 'lrtypes', 'entypes', 'enrtypes'):
-                self[rtype] = []
+            reslists = []
+
             with open(self.weather, 'r') as epwfile:
+                
                 self['frames'] = ['0']
                 epwlines = epwfile.readlines()[8:]
                 epwcolumns = list(zip(*[epwline.split(',') for epwline in epwlines]))
+                times = ('Month', 'Day', 'Hour')
+                for t, time in enumerate([' '.join(epwcolumns[c]) for c in range(1,4)]):
+                    reslists.append(['0', 'Time', '', times[t], time])
                 resdictnew['0']['Time']['Month'], resdictnew['0']['Time']['Day'], resdictnew['0']['Time']['Hour'] = [' '.join(epwcolumns[c]) for c in range(1,4)]
                 resdictnew['0']['Time']['DOS'] = ' '.join(['{}'.format(int(d/24) + 1) for d in range(len(epwlines))])
                 for c in {"Temperature ("+ u'\u00b0'+"C)": 6, 'Humidity (%)': 8, "Direct Solar (W/m"+u'\u00b2'+")": 14, "Diffuse Solar (W/m"+u'\u00b2'+")": 15,
                           'Wind Direction (deg)': 20, 'Wind Speed (m/s)': 21}.items():
-                    resdict['0'][str(c[1])] = ['Climate', c[0]]
                     resdictnew['0']['Climate'][c[0]] = ' '.join([cdata for cdata in list(epwcolumns[c[1]])])
+                    reslists.append(['0', 'Climate', '', c[0], ' '.join([cdata for cdata in list(epwcolumns[c[1]])])])
                     if c[0] == "Temperature ("+ u'\u00b0'+"C)":
-                        tdata = [cdata for cdata in list(epwcolumns[c[1]])]
+                        tdata = [float(cdata) for cdata in list(epwcolumns[c[1]])]
                         resdictnew['0']['AClimate']['Max Temp'] = str(max(tdata))
                         resdictnew['0']['AClimate']['Min Temp'] = str(min(tdata))
                         resdictnew['0']['AClimate']['Ave Temp'] = str(sum(tdata)/len(tdata))
-                    ctypes.append(c[0])
                 self['resdictnew'] = resdictnew
                 self.outputs['Location out']['epwtext'] = epwfile.read()
             self.outputs['Location out']['valid'] = ['Location', 'Vi Results']
@@ -81,6 +79,7 @@ class ViLoc(bpy.types.Node, ViNodes):
             self.outputs['Location out']['epwtext'] = ''
             self.outputs['Location out']['valid'] = ['Location']
         socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])
+        self['reslists'] = reslists
 
     epwpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))+'/EPFiles/Weather/'
     weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]

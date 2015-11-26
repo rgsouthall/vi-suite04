@@ -74,17 +74,22 @@ class Vi3DPanel(bpy.types.Panel):
             
             elif scene['viparams']['vidisp'] in ('en', 'enpanel'):
                 resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
-                resitems = resnode['resdictnew'][str(scene.frame_current)].keys()
-                if 'Zone' in resitems:
-                    reszones = resnode['resdictnew'][str(scene.frame_current)]['Zone'].keys()
-                    zonemetrics = resnode['resdictnew'][str(scene.frame_current)]['Zone'][reszones[0]].keys()
-                else:
-                    zonemetrics = []
-                if 'Linkage' in resitems:
-                    reslinks = resnode['resdictnew'][str(scene.frame_current)]['Linkage'].keys()
-                    linkmetrics = resnode['resdictnew'][str(scene.frame_current)]['Linkage'][reslinks[0]].keys()
-                else:
-                    linkmetrics = []
+#                resitems = resnode['resdictnew'][str(scene.frame_current)].keys()
+                rl = resnode['reslists']
+                zrl = list(zip(*rl))
+                zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone'])
+                lmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Linkage'])
+                print(zmetrics)
+#                if 'Zone' in resitems:
+#                    reszones = resnode['resdictnew'][str(scene.frame_current)]['Zone'].keys()
+#                    zonemetrics = resnode['resdictnew'][str(scene.frame_current)]['Zone'][reszones[0]].keys()
+#                else:
+#                    zonemetrics = []
+#                if 'Linkage' in resitems:
+#                    reslinks = resnode['resdictnew'][str(scene.frame_current)]['Linkage'].keys()
+#                    linkmetrics = resnode['resdictnew'][str(scene.frame_current)]['Linkage'][reslinks[0]].keys()
+#                else:
+#                    linkmetrics = []
 #                self["_RNA_UI"] = {"Start": {"min":resnode.dsdoy, "max":resnode.dedoy}, "End": {"min":resnode.dsdoy, "max":resnode.dedoy}}
 
 #                zonemetrics = set([res['Zone'][1][1] for res in resitems if res[1][0] in ['EN_{}'.format(ob.name.upper()) for ob in bpy.data.objects]])
@@ -103,7 +108,7 @@ class Vi3DPanel(bpy.types.Panel):
                 row.prop(scene, 'resas_disp')
                 
 #                for ri, rname in enumerate(set([rname[1] for rname in resnode['resdictnew'][str(scene.frame_current)].values() if rname[0][:3] == 'EN_' and rname[0][3:] in [o.name.upper() for o in bpy.data.objects]])):
-                for ri, rname in enumerate(zonemetrics):
+                for ri, rname in enumerate(zmetrics):
                     if ri == 0:                    
                         row = layout.row()
                         row.label(text = 'Zone')                    
@@ -112,7 +117,7 @@ class Vi3DPanel(bpy.types.Panel):
                     if rname in zresdict:
                         row.prop(scene, zresdict[rname])
                 
-                for ri, rname in enumerate(linkmetrics):
+                for ri, rname in enumerate(lmetrics):
 #                    for ri, rname in enumerate(set([rname[1] for rname in resnode['resdictnew'][str(scene.frame_current)].values() if rname[0][:4] == 'WIN-' and rname[1] in vresdict])):
                     if ri == 0:                    
                         row = layout.row()
@@ -127,31 +132,31 @@ class Vi3DPanel(bpy.types.Panel):
                 row = layout.row()    
                 row.operator("view3d.endisplay", text="EnVi Display")
                 if scene['viparams']['vidisp'] == 'enpanel':
-                    if 'Temperature (degC)' in zonemetrics:
+                    if 'Temperature (degC)' in zmetrics:
                         row = layout.row()
                         row.label('Temperature')
                         row = layout.row()
                         row.prop(scene, 'en_temp_max')
                         row.prop(scene, 'en_temp_min')
-                    if 'Humidity (%)' in zonemetrics:
+                    if 'Humidity (%)' in zmetrics:
                         row = layout.row()
                         row.label('Humidity')
                         row = layout.row()
                         row.prop(scene, 'en_hum_max')
                         row.prop(scene, 'en_hum_min')
-                    if 'Heating (W)' in zonemetrics:
+                    if 'Heating (W)' in zmetrics:
                         row = layout.row()
                         row.label('Heating')
                         row = layout.row()
                         row.prop(scene, 'en_heat_max')
                         row.prop(scene, 'en_heat_min')
-                    if 'Cooling (W)' in zonemetrics:
+                    if 'Cooling (W)' in zmetrics:
                         row = layout.row()
                         row.label('Cooling')
                         row = layout.row()
                         row.prop(scene, 'en_cool_max')
                         row.prop(scene, 'en_cool_min')   
-                    if 'CO2 (ppm)' in zonemetrics:
+                    if 'CO2 (ppm)' in zmetrics:
                         row = layout.row()
                         row.label('CO2')
                         row = layout.row()

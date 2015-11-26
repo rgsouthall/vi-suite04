@@ -803,11 +803,17 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
         scene, solvalheaders, airvalheaders = context.scene, [], []
         scene.en_frame = scene.frame_current
         resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
-        eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in [rval[0] for rval in resnode['resdictnew'][str(scene.en_frame)]['Zone'].keys()]}
+#        eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in [rval[0] for rval in resnode['resdictnew'][str(scene.en_frame)]['Zone'].keys()]}
+        zrl = list(zip(*resnode['reslists']))
+        eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in zrl[2]}
         
 #        ereslinks = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in [rval[0] for rval in resnode['resdict'].values()]}
 #        scene['enviparams']['resobs'] = [o.name for o in bpy.data.objects if 'EN_'+o.name.upper() in [rval[0] for rval in resnode['resdict'].values()]]
-        scene.frame_start, scene.frame_end = 0, 24 * (resnode['End'] - (resnode['Start'] - 1)) - 1
+        resstart, resend = 24 * (resnode['Start'] - 1), 24 * (resnode['End']) - 1
+#        scene.frame_start, scene.frame_end = 0, 24 * (resnode['End'] - (resnode['Start'] - 1)) - 1
+        scene.frame_start, scene.frame_end = 0, resend - resstart
+#        print(resend - resstart, 24 * (resnode['End'] - (resnode['Start'] - 1)) - 1)
+        
         if scene.resas_disp:
             suns = [o for o in bpy.data.objects if o.type == 'LAMP' and o.data.type == 'SUN']
             if not suns:
@@ -815,20 +821,44 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                 sun = bpy.context.object
             else:
                 sun = suns[0]
-            for headvals in resnode['resdict'].items():
-                if len(headvals[1]) == 2 and headvals[1][1] == 'Direct Solar (W/m^2)':
-                    solvalheaders.append(headvals[0])
-                if len(headvals[1]) == 2 and headvals[1][1] == 'Diffuse Solar (W/m^2)':
-                    solvalheaders.append(headvals[0])
-            sunposenvi(scene, resnode, range(scene.frame_start, scene.frame_end), sun, solvalheaders)
+            
+            for mi, metric in enumerate(zrl[3]):
+                print(metric)
+                if metric == 'Direct Solar (W/m^2)':
+                    dirsol = [float(ds) for ds in zrl[4][mi].split()[resstart:resend]]
+                elif metric == 'Diffuse Solar (W/m^2)':
+                    difsol = [float(ds) for ds in zrl[4][mi].split()[resstart:resend]]
+                elif metric == 'Month':
+                    mdata = [int(m) for m in zrl[4][mi].split()[resstart:resend]]
+                elif metric == 'Day':
+                    ddata = [int(d) for d in zrl[4][mi].split()[resstart:resend]]
+                elif metric == 'Hour':
+                    hdata = [int(h) for h in zrl[4][mi].split()[resstart:resend]]
+
+#            for headvals in resnode['resdict'].items():
+#                if len(headvals[1]) == 2 and headvals[1][1] == 'Direct Solar (W/m^2)':
+#                    solvalheaders.append(headvals[0])
+#                if len(headvals[1]) == 2 and headvals[1][1] == 'Diffuse Solar (W/m^2)':
+#                    solvalheaders.append(headvals[0])
+            sunposenvi(scene, sun, dirsol, difsol, mdata, ddata, hdata)
 
         if scene.resaa_disp:
-            for rtype in ('Temperature (degC)', 'Wind Speed (m/s)', 'Wind Direction (deg)', 'Humidity (%)'):
-                for headvals in resnode['resdict'].items():
-                    if headvals[1][0] == 'Climate' and headvals[1][1] == rtype:
-                        airvalheaders.append(headvals[0])
+            for mi, metric in enumerate(zrl[3]):
+                if metric == 'Temperature (degC)':
+                    temp = [float(ds) for ds in zrl[4][mi].split()[24 * resnode['Start']:24 * resnode['End'] + 1]]
+                elif metric == 'Wind Speed (m/s)':
+                    ws = [float(ds) for ds in zrl[4][mi].split()[24 * resnode['Start']:24 * resnode['End'] + 1]]
+                elif metric == 'Wind Direction (deg)':
+                    wd = [float(m) for m in zrl[4][mi].split()[24 * resnode['Start']:24 * resnode['End'] + 1]]
+                elif metric == 'Humidity (%)':
+                    hu = [float(d) for d in zrl[4][mi].split()[24 * resnode['Start']:24 * resnode['End'] + 1]]
+            
+#            for rtype in ('Temperature (degC)', 'Wind Speed (m/s)', 'Wind Direction (deg)', 'Humidity (%)'):
+#                for headvals in resnode['resdict'].items():
+#                    if headvals[1][0] == 'Climate' and headvals[1][1] == rtype:
+#                        airvalheaders.append(headvals[0])
 
-            self._handle_air = bpy.types.SpaceView3D.draw_handler_add(en_air, (self, context, resnode, airvalheaders), 'WINDOW', 'POST_PIXEL')
+            self._handle_air = bpy.types.SpaceView3D.draw_handler_add(en_air, (self, context, temp, ws, wd, hu), 'WINDOW', 'POST_PIXEL')
 
         if scene.reszt_disp:
             envizres(scene, eresobs, resnode, 'Temp')

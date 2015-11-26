@@ -769,15 +769,22 @@ def envilres(scene, resnode):
 
 def envizres(scene, eresobs, resnode, restype):
     resdict = {'Temp': ('Temperature (degC)', scene.en_temp_max, scene.en_temp_min, u"\u00b0C"), 'Hum': ('Humidity (%)', scene.en_hum_max, scene.en_hum_min, '%'),
-               'CO2': ('CO2 (ppm)', scene.en_co2_max, scene.en_co2_min, 'ppm'),
-                'Heat': ('Heating (W)', scene.en_heat_max, scene.en_heat_min, 'W')}
-    odict = {res[1][0]: res[0] for res in resnode['resdict'].items() if len(res[1]) == 2 and res[1][0] in eresobs.values() and res[1][1] == resdict[restype][0]}
-    eobs = [bpy.data.objects[o] for o in eresobs if eresobs[o] in odict]
+               'CO2': ('CO2 (ppm)', scene.en_co2_max, scene.en_co2_min, 'ppm'), 'Heat': ('Heating (W)', scene.en_heat_max, scene.en_heat_min, 'W')}
+    rl = resnode['reslists']
+    zrl = list(zip(*rl))
+#    odict = {}
+#    odict = {res[1][0]: res[0] for res in resnode['resdict'].items() if len(res[1]) == 2 and res[1][0] in eresobs.values() and res[1][1] == resdict[restype][0]}
+#    eobs = [bpy.data.objects[o] for o in eresobs if eresobs[o] in odict]
+    eobs = set([eo for eoi, eo in enumerate(zrl[2]) if zrl[1][eoi] == 'Zone'])
     resstart = 24 * (resnode['Start'] - resnode.dsdoy)
     resend = resstart + 24 * (1 + resnode['End'] - resnode['Start'])
 #    resrange = (24 * (resnode['Start'] - resnode.dsdoy), 24 * (1 + resnode['End'] - resnode['Start']))
-    maxval = max([max(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) if resdict[restype][1] == max([max(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) else resdict[restype][1]
-    minval = min([min(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) if resdict[restype][2] == min([min(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) else resdict[restype][2]
+
+    maxval = max([[max(float(r) for r in zrl[4][ri].split())][0] for ri, r in enumerate(zrl[3]) if r == resdict[restype][0]and zrl[1][ri] == 'Zone']) 
+    minval = min([[min(float(r) for r in zrl[4][ri].split())][0] for ri, r in enumerate(zrl[3]) if r == resdict[restype][0]and zrl[1][ri] == 'Zone'])
+#    print(maxrval)
+#    maxval = max([max(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) if resdict[restype][1] == max([max(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) else resdict[restype][1]
+#    minval = min([min(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) if resdict[restype][2] == min([min(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) else resdict[restype][2]
 
     for o in [bpy.data.objects[o[3:]] for o in eresobs if eresobs[o] in odict]:   
         vals = resnode['allresdict'][odict['EN_'+o.name.upper()]][resstart:resend]
@@ -2196,23 +2203,19 @@ def fvobjwrite(scene, o, bmo):
         objfile.write('#{}'.format(len(bm.faces)))
     bm.free()
     
-def sunposenvi(scene, resnode, frames, sun, valheaders):
-    allresdict = resnode['allresdict']
-    resstart = 24 * (resnode['Start'] - resnode.dsdoy)
-    resend = resstart + 24 * (1 + resnode['End'] - resnode['Start'])
-    datetime.datetime(datetime.datetime.now().year, int(allresdict['Month'][resstart]), int(allresdict['Day'][resstart]), 0, 0)
-    times = [datetime.datetime(datetime.datetime.now().year, int(allresdict['Month'][h]), int(allresdict['Day'][h]), int(allresdict['Hour'][h]) - 1, 0) for h in range(resstart, resend)]
+def sunposenvi(scene, sun, dirsol, difsol, mdata, ddata, hdata):
+    frames = range(scene.frame_start, scene.frame_end)
+    times = [datetime.datetime(datetime.datetime.now().year, mdata[hi], ddata[hi], h - 1, 0) for hi, h in enumerate(hdata)]
     solposs = [solarPosition(time.timetuple()[7], time.hour + (time.minute)*0.016666, scene.latitude, scene.longitude) for time in times]
-    beamvals = [0.01 * float(bv) for bv in allresdict[valheaders[0]][resstart:resend]]
-    skyvals = [1 + (0.01 * float(sv)) for sv in allresdict[valheaders[1]][resstart:resend]]
+    beamvals = [0.01 * d for d in dirsol]
+    skyvals =  [1 + 0.01 * d for d in difsol]
     sizevals = [beamvals[t]/skyvals[t] for t in range(len(times))]
     values = list(zip(sizevals, beamvals, skyvals))
     sunapply(scene, sun, values, solposs, frames)
 
 def hdrsky(hdrfile):
     return("# Sky material\nvoid colorpict hdr_env\n7 red green blue {} angmap.cal sb_u sb_v\n0\n0\n\nhdr_env glow env_glow\n0\n0\n4 1 1 1 0\n\nenv_glow bubble sky\n0\n0\n4 0 0 0 5000\n\n".format(hdrfile))
-   
-    
+       
 def sunposlivi(scene, skynode, frames, sun, stime):
     sun.data.shadow_method, sun.data.shadow_ray_samples, sun.data.sky.use_sky = 'RAY_SHADOW', 8, 1
     if skynode['skynum'] < 3: 
@@ -2232,29 +2235,75 @@ def sunposlivi(scene, skynode, frames, sun, stime):
 def sunapply(scene, sun, values, solposs, frames):
     sun.data.animation_data_clear()
     sun.animation_data_clear()
+    sun.animation_data_create()
+    sun.animation_data.action = bpy.data.actions.new(name="EnVi Sun")
+    sunposx = sun.animation_data.action.fcurves.new(data_path="location", index = 0)
+    sunposy = sun.animation_data.action.fcurves.new(data_path="location", index = 1)
+    sunposz = sun.animation_data.action.fcurves.new(data_path="location", index = 2)
+    sunposx.keyframe_points.add(len(frames))
+    sunposy.keyframe_points.add(len(frames))
+    sunposz.keyframe_points.add(len(frames))
+    sunrotx = sun.animation_data.action.fcurves.new(data_path="rotation_euler", index = 0)
+    sunroty = sun.animation_data.action.fcurves.new(data_path="rotation_euler", index = 1)
+    sunrotz = sun.animation_data.action.fcurves.new(data_path="rotation_euler", index = 2)
+    sunrotx.keyframe_points.add(len(frames))
+    sunroty.keyframe_points.add(len(frames))
+    sunrotz.keyframe_points.add(len(frames))
+    sunenergy = sun.animation_data.action.fcurves.new(data_path="energy")
+    sunenergy.keyframe_points.add(len(frames))
+    
+# This is an attempt to use low level routines for node value animation but it don't work.
+    if sun.data.node_tree:
+        sun.data.node_tree.animation_data_clear()
+        sun.data.node_tree.animation_data_create()
+        sun.data.node_tree.animation_data.action = bpy.data.actions.new(name="EnVi Sun Node")
+        emnodes = [emnode for emnode in sun.data.node_tree.nodes if emnode.bl_label == 'Emission']
+        for emnode in emnodes:
+            em1 = sun.data.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].inputs[0].default_value'.format(emnode.name), index = 2)
+            em2 = sun.data.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].inputs[1].default_value'.format(emnode.name))
+            em1.keyframe_points.add(len(frames))
+            em2.keyframe_points.add(len(frames))
+    
+    if scene.world.node_tree:
+        scene.world.node_tree.animation_data_clear() 
+        scene.world.node_tree.animation_data_create()
+        scene.world.node_tree.animation_data.action = bpy.data.actions.new(name="EnVi World Node") 
+        stnodes = [stnode for stnode in scene.world.node_tree.nodes if stnode.bl_label == 'Sky Texture']
+        bnodes = [bnode for bnode in scene.world.node_tree.nodes if bnode.bl_label == 'Background']
+        for stnode in stnodes:
+            st1x = scene.world.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].sun_direction'.format(stnode.name), index = 0)
+            st1y = scene.world.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].sun_direction'.format(stnode.name), index = 1)
+            st1z = scene.world.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].sun_direction'.format(stnode.name), index = 2)
+            st1x.keyframe_points.add(len(frames))
+            st1y.keyframe_points.add(len(frames))
+            st1z.keyframe_points.add(len(frames))
+        for bnode in bnodes:
+            b1 = scene.world.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].inputs[1].default_value'.format(bnode.name))
+            b1.keyframe_points.add(len(frames))
     for f, frame in enumerate(frames):
         (sun.data.shadow_soft_size, sun.data.energy) = values[f][:2]
         scene.frame_set(frame)
-        sun.location, sun.rotation_euler = [x*20 for x in (-sin(solposs[f][3]), -cos(solposs[f][3]), tan(solposs[f][2]))], [(pi/2) - solposs[f][2], 0, -solposs[f][3]]
-        if scene.render.engine == 'CYCLES' and scene.world.use_nodes:
+        sunpos = [x*20 for x in (-sin(solposs[f][3]), -cos(solposs[f][3]), tan(solposs[f][2]))]
+        sunrot = [(pi/2) - solposs[f][2], 0, -solposs[f][3]]
+        if scene.render.engine == 'CYCLES' and scene.world.node_tree:
             if 'Sky Texture' in [no.bl_label for no in scene.world.node_tree.nodes]:
-                if f == 0:
-                    scene.world.node_tree.animation_data_clear()
-                scene.world.node_tree.nodes['Sky Texture'].sun_direction = -sin(solposs[f][3]), -cos(solposs[f][3]), sin(solposs[f][2])#sin(phi), -cos(phi), -2* beta/math.pi
-                scene.world.node_tree.nodes['Sky Texture'].keyframe_insert(data_path = 'sun_direction', frame = frame) 
-            scene.world.node_tree.nodes['Background'].inputs[1].default_value = values[f][2]
-            scene.world.node_tree.nodes['Background'].inputs[1].keyframe_insert(data_path = 'default_value', frame = frame)
-            if sun.data.node_tree:
-                if f == 0:
-                    sun.data.node_tree.animation_data_clear()
-                for emnode in [emnode for emnode in sun.data.node_tree.nodes if emnode.bl_label == 'Emission']:                    
-                    emnode.inputs[0].default_value[2] = values[f][1]
-                    emnode.inputs[1].default_value = values[f][1]
-                    emnode.inputs[0].keyframe_insert(data_path = 'default_value', frame = frame)
-                    emnode.inputs[1].keyframe_insert(data_path = 'default_value', frame = frame)
-        sun.data.energy = values[f][1]              
-        sun.data.keyframe_insert(data_path = 'energy', frame = frame)
-        sun.keyframe_insert(data_path = 'location', frame = frame)
-        sun.keyframe_insert(data_path = 'rotation_euler', frame = frame)
+                skydir = -sin(solposs[f][3]), -cos(solposs[f][3]), sin(solposs[f][2])
+                st1x.keyframe_points[f].co = frame, skydir[0]
+                st1y.keyframe_points[f].co = frame, skydir[1]
+                st1z.keyframe_points[f].co = frame, skydir[2]
+            b1.keyframe_points[f].co = frame, values[f][2]
+
+        if scene.render.engine == 'CYCLES' and sun.data.node_tree:
+            for emnode in [emnode for emnode in sun.data.node_tree.nodes if emnode.bl_label == 'Emission']:
+                em1.keyframe_points[f].co = frame, values[f][1]
+                em2.keyframe_points[f].co = frame, values[f][1]
+                   
+        sunposx.keyframe_points[f].co = frame, sunpos[0]
+        sunposy.keyframe_points[f].co = frame, sunpos[1]
+        sunposz.keyframe_points[f].co = frame, sunpos[2]
+        sunrotx.keyframe_points[f].co = frame, sunrot[0]
+        sunroty.keyframe_points[f].co = frame, sunrot[1]
+        sunrotz.keyframe_points[f].co = frame, sunrot[2]
+        sunenergy.keyframe_points[f].co = frame, values[f][1]
 
     sun.data.cycles.use_multiple_importance_sampling = True

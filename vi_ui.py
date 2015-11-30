@@ -79,7 +79,7 @@ class Vi3DPanel(bpy.types.Panel):
                 zrl = list(zip(*rl))
                 zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone'])
                 lmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Linkage'])
-                print(zmetrics)
+
 #                if 'Zone' in resitems:
 #                    reszones = resnode['resdictnew'][str(scene.frame_current)]['Zone'].keys()
 #                    zonemetrics = resnode['resdictnew'][str(scene.frame_current)]['Zone'][reszones[0]].keys()

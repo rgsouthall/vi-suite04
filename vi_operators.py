@@ -23,7 +23,7 @@ from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum, envizres, envilres
 from .vi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, sunposenvi, recalculate_text, clearlayers
-from .vi_func import retobjs, rettree, retpmap, solarRiseSet, spathrange, objoin
+from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile
 from .vi_chart import chart_disp
 #from .vi_gen import vigen
 
@@ -262,7 +262,8 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
             createradfile(scene, frame, self, simnode)
             createoconv(scene, frame, self, simnode)
 
-        li_calc(self, simnode, livisimacc(simnode))
+        if li_calc(self, simnode, livisimacc(simnode)) == 'CANCELLED':
+            return {'CANCELLED'}
         if simnode['coptions']['Context'] != 'CBDM' and simnode['coptions']['Context'] != '3':
             scene.vi_display = 1
 
@@ -730,6 +731,7 @@ class NODE_OT_EnSim(bpy.types.Operator):
                 self.esimrun = Popen(esimcmd.split(), stderr = PIPE)
                 return {'PASS_THROUGH'}
             else:
+                self.simnode.run = -1
                 for fname in [fname for fname in os.listdir('.') if fname.split(".")[0] == self.simnode.resname]:
                     os.remove(os.path.join(scene['viparams']['newdir'], fname))
 
@@ -800,19 +802,13 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context):
-        scene, solvalheaders, airvalheaders = context.scene, [], []
+        scene = context.scene
         scene.en_frame = scene.frame_current
         resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
-#        eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in [rval[0] for rval in resnode['resdictnew'][str(scene.en_frame)]['Zone'].keys()]}
         zrl = list(zip(*resnode['reslists']))
         eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in zrl[2]}
-        
-#        ereslinks = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in [rval[0] for rval in resnode['resdict'].values()]}
-#        scene['enviparams']['resobs'] = [o.name for o in bpy.data.objects if 'EN_'+o.name.upper() in [rval[0] for rval in resnode['resdict'].values()]]
         resstart, resend = 24 * (resnode['Start'] - 1), 24 * (resnode['End']) - 1
-#        scene.frame_start, scene.frame_end = 0, 24 * (resnode['End'] - (resnode['Start'] - 1)) - 1
         scene.frame_start, scene.frame_end = 0, resend - resstart
-#        print(resend - resstart, 24 * (resnode['End'] - (resnode['Start'] - 1)) - 1)
         
         if scene.resas_disp:
             suns = [o for o in bpy.data.objects if o.type == 'LAMP' and o.data.type == 'SUN']
@@ -823,7 +819,6 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                 sun = suns[0]
             
             for mi, metric in enumerate(zrl[3]):
-                print(metric)
                 if metric == 'Direct Solar (W/m^2)':
                     dirsol = [float(ds) for ds in zrl[4][mi].split()[resstart:resend]]
                 elif metric == 'Diffuse Solar (W/m^2)':
@@ -835,11 +830,6 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                 elif metric == 'Hour':
                     hdata = [int(h) for h in zrl[4][mi].split()[resstart:resend]]
 
-#            for headvals in resnode['resdict'].items():
-#                if len(headvals[1]) == 2 and headvals[1][1] == 'Direct Solar (W/m^2)':
-#                    solvalheaders.append(headvals[0])
-#                if len(headvals[1]) == 2 and headvals[1][1] == 'Diffuse Solar (W/m^2)':
-#                    solvalheaders.append(headvals[0])
             sunposenvi(scene, sun, dirsol, difsol, mdata, ddata, hdata)
 
         if scene.resaa_disp:
@@ -853,11 +843,6 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                 elif metric == 'Humidity (%)':
                     hu = [float(d) for d in zrl[4][mi].split()[24 * resnode['Start']:24 * resnode['End'] + 1]]
             
-#            for rtype in ('Temperature (degC)', 'Wind Speed (m/s)', 'Wind Direction (deg)', 'Humidity (%)'):
-#                for headvals in resnode['resdict'].items():
-#                    if headvals[1][0] == 'Climate' and headvals[1][1] == rtype:
-#                        airvalheaders.append(headvals[0])
-
             self._handle_air = bpy.types.SpaceView3D.draw_handler_add(en_air, (self, context, temp, ws, wd, hu), 'WINDOW', 'POST_PIXEL')
 
         if scene.reszt_disp:
@@ -874,8 +859,8 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
             envilres(scene, resnode)
 
         scene.frame_set(scene.frame_start)
-        if not bpy.app.handlers.frame_change_pre:
-            bpy.app.handlers.frame_change_pre.append(recalculate_text)
+        bpy.app.handlers.frame_change_pre.clear()
+        bpy.app.handlers.frame_change_pre.append(recalculate_text)
 
         self._handle_enpanel = bpy.types.SpaceView3D.draw_handler_add(en_panel, (self, context, resnode), 'WINDOW', 'POST_PIXEL')
         scene['viparams']['vidisp'] = 'enpanel'
@@ -955,8 +940,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         else: 
             bpy.ops.object.lamp_add(type = "SUN")
             sun = context.active_object
-        
-          
+                  
         sun.data.shadow_soft_size = 0.01            
         sun['VIType'] = 'Sun'
         
@@ -1028,14 +1012,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
                     bm.edges.new((bm.verts[-240], bm.verts[-1]))
                     solringnum += 1
         
-        
-           
-        print(solarRiseSet(355, 0, scene.latitude, scene.longitude, 'morn'))
-        print(solarRiseSet(355, 0, scene.latitude, scene.longitude, 'eve'))
-        print(solarRiseSet(177, 0, scene.latitude, scene.longitude, 'morn'))
-        print(solarRiseSet(177, 0, scene.latitude, scene.longitude, 'eve'))
-        print(solarRiseSet(80, 0, scene.latitude, scene.longitude, 'morn'))
-        print(solarRiseSet(80, 0, scene.latitude, scene.longitude, 'eve'))
         bm.to_mesh(spathmesh)
         bm.free()
 
@@ -1270,7 +1246,10 @@ class NODE_OT_Shadow(bpy.types.Operator):
         calcno = len(frange) * sum(len([f for f in o.data.polygons if o.data.materials[f.material_index].mattype == '2']) for o in [scene.objects[on] for on in scene['liparams']['shadc']])
         calcsteps = [int(i * calcno/20) for i in range(0, 21)]     
         curres = 0
-        starttime = time.now()
+        starttime = datetime.datetime.now()
+        progressfile(scene, starttime, calcsteps, curres, 'clear')
+        kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'))
+
         
         for oi, o in enumerate([scene.objects[on] for on in scene['liparams']['shadc']]):
             o['omin'], o['omax'], o['oave'] = {}, {}, {}
@@ -1284,7 +1263,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             [geom.layers.float.new('res{}'.format(fi)) for fi in frange]
 
             for frame in frange:                
-                scene.frame_set(frame)
+#                scene.frame_set(frame)
                 shadtree = rettree(scene, shadobs)
                 shadres = geom.layers.float['res{}'.format(frame)]
                 if simnode.cpoint == '0':
@@ -1297,14 +1276,18 @@ class NODE_OT_Shadow(bpy.types.Operator):
                         gp[shadres] = 100 * (1 - sum([(1, 0)[shadtree.ray_cast(gp.calc_center_bounds(), direc)[3] == None] for direc in direcs])/len(direcs))
                     else:
                         gp[shadres] = 100 * (1 - sum([(1, 0)[shadtree.ray_cast(gp.co, direc)[3] == None] for direc in direcs])/len(direcs))
+
                     curres += 1
                     if curres in calcsteps:
-                        with open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'r') as progressfile:
-                            if 'Cancel' in progressfile.read():
-                                return {'CANCELLED'}
-                                
-                        with open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'w') as progressfile:
-                            progressfile.write('{} {}'.format(5 * calcsteps.index(curres), (time.now() - starttime)/calcsteps.index(curres) * (20 - calcsteps.index(curres))))
+                        if progressfile(scene, starttime, calcsteps, curres, 'run') == 'CANCELLED':
+                            return {'CANCELLED'}
+#                    if curres in calcsteps:
+#                        with open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'r') as progressfile:
+#                            if 'Cancel' in progressfile.read():
+#                                return {'CANCELLED'}
+#                                
+#                        with open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'w') as progressfile:
+#                            progressfile.write('{} {}'.format(5 * calcsteps.index(curres), (time.now() - starttime)/calcsteps.index(curres) * (20 - calcsteps.index(curres))))
                     
                 o['omin']['res{}'.format(frame)], o['omax']['res{}'.format(frame)], o['oave']['res{}'.format(frame)] = min([gp[shadres] for gp in gpoints]), max([gp[shadres] for gp in gpoints]), sum([gp[shadres] for gp in gpoints])/len(gpoints)
 
@@ -1313,7 +1296,9 @@ class NODE_OT_Shadow(bpy.types.Operator):
             bm.free()
 
         scene.vi_leg_max, scene.vi_leg_min = 100, 0
-        scene.frame_set(scene['liparams']['fs'])
+#        scene.frame_set(scene['liparams']['fs'])
+        if kivyrun.poll() is None:
+            kivyrun.kill()
 #        simnode.running = 0
         scene.vi_display = 1
         simnode.postexport(scene)

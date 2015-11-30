@@ -64,9 +64,7 @@ def rtpoints(self, bm, offset, frame):
        
     if self['cpoint'] == '0': 
         gpoints = resfaces
-        csfc = [face.calc_center_median() for face in gpoints]   
-#        self.data.polygons.foreach_get('center', fcents) 
-#        self.data.polygons.foreach_get('normal', fnorms)                   
+        csfc = [face.calc_center_median() for face in gpoints]                      
         self['rtpoints'][frame] = ''.join(['{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([csfc[fi][i] + offset * f.normal.normalized()[i] for i in range(3)], f.normal[:]) for fi, f in enumerate(gpoints)])
         self['cverts'], self['lisenseareas'][frame] = [], [f.calc_area() for f in gpoints]       
 
@@ -196,12 +194,74 @@ def rettree(scene, obs):
     bmob.free()
     bmtemp.free()
     return tree
+
+def progressfile(scene, starttime, calcsteps, curres, action):   
+    if os.path.isfile(os.path.join(scene['viparams']['newdir'], 'viprogress')):
+        with open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'r') as pfile:
+            if 'CANCELLED' in pfile.read():
+                if action != 'clear':
+                    return 'CANCELLED'
+            
+    with open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'w') as pfile:
+        if action == 'clear':
+            pfile.write('STARTING')
+        else:
+            dt = (datetime.datetime.now() - starttime)/calcsteps.index(curres) * (20 - calcsteps.index(curres))
+            pfile.write('{} {}'.format(5 * calcsteps.index(curres), datetime.timedelta(seconds = dt.seconds)))
+        
+def progressbar(file):
+    kivytext = "from kivy.app import App \n\
+from kivy.clock import Clock \n\
+from kivy.uix.progressbar import ProgressBar\n\
+from kivy.uix.boxlayout import BoxLayout\n\
+from kivy.uix.button import Button\n\
+from kivy.uix.label import Label\n\
+from kivy.config import Config\n\
+Config.set('graphics', 'width', '500')\n\
+Config.set('graphics', 'height', '200')\n\
+\n\
+class CancelButton(Button):\n\
+    def on_touch_down(self, touch):\n\
+        if 'button' in touch.profile:\n\
+            if self.collide_point(*touch.pos):\n\
+                with open('/home/ryan/Store/Blender/lividemo/viprogress', 'w') as pffile:\n\
+                    pffile.write('CANCELLED')\n\
+                App.get_running_app().stop()\n\
+        else:\n\
+            return\n\
+\n\
+class Radiance(App):\n\
+    bl = BoxLayout(orientation='vertical')\n\
+    rpb = ProgressBar()\n\
+    label = Label(text=' 0% Complete', font_size=20)\n\
+    button = CancelButton(text='Cancel', font_size=20)\n\
+    bl.add_widget(rpb)\n\
+    bl.add_widget(label)\n\
+    bl.add_widget(button)\n\
+\n\
+    def build(self):\n\
+        refresh_time = 1\n\
+        Clock.schedule_interval(self.timer, refresh_time)\n\
+        return self.bl\n\
+\n\
+    def timer(self, dt):\n\
+        with open('"+file+"', 'r') as pffile:\n\
+            try:    (percent, tr) = pffile.readlines()[0].split()\n\
+            except: percent, tr = 0, 'Not known'\n\
+        self.rpb.value = int(percent)\n\
+        self.label.text = '{}% Complete, Time remaining {}'.format(percent, tr)\n\
+\n\
+if __name__ == '__main__':\n\
+    Radiance().run()\n"
+    with open(file+".py", 'w') as kivyfile:
+        kivyfile.write(kivytext)
+    return Popen([bpy.app.binary_path_python, file+".py"])
     
-def basiccalcapply(self, scene, frames, rtcmds, simnode):
+def basiccalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, tpoints, sstep):
     reslists = []
-    selobj(scene, self)
-    oi = scene['liparams']['livic'].index(self.name)
-    onum, fnum = len(scene['liparams']['livic']), len(frames)
+    fnum = len(frames)
+    calcno = fnum * tpoints
+    calcsteps = [int(i * calcno/20) for i in range(0, 21)]
     bm = bmesh.new()
     bm.from_mesh(self.data)
     bm.transform(self.matrix_world)
@@ -244,6 +304,11 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode):
             g[illures] = resillu[g[cindex] - 1]
             g[dfres] = resdf[g[cindex] - 1]
             g[res] = g[illures]
+            sstep += 1
+            if sstep in calcsteps:
+                if progressfile(scene, starttime, calcsteps, sstep, 'run') == 'CANCELLED':
+                    return 'CANCELLED'
+                
         posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 1]
         reslists.append([str(frame), 'Position', self.name, 'X', ' '.join([str(p[0]) for p in posis])])
         reslists.append([str(frame), 'Position', self.name, 'Y', ' '.join([str(p[0]) for p in posis])])
@@ -252,7 +317,9 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode):
         reslists.append([str(frame), 'Lighting', self.name, 'DF (%)', ' '.join([str(g[dfres]) for g in geom if g[cindex] > 0])])
         reslists.append([str(frame), 'Lighting', self.name, 'Irradiance (W/m2)', ' '.join([str(g[irradres]) for g in geom if g[cindex] > 0])])
         print('Radiance simulation {:.0f}% complete'.format((oi + (f+1)/fnum)/onum * 100))
+        
 
+    bm.transform(self.matrix_world.inverted())
     bm.to_mesh(self.data)
     bm.free()
     
@@ -299,8 +366,17 @@ def lhcalcapply(self, scene, frames, rtcmds):
 def lividisplay(self, scene): 
     unitdict = {'Lux': 'illu', u'W/m\u00b2': 'irrad', 'DF (%)': 'df', 'DA (%)': 'res', 'UDI-f (%)': 'low', 'UDI-s (%)': 'sup', 'UDI-a (%)': 'auto', 'UDI-e (%)': 'high',
                 'Sky View': 'sv', 'kLuxHours': 'res', u'kWh/m\u00b2': 'res', '% Sunlit': 'res'}
-    
-    for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):  
+    frames = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
+    if len(frames) > 1:
+        if not self.data.animation_data:
+            self.data.animation_data_create()
+        
+        self.data.animation_data.action = bpy.data.actions.new(name="LiVi MI")
+        fis = [str(face.index) for face in self.data.polygons]
+        lms = {fi: self.data.animation_data.action.fcurves.new(data_path='polygons[{}].material_index'.format(fi)) for fi in fis}
+        for fi in fis:
+            lms[fi].keyframe_points.add(len(frames))
+    for f, frame in enumerate(frames):  
         bm = bmesh.new()
         bm.from_mesh(self.data)
         geom = bm.verts if scene['liparams']['cp'] == '1' else bm.faces  
@@ -322,9 +398,11 @@ def lividisplay(self, scene):
         nmatis = digitize(vals, bins)
         bm.to_mesh(self.data)
         bm.free()
-        self.data.polygons.foreach_set('material_index', nmatis)
-        if scene['liparams']['fe'] > scene['liparams']['fs']:
-            [face.keyframe_insert('material_index', frame=frame) for face in self.data.polygons] 
+        if len(frames) == 1:
+            self.data.polygons.foreach_set('material_index', nmatis)
+        elif len(frames) > 1:
+            for fii, fi in enumerate(fis):
+                lms[fi].keyframe_points[f].co = frame, nmatis[fii]  
             
 def retcrits(simnode, matname):
     mat = bpy.data.materials[matname]
@@ -521,36 +599,36 @@ def compcalcapply(self, scene, frames, rtcmds, simnode):
     bm.to_mesh(self.data)
     bm.free()
 
-def compdisplay(self, scene): 
-    unitdict = {'0': 'df', '1': 'sv'}
-    bm = bmesh.new()
-    bm.from_mesh(self.data)
-    geom = bm.verts if scene['liparams']['cp'] == '1' else bm.faces
-    for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):          
-        livires = geom.layers.float['{}{}'.format(unitdict[scene.li_disp_sv], frame)]
-        res = geom.layers.float['res{}'.format(frame)]
-        oreslist = [g[livires] for g in geom]
-        self['omax'][str(frame)], self['omin'][str(frame)], self['oave'][str(frame)] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
-         
-        try:
-            vals = array([(f[livires] - min(scene['liparams']['minres'].values()))/(max(scene['liparams']['maxres'].values()) - min(scene['liparams']['minres'].values())) for f in bm.faces]) if scene['liparams']['cp'] == '0' else \
-                    ([(sum([vert[livires] for vert in f.verts])/len(f.verts) - min(scene['liparams']['minres'].values()))/(max(scene['liparams']['maxres'].values()) - min(scene['liparams']['minres'].values())) for f in bm.faces])
-        except Exception as e:
-            print(e)
-            vals = array([max(scene['liparams']['maxres'].values()) for g in geom])
-        for g in geom:
-            g[res] = g[livires]   
-        bins = array([0.05*i for i in range(1, 20)])
-        nmatis = digitize(vals, bins)
-        for fi, f in enumerate(bm.faces):
-            if scene.li_disp_sv == '0':
-                f.material_index = nmatis[fi]
-            elif scene.li_disp_sv == '1':
-                f.material_index = 11 if vals[fi] > 0 else 19
-        if scene['liparams']['fe'] - scene['liparams']['fs'] > 0:
-            [self.data.polygons[fi].keyframe_insert('material_index', frame=frame) for fi in range(len(bm.faces))] 
-    bm.to_mesh(self.data)
-    bm.free()
+#def compdisplay(self, scene): 
+#    unitdict = {'0': 'df', '1': 'sv'}
+#    bm = bmesh.new()
+#    bm.from_mesh(self.data)
+#    geom = bm.verts if scene['liparams']['cp'] == '1' else bm.faces
+#    for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):          
+#        livires = geom.layers.float['{}{}'.format(unitdict[scene.li_disp_sv], frame)]
+#        res = geom.layers.float['res{}'.format(frame)]
+#        oreslist = [g[livires] for g in geom]
+#        self['omax'][str(frame)], self['omin'][str(frame)], self['oave'][str(frame)] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
+#         
+#        try:
+#            vals = array([(f[livires] - min(scene['liparams']['minres'].values()))/(max(scene['liparams']['maxres'].values()) - min(scene['liparams']['minres'].values())) for f in bm.faces]) if scene['liparams']['cp'] == '0' else \
+#                    ([(sum([vert[livires] for vert in f.verts])/len(f.verts) - min(scene['liparams']['minres'].values()))/(max(scene['liparams']['maxres'].values()) - min(scene['liparams']['minres'].values())) for f in bm.faces])
+#        except Exception as e:
+#            print(e)
+#            vals = array([max(scene['liparams']['maxres'].values()) for g in geom])
+#        for g in geom:
+#            g[res] = g[livires]   
+#        bins = array([0.05*i for i in range(1, 20)])
+#        nmatis = digitize(vals, bins)
+#        for fi, f in enumerate(bm.faces):
+#            if scene.li_disp_sv == '0':
+#                f.material_index = nmatis[fi]
+#            elif scene.li_disp_sv == '1':
+#                f.material_index = 11 if vals[fi] > 0 else 19
+#        if scene['liparams']['fe'] - scene['liparams']['fs'] > 0:
+#            [self.data.polygons[fi].keyframe_insert('material_index', frame=frame) for fi in range(len(bm.faces))] 
+#    bm.to_mesh(self.data)
+#    bm.free()
         
 def udidacalcapply(self, scene, frames, rccmds, simnode):  
     selobj(scene, self)
@@ -772,29 +850,22 @@ def envizres(scene, eresobs, resnode, restype):
                'CO2': ('CO2 (ppm)', scene.en_co2_max, scene.en_co2_min, 'ppm'), 'Heat': ('Heating (W)', scene.en_heat_max, scene.en_heat_min, 'W')}
     rl = resnode['reslists']
     zrl = list(zip(*rl))
-#    odict = {}
-#    odict = {res[1][0]: res[0] for res in resnode['resdict'].items() if len(res[1]) == 2 and res[1][0] in eresobs.values() and res[1][1] == resdict[restype][0]}
-#    eobs = [bpy.data.objects[o] for o in eresobs if eresobs[o] in odict]
-    eobs = set([eo for eoi, eo in enumerate(zrl[2]) if zrl[1][eoi] == 'Zone'])
     resstart = 24 * (resnode['Start'] - resnode.dsdoy)
     resend = resstart + 24 * (1 + resnode['End'] - resnode['Start'])
-#    resrange = (24 * (resnode['Start'] - resnode.dsdoy), 24 * (1 + resnode['End'] - resnode['Start']))
-
     maxval = max([[max(float(r) for r in zrl[4][ri].split())][0] for ri, r in enumerate(zrl[3]) if r == resdict[restype][0]and zrl[1][ri] == 'Zone']) 
     minval = min([[min(float(r) for r in zrl[4][ri].split())][0] for ri, r in enumerate(zrl[3]) if r == resdict[restype][0]and zrl[1][ri] == 'Zone'])
-#    print(maxrval)
-#    maxval = max([max(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) if resdict[restype][1] == max([max(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) else resdict[restype][1]
-#    minval = min([min(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) if resdict[restype][2] == min([min(resnode['allresdict'][odict[o.name.upper()]][resstart:resend]) for o in eobs]) else resdict[restype][2]
 
-    for o in [bpy.data.objects[o[3:]] for o in eresobs if eresobs[o] in odict]:   
-        vals = resnode['allresdict'][odict['EN_'+o.name.upper()]][resstart:resend]
+    for eo in eresobs:
+        o = bpy.data.objects[eo[3:]]
+        valstring = [r[4].split()[resstart:resend] for r in rl if r[2] == eo.upper() and r[3] == resdict[restype][0]]
+        vals = [float(v) for v in valstring[0]]
         opos = o.matrix_world * mathutils.Vector([sum(ops)/8 for ops in zip(*o.bound_box)])
     
         if not o.children or not any([restype in oc['envires'] for oc in o.children if oc.get('envires')]):
-            if scene.en_disp == '0':
+            if scene.en_disp == '1':
                 bpy.ops.mesh.primitive_plane_add()  
             elif scene.en_disp == '0':
-                bpy.ops.mesh.primitive_circle_add(fill = 'NGON')   
+                bpy.ops.mesh.primitive_circle_add(fill_type = 'NGON')   
             ores = bpy.context.active_object
             ores['VIType'] = 'envi_{}'.format(restype.lower())
             if not ores.get('envires'):
@@ -820,12 +891,9 @@ def envizres(scene, eresobs, resnode, restype):
             tmat = bpy.data.materials.new(name = '{}'.format(txt.name))
             tmat.diffuse_color = (0, 0, 0)
             txt.material_slots[0].material = tmat
-#            txt['envires'] = {}
-#            txt['envires'][restype] = vals
         else:
             ores = [o for o in o.children if o.get('envires') and restype in o['envires']][0] 
             ores['envires'][restype] = vals
-#                ores = o.children[0]
             mat = ores.material_slots[0].material
             if not ores.children:
                 bpy.ops.object.text_add(radius=1, view_align=False, enter_editmode=False, layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
@@ -842,27 +910,38 @@ def envizres(scene, eresobs, resnode, restype):
             else:
                 txt = ores.children[0]
             txt.data.body = u"{:.1f}\u00b0C".format(ores['envires'][restype][0]) 
-#            txt['envires'] = {}
-#            txt['envires'][restype] = vals
 
         scaleval =  [(vals[frame] - minval)/(maxval - minval) for frame in range(0, len(vals))]
         sv = [(sv, 0.1)[sv <= 0.1] for sv in scaleval]
-#        tl = [ores.dimensions[2]/s for s in sv]
         colval = [colorsys.hsv_to_rgb(0.667 * (maxval - vals[vi])/(maxval - minval), 1, 1) for vi in range(len(vals))]
         cv = [(((0, 1)[vals[c] >= maxval], 0, (0, 1)[vals[c] <= minval]), cv)[minval < vals[c] < maxval] for c, cv in enumerate(colval)]
+    
+        ores.animation_data_clear()
+        ores.animation_data_create()
+        ores.animation_data.action = bpy.data.actions.new(name="EnVi Zone")
+        oresz = ores.animation_data.action.fcurves.new(data_path="scale", index = 2)
+        oresz.keyframe_points.add(len(sv))
+        mat.animation_data_clear()
+        mat.animation_data_create()
+        mat.animation_data.action = bpy.data.actions.new(name="EnVi Zone Material")
+        mdcr = mat.animation_data.action.fcurves.new(data_path="diffuse_color", index = 0)
+        mdcg = mat.animation_data.action.fcurves.new(data_path="diffuse_color", index = 1)
+        mdcb = mat.animation_data.action.fcurves.new(data_path="diffuse_color", index = 2)
+        mdcr.keyframe_points.add(len(sv))
+        mdcg.keyframe_points.add(len(sv))
+        mdcb.keyframe_points.add(len(sv))
+        txt.animation_data_clear()
+        txt.animation_data_create()
+        txt.animation_data.action = bpy.data.actions.new(name="EnVi Zone Text")
+        txtl = txt.animation_data.action.fcurves.new(data_path="location", index = 2)
+        txtl.keyframe_points.add(len(sv))
 
         for frame in range(len(sv)):
-            scene.frame_set(frame) 
-#            oscale = scaleval[frame] 
-            #if scaleval[frame] > 0.1 else 0.1 
-            ores.scale[2] =  sv[frame]
-            ores.keyframe_insert(data_path = 'scale', index = 2, frame = frame)
-#            mat.diffuse_color = colval[frame] if minval < vals[frame] < maxval else ((0, 1)[vals[frame] >= maxval], 0, (0, 1)[vals[frame] <= minval]) 
-            mat.diffuse_color = cv[frame]
-            mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
-            txt.location[2] = 1
-#            txt.location[2] = ores.matrix_world.to_translation()[2]
-            txt.keyframe_insert(data_path = 'location', frame = frame)
+            oresz.keyframe_points[frame].co = frame, sv[frame]
+            mdcr.keyframe_points[frame].co = frame, cv[frame][0]
+            mdcg.keyframe_points[frame].co = frame, cv[frame][1]
+            mdcb.keyframe_points[frame].co = frame, cv[frame][2]
+            txtl.keyframe_points[frame].co = frame, 1
             
 def radpoints(o, faces, sks):
     fentries = ['']*len(faces)   
@@ -1134,30 +1213,33 @@ def retdata(dnode, axis, mtype, resdict, frame):
         return resdict[frame][mtype][dnode.inputs[axis].enmenu][dnode.inputs[axis].enrmenu]
 
 def retrmenus(innode, node): 
-    ftype = [(frame, frame, "Plot "+frame) for frame in innode['resdictnew'].keys()]
-    frame = innode['resdictnew'].keys()[0]
+    rl = innode['reslists']
+    zrl = list(zip(*rl))
+    ftype = [(frame, frame, "Plot "+frame) for frame in set(zrl[0])]
+    frame = zrl[0][0]
 
-    if not node.animated or len(innode['resdictnew']) == 1:
-        ziprlists = list(zip(*innode['reslists']))
-        ctype = [(metric, metric, "Plot " + metric) for m, metric in enumerate(ziprlists[3]) if ziprlists[1][m] == 'Climate']
-        ztypes = set([metric for m, metric in enumerate(ziprlists[2]) if ziprlists[1][m] == 'Zone'])
+    if not node.animated or len(ftype) == 1:
+        rtypes = set(zrl[1])
+        rtype = [(metric, metric, "Plot " + metric) for metric in rtypes]
+        ctype = [(metric, metric, "Plot " + metric) for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Climate']
+        ztypes = set([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Zone'])
         ztype = [(metric, metric, "Plot " + metric) for metric in ztypes]
-        zrtypes = set([metric for m, metric in enumerate(ziprlists[3]) if ziprlists[1][m] == 'Zone'])
+        zrtypes = set([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Zone'])
         zrtype = [(metric, metric, "Plot " + metric) for metric in zrtypes]
-        ltypes = set([metric for m, metric in enumerate(ziprlists[2]) if ziprlists[1][m] == 'Linkage'])
+        ltypes = set([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Linkage'])
         ltype = [(metric, metric, "Plot " + metric) for metric in ltypes]
-        lrtypes = set([metric for m, metric in enumerate(ziprlists[3]) if ziprlists[1][m] == 'Linkage'])
+        lrtypes = set([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Linkage'])
         lrtype = [(metric, metric, "Plot " + metric) for metric in lrtypes]
-        entypes = set([metric for m, metric in enumerate(ziprlists[2]) if ziprlists[1][m] == 'External'])
+        entypes = set([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'External'])
         entype = [(metric, metric, "Plot " + metric) for metric in entypes]
-        enrtypes = set([metric for m, metric in enumerate(ziprlists[3]) if ziprlists[1][m] == 'External'])        
+        enrtypes = set([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'External'])        
         enrtype = [(metric, metric, "Plot " + metric) for metric in enrtypes]    
     else:
         rtype = [(restype, restype, "Plot "+restype) for restype in innode['resdictnew'][frame].keys() if restype in ('Frames', 'AClimate', 'AZone', 'ALinkage')]
-        if 'AClimate' in innode['resdictnew'][frame].keys():
-            ctype = [(clim, clim, "Plot "+clim) for clim in innode['resdictnew'][frame]['AClimate'].keys()]
-        if 'AZone' in innode['resdictnew'][frame].keys():
-            ztype = [(zone, zone, "Plot "+zone) for zone in innode['resdictnew'][frame]['Zone'].keys()]
+        if 'AClimate' in zrl[1]:
+            ctype = set([(clim, clim, "Plot "+clim) for ci, clim in zrl[2] if zrl[1][ci] == 'AClimate'])
+        if 'AZone' in zrl[1]:
+            ztype = set([(zone, zone, "Plot "+zone) for zi, zone in zrl[2] if zrl[1][zi] == 'AZone'])
 
     fmenu = bpy.props.EnumProperty(items=ftype, name="", description="Frame number", default = ftype[0][0])
     rtypemenu = bpy.props.EnumProperty(items=rtype, name="", description="Result types", default = rtype[0][0])

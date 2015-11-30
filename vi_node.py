@@ -46,33 +46,18 @@ class ViLoc(bpy.types.Node, ViNodes):
         (scene.latitude, scene.longitude) = epwlatilongi(context.scene, self) if self.loc == '1' and self.weather else (scene.latitude, scene.longitude)
         nodecolour(self, self.ready())
         if self.loc == '1' and self.weather:
-            resdictnew = {}
-            resdictnew['0'] = {}
-            resdictnew['0']['Time'] = {}
-            resdictnew['0']['Climate'] = {}
-            resdictnew['0']['AClimate'] = {}
             reslists = []
-
-            with open(self.weather, 'r') as epwfile:
-                
+            with open(self.weather, 'r') as epwfile:                
                 self['frames'] = ['0']
                 epwlines = epwfile.readlines()[8:]
                 epwcolumns = list(zip(*[epwline.split(',') for epwline in epwlines]))
-                times = ('Month', 'Day', 'Hour')
-                for t, time in enumerate([' '.join(epwcolumns[c]) for c in range(1,4)]):
+                times = ('Month', 'Day', 'Hour', 'DOS')
+                for t, time in enumerate([' '.join(epwcolumns[c]) for c in range(1,4)] + [' '.join(['{}'.format(int(d/24) + 1) for d in range(len(epwlines))])]):
                     reslists.append(['0', 'Time', '', times[t], time])
-                resdictnew['0']['Time']['Month'], resdictnew['0']['Time']['Day'], resdictnew['0']['Time']['Hour'] = [' '.join(epwcolumns[c]) for c in range(1,4)]
-                resdictnew['0']['Time']['DOS'] = ' '.join(['{}'.format(int(d/24) + 1) for d in range(len(epwlines))])
                 for c in {"Temperature ("+ u'\u00b0'+"C)": 6, 'Humidity (%)': 8, "Direct Solar (W/m"+u'\u00b2'+")": 14, "Diffuse Solar (W/m"+u'\u00b2'+")": 15,
                           'Wind Direction (deg)': 20, 'Wind Speed (m/s)': 21}.items():
-                    resdictnew['0']['Climate'][c[0]] = ' '.join([cdata for cdata in list(epwcolumns[c[1]])])
                     reslists.append(['0', 'Climate', '', c[0], ' '.join([cdata for cdata in list(epwcolumns[c[1]])])])
-                    if c[0] == "Temperature ("+ u'\u00b0'+"C)":
-                        tdata = [float(cdata) for cdata in list(epwcolumns[c[1]])]
-                        resdictnew['0']['AClimate']['Max Temp'] = str(max(tdata))
-                        resdictnew['0']['AClimate']['Min Temp'] = str(min(tdata))
-                        resdictnew['0']['AClimate']['Ave Temp'] = str(sum(tdata)/len(tdata))
-                self['resdictnew'] = resdictnew
+
                 self.outputs['Location out']['epwtext'] = epwfile.read()
             self.outputs['Location out']['valid'] = ['Location', 'Vi Results']
         else:
@@ -964,7 +949,9 @@ class ViEnRNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         if self.inputs['X-axis'].links:
-            if len(self.inputs['X-axis'].links[0].from_node['resdictnew']) > 1:
+            rl = self.inputs['X-axis'].links[0].from_node['reslists']
+            zrl = list(zip(*rl))
+            if len(set(zrl[0])) > 1:
                 newrow(layout, 'Animated:', self, 'animated')
             row = layout.row()
             row.label("Day:")
@@ -993,13 +980,16 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 valid = ['Vi Results']
         else:
             innode = self.inputs['X-axis'].links[0].from_node
-            if len(innode['resdictnew']) == 1 or not self.node.animated:
-                doss = innode['resdictnew'][innode['resdictnew'].keys()[0]]['Time']['DOS'].split()
+            rl = innode['reslists']
+            zrl = list(zip(*rl))
+            if len(set(zrl[0])) == 1 or not self.node.animated:
+                if 'DOS' in zrl[3]:
+                    doss = zrl[4][zrl[3].index('DOS')].split()
                 startday, endday = int(doss[0]), int(doss[-1])
                 self["_RNA_UI"] = {"Start": {"min":startday, "max":endday}, "End": {"min":startday, "max":endday}}
                 self['Start'], self['End'] = startday, endday
             else:
-                frames = [int(k) for k in innode['resdictnew'].keys()]
+                frames = [int(k) for k in set(zrl[0])]
                 startframe, endframe = min(frames), max(frames)
                 self["_RNA_UI"] = {"Start": {"min":startframe, "max":endframe}, "End": {"min":startframe, "max":endframe}}
                 self['Start'], self['End'] = startframe, endframe

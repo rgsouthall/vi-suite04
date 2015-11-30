@@ -26,8 +26,13 @@ else:
     from .vi_ui import *
 
 import sys, os, inspect, bpy, nodeitems_utils, bmesh, shutil, colorsys, math
+from bpy.app.handlers import persistent
 from numpy import array, digitize
 
+@persistent
+def update_ntree(dummy):
+    for ng in bpy.data.node_groups:
+        [node.update() for node in ng.nodes if node.bl_label == 'VI Chart']
 
 epversion = "8-4-0"
 addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -79,7 +84,7 @@ def eupdate(self, context):
                 if str(frame) in o['omax']:
                     if bm.faces.layers.float.get('res{}'.format(frame)):
                         res = bm.faces.layers.float['res{}'.format(frame)] #if context.scene['cp'] == '0' else bm.verts.layers.float['res{}'.format(frame)]                
-                        faces = [f for f in geom if f.select]
+                        faces = [f for f in bm.faces if f.select]
                         extrudes = [0.1 * scene.vi_disp_3dlevel * (math.log10(maxo * (f[res] + 1 - mino)/odiff)) * f.normal.normalized() for f in faces] if scene.vi_leg_scale == '1' else \
                             [scene.vi_disp_3dlevel * ((f[res] - mino)/odiff) * f.normal.normalized() for f in faces]
     
@@ -91,16 +96,8 @@ def eupdate(self, context):
                         res = bm.verts.layers.float['res{}'.format(frame)]
                         extrudes = [scene.vi_disp_3dlevel * ((v[res]-mino)/odiff) * v.normal.normalized() for v in bm.verts] if scene.vi_leg_scale == '0' else \
                             [0.1 * scene.vi_disp_3dlevel * (math.log10(maxo * (v[res] + 1 - mino)/odiff)) * v.normal.normalized() for v in bm.verts]  
-    #                    earray = numpy.add(array(extrudes), array([vert[skb] for vert in bm.verts])).flatten()    
                         for v, vert in enumerate(bm.verts):
-    #                        vert[skf] = earray[v]
                             vert[skf] = vert[skb] + extrudes[v]
-    #            vecs = [v[skb] + extrudes[vi] for vi, v in enumerate(bm.verts)]
-    #            coords = [0] * 
-    #            print(earray)
-    #            print(len([v[skb] + extrudes[vi] for vi, v in enumerate(bm.verts)]), len(o.data.shape_keys.key_blocks[str(frame)].data))            
-    #            o.data.shape_keys.key_blocks[str(frame)].data.foreach_set('co', earray)
-    #            o.data.update()
     
                 bm.transform(o.matrix_world.inverted())
                 bm.to_mesh(o.data)
@@ -153,115 +150,59 @@ def liviresupdate(self, context):
         o.lividisplay(context.scene)  
     eupdate(self, context)
       
-def settemps(self, context):
+def setcols(self, context):
     scene = context.scene
     bpy.app.handlers.frame_change_pre.clear()
     fc = scene.frame_current
-    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_temp' and o.get('envires')]:
+    rdict = {'envi_temp': 'Temp', 'envi_hum': 'Hum', 'envi_heat': 'Heat', 'envi_cool': 'Cool', 'envi_co2': 'CO2'}
+
+    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] in ('envi_temp', 'envi_hum', 'envi_heat', 'envi_cool', 'envi_co2') and o.get('envires')]:
+        if o['VIType'] == 'envi_temp':
+            rmax, rmin = scene.en_temp_max, scene.en_temp_min
+        elif o['VIType'] == 'envi_hum':
+            rmax, rmin = scene.en_hum_max, scene.en_hum_min
+        elif o['VIType'] == 'envi_heat':
+            rmax, rmin = scene.en_heat_max, scene.en_heat_min
+        elif o['VIType'] == 'envi_cool':
+            rmax, rmin = scene.en_cool_max, scene.en_cool_min
+        elif o['VIType'] == 'envi_co2':
+            rmax, rmin = scene.en_co2_max, scene.en_co2_min
         mat = o.material_slots[0].material
-        for frame in range(scene.frame_start, scene.frame_end + 1):
-            scene.frame_set(frame)
-            if o['envires']['Temp'][frame] < scene.en_temp_min:
+        mfcs = mat.animation_data.action.fcurves
+        
+        for mfc in mfcs:
+            if mfc.data_path == 'diffuse_color':
+                if mfc.array_index == 0:
+                    dcr = mfc
+                elif mfc.array_index == 1:
+                    dcg = mfc
+                elif mfc.array_index == 2:
+                    dcb = mfc
+
+        frames = range(scene.frame_start, scene.frame_end + 1)
+#        cols = [colorsys.hsv_to_rgb(0.667 * (rmax - o['envires'][rdict[o['VIType']]][frame])/(rmax - rmin), 1, 1) for frame in frames]
+        for frame in frames:
+            if o['envires'][rdict[o['VIType']]][frame] < rmin:
                 col = (0, 0, 1) 
-            elif o['envires']['Temp'][frame] > scene.en_temp_max:
+            elif o['envires'][rdict[o['VIType']]][frame] > rmax:
                 col = (1, 0, 0)
             else:
-                col = colorsys.hsv_to_rgb(0.667 * (scene.en_temp_max - o['envires']['Temp'][frame])/(scene.en_temp_max - scene.en_temp_min), 1, 1)
+                col = colorsys.hsv_to_rgb(0.667 * (rmax - o['envires'][rdict[o['VIType']]][frame])/(rmax - rmin), 1, 1)
+            
+            dcr.keyframe_points[frame].co = frame, col[0]
+            dcg.keyframe_points[frame].co = frame, col[1]
+            dcb.keyframe_points[frame].co = frame, col[2]
 
-            mat.diffuse_color = col
-            mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
+#        rvals = [item for sublist in zip(frames,[col[0] for col in cols]) for item in sublist]
+#        gvals = [item for sublist in zip(frames,[col[1] for col in cols]) for item in sublist]
+#        bvals = [item for sublist in zip(frames,[col[2] for col in cols]) for item in sublist]
+#        dcr.keyframe_points.foreach_set('co', rvals)
+#        dcg.keyframe_points.foreach_set('co', gvals)
+#        dcb.keyframe_points.foreach_set('co', bvals)
 
     scene.frame_set(fc)
     if not bpy.app.handlers.frame_change_pre:
         bpy.app.handlers.frame_change_pre.append(recalculate_text)            
-
-def sethums(self, context):
-    scene = context.scene
-    bpy.app.handlers.frame_change_pre.clear()
-    fc = scene.frame_current
-    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_hum']:
-        mat = o.material_slots[0].material
-        for frame in range(scene.frame_start, scene.frame_end + 1):
-            scene.frame_set(frame)
-            if o['envires']['Hum'][frame] < scene.en_hum_min:
-                col = (0, 0, 1) 
-            elif o['envires']['Hum'][frame] > scene.en_hum_max:
-                col = (1, 0, 0)
-            else:
-                col = colorsys.hsv_to_rgb(0.667 * (scene.en_hum_max - o['envires']['Hum'][frame])/(scene.en_hum_max - scene.en_hum_min), 1, 1)
-
-            mat.diffuse_color = col
-            mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
-
-    scene.frame_set(fc)
-    if not bpy.app.handlers.frame_change_pre:
-        bpy.app.handlers.frame_change_pre.append(recalculate_text)
-
-def setheats(self, context):
-    scene = context.scene
-    bpy.app.handlers.frame_change_pre.clear()
-    fc = scene.frame_current
-    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_heat']:
-        mat = o.material_slots[0].material
-        for frame in range(scene.frame_start, scene.frame_end + 1):
-            scene.frame_set(frame)
-            if o['envires']['Heat'][frame] < scene.en_heat_min:
-                col = (0, 0, 1) 
-            elif o['envires']['Heat'][frame] > scene.en_heat_max:
-                col = (1, 0, 0)
-            else:
-                col = colorsys.hsv_to_rgb(0.667 * (scene.en_heat_max - o['envires']['Heat'][frame])/(scene.en_heat_max - scene.en_heat_min), 1, 1)
-
-            mat.diffuse_color = col
-            mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
-
-    scene.frame_set(fc)
-    if not bpy.app.handlers.frame_change_pre:
-        bpy.app.handlers.frame_change_pre.append(recalculate_text)
-
-def setcools(self, context):
-    scene = context.scene
-    bpy.app.handlers.frame_change_pre.clear()
-    fc = scene.frame_current
-    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_cool']:
-        mat = o.material_slots[0].material
-        for frame in range(scene.frame_start, scene.frame_end + 1):
-            scene.frame_set(frame)
-            if o['envires']['Cool'][frame] < scene.en_cool_min:
-                col = (0, 0, 1) 
-            elif o['envires']['Cool'][frame] > scene.en_cool_max:
-                col = (1, 0, 0)
-            else:
-                col = colorsys.hsv_to_rgb(0.667 * (scene.en_cool_max - o['envires']['Cool'][frame])/(scene.en_cool_max - scene.en_cool_min), 1, 1)
-
-            mat.diffuse_color = col
-            mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
-
-    scene.frame_set(fc)
-    if not bpy.app.handlers.frame_change_pre:
-        bpy.app.handlers.frame_change_pre.append(recalculate_text)
-        
-def setco2s(self, context):
-    scene = context.scene
-    bpy.app.handlers.frame_change_pre.clear()
-    fc = scene.frame_current
-    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == 'envi_co2']:
-        mat = o.material_slots[0].material
-        for frame in range(scene.frame_start, scene.frame_end + 1):
-            scene.frame_set(frame)
-            if o['envires']['CO2'][frame] < scene.en_co2_min:
-                col = (0, 0, 1) 
-            elif o['envires']['CO2'][frame] > scene.en_co2_max:
-                col = (1, 0, 0)
-            else:
-                col = colorsys.hsv_to_rgb(0.667 * (scene.en_co2_max - o['envires']['CO2'][frame])/(scene.en_co2_max - scene.en_co2_min), 1, 1)
-
-            mat.diffuse_color = col
-            mat.keyframe_insert(data_path = 'diffuse_color', frame = frame)
-
-    scene.frame_set(fc)
-    if not bpy.app.handlers.frame_change_pre:
-        bpy.app.handlers.frame_change_pre.append(recalculate_text)
     
 def register():
     bpy.utils.register_module(__name__)
@@ -553,8 +494,6 @@ def register():
 #    Material.flovi_bmionut_z = fprop("Z", "Value in the Z-direction", -1000, 1000, 0.0)   
     
 # Scene parameters
-#    Scene.fs = iprop("Frame start", "Starting frame",0, 1000, 0)
-#    (Scene.fe, Scene.gfe, Scene.cfe) = [iprop("Framhttp://www.durra.lk/what-is-durra/historye start", "End frame",0, 50000, 0)] * 3
     Scene.latitude = bpy.props.FloatProperty(name = "Latitude", description = "Site Latitude", default = 52.0)
     Scene.longitude = bpy.props.FloatProperty(name = "Longitude", description = "Site Longitude", default = 0.0)
     Scene.vipath = sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
@@ -573,16 +512,16 @@ def register():
     Scene.vi_leg_scale = bpy.props.EnumProperty(items = [('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name = "", description = "Legend scale", default = '0', update=legupdate)    
     Scene.en_disp = bpy.props.EnumProperty(items = [('0', 'Cylinder', 'Cylinder display'), ('1', 'Box', 'Box display')], name = "", description = "Type of EnVi metric display", default = '0')    
     Scene.en_frame = iprop("", "EnVi frame", 0, 500, 0)
-    Scene.en_temp_max = bpy.props.FloatProperty(name = "Max", description = "Temp maximum", default = 24, update=settemps)
-    Scene.en_temp_min = bpy.props.FloatProperty(name = "Min", description = "Temp minimum", default = 18, update=settemps)
-    Scene.en_hum_max = bpy.props.FloatProperty(name = "Max", description = "Humidity maximum", default = 100, update=sethums)
-    Scene.en_hum_min = bpy.props.FloatProperty(name = "Min", description = "Humidity minimum", default = 0, update=sethums)
-    Scene.en_heat_max = bpy.props.FloatProperty(name = "Max", description = "Heating maximum", default = 1000, update=setheats)
-    Scene.en_heat_min = bpy.props.FloatProperty(name = "Min", description = "Heating minimum", default = 0, update=setheats)
-    Scene.en_cool_max = bpy.props.FloatProperty(name = "Max", description = "Cooling maximum", default = 1000, update=setcools)
-    Scene.en_cool_min = bpy.props.FloatProperty(name = "Min", description = "Cooling minimum", default = 0, update=setcools)
-    Scene.en_co2_max = bpy.props.FloatProperty(name = "Max", description = "CO2 maximum", default = 10000, update=setco2s)
-    Scene.en_co2_min = bpy.props.FloatProperty(name = "Min", description = "CO2 minimum", default = 0, update=setco2s)
+    Scene.en_temp_max = bpy.props.FloatProperty(name = "Max", description = "Temp maximum", default = 24, update=setcols)
+    Scene.en_temp_min = bpy.props.FloatProperty(name = "Min", description = "Temp minimum", default = 18, update=setcols)
+    Scene.en_hum_max = bpy.props.FloatProperty(name = "Max", description = "Humidity maximum", default = 100, update=setcols)
+    Scene.en_hum_min = bpy.props.FloatProperty(name = "Min", description = "Humidity minimum", default = 0, update=setcols)
+    Scene.en_heat_max = bpy.props.FloatProperty(name = "Max", description = "Heating maximum", default = 1000, update=setcols)
+    Scene.en_heat_min = bpy.props.FloatProperty(name = "Min", description = "Heating minimum", default = 0, update=setcols)
+    Scene.en_cool_max = bpy.props.FloatProperty(name = "Max", description = "Cooling maximum", default = 1000, update=setcols)
+    Scene.en_cool_min = bpy.props.FloatProperty(name = "Min", description = "Cooling minimum", default = 0, update=setcols)
+    Scene.en_co2_max = bpy.props.FloatProperty(name = "Max", description = "CO2 maximum", default = 10000, update=setcols)
+    Scene.en_co2_min = bpy.props.FloatProperty(name = "Min", description = "CO2 minimum", default = 0, update=setcols)
     Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 48, 9)
     Scene.vi_display_rp_fc = fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     Scene.vi_display_rp_fsh = fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
@@ -606,15 +545,16 @@ def register():
      Scene.reszpmv_disp, Scene.resvls_disp, Scene.resvmh_disp, Scene.resim_disp, Scene.resiach_disp, Scene.reszco_disp, Scene.resihl_disp, Scene.reszlf_disp,
      Scene.reszof_disp, Scene.resmrt_disp, Scene.resocc_disp, Scene.resh_disp, Scene.resfhb_disp, Scene.ressah_disp, Scene.ressac_disp, Scene.reshrhw_disp) = resnameunits() 
     Scene.envi_flink = bprop("", "Associate flow results with the nearest object", False)
-#    Scene.resnode = sprop("", "", 0, "")
-#    Scene.restree = sprop("", "", 0, "") 
-#    Scene.epversion = sprop("", "EnergyPlus version", 1024, epversion.replace('-', '.'))
 
     nodeitems_utils.register_node_categories("Vi Nodes", vinode_categories)
     nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)
+    if not update_ntree in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(update_ntree)
 
 def unregister():
     bpy.utils.unregister_module(__name__)
     nodeitems_utils.unregister_node_categories("Vi Nodes")
     nodeitems_utils.unregister_node_categories("EnVi Nodes")
+    if not update_ntree in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(update_ntree)
 

@@ -177,7 +177,7 @@ def createradfile(scene, frame, export_op, simnode):
         elif frame < min([int(k) for k in link.from_node['Text'].keys()]):
             radtext += link.from_node['Text'][str(min([int(k) for k in link.from_node['Text'].keys()]))]
         elif frame > max([int(k) for k in link.from_node['Text'].keys()]):
-            radtext += link.from_node['Text'][str(max([int(k) for k in link.from_oode['Text'].keys()]))]
+            radtext += link.from_node['Text'][str(max([int(k) for k in link.from_node['Text'].keys()]))]
 
     simnode['radfiles'][str(frame)] = radtext
 

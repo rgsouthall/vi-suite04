@@ -16,10 +16,10 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os
+import bpy, os, datetime
 from subprocess import Popen, PIPE
 from . import livi_export
-from .vi_func import retpmap
+from .vi_func import retpmap, selobj, progressbar, progressfile
 
 def radfexport(scene, export_op, connode, geonode, frames):
     for frame in frames:
@@ -34,6 +34,8 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
     os.chdir(scene['viparams']['newdir'])
     rtcmds, rccmds = [], []
     simnode['resdictnew'] = {}
+    progressfile(scene, datetime.datetime.now(), [int(i * 100/20) for i in range(0, 21)], 5, 'clear')
+    kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'))
     
     for f, frame in enumerate(frames):
         simnode['resdictnew'][str(frame)] = {}
@@ -59,15 +61,23 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
         else:
             rccmds.append("rcontrib -w  -h -I -fo -bn 146 {} -n {} -f tregenza.cal -b tbin -m sky_glow {}-{}.oct".format(simnode['radparams'], scene['viparams']['nproc'], scene['viparams']['filebase'], frame))
 
+    tpoints = sum([bpy.data.objects[lc]['rtpnum'] for lc in scene['liparams']['livic']])
+    startstep = 0
     for oi, o in enumerate([scene.objects[on] for on in scene['liparams']['livic']]):
+        selobj(scene, o)
         o['omax'], o['omin'], o['oave'] = {}, {}, {}
         if context == 'Basic':
-            o.basiccalcapply(scene, frames, rtcmds, simnode)
+            if o.basiccalcapply(scene, frames, rtcmds, simnode, oi, datetime.datetime.now(), len(scene['liparams']['livic']), tpoints, startstep) == 'CANCELLED':
+                return 'CANCELLED'
         elif context == 'CBDM' and int(subcontext) < 2:
             o.lhcalcapply(scene, frames, rtcmds)
         elif context == 'CBDM' and int(subcontext) > 1:
             o.udidacalcapply(scene, frames, rccmds, simnode)
         elif context == 'Compliance':
-            o.compcalcapply(scene, frames, rtcmds, simnode)     
+            o.compcalcapply(scene, frames, rtcmds, simnode)   
+        startstep += o['rtpnum']
+        
+    if kivyrun.poll() is None:
+        kivyrun.kill()
             
 

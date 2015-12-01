@@ -74,28 +74,10 @@ class Vi3DPanel(bpy.types.Panel):
             
             elif scene['viparams']['vidisp'] in ('en', 'enpanel'):
                 resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
-#                resitems = resnode['resdictnew'][str(scene.frame_current)].keys()
                 rl = resnode['reslists']
                 zrl = list(zip(*rl))
                 zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone'])
                 lmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Linkage'])
-
-#                if 'Zone' in resitems:
-#                    reszones = resnode['resdictnew'][str(scene.frame_current)]['Zone'].keys()
-#                    zonemetrics = resnode['resdictnew'][str(scene.frame_current)]['Zone'][reszones[0]].keys()
-#                else:
-#                    zonemetrics = []
-#                if 'Linkage' in resitems:
-#                    reslinks = resnode['resdictnew'][str(scene.frame_current)]['Linkage'].keys()
-#                    linkmetrics = resnode['resdictnew'][str(scene.frame_current)]['Linkage'][reslinks[0]].keys()
-#                else:
-#                    linkmetrics = []
-#                self["_RNA_UI"] = {"Start": {"min":resnode.dsdoy, "max":resnode.dedoy}, "End": {"min":resnode.dsdoy, "max":resnode.dedoy}}
-
-#                zonemetrics = set([res['Zone'][1][1] for res in resitems if res[1][0] in ['EN_{}'.format(ob.name.upper()) for ob in bpy.data.objects]])
-#                aresdict = {"Air": "resaa_disp", 'Solar': 'resas_disp'}#, 'Wind Direction (deg)': 'resawd_disp', 
-          #                  'Humidity (%)': 'resah_disp', 'Direct Solar (W/m^2)': 'resasb_disp', 'Diffuse Solar (W/m^2)': 'resasd_disp'}
-#                allmetrics = set([res[1][1] for res in resitems if len(res[1]) == 2])
                 zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp', 'CO2 (ppm)': 'reszco_disp'}
                 vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}
                 row = layout.row()               
@@ -107,7 +89,6 @@ class Vi3DPanel(bpy.types.Panel):
                 row.prop(scene, 'resaa_disp')
                 row.prop(scene, 'resas_disp')
                 
-#                for ri, rname in enumerate(set([rname[1] for rname in resnode['resdictnew'][str(scene.frame_current)].values() if rname[0][:3] == 'EN_' and rname[0][3:] in [o.name.upper() for o in bpy.data.objects]])):
                 for ri, rname in enumerate(zmetrics):
                     if ri == 0:                    
                         row = layout.row()
@@ -118,7 +99,6 @@ class Vi3DPanel(bpy.types.Panel):
                         row.prop(scene, zresdict[rname])
                 
                 for ri, rname in enumerate(lmetrics):
-#                    for ri, rname in enumerate(set([rname[1] for rname in resnode['resdictnew'][str(scene.frame_current)].values() if rname[0][:4] == 'WIN-' and rname[1] in vresdict])):
                     if ri == 0:                    
                         row = layout.row()
                         row.label(text = 'Ventilation')                    

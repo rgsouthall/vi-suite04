@@ -785,19 +785,22 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
     bl_label = "EnVi display"
     bl_description = "Display the EnVi results"
     bl_register = True
-    bl_undo = True
+    bl_undo = False
     _handle = None
     disp =  bpy.props.IntProperty(default = 1)
 
     def modal(self, context, event):
         scene = context.scene
-        if scene['viparams']['vidisp'] not in ('en', 'enpanel'):
+        if scene['viparams']['vidisp'] not in ('en', 'enpanel') or not scene.vi_display:
             try:
                 bpy.types.SpaceView3D.draw_handler_remove(self._handle_air, 'WINDOW')
             except:
                 pass
-            if not scene.get('enpanel_disp'):
-                bpy.types.SpaceView3D.draw_handler_remove(self._handle_enpanel, 'WINDOW')
+#            if not scene.vi_display:
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle_enpanel, 'WINDOW')
+            for o in [o for o in scene.objects if o.get('VIType') and o['VIType'] in ('envi_temp', 'envi_hum', 'envi_heat', 'envi_cool', 'envi_co2')]:
+                [scene.objects.unlink(oc) for oc in o.children]
+                scene.objects.unlink(o)
             return {'CANCELLED'}
         return {'PASS_THROUGH'}
 
@@ -834,13 +837,13 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
 
         if scene.resaa_disp:
             for mi, metric in enumerate(zrl[3]):
-                if metric == 'Temperature (degC)':
+                if metric == 'Temperature (degC)' and zrl[1][mi] == 'Climate':
                     temp = [float(ds) for ds in zrl[4][mi].split()[24 * resnode['Start']:24 * resnode['End'] + 1]]
-                elif metric == 'Wind Speed (m/s)':
+                elif metric == 'Wind Speed (m/s)' and zrl[1][mi] == 'Climate':
                     ws = [float(ds) for ds in zrl[4][mi].split()[24 * resnode['Start']:24 * resnode['End'] + 1]]
-                elif metric == 'Wind Direction (deg)':
+                elif metric == 'Wind Direction (deg)' and zrl[1][mi] == 'Climate':
                     wd = [float(m) for m in zrl[4][mi].split()[24 * resnode['Start']:24 * resnode['End'] + 1]]
-                elif metric == 'Humidity (%)':
+                elif metric == 'Humidity (%)' and zrl[1][mi] == 'Climate':
                     hu = [float(d) for d in zrl[4][mi].split()[24 * resnode['Start']:24 * resnode['End'] + 1]]
             
             self._handle_air = bpy.types.SpaceView3D.draw_handler_add(en_air, (self, context, temp, ws, wd, hu), 'WINDOW', 'POST_PIXEL')
@@ -864,6 +867,7 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
 
         self._handle_enpanel = bpy.types.SpaceView3D.draw_handler_add(en_panel, (self, context, resnode), 'WINDOW', 'POST_PIXEL')
         scene['viparams']['vidisp'] = 'enpanel'
+        scene.vi_display = True
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 

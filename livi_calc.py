@@ -63,14 +63,17 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
 
     tpoints = sum([bpy.data.objects[lc]['rtpnum'] for lc in scene['liparams']['livic']])
     startstep = 0
+
     for oi, o in enumerate([scene.objects[on] for on in scene['liparams']['livic']]):
+        print(startstep)
         selobj(scene, o)
         o['omax'], o['omin'], o['oave'] = {}, {}, {}
         if context == 'Basic':
             if o.basiccalcapply(scene, frames, rtcmds, simnode, oi, datetime.datetime.now(), len(scene['liparams']['livic']), tpoints, startstep) == 'CANCELLED':
                 return 'CANCELLED'
         elif context == 'CBDM' and int(subcontext) < 2:
-            o.lhcalcapply(scene, frames, rtcmds)
+            if o.lhcalcapply(scene, frames, rtcmds, simnode, oi, datetime.datetime.now(), len(scene['liparams']['livic']), tpoints, startstep) == 'CANCELLED':
+                return 'CANCELLED'
         elif context == 'CBDM' and int(subcontext) > 1:
             o.udidacalcapply(scene, frames, rccmds, simnode)
         elif context == 'Compliance':

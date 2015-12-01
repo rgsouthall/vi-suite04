@@ -359,150 +359,137 @@ def en_air(self, context, temp, ws, wd, hu):
     
 def en_panel(self, context, resnode):
     scene = context.scene
-#    resitems = resnode['resdictnew'][str(scene.en_frame)].items()
     rl = resnode['reslists']
     zrl = list(zip(*rl))
-    reszones = [o for o in bpy.data.objects if o.name.upper() in zrl[2]]
-#    reszones = resnode['resdictnew'][str(scene.en_frame)]['Zone'].keys()
-#    metrics = set
+    reszones = [o.name.upper() for o in bpy.data.objects if o.name.upper() in zrl[2]]
+    if not bpy.context.active_object or 'EN_'+bpy.context.active_object.name.upper() not in reszones:
+        return
     height, font_id = context.region.height, 0
     hscale = height/nh
     startx, starty, rowheight, totwidth = 20, height - 20, 20, 200
     resstart = 24 * (resnode['Start'] - resnode.dsdoy)
     resend = resstart + 24 * (1 + resnode['End'] - resnode['Start'])
-    
-    if not bpy.context.active_object or not 'EN_{}'.format(bpy.context.active_object.name.upper()) in reszones:
-        return
-    else:
-        ezname = bpy.context.active_object.name.upper()
-#        metrics = resnode['resdictnew'][str(scene.en_frame)]['Zone'][reszones[0]].keys()
-        metrics = set([rl[4][ri] for ri in range(len(rl)) if resnode['reslists'][2][ri] == ezname])
-#        metrics = [res[1][1] for res in resitems if 'EN_{}'.format(bpy.context.active_object.name.upper()) == res[1][0]]
-        metricno = 6 * (0, 1)['Temperature (degC)' in metrics] + 6 * (0, 1)['Humidity (%)' in metrics] + 8 * (0, 1)['Heating (W)' in metrics] + 8 * (0, 1)['Zone air heating (W)' in metrics] + 8 * (0, 1)['Cooling (W)' in metrics] + 6 * (0, 1)['CO2 (ppm)' in metrics]
-        rowno = 1
-        if metricno:
-            drawpoly(startx, starty, startx + int(hscale*totwidth), starty - int(hscale*rowheight*(1 + metricno)), 0.7, 1, 1, 1)
-            drawloop(startx, starty, startx + int(hscale*totwidth), starty - int(hscale*rowheight*(1 + metricno)))
-            blf.enable(0, 4)
-            blf.shadow(0, 3, 0, 0, 0, 0.5)
-            blf.size(font_id, 20, int(height/14))
-            bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+    ezname = 'EN_'+bpy.context.active_object.name.upper()
+    metrics = set([rl[ri][3] for ri in range(len(rl)) if rl[ri][2] == ezname])
+    metricno = 6 * (0, 1)['Temperature (degC)' in metrics] + 6 * (0, 1)['Humidity (%)' in metrics] + 8 * (0, 1)['Heating (W)' in metrics] + 8 * (0, 1)['Zone air heating (W)' in metrics] + 8 * (0, 1)['Cooling (W)' in metrics] + 6 * (0, 1)['CO2 (ppm)' in metrics]
+    rowno = 1
+    if metricno:
+        drawpoly(startx, starty, startx + int(hscale*totwidth), starty - int(hscale*rowheight*(1 + metricno)), 0.7, 1, 1, 1)
+        drawloop(startx, starty, startx + int(hscale*totwidth), starty - int(hscale*rowheight*(1 + metricno)))
+        blf.enable(0, 4)
+        blf.shadow(0, 3, 0, 0, 0, 0.5)
+        blf.size(font_id, 20, int(height/14))
+        bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+        
+        if 'Temperature (degC)' in metrics:
+            tdata = [t.split()[resstart:resend] for ti, t in enumerate(zrl[4]) if zrl[3][ti] == 'Temperature (degC)' and zrl[2][ti] == ezname]
+            vals = [float(t) for t in tdata[0]]
+            avval, maxval, minval, percenta, percentb = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val > scene.en_temp_max for val in vals])/len(vals), 100 * sum([val < scene.en_temp_min for val in vals])/len(vals) 
+            blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
+            blf.draw(font_id, 'Temperatures:')
+            for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.1f}'.format(scene.en_temp_max), '% below {:.1f}'.format(scene.en_temp_min))):
+                blf.position(font_id, int(startx + hscale*10), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                blf.draw(font_id, text)
+            for tt, text in enumerate((avval, maxval, minval, percenta, percentb)):
+                blf.position(font_id, int(startx +  hscale*(totwidth * 0.6 + 10)), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                blf.draw(font_id, '{:.1f}'.format(text))
+            bgl.glBegin(bgl.GL_LINES)
+            bgl.glVertex2i(startx + int(hscale * totwidth * 0.2), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+            bgl.glVertex2i(startx + int(hscale*totwidth * 0.8), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+            bgl.glEnd()
+            rowno += tt + 2
+        
+        if 'Humidity (%)' in metrics:
+            hdata = [h.split()[resstart:resend] for hi, h in enumerate(zrl[4]) if zrl[3][hi] == 'Humidity (%)' and zrl[2][hi] == ezname]
+            vals = [float(h) for h in hdata[0]]
+            avval, maxval, minval, percenta, percentb = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val > scene.en_hum_max for val in vals])/len(vals), 100 * sum([val < scene.en_hum_min for val in vals])/len(vals) 
+            blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
+            blf.draw(font_id, 'Humidities:')
+            for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.1f}'.format(scene.en_hum_max), '% below {:.1f}'.format(scene.en_hum_min))):
+                blf.position(font_id, int(startx + hscale*10), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                blf.draw(font_id, text)
+            for tt, text in enumerate((avval, maxval, minval, percenta, percentb)):
+                blf.position(font_id, int(startx +  hscale*(totwidth * 0.6 + 10)), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                blf.draw(font_id, '{:.1f}'.format(text))
+            bgl.glBegin(bgl.GL_LINES)
+            bgl.glVertex2i(startx + int(hscale * totwidth * 0.2), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+            bgl.glVertex2i(startx + int(hscale*totwidth * 0.8), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+            bgl.glEnd()
+            rowno += tt + 2
+        
+        if 'Heating (W)' in metrics:
+            hdata = [h.split()[resstart:resend] for hi, h in enumerate(zrl[4]) if zrl[3][hi] == 'Heating (W)' and zrl[2][hi] == ezname]
+            vals = [float(h) for h in hdata[0]]
+            avval, maxval, minval, percenta, percentb, kwh, kwhm2 = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val >= scene.en_heat_max for val in vals])/len(vals), 100 * sum([val <= scene.en_heat_min for val in vals])/len(vals), 0.001 * sum(vals), 0.001 * sum(vals)/bpy.data.objects['en_'+bpy.context.active_object.name]['floorarea'] 
+            blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
+            blf.draw(font_id, 'Heating (W):')
+            for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.1f}'.format(scene.en_heat_max), '% at min {:.1f}'.format(scene.en_heat_min), 'kWh', 'kWh/m^2')):
+                blf.position(font_id, int(startx + hscale*10), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                blf.draw(font_id, text)
+            for tt, text in enumerate((avval, maxval, minval, percenta, percentb, kwh, kwhm2)):
+                blf.position(font_id, int(startx +  hscale*(totwidth * 0.6 + 10)), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                blf.draw(font_id, '{:.0f}'.format(text))
+            bgl.glBegin(bgl.GL_LINES)
+            bgl.glVertex2i(startx + int(hscale * totwidth * 0.2), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+            bgl.glVertex2i(startx + int(hscale*totwidth * 0.8), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+            bgl.glEnd()
+            rowno += tt + 2
             
-            if 'Temperature (degC)' in metrics:
-                tdata = [t.split() for ti, t in enumerate(zrl[5]) if zrl[3][ti] == 'Temperature (degC)' and zrl[2][ti] == ezname]
-                vals = [float(t) for t in tdata[0]]
-#                vals = [float(v) for v in resnode['resdictnew'][str(scene.en_frame)]['Zone']['EN_'+ezname]['Temperature (degC)'].split()[resstart:resend]]               
-                avval, maxval, minval, percenta, percentb = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val > scene.en_temp_max for val in vals])/len(vals), 100 * sum([val < scene.en_temp_min for val in vals])/len(vals) 
-                blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
-                blf.draw(font_id, 'Temperatures:')
-                for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.1f}'.format(scene.en_temp_max), '% below {:.1f}'.format(scene.en_temp_min))):
-                    blf.position(font_id, int(startx + hscale*10), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
-                    blf.draw(font_id, text)
-                for tt, text in enumerate((avval, maxval, minval, percenta, percentb)):
-                    blf.position(font_id, int(startx +  hscale*(totwidth * 0.6 + 10)), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
-                    blf.draw(font_id, '{:.1f}'.format(text))
-                bgl.glBegin(bgl.GL_LINES)
-                bgl.glVertex2i(startx + int(hscale * totwidth * 0.2), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
-                bgl.glVertex2i(startx + int(hscale*totwidth * 0.8), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
-                bgl.glEnd()
-                rowno += tt + 2
+        if 'Zone air heating (W)' in metrics:
+            hdata = [h.split()[resstart:resend] for hi, h in enumerate(zrl[4]) if zrl[3][hi] == 'Zone air heating (W)' and zrl[2][hi] == ezname]
+            vals = [float(h) for h in hdata[0]]
+            avval, maxval, minval, percenta, percentb, kwh, kwhm2 = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val >= scene.en_heat_max for val in vals])/len(vals), 100 * sum([val <= scene.en_heat_min for val in vals])/len(vals), 0.001 * sum(vals), 0.001 * sum(vals)/bpy.data.objects['en_'+bpy.context.active_object.name]['floorarea'] 
+            blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
+            blf.draw(font_id, 'Air heating (W):')
+            for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.0f}'.format(scene.en_heat_max), '% at min {:.0f}'.format(scene.en_heat_min), 'kWh', 'kWh/m^2')):
+                blf.position(font_id, int(startx + hscale*10), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                blf.draw(font_id, text)
+            for tt, text in enumerate((avval, maxval, minval, percenta, percentb, kwh, kwhm2)):
+                blf.position(font_id, int(startx +  hscale*(totwidth * 0.6 + 10)), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                blf.draw(font_id, '{:.1f}'.format(text))
+            bgl.glBegin(bgl.GL_LINES)
+            bgl.glVertex2i(startx + int(hscale * totwidth * 0.2), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+            bgl.glVertex2i(startx + int(hscale*totwidth * 0.8), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+            bgl.glEnd()
+            rowno += tt + 2
             
-            if 'Humidity (%)' in metrics:
-                hdata = [h.split() for hi, h in enumerate(zrl[5]) if zrl[3][hi] == 'Humidity (%)' and zrl[2][hi] == ezname]
-                vals = [float(h) for h in hdata[0]]
-#                vals = [float(v) for v in resnode['resdictnew'][str(scene.en_frame)]['Zone']['EN_'+bpy.context.active_object.name.upper()]['Humidity (%)'].split()[resstart:resend]]
-                avval, maxval, minval, percenta, percentb = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val > scene.en_hum_max for val in vals])/len(vals), 100 * sum([val < scene.en_hum_min for val in vals])/len(vals) 
-                blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
-                blf.draw(font_id, 'Humidities:')
-                for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.1f}'.format(scene.en_hum_max), '% below {:.1f}'.format(scene.en_hum_min))):
-                    blf.position(font_id, int(startx + hscale*10), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
-                    blf.draw(font_id, text)
-                for tt, text in enumerate((avval, maxval, minval, percenta, percentb)):
-                    blf.position(font_id, int(startx +  hscale*(totwidth * 0.6 + 10)), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
-                    blf.draw(font_id, '{:.1f}'.format(text))
-                bgl.glBegin(bgl.GL_LINES)
-                bgl.glVertex2i(startx + int(hscale * totwidth * 0.2), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
-                bgl.glVertex2i(startx + int(hscale*totwidth * 0.8), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
-                bgl.glEnd()
-                rowno += tt + 2
-            
-            if 'Heating (W)' in metrics:
-                hdata = [h.split() for hi, h in enumerate(zrl[5]) if zrl[3][hi] == 'Heating (W)' and zrl[2][hi] == ezname]
-                vals = [float(h) for h in hdata[0]]
-#                vals = [float(v) for v in resnode['resdictnew'][str(scene.en_frame)]['Zone']['EN_'+bpy.context.active_object.name.upper()]['Heating (W)'].split()[resstart:resend]]
-#                vals = resnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'Heating (W)'][0]]
-                avval, maxval, minval, percenta, percentb, kwh, kwhm2 = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val >= scene.en_heat_max for val in vals])/len(vals), 100 * sum([val <= scene.en_heat_min for val in vals])/len(vals), 0.001 * sum(vals), 0.001 * sum(vals)/bpy.data.objects['en_'+bpy.context.active_object.name]['floorarea'] 
-                blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
-                blf.draw(font_id, 'Heating (W):')
-                for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.1f}'.format(scene.en_heat_max), '% at min {:.1f}'.format(scene.en_heat_min), 'kWh', 'kWh/m^2')):
-                    blf.position(font_id, int(startx + hscale*10), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
-                    blf.draw(font_id, text)
-                for tt, text in enumerate((avval, maxval, minval, percenta, percentb, kwh, kwhm2)):
-                    blf.position(font_id, int(startx +  hscale*(totwidth * 0.6 + 10)), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
-                    blf.draw(font_id, '{:.0f}'.format(text))
-                bgl.glBegin(bgl.GL_LINES)
-                bgl.glVertex2i(startx + int(hscale * totwidth * 0.2), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
-                bgl.glVertex2i(startx + int(hscale*totwidth * 0.8), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
-                bgl.glEnd()
-                rowno += tt + 2
-                
-            if 'Zone air heating (W)' in metrics:
-                hdata = [h.split() for hi, h in enumerate(zrl[5]) if zrl[3][hi] == 'Heating (W)' and zrl[2][hi] == ezname]
-                vals = [float(h) for h in hdata[0]]#                vals = resnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'Zone air heating (W)'][0]]
-                avval, maxval, minval, percenta, percentb, kwh, kwhm2 = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val >= scene.en_heat_max for val in vals])/len(vals), 100 * sum([val <= scene.en_heat_min for val in vals])/len(vals), 0.001 * sum(vals), 0.001 * sum(vals)/bpy.data.objects['en_'+bpy.context.active_object.name]['floorarea'] 
-                blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
-                blf.draw(font_id, 'Air heating (W):')
-                for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.0f}'.format(scene.en_heat_max), '% at min {:.0f}'.format(scene.en_heat_min), 'kWh', 'kWh/m^2')):
-                    blf.position(font_id, int(startx + hscale*10), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
-                    blf.draw(font_id, text)
-                for tt, text in enumerate((avval, maxval, minval, percenta, percentb, kwh, kwhm2)):
-                    blf.position(font_id, int(startx +  hscale*(totwidth * 0.6 + 10)), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
-                    blf.draw(font_id, '{:.1f}'.format(text))
-                bgl.glBegin(bgl.GL_LINES)
-                bgl.glVertex2i(startx + int(hscale * totwidth * 0.2), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
-                bgl.glVertex2i(startx + int(hscale*totwidth * 0.8), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
-                bgl.glEnd()
-                rowno += tt + 2
-                
-            if 'Cooling (W)' in metrics:
-                cdata = [c.split() for ci, c in enumerate(zrl[5]) if zrl[3][ci] == 'Heating (W)' and zrl[2][ci] == ezname]
-                vals = [float(c) for c in cdata[0]]                
-                avval, maxval, minval, percenta, percentb, kwh, kwhm2 = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val >= scene.en_heat_max for val in vals])/len(vals), 100 * sum([val <= scene.en_heat_min for val in vals])/len(vals), 0.001 * sum(vals), 0.001 * sum(vals)/bpy.data.objects['en_'+bpy.context.active_object.name]['floorarea'] 
-                blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
-                blf.draw(font_id, 'Cooling (W):')
-                for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.0f}'.format(scene.en_heat_max), '% at min {:.0f}'.format(scene.en_heat_min), 'kWh', 'kWh/m^2')):
-                    blf.position(font_id, int(startx + hscale*10), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
-                    blf.draw(font_id, text)
-                for tt, text in enumerate((avval, maxval, minval, percenta, percentb, kwh, kwhm2)):
-                    blf.position(font_id, int(startx +  hscale*(totwidth * 0.6 + 10)), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
-                    blf.draw(font_id, '{:.1f}'.format(text))
-                bgl.glBegin(bgl.GL_LINES)
-                bgl.glVertex2i(startx + int(hscale * totwidth * 0.2), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
-                bgl.glVertex2i(startx + int(hscale*totwidth * 0.8), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
-                bgl.glEnd()
-                rowno += tt + 2
-            
-            if 'CO2 (ppm)' in metrics:
-                cdata = [c.split() for ci, c in enumerate(zrl[5]) if zrl[3][ci] == 'Heating (W)' and zrl[2][ci] == ezname]
-                vals = [float(c) for c in cdata[0]] 
-#                vals = [float(v) for v in resnode['resdictnew'][str(scene.en_frame)]['Zone']['EN_'+bpy.context.active_object.name.upper()]['CO2 (ppm)'].split()[resstart:resend]]
-#                vals = resnode['allresdict'][[res[0] for res in resitems if res[1][0] == 'EN_{}'.format(bpy.context.active_object.name.upper()) and res[1][1] == 'CO2 (ppm)'][0]]
-                avval, maxval, minval, percenta, percentb = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val >= scene.en_co2_max for val in vals])/len(vals), 100 * sum([val <= scene.en_co2_min for val in vals])/len(vals) 
-                blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
-                blf.draw(font_id, 'CO2 (ppm):')
-                for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.0f}'.format(scene.en_co2_max), '% at min {:.0f}'.format(scene.en_co2_min))):
-                    blf.position(font_id, int(startx + hscale*10), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
-                    blf.draw(font_id, text)
-                for tt, text in enumerate((avval, maxval, minval, percenta, percentb)):
-                    blf.position(font_id, int(startx +  hscale*(totwidth * 0.6 + 10)), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
-                    blf.draw(font_id, '{:.0f}'.format(text))
-                bgl.glBegin(bgl.GL_LINES)
-                bgl.glVertex2i(startx + int(hscale * totwidth * 0.2), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
-                bgl.glVertex2i(startx + int(hscale*totwidth * 0.8), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
-                bgl.glEnd()
-                rowno += tt + 2    
-            
-            blf.disable(0, 4)        
+        if 'Cooling (W)' in metrics:
+            cdata = [c.split()[resstart:resend] for ci, c in enumerate(zrl[4]) if zrl[3][ci] == 'Cooling (W)' and zrl[2][ci] == ezname]
+            vals = [float(c) for c in cdata[0]]                
+            avval, maxval, minval, percenta, percentb, kwh, kwhm2 = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val >= scene.en_heat_max for val in vals])/len(vals), 100 * sum([val <= scene.en_heat_min for val in vals])/len(vals), 0.001 * sum(vals), 0.001 * sum(vals)/bpy.data.objects['en_'+bpy.context.active_object.name]['floorarea'] 
+            blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
+            blf.draw(font_id, 'Cooling (W):')
+            for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.0f}'.format(scene.en_heat_max), '% at min {:.0f}'.format(scene.en_heat_min), 'kWh', 'kWh/m^2')):
+                blf.position(font_id, int(startx + hscale*10), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                blf.draw(font_id, text)
+            for tt, text in enumerate((avval, maxval, minval, percenta, percentb, kwh, kwhm2)):
+                blf.position(font_id, int(startx +  hscale*(totwidth * 0.6 + 10)), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                blf.draw(font_id, '{:.1f}'.format(text))
+            bgl.glBegin(bgl.GL_LINES)
+            bgl.glVertex2i(startx + int(hscale * totwidth * 0.2), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+            bgl.glVertex2i(startx + int(hscale*totwidth * 0.8), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+            bgl.glEnd()
+            rowno += tt + 2
+        
+        if 'CO2 (ppm)' in metrics:
+            cdata = [c.split()[resstart:resend] for ci, c in enumerate(zrl[4]) if zrl[3][ci] == 'CO2 (ppm)' and zrl[2][ci] == ezname]
+            vals = [float(c) for c in cdata[0]] 
+            avval, maxval, minval, percenta, percentb = sum(vals)/len(vals), max(vals), min(vals), 100 * sum([val >= scene.en_co2_max for val in vals])/len(vals), 100 * sum([val <= scene.en_co2_min for val in vals])/len(vals) 
+            blf.position(font_id, int(startx + hscale * 10), int(starty - hscale * rowheight * rowno), 0)
+            blf.draw(font_id, 'CO2 (ppm):')
+            for tt, text in enumerate(('Average:', 'Maximum:', 'Minimum:', '% above {:.0f}'.format(scene.en_co2_max), '% at min {:.0f}'.format(scene.en_co2_min))):
+                blf.position(font_id, int(startx + hscale*10), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                blf.draw(font_id, text)
+            for tt, text in enumerate((avval, maxval, minval, percenta, percentb)):
+                blf.position(font_id, int(startx +  hscale*(totwidth * 0.6 + 10)), int(starty - hscale * rowheight * (rowno + tt + 1)), 0)
+                blf.draw(font_id, '{:.0f}'.format(text))
+            bgl.glBegin(bgl.GL_LINES)
+            bgl.glVertex2i(startx + int(hscale * totwidth * 0.2), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+            bgl.glVertex2i(startx + int(hscale*totwidth * 0.8), int(starty - hscale * rowheight * (rowno + tt + 1.25)))
+            bgl.glEnd()
+            rowno += tt + 2    
+        
+        blf.disable(0, 4)        
     return
         
 def viwr_legend(self, context, simnode):

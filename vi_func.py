@@ -1,4 +1,4 @@
-import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex
+import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex, time
 from subprocess import Popen, PIPE, STDOUT
 from numpy import array, digitize, amax, amin, average, zeros, inner
 from numpy import sum as nsum
@@ -249,7 +249,7 @@ class Radiance(App):\n\
             try:    (percent, tr) = pffile.readlines()[0].split()\n\
             except: percent, tr = 0, 'Not known'\n\
         self.rpb.value = int(percent)\n\
-        self.label.text = '{}% Complete, Time remaining {}'.format(percent, tr)\n\
+        self.label.text = '{}% Complete - Time remaining: {}'.format(percent, tr)\n\
 \n\
 if __name__ == '__main__':\n\
     Radiance().run()\n"
@@ -258,6 +258,7 @@ if __name__ == '__main__':\n\
     return Popen([bpy.app.binary_path_python, file+".py"])
     
 def basiccalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, tpoints, sstep):
+    
     reslists = []
     fnum = len(frames)
     calcno = fnum * tpoints
@@ -271,13 +272,30 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, tp
     cindex = geom.layers.int['cindex']
 
     for f, frame in enumerate(frames):
+        geom.layers.float.new('irrad{}'.format(frame))
+        geom.layers.float.new('illu{}'.format(frame))
+        geom.layers.float.new('df{}'.format(frame))
+        geom.layers.float.new('res{}'.format(frame))
+        irradres = geom.layers.float['irrad{}'.format(frame)]
+        illures = geom.layers.float['illu{}'.format(frame)]
+        dfres = geom.layers.float['df{}'.format(frame)]
+        res =  geom.layers.float['res{}'.format(frame)]
+        
         if str(frame) in self['rtpoints']:
             rtframe = frame
         else:
             kints = [int(k) for k in self["rtpoints"].keys()]
             rtframe  = max(kints) if frame > max(kints) else  min(kints)
-        rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = self["rtpoints"][str(rtframe)].encode('utf-8'))
-        reslines = [[float(rv) for rv in r.split('\t')[:3]] for r in rtrun[0].decode().splitlines()]    
+        
+#        with open(os.path.join(scene['viparams']['newdir'], 'rtout'), 'w') as rtout:
+#            rtp.write(self["rtpoints"][str(rtframe)])
+#        with open(os.path.join(scene['viparams']['newdir'], 'rtptemp'), 'r') as rtp:
+        rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = self["rtpoints"][str(rtframe)])    
+#        for i in range(100):
+#            print(rtrun.poll())
+#            time.sleep(1)
+#        with open(os.path.join(scene['viparams']['newdir'], 'rtout'), 'r') as rtout:    
+        reslines = [[float(rv) for rv in r.split('\t')[:3]] for r in rtrun[0].splitlines()]    
         resirrad = [0.26 * r[0] + 0.67 * r[1] + 0.065 * r[2] for r in reslines]
         resillu = [47.4*r[0]+120*r[1]+11.6*r[2] for r in reslines]
         resdf = [r * 0.01 for r in resillu]
@@ -290,24 +308,12 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, tp
         self['oave']['irrad{}'.format(frame)] = sum(resirrad)/len(resirrad)
         self['oave']['illu{}'.format(frame)] = sum(resillu)/len(resillu)
         self['oave']['df{}'.format(frame)] = sum(resdf)/len(resdf)    
-        
-        geom.layers.float.new('irrad{}'.format(frame))
-        geom.layers.float.new('illu{}'.format(frame))
-        geom.layers.float.new('df{}'.format(frame))
-        geom.layers.float.new('res{}'.format(frame))
-        irradres = geom.layers.float['irrad{}'.format(frame)]
-        illures = geom.layers.float['illu{}'.format(frame)]
-        dfres = geom.layers.float['df{}'.format(frame)]
-        res =  geom.layers.float['res{}'.format(frame)]
+
         for g in [g for g in geom if g[cindex] > 0]:
             g[irradres] = resirrad[g[cindex] - 1]
             g[illures] = resillu[g[cindex] - 1]
             g[dfres] = resdf[g[cindex] - 1]
             g[res] = g[illures]
-            sstep += 1
-            if sstep in calcsteps:
-                if progressfile(scene, starttime, calcsteps, sstep, 'run') == 'CANCELLED':
-                    return 'CANCELLED'
                 
         posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 1]
         reslists.append([str(frame), 'Position', self.name, 'X', ' '.join([str(p[0]) for p in posis])])
@@ -323,11 +329,11 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, tp
     bm.to_mesh(self.data)
     bm.free()
     
-def lhcalcapply(self, scene, frames, rtcmds):
+def lhcalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, tpoints, sstep):
     reslists = []
-    selobj(scene, self)
-    oi = scene['liparams']['livic'].index(self.name)
-    onum, fnum = len(scene['liparams']['livic']), len(frames)
+    fnum = len(frames)
+    calcno = fnum * tpoints
+    calcsteps = [int(i * calcno/20) for i in range(0, 21)]
     bm = bmesh.new()
     bm.from_mesh(self.data)
     self['omax'], self['omin'], self['oave'] = {}, {}, {}
@@ -354,12 +360,19 @@ def lhcalcapply(self, scene, frames, rtcmds):
         res =  geom.layers.float['res{}'.format(frame)]
         for g in [g for g in geom if g[cindex] > 0]:
             g[res] = resvals[g[cindex] - 1]  
+            sstep += 1
+            print(sstep, calcsteps)
+            if sstep in calcsteps:
+                if progressfile(scene, starttime, calcsteps, sstep, 'run') == 'CANCELLED':
+                    return 'CANCELLED'
         posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 1]
         reslists.append([str(frame), 'Position', self.name, 'X', ' '.join([str(p[0]) for p in posis])])
         reslists.append([str(frame), 'Position', self.name, 'Y', ' '.join([str(p[0]) for p in posis])])
         reslists.append([str(frame), 'Position', self.name, 'Z', ' '.join([str(p[0]) for p in posis])])
         reslists.append([str(frame), 'Lighting', self.name, scene['liparams']['unit'], ' '.join([str(g[res]) for g in geom if g[cindex] > 0])])
         print('Radiance simulation {:.0f}% complete'.format((oi + (f+1)/fnum)/onum * 100))
+    
+    bm.transform(self.matrix_world.inverted())
     bm.to_mesh(self.data)
     bm.free()
     
@@ -376,6 +389,7 @@ def lividisplay(self, scene):
         lms = {fi: self.data.animation_data.action.fcurves.new(data_path='polygons[{}].material_index'.format(fi)) for fi in fis}
         for fi in fis:
             lms[fi].keyframe_points.add(len(frames))
+
     for f, frame in enumerate(frames):  
         bm = bmesh.new()
         bm.from_mesh(self.data)
@@ -2362,9 +2376,9 @@ def sunapply(scene, sun, values, solposs, frames):
         for bnode in bnodes:
             b1 = scene.world.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].inputs[1].default_value'.format(bnode.name))
             b1.keyframe_points.add(len(frames))
+
     for f, frame in enumerate(frames):
         (sun.data.shadow_soft_size, sun.data.energy) = values[f][:2]
-        scene.frame_set(frame)
         sunpos = [x*20 for x in (-sin(solposs[f][3]), -cos(solposs[f][3]), tan(solposs[f][2]))]
         sunrot = [(pi/2) - solposs[f][2], 0, -solposs[f][3]]
         if scene.render.engine == 'CYCLES' and scene.world.node_tree:

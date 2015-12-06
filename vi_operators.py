@@ -882,9 +882,11 @@ class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
     def invoke(self, context, event):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         innodes = list(OrderedDict.fromkeys([inputs.links[0].from_node for inputs in node.inputs if inputs.links]))
-
-        if not len(innodes[0]['resdictnew'][node.inputs['X-axis'].framemenu]['Time']['Hour']):
-            self.report({'ERROR'},"There are no results in the results file. Check the results.err file in Blender")
+        rl = innodes[0]['reslists']
+        zrl = list(zip(*rl))
+        if node.inputs['X-axis'].framemenu not in zrl[0]:
+#        if not len(innodes[0]['reslists'][node.inputs['X-axis'].framemenu]['Time']['Hour']):
+            self.report({'ERROR'},"There are no results in the results file. Check the results.err file in Blender's text editor")
             return {'CANCELLED'}
         if not mp:
             self.report({'ERROR'},"Matplotlib cannot be found by the Python installation used by Blender")

@@ -652,12 +652,6 @@ class ViGExEnNode(bpy.types.Node, ViNodes):
     bl_idname = 'ViGExEnNode'
     bl_label = 'EnVi Geometry'
 
-    def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [str(x) for x in [self.animated]])
-
-
-#    epfiles = []
-
     def init(self, context):
         self['nodeid'] = nodeid(self)
         self.outputs.new('ViEnG', 'Geometry out')
@@ -673,13 +667,8 @@ class ViGExEnNode(bpy.types.Node, ViNodes):
         
     def preexport(self, scene):
         pass
-#        scene.frame_start = self.fs if self.animated else scene.frame_current
-#        scene.frame_end = self.fe if self.animated else scene.frame_current
-#        scene['enparams']['fs'] = scene.frame_start
-#        scene['enparams']['fe'] = scene.frame_end
                 
     def postexport(self):
-#        self['exportstate'] = [str(x) for x in [self.animated]]
         nodecolour(self, 0)
 
 class ViExEnNode(bpy.types.Node, ViNodes):
@@ -892,13 +881,13 @@ class ViResSock(bpy.types.NodeSocket):
     def draw(self, context, layout, node, text):
         row = layout.row()
         if self.links:
-            if len(self.links[0].from_node['frames']) > 1: 
+            if len(self.links[0].from_node['frames']) > 1 and not node.animated: 
                 row.prop(self, "framemenu", text = text)
                 row.prop(self, "rtypemenu")
             else:
                 row.prop(self, "rtypemenu", text = text)
 #        if self.links:
-        typedict = {"Time": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"), "Linkage":("linkmenu", "linkrmenu"), "External node":("enmenu", "enrmenu")}
+        typedict = {"Time": [], "Frames": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"), "Linkage":("linkmenu", "linkrmenu"), "External node":("enmenu", "enrmenu")}
         for rtype in typedict[self.rtypemenu]:
             row.prop(self, rtype)
         if self.node.timemenu in ('1', '2') and self.rtypemenu !='Time':
@@ -933,7 +922,11 @@ class ViEnRNode(bpy.types.Node, ViNodes):
     timemenu = bpy.props.EnumProperty(items=[("0", "Hourly", "Hourly results"),("1", "Daily", "Daily results"), ("2", "Monthly", "Monthly results")],
                 name="", description="Results frequency", default="0")
     bl_width_max = 800
-    animated = bpy.props.BoolProperty(name = "", description = "Plot the results from an animation", default = 0)
+    
+    def aupdate(self, context):
+        self.update()
+        
+    animated = bpy.props.BoolProperty(name = "", description = "Plot the results from an animation", default = 0, update = aupdate)
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
@@ -954,16 +947,18 @@ class ViEnRNode(bpy.types.Node, ViNodes):
             if len(set(zrl[0])) > 1:
                 newrow(layout, 'Animated:', self, 'animated')
             row = layout.row()
-            row.label("Day:")
+            row.label(("Day:", "Frame")[self.animated])
             row.prop(self, '["Start"]')
             row.prop(self, '["End"]')
-            row = layout.row()
-            row.label("Hour:")
-            row.prop(self, "dsh")
-            row.prop(self, "deh")
+            if not self.animated:
+                row = layout.row()
+                row.label("Hour:")
+                row.prop(self, "dsh")
+                row.prop(self, "deh")
             row = layout.row()
             row.prop(self, "charttype")
-            row.prop(self, "timemenu")
+            if not self.animated:
+                row.prop(self, "timemenu")
 
             if self.inputs['Y-axis 1'].links and 'NodeSocketUndefined' not in [sock.bl_idname for sock in self.inputs if sock.links]:
                 layout.operator("node.chart", text = 'Create plot').nodeid = self['nodeid']
@@ -982,17 +977,18 @@ class ViEnRNode(bpy.types.Node, ViNodes):
             innode = self.inputs['X-axis'].links[0].from_node
             rl = innode['reslists']
             zrl = list(zip(*rl))
-            if len(set(zrl[0])) == 1 or not self.node.animated:
+            
+            if self.animated and len(set(zrl[0])) > 1:
+                frames = [int(k) for k in set(zrl[0]) if k != 'All']
+                startframe, endframe = min(frames), max(frames)
+                self["_RNA_UI"] = {"Start": {"min":startframe, "max":endframe}, "End": {"min":startframe, "max":endframe}}
+                self['Start'], self['End'] = startframe, endframe
+            else:
                 if 'DOS' in zrl[3]:
                     doss = zrl[4][zrl[3].index('DOS')].split()
                 startday, endday = int(doss[0]), int(doss[-1])
                 self["_RNA_UI"] = {"Start": {"min":startday, "max":endday}, "End": {"min":startday, "max":endday}}
                 self['Start'], self['End'] = startday, endday
-            else:
-                frames = [int(k) for k in set(zrl[0])]
-                startframe, endframe = min(frames), max(frames)
-                self["_RNA_UI"] = {"Start": {"min":startframe, "max":endframe}, "End": {"min":startframe, "max":endframe}}
-                self['Start'], self['End'] = startframe, endframe
 
             if self.inputs.get('Y-axis 1'):
                 self.inputs['Y-axis 1'].hide = False
@@ -1002,7 +998,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 bl_idname = 'ViEnRXIn'
                 bl_label = 'X-axis'
 
-                if innode['resdictnew']:
+                if innode['reslists']:
                     (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor) = retrmenus(innode, self)
 
         bpy.utils.register_class(ViEnRXIn)
@@ -2098,7 +2094,7 @@ class EnViInf(bpy.types.Node, EnViNodes):
 
     envi_inftype = bpy.props.EnumProperty(items = [("0", "None", "No infiltration"), ("1", 'Flow/Zone', "Absolute flow rate in m{}/s".format(u'\u00b3')), ("2", "Flow/Area", 'Flow in m{}/s per m{} floor area'.format(u'\u00b3', u'\u00b2')),
                                  ("3", "Flow/ExteriorArea", 'Flow in m{}/s per m{} external surface area'.format(u'\u00b3', u'\u00b2')), ("4", "Flow/ExteriorWallArea", 'Flow in m{}/s per m{} external wall surface area'.format(u'\u00b3', u'\u00b2')),
-                                 ("4", "ACH", "ACH flow rate")], name = "", description = "The type of zone infiltration specification", default = "0")
+                                 ("5", "ACH", "ACH flow rate")], name = "", description = "The type of zone infiltration specification", default = "0")
     envi_inflevel = bpy.props.FloatProperty(name = "", description = "Level of Infiltration", min = 0, max = 500, default = 0.001)
 
     def init(self, context):

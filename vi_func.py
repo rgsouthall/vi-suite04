@@ -33,8 +33,8 @@ def cmap(cm):
 
 def radmat(self, scene):
     radname = self.name.replace(" ", "_")         
-    radentry = '# ' + ('plastic', 'glass', 'dielectric', 'translucent', 'mirror', 'light', 'metal', 'antimatter')[int(self.radmatmenu)] + ' material\n' + \
-            '{} {} {}\n'.format('void', ('plastic', 'glass', 'dielectric', 'trans', 'mirror', 'light', 'metal', 'antimatter')[int(self.radmatmenu)], radname) + \
+    radentry = '# ' + ('plastic', 'glass', 'dielectric', 'translucent', 'mirror', 'light', 'metal', 'antimatter', 'bsdf', 'custom')[int(self.radmatmenu)] + ' material\n' + \
+            '{} {} {}\n'.format('void', ('plastic', 'glass', 'dielectric', 'trans', 'mirror', 'light', 'metal', 'antimatter', 'bsdf', 'custom')[int(self.radmatmenu)], radname) + \
            {'0': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough), 
             '1': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(self.radcolour), 
             '2': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} 0\n'.format(self.radcolour, self.radior),
@@ -42,14 +42,16 @@ def radmat(self, scene):
             '4': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format(self.radcolour),
             '5': '0\n0\n3 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n'.format([c * self.radintensity for c in self.radcolour]), 
             '6': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough), 
-            '7': '1 void\n0\n0\n'}[self.radmatmenu] + '\n'
+            '7': '1 void\n0\n0\n', '8': '1 void\n0\n0\n', '9': '1 void\n0\n0\n'}[self.radmatmenu] + '\n'
 
     if self.BSDF and self.get('bsdf') and self['bsdf'].get('xml'):
         bsdfxml = os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.name))
         with open(bsdfxml, 'w') as bsdffile:
             bsdffile.write(self['bsdf']['xml'].decode())
         radentry = 'void BSDF {}\n6 0 {} 0 0 1 .\n0\n0\n\n'.format(radname, bsdfxml)
-
+    if self.radmatmenu == '9':
+        if self.name in [t.name for t in bpy.data.texts]:
+            radentry = bpy.data.texts[self.name].as_string()+'\n\n'
     self['radentry'] = radentry
     return(radentry)
         
@@ -1215,6 +1217,8 @@ def retmenu(dnode, axis, mtype):
         return [dnode.inputs[axis].linkmenu, dnode.inputs[axis].linkrmenu]
     elif mtype == 'External node':
         return [dnode.inputs[axis].enmenu, dnode.inputs[axis].enrmenu]
+    elif mtype == 'Frames':
+        return ['', 'Frames']
         
 def retdata(dnode, axis, mtype, resdict, frame):
     if mtype == 'Climate':
@@ -1230,31 +1234,32 @@ def retrmenus(innode, node):
     rl = innode['reslists']
     zrl = list(zip(*rl))
     ftype = [(frame, frame, "Plot "+frame) for frame in set(zrl[0])]
-    frame = zrl[0][0]
-
-    if not node.animated or len(ftype) == 1:
-        rtypes = set(zrl[1])
-        rtype = [(metric, metric, "Plot " + metric) for metric in rtypes]
-        ctype = [(metric, metric, "Plot " + metric) for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Climate']
-        ztypes = set([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Zone'])
-        ztype = [(metric, metric, "Plot " + metric) for metric in ztypes]
-        zrtypes = set([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Zone'])
-        zrtype = [(metric, metric, "Plot " + metric) for metric in zrtypes]
-        ltypes = set([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Linkage'])
-        ltype = [(metric, metric, "Plot " + metric) for metric in ltypes]
-        lrtypes = set([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Linkage'])
-        lrtype = [(metric, metric, "Plot " + metric) for metric in lrtypes]
-        entypes = set([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'External'])
-        entype = [(metric, metric, "Plot " + metric) for metric in entypes]
-        enrtypes = set([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'External'])        
-        enrtype = [(metric, metric, "Plot " + metric) for metric in enrtypes]    
-    else:
-        rtype = [(restype, restype, "Plot "+restype) for restype in innode['resdictnew'][frame].keys() if restype in ('Frames', 'AClimate', 'AZone', 'ALinkage')]
-        if 'AClimate' in zrl[1]:
-            ctype = set([(clim, clim, "Plot "+clim) for ci, clim in zrl[2] if zrl[1][ci] == 'AClimate'])
-        if 'AZone' in zrl[1]:
-            ztype = set([(zone, zone, "Plot "+zone) for zi, zone in zrl[2] if zrl[1][zi] == 'AZone'])
-
+    
+        
+    frame = 'All' if node.animated and len(ftype) > 1 else zrl[0][0]
+    rtypes = set([zrl[1][ri] for ri, r in enumerate(zrl[1]) if zrl[0][ri] == frame])
+    rtype = [(metric, metric, "Plot " + metric) for metric in rtypes]
+    ctype = [(metric, metric, "Plot " + metric) for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Climate' and zrl[0][m] == frame]
+    ztypes = set([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Zone' and zrl[0][m] == frame])
+    ztype = [(metric, metric, "Plot " + metric) for metric in ztypes]
+    zrtypes = set([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Zone' and zrl[0][m] == frame])
+    zrtype = [(metric, metric, "Plot " + metric) for metric in zrtypes]
+    ltypes = set([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Linkage' and zrl[0][m] == frame])
+    ltype = [(metric, metric, "Plot " + metric) for metric in ltypes]
+    lrtypes = set([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Linkage' and zrl[0][m] == frame])
+    lrtype = [(metric, metric, "Plot " + metric) for metric in lrtypes]
+    entypes = set([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'External' and zrl[0][m] == frame])
+    entype = [(metric, metric, "Plot " + metric) for metric in entypes]
+    enrtypes = set([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'External' and zrl[0][m] == frame])        
+    enrtype = [(metric, metric, "Plot " + metric) for metric in enrtypes]    
+#    else:
+#        rtype = [(restype, restype, "Plot "+restype) for zi, restype in enumerate(zrl[1]) if zrl[0][zi] == 'All' and restype in ('Frames', 'Climate', 'Zone', 'Linkage')]
+##        if 'Climate' in zrl[1]:
+#        ctypes = set([(clim, clim, "Plot "+clim) for ci, clim in enumerate(zrl[2]) if zrl[1][ci] == 'Climate' and zrl[0][ci] == 'All'])
+#        ctype = [(metric, metric, "Plot " + metric) for metric in ctypes]
+##        if 'Zone' in zrl[1]:
+#        ztypes = set([zone for zi, zone in enumerate(zrl[2]) if zrl[1][zi] == 'Zone'  and zrl[0][zi] == 'All'])
+#        ztype = [(metric, metric, "Plot " + metric) for metric in ztypes]
     fmenu = bpy.props.EnumProperty(items=ftype, name="", description="Frame number", default = ftype[0][0])
     rtypemenu = bpy.props.EnumProperty(items=rtype, name="", description="Result types", default = rtype[0][0])
     statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
@@ -1337,7 +1342,10 @@ def processf(pro_op, scene, node):
             hdict, lstart = processh(lines)          
             bodylines = lines[lstart:-2]            
             bdict = {li: ' '.join([line.strip('\n').split(',')[1] for line in bodylines if line.strip('\n').split(',')[0] == li]) for li in hdict}
-
+            
+#            if len(frames) > 1:
+#                reslists.append(['All', 'Frame', 'Number', 'Frame', str(frame)])
+                
             for k in sorted(hdict.keys(), key=int):
                 if hdict[k] == ['Time']:
                     reslists.append([str(frame), 'Time', '', 'Month', ' '.join([line.strip('\n').split(',')[2] for line in bodylines if line.strip('\n').split(',')[0] == k])])
@@ -1346,7 +1354,71 @@ def processf(pro_op, scene, node):
                     reslists.append([str(frame), 'Time', '', 'DOS', ' '.join([line.strip('\n').split(',')[1] for line in bodylines if line.strip('\n').split(',')[0] == k])])
                 else:
                     reslists.append([str(frame)] + hdict[k] + [bdict[k]])
+                
+    if len(frames) > 1:
+        rls = reslists
+        zrls = list(zip(*rls))
+        reslists.append(['All', 'Frames', '', 'Frames', ' '.join([str(f) for f in frames])])
+        temps = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Temperature (degC)']
+        heats = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Heating (W)']
 
+        for zn in set([t[0] for t in temps]):
+            if temps:
+                reslists.append(['All', 'Zone', zn, 'Max temp', ' '.join([str(max(t[1])) for t in temps if t[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Min temp', ' '.join([str(min(t[1])) for t in temps if t[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Ave temp', ' '.join([str(sum(t[1])/len(t[1])) for t in temps if t[0] == zn])])
+            if heats:
+                reslists.append(['All', 'Zone', zn, 'Max heat W', ' '.join([str(max(h[1])) for h in heats if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Min heat W', ' '.join([str(min(h[1])) for h in heats if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Ave heat W', ' '.join([str(sum(h[1])/len(h[1])) for h in heats if h[0] == zn])])
+            
+        
+#        for rl in rls:
+#            for frame in frames:
+#                [[float(t) for t in rl[4].split()] for zi, z in enumerate(rl[1]) if rl[0] == str(frame) and zl[1] == 'Zone' and rl[3] == 'Temperature (degC)']
+#                
+#        if temps:
+#            
+#            :
+#                temps = zrl[3].split()
+#        
+#        if hdict[k][0] == 'Zone':
+#            if hdict[k][2] == 'Temperature (degC)':
+#                temps = [float(t) for t in bdict[k].split()]
+#                reslists.append(['All'] + hdict[k][0:2] + ['Max temp' + str(max(temps))])
+#                reslists.append(['All'] + hdict[k][0:2] + ['Min temp' + str(min(temps))])
+#                reslists.append(['All'] + hdict[k][0:2] + ['Ave temp' + str(sum(temps)/len(temps))])
+#            
+#            if hdict[k][2] == 'Heating (W)':
+#                heats = [float(h) for h in bdict[k].split()]
+#                for o in bpy.data.objects:
+#                    if o.name.upper() == hdict[k][1]:
+#                        fa = o['floorarea']
+#                reslists.append(['All'] + hdict[k][0:2] + ['Max heat' + str(max(heats))])
+#                reslists.append(['All'] + hdict[k][0:2] + ['Min heat' + str(min(heats))])
+#                reslists.append(['All'] + hdict[k][0:2] + ['Ave heat' + str(sum(heats)/len(heats))])
+#                reslists.append(['All'] + hdict[k][0:2] + ['Max heat kwh/m2' + str(max(heats)/fa)])
+#                reslists.append(['All'] + hdict[k][0:2] + ['Min heat kwh/m2' + str(min(heats)/fa)])
+#                reslists.append(['All'] + hdict[k][0:2] + ['Ave heat kwh/m2' + str(sum(heats)/fa * len(heats))])
+#            
+#            if hdict[k][2] == 'Cooling (W)':
+#                cools = [float(c) for c in bdict[k].split()]
+#                for o in bpy.data.objects:
+#                    if o.name.upper() == hdict[k][1]:
+#                        fa = o['floorarea']
+#                reslists.append(['All'] + hdict[k][0:2] + ['Max cool' + str(max(cools))])
+#                reslists.append(['All'] + hdict[k][0:2] + ['Min cool' + str(min(cools))])
+#                reslists.append(['All'] + hdict[k][0:2] + ['Ave cool' + str(sum(cools)/len(cools))])
+#                reslists.append(['All'] + hdict[k][0:2] + ['Max cool kwh/m2' + str(max(cools)/fa)])
+#                reslists.append(['All'] + hdict[k][0:2] + ['Min cool kwh/m2' + str(min(cools)/fa)])
+#                reslists.append(['All'] + hdict[k][0:2] + ['Ave cool kwh/m2' + str(sum(cools)/fa * len(cools))])   
+#             
+#            if hdict[k][2] == 'CO2 (ppm)':
+#                co2s = [float(c) for c in bdict[k].split()]
+#                reslists.append(['All'] + hdict[k][0:2] + ['Max CO2' + str(max(co2s))])
+#                reslists.append(['All'] + hdict[k][0:2] + ['Min CO2' + str(min(co2s))])
+#                reslists.append(['All'] + hdict[k][0:2] + ['Ave CO2' + str(sum(co2s)/len(co2s))])
+                                                                                         
     node['reslists'] = reslists
     
     if node.outputs['Results out'].links:

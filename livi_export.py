@@ -21,11 +21,10 @@ from math import sin, cos, pi
 from subprocess import PIPE, Popen, STDOUT
 from .vi_func import clearscene, solarPosition, retobjs, selobj, radpoints, clearlayers, radmesh
 
-
 def radgexport(export_op, node, **kwargs):
     scene = bpy.context.scene
     clearscene(scene, export_op)
-    frames = range(node.outputs['Geometry out']['Options']['fs'], node.outputs['Geometry out']['Options']['fe'] + 1)
+    frames = range(node['Options']['fs'], node['Options']['fe'] + 1)
     scene['liparams']['cp'] = node.cpoint
     if bpy.context.active_object and not bpy.context.active_object.layers[scene.active_layer]:
         export_op.report({'INFO'}, "Active geometry is not on the active layer. You may need to lock layers.")

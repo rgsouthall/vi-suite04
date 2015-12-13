@@ -811,7 +811,8 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
         zrl = list(zip(*resnode['reslists']))
         eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in zrl[2]}
         resstart, resend = 24 * (resnode['Start'] - 1), 24 * (resnode['End']) - 1
-        scene.frame_start, scene.frame_end = 0, resend - resstart
+#        scene.frame_start, scene.frame_end = 0, resend - resstart
+        scene.frame_start, scene.frame_end = 0, len(zrl[4][0].split()) - 1
         
         if scene.resas_disp:
             suns = [o for o in bpy.data.objects if o.type == 'LAMP' and o.data.type == 'SUN']

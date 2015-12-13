@@ -1361,7 +1361,10 @@ def processf(pro_op, scene, node):
         reslists.append(['All', 'Frames', '', 'Frames', ' '.join([str(f) for f in frames])])
         temps = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Temperature (degC)']
         heats = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Heating (W)']
-
+        cools = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Cooling (W)']
+        aheats = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Air Heating (W)']
+        acools = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Air Cooling (W)']
+        co2s = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'CO2 (ppm)']
         for zn in set([t[0] for t in temps]):
             if temps:
                 reslists.append(['All', 'Zone', zn, 'Max temp', ' '.join([str(max(t[1])) for t in temps if t[0] == zn])])
@@ -1371,54 +1374,31 @@ def processf(pro_op, scene, node):
                 reslists.append(['All', 'Zone', zn, 'Max heat W', ' '.join([str(max(h[1])) for h in heats if h[0] == zn])])
                 reslists.append(['All', 'Zone', zn, 'Min heat W', ' '.join([str(min(h[1])) for h in heats if h[0] == zn])])
                 reslists.append(['All', 'Zone', zn, 'Ave heat W', ' '.join([str(sum(h[1])/len(h[1])) for h in heats if h[0] == zn])])
-            
-        
-#        for rl in rls:
-#            for frame in frames:
-#                [[float(t) for t in rl[4].split()] for zi, z in enumerate(rl[1]) if rl[0] == str(frame) and zl[1] == 'Zone' and rl[3] == 'Temperature (degC)']
-#                
-#        if temps:
-#            
-#            :
-#                temps = zrl[3].split()
-#        
-#        if hdict[k][0] == 'Zone':
-#            if hdict[k][2] == 'Temperature (degC)':
-#                temps = [float(t) for t in bdict[k].split()]
-#                reslists.append(['All'] + hdict[k][0:2] + ['Max temp' + str(max(temps))])
-#                reslists.append(['All'] + hdict[k][0:2] + ['Min temp' + str(min(temps))])
-#                reslists.append(['All'] + hdict[k][0:2] + ['Ave temp' + str(sum(temps)/len(temps))])
-#            
-#            if hdict[k][2] == 'Heating (W)':
-#                heats = [float(h) for h in bdict[k].split()]
-#                for o in bpy.data.objects:
-#                    if o.name.upper() == hdict[k][1]:
-#                        fa = o['floorarea']
-#                reslists.append(['All'] + hdict[k][0:2] + ['Max heat' + str(max(heats))])
-#                reslists.append(['All'] + hdict[k][0:2] + ['Min heat' + str(min(heats))])
-#                reslists.append(['All'] + hdict[k][0:2] + ['Ave heat' + str(sum(heats)/len(heats))])
-#                reslists.append(['All'] + hdict[k][0:2] + ['Max heat kwh/m2' + str(max(heats)/fa)])
-#                reslists.append(['All'] + hdict[k][0:2] + ['Min heat kwh/m2' + str(min(heats)/fa)])
-#                reslists.append(['All'] + hdict[k][0:2] + ['Ave heat kwh/m2' + str(sum(heats)/fa * len(heats))])
-#            
-#            if hdict[k][2] == 'Cooling (W)':
-#                cools = [float(c) for c in bdict[k].split()]
-#                for o in bpy.data.objects:
-#                    if o.name.upper() == hdict[k][1]:
-#                        fa = o['floorarea']
-#                reslists.append(['All'] + hdict[k][0:2] + ['Max cool' + str(max(cools))])
-#                reslists.append(['All'] + hdict[k][0:2] + ['Min cool' + str(min(cools))])
-#                reslists.append(['All'] + hdict[k][0:2] + ['Ave cool' + str(sum(cools)/len(cools))])
-#                reslists.append(['All'] + hdict[k][0:2] + ['Max cool kwh/m2' + str(max(cools)/fa)])
-#                reslists.append(['All'] + hdict[k][0:2] + ['Min cool kwh/m2' + str(min(cools)/fa)])
-#                reslists.append(['All'] + hdict[k][0:2] + ['Ave cool kwh/m2' + str(sum(cools)/fa * len(cools))])   
-#             
-#            if hdict[k][2] == 'CO2 (ppm)':
-#                co2s = [float(c) for c in bdict[k].split()]
-#                reslists.append(['All'] + hdict[k][0:2] + ['Max CO2' + str(max(co2s))])
-#                reslists.append(['All'] + hdict[k][0:2] + ['Min CO2' + str(min(co2s))])
-#                reslists.append(['All'] + hdict[k][0:2] + ['Ave CO2' + str(sum(co2s)/len(co2s))])
-                                                                                         
+                reslists.append(['All', 'Zone', zn, 'Heating kWh', ' '.join([str(sum(h[1])*0.001) for h in heats if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Heating kWh/m2', ' '.join([str(sum(h[1])*0.001/[o for o in bpy.data.objects if o.name.upper() == zn][0]['floor_area']) for h in heats if h[0] == zn])])
+            if cools:
+                reslists.append(['All', 'Zone', zn, 'Max cool W', ' '.join([str(max(h[1])) for h in cools if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Min cool W', ' '.join([str(min(h[1])) for h in cools if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Ave cool W', ' '.join([str(sum(h[1])/len(h[1])) for h in cools if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Cooling kWh', ' '.join([str(sum(h[1])*0.001) for h in cools if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Cooling kWh/m2', ' '.join([str(sum(h[1])*0.001/[o for o in bpy.data.objects if o.name.upper() == zn][0]['floor_area']) for h in cools if h[0] == zn])])
+            if aheats:
+                reslists.append(['All', 'Zone', zn, 'Max air heat W', ' '.join([str(max(h[1])) for h in aheats if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Min air heat W', ' '.join([str(min(h[1])) for h in aheats if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Ave air heat W', ' '.join([str(sum(h[1])/len(h[1])) for h in aheats if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Air heating kWh', ' '.join([str(sum(h[1])*0.001) for h in aheats if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Ait heating kWh/m2', ' '.join([str(sum(h[1])*0.001/[o for o in bpy.data.objects if o.name.upper() == zn][0]['floor_area']) for h in aheats if h[0] == zn])])
+            if acools:
+                reslists.append(['All', 'Zone', zn, 'Max air cool W', ' '.join([str(max(h[1])) for h in acools if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Mina ir cool W', ' '.join([str(min(h[1])) for h in acools if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Ave air cool W', ' '.join([str(sum(h[1])/len(h[1])) for h in acools if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Air cooling kWh', ' '.join([str(sum(h[1])*0.001) for h in acools if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Air cooling kWh/m2', ' '.join([str(sum(h[1])*0.001/[o for o in bpy.data.objects if o.name.upper() == zn][0]['floor_area']) for h in acools if h[0] == zn])])
+            if co2s:
+                reslists.append(['All', 'Zone', zn, 'Max CO2', ' '.join([str(max(t[1])) for t in co2s if t[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Min CO2', ' '.join([str(min(t[1])) for t in co2s if t[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Ave Co2', ' '.join([str(sum(t[1])/len(t[1])) for t in co2s if t[0] == zn])])
+                                                                                                         
     node['reslists'] = reslists
     
     if node.outputs['Results out'].links:
@@ -1749,6 +1729,11 @@ def drawtri(posx, posy, l, d, hscale, radius):
     
 def drawcircle(center, radius, resolution, fill, a, r, g, b):
     bgl.glColor4f(r, g, b, a)
+    bgl.glEnable(bgl.GL_LINE_SMOOTH)
+    bgl.glEnable(bgl.GL_BLEND);
+    bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
+    bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)
+    bgl.glLineWidth (1.5)
     if fill:
         bgl.glBegin(bgl.GL_POLYGON)
     else:

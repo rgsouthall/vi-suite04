@@ -324,16 +324,23 @@ def en_air(self, context, temp, ws, wd, hu):
         radius, hscale = 110, height/nh
         posx, posy = int(rightwidth - radius * hscale), int(topheight - hscale * radius * 1.2)
         blf.position(font_id, int(leftwidth + hscale * 160), int(topheight - hscale * 20), 0)
-        blf.draw(font_id, "WS: {:.1f}(m/s)".format(ws[scene.frame_current]))
+        blf.draw(font_id, "S: {:.1f}(m/s)".format(ws[scene.frame_current]))
         blf.position(font_id, int(leftwidth + hscale * 255), int(topheight - hscale * 20), 0)
-        blf.draw(font_id, "WD: {:.0f}deg".format(wd[scene.frame_current]))
-
+        blf.draw(font_id, "D: {:.0f}deg".format(wd[scene.frame_current]))
+        blf.disable(0, 4)
         for i in range(1, 6):
             drawcircle(mathutils.Vector((posx, posy)), 0.15 * hscale * radius * i, 36, 0, 0.7, 0, 0, 0) 
 
         blf.enable(0, 1)
+        blf.enable(0, 4)
+        blf.shadow(0, 3, 0, 0, 0, 0.5)
 
         for d in range(8):
+            bgl.glEnable(bgl.GL_LINE_SMOOTH)
+            bgl.glEnable(bgl.GL_BLEND);
+            bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
+            bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)
+            bgl.glLineWidth (2)
             bgl.glBegin(bgl.GL_LINES)
             bgl.glVertex2i(posx, posy)
             bgl.glVertex2i(int(posx + 0.8 * hscale * radius*sin(orot + d*pi/4)), int(posy + 0.8 * hscale * radius * cos(orot + d*pi/4)))
@@ -344,12 +351,19 @@ def en_air(self, context, temp, ws, wd, hu):
             blf.position(font_id, int(posx - fwidth*cos(ang) + hscale *0.825 * radius*sin(ang)), int(posy + fwidth*sin(ang) + hscale * 0.825 * radius * cos(ang)), 0)
             blf.rotation(font_id, - orot - d*pi*0.25)
             blf.draw(font_id, direcs[d])
+        blf.disable(0, 4)
         blf.disable(0, 1)   
         drawtri(posx, posy, ws[scene.frame_current]/maxws, wd[scene.frame_current] + orot*180/pi, hscale, radius)
         
         # Humidity
+        blf.enable(0, 4)
         maxval, minval = 100, 0
         reslevel = (hu[scene.frame_current] - minval)/(maxval - minval)
+        bgl.glMatrixMode(bgl.GL_PROJECTION)
+        bgl.glLoadIdentity()
+        bgl.gluOrtho2D(0, width, 0, height)
+        bgl.glMatrixMode(bgl.GL_MODELVIEW)
+        bgl.glLoadIdentity()
         bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
         blf.position(font_id, int(leftwidth + hscale * 75), int(topheight - hscale * 20), 0)
         blf.draw(font_id, "H: {:.1f}%".format(hu[scene.frame_current]))

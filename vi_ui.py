@@ -79,7 +79,7 @@ class Vi3DPanel(bpy.types.Panel):
                 zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone'])
                 lmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Linkage'])
                 zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp', 'CO2 (ppm)': 'reszco_disp'}
-                vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}
+                vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}               
                 row = layout.row()               
                 row.prop(resnode, '["Start"]')
                 row.prop(resnode, '["End"]')

@@ -1,4 +1,5 @@
 import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex, time
+from collections import OrderedDict
 from subprocess import Popen, PIPE, STDOUT
 from numpy import array, digitize, amax, amin, average, zeros, inner
 from numpy import sum as nsum
@@ -232,7 +233,7 @@ class CancelButton(Button):\n\
         else:\n\
             return\n\
 \n\
-class Radiance(App):\n\
+class Calculating(App):\n\
     bl = BoxLayout(orientation='vertical')\n\
     rpb = ProgressBar()\n\
     label = Label(text=' 0% Complete', font_size=20)\n\
@@ -254,13 +255,13 @@ class Radiance(App):\n\
         self.label.text = '{}% Complete - Time remaining: {}'.format(percent, tr)\n\
 \n\
 if __name__ == '__main__':\n\
-    Radiance().run()\n"
+    Calculating().run()\n"
+
     with open(file+".py", 'w') as kivyfile:
         kivyfile.write(kivytext)
     return Popen([bpy.app.binary_path_python, file+".py"])
     
-def basiccalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, tpoints, sstep):
-    
+def basiccalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, tpoints, sstep):    
     reslists = []
     fnum = len(frames)
     calcno = fnum * tpoints
@@ -1233,33 +1234,24 @@ def retdata(dnode, axis, mtype, resdict, frame):
 def retrmenus(innode, node): 
     rl = innode['reslists']
     zrl = list(zip(*rl))
-    ftype = [(frame, frame, "Plot "+frame) for frame in set(zrl[0])]
-    
-        
+    ftype = [(frame, frame, "Plot "+frame) for frame in list(OrderedDict.fromkeys(zrl[0])) if frame != 'All']        
     frame = 'All' if node.animated and len(ftype) > 1 else zrl[0][0]
-    rtypes = set([zrl[1][ri] for ri, r in enumerate(zrl[1]) if zrl[0][ri] == frame])
+    rtypes = list(OrderedDict.fromkeys([zrl[1][ri] for ri, r in enumerate(zrl[1]) if zrl[0][ri] == frame]))
     rtype = [(metric, metric, "Plot " + metric) for metric in rtypes]
     ctype = [(metric, metric, "Plot " + metric) for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Climate' and zrl[0][m] == frame]
-    ztypes = set([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Zone' and zrl[0][m] == frame])
+    ztypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Zone' and zrl[0][m] == frame]))
     ztype = [(metric, metric, "Plot " + metric) for metric in ztypes]
-    zrtypes = set([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Zone' and zrl[0][m] == frame])
+    zrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Zone' and zrl[0][m] == frame]))
     zrtype = [(metric, metric, "Plot " + metric) for metric in zrtypes]
-    ltypes = set([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Linkage' and zrl[0][m] == frame])
+    ltypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Linkage' and zrl[0][m] == frame]))
     ltype = [(metric, metric, "Plot " + metric) for metric in ltypes]
-    lrtypes = set([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Linkage' and zrl[0][m] == frame])
+    lrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Linkage' and zrl[0][m] == frame]))
     lrtype = [(metric, metric, "Plot " + metric) for metric in lrtypes]
-    entypes = set([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'External' and zrl[0][m] == frame])
+    entypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'External' and zrl[0][m] == frame]))
     entype = [(metric, metric, "Plot " + metric) for metric in entypes]
-    enrtypes = set([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'External' and zrl[0][m] == frame])        
+    enrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'External' and zrl[0][m] == frame]))       
     enrtype = [(metric, metric, "Plot " + metric) for metric in enrtypes]    
-#    else:
-#        rtype = [(restype, restype, "Plot "+restype) for zi, restype in enumerate(zrl[1]) if zrl[0][zi] == 'All' and restype in ('Frames', 'Climate', 'Zone', 'Linkage')]
-##        if 'Climate' in zrl[1]:
-#        ctypes = set([(clim, clim, "Plot "+clim) for ci, clim in enumerate(zrl[2]) if zrl[1][ci] == 'Climate' and zrl[0][ci] == 'All'])
-#        ctype = [(metric, metric, "Plot " + metric) for metric in ctypes]
-##        if 'Zone' in zrl[1]:
-#        ztypes = set([zone for zi, zone in enumerate(zrl[2]) if zrl[1][zi] == 'Zone'  and zrl[0][zi] == 'All'])
-#        ztype = [(metric, metric, "Plot " + metric) for metric in ztypes]
+
     fmenu = bpy.props.EnumProperty(items=ftype, name="", description="Frame number", default = ftype[0][0])
     rtypemenu = bpy.props.EnumProperty(items=rtype, name="", description="Result types", default = rtype[0][0])
     statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
@@ -1365,39 +1357,40 @@ def processf(pro_op, scene, node):
         aheats = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Air Heating (W)']
         acools = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Air Cooling (W)']
         co2s = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'CO2 (ppm)']
+
         for zn in set([t[0] for t in temps]):
             if temps:
-                reslists.append(['All', 'Zone', zn, 'Max temp', ' '.join([str(max(t[1])) for t in temps if t[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Min temp', ' '.join([str(min(t[1])) for t in temps if t[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Ave temp', ' '.join([str(sum(t[1])/len(t[1])) for t in temps if t[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Max temp (C)', ' '.join([str(max(t[1])) for t in temps if t[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Min temp (C)', ' '.join([str(min(t[1])) for t in temps if t[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Ave temp (C)', ' '.join([str(sum(t[1])/len(t[1])) for t in temps if t[0] == zn])])
             if heats:
-                reslists.append(['All', 'Zone', zn, 'Max heat W', ' '.join([str(max(h[1])) for h in heats if h[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Min heat W', ' '.join([str(min(h[1])) for h in heats if h[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Ave heat W', ' '.join([str(sum(h[1])/len(h[1])) for h in heats if h[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Heating kWh', ' '.join([str(sum(h[1])*0.001) for h in heats if h[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Heating kWh/m2', ' '.join([str(sum(h[1])*0.001/[o for o in bpy.data.objects if o.name.upper() == zn][0]['floor_area']) for h in heats if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Max heat (W)', ' '.join([str(max(h[1])) for h in heats if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Min heat (W)', ' '.join([str(min(h[1])) for h in heats if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Ave heat (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in heats if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Heating (kWh)', ' '.join([str(sum(h[1])*0.001) for h in heats if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Heating (kWh/m2)', ' '.join([str(sum(h[1])*0.001/[o for o in bpy.data.objects if o.name.upper() == zn][0]['floorarea']) for h in heats if h[0] == zn])])
             if cools:
-                reslists.append(['All', 'Zone', zn, 'Max cool W', ' '.join([str(max(h[1])) for h in cools if h[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Min cool W', ' '.join([str(min(h[1])) for h in cools if h[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Ave cool W', ' '.join([str(sum(h[1])/len(h[1])) for h in cools if h[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Cooling kWh', ' '.join([str(sum(h[1])*0.001) for h in cools if h[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Cooling kWh/m2', ' '.join([str(sum(h[1])*0.001/[o for o in bpy.data.objects if o.name.upper() == zn][0]['floor_area']) for h in cools if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Max cool (W)', ' '.join([str(max(h[1])) for h in cools if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Min cool (W)', ' '.join([str(min(h[1])) for h in cools if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Ave cool (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in cools if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Cooling (kWh(', ' '.join([str(sum(h[1])*0.001) for h in cools if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Cooling (kWh/m2)', ' '.join([str(sum(h[1])*0.001/[o for o in bpy.data.objects if o.name.upper() == zn][0]['floorarea']) for h in cools if h[0] == zn])])
             if aheats:
-                reslists.append(['All', 'Zone', zn, 'Max air heat W', ' '.join([str(max(h[1])) for h in aheats if h[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Min air heat W', ' '.join([str(min(h[1])) for h in aheats if h[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Ave air heat W', ' '.join([str(sum(h[1])/len(h[1])) for h in aheats if h[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Air heating kWh', ' '.join([str(sum(h[1])*0.001) for h in aheats if h[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Ait heating kWh/m2', ' '.join([str(sum(h[1])*0.001/[o for o in bpy.data.objects if o.name.upper() == zn][0]['floor_area']) for h in aheats if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Max air heat (W)', ' '.join([str(max(h[1])) for h in aheats if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Min air heat (W)', ' '.join([str(min(h[1])) for h in aheats if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Ave air heat (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in aheats if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Air heating (kWh)', ' '.join([str(sum(h[1])*0.001) for h in aheats if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Ait heating (kWh/m2)', ' '.join([str(sum(h[1])*0.001/[o for o in bpy.data.objects if o.name.upper() == zn][0]['floorarea']) for h in aheats if h[0] == zn])])
             if acools:
-                reslists.append(['All', 'Zone', zn, 'Max air cool W', ' '.join([str(max(h[1])) for h in acools if h[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Mina ir cool W', ' '.join([str(min(h[1])) for h in acools if h[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Ave air cool W', ' '.join([str(sum(h[1])/len(h[1])) for h in acools if h[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Air cooling kWh', ' '.join([str(sum(h[1])*0.001) for h in acools if h[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Air cooling kWh/m2', ' '.join([str(sum(h[1])*0.001/[o for o in bpy.data.objects if o.name.upper() == zn][0]['floor_area']) for h in acools if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Max air cool (W)', ' '.join([str(max(h[1])) for h in acools if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Mina ir cool (W)', ' '.join([str(min(h[1])) for h in acools if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Ave air cool (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in acools if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Air cooling (kWh)', ' '.join([str(sum(h[1])*0.001) for h in acools if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Air cooling (kWh/m2)', ' '.join([str(sum(h[1])*0.001/[o for o in bpy.data.objects if o.name.upper() == zn][0]['floorarea']) for h in acools if h[0] == zn])])
             if co2s:
-                reslists.append(['All', 'Zone', zn, 'Max CO2', ' '.join([str(max(t[1])) for t in co2s if t[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Min CO2', ' '.join([str(min(t[1])) for t in co2s if t[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Ave Co2', ' '.join([str(sum(t[1])/len(t[1])) for t in co2s if t[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Max CO2 (ppm)', ' '.join([str(max(t[1])) for t in co2s if t[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Min CO2 (ppm)', ' '.join([str(min(t[1])) for t in co2s if t[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Ave Co2 (ppm)', ' '.join([str(sum(t[1])/len(t[1])) for t in co2s if t[0] == zn])])
                                                                                                          
     node['reslists'] = reslists
     

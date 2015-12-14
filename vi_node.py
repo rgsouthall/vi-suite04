@@ -488,7 +488,6 @@ class ViLiSNode(bpy.types.Node, ViNodes):
         self.inputs.new('ViLiG', 'Geometry in')
         self.inputs.new('ViLiC', 'Context in')
         self.outputs.new('ViR', 'Results out')
-        self.outputs.new('ViText', 'File out')
         self.outputs['Results out'].hide = True
         nodecolour(self, 1)
         self['maxres'], self['minres'], self['avres'], self['exportstate'] = {}, {}, {}, ''
@@ -762,24 +761,21 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
         self.outputs.new('ViR', 'Results out')
         self['exportstate'] = ''
         self['Start'], self['End'] = 1, 365
+        self['AStart'], self['AEnd'] = 0, 0
         nodecolour(self, 1)
 
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [self.resname])
-#        if self.inputs['Context in'].is_linked:
-#            self.resfilename = os.path.join(self.inputs['Context in'].links[0].from_node.newdir, self.resname+'.eso')
 
     resname = bpy.props.StringProperty(name="", description="Base name for the results files", default="results", update = nodeupdate)
     resfilename = bpy.props.StringProperty(name = "", default = 'results')
     dsdoy, dedoy, run  = bpy.props.IntProperty(), bpy.props.IntProperty(), bpy.props.IntProperty(min = -1, default = -1)
-#    animated = bpy.props.BoolProperty(name = '', description = 'Enable EnergyPlus animation', default = 0)
 
     def draw_buttons(self, context, layout):
         if self.run > -1:
             row = layout.row()
             row.label('Calculating {}%'.format(self.run))
         elif self.inputs['Context in'].links and not self.inputs['Context in'].links[0].from_node.use_custom_color:
-#            newrow(layout, 'Animation:', self, 'animated')
             newrow(layout, 'Results name:', self, 'resname')
             row = layout.row()
             row.operator("node.ensim", text = 'Calculate').nodeid = self['nodeid']
@@ -793,11 +789,9 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
         self['frames'] = range(context.scene['enparams']['fs'], context.scene['enparams']['fe'])
         self.dsdoy = innode.sdoy # (locnode.startmonthnode.sdoy
         self.dedoy = innode.edoy
-#        self.dsdoy.min =  self.dsdoy
-#        self.dsdoy.max =  self.dedoy
-#        self["_RNA_UI"] = {"Start": {"min":resnode.dsdoy, "max":resnode.dedoy}, "End": {"min":resnode.dsdoy, "max":resnode.dedoy}}
         self["_RNA_UI"] = {"Start": {"min":innode.sdoy, "max":innode.edoy}, "End": {"min":innode.sdoy, "max":innode.edoy}}
-        self['Start'], self['End'] = innode.sdoy, innode.edoy
+        self["_RNA_UI"] = {"AStart": {"min":context.scene['enparams']['fs'], "max":context.scene['enparams']['fe']}, "AEnd": {"min":context.scene['enparams']['fs'], "max":context.scene['enparams']['fe']}}
+ #       self['Startself['Start'], self['End'] = innode.sdoy, innode.edoy
 
 class ViEnRFNode(bpy.types.Node, ViNodes):
     '''Node for EnergyPlus results file selection'''
@@ -1317,6 +1311,8 @@ class ViCSVExport(bpy.types.Node, ViNodes):
     bl_idname = 'ViCSV'
     bl_label = 'VI CSV Export'
     bl_icon = 'LAMP'
+    
+    animated = bpy.props.BoolProperty(name = '', description = 'Animated results', default = 0)
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
@@ -1324,6 +1320,10 @@ class ViCSVExport(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         if self.inputs['Results in'].links:
+            rl = self.inputs['Results in'].links[0].from_node['reslists']
+            zrl = list(zip(*rl))
+            if len(set(zrl[0])) > 1:
+                newrow(layout, 'Animated:', self, 'animated')
             row = layout.row()
             row.operator('node.csvexport', text = 'Export CSV file').nodeid = self['nodeid']
 

@@ -76,18 +76,28 @@ class Vi3DPanel(bpy.types.Panel):
                 resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
                 rl = resnode['reslists']
                 zrl = list(zip(*rl))
-                zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone'])
-                lmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Linkage'])
-                zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp', 'CO2 (ppm)': 'reszco_disp'}
-                vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}               
-                row = layout.row()               
-                row.prop(resnode, '["Start"]')
-                row.prop(resnode, '["End"]')
-                row = layout.row() 
-                row.label(text = 'Ambient')
-                row = layout.row() 
-                row.prop(scene, 'resaa_disp')
-                row.prop(scene, 'resas_disp')
+
+                if len(set(zrl[0])) > 1:
+                    zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone' and zrl[0][zri] == 'All'])
+                    lmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Linkage' and zrl[0][zri] == 'All'])
+                    zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp', 'CO2 (ppm)': 'reszco_disp'}
+                    vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}
+                    row = layout.row()               
+                    row.prop(resnode, '["AStart"]')
+                    row.prop(resnode, '["AEnd"]')
+                else:
+                    zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone' and zrl[0][zri] != 'All'])
+                    lmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Linkage' and zrl[0][zri] != 'All'])
+                    zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp', 'CO2 (ppm)': 'reszco_disp'}
+                    vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}               
+                    row = layout.row()               
+                    row.prop(resnode, '["Start"]')
+                    row.prop(resnode, '["End"]')
+                    row = layout.row() 
+                    row.label(text = 'Ambient')
+                    row = layout.row() 
+                    row.prop(scene, 'resaa_disp')
+                    row.prop(scene, 'resas_disp')
                 
                 for ri, rname in enumerate(zmetrics):
                     if ri == 0:                    

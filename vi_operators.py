@@ -575,12 +575,17 @@ class NODE_OT_CSVExport(bpy.types.Operator, io_utils.ExportHelper):
         row.label(text="Specify the CSV export file with the file browser", icon='WORLD_DATA')
 
     def execute(self, context):
+        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         resstring = ''
         resnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].inputs['Results in'].links[0].from_node
         rl = resnode['reslists']
         rzl = list(zip(*rl))
-        resstring = ''.join(['{} {} {},'.format(r[0], r[2], r[3]) for r in rl]) + '\n'
-        metriclist = list(zip(*[r.split() for r in rzl[4]]))
+        if node.animated:
+            resstring = ''.join(['{} {},'.format(r[2], r[3]) for r in rl if r[0] == 'All']) + '\n'
+            metriclist = list(zip(*[r.split() for ri, r in enumerate(rzl[4]) if rzl[0][ri] == 'All']))
+        else:
+            resstring = ''.join(['{} {} {},'.format(r[0], r[2], r[3]) for r in rl if r[0] != 'All']) + '\n'
+            metriclist = list(zip(*[r.split() for ri, r in enumerate(rzl[4]) if rzl[0][ri] != 'All']))
 
         for ml in metriclist:
             resstring += ''.join(['{},'.format(m) for m in ml]) + '\n'

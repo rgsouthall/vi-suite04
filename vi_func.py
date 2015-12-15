@@ -1045,6 +1045,13 @@ def resnameunits():
                 '23': ("Fabric HB (W)", "Fabric convective heat balance"), '24': ("Air Heating", "Zone air heating"), '25': ("Air Cooling", "Zone air cooling"), '26': ("HR Heating", "Heat recovery heating (W)")}
     return [bpy.props.BoolProperty(name = rnu[str(rnum)][0], description = rnu[str(rnum)][1], default = False) for rnum in range(len(rnu))]
 
+def aresnameunits():
+    rnu = {'27': (u"Max temp (\u2103)", "Maximum zone temperature"), '28': (u"Min temp (\u2103)", "Minimum zone temperature"), '29': (u"Ave temp (\u2103)", "Average zone temperature"), 
+                '30': ("Heating (kWh)", "Zone heating"), '31': (u"Heating (kWh/m\u00b2)", "Zone heating per floor area"), '32': ("Cooling (kWh)", "Zone cooling"), '33': (u"Cooling (kWh/m\u00b2)", "Zone cooling per floor area"), 
+                '34': (u"Max CO\u2082 (ppm)", u"Maximum zone CO\u2082 level"), '35': (u"Ave CO\u2082 (ppm)", u"Average zone CO\u2082 level"), '36': (u"Min CO\u2082 (ppm)", u"Minimum zone CO\u2082 level"),
+                '37': (u"Max flow in (m\u00b3/s)", u"Maximum linkage flow level"), '38': (u"Min flow in (m\u00b3/s)", u"Minimum linkage flow level"), '39': (u"Ave flow in (m\u00b3/s)", u"Average linkage flow level")}
+    return [bpy.props.BoolProperty(name = rnu[str(rnum)][0], description = rnu[str(rnum)][1], default = False) for rnum in range(len(rnu))]
+
 def enresprops(disp):
     return {'0': (0, "restt{}".format(disp), "resh{}".format(disp), 0, "restwh{}".format(disp), "restwc{}".format(disp), 0, 
                   "ressah{}".format(disp), "reshrhw{}".format(disp), 0, "ressac{}".format(disp), "reswsg{}".format(disp), 0, "resfhb{}".format(disp)),

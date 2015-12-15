@@ -80,8 +80,9 @@ class Vi3DPanel(bpy.types.Panel):
                 if len(set(zrl[0])) > 1:
                     zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone' and zrl[0][zri] == 'All'])
                     lmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Linkage' and zrl[0][zri] == 'All'])
-                    zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp', 'CO2 (ppm)': 'reszco_disp'}
-                    vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}
+                    zresdict = {"Max temp (C)": "resazmaxt_disp", 'Min temp (C)': 'resazmint_disp', 'ave temp (C)': 'resazavet_disp', 'Heating (kWh)': 'resazhw_disp', 'Heating (kWh/m2)': 'resazhwm_disp', 
+                    'Cooling (W)': 'resazcw_disp', 'Cooling (kWh)': 'resazcwm_disp','Max CO2 (ppm)': 'resazmaxco_disp', 'Ave CO2 (ppm)': 'resazaveco_disp', 'Min CO2 (ppm)': 'resazminco_disp'}
+                    vresdict = {"Max Flow in": "resazlmaxf_disp", "Min Flow in": "resazlminf_disp", "Ave Flow in": "resazlavef_disp"}
                     row = layout.row()               
                     row.prop(resnode, '["AStart"]')
                     row.prop(resnode, '["AEnd"]')

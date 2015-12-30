@@ -78,9 +78,11 @@ class Vi3DPanel(bpy.types.Panel):
                 zrl = list(zip(*rl))
 
                 if len(set(zrl[0])) > 1:
+                    return
+                    # Below is for viewport visualisation of the parametric EnVi results
                     zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone' and zrl[0][zri] == 'All'])
                     lmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Linkage' and zrl[0][zri] == 'All'])
-                    zresdict = {"Max temp (C)": "resazmaxt_disp", 'Min temp (C)': 'resazmint_disp', 'ave temp (C)': 'resazavet_disp', 'Heating (kWh)': 'resazhw_disp', 'Heating (kWh/m2)': 'resazhwm_disp', 
+                    zresdict = {"Max temp (C)": "resazmaxt_disp", 'Min temp (C)': 'resazmint_disp', 'Ave temp (C)': 'resazavet_disp', 'Heating (kWh)': 'resazhw_disp', 'Heating (kWh/m2)': 'resazhwm_disp', 
                     'Cooling (W)': 'resazcw_disp', 'Cooling (kWh)': 'resazcwm_disp','Max CO2 (ppm)': 'resazmaxco_disp', 'Ave CO2 (ppm)': 'resazaveco_disp', 'Min CO2 (ppm)': 'resazminco_disp'}
                     vresdict = {"Max Flow in": "resazlmaxf_disp", "Min Flow in": "resazlminf_disp", "Ave Flow in": "resazlavef_disp"}
                     row = layout.row()               
@@ -202,7 +204,23 @@ class VIMatPanel(bpy.types.Panel):
                 else:
                     row = layout.row()
                     
-            newrow(layout, 'BSDF:', cm, 'BSDF')
+            if cm.radmatmenu == '8':
+                row = layout.row()
+                row.label('Generate BSDF')
+                newrow(layout, 'Direction:', cm, 'li_bsdf_direc')
+                newrow(layout, 'Klems/Tensor:', cm, 'li_bsdf_tensor')
+                if cm.li_bsdf_tensor != ' ':
+                    newrow(layout, 'resolution:', cm, 'li_bsdf_res')
+                    newrow(layout, 'Samples:', cm, 'li_bsdf_tsamp')
+                else:
+                    newrow(layout, 'Samples:', cm, 'li_bsdf_ksamp')
+                newrow(layout, 'RC params:', cm, 'li_bsdf_rcparam')
+                row.operator("material.gen_bsdf", text="Generate BSDF")
+                if cm.get('bsdf'):
+                    row = layout.row()
+                    row.label('Delete BSDF')
+                    row.operator("material.del_bsdf", text="Delete BSDF")
+
             newrow(layout, 'Photon Port:', cm, 'pport')
             row = layout.row()
             row.label("-----------------------------------------")
@@ -487,18 +505,6 @@ class IESPanel(bpy.types.Panel):
     def draw(self, context):
         layout, lamp = self.layout, context.active_object
         if context.mesh: 
-            if [mat for mat in lamp.data.materials if mat.BSDF]:
-                row = layout.row()
-                row.label('Generate BSDF')
-                newrow(layout, 'Direction:', context.scene, 'li_bsdf_direc')
-                newrow(layout, 'Tensor:', context.scene, 'li_bsdf_tensor')
-                newrow(layout, 'resolution:', context.scene, 'li_bsdf_res')
-                newrow(layout, 'Samples:', context.scene, 'li_bsdf_samp')
-                row.operator("object.gen_bsdf", text="BSDF")
-                if lamp.get('bsdf'):
-                    row = layout.row()
-                    row.label('Delete BSDF')
-                    row.operator("object.del_bsdf", text="Delete BSDF")
             newrow(layout, 'Light Array', lamp, 'lila')
         if (lamp.type == 'LAMP' and lamp.data.type != 'SUN') or lamp.lila: 
             row = layout.row()

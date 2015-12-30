@@ -1,4 +1,4 @@
-import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex, time
+import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex
 from collections import OrderedDict
 from subprocess import Popen, PIPE, STDOUT
 from numpy import array, digitize, amax, amin, average, zeros, inner
@@ -45,11 +45,11 @@ def radmat(self, scene):
             '6': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough), 
             '7': '1 void\n0\n0\n', '8': '1 void\n0\n0\n', '9': '1 void\n0\n0\n'}[self.radmatmenu] + '\n'
 
-    if self.BSDF and self.get('bsdf') and self['bsdf'].get('xml'):
+    if self.radmatmenu == '8' and self.get('bsdf') and self['bsdf'].get('xml'):
         bsdfxml = os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.name))
         with open(bsdfxml, 'w') as bsdffile:
             bsdffile.write(self['bsdf']['xml'].decode())
-        radentry = 'void BSDF {}\n6 0 {} 0 0 1 .\n0\n0\n\n'.format(radname, bsdfxml)
+        radentry = 'void BSDF {0}\n16 0 {1} 0 0 1 . -rx {2[0]} -ry {2[1]} -rz {2[2]} -t {3[0]} {3[1]} {3[2]}\n0\n0\n\n'.format(radname, bsdfxml, self['bsdf']['rotation'], self['bsdf']['translation'])
     if self.radmatmenu == '9':
         if self.name in [t.name for t in bpy.data.texts]:
             radentry = bpy.data.texts[self.name].as_string()+'\n\n'
@@ -975,7 +975,7 @@ def radpoints(o, faces, sks):
                        
 def viparams(op, scene):
     if not bpy.data.filepath:
-        op.report({'ERROR'},"The Blender file has not been saved. Save the Blender file before exporting")
+#        op.report({'ERROR'},"The Blender file has not been saved. Save the Blender file before exporting")
         return 'Save file'
     if " "  in bpy.data.filepath:
         op.report({'ERROR'},"The directory path or Blender filename has a space in it. Please save again without any spaces in the file name or the directory path")
@@ -1046,10 +1046,10 @@ def resnameunits():
     return [bpy.props.BoolProperty(name = rnu[str(rnum)][0], description = rnu[str(rnum)][1], default = False) for rnum in range(len(rnu))]
 
 def aresnameunits():
-    rnu = {'27': (u"Max temp (\u2103)", "Maximum zone temperature"), '28': (u"Min temp (\u2103)", "Minimum zone temperature"), '29': (u"Ave temp (\u2103)", "Average zone temperature"), 
-                '30': ("Heating (kWh)", "Zone heating"), '31': (u"Heating (kWh/m\u00b2)", "Zone heating per floor area"), '32': ("Cooling (kWh)", "Zone cooling"), '33': (u"Cooling (kWh/m\u00b2)", "Zone cooling per floor area"), 
-                '34': (u"Max CO\u2082 (ppm)", u"Maximum zone CO\u2082 level"), '35': (u"Ave CO\u2082 (ppm)", u"Average zone CO\u2082 level"), '36': (u"Min CO\u2082 (ppm)", u"Minimum zone CO\u2082 level"),
-                '37': (u"Max flow in (m\u00b3/s)", u"Maximum linkage flow level"), '38': (u"Min flow in (m\u00b3/s)", u"Minimum linkage flow level"), '39': (u"Ave flow in (m\u00b3/s)", u"Average linkage flow level")}
+    rnu = {'0': (u"Max temp (\u2103)", "Maximum zone temperature"), '1': (u"Min temp (\u2103)", "Minimum zone temperature"), '2': (u"Ave temp (\u2103)", "Average zone temperature"), 
+                '3': ("Heating (kWh)", "Zone heating"), '4': (u"Heating (kWh/m\u00b2)", "Zone heating per floor area"), '5': ("Cooling (kWh)", "Zone cooling"), '6': (u"Cooling (kWh/m\u00b2)", "Zone cooling per floor area"), 
+                '7': (u"Max CO\u2082 (ppm)", u"Maximum zone CO\u2082 level"), '8': (u"Ave CO\u2082 (ppm)", u"Average zone CO\u2082 level"), '9': (u"Min CO\u2082 (ppm)", u"Minimum zone CO\u2082 level"),
+                '10': (u"Max flow in (m\u00b3/s)", u"Maximum linkage flow level"), '11': (u"Min flow in (m\u00b3/s)", u"Minimum linkage flow level"), '12': (u"Ave flow in (m\u00b3/s)", u"Average linkage flow level")}
     return [bpy.props.BoolProperty(name = rnu[str(rnum)][0], description = rnu[str(rnum)][1], default = False) for rnum in range(len(rnu))]
 
 def enresprops(disp):
@@ -1616,7 +1616,9 @@ def compass(loc, scale, wro, mat):
     matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
     
     for i in range(1, 11):
-        bmesh.ops.create_circle(bm, cap_ends=False, diameter=scale*i*0.1, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')*Matrix.Translation((0, 0, 0)))
+        bmesh.ops.create_circle(bm, cap_ends=False, diameter=scale*((i**2)/10)*0.1, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')*Matrix.Translation((0, 0, 0)))
+    bmesh.ops.create_circle(bm, cap_ends=False, diameter=scale*1.075, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')*Matrix.Translation((0, 0, 0)))
+    bmesh.ops.create_circle(bm, cap_ends=False, diameter=scale*1.175, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')*Matrix.Translation((0, 0, 0)))
     
     for edge in bm.edges:
         edge.select_set(False) if edge.index % 3 or edge.index > 1187 else edge.select_set(True)
@@ -1624,28 +1626,40 @@ def compass(loc, scale, wro, mat):
     bmesh.ops.delete(bm, geom = [edge for edge in bm.edges if edge.select], context = 2)
     newgeo = bmesh.ops.extrude_edge_only(bm, edges = bm.edges, use_select_history=False)
     
-    for v, vert in enumerate(newgeo['geom'][:1320]):
-        vert.co = vert.co + (vert.co - coo.location).normalized() * scale * (0.0025, 0.005)[v > 1187]
+    for v, vert in enumerate(newgeo['geom'][:1584]):
+        vert.co = vert.co - (vert.co - coo.location).normalized() * scale * (0.0025, 0.005)[v > 1187]
         vert.co[2] = 0
            
     bmesh.ops.create_circle(bm, cap_ends=True, diameter=scale *0.005, segments=8, matrix=Matrix.Rotation(-pi/8, 4, 'Z')*Matrix.Translation((0, 0, 0)))
     matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
+    degmatrot = Matrix.Rotation(pi*0.125, 4, 'Z')
     tmatrot = Matrix.Rotation(0, 4, 'Z')
     direc = Vector((0, 1, 0))
+
     for i, edge in enumerate(bm.edges[-8:]):
         verts = bmesh.ops.extrude_edge_only(bm, edges = [edge], use_select_history=False)['geom'][:2]
         for vert in verts:
-            vert.co = 1.5*vert.co + 1.025*scale*(tmatrot*direc)
+            vert.co += 1.0*scale*(tmatrot*direc)
             vert.co[2] = 0
-        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + scale*1.05*(tmatrot*direc), rotation=tmatrot.to_euler())
+        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + scale*1.1*(tmatrot*direc), rotation=tmatrot.to_euler())
         txt = bpy.context.active_object
-        txt.scale, txt.data.body, txt.data.align, txt.location[2]  = (scale*0.1, scale*0.1, scale*0.1), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER', txt.location[2]
-        
+        txt.scale, txt.data.body, txt.data.align, txt.location[2]  = (scale*0.075, scale*0.075, scale*0.075), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER', txt.location[2]
         bpy.ops.object.convert(target='MESH')
         bpy.ops.object.material_slot_add()
         txt.material_slots[-1].material = mat
         txts.append(txt)
         tmatrot = tmatrot * matrot
+
+    tmatrot = Matrix.Rotation(0, 4, 'Z')
+    for d in range(16):
+        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + scale*1.0125*(tmatrot*direc), rotation=tmatrot.to_euler())
+        txt = bpy.context.active_object
+        txt.scale, txt.data.body, txt.data.align, txt.location[2]  = (scale*0.05, scale*0.05, scale*0.05), (u'0\u00B0', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', u'270\u00B0', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', u'180\u00B0', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', u'90\u00B0', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')[d], 'CENTER', txt.location[2]
+        bpy.ops.object.convert(target='MESH')
+        bpy.ops.object.material_slot_add()
+        txt.material_slots[-1].material = mat
+        txts.append(txt)
+        tmatrot = tmatrot * degmatrot
     
     bm.to_mesh(come)
     bm.free()
@@ -1889,12 +1903,10 @@ def draw_index(context, leg, mid_x, mid_y, width, height, posis, res):
 
 def draw_time(context, mid_x, mid_y, width, height, pos, time):
     vec = mathutils.Vector((pos[0] / pos[3], pos[1] / pos[3], pos[2] / pos[3]))
-    bd = blf.dimensions(0, time)
     x = int(mid_x + vec[0] * mid_x) 
     y = int(mid_y + vec[1] * mid_y)
     blf.position(0, x, y, 0)
     blf.draw(0, time)
-#    [(blf.position(0, xs - int(0.5*bd[0]), ys - int(0.5 * bd[1]), 0), blf.draw(0, ('{:.1f}', '{:.0f}')[r > 100 or context.scene['viparams']['resnode'] == 'VI Sun Path'].format(r))) for ri, r in enumerate(res) if (leg == 1 and (xs[ri] > 120 or ys[ri] < height - 530)) or leg == 0]
         
 def edgelen(ob, edge):
     omw = ob.matrix_world
@@ -1909,35 +1921,36 @@ def sunpath2(scene):
 
 def sunpath():
     scene = bpy.context.scene
-    sun = [ob for ob in scene.objects if ob.get('VIType') == 'Sun'][0]
-    skysphere = [ob for ob in scene.objects if ob.get('VIType') == 'SkyMesh'][0]
-
-    if 0 in (sun['solhour'] == scene.solhour, sun['solday'] == scene.solday):
-        sunob = [ob for ob in scene.objects if ob.get('VIType') == 'SunMesh'][0]
-        spathob = [ob for ob in scene.objects if ob.get('VIType') == 'SPathMesh'][0]
+    suns = [ob for ob in scene.objects if ob.get('VIType') == 'Sun']
+    skyspheres = [ob for ob in scene.objects if ob.get('VIType') == 'SkyMesh']
+    
+    if suns and 0 in (suns[0]['solhour'] == scene.solhour, suns[0]['solday'] == scene.solday):
+        sunobs = [ob for ob in scene.objects if ob.get('VIType') == 'SunMesh']
+        spathobs = [ob for ob in scene.objects if ob.get('VIType') == 'SPathMesh']
         beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
-        sun.location.z = spathob.location.z + 100 * sin(beta)
-        sun.location.x = spathob.location.x -(100**2 - (sun.location.z-spathob.location.z)**2)**0.5 * sin(phi)
-        sun.location.y = spathob.location.y -(100**2 - (sun.location.z-spathob.location.z)**2)**0.5 * cos(phi)
-        sun.rotation_euler = pi * 0.5 - beta, 0, -phi
+        if spathobs:
+            suns[0].location.z = spathobs[0].location.z + 100 * sin(beta)
+            suns[0].location.x = spathobs[0].location.x -(100**2 - (suns[0].location.z-spathobs[0].location.z)**2)**0.5 * sin(phi)
+            suns[0].location.y = spathobs[0].location.y -(100**2 - (suns[0].location.z-spathobs[0].location.z)**2)**0.5 * cos(phi)
+        suns[0].rotation_euler = pi * 0.5 - beta, 0, -phi
 
         if scene.render.engine == 'CYCLES':
             if scene.world.node_tree:
                 for stnode in [no for no in scene.world.node_tree.nodes if no.bl_label == 'Sky Texture']:
                     stnode.sun_direction = -sin(phi), -cos(phi), sin(beta)
-            if sun.data.node_tree:
-                for blnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Blackbody']:
+            if suns[0].data.node_tree:
+                for blnode in [node for node in suns[0].data.node_tree.nodes if node.bl_label == 'Blackbody']:
                     blnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5 if beta > 0 else 2500
-                for emnode in [node for node in sun.data.node_tree.nodes if node.bl_label == 'Emission']:
-                    emnode.inputs[1].default_value = 30 * sin(beta)**0.5 if beta > 0 else 0
-            if sunob.data.materials[0].node_tree:
-                for smblnode in [node for node in sunob.data.materials[0].node_tree.nodes if sunob.data.materials and node.bl_label == 'Blackbody']:
+                for emnode in [node for node in suns[0].data.node_tree.nodes if node.bl_label == 'Emission']:
+                    emnode.inputs[1].default_value = 10 * sin(beta)**0.5 if beta > 0 else 0
+            if sunobs and sunobs[0].data.materials[0].node_tree:
+                for smblnode in [node for node in sunobs[0].data.materials[0].node_tree.nodes if sunobs[0].data.materials and node.bl_label == 'Blackbody']:
                     smblnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5 if beta > 0 else 2500
-            if skysphere and not skysphere.hide and skysphere.data.materials[0].node_tree:
-                for stnode in [no for no in skysphere.data.materials[0].node_tree.nodes if no.bl_label == 'Sky Texture']:
+            if skyspheres and not skyspheres[0].hide and skyspheres[0].data.materials[0].node_tree:
+                for stnode in [no for no in skyspheres[0].data.materials[0].node_tree.nodes if no.bl_label == 'Sky Texture']:
                     stnode.sun_direction = sin(phi), -cos(phi), sin(beta)
 
-        sun['solhour'], sun['solday'] = scene.solhour, scene.solday
+        suns[0]['solhour'], suns[0]['solday'] = scene.solhour, scene.solday
         return
 
 def epwlatilongi(scene, node):

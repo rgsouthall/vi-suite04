@@ -33,6 +33,14 @@ from numpy import array, digitize
 def update_ntree(dummy):
     for ng in bpy.data.node_groups:
         [node.update() for node in ng.nodes if node.bl_label == 'VI Chart']
+        
+@persistent
+def display_off(dummy):
+    if bpy.context.scene.get('vi_display'):
+#        bpy.ops.view3d.spnumdisplay('CANCELLED')
+        bpy.context.scene.vi_display = 0
+        
+        print(bpy.context.scene.vi_display)
 
 epversion = "8-4-0"
 addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -489,6 +497,12 @@ def register():
     Material.flovi_b_vval = fvprop(3, '', 'Vector value', [0, 0, 0], 'VELOCITY', -100, 100)
     Material.flovi_p_field = bprop("", "Take boundary velocity from the field velocity", False)
     Material.flovi_u_field = bprop("", "Take boundary velocity from the field velocity", False)
+    Material.li_bsdf_direc = bpy.props.EnumProperty(items = [('+b', 'Backwards', 'Backwards BSDF'), ('+f', 'Forwards', 'Forwards BSDF'), ('+b +f', 'Bi-directional', 'Bi-directional BSDF')], name = '', description = 'BSDF direction', default = '+b')
+    Material.li_bsdf_tensor = bpy.props.EnumProperty(items = [(' ', 'Klems', 'Uniform Klems sample'), ('-t3', 'Symmentric', 'Symmetric Tensor BSDF'), ('-t4', 'Assymmetric', 'Asymmetric Tensor BSDF')], name = '', description = 'BSDF tensor', default = ' ')
+    Material.li_bsdf_res = bpy.props.EnumProperty(items = [('1', '2x2', '2x2 sampling resolution'), ('2', '4x4', '4x4 sampling resolution'), ('3', '8x8', '8x8 sampling resolution'), ('4', '16x16', '16x16 sampling resolution'), ('5', '32x32', '32x32 sampling resolution'), ('6', '64x64', '64x64 sampling resolution'), ('7', '128x128', '128x128 sampling resolution')], name = '', description = 'BSDF resolution', default = '4')
+    Material.li_bsdf_tsamp = bpy.props.IntProperty(name = '', description = 'BSDF resolution', min = 1, max = 20, default = 4)
+    Material.li_bsdf_ksamp = bpy.props.IntProperty(name = '', description = 'BSDF resolution', min = 1, default = 2000)
+    Material.li_bsdf_rcparam = sprop("", "rcontrib parameters", 1024, "")
 #    Material.flovi_bmionut = fprop("Value", "nuTilda value", -1000, 1000, 0.0)
 #    Material.flovi_bmionut_y = fprop("Y", "Value in the Y-direction", -1000, 1000, 0.0)
 #    Material.flovi_bmionut_z = fprop("Z", "Value in the Z-direction", -1000, 1000, 0.0)   
@@ -535,10 +549,6 @@ def register():
     Scene.li_jobno = sprop("", "Project job number", 1024, '')
     Scene.li_disp_udi = bpy.props.EnumProperty(items = [("0", "Low", "Percentage of hours below minimum threshold"),("1", "Supplementary", "Percentage of hours requiring supplementary lighting"), ("2", "Autonomous", "Percentage of hours with autonomous lighting"), ("3", "Upper", "Percentage of hours excedding the upper limit")], name = "", description = "UDI range selection", default = "2", update = liviresupdate)
     Scene.li_disp_basic = bpy.props.EnumProperty(items = [("0", "Illuminance", "Display Illuminance values"), ("1", "Irradiance", "Display Irradiance values"), ("2", "DF", "Display Daylight factor values")], name = "", description = "Basic metric selection", default = "0", update = liviresupdate)
-    Scene.li_bsdf_direc = bpy.props.EnumProperty(items = [('+backwards', 'Backwards', 'Backwards BSDF'), ('+forwards', 'Forwards', 'Forwards BSDF'), ('+backwards +forwards', 'Bi-directional', 'Bi-directional BSDF')], name = '', description = 'BSDF direction', default = '+backwards')
-    Scene.li_bsdf_tensor = bpy.props.EnumProperty(items = [('-t3', 'Symmentric', 'Symmetric BSDF'), ('-t4', 'Assymmetric', 'Asymmetric BSDF')], name = '', description = 'BSDF tensor', default = '-t4')
-    Scene.li_bsdf_res = bpy.props.EnumProperty(items = [('1', '2x2', '2x2 sampling resolution'), ('2', '4x4', '4x4 sampling resolution'), ('3', '8x8', '8x8 sampling resolution'), ('4', '16x16', '16x16 sampling resolution'), ('5', '32x32', '32x32 sampling resolution'), ('6', '64x64', '64x64 sampling resolution'), ('7', '128x128', '128x128 sampling resolution')], name = '', description = 'BSDF resolution', default = '4')
-    Scene.li_bsdf_samp = bpy.props.IntProperty(name = '', description = 'BSDF resolution', min = 1, max = 20, default = 4)
  
 
     (Scene.resaa_disp, Scene.resaws_disp, Scene.resawd_disp, Scene.resah_disp, Scene.resas_disp, Scene.reszt_disp, Scene.reszh_disp, Scene.reszhw_disp, Scene.reszcw_disp, Scene.reszsg_disp, Scene.reszppd_disp, 
@@ -553,6 +563,8 @@ def register():
     nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)
     if not update_ntree in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(update_ntree)
+    if not display_off in bpy.app.handlers.load_pre:
+        bpy.app.handlers.load_pre.append(display_off)
 
 def unregister():
     bpy.utils.unregister_module(__name__)

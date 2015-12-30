@@ -129,6 +129,7 @@ def li_display(simnode):
 
 def spnumdisplay(disp_op, context, simnode):
     scene = context.scene
+#    print(simnode.bl_label)
     leg = 0 if simnode.bl_label == 'VI Sun Path' else 1
     if bpy.data.objects.get('SPathMesh'):
         spob = bpy.data.objects['SPathMesh'] 
@@ -136,7 +137,7 @@ def spnumdisplay(disp_op, context, simnode):
         mid_x, mid_y, width, height = viewdesc(context)
         (view_location, view_mat, vw) = retvpvloc(context) 
         total_mat = view_mat * ob_mat
-        
+                
         if scene.hourdisp:
             blf.enable(0, 4)
             blf.shadow(0, 5,scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])
@@ -148,16 +149,16 @@ def spnumdisplay(disp_op, context, simnode):
             blf.disable(0, 4)
 
         if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects]:
-            sob = [ob for ob in bpy.data.objects if ob.get('VIType') == 'Sun'][0]
-            if scene.timedisp:
+            sobs = [ob for ob in bpy.data.objects if ob.get('VIType') == 'Sun']
+            if sobs and scene.timedisp and mathutils.Vector.angle(vw, view_location - ob_mat*sobs[0].matrix_world*mathutils.Vector(sobs[0].location)) < pi * 0.5:
                 blf.enable(0, 4)
                 blf.shadow(0, 5,scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])
                 bgl.glColor4f(scene.vi_display_rp_fc[0], scene.vi_display_rp_fc[1], scene.vi_display_rp_fc[2], scene.vi_display_rp_fc[3])
                 blf.size(0, scene.vi_display_rp_fs, 72)
-                pos = total_mat*mathutils.Vector(sob.location).to_4d()
+                pos = total_mat*mathutils.Vector(sobs[0].location).to_4d()
                 soltime = datetime.datetime.fromordinal(scene.solday)
                 soltime += datetime.timedelta(hours = scene.solhour)
-                draw_time(context, mid_x, mid_y, width, height, pos, soltime.strftime('%d %b %X'))
+                draw_time(context, mid_x, mid_y, width, height, pos, soltime.strftime(' %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90-sobs[0].rotation_euler[0]*180/pi, (180, -180)[sobs[0].rotation_euler[2] < -pi] - sobs[0].rotation_euler[2]*180/pi))
                 blf.disable(0, 4)
     else:
         return

@@ -49,8 +49,8 @@ class NODE_OT_LiGExport(bpy.types.Operator):
         node.postexport(scene)
         return {'FINISHED'}
         
-class OBJECT_OT_GenBSDF(bpy.types.Operator):
-    bl_idname = "object.gen_bsdf"
+class MATERIAL_GenBSDF(bpy.types.Operator):
+    bl_idname = "material.gen_bsdf"
     bl_label = "Gen BSDF"
     bl_description = "Generate a BSDF for the current selected object"
     bl_register = True
@@ -61,8 +61,8 @@ class OBJECT_OT_GenBSDF(bpy.types.Operator):
         genbsdf(context.scene, self, o)
         return {'FINISHED'}
     
-class OBJECT_OT_DelBSDF(bpy.types.Operator):
-    bl_idname = "object.del_bsdf"
+class MATERIAL_DelBSDF(bpy.types.Operator):
+    bl_idname = "material.del_bsdf"
     bl_label = "Del BSDF"
     bl_description = "Delete a BSDF for the current selected object"
     bl_register = True
@@ -928,7 +928,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
     def invoke(self, context, event):
         scene = context.scene
         if viparams(self, scene):
-            self.report({'ERROR'},"Save the Blender file")
+            self.report({'ERROR'},"Save the Blender file before continuing")
             return {'CANCELLED'}
         solringnum, sd, numpos = 0, 100, {}
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]

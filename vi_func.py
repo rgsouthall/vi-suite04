@@ -1380,7 +1380,7 @@ def processf(pro_op, scene, node):
                 reslists.append(['All', 'Zone', zn, 'Max cool (W)', ' '.join([str(max(h[1])) for h in cools if h[0] == zn])])
                 reslists.append(['All', 'Zone', zn, 'Min cool (W)', ' '.join([str(min(h[1])) for h in cools if h[0] == zn])])
                 reslists.append(['All', 'Zone', zn, 'Ave cool (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in cools if h[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Cooling (kWh(', ' '.join([str(sum(h[1])*0.001) for h in cools if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Cooling (kWh)', ' '.join([str(sum(h[1])*0.001) for h in cools if h[0] == zn])])
                 reslists.append(['All', 'Zone', zn, 'Cooling (kWh/m2)', ' '.join([str(sum(h[1])*0.001/[o for o in bpy.data.objects if o.name.upper() == zn][0]['floorarea']) for h in cools if h[0] == zn])])
             if aheats:
                 reslists.append(['All', 'Zone', zn, 'Max air heat (W)', ' '.join([str(max(h[1])) for h in aheats if h[0] == zn])])

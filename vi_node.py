@@ -884,7 +884,7 @@ class ViResSock(bpy.types.NodeSocket):
         typedict = {"Time": [], "Frames": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"), "Linkage":("linkmenu", "linkrmenu"), "External node":("enmenu", "enrmenu")}
         for rtype in typedict[self.rtypemenu]:
             row.prop(self, rtype)
-        if self.node.timemenu in ('1', '2') and self.rtypemenu !='Time':
+        if self.node.timemenu in ('1', '2') and self.rtypemenu !='Time' and not node.animated:
             row.prop(self, "statmenu")
         if self.rtypemenu != 'Time':
             row.prop(self, 'multfactor')

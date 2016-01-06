@@ -60,6 +60,30 @@ class MATERIAL_GenBSDF(bpy.types.Operator):
         o = context.active_object
         genbsdf(context.scene, self, o)
         return {'FINISHED'}
+        
+class MATERIAL_LoadBSDF(bpy.types.Operator, io_utils.ImportHelper):
+    bl_idname = "material.load_bsdf"
+    bl_label = "Select BSDF file"
+    filename_ext = ".XML;.xml;"
+    filter_glob = bpy.props.StringProperty(default="*.XML;*.xml;", options={'HIDDEN'})
+    filepath = bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+    
+    def draw(self,context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Import BSDF XML file with the file browser", icon='WORLD_DATA')
+        row = layout.row()
+
+    def execute(self, context):
+        context.material['bsdf'] = {}
+        context.material['bsdf']['xml'] = self.filepath
+        if " " in self.filepath:
+            self.report({'ERROR'}, "There is a space either in the filename or its directory location. Remove this space and retry opening the file.")
+        return {'FINISHED'}
+
+    def invoke(self,context,event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
     
 class MATERIAL_DelBSDF(bpy.types.Operator):
     bl_idname = "material.del_bsdf"

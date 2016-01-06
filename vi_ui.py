@@ -205,21 +205,25 @@ class VIMatPanel(bpy.types.Panel):
                     row = layout.row()
                     
             if cm.radmatmenu == '8':
-                row = layout.row()
-                row.label('Generate BSDF')
-                newrow(layout, 'Direction:', cm, 'li_bsdf_direc')
-                newrow(layout, 'Klems/Tensor:', cm, 'li_bsdf_tensor')
-                if cm.li_bsdf_tensor != ' ':
-                    newrow(layout, 'resolution:', cm, 'li_bsdf_res')
-                    newrow(layout, 'Samples:', cm, 'li_bsdf_tsamp')
-                else:
-                    newrow(layout, 'Samples:', cm, 'li_bsdf_ksamp')
-                newrow(layout, 'RC params:', cm, 'li_bsdf_rcparam')
-                row.operator("material.gen_bsdf", text="Generate BSDF")
-                if cm.get('bsdf'):
-                    row = layout.row()
-                    row.label('Delete BSDF')
-                    row.operator("material.del_bsdf", text="Delete BSDF")
+                row.operator("material.load_bsdf", text="Load BSDF")
+                
+#                newrow(layout, 'Direction:', cm, 'li_bsdf_direc')
+#                newrow(layout, 'Klems/Tensor:', cm, 'li_bsdf_tensor')
+#                if cm.li_bsdf_tensor != ' ':
+#                    newrow(layout, 'resolution:', cm, 'li_bsdf_res')
+#                    newrow(layout, 'Samples:', cm, 'li_bsdf_tsamp')
+#                else:
+#                    newrow(layout, 'Samples:', cm, 'li_bsdf_ksamp')
+#                newrow(layout, 'RC params:', cm, 'li_bsdf_rcparam')
+#                row = layout.row()
+##                col = row.column()
+#                
+#
+#                row.operator("material.gen_bsdf", text="Generate BSDF")
+#                if cm.get('bsdf'):
+##                    row = layout.row()
+##                    row.label('Delete BSDF')
+#                    row.operator("material.del_bsdf", text="Delete BSDF")
 
             newrow(layout, 'Photon Port:', cm, 'pport')
             row = layout.row()
@@ -491,46 +495,78 @@ class VIMatPanel(bpy.types.Panel):
                         newrow(layout, "k type:", cm, "flovi_bmok_type")
                         newrow(layout, "Omega type:", cm, "flovi_bmoo_type")
                 
-class IESPanel(bpy.types.Panel):
-    bl_label = "VI Object Properties"
+#class IESPanel(bpy.types.Panel):
+#    bl_label = "VI Object Properties"
+#    bl_space_type = "PROPERTIES"
+#    bl_region_type = "WINDOW"
+#    bl_context = "data"
+#    
+#    @classmethod
+#    def poll(cls, context):
+#        if context.lamp or context.mesh:
+#            return True
+#
+#    def draw(self, context):
+#        layout, lamp = self.layout, context.active_object
+#        if context.mesh: 
+#            newrow(layout, 'Light Array', lamp, 'lila')
+#        if (lamp.type == 'LAMP' and lamp.data.type != 'SUN') or lamp.lila: 
+#            row = layout.row()
+#            row.operator("livi.ies_select")
+#            row.prop(lamp, "ies_name")
+#            newrow(layout, 'IES Dimension:', lamp, "ies_unit")
+#            newrow(layout, 'IES Strength:', lamp, "ies_strength")
+#            row = layout.row()
+#            row.prop(lamp, "ies_colour")
+                
+class VIObPanel(bpy.types.Panel):
+    bl_label = "VI-Suite Object Definition"
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "data"
-    
+
     @classmethod
     def poll(cls, context):
-        if context.lamp or context.mesh:
+        if context.object and context.object.type in ('LAMP', 'MESH'):
             return True
 
     def draw(self, context):
-        layout, lamp = self.layout, context.active_object
-        if context.mesh: 
-            newrow(layout, 'Light Array', lamp, 'lila')
-        if (lamp.type == 'LAMP' and lamp.data.type != 'SUN') or lamp.lila: 
+        obj = context.active_object
+        layout = self.layout
+#        if obj.type in ('LAMP', 'MESH'):
+        if obj.type == 'MESH':
+            row = layout.row()
+            row.prop(obj, "vi_type")
+            if obj.vi_type == '1':
+                row = layout.row()
+                row.prop(obj, "envi_type")
+
+        if (obj.type == 'LAMP' and obj.data.type != 'SUN') or obj.vi_type == '4':
             row = layout.row()
             row.operator("livi.ies_select")
-            row.prop(lamp, "ies_name")
-            newrow(layout, 'IES Dimension:', lamp, "ies_unit")
-            newrow(layout, 'IES Strength:', lamp, "ies_strength")
+            row.prop(obj, "ies_name")
+            newrow(layout, 'IES Dimension:', obj, "ies_unit")
+            newrow(layout, 'IES Strength:', obj, "ies_strength")
             row = layout.row()
-            row.prop(lamp, "ies_colour")
-                
-class VIZonePanel(bpy.types.Panel):
-    bl_label = "VI-Suite Zone Definition"
-    bl_space_type = "PROPERTIES"
-    bl_region_type = "WINDOW"
-    bl_context = "data"
+            row.prop(obj, "ies_colour")
 
-    @classmethod
-    def poll(cls, context):
-        if context.object and context.object.type == 'MESH':
-            return True
-
-    def draw(self, context):
-        obj = bpy.context.active_object
-        layout = self.layout
-        row = layout.row()
-        row.prop(obj, "vi_type")
-        if obj.vi_type == '1':
+        elif obj.vi_type == '5':                
+            newrow(layout, 'Direction:', obj, 'li_bsdf_direc')
+            newrow(layout, 'Klems/Tensor:', obj, 'li_bsdf_tensor')
+            if obj.li_bsdf_tensor != ' ':
+                newrow(layout, 'resolution:', obj, 'li_bsdf_res')
+                newrow(layout, 'Samples:', obj, 'li_bsdf_tsamp')
+            else:
+                newrow(layout, 'Samples:', obj, 'li_bsdf_ksamp')
+            newrow(layout, 'RC params:', obj, 'li_bsdf_rcparam')
             row = layout.row()
-            row.prop(obj, "envi_type")
+#                col = row.column()
+            
+
+            row.operator("material.gen_bsdf", text="Generate BSDF")
+
+            if obj.get('bsdf'):
+#                    row = layout.row()
+#                    row.label('Delete BSDF')
+                row.operator("material.del_bsdf", text="Delete BSDF")
+            newrow(layout, 'Proxy:', obj, 'bsdf_proxy')

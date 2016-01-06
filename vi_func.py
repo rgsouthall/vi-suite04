@@ -46,15 +46,27 @@ def radmat(self, scene):
             '7': '1 void\n0\n0\n', '8': '1 void\n0\n0\n', '9': '1 void\n0\n0\n'}[self.radmatmenu] + '\n'
 
     if self.radmatmenu == '8' and self.get('bsdf') and self['bsdf'].get('xml'):
-        bsdfxml = os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.name))
-        with open(bsdfxml, 'w') as bsdffile:
-            bsdffile.write(self['bsdf']['xml'].decode())
-        radentry = 'void BSDF {0}\n16 0 {1} 0 0 1 . -rx {2[0]} -ry {2[1]} -rz {2[2]} -t {3[0]} {3[1]} {3[2]}\n0\n0\n\n'.format(radname, bsdfxml, self['bsdf']['rotation'], self['bsdf']['translation'])
+        radentry = ''
+#        bsdfxml = os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.name))
+#        with open(bsdfxml, 'w') as bsdffile:
+#            bsdffile.write(self['bsdf']['xml'].decode())
+#        radentry = 'void BSDF {0}\n16 0 {1} 0 0 1 . -rx {2[0]} -ry {2[1]} -rz {2[2]} -t {3[0]} {3[1]} {3[2]}\n0\n0\n\n'.format(radname, bsdfxml, self['bsdf']['rotation'], self['bsdf']['translation'])
     if self.radmatmenu == '9':
         if self.name in [t.name for t in bpy.data.texts]:
             radentry = bpy.data.texts[self.name].as_string()+'\n\n'
     self['radentry'] = radentry
     return(radentry)
+    
+def radbsdf(self, radname, fi, rot, trans):
+    fmat = self.data.materials[self.data.polygons[fi].material_index]
+    pdepth = fmat['bsdf']['proxy_depth'] if self.bsdf_proxy else 0 
+    bsdfxml = self.data.materials[self.data.polygons[fi].material_index]['bsdf']['xml']
+    radname = '{}_{}_{}'.format(fmat.name, self.name, fi)
+#    with open(bsdfxml, 'w') as bsdffile:
+#        bsdffile.write(self['bsdf']['xml'].decode())
+    radentry = 'void BSDF {0}\n16 {4:.3f} {1} 0 0 1 . -rx {2[0]:.3f} -ry {2[1]:.3f} -rz {2[2]:.3f} -t {3[0]:.3f} {3[1]:.3f} {3[2]:.3f}\n0\n0\n\n'.format(radname, bsdfxml, rot, trans, pdepth)
+    return radentry
+    
         
 def rtpoints(self, bm, offset, frame):    
     geom = bm.verts if self['cpoint'] == '1' else bm.faces 
@@ -965,7 +977,9 @@ def radpoints(o, faces, sks):
     if sks:
         (skv0, skv1, skl0, skl1) = sks
     for f, face in enumerate(faces):
-        fentry = "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(o.data.materials[face.material_index].name.replace(" ", "_"), o.name.replace(" ", "_"), face.index, 3*len(face.verts))
+        fmat = o.data.materials[face.material_index]
+        mname = '{}_{}_{}'.format(fmat.name.replace(" ", "_"), o.name.replace(" ", "_"), face.index) if fmat.radmatmenu == '8' else fmat.name.replace(" ", "_")
+        fentry = "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(mname, o.name.replace(" ", "_"), face.index, 3*len(face.verts))
         if sks:
             ventries = ''.join([" {0[0]} {0[1]} {0[2]}\n".format((o.matrix_world*mathutils.Vector((v[skl0][0]+(v[skl1][0]-v[skl0][0])*skv1, v[skl0][1]+(v[skl1][1]-v[skl0][1])*skv1, v[skl0][2]+(v[skl1][2]-v[skl0][2])*skv1)))) for v in face.verts])
         else:
@@ -1714,7 +1728,7 @@ def rgb2h(rgb):
     return colorsys.rgb_to_hsv(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0)[0]
 
 def livisimacc(simnode):
-    context = simnode.inputs['Context in'].links[0].from_socket['Options']['Context']
+    context = simnode.inputs['Context in'].links[0].from_node['Options']['Context']
     return(simnode.csimacc if context in ('Compliance', 'CBDM') else simnode.simacc)
 
 def drawpoly(x1, y1, x2, y2, a, r, g, b):
@@ -1826,14 +1840,14 @@ def retobjs(otypes):
     scene = bpy.context.scene
     validobs = [o for o in scene.objects if o.hide == False and o.layers[scene.active_layer] == True]
     if otypes == 'livig':
-        return([o for o in validobs if o.type == 'MESH' and o.data.materials and not (o.parent and os.path.isfile(o.ies_name)) and not o.lila \
+        return([o for o in validobs if o.type == 'MESH' and o.data.materials and not (o.parent and os.path.isfile(o.ies_name)) and not o.vi_type == '4' \
         and o.lires == 0 and o.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')])
     elif otypes == 'livigeno':
         return([o for o in validobs if o.type == 'MESH' and o.data.materials and not any([m.livi_sense for m in o.data.materials])])
     elif otypes == 'livigengeosel':
         return([o for o in validobs if o.type == 'MESH' and o.select == True and o.data.materials and not any([m.livi_sense for m in o.data.materials])])
     elif otypes == 'livil':
-        return([o for o in validobs if (o.type == 'LAMP' or o.lila) and o.hide == False and o.layers[scene.active_layer] == True])
+        return([o for o in validobs if (o.type == 'LAMP' or o.vi_type == '4') and o.hide == False and o.layers[scene.active_layer] == True])
     elif otypes == 'livic':
         return([o for o in validobs if o.type == 'MESH' and li_calcob(o, 'livi') and o.lires == 0 and o.hide == False and o.layers[scene.active_layer] == True])
     elif otypes == 'livir':
@@ -1846,7 +1860,7 @@ def retobjs(otypes):
 def radmesh(scene, obs, export_op):
     for o in obs:
         for mat in o.data.materials:
-            if mat['radentry'].split(' ')[1] in ('light', 'mirror', 'antimatter') or mat.pport:
+            if mat['radentry'] and mat['radentry'].split(' ')[1] in ('light', 'mirror', 'antimatter') or mat.pport:
                 export_op.report({'INFO'}, o.name+" has an antimatter, photon port, emission or mirror material. Basic export routine used with no modifiers.")
                 o['merr'] = 1 
         selobj(scene, o)

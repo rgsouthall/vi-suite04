@@ -10,7 +10,7 @@ def label(dnode, metric, axis, variant):
         return catdict[variant]
 
 def llabel(dnode, metric, axis, variant):
-    rdict = {'Climate': 'Ambient', 'Zone': dnode.inputs[axis].zonemenu}
+    rdict = {'Climate': 'Ambient', 'Zone': dnode.inputs[axis].zonemenu, 'Chimney':dnode.inputs[axis].chimmenu}
     ldict = {'type': rdict[dnode.inputs[axis].rtypemenu], 'metric': metric, }
     return ldict[variant]
     
@@ -27,7 +27,8 @@ def rvariant(dnode):
 #        if dnode.inputs[axis].links:
     zones = [dnode.inputs[axis].zonemenu for axis in axes if dnode.inputs[axis].links and dnode.inputs[axis].rtypemenu == 'Zone']
     clims = [dnode.inputs[axis].climmenu for axis in axes if dnode.inputs[axis].links and dnode.inputs[axis].rtypemenu == 'Climate']
-    links = [dnode.inputs[axis].climmenu for axis in axes if dnode.inputs[axis].links and dnode.inputs[axis].rtypemenu == 'Linkage']
+    links = [dnode.inputs[axis].linkenu for axis in axes if dnode.inputs[axis].links and dnode.inputs[axis].rtypemenu == 'Linkage']
+    chims = [dnode.inputs[axis].chimmenu for axis in axes if dnode.inputs[axis].links and dnode.inputs[axis].rtypemenu == 'Chimney']
     if zones and len(set(zones)) + len(set(clims)) == len(zones + clims):
         return 'type'
 #    if clims and len(set(clims)) == len(zones + clims):

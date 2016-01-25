@@ -1,3 +1,21 @@
+# ##### BEGIN GPL LICENSE BLOCK #####
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
+
 import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex
 from collections import OrderedDict
 from subprocess import Popen, PIPE, STDOUT
@@ -239,7 +257,7 @@ class CancelButton(Button):\n\
     def on_touch_down(self, touch):\n\
         if 'button' in touch.profile:\n\
             if self.collide_point(*touch.pos):\n\
-                with open('/home/ryan/Store/Blender/lividemo/viprogress', 'w') as pffile:\n\
+                with open('"+file+"', 'w') as pffile:\n\
                     pffile.write('CANCELLED')\n\
                 App.get_running_app().stop()\n\
         else:\n\
@@ -989,7 +1007,7 @@ def radpoints(o, faces, sks):
                        
 def viparams(op, scene):
     if not bpy.data.filepath:
-#        op.report({'ERROR'},"The Blender file has not been saved. Save the Blender file before exporting")
+        op.report({'ERROR'},"The Blender file has not been saved. Save the Blender file before exporting")
         return 'Save file'
     if " "  in bpy.data.filepath:
         op.report({'ERROR'},"The directory path or Blender filename has a space in it. Please save again without any spaces in the file name or the directory path")
@@ -1056,7 +1074,11 @@ def resnameunits():
                 '14': (u'Infiltration (m\u00b3)',  u'Zone Infiltration (m\u00b3)'), '15': ('Infiltration (ACH)', 'Zone Infiltration rate (ACH)'), '16': ('CO2 (ppm)', 'Zone CO2 concentration (ppm)'),
                 '17': ("Heat loss (W)", "Ventilation Heat Loss (W)"), '18': (u'Flow (m\u00b3/s)', u'Linkage flow (m\u00b3/s)'), '19': ('Opening factor', 'Linkage Opening Factor'),
                 '20': ("MRT (K)", "Mean Radiant Temperature (K)"), '21': ('Occupancy', 'Occupancy count'), '22': ("Humidity", "Zone Humidity"),
-                '23': ("Fabric HB (W)", "Fabric convective heat balance"), '24': ("Air Heating", "Zone air heating"), '25': ("Air Cooling", "Zone air cooling"), '26': ("HR Heating", "Heat recovery heating (W)")}
+                '23': ("Fabric HB (W)", "Fabric convective heat balance"), '24': ("Air Heating", "Zone air heating"), '25': ("Air Cooling", "Zone air cooling"),
+                '26': ("HR Heating", "Heat recovery heating (W)"), '27': ("Volume flow", "Thermal chimney volume flow rate (m3/2)"), '28': ("Mass flow", "Thermal chmimney mass flow rate (kg/s"),
+                '29': ("Out temp.", "Thermal chimney outlet temperature (C)"), '30': ("Heat loss", "Thermal chimney heat loss (W)"), '31': ("Heat gain", "Thermal chimney heat gain (W)"),
+                '32': ("Volume", "Thermal chimnwey volume (m3)"), '33': ("Mass", "Thermal chimney mass (kg)")}
+
     return [bpy.props.BoolProperty(name = rnu[str(rnum)][0], description = rnu[str(rnum)][1], default = False) for rnum in range(len(rnu))]
 
 def aresnameunits():
@@ -1071,7 +1093,9 @@ def enresprops(disp):
                   "ressah{}".format(disp), "reshrhw{}".format(disp), 0, "ressac{}".format(disp), "reswsg{}".format(disp), 0, "resfhb{}".format(disp)),
             '1': (0, "rescpp{}".format(disp), "rescpm{}".format(disp), 0, 'resmrt{}'.format(disp), 'resocc{}'.format(disp)), 
             '2': (0, "resim{}".format(disp), "resiach{}".format(disp), 0, "resco2{}".format(disp), "resihl{}".format(disp)), 
-            '3': (0, "resl12ms{}".format(disp), "reslof{}".format(disp))}
+            '3': (0, "resl12ms{}".format(disp), "reslof{}".format(disp)), 
+            '4':(0, "restcvf{}".format(disp), "restcmf{}".format(disp), 0, "restcot{}".format(disp), "restchl{}".format(disp),
+                 0, "restchg{}".format(disp), "restcv{}".format(disp), 0, "restcm{}".format(disp))}
         
 def nodestate(self, opstate):
     if self['exportstate'] !=  opstate:
@@ -1239,6 +1263,8 @@ def retmenu(dnode, axis, mtype):
         return [dnode.inputs[axis].linkmenu, dnode.inputs[axis].linkrmenu]
     elif mtype == 'External node':
         return [dnode.inputs[axis].enmenu, dnode.inputs[axis].enrmenu]
+    elif mtype == 'Chimney':
+        return [dnode.inputs[axis].chimmenu, dnode.inputs[axis].chimrmenu]
     elif mtype == 'Frames':
         return ['', 'Frames']
         
@@ -1251,7 +1277,29 @@ def retdata(dnode, axis, mtype, resdict, frame):
         return resdict[frame][mtype][dnode.inputs[axis].linkmenu][dnode.inputs[axis].linkrmenu]
     elif mtype == 'External node':
         return resdict[frame][mtype][dnode.inputs[axis].enmenu][dnode.inputs[axis].enrmenu]
+    elif mtype == 'Chimney':
+        return resdict[frame][mtype][dnode.inputs[axis].chimmenu][dnode.inputs[axis].chimrmenu]
 
+#def zrupdate(zonemenu, innode):
+#    rl = innode['reslists']
+#    for r in rl:
+#        print(dir(zonemenu), r[2])
+#    zri = [(zr[3], zr[3], 'Plot {}'.format(zr[3])) for zr in rl if zr[2] == zonemenu]
+#    print(zri)
+#    return zri
+#    del self.zonermenu
+#    zonermenu = bpy.props.EnumProperty(items = zri, name = '', description = '', default = zri[0][0])
+#    self.zonermenu = zonermenu
+#    self.items = 
+
+def zrupdate(self, context):
+    try:
+        rl = self.links[0].from_node['reslists']
+        zri = [(zr[3], zr[3], 'Plot {}'.format(zr[3])) for zr in rl if zr[2] == self.zonemenu]
+        return zri
+    except:
+        return []
+        
 def retrmenus(innode, node): 
     rl = innode['reslists']
     zrl = list(zip(*rl))
@@ -1264,6 +1312,12 @@ def retrmenus(innode, node):
     ztype = [(metric, metric, "Plot " + metric) for metric in ztypes]
     zrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Zone' and zrl[0][m] == frame]))
     zrtype = [(metric, metric, "Plot " + metric) for metric in zrtypes]
+    
+#    for zone in ztypes:
+#        zrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Zone' and zrl[2][m] == zone and zrl[0][m] == frame]))
+#        zrtype = [(metric, metric, "Plot " + metric) for metric in zrtypes]
+#        zonermenu = bpy.props.EnumProperty(items=zrtype, name="", description="Zone result", default = zrtype[0][0])  if ztype else ''
+#        zrdict[zone] = zonermenu
     ltypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Linkage' and zrl[0][m] == frame]))
     ltype = [(metric, metric, "Plot " + metric) for metric in ltypes]
     lrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Linkage' and zrl[0][m] == frame]))
@@ -1272,21 +1326,31 @@ def retrmenus(innode, node):
     entype = [(metric, metric, "Plot " + metric) for metric in entypes]
     enrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'External' and zrl[0][m] == frame]))       
     enrtype = [(metric, metric, "Plot " + metric) for metric in enrtypes]    
-
+    chimtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Chimney' and zrl[0][m] == frame]))
+    chimtype = [(metric, metric, "Plot " + metric) for metric in chimtypes]
+    chimrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Chimney' and zrl[0][m] == frame]))       
+    chimrtype = [(metric, metric, "Plot " + metric) for metric in chimrtypes] 
+    
     fmenu = bpy.props.EnumProperty(items=ftype, name="", description="Frame number", default = ftype[0][0])
     rtypemenu = bpy.props.EnumProperty(items=rtype, name="", description="Result types", default = rtype[0][0])
     statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
     valid = ['Vi Results']    
     climmenu = bpy.props.EnumProperty(items=ctype, name="", description="Climate type", default = ctype[0][0]) if ctype else ''     
     zonemenu = bpy.props.EnumProperty(items=ztype, name="", description="Zone", default = ztype[0][0]) if ztype else ''
-    zonermenu = bpy.props.EnumProperty(items=zrtype, name="", description="Zone result", default = zrtype[0][0])  if ztype else ''
+    zonermenu = bpy.props.EnumProperty(items=zrupdate, name="", description="Flow linkage result")# if ztype else ''
+
+#    zonermenu = bpy.props.EnumProperty(items=zrtype, name="", description="Flow linkage result", default = zrtype[0][0]) if ztype else ''
+#    zonermenu = bpy.props.EnumProperty(items=zrupdate(zonemenu, innode), name="", description="Flow linkage result") if ztype else ''
+
     linkmenu = bpy.props.EnumProperty(items=ltype, name="", description="Flow linkage result", default = ltype[0][0]) if ltype else ''
     linkrmenu = bpy.props.EnumProperty(items=lrtype, name="", description="Flow linkage result", default = lrtype[0][0]) if ltype else ''
     enmenu = bpy.props.EnumProperty(items=entype, name="", description="External node result", default = entype[0][0]) if entype else ''
     enrmenu = bpy.props.EnumProperty(items=enrtype, name="", description="External node result", default = enrtype[0][0]) if entype else ''
+    chimmenu = bpy.props.EnumProperty(items=chimtype, name="", description="External node result", default = chimtype[0][0]) if chimtype else ''
+    chimrmenu = bpy.props.EnumProperty(items=chimrtype, name="", description="External node result", default = chimrtype[0][0]) if chimtype else ''
     multfactor = bpy.props.FloatProperty(name = "", description = "Result multiplication factor", min = 0.0001, max = 10000, default = 1)
     
-    return (valid, fmenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor)
+    return (valid, fmenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, multfactor)
 
 def processh(lines):
     envdict = {'Site Outdoor Air Drybulb Temperature [C] !Hourly': "Temperature (degC)",
@@ -1313,7 +1377,14 @@ def processh(lines):
                 'Zone Air CO2 Concentration [ppm] !Hourly': 'CO2 (ppm)',
                 'Zone Mean Radiant Temperature [C] !Hourly': 'MRT', 
                 'Zone People Occupant Count [] !Hourly': 'Occupancy', 
-                'Zone Air Heat Balance Surface Convection Rate [W] !Hourly': 'Heat balance (W)'}
+                'Zone Air Heat Balance Surface Convection Rate [W] !Hourly': 'Heat balance (W)',
+                'Zone Thermal Chimney Current Density Air Volume Flow Rate [m3/s] !Hourly': 'Volume flow (m3/s)', 
+                'Zone Thermal Chimney Mass Flow Rate [kg/s] !Hourly': 'Mass flow (kg/s)',
+                'Zone Thermal Chimney Outlet Temperature [C] !Hourly': 'Outlet temperature (C)',
+                'Zone Thermal Chimney Heat Loss Energy [J] !Hourly': 'TC heat loss (J)',
+                'Zone Thermal Chimney Heat Gain Energy [J] !Hourly': 'TC heat gain (J)',
+                'Zone Thermal Chimney Volume [m3] !Hourly': 'TC VOLUME (m3)',
+                'Zone Thermal Chimney Mass [kg] !Hourly':'TC mass(kg)'}
     enresdict = {'AFN Node CO2 Concentration [ppm] !Hourly': 'CO2'}
     lresdict = {'AFN Linkage Node 1 to Node 2 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow out',
                 'AFN Linkage Node 2 to Node 1 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow in',

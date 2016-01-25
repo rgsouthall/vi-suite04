@@ -1,3 +1,21 @@
+# ##### BEGIN GPL LICENSE BLOCK #####
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
+
 bl_info = {
     "name": "VI-Suite v04",
     "author": "Ryan Southall",
@@ -29,6 +47,38 @@ else:
 import sys, os, inspect, bpy, nodeitems_utils, bmesh, shutil, colorsys, math
 from bpy.app.handlers import persistent
 from numpy import array, digitize
+from bpy.props import StringProperty, EnumProperty, IntProperty
+from bpy.types import Operator, AddonPreferences
+
+class VIPreferences(AddonPreferences):
+    bl_idname = __name__
+    
+    radbin = StringProperty(name = '', description = 'Radiance binary directory location', default = '', subtype='DIR_PATH')
+    radlib = StringProperty(name = '', description = 'Radiance binary directory location', default = '', subtype='DIR_PATH')
+    epbin = StringProperty(name = '', description = 'Radiance binary directory location', default = '', subtype='DIR_PATH')
+
+    def draw(self, context):
+        layout = self.layout       
+        row = layout.row()
+        row.label(text="Radiance bin directory:")   
+        row.prop(self, 'radbin')
+        row = layout.row()
+        row.label(text="Radiance lib directory:")   
+        row.prop(self, 'radlib')
+        row = layout.row()
+        row.label(text="EnergyPlus bin directory:")   
+        row.prop(self, 'epbin')
+
+class OBJECT_OT_vi_prefs(Operator):
+    """Display example preferences"""
+    bl_idname = "object.vi_prefs"
+    bl_label = "VI Preferences"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        print(__name__)
+#        vi_prefs = context.user_preferences.addons[__name__].preferences
+        return {'FINISHED'} 
 
 @persistent
 def update_ntree(dummy):
@@ -38,10 +88,7 @@ def update_ntree(dummy):
 @persistent
 def display_off(dummy):
     if bpy.context.scene.get('vi_display'):
-#        bpy.ops.view3d.spnumdisplay('CANCELLED')
         bpy.context.scene.vi_display = 0
-        
-        print(bpy.context.scene.vi_display)
 
 epversion = "8-4-0"
 addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -53,16 +100,24 @@ eplatbdict = {'linux': ('/usr/local/EnergyPlus-{}'.format(epversion)), 'win32': 
 evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
 
 if not os.environ.get('RAYPATH') or os.path.join('{}'.format(addonpath), 'Radfiles', 'lib') not in os.environ['RAYPATH']:
-    radldir = [d for d in rplatldict[str(sys.platform)] if os.path.isdir(d)]
-    radbdir = [d for d in rplatbdict[str(sys.platform)] if os.path.isdir(d)]
-    epdir = eplatbdict[str(sys.platform)] if os.path.isdir(eplatbdict[str(sys.platform)]) else os.path.join('{}'.format(addonpath), 'EPFiles', 'bin')
-    if epdir == eplatbdict[str(sys.platform)] and os.path.isfile(os.path.join(eplatbdict[str(sys.platform)], 'Energy+.idd')):
-        shutil.copyfile(os.path.join(eplatbdict[str(sys.platform)], 'Energy+.idd'), os.path.join('{}'.format(addonpath), 'EPFiles', 'Energy+.idd'))            
+    vi_prefs = bpy.context.user_preferences.addons[__name__].preferences
+    radldir = [vi_prefs.radlib] if vi_prefs and os.path.isdir(vi_prefs.radlib) else [d for d in rplatldict[str(sys.platform)] if os.path.isdir(d)]
+    radbdir = [vi_prefs.radbin] if vi_prefs and os.path.isdir(vi_prefs.radbin) else [d for d in rplatbdict[str(sys.platform)] if os.path.isdir(d)]
+
+    if vi_prefs and os.path.isdir(vi_prefs.epbin):
+        epdir = vi_prefs.epbin
+    else:
+        epdir = eplatbdict[str(sys.platform)] if os.path.isdir(eplatbdict[str(sys.platform)]) else os.path.join('{}'.format(addonpath), 'EPFiles', 'bin')
+    if os.path.isfile(os.path.join(epdir, 'Energy+.idd')) and epdir != os.path.join('{}'.format(addonpath), 'EPFiles'):
+        shutil.copyfile(os.path.join(epdir, 'Energy+.idd'), os.path.join('{}'.format(addonpath), 'EPFiles', 'Energy+.idd'))            
     if not radldir:
-        radbdir, radldir = [os.path.join('{}'.format(addonpath), 'Radfiles', 'bin')], [os.path.join('{}'.format(addonpath), 'Radfiles', 'lib')]
+        radldir = [os.path.join('{}'.format(addonpath), 'Radfiles', 'lib')]
+    if not radbdir:
+        radbdir = [os.path.join('{}'.format(addonpath), 'Radfiles', 'bin')]
+        
     os.environ["RAYPATH"] = '{0}{1}{2}'.format(radldir[0], evsep[str(sys.platform)], os.path.join(addonpath, 'Radfiles', 'lib'))        
     os.environ["PATH"] = os.environ["PATH"] + "{0}{1}{0}{2}".format(evsep[str(sys.platform)], radbdir[0], epdir)    
-
+    
 def matfunc(i):
     matfuncdict = {'0': envi_mats.brick_dat.keys(), '1': envi_mats.stone_dat.keys(), '2': envi_mats.metal_dat.keys(), '3': envi_mats.wood_dat.keys(), '4': envi_mats.gas_dat.keys(),
                    '5': envi_mats.glass_dat.keys(), '6': envi_mats.concrete_dat.keys(), '7': envi_mats.insulation_dat.keys(), '8': envi_mats.wgas_dat.keys(), '9': envi_mats.cladding_dat.keys()}
@@ -211,8 +266,8 @@ def setcols(self, context):
 
     scene.frame_set(fc)
     if not bpy.app.handlers.frame_change_pre:
-        bpy.app.handlers.frame_change_pre.append(recalculate_text)            
-    
+        bpy.app.handlers.frame_change_pre.append(recalculate_text)    
+           
 def register():
     bpy.utils.register_module(__name__)
     Object, Scene, Material = bpy.types.Object, bpy.types.Scene, bpy.types.Material
@@ -235,15 +290,15 @@ def register():
     Object.udidacalcapply = udidacalcapply
     Object.lividisplay = lividisplay
     Object.lhcalcapply = lhcalcapply
-    Object.li_bsdf_direc = bpy.props.EnumProperty(items = [('+b', 'Backwards', 'Backwards BSDF'), ('+f', 'Forwards', 'Forwards BSDF'), ('+b +f', 'Bi-directional', 'Bi-directional BSDF')], name = '', description = 'BSDF direction', default = '+b')
-    Object.li_bsdf_tensor = bpy.props.EnumProperty(items = [(' ', 'Klems', 'Uniform Klems sample'), ('-t3', 'Symmentric', 'Symmetric Tensor BSDF'), ('-t4', 'Assymmetric', 'Asymmetric Tensor BSDF')], name = '', description = 'BSDF tensor', default = ' ')
-    Object.li_bsdf_res = bpy.props.EnumProperty(items = [('1', '2x2', '2x2 sampling resolution'), ('2', '4x4', '4x4 sampling resolution'), ('3', '8x8', '8x8 sampling resolution'), ('4', '16x16', '16x16 sampling resolution'), ('5', '32x32', '32x32 sampling resolution'), ('6', '64x64', '64x64 sampling resolution'), ('7', '128x128', '128x128 sampling resolution')], name = '', description = 'BSDF resolution', default = '4')
+    Object.li_bsdf_direc = EnumProperty(items = [('+b', 'Backwards', 'Backwards BSDF'), ('+f', 'Forwards', 'Forwards BSDF'), ('+b +f', 'Bi-directional', 'Bi-directional BSDF')], name = '', description = 'BSDF direction', default = '+b')
+    Object.li_bsdf_tensor = EnumProperty(items = [(' ', 'Klems', 'Uniform Klems sample'), ('-t3', 'Symmentric', 'Symmetric Tensor BSDF'), ('-t4', 'Assymmetric', 'Asymmetric Tensor BSDF')], name = '', description = 'BSDF tensor', default = ' ')
+    Object.li_bsdf_res = EnumProperty(items = [('1', '2x2', '2x2 sampling resolution'), ('2', '4x4', '4x4 sampling resolution'), ('3', '8x8', '8x8 sampling resolution'), ('4', '16x16', '16x16 sampling resolution'), ('5', '32x32', '32x32 sampling resolution'), ('6', '64x64', '64x64 sampling resolution'), ('7', '128x128', '128x128 sampling resolution')], name = '', description = 'BSDF resolution', default = '4')
     Object.li_bsdf_tsamp = bpy.props.IntProperty(name = '', description = 'BSDF resolution', min = 1, max = 20, default = 4)
     Object.li_bsdf_ksamp = bpy.props.IntProperty(name = '', description = 'BSDF resolution', min = 1, default = 2000)
     Object.li_bsdf_rcparam = sprop("", "rcontrib parameters", 1024, "")
     Object.radbsdf = radbsdf
 # EnVi zone definitions
-    Object.envi_type = eprop([("0", "Thermal", "Thermal Zone"), ("1", "Shading", "Shading Object")], "EnVi object type", "Specify the EnVi object type", "0")
+    Object.envi_type = eprop([("0", "Thermal", "Thermal Zone"), ("1", "Shading", "Shading Object"), ("2", "Chimney", "Thermal Chimney Object")], "EnVi object type", "Specify the EnVi object type", "0")
     
 # EnVi HVAC Template definitions
     Object.envi_hvacsched = bprop("", "Create a system level schedule", False)
@@ -261,48 +316,48 @@ def register():
     Object.envi_hvacfrzfa = fprop("", "Flow rate per zone area", 0, 1, 0.008)
     Object.envi_hvacfrz = fprop('m{}/s'.format(u'\u00b3'), "Flow rate per zone", 0, 100, 0.1)
     Object.envi_hvacfach = fprop("", "ACH", 0, 10, 1)
-    (Object.hvacu1, Object.hvacu2, Object.hvacu3, Object.hvacu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-    (Object.hvacf1, Object.hvacf2, Object.hvacf3, Object.hvacf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.hvacu1, Object.hvacu2, Object.hvacu3, Object.hvacu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
+    (Object.hvacf1, Object.hvacf2, Object.hvacf3, Object.hvacf4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.hvact1, Object.hvact2, Object.hvact3, Object.hvact4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
 
 # Heating defintions
     Object.envi_heat = bprop("Heating", 'Turn on zone heating', 0)
     Object.envi_htsp = fprop(u'\u00b0'+"C", "Temperature", 0, 50, 20)
     Object.envi_htspsched = bprop("Schedule", "Create a thermostat level schedule", False)
-    (Object.htspu1, Object.htspu2, Object.htspu3, Object.htspu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-    (Object.htspf1, Object.htspf2, Object.htspf3, Object.htspf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.htspu1, Object.htspu2, Object.htspu3, Object.htspu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
+    (Object.htspf1, Object.htspf2, Object.htspf3, Object.htspf4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.htspt1, Object.htspt2, Object.htspt3, Object.htspt4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
 # Cooling definitions
     Object.envi_cool = bprop("Cooling", "Turn on zone cooling", 0)
     Object.envi_ctsp = fprop(u'\u00b0'+"C", "Temperature", 0, 50, 20)
     Object.envi_ctspsched = bprop("Schedule", "Create a thermostat level schedule", False)
-    (Object.ctspu1, Object.ctspu2, Object.ctspu3, Object.ctspu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-    (Object.ctspf1, Object.ctspf2, Object.ctspf3, Object.ctspf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.ctspu1, Object.ctspu2, Object.ctspu3, Object.ctspu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
+    (Object.ctspf1, Object.ctspf2, Object.ctspf3, Object.ctspf4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.ctspt1, Object.ctspt2, Object.ctspt3, Object.ctspt4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
 #Occupancy definitions
     Object.envi_occsched = bprop("Schedule", "Create an occupancy level schedule", False)
-    (Object.occu1, Object.occu2, Object.occu3, Object.occu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-    (Object.occf1, Object.occf2, Object.occf3, Object.occf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.occu1, Object.occu2, Object.occu3, Object.occu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
+    (Object.occf1, Object.occf2, Object.occf3, Object.occf4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.occt1, Object.occt2, Object.occt3, Object.occt4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
     Object.envi_occwatts = iprop("W/p", "Watts per person", 1, 800, 90)
     Object.envi_asched = bprop("Schedule", "Create an activity level schedule", False)
-    (Object.aoccu1, Object.aoccu2, Object.aoccu3, Object.aoccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-    (Object.aoccf1, Object.aoccf2, Object.aoccf3, Object.aoccf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.aoccu1, Object.aoccu2, Object.aoccu3, Object.aoccu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
+    (Object.aoccf1, Object.aoccf2, Object.aoccf3, Object.aoccf4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.aocct1, Object.aocct2, Object.aocct3, Object.aocct4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
     Object.envi_weff = fprop("Efficiency", "Work efficiency", 0, 1, 0.0)
     Object.envi_wsched = bprop("Schedule", "Create a work efficiency schedule", False)
-    (Object.woccu1, Object.woccu2, Object.woccu3, Object.woccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-    (Object.woccf1, Object.woccf2, Object.woccf3, Object.woccf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.woccu1, Object.woccu2, Object.woccu3, Object.woccu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
+    (Object.woccf1, Object.woccf2, Object.woccf3, Object.woccf4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.wocct1, Object.wocct2, Object.wocct3, Object.wocct4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
     Object.envi_airv = fprop("Air velocity", "Average air velocity", 0, 1, 0.1)
     Object.envi_avsched = bprop("Schedule", "Create an air velocity schedule", False)
-    (Object.avoccu1, Object.avoccu2, Object.avoccu3, Object.avoccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-    (Object.avoccf1, Object.avoccf2, Object.avoccf3, Object.avoccf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.avoccu1, Object.avoccu2, Object.avoccu3, Object.avoccu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
+    (Object.avoccf1, Object.avoccf2, Object.avoccf3, Object.avoccf4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.avocct1, Object.avocct2, Object.avocct3, Object.avocct4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
     Object.envi_cloth = fprop("Clothing", "Clothing level", 0, 10, 0.5)
     Object.envi_clsched = bprop("Schedule", "Create an clothing level schedule", False)
-    (Object.coccu1, Object.coccu2, Object.coccu3, Object.coccu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-    (Object.coccf1, Object.coccf2, Object.coccf3, Object.coccf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.coccu1, Object.coccu2, Object.coccu3, Object.coccu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
+    (Object.coccf1, Object.coccf2, Object.coccf3, Object.coccf4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.cocct1, Object.cocct2, Object.cocct3, Object.cocct4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
     Object.envi_occtype = eprop([("0", "None", "No occupancy"),("1", "Occupants", "Actual number of people"), ("2", "Person/m"+ u'\u00b2', "Number of people per squared metre floor area"),
                                               ("3", "m"+ u'\u00b2'+"/Person", "Floor area per person")], "", "The type of zone occupancy specification", "0")
@@ -316,8 +371,8 @@ def register():
     Object.envi_equipmax = fprop("Max", "Maximum level of equipment gain", 1, 50000, 1)
 
     Object.envi_equipsched = bprop("Schedule", "Create an equipment gains schedule", False)
-    (Object.equipu1, Object.equipu2, Object.equipu3, Object.equipu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-    (Object.equipf1, Object.equipf2, Object.equipf3, Object.equipf4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.equipu1, Object.equipu2, Object.equipu3, Object.equipu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
+    (Object.equipf1, Object.equipf2, Object.equipf3, Object.equipf4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.equipt1, Object.equipt2, Object.equipt3, Object.equipt4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
 
     
@@ -327,8 +382,8 @@ def register():
                                  ("4", "ACH", "ACH flow rate")], "", "The type of zone infiltration specification", "0")
     Object.envi_inflevel = fprop("Level", "Level of Infiltration", 0, 500, 0.001)
     Object.envi_infsched = bprop("Schedule", "Create an infiltration schedule", False)
-    (Object.infu1, Object.infu2, Object.infu3, Object.infu4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-    (Object.inff1, Object.inff2, Object.inff3, Object.inff4) =  [bpy.props.StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
+    (Object.infu1, Object.infu2, Object.infu3, Object.infu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
+    (Object.inff1, Object.inff2, Object.inff3, Object.inff4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
     (Object.inft1, Object.inft2, Object.inft3, Object.inft4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
     Object.envi_occinftype = eprop([("0", "None", "No infiltration"), ("1", 'Flow/Zone', "Absolute flow rate in m{}/s".format(u'\u00b3')), ("2", "Flow/Area", 'Flow in m{}/s per m{} floor area'.format(u'\u00b3', u'\u00b2')), 
                                  ("3", "Flow/ExteriorArea", 'Flow in m{}/s per m{} external surface area'.format(u'\u00b3', u'\u00b2')), ("4", "Flow/ExteriorWallArea", 'Flow in m{}/s per m{} external wall surface area'.format(u'\u00b3', u'\u00b2')), 
@@ -504,9 +559,9 @@ def register():
     Material.flovi_b_vval = fvprop(3, '', 'Vector value', [0, 0, 0], 'VELOCITY', -100, 100)
     Material.flovi_p_field = bprop("", "Take boundary velocity from the field velocity", False)
     Material.flovi_u_field = bprop("", "Take boundary velocity from the field velocity", False)
-    Material.li_bsdf_direc = bpy.props.EnumProperty(items = [('+b', 'Backwards', 'Backwards BSDF'), ('+f', 'Forwards', 'Forwards BSDF'), ('+b +f', 'Bi-directional', 'Bi-directional BSDF')], name = '', description = 'BSDF direction', default = '+b')
-    Material.li_bsdf_tensor = bpy.props.EnumProperty(items = [(' ', 'Klems', 'Uniform Klems sample'), ('-t3', 'Symmentric', 'Symmetric Tensor BSDF'), ('-t4', 'Assymmetric', 'Asymmetric Tensor BSDF')], name = '', description = 'BSDF tensor', default = ' ')
-    Material.li_bsdf_res = bpy.props.EnumProperty(items = [('1', '2x2', '2x2 sampling resolution'), ('2', '4x4', '4x4 sampling resolution'), ('3', '8x8', '8x8 sampling resolution'), ('4', '16x16', '16x16 sampling resolution'), ('5', '32x32', '32x32 sampling resolution'), ('6', '64x64', '64x64 sampling resolution'), ('7', '128x128', '128x128 sampling resolution')], name = '', description = 'BSDF resolution', default = '4')
+    Material.li_bsdf_direc = EnumProperty(items = [('+b', 'Backwards', 'Backwards BSDF'), ('+f', 'Forwards', 'Forwards BSDF'), ('+b +f', 'Bi-directional', 'Bi-directional BSDF')], name = '', description = 'BSDF direction', default = '+b')
+    Material.li_bsdf_tensor = EnumProperty(items = [(' ', 'Klems', 'Uniform Klems sample'), ('-t3', 'Symmentric', 'Symmetric Tensor BSDF'), ('-t4', 'Assymmetric', 'Asymmetric Tensor BSDF')], name = '', description = 'BSDF tensor', default = ' ')
+    Material.li_bsdf_res = EnumProperty(items = [('1', '2x2', '2x2 sampling resolution'), ('2', '4x4', '4x4 sampling resolution'), ('3', '8x8', '8x8 sampling resolution'), ('4', '16x16', '16x16 sampling resolution'), ('5', '32x32', '32x32 sampling resolution'), ('6', '64x64', '64x64 sampling resolution'), ('7', '128x128', '128x128 sampling resolution')], name = '', description = 'BSDF resolution', default = '4')
     Material.li_bsdf_tsamp = bpy.props.IntProperty(name = '', description = 'BSDF resolution', min = 1, max = 20, default = 4)
     Material.li_bsdf_ksamp = bpy.props.IntProperty(name = '', description = 'BSDF resolution', min = 1, default = 2000)
     Material.li_bsdf_rcparam = sprop("", "rcontrib parameters", 1024, "")
@@ -530,8 +585,8 @@ def register():
      Scene.vi_display_sel_only, Scene.vi_display_vis_only) = [bprop("", "", False)] * 11
     Scene.vi_leg_max = bpy.props.FloatProperty(name = "", description = "Legend maximum", min = 0, max = 1000000, default = 1000, update=legupdate)
     Scene.vi_leg_min = bpy.props.FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0, update=legupdate)
-    Scene.vi_leg_scale = bpy.props.EnumProperty(items = [('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name = "", description = "Legend scale", default = '0', update=legupdate)    
-    Scene.en_disp = bpy.props.EnumProperty(items = [('0', 'Cylinder', 'Cylinder display'), ('1', 'Box', 'Box display')], name = "", description = "Type of EnVi metric display", default = '0')    
+    Scene.vi_leg_scale = EnumProperty(items = [('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name = "", description = "Legend scale", default = '0', update=legupdate)    
+    Scene.en_disp = EnumProperty(items = [('0', 'Cylinder', 'Cylinder display'), ('1', 'Box', 'Box display')], name = "", description = "Type of EnVi metric display", default = '0')    
     Scene.en_frame = iprop("", "EnVi frame", 0, 500, 0)
     Scene.en_temp_max = bpy.props.FloatProperty(name = "Max", description = "Temp maximum", default = 24, update=setcols)
     Scene.en_temp_min = bpy.props.FloatProperty(name = "Min", description = "Temp minimum", default = 18, update=setcols)
@@ -549,18 +604,18 @@ def register():
     Scene.vi_display_rp_off = fprop("", "Surface offset for number display", 0, 1, 0.001)
     Scene.vi_disp_trans = bpy.props.FloatProperty(name = "", description = "Sensing material transparency", min = 0, max = 1, default = 1, update = tupdate)
     Scene.vi_disp_wire = bpy.props.BoolProperty(name = "", description = "Draw wire frame", default = 0, update=wupdate)
-    Scene.li_disp_sv = bpy.props.EnumProperty(items = [("0", "Daylight Factor", "Display Daylight factor"),("1", "Sky view", "Display the Sky View")], name = "", description = "Compliance data type", default = "0", update = liviresupdate)
+    Scene.li_disp_sv = EnumProperty(items = [("0", "Daylight Factor", "Display Daylight factor"),("1", "Sky view", "Display the Sky View")], name = "", description = "Compliance data type", default = "0", update = liviresupdate)
     Scene.li_projname = sprop("", "Name of the building project", 1024, '')
     Scene.li_assorg = sprop("", "Name of the assessing organisation", 1024, '')
     Scene.li_assind = sprop("", "Name of the assessing individual", 1024, '')
     Scene.li_jobno = sprop("", "Project job number", 1024, '')
-    Scene.li_disp_udi = bpy.props.EnumProperty(items = [("0", "Low", "Percentage of hours below minimum threshold"),("1", "Supplementary", "Percentage of hours requiring supplementary lighting"), ("2", "Autonomous", "Percentage of hours with autonomous lighting"), ("3", "Upper", "Percentage of hours excedding the upper limit")], name = "", description = "UDI range selection", default = "2", update = liviresupdate)
-    Scene.li_disp_basic = bpy.props.EnumProperty(items = [("0", "Illuminance", "Display Illuminance values"), ("1", "Irradiance", "Display Irradiance values"), ("2", "DF", "Display Daylight factor values")], name = "", description = "Basic metric selection", default = "0", update = liviresupdate)
+    Scene.li_disp_udi = EnumProperty(items = [("0", "Low", "Percentage of hours below minimum threshold"),("1", "Supplementary", "Percentage of hours requiring supplementary lighting"), ("2", "Autonomous", "Percentage of hours with autonomous lighting"), ("3", "Upper", "Percentage of hours excedding the upper limit")], name = "", description = "UDI range selection", default = "2", update = liviresupdate)
+    Scene.li_disp_basic = EnumProperty(items = [("0", "Illuminance", "Display Illuminance values"), ("1", "Irradiance", "Display Irradiance values"), ("2", "DF", "Display Daylight factor values")], name = "", description = "Basic metric selection", default = "0", update = liviresupdate)
  
 
     (Scene.resaa_disp, Scene.resaws_disp, Scene.resawd_disp, Scene.resah_disp, Scene.resas_disp, Scene.reszt_disp, Scene.reszh_disp, Scene.reszhw_disp, Scene.reszcw_disp, Scene.reszsg_disp, Scene.reszppd_disp, 
      Scene.reszpmv_disp, Scene.resvls_disp, Scene.resvmh_disp, Scene.resim_disp, Scene.resiach_disp, Scene.reszco_disp, Scene.resihl_disp, Scene.reszlf_disp, Scene.reszof_disp, Scene.resmrt_disp,
-     Scene.resocc_disp, Scene.resh_disp, Scene.resfhb_disp, Scene.ressah_disp, Scene.ressac_disp, Scene.reshrhw_disp)  = resnameunits() 
+     Scene.resocc_disp, Scene.resh_disp, Scene.resfhb_disp, Scene.ressah_disp, Scene.ressac_disp, Scene.reshrhw_disp, Scene.restcvf_disp, Scene.restcmf_disp, Scene.restcot_disp, Scene.restchl_disp, Scene.restchg_disp, Scene.restcv_disp, Scene.restcm_disp)  = resnameunits() 
      
     (Scene.resazmaxt_disp, Scene.resazmint_disp, Scene.resazavet_disp, Scene.resazhw_disp, Scene.resazhwm_disp, Scene.resazcw_disp, Scene.resazcwm_disp, Scene.resazmaxco_disp, 
      Scene.resazaveco_disp, Scene.resazminco_disp, Scene.resazlmaxf_disp, Scene.resazlminf_disp, Scene.resazlavef_disp)  = aresnameunits() 
@@ -568,6 +623,7 @@ def register():
 
     nodeitems_utils.register_node_categories("Vi Nodes", vinode_categories)
     nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)
+    
     if not update_ntree in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(update_ntree)
     if not display_off in bpy.app.handlers.load_pre:
@@ -579,4 +635,7 @@ def unregister():
     nodeitems_utils.unregister_node_categories("EnVi Nodes")
     if not update_ntree in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.remove(update_ntree)
+
+
+
 

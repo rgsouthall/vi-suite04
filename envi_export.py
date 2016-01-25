@@ -1,3 +1,21 @@
+# ##### BEGIN GPL LICENSE BLOCK #####
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
+
 import bpy, os, itertools, subprocess, datetime, shutil, mathutils, bmesh
 from .vi_func import epentry, ceilheight, selobj, facearea, boundpoly, epschedwrite, selmesh
 dtdf = datetime.date.fromordinal
@@ -142,7 +160,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         em.thickdict = {}
     
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: ZONES ===========\n\n")
-        for obj in [obj for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type == '0']:
+        for obj in [obj for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type in ('0', '2')]:
             if obj.type == 'MESH':
                 params = ('Name', 'Direction of Relative North (deg)', 'X Origin (m)', 'Y Origin (m)', 'Z Origin (m)', 'Type', 'Multiplier', 'Ceiling Height (m)', 'Volume (m3)',
                           'Floor Area (m2)', 'Zone Inside Convection Algorithm', 'Zone Outside Convection Algorithm', 'Part of Total Floor Area')
@@ -210,8 +228,10 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         en_idf.write(epschedwrite('Default outdoor CO2 levels 400 ppm', 'Any number', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format('400')]]]]))
     
         zonenames = [o.name for o in bpy.context.scene.objects if o.layers[1] == True and o.envi_type == '0']
+        tcnames = [o.name for o in bpy.context.scene.objects if o.layers[1] == True and o.envi_type == '2']
         bpy.context.scene['viparams']['hvactemplate'] = 0
         zonenodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in zonenames]
+        tcnodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in tcnames]
         
         for zn in zonenodes:
             for schedtype in ('VASchedule', 'TSPSchedule', 'HVAC', 'Occupancy', 'Equipment', 'Infiltration'):
@@ -306,6 +326,11 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         for zn in zonenodes:
             for inflink in zn.inputs['Infiltration'].links:
                 en_idf.write(inflink.from_node.epwrite(zn.zone))
+                
+        en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: TH ===========\n\n")
+        for zn in tcnodes:
+            if zn.bl_idname == 'EnViTC':
+                en_idf.write(zn.epwrite())
     
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: AIRFLOW NETWORK ===========\n\n")
         
@@ -326,7 +351,11 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                        "Output:Variable,*,Zone Infiltration Air Change Rate, hourly;\n": node.resiach, "Output:Variable,*,Zone Windows Total Transmitted Solar Radiation Rate,hourly;\n": node.reswsg,
                        "Output:Variable,*,AFN Node CO2 Concentration,hourly;\n": node.resco2 and enng['enviparams']['afn'], "Output:Variable,*,Zone Air CO2 Concentration,hourly;\n": node.resco2 and not enng['enviparams']['afn'],
                        "Output:Variable,*,Zone Mean Radiant Temperature,hourly;\n": node.resmrt, "Output:Variable,*,Zone People Occupant Count,hourly;\n": node.resocc,
-                       "Output:Variable,*,Zone Air Relative Humidity,hourly;\n": node.resh, "Output:Variable,*,Zone Air Heat Balance Surface Convection Rate, hourly;\n": node.resfhb}
+                       "Output:Variable,*,Zone Air Relative Humidity,hourly;\n": node.resh, "Output:Variable,*,Zone Air Heat Balance Surface Convection Rate, hourly;\n": node.resfhb,
+                       "Output:Variable,*,Zone Thermal Chimney Current Density Air Volume Flow Rate,hourly;\n": node.restcvf,
+                       "Output:Variable,*,Zone Thermal Chimney Mass Flow Rate,hourly;\n": node.restcmf, "Output:Variable,*,Zone Thermal Chimney Outlet Temperature,hourly;\n": node.restcot,
+                       "Output:Variable,*,Zone Thermal Chimney Heat Loss Energy,hourly;\n": node.restchl,"Output:Variable,*,Zone Thermal Chimney Heat Gain Energy,hourly;\n": node.restchg,
+                       "Output:Variable,*,Zone Thermal Chimney Volume,hourly;\n": node.restcv, "Output:Variable,*,Zone Thermal Chimney Mass,hourly;\n": node.restcm}
         
         for amb in ("Output:Variable,*,Site Outdoor Air Drybulb Temperature,Hourly;\n", "Output:Variable,*,Site Wind Speed,Hourly;\n", "Output:Variable,*,Site Wind Direction,Hourly;\n",
                     "Output:Variable,*,Site Outdoor Air Relative Humidity,hourly;\n", "Output:Variable,*,Site Direct Solar Radiation Rate per Area,hourly;\n", "Output:Variable,*,Site Diffuse Solar Radiation Rate per Area,hourly;\n"):
@@ -376,8 +405,10 @@ def pregeo(op):
         if mesh.users == 0:
             bpy.data.meshes.remove(mesh)
     for materials in bpy.data.materials:
+        materials.envi_export = 0
         if materials.users == 0:
             bpy.data.materials.remove(materials)
+        
     
     enviobjs = [obj for obj in scene.objects if obj.vi_type == '1' and obj.layers[0] == True and obj.hide == False]
 
@@ -391,15 +422,20 @@ def pregeo(op):
     enng['enviparams'] = {'wpca': 0, 'wpcn': 0, 'crref': 0, 'afn': 0}
     
     [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and node.zone[3:] not in [o.name for o in enviobjs]]
-                
+    [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and node.bl_idname == 'EnViZone' and scene.objects[node.zone[3:]].envi_type == '2']
+    [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and node.bl_idname == 'EnViTC' and scene.objects[node.zone[3:]].envi_type == '0']            
+
     for obj in enviobjs:
-        if obj.envi_type == '0' and not obj.data.materials:
+        omats = [om for om in obj.data.materials if om]
+        print(omats[:])
+        if obj.envi_type in ('0', '2') and not omats:
             op.report({'ERROR'}, 'Object {} is specified as a thermal zone but has no materials'.format(obj.name))
-        elif obj.envi_type == '0':
-            obj["floorarea"] = sum([facearea(obj, face) for face in obj.data.polygons if obj.data.materials[face.material_index].envi_con_type =='Floor'])
+        elif obj.envi_type in ('0', '2'):
+            obj["floorarea"] = sum([facearea(obj, face) for face in obj.data.polygons if omats[face.material_index].envi_con_type =='Floor'])
     
-            for mats in obj.data.materials:
+            for mats in omats:
                 if 'en_'+mats.name not in [mat.name for mat in bpy.data.materials]:
+                    print('hi')
                     mats.copy().name = 'en_'+mats.name
     
             selobj(scene, obj)
@@ -407,18 +443,22 @@ def pregeo(op):
             bpy.ops.object.duplicate()
     
             en_obj = scene.objects.active
+            enomats = [enom for enom in en_obj.data.materials if enom]
 #            bpy.context.scene.objects.active = obj
 #            obj.select = True
 #            bpy.ops.object.make_links_data(type = 'OBDATA')
 #            bpy.context.scene.objects.active = en_obj
             obj.select, en_obj.select, en_obj.name, en_obj.data.name, en_obj.layers[1], en_obj.layers[0], bpy.data.scenes[0].layers[0:2] = False, True, 'en_'+obj.name, en_obj.data.name, True, False, (False, True)
-            for s, slots in enumerate(en_obj.material_slots):
-                slots.material = bpy.data.materials['en_'+obj.data.materials[s].name]
-                slots.material.envi_export = True
+            for s, sm in enumerate([s for s in en_obj.material_slots if s.material]):
+                sm.material = bpy.data.materials['en_'+omats[s].name]
+                sm.material.envi_export = True
+#                for s, enomat in enumerate(enomats):
+#                bpy.data.materials['en_'+omats[s].name].envi_export = True
+#                enomat.envi_export = True
     
                 dcdict = {'Wall':(1,1,1), 'Partition':(0.5,0.5,0.5), 'Window':(0,1,1), 'Roof':(0,1,0), 'Ceiling':(0, 0.5, 0), 'Floor':(0.44,0.185,0.07), 'Ground':(0.22, 0.09, 0.04), 'Shading':(1, 0, 0), 'Aperture':(0, 0, 1)}
-                if slots.material.envi_con_type in dcdict:
-                    slots.material.diffuse_color = dcdict[slots.material.envi_con_type]
+                if sm.material.envi_con_type in dcdict:
+                    sm.material.diffuse_color = dcdict[sm.material.envi_con_type]
     
             for poly in en_obj.data.polygons:
                 if en_obj.data.materials[poly.material_index].envi_con_type == 'None' or (en_obj.data.materials[poly.material_index].envi_con_makeup == '1' and en_obj.data.materials[poly.material_index].envi_layero == '0'):
@@ -435,18 +475,21 @@ def pregeo(op):
 #            bm.to_mesh(en_obj.data)        
 #            bm.free()
             
-            if en_obj.envi_type == '0':
-                if en_obj.name not in [node.zone for node in enng.nodes if hasattr(node, 'zone')]:
+            
+            if en_obj.name not in [node.zone for node in enng.nodes if hasattr(node, 'zone')]:
+                if en_obj.envi_type == '0':
                     enng.nodes.new(type = 'EnViZone').zone = en_obj.name
-                else:
-                    for node in enng.nodes:
-                        if hasattr(node, 'zone') and node.zone == en_obj.name:
-                            node.zupdate(bpy.context)
+                if en_obj.envi_type == '2':
+                    enng.nodes.new(type = 'EnViTC').zone = en_obj.name
+            else:
                 for node in enng.nodes:
-                    if hasattr(node, 'emszone') and node.emszone == en_obj.name:
+                    if hasattr(node, 'zone') and node.zone == en_obj.name:
                         node.zupdate(bpy.context)
+            for node in enng.nodes:
+                if hasattr(node, 'emszone') and node.emszone == en_obj.name:
+                    node.zupdate(bpy.context)
     
-            if any([mat.envi_afsurface for mat in en_obj.data.materials]):
+            if any([mat.envi_afsurface for mat in enomats]):
                 enng['enviparams']['afn'] = 1
                 if 'Control' not in [node.bl_label for node in enng.nodes]:
                     enng.nodes.new(type = 'AFNCon')         

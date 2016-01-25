@@ -695,12 +695,13 @@ class ViExEnNode(bpy.types.Node, ViNodes):
     sdoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeupdate)
     edoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeupdate)
     timesteps = bpy.props.IntProperty(name = "", description = "Time steps per hour", min = 1, max = 60, default = 1, update = nodeupdate)
-    restype= bpy.props.EnumProperty(items = [("0", "Zone Thermal", "Thermal Results"), ("1", "Comfort", "Comfort Results"), ("2", "Zone Ventilation", "Zone Ventilation Results"), ("3", "Ventilation Link", "ZoneVentilation Results")],
+    restype= bpy.props.EnumProperty(items = [("0", "Zone Thermal", "Thermal Results"), ("1", "Comfort", "Comfort Results"), ("2", "Zone Ventilation", "Zone Ventilation Results"), 
+                                             ("3", "Ventilation Link", "Ventilation Link Results"), ("4", "Thermal Chimney", "Thermal Chimney Results")],
                                    name="", description="Specify the EnVi results category", default="0", update = nodeupdate)
 
     (resaam, resaws, resawd, resah, resasm, restt, resh, restwh, restwc, reswsg, rescpp, rescpm, resvls, resvmh, resim, resiach, resco2, resihl, resl12ms,
-     reslof, resmrt, resocc, resh, resfhb, ressah, ressac, reshrhw) = resnameunits()
-
+     reslof, resmrt, resocc, resh, resfhb, ressah, ressac, reshrhw, restcvf, restcmf, restcot, restchl, restchg, restcv, restcm) = resnameunits()
+     
     def init(self, context):
         self['nodeid'] = nodeid(self)
         self.outputs.new('ViEnC', 'Context out')
@@ -873,6 +874,7 @@ class ViResSock(bpy.types.NodeSocket):
     valid = ['Vi Results']
 
     def draw(self, context, layout, node, text):
+        typedict = {"Time": [], "Frames": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"), "Linkage":("linkmenu", "linkrmenu"), "External node":("enmenu", "enrmenu"), "Chimney":("chimmenu", "chimrmenu")}
         row = layout.row()
         if self.links:
             if len(self.links[0].from_node['frames']) > 1 and not node.animated: 
@@ -880,9 +882,12 @@ class ViResSock(bpy.types.NodeSocket):
                 row.prop(self, "rtypemenu")
             else:
                 row.prop(self, "rtypemenu", text = text)
-#        if self.links:
-        typedict = {"Time": [], "Frames": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"), "Linkage":("linkmenu", "linkrmenu"), "External node":("enmenu", "enrmenu")}
+
         for rtype in typedict[self.rtypemenu]:
+#            if rtype != "zonermenu":
+#                row.prop(self, rtype)
+#            else:
+##                self.zfmenu = self.zonermenu[self.zonemenu]
             row.prop(self, rtype)
         if self.node.timemenu in ('1', '2') and self.rtypemenu !='Time' and not node.animated:
             row.prop(self, "statmenu")
@@ -891,7 +896,7 @@ class ViResSock(bpy.types.NodeSocket):
 
     def draw_color(self, context, node):
         return (0.0, 1.0, 0.0, 0.75)
-
+        
 class ViResUSock(bpy.types.NodeSocket):
     '''Vi unlinked esults socket'''
     bl_idname = 'ViEnRInU'
@@ -903,7 +908,7 @@ class ViResUSock(bpy.types.NodeSocket):
 
     def draw(self, context, layout, node, text):
         layout.label(self.bl_label)
-
+    
 class ViEnRNode(bpy.types.Node, ViNodes):
     '''Node for 2D results plotting'''
     bl_idname = 'ViChNode'
@@ -991,10 +996,10 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 '''Energy geometry out socket'''
                 bl_idname = 'ViEnRXIn'
                 bl_label = 'X-axis'
-
+                                
                 if innode['reslists']:
-                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor) = retrmenus(innode, self)
-
+                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, multfactor) = retrmenus(innode, self)
+                    
         bpy.utils.register_class(ViEnRXIn)
 
         if self.inputs.get('Y-axis 1'):
@@ -1013,7 +1018,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     '''Energy geometry out socket'''
                     bl_idname = 'ViEnRY1In'
                     bl_label = 'Y-axis 1'
-                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor) = retrmenus(innode, self)
+                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, multfactor) = retrmenus(innode, self)
 
                 self.inputs['Y-axis 2'].hide = False
             bpy.utils.register_class(ViEnRY1In)
@@ -1035,7 +1040,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     bl_idname = 'ViEnRY2In'
                     bl_label = 'Y-axis 2'
 
-                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor) = retrmenus(innode, self)
+                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, multfactor) = retrmenus(innode, self)
 
                 self.inputs['Y-axis 3'].hide = False
 
@@ -1055,7 +1060,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     bl_idname = 'ViEnRY3In'
                     bl_label = 'Y-axis 3'
 
-                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, multfactor) = retrmenus(innode, self)
+                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, multfactor) = retrmenus(innode, self)
 
             bpy.utils.register_class(ViEnRY3In)
 
@@ -1319,14 +1324,16 @@ class ViCSVExport(bpy.types.Node, ViNodes):
         self.inputs.new('ViR', 'Results in')
 
     def draw_buttons(self, context, layout):
-        if self.inputs['Results in'].links:
+        try:
             rl = self.inputs['Results in'].links[0].from_node['reslists']
             zrl = list(zip(*rl))
             if len(set(zrl[0])) > 1:
                 newrow(layout, 'Animated:', self, 'animated')
             row = layout.row()
             row.operator('node.csvexport', text = 'Export CSV file').nodeid = self['nodeid']
-
+        except:
+            pass
+        
     def update(self):
         pass
 
@@ -2339,7 +2346,7 @@ class EnViZone(bpy.types.Node, EnViNodes):
             if not self.inputs.get(sock):
                 self.inputs.new('EnViSSFlowSocket', sock).sn = sock.split('_')[-2]
 
-    zone = bpy.props.StringProperty(update = zupdate)
+    zone = bpy.props.StringProperty(name = '', update = zupdate)
     controltype = [("NoVent", "None", "No ventilation control"), ("Constant", "Constant", "From vent availability schedule"), ("Temperature", "Temperature", "Temperature control")]
     control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='NoVent')
     zonevolume = bpy.props.FloatProperty(name = '')
@@ -2399,8 +2406,7 @@ class EnViZone(bpy.types.Node, EnViNodes):
             nodecolour(self, (self.control == 'Temperature' and not self.inputs['TSPSchedule'].is_linked) or not all((bi, si, ssi, bo, so, sso)))
 
     def draw_buttons(self, context, layout):
-        row=layout.row()
-        row.prop(self, "zone")
+        newrow(layout, 'Zone:', self, 'zone')
         yesno = (1, 1, self.control == 'Temperature', self.control == 'Temperature', self.control == 'Temperature')
         vals = (("Volume:", "zonevolume"), ("Control type:", "control"), ("Minimum OF:", "mvof"), ("Lower:", "lowerlim"), ("Upper:", "upperlim"))
         [newrow(layout, val[0], self, val[1]) for v, val in enumerate(vals) if yesno[v]]
@@ -2445,12 +2451,13 @@ class EnViTC(bpy.types.Node, EnViNodes):
             if sock.bl_idname == 'EnViBoundSocket' and sock.links:
                 zonenames += [(link.from_node.zone, link.to_node.zone)[sock.is_output] for link in sock.links]
 
+        nodecolour(self, all([mat.envi_con_type != 'Window' for mat in bpy.data.objects[self.zone].data.materials]))
         self['zonenames'] = zonenames
 
     def supdate(self, context):
         self.inputs.new['Schedule'].hide = False if self.sched == 'Sched' else True
 
-    zone = bpy.props.StringProperty(default = "en_Chimney")
+    zone = bpy.props.StringProperty(name = '', default = "en_Chimney")
     sched = bpy.props.EnumProperty(name="", description="Ventilation control type", items=[('On', 'On', 'Always on'), ('Off', 'Off', 'Always off'), ('Sched', 'Schedule', 'Scheduled operation')], default='On', update = supdate)
     waw = bpy.props.FloatProperty(name = '', min = 0.001, default = 1)
     ocs = bpy.props.FloatProperty(name = '', min = 0.001, default = 1)
@@ -2458,12 +2465,11 @@ class EnViTC(bpy.types.Node, EnViNodes):
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
-        self.outputs.new('EnViBoundSocket', 'Boundary')
         self.inputs.new('EnViSchedSocket', 'Schedule')
-        self.inputs.new['Schedule'].hide = True
         self['zonenames'] = []
 
     def draw_buttons(self, context, layout):
+        newrow(layout, 'Zone:', self, 'zone')
         newrow(layout, 'Schedule:', self, 'sched')
         newrow(layout, 'Width Absorber:', self, 'waw')
         newrow(layout, 'Outlet area:', self, 'ocs')
@@ -2480,25 +2486,40 @@ class EnViTC(bpy.types.Node, EnViNodes):
             row.prop(self, '["Cross Section {}"]'.format(z))
 
     def update(self):
+        bi, bo = 1, 1
         zonenames, fheights, fareas = [], [], []
-        bsock = self.outputs['Boundary']
+        for inp in [inp for inp in self.inputs if inp.bl_idname == 'EnViBoundSocket']:
+            self.outputs[inp.name].hide = True if inp.is_linked and self.outputs[inp.name].bl_idname == inp.bl_idname else False
 
-        if bsock.links:
-            zonenames += [link.to_node.zone for link in bsock.links]
-            fheights += [max([(bpy.data.objects[self.zone].matrix_world * vert.co)[2] for vert in bpy.data.objects[self.zone].data.vertices]) - (bpy.data.objects[link.to_node.zone].matrix_world * bpy.data.objects[link.to_node.zone].data.polygons[int(link.to_socket.sn)].center)[2] for link in bsock.links]
-            fareas += [facearea(bpy.data.objects[link.to_node.zone], bpy.data.objects[link.to_node.zone].data.polygons[int(link.to_socket.sn)]) for link in bsock.links]
+        for outp in [outp for outp in self.outputs if outp.bl_idname in 'EnViBoundSocket']:
+            self.inputs[outp.name].hide = True if outp.is_linked and self.inputs[outp.name].bl_idname == outp.bl_idname else False
 
-        self['zonenames'] = zonenames
-        for z, zn in enumerate(self['zonenames']):
-            self['Distance {}'.format(z)] = fheights[z]
-            self['Relative Ratio {}'.format(z)] = 1.0
-            self['Cross Section {}'.format(z)] = fareas[z]
-        for sock in self.outputs:
-            socklink(sock, self['nodeid'].split('@')[1])
+        if [inp for inp in self.inputs if inp.bl_idname == 'EnViBoundSocket' and not inp.hide and not inp.links]:
+            bi = 0
+                
+        if [outp for outp in self.outputs if outp.bl_idname == 'EnViBoundSocket' and not outp.hide and not outp.links]:
+            bo = 0
+        
+        nodecolour(self, not all((bi, bo)))
+        
+        for sock in [sock for sock in self.inputs[:] + self.outputs[:] if sock.bl_idname == 'EnViBoundSocket']:
+
+            if sock.links:
+                zonenames += [link.to_node.zone for link in sock.links]
+                fheights += [max([(bpy.data.objects[self.zone].matrix_world * vert.co)[2] for vert in bpy.data.objects[self.zone].data.vertices]) - (bpy.data.objects[link.to_node.zone].matrix_world * bpy.data.objects[link.to_node.zone].data.polygons[int(link.to_socket.sn)].center)[2] for link in sock.links]
+                fareas += [facearea(bpy.data.objects[link.to_node.zone], bpy.data.objects[link.to_node.zone].data.polygons[int(link.to_socket.sn)]) for link in sock.links]
+    
+            self['zonenames'] = zonenames
+            for z, zn in enumerate(self['zonenames']):
+                self['Distance {}'.format(z)] = fheights[z]
+                self['Relative Ratio {}'.format(z)] = 1.0
+                self['Cross Section {}'.format(z)] = fareas[z]
+            for sock in self.outputs:
+                socklink(sock, self['nodeid'].split('@')[1])
 
     def epwrite(self):
         scheduled = 1 if self.inputs['Schedule'].links and not self.inputs['Schedule'].links[0].to_node.use_custom_color else 0
-        paramvs = ('{}_TC'.fromat(self.zone), self.zone, (self.sched, '{}_TCSched'.format(self.zone))[scheduled], self.waw, self.ocs, self.odc)
+        paramvs = ('{}_TC'.format(self.zone), self.zone, ('', '{}_TCSched'.format(self.zone))[scheduled], self.waw, self.ocs, self.odc)
         params = ('Name of Thermal Chimney System', 'Name of Thermal Chimney Zone', 'Availability Schedule Name', 'Width of the Absorber Wall',
                   'Cross Sectional Area of Air Channel Outlet', 'Discharge Coefficient')
 

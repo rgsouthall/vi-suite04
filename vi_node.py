@@ -19,9 +19,10 @@
 
 import bpy, glob, os, inspect, datetime, shutil
 from nodeitems_utils import NodeCategory, NodeItem
-from .vi_func import objvol, socklink, newrow, epwlatilongi, nodeid, nodeinputs, remlink, rettimes, epentry, sockhide, selobj, cbdmhdr, cbdmmtx
+from .vi_func import objvol, socklink, uvsocklink, newrow, epwlatilongi, nodeid, nodeinputs, remlink, rettimes, epentry, sockhide, selobj, cbdmhdr, cbdmmtx
 from .vi_func import hdrsky, nodecolour, epschedwrite, facearea, retelaarea, retrmenus, resnameunits, enresprops, iprop, bprop, eprop, fprop, sunposlivi
 from .livi_export import sunexport, skyexport, hdrexport
+from .envi_mat import retuval
 
 class ViNetwork(bpy.types.NodeTree):
     '''A node tree for VI-Suite analysis.'''
@@ -51,6 +52,7 @@ class ViLoc(bpy.types.Node, ViNodes):
                 self['frames'] = ['0']
                 epwlines = epwfile.readlines()[8:]
                 epwcolumns = list(zip(*[epwline.split(',') for epwline in epwlines]))
+                reslists.append(['0', 'Time', 'Year', int(epwcolumns[0][0])])
                 times = ('Month', 'Day', 'Hour', 'DOS')
                 for t, time in enumerate([' '.join(epwcolumns[c]) for c in range(1,4)] + [' '.join(['{}'.format(int(d/24) + 1) for d in range(len(epwlines))])]):
                     reslists.append(['0', 'Time', '', times[t], time])
@@ -177,7 +179,7 @@ class LiViNode(bpy.types.Node, ViNodes):
         suns = [ob for ob in scene.objects if ob.type == 'LAMP' and ob.data.type == 'SUN'] 
         
         if self.contextmenu == 'Basic' and self['skynum'] < 2:
-            starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(self.shour), int((self.shour - int(self.shour))*60)) + datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(2013, 1, 1, 12)                                       
+            starttime = datetime.datetime(2015, 1, 1, int(self.shour), int((self.shour - int(self.shour))*60)) + datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(2013, 1, 1, 12)                                       
             self['endframe'] = self.startframe + int(((24 * (self.edoy - self.sdoy) + self.ehour - self.shour)/self.interval)) if self.animated else [scene.frame_current]
             frames = range(self.startframe, self['endframe'] + 1) if self.animated else [scene.frame_current]
             scene.frame_start, scene.frame_end = self.startframe, frames[-1]
@@ -344,7 +346,7 @@ class LiViNode(bpy.types.Node, ViNodes):
             self.nodeupdate(bpy.context) 
     
     def preexport(self):
-        self.starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, int(self.shour), int((self.shour - int(self.shour))*60)) + datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(datetime.datetime.now().year, 1, 1, 12)
+        self.starttime = datetime.datetime(2015, 1, 1, int(self.shour), int((self.shour - int(self.shour))*60)) + datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(2015, 1, 1, 12)
         self.endtime = datetime.datetime(2013, 1, 1, int(self.ehour), int((self.ehour - int(self.ehour))*60)) + datetime.timedelta(self.edoy - 1) if self.animated and self['skynum'] < 3 else self.starttime
         self['skynum'] = int(self.skymenu)
         self['hours'] = 0 if not self.animated or int(self.skymenu) > 2  else (self.endtime-self.starttime).seconds/3600
@@ -410,11 +412,11 @@ class LiViNode(bpy.types.Node, ViNodes):
             self['skytypeparams'] = ("-b 22.86 -c", "-b 22.86 -c", "+s")[int(self.canalysismenu)]
             skyentry = sunexport(scene, self, 0, 0) + skyexport(3)
             if self.canalysismenu in ('0', '1'):
-                self.starttime = datetime.datetime(datetime.datetime.now().year, 1, 1, 12)
+                self.starttime = datetime.datetime(2015, 1, 1, 12)
                 if self.hdr:
                     hdrexport(scene, 0, scene.frame_current, self, skyentry)
             else:
-                self.starttime = datetime.datetime(datetime.datetime.now().year, 9, 11, 9)
+                self.starttime = datetime.datetime(2015, 9, 11, 9)
             self['Text'][str(scene['liparams']['fs'])] = skyentry
     
     def postexport(self):    
@@ -724,6 +726,8 @@ class ViExEnNode(bpy.types.Node, ViNodes):
         col.prop(self, "terrain")
         newrow(layout, 'Start month:', self, "startmonth")
         newrow(layout, 'End month:', self, "endmonth")
+        newrow(layout, 'Start day:', self, "sdoy")
+        newrow(layout, 'End day:', self, "edoy")
         newrow(layout, 'Time-steps/hour', self, "timesteps")
         row = layout.row()
         row.label(text = 'Results Category:')
@@ -842,8 +846,8 @@ class ViEnInNode(bpy.types.Node, ViNodes):
                 if line.split(',')[0].lstrip(' ').upper() == 'ZONE' and not line.split(',')[1].strip('\n'):
                     oblist.append(idfflines[l+1].split(',')[0].lstrip(' '))
                 if line.split(',')[0].lstrip(' ').upper() == 'RUNPERIOD':
-                    self.sdoy = datetime.datetime(datetime.datetime.now().year, int(idfflines[l+2].split(',')[0].lstrip(' ')), int(idfflines[l+3].split(',')[0].lstrip(' '))).timetuple().tm_yday
-                    self.edoy = datetime.datetime(datetime.datetime.now().year, int(idfflines[l+4].split(',')[0].lstrip(' ')), int(idfflines[l+5].split(',')[0].lstrip(' '))).timetuple().tm_yday
+                    self.sdoy = datetime.datetime(2015, int(idfflines[l+2].split(',')[0].lstrip(' ')), int(idfflines[l+3].split(',')[0].lstrip(' '))).timetuple().tm_yday
+                    self.edoy = datetime.datetime(2015, int(idfflines[l+4].split(',')[0].lstrip(' ')), int(idfflines[l+5].split(',')[0].lstrip(' '))).timetuple().tm_yday
         self.newdir = bpy.context.scene['viparams']['newdir']
         self['oblist'] = oblist
 
@@ -1679,6 +1683,7 @@ class EnViBoundSocket(bpy.types.NodeSocket):
 
     valid = ['Boundary']
     sn = bpy.props.StringProperty()
+    uvalue = bpy.props.StringProperty()
 
     def draw(self, context, layout, node, text):
         layout.label(text)
@@ -2313,38 +2318,33 @@ class EnViZone(bpy.types.Node, EnViNodes):
         obj = bpy.data.objects[self.zone]
         odm = obj.data.materials
         self.zonevolume = objvol('', obj)
-        bsocklist = ['{}_{}_b'.format(odm[face.material_index].name, face.index)  for face in obj.data.polygons if odm[face.material_index].envi_boundary == 1 and odm[face.material_index].name not in [outp.sn for outp in self.outputs if outp.bl_idname == 'EnViBoundSocket']]
-        ssocklist = ['{}_{}_s'.format(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type not in ('Window', 'Door')]
-        sssocklist = ['{}_{}_ss'.format(odm[face.material_index].name, face.index) for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type in ('Window', 'Door')]
+        bfacelist = sorted([face for face in obj.data.polygons if odm[face.material_index].envi_boundary == 1], key=lambda face: -face.center[2])
+        buvals = [retuval(odm[face.material_index]) for face in bfacelist]
+        bsocklist = ['{}_{}_b'.format(odm[face.material_index].name, face.index) for face in bfacelist]
+        sfacelist = sorted([face for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type not in ('Window', 'Door')], key=lambda face: -face.center[2])
+        ssocklist = ['{}_{}_s'.format(odm[face.material_index].name, face.index) for face in sfacelist]
+        ssfacelist = sorted([face for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type in ('Window', 'Door')], key=lambda face: -face.center[2])
+        sssocklist = ['{}_{}_ss'.format(odm[face.material_index].name, face.index) for face in ssfacelist]
 
-        for oname in [outputs for outputs in self.outputs if outputs.name not in bsocklist and outputs.bl_idname == 'EnViBoundSocket']:
+        for oname in [outputs for outputs in self.outputs if outputs.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
             self.outputs.remove(oname)
-        for oname in [outputs for outputs in self.outputs if outputs.name not in ssocklist and outputs.bl_idname == 'EnViSFlowSocket']:
-            self.outputs.remove(oname)
-        for oname in [outputs for outputs in self.outputs if outputs.name not in sssocklist and outputs.bl_idname == 'EnViSSFlowSocket']:
-            self.outputs.remove(oname)
-        for iname in [inputs for inputs in self.inputs if inputs.name not in bsocklist and inputs.bl_idname == 'EnViBoundSocket']:
-            self.inputs.remove(iname)
-        for iname in [inputs for inputs in self.inputs if inputs.name not in ssocklist and inputs.bl_idname == 'EnViSFlowSocket']:
-            self.inputs.remove(iname)
-        for iname in [inputs for inputs in self.inputs if inputs.name not in sssocklist and inputs.bl_idname == 'EnViSSFlowSocket']:
-            self.inputs.remove(iname)
+        for iname in [inputs for inputs in self.inputs if inputs.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
+            self.inputs.remove(iname)            
 
-        for sock in sorted(set(bsocklist)):
-            if not self.outputs.get(sock):
-                self.outputs.new('EnViBoundSocket', sock).sn = sock.split('_')[-2]
-            if not self.inputs.get(sock):
-                self.inputs.new('EnViBoundSocket', sock).sn = sock.split('_')[-2]
-        for sock in sorted(set(ssocklist)):
-            if not self.outputs.get(sock):
-                self.outputs.new('EnViSFlowSocket', sock).sn = sock.split('_')[-2]
-            if not self.inputs.get(sock):
-                self.inputs.new('EnViSFlowSocket', sock).sn = sock.split('_')[-2]
-        for sock in sorted(set(sssocklist)):
-            if not self.outputs.get(sock):
-                self.outputs.new('EnViSSFlowSocket', sock).sn = sock.split('_')[-2]
-            if not self.inputs.get(sock):
-                self.inputs.new('EnViSSFlowSocket', sock).sn = sock.split('_')[-2]
+        for sock in bsocklist:
+            self.outputs.new('EnViBoundSocket', sock).sn = sock.split('_')[-2]
+            self.inputs.new('EnViBoundSocket', sock).sn = sock.split('_')[-2]
+        for sock in ssocklist:
+            self.outputs.new('EnViSFlowSocket', sock).sn = sock.split('_')[-2]
+            self.inputs.new('EnViSFlowSocket', sock).sn = sock.split('_')[-2]
+        for sock in sssocklist:
+            self.outputs.new('EnViSSFlowSocket', sock).sn = sock.split('_')[-2]
+            self.inputs.new('EnViSSFlowSocket', sock).sn = sock.split('_')[-2]
+                
+        for s, sock in enumerate(bsocklist):
+            self.outputs[sock].uvalue = '{:.4f}'.format(buvals[s])    
+            self.inputs[sock].uvalue = '{:.4f}'.format(buvals[s]) 
+                
 
     zone = bpy.props.StringProperty(name = '', update = zupdate)
     controltype = [("NoVent", "None", "No ventilation control"), ("Constant", "Constant", "From vent availability schedule"), ("Temperature", "Temperature", "Temperature control")]
@@ -2362,48 +2362,59 @@ class EnViZone(bpy.types.Node, EnViNodes):
         self.inputs.new('EnViEqSocket', 'Equipment')
         self.inputs.new('EnViInfSocket', 'Infiltration')
         self.inputs.new('EnViSchedSocket', 'TSPSchedule')
-        self.inputs['TSPSchedule'].hide = True
+#        self.inputs['TSPSchedule'].hide = True
         self.inputs.new('EnViSchedSocket', 'VASchedule')
 
     def update(self):
-        if self.inputs.get('VASchedule'):
-            for sock in self.outputs:
-                socklink(sock, self['nodeid'].split('@')[1])
-            [bi, si, ssi, bo, so , sso] = [1, 1, 1, 1, 1, 1]
-            if self.control != 'Temperature' and self.inputs['TSPSchedule'].links:
-                remlink(self, self.inputs['TSPSchedule'].links)
-            self.inputs['TSPSchedule'].hide = False if self.control == 'Temperature' else True
-#            try:
+#        if self.inputs.get('VASchedule'):
+        sflowdict = {'EnViSFlowSocket': 'Envi surface flow', 'EnViSSFlowSocket': 'Envi sub-surface flow'}
+        for sock in self.outputs:
+            socklink(sock, self['nodeid'].split('@')[1])
+            if sock.bl_idname == 'EnViBoundSocket':
+                uvsocklink(sock, self['nodeid'].split('@')[1])
+        [bi, si, ssi, bo, so , sso] = [1, 1, 1, 1, 1, 1]
+        if self.control != 'Temperature' and self.inputs['TSPSchedule'].links:
+            remlink(self, self.inputs['TSPSchedule'].links)
+        self.inputs['TSPSchedule'].hide = False if self.control == 'Temperature' else True
+        try:
             for inp in [inp for inp in self.inputs if inp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
-                self.outputs[inp.name].hide = True if inp.is_linked and self.outputs[inp.name].bl_idname == inp.bl_idname else False
-
+                self.outputs[inp.name].hide = True if inp.links and self.outputs[inp.name].bl_idname == inp.bl_idname else False
+    
             for outp in [outp for outp in self.outputs if outp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
-                self.inputs[outp.name].hide = True if outp.is_linked and self.inputs[outp.name].bl_idname == outp.bl_idname else False
-
+                self.inputs[outp.name].hide = True if outp.links and self.inputs[outp.name].bl_idname == outp.bl_idname else False
+    
             for inp in [inp for inp in self.inputs if inp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
                 if inp.bl_idname == 'EnViBoundSocket' and not inp.hide and not inp.links:
                     bi = 0
-                elif inp.bl_idname == 'EnViSFlowSocket':
-                    if (not inp.hide and not inp.links) or (inp.links and inp.links[0].from_node.bl_label != 'Envi surface flow'):
+                elif inp.bl_idname in sflowdict:
+                    if (not inp.hide and not inp.links) or (inp.links and inp.links[0].from_node.bl_label != sflowdict[inp.bl_idname]):
                         si = 0
-                elif inp.bl_idname == 'EnViSSFlowSocket':
-                    if (not inp.hide and not inp.links) or (inp.links and inp.links[0].from_node.bl_label != 'Envi sub-surface flow'):
-                        ssi = 0
-
+                        if inp.links:
+                            remlink(self, [inp.links[0]])
+#                elif inp.bl_idname == 'EnViSSFlowSocket':
+#                    if (not inp.hide and not inp.links) or (inp.links and inp.links[0].from_node.bl_label != 'Envi sub-surface flow'):
+#                        ssi = 0
+#                        if inp.links:
+#                            remlink(self, [inp.links[0]])
+    
+            
             for outp in [outp for outp in self.outputs if outp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
                 if outp.bl_idname == 'EnViBoundSocket' and not outp.hide and not outp.links:
                     bo = 0
-                elif outp.bl_idname == 'EnViSFlowSocket':
-                    if (not outp.hide and not outp.links) or (outp.links and outp.links[0].to_node.bl_label != 'Envi surface flow'):
+                elif outp.bl_idname  in sflowdict:
+                    if (not outp.hide and not outp.links) or (outp.links and outp.links[0].to_node.bl_label != sflowdict[outp.bl_idname]):
                         so = 0
-                elif outp.bl_idname == 'EnViSSFlowSocket':
-                    if (not outp.hide and not outp.links) or (outp.links and outp.links[0].to_node.bl_label != 'Envi sub-surface flow'):
-                        sso = 0
+                        if outp.links:
+                            remlink(self, [outp.links[0]])
+#                elif outp.bl_idname == 'EnViSSFlowSocket':
+#                    if (not outp.hide and not outp.links) or (outp.links and outp.links[0].to_node.bl_label != 'Envi sub-surface flow'):
+#                        sso = 0
+#                        if outp.links:
+#                            remlink(self, [outp.links[0]])
 
-#            except Exception as e:
-#                print('Tuple', e)
-
-            nodecolour(self, (self.control == 'Temperature' and not self.inputs['TSPSchedule'].is_linked) or not all((bi, si, ssi, bo, so, sso)))
+        except Exception as e:
+            print(e)
+        nodecolour(self, (self.control == 'Temperature' and not self.inputs['TSPSchedule'].is_linked) or not all((bi, si, ssi, bo, so, sso)))
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Zone:', self, 'zone')
@@ -2451,7 +2462,7 @@ class EnViTC(bpy.types.Node, EnViNodes):
             if sock.bl_idname == 'EnViBoundSocket' and sock.links:
                 zonenames += [(link.from_node.zone, link.to_node.zone)[sock.is_output] for link in sock.links]
 
-        nodecolour(self, all([mat.envi_con_type != 'Window' for mat in bpy.data.objects[self.zone].data.materials]))
+        nodecolour(self, all([mat.envi_con_type != 'Window' for mat in bpy.data.objects[self.zone].data.materials if mat]))
         self['zonenames'] = zonenames
 
     def supdate(self, context):
@@ -2503,8 +2514,7 @@ class EnViTC(bpy.types.Node, EnViNodes):
         nodecolour(self, not all((bi, bo)))
         
         for sock in [sock for sock in self.inputs[:] + self.outputs[:] if sock.bl_idname == 'EnViBoundSocket']:
-
-            if sock.links:
+            if sock.links and self.zone in [o.name for o in bpy.data.objects]:
                 zonenames += [link.to_node.zone for link in sock.links]
                 fheights += [max([(bpy.data.objects[self.zone].matrix_world * vert.co)[2] for vert in bpy.data.objects[self.zone].data.vertices]) - (bpy.data.objects[link.to_node.zone].matrix_world * bpy.data.objects[link.to_node.zone].data.polygons[int(link.to_socket.sn)].center)[2] for link in sock.links]
                 fareas += [facearea(bpy.data.objects[link.to_node.zone], bpy.data.objects[link.to_node.zone].data.polygons[int(link.to_socket.sn)]) for link in sock.links]
@@ -2514,8 +2524,8 @@ class EnViTC(bpy.types.Node, EnViNodes):
                 self['Distance {}'.format(z)] = fheights[z]
                 self['Relative Ratio {}'.format(z)] = 1.0
                 self['Cross Section {}'.format(z)] = fareas[z]
-            for sock in self.outputs:
-                socklink(sock, self['nodeid'].split('@')[1])
+        for sock in self.outputs:
+            socklink(sock, self['nodeid'].split('@')[1])
 
     def epwrite(self):
         scheduled = 1 if self.inputs['Schedule'].links and not self.inputs['Schedule'].links[0].to_node.use_custom_color else 0
@@ -2829,8 +2839,11 @@ class EnViSFlowNode(bpy.types.Node, EnViNodes):
         return surfentry + cfentry + crentry + fentry
 
     def legal(self):
-        nodecolour(self, 1) if not self.extnode and bpy.data.node_groups[self['nodeid'].split('@')[1]]['enviparams']['wpca'] else nodecolour(self, 0)
-        bpy.data.node_groups[self['nodeid'].split('@')[1]].interface_update(bpy.context)
+        try:
+            nodecolour(self, 1) if not self.extnode and bpy.data.node_groups[self['nodeid'].split('@')[1]]['enviparams']['wpca'] else nodecolour(self, 0)
+            bpy.data.node_groups[self['nodeid'].split('@')[1]].interface_update(bpy.context)
+        except:
+            nodecolour(self, 1)
 
 class EnViExtNode(bpy.types.Node, EnViNodes):
     '''Node describing an EnVi external node'''
@@ -2861,7 +2874,6 @@ class EnViExtNode(bpy.types.Node, EnViNodes):
         for sock in self.outputs:
             socklink(sock, self['nodeid'].split('@')[1])
         sockhide(self, ('Sub surface', 'Surface'))
-
 
     def epwrite(self, enng):
         enentry, wpcname, wpcentry = '', '', ''
@@ -3025,14 +3037,14 @@ class EnViProgNode(bpy.types.Node, EnViNodes):
         for alink in self.outputs['Actuator'].links:
             anode, asocket = alink.to_node, alink.to_socket
             aparams = ('Name', 'Actuated Component Unique Name', 'Actuated Component Type', 'Actuated Component Control Type')
-            aparamvs = ('{}_{}'.format(asocket.name, anode.actdict[anode.acttype][1]), asocket.sn, anode.compdict[anode.acttype], anode.actdict[anode.acttype][0])
+            aparamvs = (asocket.name, asocket.sn, anode.compdict[anode.acttype], anode.actdict[anode.acttype][0])
             aentries += epentry('EnergyManagementSystem:Actuator', aparams, aparamvs)
 
         cmparams = ('Name', 'EnergyPlus Model Calling Point', 'Program Name 1')
-        cmparamvs = (self.name.replace(' ', '_').replace('.', '_'), 'BeginTimestepBeforePredictor', '{}_controller'.format(self.name.replace(' ', '_').replace('.', '_')))
+        cmparamvs = (self.name.replace(' ', '_'), 'BeginTimestepBeforePredictor', '{}_controller'.format(self.name.replace(' ', '_')))
         cmentry = epentry('EnergyManagementSystem:ProgramCallingManager', cmparams, cmparamvs)
         pparams = ['Name'] + ['line{}'.format(l) for l, line in enumerate(bpy.data.texts[self.text_file].lines) if line.body and line.body.strip()[0] != '!']
-        pparamvs = ['{}_controller'.format(self.name.replace(' ', '_').replace('.', '_'))] + [line.body.strip() for line in bpy.data.texts[self.text_file].lines if line.body and line.body.strip()[0] != '!']
+        pparamvs = ['{}_controller'.format(self.name.replace(' ', '_'))] + [line.body.strip() for line in bpy.data.texts[self.text_file].lines if line.body and line.body.strip()[0] != '!']
         pentry = epentry('EnergyManagementSystem:Program', pparams, pparamvs)
         return sentries + aentries + cmentry + pentry
 
@@ -3051,7 +3063,7 @@ class EnViEMSZoneNode(bpy.types.Node, EnViNodes):
         try:
             obj = bpy.data.objects[self.emszone]
             odm = obj.data.materials
-            sssocklist = ['{}_{}_{}'.format(adict[odm[face.material_index].envi_con_type], self.emszone, face.index) for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type in ('Window', 'Door')]
+            sssocklist = ['{}_{}_{}_{}'.format(adict[odm[face.material_index].envi_con_type], self.emszone, face.index, self.actdict[self.acttype][1]) for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type in ('Window', 'Door')]          
             self.inputs[0].hide = False
             nodecolour(self, 0)
         except:

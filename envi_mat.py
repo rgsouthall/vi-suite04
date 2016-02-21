@@ -1,6 +1,6 @@
 # EnVi materials database
 
-from collections import OrderedDict
+from collections import OrderedDict, Counter
 from .vi_func import epentry
 
 class envi_materials(object):
@@ -42,6 +42,7 @@ class envi_materials(object):
                         'Medium hardboard': ('MediumSmooth', '0.17', '740.0', '2000.0', '0.90', '0.65', '0.65', '12'),
                         'Plywood': ('MediumSmooth', '0.15', '700.0', '1420.0', '0.90', '0.65', '0.65', '25'),
                         'Chipboard': ('MediumSmooth', '0.15', '800.0', '2093.0', '0.91', '0.65', '0.65', '25'),
+                        'OSB': ('MediumSmooth', '0.13', '640.0', '800.0', '0.91', '0.65', '0.65', '15'),
                         'Hardwood': ('MediumSmooth', '0.16', '720.8', '1255.2', '0.90', '0.78', '0.78', '50')}
         self.wood_dat = OrderedDict(sorted(self.wood_datd.items()))
 
@@ -58,10 +59,10 @@ class envi_materials(object):
                         'Horizontal Air 20-50mm Heat Up': ('Gas', 'Air', '0.17')}
         self.gas_dat = OrderedDict(sorted(self.gas_datd.items()))
 
-        self.wgas_datd = {'Argon': ('Gas', 'Argon'),
-                        'Krypton':('Gas', 'Krypton'),
-                        'Xenon':('Gas', 'Xenon'),
-                        'Air': ('Gas', 'Air')}
+        self.wgas_datd = {'Argon': ('Gas', 'Argon', '', '', '0.016'),
+                        'Krypton':('Gas', 'Krypton', '', '', '0.00943'),
+                        'Xenon':('Gas', 'Xenon', '', '', '0.00565'),
+                        'Air': ('Gas', 'Air', '', '', '0.024')}
         self.wgas_dat = OrderedDict(sorted(self.wgas_datd.items()))
 
         self.glass_datd = {'Clear 6mm': ('Glazing', 'SpectralAverage', '', '0.006', '0.775', '0.071', '0.071', '0.881', '0.080', '0.080', '0.0', '0.84', '0.84', '0.9'),
@@ -83,12 +84,21 @@ class envi_materials(object):
                         'Cellulose (attic)': ('Rough', '0.04', '25.0', '1600', '0.900000', '0.600000', '0.600000', '200')}
    
         self.insulation_dat = OrderedDict(sorted(self.insulation_datd.items()))
-
+        
+        self.pcm_datd = {'PCM plaster board': ('Smooth', '0.7264', '1602', '836.00', '0.90', '0.92', '0.92', '20'),
+                         'DuPont Energain': ('Smooth', '0.16', '850', '2500', '0.90', '0.92', '0.92', '5')}
+        self.pcm_dat = OrderedDict(sorted(self.pcm_datd.items()))
+        
+        self.pcmd_datd = {'PCM plaster board': ('0.0', '-20.0:0.1 22:18260 22.1:32000 60:71000'),
+                        'DuPont Energain': ('0.0', '-9.0:0.001 15.0:93760 26.0:191185 80.0:332460')}
+        self.pcmd_dat = OrderedDict(sorted(self.pcmd_datd.items()))
+        
         self.namedict = OrderedDict()
         self.thickdict = OrderedDict()
         self.i = 0
         self.matdat = OrderedDict()
-        for dat in (self.brick_dat, self.cladding_dat, self.concrete_dat, self.gas_dat, self.insulation_dat, self.metal_dat, self.stone_dat, self.wood_dat, self.glass_dat, self.wgas_dat):
+        for dat in (self.brick_dat, self.cladding_dat, self.concrete_dat, self.gas_dat, self.insulation_dat, self.metal_dat, 
+                    self.stone_dat, self.wood_dat, self.glass_dat, self.wgas_dat, self.pcm_dat):
             self.matdat.update(dat)
 
     def omat_write(self, idf_file, name, stringmat, thickness):
@@ -113,31 +123,119 @@ class envi_materials(object):
         params = ('Name', 'Gas Type', 'Thickness')
         paramvs = [name] + [stringmat[1]] + [thickness]
         idf_file.write(epentry("WindowMaterial:Gas", params, paramvs))
+        
+    def pcmmat_write(self, idf_file, name, stringmat):
+        params = ('Name', 'Temperature Coefficient for Thermal Conductivity (W/m-K2)')
+        paramvs = (name, stringmat[0])
+        for i, te in enumerate(stringmat[1].split()):
+            params += ('Temperature {} (C)'.format(i), 'Enthalpy {} (J/kg)'.format(i))
+            paramvs +=(te.split(':')[0], te.split(':')[1])
+        idf_file.write(epentry("MaterialProperty:PhaseChange", params, paramvs))
 
-class envi_constructions(object):
+class envi_constructions(object):    
     def __init__(self):
         self.wall_cond = {'External Wall 1': ('Standard Brick', 'Thermawall TW50', 'Inner concrete block'), 'Kingston PH 1': ('Plywood', 'EPS', 'Plywood'),
-        'Party Wall 1': ('Plaster board', 'Standard Brick', 'Plaster board')}
+        'Party Wall 1': ('Plaster board', 'Standard Brick', 'Plaster board'), 'SIP': ('OSB', 'EPS', 'OSB')}
         self.wall_con = OrderedDict(sorted(self.wall_cond.items()))
+        self.ceil_cond = {'Ceiling 1': ('Chipboard', 'EPS', 'Plaster board')}
+        self.ceil_con = OrderedDict(sorted(self.ceil_cond.items()))
         self.floor_cond = {'Ground Floor 1': ('Common earth', 'Gravel', 'Heavy mix concrete', 'Horizontal Air 20-50mm Heat Down', 'Chipboard'),
                            'Kingston PH 1': ('Common earth', 'Gravel', 'EPS', 'Heavy mix concrete')}
+        self.floor_cond.update(self.ceil_cond)
         self.floor_con = OrderedDict(sorted(self.floor_cond.items()))
         self.roof_cond = {'Roof 1': ('Clay tile', 'Roofing felt', 'Plywood')}
         self.roof_con = OrderedDict(sorted(self.roof_cond.items()))
+
         self.door_cond = {'Internal Door 1': ('Chipboard', 'Hardwood', 'Chipboard')}
         self.door_con = OrderedDict(sorted(self.door_cond.items()))
         self.glaze_cond = {'Standard Double Glazing': ('Clear 3mm', 'Air', 'Clear 3mm'), 'Low-E Double Glazing': ('Clear 3mm LoE', 'Air', 'Clear 3mm'), 
                            'PassivHaus': ('Clear 3mm LoE', 'Argon', 'Clear 3mm LoE', 'Argon', 'Clear 3mm')}
         self.glaze_con = OrderedDict(sorted(self.glaze_cond.items()))
         self.p = 0
+        self.propdict = {'Wall': self.wall_con, 'Floor': self.floor_con, 'Roof': self.roof_con, 'Ceiling': self.floor_con, 'Door': self.door_con, 
+                                'Window': self.glaze_con} 
 
     def con_write(self, idf_file, contype, name, nl, mn, cln):
-#        con = (self.wall_con, self.roof_con, self.floor_con, self.door_con, self.glaze_con)[("Wall", "Roof", "Floor", "Door", "Window").index(contype)]
-        params = ['Name', 'Outside layer'] + ['Layer {}'.format(i + 1) for i in range(len(cln) - 1)]
-        
+        params = ['Name', 'Outside layer'] + ['Layer {}'.format(i + 1) for i in range(len(cln) - 1)]        
         paramvs = [mn] + cln#'{}-{}'.format(con[name][0], nl)]
-#        for i in range(len(con[name])):
-#            if i > 0:
-#                params.append('Layer {}'.format(i))
-#                paramvs.append('{}-{}'.format(con[name][i], nl))
         idf_file.write(epentry('Construction', params, paramvs))
+
+def retmatdict(self, t, l):   
+    if self.envi_con_type in ('Wall', 'Roof', 'Floor', 'Door', 'Ceiling'):
+        typelist = [("0", "Brick", "Choose a material from the brick database"),("1", "Cladding", "Choose a material from the cladding database"), ("2", "Concrete", "Choose a material from the concrete database"),("3", "Metal", "Choose a material from the metal database"),
+                   ("4", "Stone", "Choose a material from the stone database"),("5", "Wood", "Choose a material from the wood database"),
+                   ("6", "Gas", "Choose a material from the gas database"),("7", "Insulation", "Choose a material from the insulation database"),
+                    ("8", "PCM", "Choose a material from the phase change database")]
+        matdict = {'0': envi_materials().brick_dat.keys(), '1': envi_materials().cladding_dat.keys(), '2': envi_materials().concrete_dat.keys(), '3': envi_materials().metal_dat.keys(), '4': envi_materials().stone_dat.keys(),
+                   '5': envi_materials().wood_dat.keys(), '6': envi_materials().gas_dat.keys(), '7': envi_materials().insulation_dat.keys(), '8': envi_materials().pcm_dat.keys()}
+
+    elif self.envi_con_type == 'Window':
+        if not l % 2:
+            typelist = [("0", "Glass", "Choose a material from the glass database")]
+            matdict = {'0': envi_materials().glass_dat.keys()}  
+        else:
+            typelist = [("0", "Gas", "Choose a material from the gas database")]
+            matdict = {'0': envi_materials().wgas_dat.keys()}
+    else:
+        typelist = [('', '', '')]
+    if t:
+        return typelist
+    else:
+        return matdict
+            
+def envi_layerotype(self, context):   
+    return retmatdict(self, 1, 0) 
+    
+def envi_layer1type(self, context):   
+    return retmatdict(self, 1, 1) 
+    
+def envi_layer2type(self, context):   
+    return retmatdict(self, 1, 2) 
+    
+def envi_layer3type(self, context):   
+    return retmatdict(self, 1, 3) 
+    
+def envi_layer4type(self, context):   
+    return retmatdict(self, 1, 4) 
+                    
+def envi_layero(self, context):   
+    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 0)[self.envi_type_lo])]
+
+def envi_layer1(self, context):
+    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 1)[self.envi_type_l1])]
+
+def envi_layer2(self, context):
+    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 2)[self.envi_type_l2])]
+
+def envi_layer3(self, context):
+    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 3)[self.envi_type_l3])]
+
+def envi_layer4(self, context):
+    return [((mat, mat, 'Layer material')) for mat in list(retmatdict(self, 0, 4)[self.envi_type_l4])]
+    
+def envi_con_list(self, context):
+    ec = envi_constructions()
+    return [(mat, mat, 'Construction') for mat in (ec.wall_con, ec.roof_con, ec.floor_con, ec.ceil_con, ec.door_con, ec.glaze_con)[("Wall", "Roof", "Floor", "Ceiling", "Door", "Window").index(self.envi_con_type)]]
+    
+def retuval(mat):
+    resists, em, ec = [], envi_materials(), envi_constructions()
+    thicks = [0.001 * tc for tc in (mat.envi_export_lo_thi, mat.envi_export_l1_thi, mat.envi_export_l2_thi, mat.envi_export_l3_thi, mat.envi_export_l4_thi)]
+
+    if mat.envi_con_makeup == '1':   
+        dtcs = [float(em.matdat[dmat][1]) for dmat in (mat.envi_material_lo, mat.envi_material_l1, mat.envi_material_l2, mat.envi_material_l3, mat.envi_material_l4)]
+        ctcs = (mat.envi_export_lo_tc, mat.envi_export_l1_tc, mat.envi_export_l2_tc, mat.envi_export_l3_tc, mat.envi_export_l4_tc)
+        for l, lay in enumerate((mat.envi_layero, mat.envi_layer1, mat.envi_layer2, mat.envi_layer3, mat.envi_layer4)):
+            if lay == '1':
+                resists.append(thicks[l]/dtcs[l])
+            if lay == '2':
+                resists.append(thicks[l]/ctcs[l])
+        
+    elif mat.envi_con_makeup == '0':
+        if mat.envi_con_type == 'Window':
+            pstcs = [float((em.matdat[psmat][4], em.matdat[psmat][4])[psmat in em.wgas_datd]) for psmat in ec.propdict[mat.envi_con_type][mat.envi_con_list]]
+
+        else:    
+            print([psmat in (em.wgas_datd, em.glass_datd) for psmat in ec.propdict[mat.envi_con_type][mat.envi_con_list]])
+            pstcs = [float(em.matdat[psmat][1]) for psmat in ec.propdict[mat.envi_con_type][mat.envi_con_list]]
+        resists = [thicks[t]/tc for t, tc in enumerate(pstcs)]
+    return 1/sum(resists)

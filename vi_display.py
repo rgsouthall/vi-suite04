@@ -108,8 +108,7 @@ def li_display(simnode):
         if scene.vi_disp_3d == 1 and scene['liparams']['cp'] == '0':
             for face in bmesh.ops.extrude_discrete_faces(bm, faces = bm.faces)['faces']:
                 face.select = True
-        
-                
+                        
         bm.transform(o.matrix_world.inverted())
         bm.to_mesh(ores.data)
         ores.lividisplay(scene)
@@ -129,7 +128,6 @@ def li_display(simnode):
 
 def spnumdisplay(disp_op, context, simnode):
     scene = context.scene
-#    print(simnode.bl_label)
     leg = 0 if simnode.bl_label == 'VI Sun Path' else 1
     if bpy.data.objects.get('SPathMesh'):
         spob = bpy.data.objects['SPathMesh'] 
@@ -371,6 +369,40 @@ def en_air(self, context, temp, ws, wd, hu):
         drawpoly(int(leftwidth + hscale * 80), botheight + int(0.9 * bheight * reslevel), int(leftwidth + hscale * 130), botheight, 1, *colorsys.hsv_to_rgb(1 - reslevel, 1.0, 1.0))
         drawloop(int(leftwidth + hscale * 80 - 1), botheight + int(0.9 * bheight * reslevel), int(leftwidth + hscale * 130), botheight)      
         blf.disable(0, 4)
+    
+class en_temp_panel():
+    metrics = []
+    location = (0,0)
+    hum_location = (0,0)
+    co2_location = (0,0)
+    heat_location = (0,0)
+    cool_location = (0,0)
+
+    def __init__(self):
+        self.expand = 0
+
+    def xyminmax(self):
+        return (self.location[0] - 50, self.location[1] - 50, self.location[0] + 50, self.location[1] + 50)
+                
+    def metrics(scene, resnode):
+#        scene = context.scene
+        rl = resnode['reslists']
+        zrl = list(zip(*rl))
+        reszones = [o.name.upper() for o in bpy.data.objects if o.name.upper() in zrl[2]]
+        if not bpy.context.active_object or 'EN_'+bpy.context.active_object.name.upper() not in reszones:
+            return
+        height, font_id = context.region.height, 0
+        hscale = height/nh
+        startx, starty, rowheight, totwidth = 20, height - 20, 20, 200
+        resstart = 24 * (resnode['Start'] - resnode.dsdoy)
+        resend = resstart + 24 * (1 + resnode['End'] - resnode['Start'])
+        eznames = ['EN_{}'.format(o.name.upper()) for o in bpy.context.selected_objects]
+        for ezname in eznames:
+            tdata = [t.split()[resstart:resend] for ti, t in enumerate(zrl[4]) if zrl[3][ti] == 'Temperature (degC)' and zrl[2][ti] == ezname]
+            metrics += [rl[ri][3] for ri in range(len(rl)) if rl[ri][2] == ezname]
+        if 'Temperature (degC)' in set(metrics):
+            tp = temp_panel()
+            tp.location = (startx, starty)
     
 def en_panel(self, context, resnode):
     scene = context.scene

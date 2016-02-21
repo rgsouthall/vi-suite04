@@ -36,7 +36,7 @@ except Exception as e:
 
 from .livi_export import radgexport, cyfc1, createoconv, createradfile, genbsdf
 from .livi_calc  import li_calc
-from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend, en_air, en_panel
+from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend, en_air, en_panel, en_temp_panel
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum, envizres, envilres
@@ -432,7 +432,7 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
     bl_label = "LiVi display"
     bl_description = "Display the results on the sensor surfaces"
     bl_register = True
-    bl_undo = True
+#    bl_undo = True
     _handle = None
     disp =  bpy.props.IntProperty(default = 1)
 
@@ -444,14 +444,14 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
                 if event.type == 'WHEELUPMOUSE':
                     scene.vi_leg_max += scene.vi_leg_max * 0.05
                     return {'RUNNING_MODAL'}
-                if event.type == 'WHEELDOWNMOUSE':
+                elif event.type == 'WHEELDOWNMOUSE':
                     scene.vi_leg_max -= (scene.vi_leg_max - scene.vi_leg_min) * 0.05
                     return {'RUNNING_MODAL'}
             elif event.mouse_region_x in range(100) and event.mouse_region_y in range(height - 520, height - 420):
                 if event.type == 'WHEELUPMOUSE':
                     scene.vi_leg_min += (scene.vi_leg_max - scene.vi_leg_min) * 0.05
                     return {'RUNNING_MODAL'}
-                if event.type == 'WHEELDOWNMOUSE':
+                elif event.type == 'WHEELDOWNMOUSE':
                     scene.vi_leg_min -= scene.vi_leg_min * 0.05
                     return {'RUNNING_MODAL'}
 
@@ -729,8 +729,8 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
             return {'CANCELLED'}
         scene['viparams']['vidisp'] = ''
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        node.sdoy = datetime.datetime(datetime.datetime.now().year, node.startmonth, 1).timetuple().tm_yday
-        node.edoy = (datetime.date(datetime.datetime.now().year, node.endmonth + (1, -11)[node.endmonth == 12], 1) - datetime.timedelta(days = 1)).timetuple().tm_yday
+        node.sdoy = datetime.datetime(2015, node.startmonth, 1).timetuple().tm_yday
+        node.edoy = (datetime.date(2015, node.endmonth + (1, -11)[node.endmonth == 12], 1) - datetime.timedelta(days = 1)).timetuple().tm_yday
         (scene['enparams']['fs'], scene['enparams']['fe']) = (node.fs, node.fe) if node.animated else (scene.frame_current, scene.frame_current)
         locnode = node.inputs['Location in'].links[0].from_node
         if not os.path.isfile(locnode.weather):
@@ -789,9 +789,13 @@ class NODE_OT_EnSim(bpy.types.Operator):
                 nfns = [fname for fname in os.listdir('.') if fname.split(".")[0] == "{}{}out".format(self.resname, self.frame)]
                 for fname in nfns:
                     rename(os.path.join(scene['viparams']['newdir'], fname), os.path.join(scene['viparams']['newdir'],fname.replace("eplusout", self.simnode.resname)))
-
-                if "{}{}out.err".format(self.resname, self.frame) not in [im.name for im in bpy.data.texts]:
-                    bpy.data.texts.load(os.path.join(scene['viparams']['newdir'], "{}{}out.err".format(self.resname, self.frame)))
+                
+                efilename = "{}{}out.err".format(self.resname, self.frame)
+                if efilename not in [im.name for im in bpy.data.texts]:
+                    bpy.data.texts.load(os.path.join(scene['viparams']['newdir'], efilename))
+                    if '** Severe  **' in bpy.data.texts[efilename]:
+                        self.report({'ERROR'}, "Fatal error reported in the {} file. Check the file in Blender's text editor".format(efilename))
+                        return {'CANCELLED'}
 
                 if 'EnergyPlus Terminated--Error(s) Detected' in self.esimrun.stderr.read().decode() or not [f for f in nfns if f.split(".")[1] == "eso"] or self.simnode.run == 0:
                     errtext = "There is no results file. Check you have selected results outputs and that there are no errors in the .err file in the Blender text editor." if not [f for f in nfns if f.split(".")[1] == "eso"] else "There was an error in the input IDF file. Check the *.err file in Blender's text editor."
@@ -836,12 +840,19 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
     bl_label = "EnVi display"
     bl_description = "Display the EnVi results"
     bl_register = True
-    bl_undo = False
+#    bl_undo = False
     _handle = None
     disp =  bpy.props.IntProperty(default = 1)
 
     def modal(self, context, event):
         scene = context.scene
+        xyminmax = self.tp.xyminmax()
+        if event.mouse_region_x in range(xyminmax[0], xyminmax[1]) and event.mouse_region_y in range(xyminmax[2], xyminmax[3]) and event.type == 'LEFTMOUSE':
+            self.tp.expand = 1 - self.tp.expand
+#            self.tp.move = 1 - self.tp.move
+#        if self.tp.move:
+#            if event.type == 'MOUSEMOVE':
+#                self.tp.location = (event.mouse_region_x, event.mouse_region_y)
         if scene['viparams']['vidisp'] not in ('en', 'enpanel') or not scene.vi_display:
             try:
                 bpy.types.SpaceView3D.draw_handler_remove(self._handle_air, 'WINDOW')
@@ -856,13 +867,13 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context):
+        self.tp = en_temp_panel()
         scene = context.scene
         scene.en_frame = scene.frame_current
         resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
         zrl = list(zip(*resnode['reslists']))
         eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in zrl[2]}
         resstart, resend = 24 * (resnode['Start'] - 1), 24 * (resnode['End']) - 1
-#        scene.frame_start, scene.frame_end = 0, resend - resstart
         scene.frame_start, scene.frame_end = 0, len(zrl[4][0].split()) - 1
         
         if scene.resas_disp:
@@ -944,8 +955,8 @@ class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
             self.report({'ERROR'},"Matplotlib cannot be found by the Python installation used by Blender")
             return {'CANCELLED'}
 
-        Sdate = dt.fromordinal(dt(dt.now().year, 1, 1).toordinal() + node['Start'] -1) + datetime.timedelta(hours = node.dsh - 1)
-        Edate = dt.fromordinal(dt(dt.now().year, 1, 1).toordinal() + node['End'] -1 ) + datetime.timedelta(hours = node.deh - 1)
+        Sdate = dt.fromordinal(dt(2015, 1, 1).toordinal() + node['Start'] - 1) + datetime.timedelta(hours = node.dsh - 1)
+        Edate = dt.fromordinal(dt(2015, 1, 1).toordinal() + node['End'] - 1) + datetime.timedelta(hours = node.deh - 1)
         chart_disp(self, plt, node, innodes, Sdate, Edate)
         return {'FINISHED'}
 
@@ -1294,8 +1305,8 @@ class NODE_OT_Shadow(bpy.types.Operator):
             (scmaxres, scminres, scavres) = [[x] * (scene.frame_end - scene.frame_start + 1) for x in (0, 100, 0)]
         
         frange = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
-        time = datetime.datetime(datetime.datetime.now().year, simnode.startmonth, 1, simnode.starthour - 1)
-        y =  datetime.datetime.now().year if simnode.endmonth >= simnode.startmonth else datetime.datetime.now().year + 1
+        time = datetime.datetime(2015, simnode.startmonth, 1, simnode.starthour - 1)
+        y =  2015 if simnode.endmonth >= simnode.startmonth else 2015 + 1
         endtime = datetime.datetime(y, simnode.endmonth, (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)[simnode.endmonth - 1], simnode.endhour - 1)
         interval = datetime.timedelta(hours = modf(simnode.interval)[0], minutes = 60 * modf(simnode.interval)[1])
         times = [time + interval*t for t in range(int((endtime - time)/interval)) if simnode.starthour <= (time + interval*t).hour <= simnode.endhour]

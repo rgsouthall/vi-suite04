@@ -84,8 +84,7 @@ def radbsdf(self, radname, fi, rot, trans):
 #        bsdffile.write(self['bsdf']['xml'].decode())
     radentry = 'void BSDF {0}\n16 {4:.3f} {1} 0 0 1 . -rx {2[0]:.3f} -ry {2[1]:.3f} -rz {2[2]:.3f} -t {3[0]:.3f} {3[1]:.3f} {3[2]:.3f}\n0\n0\n\n'.format(radname, bsdfxml, rot, trans, pdepth)
     return radentry
-    
-        
+           
 def rtpoints(self, bm, offset, frame):    
     geom = bm.verts if self['cpoint'] == '1' else bm.faces 
     cindex = geom.layers.int['cindex']
@@ -394,7 +393,6 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, tpoin
         for g in [g for g in geom if g[cindex] > 0]:
             g[res] = resvals[g[cindex] - 1]  
             sstep += 1
-            print(sstep, calcsteps)
             if sstep in calcsteps:
                 if progressfile(scene, starttime, calcsteps, sstep, 'run') == 'CANCELLED':
                     return 'CANCELLED'
@@ -1133,11 +1131,11 @@ def retobj(name, fr, node, scene):
 def retelaarea(node):
     inlinks = [sock.links[0] for sock in node.inputs if sock.bl_idname in ('EnViSSFlowSocket', 'EnViSFlowSocket') and sock.links]
     outlinks = [sock.links[:] for sock in node.outputs if sock.bl_idname in ('EnViSSFlowSocket', 'EnViSFlowSocket') and sock.links]
-    inosocks = [link.from_socket for link in inlinks if inlinks and link.from_socket.node.get('zone')]
-    outosocks = [link.to_socket for x in outlinks for link in x if link.to_socket.node.get('zone')]
+    inosocks = [link.from_socket for link in inlinks if inlinks and link.from_socket.node.get('zone') and link.from_socket.node.zone in [o.name for o in bpy.data.objects]]
+    outosocks = [link.to_socket for x in outlinks for link in x if link.to_socket.node.get('zone') and link.to_socket.node.zone in [o.name for o in bpy.data.objects]]
     if outosocks or inosocks:
         elaarea = max([facearea(bpy.data.objects[sock.node.zone], bpy.data.objects[sock.node.zone].data.polygons[int(sock.sn)]) for sock in outosocks + inosocks])
-        node["_RNA_UI"] = {"ela": {"max":elaarea}}
+        node["_RNA_UI"] = {"ela": {"max":elaarea, "min": 0.0001}}
         
 def objmode():
     if bpy.context.active_object and bpy.context.active_object.type == 'MESH' and not bpy.context.active_object.hide:
@@ -1415,6 +1413,11 @@ def retzonename(zn):
         return zn.strip('_AIR')
     else:
         return zn
+
+def checkenvierrors(file, sim_op):
+    efile = file.read()
+    if '** Severe  **' in efile:
+        sim_op.report({'ERROR'}, "There is a fatal error in the EnVi model, check the error file in Blender's text editor")
         
 def processf(pro_op, scene, node):
     reslists = []
@@ -1426,10 +1429,7 @@ def processf(pro_op, scene, node):
             hdict, lstart = processh(lines)          
             bodylines = lines[lstart:-2]            
             bdict = {li: ' '.join([line.strip('\n').split(',')[1] for line in bodylines if line.strip('\n').split(',')[0] == li]) for li in hdict}
-            
-#            if len(frames) > 1:
-#                reslists.append(['All', 'Frame', 'Number', 'Frame', str(frame)])
-                
+               
             for k in sorted(hdict.keys(), key=int):
                 if hdict[k] == ['Time']:
                     reslists.append([str(frame), 'Time', '', 'Month', ' '.join([line.strip('\n').split(',')[2] for line in bodylines if line.strip('\n').split(',')[0] == k])])
@@ -1472,7 +1472,7 @@ def processf(pro_op, scene, node):
                 reslists.append(['All', 'Zone', zn, 'Min air heat (W)', ' '.join([str(min(h[1])) for h in aheats if h[0] == zn])])
                 reslists.append(['All', 'Zone', zn, 'Ave air heat (W)', ' '.join([str(sum(h[1])/len(h[1])) for h in aheats if h[0] == zn])])
                 reslists.append(['All', 'Zone', zn, 'Air heating (kWh)', ' '.join([str(sum(h[1])*0.001) for h in aheats if h[0] == zn])])
-                reslists.append(['All', 'Zone', zn, 'Ait heating (kWh/m2)', ' '.join([str(sum(h[1])*0.001/[o for o in bpy.data.objects if o.name.upper() == zn][0]['floorarea']) for h in aheats if h[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Air heating (kWh/m2)', ' '.join([str(sum(h[1])*0.001/[o for o in bpy.data.objects if o.name.upper() == zn][0]['floorarea']) for h in aheats if h[0] == zn])])
             if acools:
                 reslists.append(['All', 'Zone', zn, 'Max air cool (W)', ' '.join([str(max(h[1])) for h in acools if h[0] == zn])])
                 reslists.append(['All', 'Zone', zn, 'Mina ir cool (W)', ' '.join([str(min(h[1])) for h in acools if h[0] == zn])])
@@ -1515,6 +1515,7 @@ def nfvprop(fvname, fvattr, fvdef, fvsub):
     return(FloatVectorProperty(name=fvname, attr = fvattr, default = fvdef, subtype = fvsub, update = nodeexported))
 
 def boundpoly(obj, mat, poly, enng):
+    mat = obj.data.materials[poly.material_index]
     if mat.envi_boundary:
         nodes = [node for node in enng.nodes if hasattr(node, 'zone') and node.zone == obj.name]
         for node in nodes:
@@ -1523,18 +1524,21 @@ def boundpoly(obj, mat, poly, enng):
             if insock.links:
                 bobj = bpy.data.objects[insock.links[0].from_node.zone]
                 bpoly = bobj.data.polygons[int(insock.links[0].from_socket.name.split('_')[-2])]
-                if bobj.data.materials[bpoly.material_index] == mat:# and max(bpolyloc - polyloc) < 0.001 and abs(bpoly.area - poly.area) < 0.01:
-                    return(("Surface", node.inputs['{}_{}_b'.format(mat.name, poly.index)].links[0].from_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
+#                if bobj.data.materials[bpoly.material_index] == mat:# and max(bpolyloc - polyloc) < 0.001 and abs(bpoly.area - poly.area) < 0.01:
+                return(("Surface", node.inputs['{}_{}_b'.format(mat.name, poly.index)].links[0].from_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
         
             elif outsock.links:
                 bobj = bpy.data.objects[outsock.links[0].to_node.zone]
                 bpoly = bobj.data.polygons[int(outsock.links[0].to_socket.name.split('_')[-2])]
-                if bobj.data.materials[bpoly.material_index] == mat:# and max(bpolyloc - polyloc) < 0.001 and abs(bpoly.area - poly.area) < 0.01:
-                    return(("Surface", node.outputs['{}_{}_b'.format(mat.name, poly.index)].links[0].to_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
-            return(("Outdoors", "", "SunExposed", "WindExposed"))
+#                if bobj.data.materials[bpoly.material_index] == mat:# and max(bpolyloc - polyloc) < 0.001 and abs(bpoly.area - poly.area) < 0.01:
+                return(("Surface", node.outputs['{}_{}_b'.format(mat.name, poly.index)].links[0].to_node.zone+'_'+str(bpoly.index), "NoSun", "NoWind"))
+            else:
+                return(("Adiabatic", "", "NoSun", "NoWind"))
 
     elif mat.envi_thermalmass:
         return(("Adiabatic", "", "NoSun", "NoWind"))
+    elif poly.calc_center_bounds()[2] <= 0:
+        return(("Ground", '{}_{}'.format(obj.name, poly.index), "NoSun", "NoWind"))
     else:
         return(("Outdoors", "", "SunExposed", "WindExposed"))
 
@@ -2167,6 +2171,18 @@ def socklink(sock, ng):
     except:
         if sock.links:
             bpy.data.node_groups[ng].links.remove(sock.links[-1])
+            
+def uvsocklink(sock, ng):
+    try:
+        uv1 = sock.uvalue
+        for link in sock.links:
+            uv2 = link.to_socket.uvalue 
+            if uv1 != uv2:
+                bpy.data.node_groups[ng].links.remove(link)
+    except:
+        pass
+#        if sock.links:
+#            bpy.data.node_groups[ng].links.remove(sock.links[-1])
     
 def rettimes(ts, fs, us):
     tot = range(min(len(ts), len(fs), len(us)))
@@ -2456,7 +2472,7 @@ def fvobjwrite(scene, o, bmo):
     
 def sunposenvi(scene, sun, dirsol, difsol, mdata, ddata, hdata):
     frames = range(scene.frame_start, scene.frame_end)
-    times = [datetime.datetime(datetime.datetime.now().year, mdata[hi], ddata[hi], h - 1, 0) for hi, h in enumerate(hdata)]
+    times = [datetime.datetime(2015, mdata[hi], ddata[hi], h - 1, 0) for hi, h in enumerate(hdata)]
     solposs = [solarPosition(time.timetuple()[7], time.hour + (time.minute)*0.016666, scene.latitude, scene.longitude) for time in times]
     beamvals = [0.01 * d for d in dirsol]
     skyvals =  [1 + 0.01 * d for d in difsol]
@@ -2475,7 +2491,7 @@ def sunposlivi(scene, skynode, frames, sun, stime):
         beamvals = [solposs[t][0]/15 for t in range(len(times))] if skynode['skynum'] < 2 else [0 for t in range(len(times))]
         skyvals = beamvals
     elif skynode['skynum'] == 3: 
-        times = [datetime.datetime(datetime.datetime.now().year, 3, 20, 12, 0)]
+        times = [datetime.datetime(2015, 3, 20, 12, 0)]
         solposs = [solarPosition(time.timetuple()[7], time.hour + (time.minute)*0.016666, 0, 0) for time in times]
         beamvals = [0 for t in range(len(times))]
         skyvals = [5 for t in range(len(times))]

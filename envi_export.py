@@ -27,7 +27,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     for frame in range(scene['enparams']['fs'], scene['enparams']['fe'] + 1):
         scene.update()
         scene.frame_set(frame)
-        en_epw = open(locnode.weather, "r")
+#        en_epw = open(locnode.weather, "r")
         en_idf = open(os.path.join(scene['viparams']['newdir'], 'in{}.idf'.format(frame)), 'w')
         enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]
         badnodes = [node for node in enng.nodes if node.use_custom_color]
@@ -52,23 +52,23 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
    
         params = ('Name', 'Begin Month', 'Begin Day', 'End Month', 'End Day', 'Day of Week for Start Day', 'Use Weather File Holidays and Special Days', 'Use Weather File Daylight Saving Period',\
         'Apply Weekend Holiday Rule', 'Use Weather File Rain Indicators', 'Use Weather File Snow Indicators', 'Number of Times Runperiod to be Repeated')
-        paramvs = (node.loc, node.startmonth, '1', node.endmonth, ((datetime.date(2015, node.endmonth + (1, -11)[node.endmonth == 12], 1) - datetime.timedelta(days = 1)).day), "UseWeatherFile", "Yes", "Yes", "No", "Yes", "Yes", "1")
+        paramvs = (node.loc, node.sdate.month, node.sdate.day, node.edate.month, node.edate.day, "UseWeatherFile", "Yes", "Yes", "No", "Yes", "Yes", "1")
         en_idf.write(epentry('RunPeriod', params, paramvs))
     
-        for line in en_epw.readlines():
-            if line.split(",")[0].upper() == "GROUND TEMPERATURES":
-                gtline, gt = line.split(","), []
-                for gtn in range(int(gtline[1])):
-                    gt.append((gtline[2+gtn*16], [g.strip("\n") for g in gtline[6+gtn*16:18+gtn*16]]))
-                    if float(gt[gtn][0]) > 0.0 and float(gt[gtn][0]) <= 1:
-                        en_idf.write("Site:GroundTemperature:BuildingSurface, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {};\n".format(*gt[gtn][1][:]))
-                    elif float(gt[gtn][0]) == 0.5:
-                        en_idf.write("Site:GroundTemperature:Shallow, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {};\n".format(*gt[gtn][1][:]))
-                    elif float(gt[gtn][0]) > 3.5:
-                        en_idf.write("Site:GroundTemperature:Deep, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {};\n".format(*gt[gtn][1][:]))
-                en_idf.write("\n")
-                break
-        en_epw.close()
+#        for line in en_epw.readlines():
+#            if line.split(",")[0].upper() == "GROUND TEMPERATURES":
+#                gtline, gt = line.split(","), []
+#                for gtn in range(int(gtline[1])):
+#                    gt.append((gtline[2+gtn*16], [g.strip("\n") for g in gtline[6+gtn*16:18+gtn*16]]))
+#                    if float(gt[gtn][0]) > 0.0 and float(gt[gtn][0]) <= 1:
+#                        en_idf.write("Site:GroundTemperature:BuildingSurface, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {};\n".format(*gt[gtn][1][:]))
+#                    elif float(gt[gtn][0]) == 0.5:
+#                        en_idf.write("Site:GroundTemperature:Shallow, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {};\n".format(*gt[gtn][1][:]))
+#                    elif float(gt[gtn][0]) > 3.5:
+#                        en_idf.write("Site:GroundTemperature:Deep, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {};\n".format(*gt[gtn][1][:]))
+#                en_idf.write("\n")
+#                break
+#        en_epw.close()
     
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: MATERIAL & CONSTRUCTIONS ===========\n\n")
         matcount, matname, namelist = [], [], []

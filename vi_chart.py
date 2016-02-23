@@ -39,14 +39,14 @@ def timedata(datastring, timetype, stattype, months, days, dos, dnode, Sdate, Ed
     if timetype == '0' or dnode.animated:
         return datastring       
     else:
-        if timetype == '1':     
-            res = [[] for d in range(dnode['Start'], dnode['End']+1)]            
+        if timetype == '1':  
+            res = [[] for d in range(len(set(dos)))]            
             for h, val in enumerate(datastring):
-                res[dos[h] - dnode['Start']].append(val)
+                res[dos[h] - dos[0]].append(val)
         elif timetype == '2':
-            res = [[] for m in range(Sdate.month, Edate.month + 1)]
+            res = [[] for m in range(len(set(months)))]
             for h, val in enumerate(datastring):
-                res[months[h] - Sdate.month].append(val)
+                res[months[h] - months[0]].append(val)
         return(statdata(res, stattype))
 
 def retframe(axis, dnode, frames):
@@ -73,13 +73,13 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     else:        
         sm, sd, sh, em, ed, eh = Sdate.month, Sdate.day, Sdate.hour, Edate.month, Edate.day, Edate.hour    
         (dm, dd, dh) = ([int(x) for x in mdata[0]], [int(x) for x in ddata[0]], [int(x) for x in hdata[0]])
+        
         for i in range(len(hdata[0])):
-            if sm == dm[i] and dd[i] == 1 and dh[i] == 1:
-                print(sm, dm[i], sd, dd[i], sh, dh[i] - 1)
+            if sm == dm[i] and sd == dd[i] and sh == dh[i] - 1:
                 si = i
             elif em == dm[i] and ed == dd[i] and eh == dh[i] - 1:
                 ei = i
-            
+                
         mdata = [int(m) for m in mdata[0]][si:ei + 1]
         ddata = [int(d) for d in ddata[0]][si:ei + 1]
         sdata = [int(s) for s in sdata[0]][si:ei + 1]

@@ -729,8 +729,8 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
             return {'CANCELLED'}
         scene['viparams']['vidisp'] = ''
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        node.sdoy = datetime.datetime(2015, node.startmonth, 1).timetuple().tm_yday
-        node.edoy = (datetime.date(2015, node.endmonth + (1, -11)[node.endmonth == 12], 1) - datetime.timedelta(days = 1)).timetuple().tm_yday
+#        node.sdoy = datetime.datetime(2015, node.startmonth, 1).timetuple().tm_yday
+#        node.edoy = (datetime.date(2015, node.endmonth + (1, -11)[node.endmonth == 12], 1) - datetime.timedelta(days = 1)).timetuple().tm_yday
         (scene['enparams']['fs'], scene['enparams']['fe']) = (node.fs, node.fe) if node.animated else (scene.frame_current, scene.frame_current)
         locnode = node.inputs['Location in'].links[0].from_node
         if not os.path.isfile(locnode.weather):
@@ -1113,8 +1113,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
         compassos = compass((0,0,0.01), sd, spathob, bpy.data.materials['SPBase'])
         spro = spathrange([bpy.data.materials['SumAng'], bpy.data.materials['EquAng'], bpy.data.materials['WinAng']])
         objoin(compassos + [spro] + [spathob])
-#        objoin(txts + [coo] + [wro])
-        
 
         for ob in (spathob, sunob, smesh):
             ob.cycles_visibility.diffuse, ob.cycles_visibility.shadow, ob.cycles_visibility.glossy, ob.cycles_visibility.transmission, ob.cycles_visibility.scatter = [False] * 5
@@ -1190,9 +1188,6 @@ class NODE_OT_WindRose(bpy.types.Operator):
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         if viparams(self, scene):
             return {'CANCELLED'}
-        if simnode.startmonth > simnode.endmonth:
-            self.report({'ERROR'},"Start month is later than end month")
-            return {'CANCELLED'}
         if not mp:
             self.report({'ERROR'},"There is something wrong with your matplotlib installation")
             return {'FINISHED'}
@@ -1202,13 +1197,16 @@ class NODE_OT_WindRose(bpy.types.Operator):
         scene['viparams']['resnode'], scene['viparams']['restree'] = simnode.name, self.nodeid.split('@')[1]
         scene['viparams']['vidisp'], scene.vi_display = 'wr', 1
         context.scene['viparams']['visimcontext'] = 'Wind'
-        mon = [int(mo) for mo in locnode['allresdict']['Month']]
-        awd = [float(wd) for mi, wd in enumerate(locnode['allresdict']['20']) if simnode.startmonth <= mon[mi] <= simnode.endmonth]
-        aws = [float(ws) for mi, ws in enumerate(locnode['allresdict']['21']) if simnode.startmonth <= mon[mi] <= simnode.endmonth]
-        taws = [float(ws) for ws in locnode['allresdict']['21']]
-        simnode['maxres'], simnode['minres'], simnode['avres']= max(taws), min(taws), sum(taws)/len(taws)
+        rl = locnode['reslists']
+        cdoys = [int(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Time' and r[2] == '' and r[3] == 'DOS'][0]]
+        cwd = [int(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == '' and r[3] == 'Wind Direction (deg)'][0]]
+        cws = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == '' and r[3] == 'Wind Speed (m/s)'][0]]
+        doys = range(simnode.sdoy, simnode.edoy + 1) if simnode.edoy > simnode.sdoy else list(range(simnode.sdoy, 366)) + list(range(1, simnode.edoy + 1))
+        awd = [wd for di, wd in enumerate(cwd) if cdoys[di] in doys]
+        aws = [ws for di, ws in enumerate(cws) if cdoys[di] in doys]
+        simnode['maxres'], simnode['minres'], simnode['avres']= max(cws), min(cws), sum(cws)/len(cws)
         (fig, ax) = wr_axes()
-        sbinvals = arange(0,int(ceil(max(taws))),2)
+        sbinvals = arange(0,int(ceil(max(cws))),2)
         dbinvals = arange(-11.25,372.25,22.5)
         dfreq = histogram(awd, bins=dbinvals)[0]
         dfreq[0] = dfreq[0] + dfreq[-1]
@@ -1245,7 +1243,7 @@ class VIEW3D_OT_WRLegDisplay(bpy.types.Operator):
     def modal(self, context, event):
         if context.area:
             context.area.tag_redraw()
-        if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'wr':
+        if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'wr' or 'Wind_Plane' not in [o['VIType'] for o in bpy.data.objects if o.get('VIType')]:
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_spnum, 'WINDOW')
             return {'CANCELLED'}
         return {'PASS_THROUGH'}
@@ -1318,7 +1316,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
         starttime = datetime.datetime.now()
         progressfile(scene, starttime, calcsteps, curres, 'clear')
         kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'))
-
         
         for oi, o in enumerate([scene.objects[on] for on in scene['liparams']['shadc']]):
             o['omin'], o['omax'], o['oave'] = {}, {}, {}

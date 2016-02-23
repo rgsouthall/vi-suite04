@@ -1142,6 +1142,7 @@ def objmode():
         bpy.ops.object.mode_set(mode = 'OBJECT')
 
 def objoin(obs):
+    print(obs)
     bpy.ops.object.select_all(action='DESELECT')
     for o in obs:
         o.select = True
@@ -1640,13 +1641,13 @@ def wind_rose(maxws, wrsvg, wrtype):
                             wro.material_slots[-1].material = bpy.data.materials['wr-{}'.format(lcol[-6:])]  
                 
         for line in svglines:
-            linesplit = line.split(' ')
+            linesplit = [line for line in line.strip('\n').split(' ') if line]
             if '<path' in line:
                 pa = 1
-            if pa and line[0] == 'M':
-                spos = [((float(linesplit[0][1:])- dimen/2) * 0.1, (float(linesplit[1]) - dimen/2) * -0.1, 0.05)]
-            if pa and line[0] == 'L':
-                lpos.append(((float(linesplit[0][1:]) - dimen/2) * 0.1, (float(linesplit[1].strip('"')) - dimen/2) *-0.1, 0.05))
+            if pa and 'd="M' in line:
+                spos = [((float(linesplit[-2])- dimen/2) * 0.1, (float(linesplit[-1]) - dimen/2) * -0.1, 0.05)]
+            if pa and line[0:2] == 'L ':
+                lpos.append(((float(linesplit[-2]) - dimen/2) * 0.1, (float(linesplit[-1].strip('"')) - dimen/2) *-0.1, 0.05))
             if pa and '/>' in line:
                 lcolsplit = line.split(';')
                 for lcol in lcolsplit:                
@@ -1752,8 +1753,7 @@ def compass(loc, scale, wro, mat):
     
     bm.to_mesh(come)
     bm.free()
-
-    return txts + [coo] + [wro]
+    return objoin(txts + [coo] + [wro])
 
 def spathrange(mats):
     sprme = bpy.data.meshes.new("SPRange")   

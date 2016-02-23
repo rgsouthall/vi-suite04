@@ -52,7 +52,7 @@ class ViLoc(bpy.types.Node, ViNodes):
                 self['frames'] = ['0']
                 epwlines = epwfile.readlines()[8:]
                 epwcolumns = list(zip(*[epwline.split(',') for epwline in epwlines]))
-                reslists.append(['0', 'Time', 'Year', int(epwcolumns[0][0])])
+                reslists.append(['0', 'Time', 'Year', epwcolumns[0][0]])
                 times = ('Month', 'Day', 'Hour', 'DOS')
                 for t, time in enumerate([' '.join(epwcolumns[c]) for c in range(1,4)] + [' '.join(['{}'.format(int(d/24) + 1) for d in range(len(epwlines))])]):
                     reslists.append(['0', 'Time', '', times[t], time])
@@ -66,7 +66,9 @@ class ViLoc(bpy.types.Node, ViNodes):
             self.outputs['Location out']['epwtext'] = ''
             self.outputs['Location out']['valid'] = ['Location']
         socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])
+        print(reslists)
         self['reslists'] = reslists
+        print(self['reslists'])
 
     epwpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))+'/EPFiles/Weather/'
     weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]
@@ -619,13 +621,14 @@ class ViWRNode(bpy.types.Node, ViNodes):
     bl_icon = 'LAMP'
 
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.wrtype, self.startmonth, self.endmonth)])
-        if self.startmonth > self.endmonth:
-            self.endmonth = self.startmonth
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.wrtype, self.sdoy, self.edoy)])
+#        if self.sdoy > self.edoy:
+#            self.edoy = self.sdoy
 
     wrtype = bpy.props.EnumProperty(items = [("0", "Hist 1", "Stacked histogram"), ("1", "Hist 2", "Stacked Histogram 2"), ("2", "Cont 1", "Filled contour"), ("3", "Cont 2", "Edged contour"), ("4", "Cont 3", "Lined contour")], name = "", default = '0', update = nodeupdate)
-    startmonth = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 12, description = 'Start Month', update = nodeupdate)
-    endmonth = bpy.props.IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month', update = nodeupdate)
+    sdoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeupdate)
+    edoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeupdate)
+
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
@@ -635,9 +638,11 @@ class ViWRNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         if nodeinputs(self) and self.inputs[0].links[0].from_node.loc == '1':
+            sdate = datetime.datetime(2015, 1, 1) + datetime.timedelta(self.sdoy - 1)
+            edate = datetime.datetime(2015, 1, 1) + datetime.timedelta(self.edoy - 1)
             newrow(layout, 'Type:', self, "wrtype")
-            newrow(layout, 'Start month :', self, "startmonth")
-            newrow(layout, 'End month:', self, "endmonth")
+            newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
+            newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
             row = layout.row()
             row.operator("node.windrose", text="Create Wind Rose").nodeid = self['nodeid']
         else:
@@ -646,7 +651,7 @@ class ViWRNode(bpy.types.Node, ViNodes):
 
     def export(self):
         nodecolour(self, 0)
-        self['exportstate'] = [str(x) for x in (self.wrtype, self.startmonth, self.endmonth)]
+        self['exportstate'] = [str(x) for x in (self.wrtype, self.sdoy, self.edoy)]
 
 class ViGExEnNode(bpy.types.Node, ViNodes):
     '''Node describing an EnVi Geometry Export'''
@@ -692,10 +697,8 @@ class ViExEnNode(bpy.types.Node, ViNodes):
 
     addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
     matpath = addonpath+'/EPFiles/Materials/Materials.data'
-    startmonth = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 12, description = 'Start Month', update = nodeupdate)
-    endmonth = bpy.props.IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month', update = nodeupdate)
-    sdoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeupdate)
-    edoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeupdate)
+    sdoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1)
+    edoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365)
     timesteps = bpy.props.IntProperty(name = "", description = "Time steps per hour", min = 1, max = 60, default = 1, update = nodeupdate)
     restype= bpy.props.EnumProperty(items = [("0", "Zone Thermal", "Thermal Results"), ("1", "Comfort", "Comfort Results"), ("2", "Zone Ventilation", "Zone Ventilation Results"), 
                                              ("3", "Ventilation Link", "Ventilation Link Results"), ("4", "Thermal Chimney", "Thermal Chimney Results")],
@@ -713,6 +716,8 @@ class ViExEnNode(bpy.types.Node, ViNodes):
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
+        sdate = datetime.datetime(2015, 1, 1) + datetime.timedelta(self.sdoy - 1)
+        edate = datetime.datetime(2015, 1, 1) + datetime.timedelta(self.edoy - 1)
         row = layout.row()
         row.label('Animation:')
         row.prop(self, 'animated')
@@ -724,10 +729,8 @@ class ViExEnNode(bpy.types.Node, ViNodes):
         row.label(text = 'Terrain:')
         col = row.column()
         col.prop(self, "terrain")
-        newrow(layout, 'Start month:', self, "startmonth")
-        newrow(layout, 'End month:', self, "endmonth")
-        newrow(layout, 'Start day:', self, "sdoy")
-        newrow(layout, 'End day:', self, "edoy")
+        newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
+        newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
         newrow(layout, 'Time-steps/hour', self, "timesteps")
         row = layout.row()
         row.label(text = 'Results Category:')
@@ -749,6 +752,8 @@ class ViExEnNode(bpy.types.Node, ViNodes):
     def preexport(self, scene):
         (self.fs, self.fe) = (self.fs, self.fe) if self.animated else (scene.frame_current, scene.frame_current)
         scene['enparams']['fs'], scene['enparams']['fe'] = self.fs, self.fe
+        self.sdate = datetime.datetime(2015, 1, 1) + datetime.timedelta(self.sdoy - 1)
+        self.edate = datetime.datetime(2015, 1, 1) + datetime.timedelta(self.edoy - 1)
         
     def postexport(self):
         nodecolour(self, 0)
@@ -990,6 +995,8 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 if 'DOS' in zrl[3]:
                     doss = zrl[4][zrl[3].index('DOS')].split()
                 startday, endday = int(doss[0]), int(doss[-1])
+                startday = datetime.datetime(2015, int(zrl[4][zrl[3].index('Month')].split()[0]), int(zrl[4][zrl[3].index('Day')].split()[0])).timetuple().tm_yday
+                endday = datetime.datetime(2015, int(zrl[4][zrl[3].index('Month')].split()[-1]), int(zrl[4][zrl[3].index('Day')].split()[-1])).timetuple().tm_yday
                 self["_RNA_UI"] = {"Start": {"min":startday, "max":endday}, "End": {"min":startday, "max":endday}}
                 self['Start'], self['End'] = startday, endday
 

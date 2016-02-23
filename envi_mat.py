@@ -231,11 +231,7 @@ def retuval(mat):
                 resists.append(thicks[l]/ctcs[l])
         
     elif mat.envi_con_makeup == '0':
-        if mat.envi_con_type == 'Window':
-            pstcs = [float((em.matdat[psmat][4], em.matdat[psmat][4])[psmat in em.wgas_datd]) for psmat in ec.propdict[mat.envi_con_type][mat.envi_con_list]]
-
-        else:    
-            print([psmat in (em.wgas_datd, em.glass_datd) for psmat in ec.propdict[mat.envi_con_type][mat.envi_con_list]])
-            pstcs = [float(em.matdat[psmat][1]) for psmat in ec.propdict[mat.envi_con_type][mat.envi_con_list]]
+        pi = 4 if mat.envi_con_type == 'Window' else 1
+        pstcs = [float(em.matdat[psmat][pi]) for psmat in ec.propdict[mat.envi_con_type][mat.envi_con_list]]
         resists = [thicks[t]/tc for t, tc in enumerate(pstcs)]
     return 1/sum(resists)

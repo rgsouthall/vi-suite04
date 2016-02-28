@@ -20,7 +20,7 @@
 import bpy, glob, os, inspect, datetime, shutil
 from nodeitems_utils import NodeCategory, NodeItem
 from .vi_func import objvol, socklink, uvsocklink, newrow, epwlatilongi, nodeid, nodeinputs, remlink, rettimes, epentry, sockhide, selobj, cbdmhdr, cbdmmtx
-from .vi_func import hdrsky, nodecolour, epschedwrite, facearea, retelaarea, retrmenus, resnameunits, enresprops, iprop, bprop, eprop, fprop, sunposlivi
+from .vi_func import hdrsky, nodecolour, epschedwrite, facearea, retelaarea, retrmenus, resnameunits, enresprops, iprop, bprop, eprop, fprop, sunposlivi, retdates
 from .livi_export import sunexport, skyexport, hdrexport
 from .envi_mat import retuval
 
@@ -258,11 +258,15 @@ class LiViNode(bpy.types.Node, ViNodes):
     def draw_buttons(self, context, layout):
         newrow(layout, 'Context:', self, 'contextmenu')
         if self.contextmenu == 'Basic':
+            (sdate, edate) = retdates(self.sdoy, self.edoy)
+#            datetime.datetime(2015, 1, 1) + datetime.timedelta(self.sdoy - 1)
+#            edate = datetime.datetime(2015, 1, 1) + datetime.timedelta(self.edoy - 1)
             newrow(layout, "Standard:", self, 'banalysismenu')
             newrow(layout, "Sky type:", self, 'skymenu')
             if self.skymenu in ('0', '1', '2'):
                 newrow(layout, "Start hour:", self, 'shour')
-                newrow(layout, "Start day:", self, 'sdoy')
+#                newrow(layout, "Start day:", self, 'sdoy')
+                newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
                 newrow(layout, "Animation;", self, 'animated')
                 if self.animated:
                     newrow(layout, "Start frame:", self, 'startframe')
@@ -270,7 +274,8 @@ class LiViNode(bpy.types.Node, ViNodes):
                     row.label(text = 'End frame:')
                     row.label(text = '{}'.format(self['endframe']))
                     newrow(layout, "End hour:", self, 'ehour')
-                    newrow(layout, "End day of year:", self, 'edoy')
+                    newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
+#                    newrow(layout, "End day of year:", self, 'edoy')
                     newrow(layout, "Interval (hours):", self, 'interval')
                 newrow(layout, "Turbidity", self, 'turb')
             elif self.skymenu == '4':
@@ -568,19 +573,18 @@ class ViSSNode(bpy.types.Node, ViNodes):
     bl_icon = 'LAMP'
 
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.animmenu, self.startmonth, self.endmonth, self.starthour, self.endhour, self.interval, self.cpoint, self.offset)])
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.animmenu, self.sdoy, self.edoy, self.starthour, self.endhour, self.interval, self.cpoint, self.offset)])
 
     animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis")]
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeupdate)
     starthour = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 24, description = 'Start hour')
     endhour = bpy.props.IntProperty(name = '', default = 24, min = 1, max = 24, description = 'End hour')
-    interval = bpy.props.FloatProperty(name = '', default = 1, min = 0.1, max = 24, description = 'Interval')
-    startmonth = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 12, description = 'Start Month', update = nodeupdate)
-    endmonth = bpy.props.IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month', update = nodeupdate)
+    interval = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 60, description = 'Interval')
+    sdoy = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 365, description = 'Start Day', update = nodeupdate)
+    edoy = bpy.props.IntProperty(name = '', default = 365, min = 1, max = 365, description = 'End Day', update = nodeupdate)
     cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
             name="", description="Specify the calculation point geometry", default="0", update = nodeupdate)
     offset = bpy.props.FloatProperty(name="", description="Calc point offset", min=0.001, max=1, default=0.01, update = nodeupdate)
-#    running = bpy.props.IntProperty(name = '', default = 0, min = 0, max = 100, description = '')
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
@@ -591,27 +595,25 @@ class ViSSNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         if nodeinputs(self):
+            (sdate, edate) = retdates(self.sdoy, self.edoy)
             newrow(layout, 'Animation:', self, "animmenu")
-            newrow(layout, 'Start month:', self, "startmonth")
-            newrow(layout, 'End month:', self, "endmonth")
+            newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
+            newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
             newrow(layout, 'Start hour:', self, "starthour")
             newrow(layout, 'End hour:', self, "endhour")
-            newrow(layout, 'Interval:', self, "interval")
+            newrow(layout, 'Hour steps:', self, "interval")
             newrow(layout, 'Result point:', self, "cpoint")
             newrow(layout, 'Offset:', self, 'offset')
             row = layout.row()
-#            if not self.running:
             row.operator("node.shad", text = 'Calculate').nodeid = self['nodeid']
-#            else:
-#                row.label('{}% Completed'.format(self.running))
 
     def preexport(self):
-#        self['minres'], self['maxres'], self['avres'] = {}, {}, {}
+        (self.sdate, self.edate) = retdates(self.sdoy, self.edoy)
         self['goptions']['offset'] = self.offset
 
     def postexport(self, scene):
         nodecolour(self, 0)
-        self['exportstate'] = [str(x) for x in (self.animmenu, self.startmonth, self.endmonth, self.starthour, self.endhour, self.interval, self.cpoint, self.offset)]
+        self['exportstate'] = [str(x) for x in (self.animmenu, self.sdoy, self.edoy, self.starthour, self.endhour, self.interval, self.cpoint, self.offset)]
         
 
 class ViWRNode(bpy.types.Node, ViNodes):
@@ -622,8 +624,6 @@ class ViWRNode(bpy.types.Node, ViNodes):
 
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.wrtype, self.sdoy, self.edoy)])
-#        if self.sdoy > self.edoy:
-#            self.edoy = self.sdoy
 
     wrtype = bpy.props.EnumProperty(items = [("0", "Hist 1", "Stacked histogram"), ("1", "Hist 2", "Stacked Histogram 2"), ("2", "Cont 1", "Filled contour"), ("3", "Cont 2", "Edged contour"), ("4", "Cont 3", "Lined contour")], name = "", default = '0', update = nodeupdate)
     sdoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeupdate)
@@ -638,8 +638,7 @@ class ViWRNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         if nodeinputs(self) and self.inputs[0].links[0].from_node.loc == '1':
-            sdate = datetime.datetime(2015, 1, 1) + datetime.timedelta(self.sdoy - 1)
-            edate = datetime.datetime(2015, 1, 1) + datetime.timedelta(self.edoy - 1)
+            (sdate, edate) = retdates(self.sdoy, self.edoy)
             newrow(layout, 'Type:', self, "wrtype")
             newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
             newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
@@ -716,8 +715,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
-        sdate = datetime.datetime(2015, 1, 1) + datetime.timedelta(self.sdoy - 1)
-        edate = datetime.datetime(2015, 1, 1) + datetime.timedelta(self.edoy - 1)
+        (sdate, edate) = retdates(self.sdoy, self.edoy)
         row = layout.row()
         row.label('Animation:')
         row.prop(self, 'animated')
@@ -752,8 +750,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
     def preexport(self, scene):
         (self.fs, self.fe) = (self.fs, self.fe) if self.animated else (scene.frame_current, scene.frame_current)
         scene['enparams']['fs'], scene['enparams']['fe'] = self.fs, self.fe
-        self.sdate = datetime.datetime(2015, 1, 1) + datetime.timedelta(self.sdoy - 1)
-        self.edate = datetime.datetime(2015, 1, 1) + datetime.timedelta(self.edoy - 1)
+        (self.sdate, self.edate) = retdates(self.sdoy, self.edoy)
         
     def postexport(self):
         nodecolour(self, 0)

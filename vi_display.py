@@ -18,6 +18,7 @@
 
 
 import bpy, blf, colorsys, bgl, mathutils, bmesh, datetime
+from bpy_extras import view3d_utils
 from math import pi, sin, cos, atan2, log10
 from numpy import sum as nsum
 try:
@@ -141,8 +142,10 @@ def spnumdisplay(disp_op, context, simnode):
             blf.shadow(0, 5,scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])
             bgl.glColor4f(scene.vi_display_rp_fc[0], scene.vi_display_rp_fc[1], scene.vi_display_rp_fc[2], scene.vi_display_rp_fc[3])
             blf.size(0, scene.vi_display_rp_fs, 72)
-            posis = [total_mat*mathutils.Vector(co).to_4d() for co in spob['numpos'].values() if mathutils.Vector.angle(vw, view_location - ob_mat*mathutils.Vector(co)) < pi * 0.5 and not scene.ray_cast(0.95*ob_mat*mathutils.Vector(co), view_location)[0]]
-            hs = [int(t.split('-')[1]) for t in spob['numpos'].keys() if total_mat*mathutils.Vector(spob['numpos'][t]).to_4d() in posis]
+            pvecs = [ob_mat * mathutils.Vector(p[:]) for p in spob['numpos'].values()]
+            pvals = [int(p.split('-')[1]) for p in spob['numpos'].keys()]
+            p2ds = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, p) for p in pvecs]
+            (hs, posis) = map(list, zip(*[[p, p2ds[pi]] for pi, p in enumerate(pvals) if p2ds[pi] and not scene.ray_cast(0.95 * pvecs[pi], view_location)[0]]))           
             draw_index(context, leg, mid_x, mid_y, width, height, posis, hs)
             blf.disable(0, 4)
 
@@ -156,7 +159,7 @@ def spnumdisplay(disp_op, context, simnode):
                 pos = total_mat*mathutils.Vector(sobs[0].location).to_4d()
                 soltime = datetime.datetime.fromordinal(scene.solday)
                 soltime += datetime.timedelta(hours = scene.solhour)
-                draw_time(context, mid_x, mid_y, width, height, pos, soltime.strftime(' %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90-sobs[0].rotation_euler[0]*180/pi, (180, -180)[sobs[0].rotation_euler[2] < -pi] - sobs[0].rotation_euler[2]*180/pi))
+                draw_time(context, mid_x, mid_y, width, height, pos, soltime.strftime('  %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90-sobs[0].rotation_euler[0]*180/pi, (180, -180)[sobs[0].rotation_euler[2] < -pi] - sobs[0].rotation_euler[2]*180/pi))
                 blf.disable(0, 4)
     else:
         return
@@ -184,8 +187,8 @@ def linumdisplay(disp_op, context, simnode):
     bgl.glColor3f = scene.vi_display_rp_fc
     fn = context.scene.frame_current - scene['liparams']['fs']
     mid_x, mid_y, width, height = viewdesc(context)
-    (view_location, view_mat, vw) = retvpvloc(context)      
-
+    (view_location, view_mat, vw) = retvpvloc(context)  
+    
     if scene.vi_display_sel_only == False:
         obd = obreslist
     else:
@@ -202,18 +205,26 @@ def linumdisplay(disp_op, context, simnode):
         bm.normal_update() 
 
         if bm.faces.layers.float.get('res{}'.format(scene.frame_current)): 
-            faces = [f for f in bm.faces if f.select and mathutils.Vector.angle(vw, view_location - f.calc_center_bounds()) < pi * 0.5] if scene.vi_disp_3d else \
-                        [f for f in bm.faces if  mathutils.Vector.angle(vw, view_location - f.calc_center_bounds()) < pi * 0.5]
-            faces = [f for f in faces if not scene.ray_cast(f.calc_center_median() + scene.vi_display_rp_off * f.normal, view_location)[0]] if scene.vi_display_vis_only else faces
             livires = bm.faces.layers.float['res{}'.format(scene.frame_current)]
-            pcs = [view_mat*f.calc_center_bounds().to_4d() for f in faces]              
+            faces = [f for f in bm.faces if f.select] if scene.vi_disp_3d else bm.faces
+#                        [f for f in bm.faces]
+                        
+            if scene.vi_display_vis_only:
+                faces = [f for f in faces if not scene.ray_cast(view_location, f.calc_center_bounds() + scene.vi_display_rp_off * f.normal)[0]]
+
+            face2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, f.calc_center_bounds()) for f in faces]
+            (faces, pcs) = map(list, zip(*[[f, face2d[fi]] for fi, f in enumerate(faces) if face2d[fi] and 0 < face2d[fi][0] < width and 0 < face2d[fi][1] < height]))          
             res = [f[livires] for f in faces]
         
         elif bm.verts.layers.float.get('res{}'.format(scene.frame_current)):            
             livires = bm.verts.layers.float['res{}'.format(scene.frame_current)]                         
             verts = [v for v in bm.verts if not v.hide and v.select and mathutils.Vector.angle(vw, view_location - v.co) < pi * 0.5]
-            verts = [v for v in verts if not scene.ray_cast(v.co + scene.vi_display_rp_off * v.normal, view_location)[0]] if scene.vi_display_vis_only else verts 
-            pcs = [view_mat*v.co.to_4d() for v in verts] 
+            
+            if scene.vi_display_vis_only:
+                verts = [v for v in verts if not scene.ray_cast(v.co + scene.vi_display_rp_off * v.normal, view_location)[0]]
+                
+            vert2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, v.co) for v in verts]
+            (verts, pcs) = map(list, zip(*[[v, vert2d[vi]] for vi, v in enumerate(verts) if 0 < vert2d[vi][0] < width and 0 < vert2d[vi][1] < height]))
             res = [v[livires] for v in verts]
         draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, pcs, res)
 

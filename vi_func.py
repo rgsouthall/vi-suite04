@@ -776,7 +776,8 @@ def retvpvloc(context):
 
     if context.space_data.region_3d.is_perspective:
         vw = mathutils.Vector((-view_mat[3][0], -view_mat[3][1], -view_mat[3][2])).normalized()
-        view_location = view_pivot + (vw * bpy.context.region_data.view_distance)    
+#        view_location = view_pivot + (vw * bpy.context.region_data.view_distance)  
+        view_location = context.space_data.region_3d.view_matrix.inverted().translation
     else:
         vw =  mathutils.Vector((0.0, 0.0, 1.0))
         vw.rotate(bpy.context.region_data.view_rotation)
@@ -1142,7 +1143,6 @@ def objmode():
         bpy.ops.object.mode_set(mode = 'OBJECT')
 
 def objoin(obs):
-    print(obs)
     bpy.ops.object.select_all(action='DESELECT')
     for o in obs:
         o.select = True
@@ -1762,12 +1762,13 @@ def spathrange(mats):
     bpy.context.scene.objects.active = spro
     spro.location = (0, 0, 0)
     bm = bmesh.new()
+    
     for params in ((177, 0.05, 0), (80, 0.1, 1), (355, 0.15, 2)):
         bpy.ops.object.material_slot_add()
         spro.material_slots[-1].material = mats[params[2]]
         morn = solarRiseSet(params[0], 0, bpy.context.scene.latitude, bpy.context.scene.longitude, 'morn')
         eve = solarRiseSet(params[0], 0, bpy.context.scene.latitude, bpy.context.scene.longitude, 'eve')
-        angrange = [morn + a * 0.025 * (eve - morn) for a in range (0, 41)]
+        angrange = [morn + a * 0.0125 * (eve - morn) for a in range (0, 81)]
         bm.verts.new().co = (95*sin(angrange[0]*pi/180), 95*cos(angrange[0]*pi/180), params[1])
     
         for a in angrange[1:-1]:
@@ -1777,7 +1778,7 @@ def spathrange(mats):
         for b in angrange[1:-1]:
             bm.verts.new().co = (98*sin(b*pi/180), 98*cos(b*pi/180), params[1])
 
-        bm.faces.new(bm.verts[-80:])
+        bm.faces.new(bm.verts[-160:])
         bm.faces.ensure_lookup_table()
         bm.faces[-1].material_index = params[2]
     bm.to_mesh(sprme)
@@ -1984,11 +1985,9 @@ def selmesh(sel):
     bpy.ops.object.mode_set(mode = 'OBJECT')
 
 def draw_index(context, leg, mid_x, mid_y, width, height, posis, res):
-    vecs = [mathutils.Vector((vec[0] / vec[3], vec[1] / vec[3], vec[2] / vec[3])) for vec in posis]
-    bds = [blf.dimensions(0, ('{:.1f}', '{:.0f}')[r > 100 or context.scene['viparams']['resnode'] == 'VI Sun Path'].format(r)) for r in res]
-    xs = [int(mid_x + vec[0] * mid_x) for vec in vecs]
-    ys = [int(mid_y + vec[1] * mid_y) for vec in vecs]
-    [(blf.position(0, xs[ri] - int(0.5*bds[ri][0]), ys[ri] - int(0.5 * bds[ri][1]), 0), blf.draw(0, ('{:.1f}', '{:.0f}')[r > 100 or context.scene['viparams']['resnode'] == 'VI Sun Path'].format(r))) for ri, r in enumerate(res) if (leg == 1 and (xs[ri] > 120 or ys[ri] < height - 530)) or leg == 0]
+    nres = [('{:.1f}', '{:.0f}')[r > 100 or context.scene['viparams']['resnode'] == 'VI Sun Path'].format(r) for ri, r in enumerate(res)]
+    bds = [blf.dimensions(0, nr) for nr in nres]
+    [(blf.position(0, posis[ri][0] - int(0.5*bds[ri][0]), posis[ri][1] - int(0.5 * bds[ri][1]), 0), blf.draw(0, nr)) for ri, nr in enumerate(nres) if (leg == 1 and (posis[ri][0] > 120 or posis[ri][1] < height - 530)) or leg == 0]
 
 def draw_time(context, mid_x, mid_y, width, height, pos, time):
     vec = mathutils.Vector((pos[0] / pos[3], pos[1] / pos[3], pos[2] / pos[3]))
@@ -2194,6 +2193,12 @@ def rettimes(ts, fs, us):
             for ut, utime in enumerate(ufor.split(',')):
                 ustrings[t][uf].append(['Until: '+','.join([u.strip() for u in utime.split(' ') if u.strip(' ')])])
     return(tstrings, fstrings, ustrings)
+
+def retdates(sdoy, edoy):
+    (y1, y2) = (2015, 2015) if edoy >= sdoy else (2014, 2015)
+    sdate = datetime.datetime(y1, 1, 1) + datetime.timedelta(sdoy - 1)
+    edate = datetime.datetime(y2, 1, 1) + datetime.timedelta(edoy - 1)
+    return(sdate, edate)
     
 def epschedwrite(name, stype, ts, fs, us):
     params = ['Name', 'Schedule Type Limits Name']

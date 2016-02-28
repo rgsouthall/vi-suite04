@@ -1069,11 +1069,12 @@ class NODE_OT_SunPath(bpy.types.Operator):
         for doy in (79, 172, 355):
             for hour in range(1, 241):
                 ([solalt, solazi]) = solarPosition(doy, hour*0.1, scene.latitude, scene.longitude)[2:]
-                bm.verts.new().co = [-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
+                vcoord = [-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
+                bm.verts.new().co = vcoord
                 if hasattr(bm.verts, "ensure_lookup_table"):
                     bm.verts.ensure_lookup_table()
                 if bm.verts[-1].co.z >= 0 and doy in (172, 355) and not hour%10:
-                    numpos['{}-{}'.format(doy, int(hour*0.1))] = bm.verts[-1].co[:]
+                    numpos['{}-{}'.format(doy, int(hour*0.1))] = vcoord
                 if hour != 1:
                     bm.edges.new((bm.verts[-2], bm.verts[-1]))
                     solringnum += 1
@@ -1091,12 +1092,12 @@ class NODE_OT_SunPath(bpy.types.Operator):
         
         bpy.ops.object.material_slot_add()
         spathob.material_slots[0].material, spathob['numpos'] = bpy.data.materials['HourRings'], numpos
+        print(numpos)
         bpy.ops.object.material_slot_add()
         spathob.material_slots[1].material = bpy.data.materials['PathDash']
         for face in spathob.data.polygons:
             face.material_index = 0 if not int(face.index/16)%2 else 1
                 
-
         for vert in spathob.data.vertices[0:16 * (solringnum + 3)]:
             vert.select = True
 
@@ -1112,7 +1113,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         bpy.ops.object.select_all(action='DESELECT')
         compassos = compass((0,0,0.01), sd, spathob, bpy.data.materials['SPBase'])
         spro = spathrange([bpy.data.materials['SumAng'], bpy.data.materials['EquAng'], bpy.data.materials['WinAng']])
-        objoin(compassos + [spro] + [spathob])
+        objoin([compassos] + [spro] + [spathob])
 
         for ob in (spathob, sunob, smesh):
             ob.cycles_visibility.diffuse, ob.cycles_visibility.shadow, ob.cycles_visibility.glossy, ob.cycles_visibility.transmission, ob.cycles_visibility.scatter = [False] * 5
@@ -1303,10 +1304,11 @@ class NODE_OT_Shadow(bpy.types.Operator):
             (scmaxres, scminres, scavres) = [[x] * (scene.frame_end - scene.frame_start + 1) for x in (0, 100, 0)]
         
         frange = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
-        time = datetime.datetime(2015, simnode.startmonth, 1, simnode.starthour - 1)
-        y =  2015 if simnode.endmonth >= simnode.startmonth else 2015 + 1
-        endtime = datetime.datetime(y, simnode.endmonth, (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)[simnode.endmonth - 1], simnode.endhour - 1)
-        interval = datetime.timedelta(hours = modf(simnode.interval)[0], minutes = 60 * modf(simnode.interval)[1])
+        time = datetime.datetime(2014, simnode.sdate.month, simnode.sdate.day, simnode.starthour - 1)
+        y =  2014 if simnode.edoy >= simnode.sdoy else 2014 + 1
+#        endtime = datetime.datetime(y, simnode.endmonth, (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)[simnode.endmonth - 1], simnode.endhour - 1)
+        endtime = datetime.datetime(y, simnode.edate.month, simnode.edate.day, simnode.endhour - 1)
+        interval = datetime.timedelta(hours = 1/simnode.interval)
         times = [time + interval*t for t in range(int((endtime - time)/interval)) if simnode.starthour <= (time + interval*t).hour <= simnode.endhour]
         sps = [solarPosition(t.timetuple().tm_yday, t.hour+t.minute/60, scene.latitude, scene.longitude)[2:] for t in times]
         direcs = [mathutils.Vector((-sin(sp[1]), -cos(sp[1]), tan(sp[0]))) for sp in sps if sp[0] > 0]

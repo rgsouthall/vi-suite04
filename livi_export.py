@@ -226,8 +226,8 @@ def cyfc1(self):
                     for emnode in [emnode for emnode in ob.data.node_tree.nodes if emnode.bl_label == 'Emission']:
                         emnode.inputs[1].default_value = 10 * sin(beta)
 
-            elif ob.get('VIType') == 'SPathMesh':
-                ob.scale = 3 * [scene.soldistance/100]
+#            elif ob.get('VIType') == 'SPathMesh':
+#                ob.scale = 3 * [scene.soldistance/100]
 
             elif ob.get('VIType') == 'SkyMesh':
                 ont = ob.data.materials['SkyMesh'].node_tree
@@ -235,10 +235,10 @@ def cyfc1(self):
                     ont.nodes['Sky Texture'].sun_direction = sin(phi), -cos(phi), sin(beta)
 
             elif ob.get('VIType') == 'SunMesh':
-                ob.scale = 3*[scene.soldistance/100]
-                ob.location.z = spoblist['Sun'].location.z = spoblist['SPathMesh'].location.z + scene.soldistance * sin(beta)
-                ob.location.x = spoblist['Sun'].location.x = spoblist['SPathMesh'].location.x -(scene.soldistance**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5  * sin(phi)
-                ob.location.y = spoblist['Sun'].location.y = spoblist['SPathMesh'].location.y -(scene.soldistance**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5 * cos(phi)
+#                ob.scale = 3*[scene.soldistance/100]
+                ob.location.z = spoblist['Sun'].location.z = spoblist['SPathMesh'].location.z + 100 * sin(beta)
+                ob.location.x = spoblist['Sun'].location.x = spoblist['SPathMesh'].location.x -(100**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5 * sin(phi)
+                ob.location.y = spoblist['Sun'].location.y = spoblist['SPathMesh'].location.y -(100**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5 * cos(phi)
                 if ob.data.materials[0].node_tree:
                     for smblnode in [smblnode for smblnode in ob.data.materials[0].node_tree.nodes if ob.data.materials and smblnode.bl_label == 'Blackbody']:
                         smblnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5

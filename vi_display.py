@@ -19,7 +19,7 @@
 
 import bpy, blf, colorsys, bgl, mathutils, bmesh, datetime
 from bpy_extras import view3d_utils
-from math import pi, sin, cos, atan2, log10
+from math import pi, sin, cos, atan2, log10, ceil
 from numpy import sum as nsum
 try:
     import matplotlib
@@ -28,7 +28,7 @@ except:
     mp = 0
 
 from . import livi_export
-from .vi_func import cmap, skframe, selobj, retvpvloc, framerange, viewdesc, drawloop, drawpoly, draw_index, drawfont, skfpos, objmode, drawcircle, drawtri, setscenelivivals, draw_time
+from .vi_func import cmap, skframe, selobj, retvpvloc, viewdesc, drawloop, drawpoly, draw_index, drawfont, retdp, objmode, drawcircle, drawtri, setscenelivivals, draw_time
 
 nh = 768
 
@@ -49,8 +49,8 @@ def li_display(simnode):
 
     bpy.ops.object.select_all(action = 'DESELECT')
 
-    if not bpy.app.handlers.frame_change_pre:
-        bpy.app.handlers.frame_change_pre.append(livi_export.cyfc1)
+    if not bpy.app.handlers.frame_change_post:
+        bpy.app.handlers.frame_change_post.append(livi_export.cyfc1)
         
     for o in scene.objects:
         if o.type == "MESH" and o.get('licalc') and o.hide == False:
@@ -197,49 +197,52 @@ def linumdisplay(disp_op, context, simnode):
     for ob in obd:
         if ob.data.shape_keys and str(fn) in [sk.name for sk in ob.data.shape_keys.key_blocks] and ob.active_shape_key.name != str(fn):
             ob.active_shape_key_index = [sk.name for sk in ob.data.shape_keys.key_blocks].index(str(fn))
-
-        omw = ob.matrix_world
-        bm = bmesh.new()
-        bm.from_object(ob, scene, deform = True)
-        bm.transform(omw)
-        bm.normal_update() 
-
-        if bm.faces.layers.float.get('res{}'.format(scene.frame_current)): 
-            livires = bm.faces.layers.float['res{}'.format(scene.frame_current)]
-            faces = [f for f in bm.faces if f.select] if scene.vi_disp_3d else bm.faces
-#                        [f for f in bm.faces]
-                        
-            if scene.vi_display_vis_only:
-                faces = [f for f in faces if not scene.ray_cast(view_location, f.calc_center_bounds() + scene.vi_display_rp_off * f.normal)[0]]
-
-            face2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, f.calc_center_bounds()) for f in faces]
-            (faces, pcs) = map(list, zip(*[[f, face2d[fi]] for fi, f in enumerate(faces) if face2d[fi] and 0 < face2d[fi][0] < width and 0 < face2d[fi][1] < height]))          
-            res = [f[livires] for f in faces]
-        
-        elif bm.verts.layers.float.get('res{}'.format(scene.frame_current)):            
-            livires = bm.verts.layers.float['res{}'.format(scene.frame_current)]                         
-            verts = [v for v in bm.verts if not v.hide and v.select and mathutils.Vector.angle(vw, view_location - v.co) < pi * 0.5]
+        try:
+            omw = ob.matrix_world
+            bm = bmesh.new()
+            bm.from_object(ob, scene, deform = True)
+            bm.transform(omw)
+            bm.normal_update() 
+    
+            if bm.faces.layers.float.get('res{}'.format(scene.frame_current)): 
+                livires = bm.faces.layers.float['res{}'.format(scene.frame_current)]
+                faces = [f for f in bm.faces if f.select] if scene.vi_disp_3d else bm.faces
+                            
+                if scene.vi_display_vis_only:
+                    faces = [f for f in faces if not scene.ray_cast(view_location, f.calc_center_bounds() + scene.vi_display_rp_off * f.normal)[0]]
+    
+                face2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, f.calc_center_bounds()) for f in faces]
+                (faces, pcs) = map(list, zip(*[[f, face2d[fi]] for fi, f in enumerate(faces) if face2d[fi] and 0 < face2d[fi][0] < width and 0 < face2d[fi][1] < height]))          
+                res = [f[livires] for f in faces]
             
-            if scene.vi_display_vis_only:
-                verts = [v for v in verts if not scene.ray_cast(v.co + scene.vi_display_rp_off * v.normal, view_location)[0]]
+            elif bm.verts.layers.float.get('res{}'.format(scene.frame_current)):            
+                livires = bm.verts.layers.float['res{}'.format(scene.frame_current)]                         
+                verts = [v for v in bm.verts if not v.hide and v.select and mathutils.Vector.angle(vw, view_location - v.co) < pi * 0.5]
                 
-            vert2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, v.co) for v in verts]
-            (verts, pcs) = map(list, zip(*[[v, vert2d[vi]] for vi, v in enumerate(verts) if 0 < vert2d[vi][0] < width and 0 < vert2d[vi][1] < height]))
-            res = [v[livires] for v in verts]
-        draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, pcs, res)
-
-        bm.free()
+                if scene.vi_display_vis_only:
+                    verts = [v for v in verts if not scene.ray_cast(v.co + scene.vi_display_rp_off * v.normal, view_location)[0]]
+                    
+                vert2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, v.co) for v in verts]
+                (verts, pcs) = map(list, zip(*[[v, vert2d[vi]] for vi, v in enumerate(verts) if vert2d[vi] and 0 < vert2d[vi][0] < width and 0 < vert2d[vi][1] < height]))
+                res = [v[livires] for v in verts]
+            draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, pcs, res)
+    
+            bm.free()
+        except:
+            pass
     blf.disable(0, 4)
 
 def li3D_legend(self, context, simnode):
     scene = context.scene
     fc = str(scene.frame_current)
+    dplaces = retdp(context, scene.vi_leg_max)
+
     try:
         if scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or not scene.vi_leg_display  or not any([o.lires for o in scene.objects]):
             return
         else:
-            resvals = [('{:.1f}', '{:.0f}')[scene.vi_leg_max >= 100].format(scene.vi_leg_min + i*(scene.vi_leg_max - scene.vi_leg_min)/19) for i in range(20)] if scene.vi_leg_scale == '0' else \
-                        [('{:.1f}', '{:.0f}')[scene.vi_leg_max >= 100].format(scene.vi_leg_min + (1 -log10(i)/log10(20))*(scene.vi_leg_max - scene.vi_leg_min)) for i in range(1, 21)[::-1]]
+            resvals = [format(scene.vi_leg_min + i*(scene.vi_leg_max - scene.vi_leg_min)/19, '.{}f'.format(dplaces)) for i in range(20)] if scene.vi_leg_scale == '0' else \
+                        [format(scene.vi_leg_min + (1 -log10(i)/log10(20))*(scene.vi_leg_max - scene.vi_leg_min), '.{}f'.format(dplaces)) for i in range(1, 21)[::-1]]
             height = context.region.height
             lenres = len(resvals[-1])
             font_id = 0
@@ -275,13 +278,13 @@ def li3D_legend(self, context, simnode):
             blf.size(font_id, 20, 48)
             
             if context.active_object and context.active_object.get('lires'):
-                drawfont("Ave: {:.1f}".format(context.active_object['oave'][fc]), font_id, 0, height, 22, 480)
-                drawfont("Max: {:.1f}".format(context.active_object['omax'][fc]), font_id, 0, height, 22, 495)
-                drawfont("Min: {:.1f}".format(context.active_object['omin'][fc]), font_id, 0, height, 22, 510)
+                drawfont("Ave: {}".format(format(context.active_object['oave'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 480)
+                drawfont("Max: {}".format(format(context.active_object['omax'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 495)
+                drawfont("Min: {}".format(format(context.active_object['omin'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 510)
             else:
-                drawfont("Ave: {:.1f}".format(scene['liparams']['avres'][fc]), font_id, 0, height, 22, 480)
-                drawfont("Max: {:.1f}".format(scene['liparams']['maxres'][fc]), font_id, 0, height, 22, 495)
-                drawfont("Min: {:.1f}".format(scene['liparams']['minres'][fc]), font_id, 0, height, 22, 510)
+                drawfont("Ave: {}".format(format(scene['liparams']['avres'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 480)
+                drawfont("Max: {}".format(format(scene['liparams']['maxres'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 495)
+                drawfont("Min: {}".format(format(scene['liparams']['minres'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 510)
         blf.disable(0, 4)
     
     except Exception as e:
@@ -725,8 +728,9 @@ def li_compliance(self, context, simnode):
 
         tpf = 'FAIL' if 'FAIL' in pfs or 'FAIL*' in pfs else 'PASS'
         if simnode['coptions']['canalysis'] == '0': 
-            lencrit = lencrit + len(o['ecrit']) if bpy.context.active_object in os else 0
             tpf = 'EXEMPLARY' if tpf == 'PASS' and ('FAIL' not in epfs and 'FAIL*' not in epfs) else tpf
+            erows = len(etables) if  tpf == 'EXEMPLARY' else 0
+            lencrit = lencrit + erows if bpy.context.active_object in os else 0
 
         return(tpf, lencrit, buildspace, etables)
 

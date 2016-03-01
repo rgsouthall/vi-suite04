@@ -34,7 +34,7 @@ except Exception as e:
     print('Matplotlib problem:', e)    
     mp = 0
 
-from .livi_export import radgexport, cyfc1, createoconv, createradfile, genbsdf
+from .livi_export import radgexport, spfc, createoconv, createradfile, genbsdf
 from .livi_calc  import li_calc
 from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend, en_air, en_panel, en_temp_panel
 from .envi_export import enpolymatexport, pregeo
@@ -1092,7 +1092,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
         
         bpy.ops.object.material_slot_add()
         spathob.material_slots[0].material, spathob['numpos'] = bpy.data.materials['HourRings'], numpos
-        print(numpos)
         bpy.ops.object.material_slot_add()
         spathob.material_slots[1].material = bpy.data.materials['PathDash']
         for face in spathob.data.polygons:
@@ -1119,8 +1118,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
             ob.cycles_visibility.diffuse, ob.cycles_visibility.shadow, ob.cycles_visibility.glossy, ob.cycles_visibility.transmission, ob.cycles_visibility.scatter = [False] * 5
             ob.show_transparent = True
 
-        if cyfc1 not in bpy.app.handlers.frame_change_pre:
-            bpy.app.handlers.frame_change_pre.append(cyfc1)
+        if spfc not in bpy.app.handlers.frame_change_post:
+            bpy.app.handlers.frame_change_post.append(spfc)
         bpy.ops.view3d.spnumdisplay('INVOKE_DEFAULT')
         return {'FINISHED'}
 

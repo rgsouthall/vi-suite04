@@ -21,7 +21,7 @@ from collections import OrderedDict
 from subprocess import Popen, PIPE, STDOUT
 from numpy import array, digitize, amax, amin, average, zeros, inner
 from numpy import sum as nsum
-from math import sin, cos, asin, acos, pi, isnan, tan
+from math import sin, cos, asin, acos, pi, isnan, tan, ceil, log10
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
@@ -195,14 +195,19 @@ def setscenelivivals(scene):
     if scene['viparams']['visimcontext'] == 'LiVi Basic':
         udict = {'0': 'Lux', '1': "W/m"+ u'\u00b2', '2': 'DF (%)'}
         scene['liparams']['unit'] = udict[scene.li_disp_basic]
-    if scene['viparams']['visimcontext'] == 'LiVi CBDM' and 'UDI' in scene['liparams']['unit']:
-        udict = {'0': 'UDI-f (%)', '1': 'UDI-s (%)', '2': 'UDI-a (%)', '3': 'UDI-e (%)'}
-        scene['liparams']['unit'] = udict[scene.li_disp_udi]
+    if scene['viparams']['visimcontext'] == 'LiVi CBDM':
+        if 'UDI' in scene['liparams']['unit']:
+            udict = {'0': 'UDI-f (%)', '1': 'UDI-s (%)', '2': 'UDI-a (%)', '3': 'UDI-e (%)'}
+            scene['liparams']['unit'] = udict[scene.li_disp_udi]
+        if 'sDA' in scene['liparams']['unit'] or 'ASE' in scene['liparams']['unit']:
+            udict = {'0': 'sDA (%)', '1': 'ASE (hrs)'}
+            scene['liparams']['unit'] = udict[scene.li_disp_sda]
     if scene['viparams']['visimcontext'] == 'LiVi Compliance':        
         udict = {'0': 'DF (%)', '1': 'Sky View'}
         scene['liparams']['unit'] = udict[scene.li_disp_sv]
     olist = [scene.objects[on] for on in scene['liparams']['shadc']] if scene['viparams']['visimcontext'] == 'Shadow' else [scene.objects[on] for on in scene['liparams']['livic']]
-    unitdict = {'Lux': 'illu', "W/m"+ u'\u00b2': 'irrad', 'DF (%)': 'df', 'Sky View': 'sv', 'kLuxHours': 'res', u'kWh/m\u00b2': 'res', 'DA (%)': 'da', 'UDI-f (%)': 'low', 'UDI-s (%)': 'sup', 'UDI-a (%)': 'auto', 'UDI-e (%)': 'high', '% Sunlit': 'res'}
+    unitdict = {'Lux': 'illu', "W/m"+ u'\u00b2': 'irrad', 'DF (%)': 'df', 'Sky View': 'sv', 'Mlxh': 'res', u'kWh/m\u00b2': 'res', 
+                'DA (%)': 'da', 'UDI-f (%)': 'low', 'UDI-s (%)': 'sup', 'UDI-a (%)': 'auto', 'UDI-e (%)': 'high', '% Sunlit': 'res', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase'}
     for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
         scene['liparams']['maxres'][str(frame)] = max([o['omax']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])
         scene['liparams']['minres'][str(frame)] = min([o['omin']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])
@@ -381,8 +386,8 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, tpoin
         rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=STDOUT).communicate(input = self["rtpoints"][str(rtframe)].encode('utf-8'))
     
         reslines = [[float(rv) for rv in r.split('\t')[:3]] for r in rtrun[0].decode().splitlines()] 
-        if scene['liparams']['unit'] == 'kLuxHours':
-            resvals = [(47.4*r[0]+120*r[1]+11.6*r[2]) * 0.001 for r in reslines]
+        if scene['liparams']['unit'] == 'Mlxh':
+            resvals = [(47.4*r[0]+120*r[1]+11.6*r[2]) * 0.000001 for r in reslines]
         elif scene['liparams']['unit'] == u'kWh/m\u00b2':
             resvals = [(0.26 * r[0] + 0.67 * r[1] + 0.065 * r[2]) * 0.001 for r in reslines]
         self['omax']['res{}'.format(frame)] = max(resvals)
@@ -403,13 +408,13 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, tpoin
         reslists.append([str(frame), 'Lighting', self.name, scene['liparams']['unit'], ' '.join([str(g[res]) for g in geom if g[cindex] > 0])])
         print('Radiance simulation {:.0f}% complete'.format((oi + (f+1)/fnum)/onum * 100))
     
-    bm.transform(self.matrix_world.inverted())
+#    bm.transform(self.matrix_world.inverted())
     bm.to_mesh(self.data)
     bm.free()
     
 def lividisplay(self, scene): 
     unitdict = {'Lux': 'illu', u'W/m\u00b2': 'irrad', 'DF (%)': 'df', 'DA (%)': 'res', 'UDI-f (%)': 'low', 'UDI-s (%)': 'sup', 'UDI-a (%)': 'auto', 'UDI-e (%)': 'high',
-                'Sky View': 'sv', 'kLuxHours': 'res', u'kWh/m\u00b2': 'res', '% Sunlit': 'res'}
+                'Sky View': 'sv', 'Mlxh': 'res', u'kWh/m\u00b2': 'res', '% Sunlit': 'res', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase'}
     frames = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
     if len(frames) > 1:
         if not self.data.animation_data:
@@ -506,8 +511,16 @@ def retcrits(simnode, matname):
     elif simnode['coptions']['canalysis'] == '1':
         crit = [['Average', 100, 'DF', 2, '1'], ['Percent', 80, 'Skyview', 1, '0.75']] if mat.crspacemenu == '0' else [['Average', 100, 'DF', 1.5, '1'], ['Percent', 80, 'Skyview', 1, '0.75']]
         ecrit = []
+    
     elif simnode['coptions']['canalysis'] == '2':
-        crit = [['Percent', 75, 'FC', 108, '1'], ['Percent', 75, 'FC', 5400, '1'], ['Percent', 90, 'FC', 108, '1'], ['Percent', 90, 'FC', 5400, '1']]
+        if mat.lespacemenu == '0':
+            crit = [['Percent', 55, 'SDA', 300, '2'], ['Percent', 75, 'SDA', 300, '3']]
+        else:
+            crit = [['Percent', 75, 'SDA', 300, '1'], ['Percent', 90, 'SDA', 300, '2']]
+            
+        crit.append(['Percent', 10, 'ASE', 1000, '1'])
+            
+#        crit = [['Percent', 75, 'FC', 108, '1'], ['Percent', 75, 'FC', 5400, '1'], ['Percent', 90, 'FC', 108, '1'], ['Percent', 90, 'FC', 5400, '1']]
         ecrit = []
         
     return [[c[0], str(c[1]), c[2], str(c[3]), c[4]] for c in crit[:]], [[c[0], str(c[1]), c[2], str(c[3]), c[4]] for c in ecrit[:]]
@@ -585,7 +598,7 @@ def compcalcapply(self, scene, frames, rtcmds, simnode):
                     comps[str(frame)].append((0, 1)[passarea >= float(c[1])*oarea/100])
                     comps[str(frame)].append(100*passarea/oarea)
                     passarea = 0
-    
+                
             elif c[0] == 'Min':
                 comps[str(frame)].append((0, 1)[min(resdf) > float(c[3])])
                 comps[str(frame)].append(min(resdf))
@@ -686,8 +699,8 @@ def udidacalcapply(self, scene, frames, rccmds, simnode):
         del self['wattres']
     wattarray = array((0.265, 0.67, 0.065))
     illuarray = 179 * wattarray                              
-    vecvals, vals = mtx2vals(open(simnode.inputs['Context in'].links[0].from_socket['Options']['mtxfile'], 'r').readlines(), datetime.datetime(2010, 1, 1).weekday(), '')
-    if simnode['coptions']['unit'] in ('DA (%)', 'UDI-a (%)'):
+    vecvals, vals = mtx2vals(open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfile'], 'r').readlines(), datetime.datetime(2010, 1, 1).weekday(), '')
+    if simnode['coptions']['unit'] in ('DA (%)', 'UDI-a (%)', 'SDA(%) & ASE(hrs)'):
         vecvals = array([vv[2:] for vv in vecvals if simnode['coptions']['cbdm_sh'] <= vv[0] < simnode['coptions']['cbdm_eh'] and vv[1] < simnode['coptions']['weekdays']])
     elif simnode['coptions']['unit'] == 'kW':
         vecvals = array([vv[2:] for vv in vecvals])
@@ -708,7 +721,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode):
             reslist = [float(ld) for ld in line.split() if ld not in ('\n', '\r\n')]
             resarray = array(reslist).reshape(146,3)
     
-            if simnode['coptions']['unit'] in ('DA (%)', 'UDI-a (%)'):
+            if simnode['coptions']['unit'] in ('DA (%)', 'UDI-a (%)', 'SDA(%) & ASE(hrs)'):
                 sensarray[li] = nsum(resarray*illuarray, axis = 1)
             elif simnode['coptions']['unit'] == 'kW':
                 sensarray[li] = nsum(resarray*wattarray, axis = 1)
@@ -719,6 +732,27 @@ def udidacalcapply(self, scene, frames, rccmds, simnode):
             bpy.ops.object.mode_set()              
         bpy.ops.object.select_all(action = 'DESELECT')
         scene.objects.active = None
+        
+        if simnode['coptions']['unit'] == 'SDA(%) & ASE(hrs)':
+            sdares = [nsum([i >= simnode['coptions']['dalux'] for i in f])*100/hours for f in finalillu]
+            aseres = [nsum([i >= simnode['coptions']['daauto'] for i in f])*1.0 for f in finalillu]
+
+            self['omax']['sda{}'.format(frame)] = max(sdares)
+            self['omin']['sda{}'.format(frame)] = min(sdares)
+            self['oave']['sda{}'.format(frame)] = sum(sdares)/len(sdares)
+            self['omax']['ase{}'.format(frame)] = max(aseres)
+            self['omin']['ase{}'.format(frame)] = min(aseres)
+            self['oave']['ase{}'.format(frame)] = sum(aseres)/len(aseres)
+            geom.layers.float.new('sda{}'.format(frame))
+            geom.layers.float.new('ase{}'.format(frame))
+            geom.layers.float.new('res{}'.format(frame))
+            ressda = geom.layers.float['sda{}'.format(frame)]
+            resase = geom.layers.float['ase{}'.format(frame)]
+            res = geom.layers.float['res{}'.format(frame)]
+            for g in [g for g in geom if g[cindex] > 0]:
+                g[ressda] = sdares[g[cindex] - 1]
+                g[resase] = aseres[g[cindex] - 1]
+                g[res] = g[ressda]
             
         if simnode['coptions']['unit'] == 'DA (%)':
             res = [nsum([i >= simnode['coptions']['dalux'] for i in f])*100/hours for f in finalillu]
@@ -1983,9 +2017,14 @@ def selmesh(sel):
             bpy.ops.mesh.select_all(action=sel)    
         bpy.ops.object.vertex_group_assign()
     bpy.ops.object.mode_set(mode = 'OBJECT')
+    
+def retdp(context, mres):
+    dplaces = 0 if ceil(log10(100/mres)) < 0 or context.scene['viparams']['resnode'] == 'VI Sun Path' else ceil(log10(100/mres))
+    return dplaces
 
 def draw_index(context, leg, mid_x, mid_y, width, height, posis, res):
-    nres = [('{:.1f}', '{:.0f}')[r > 100 or context.scene['viparams']['resnode'] == 'VI Sun Path'].format(r) for ri, r in enumerate(res)]
+#    dplaces = 0 if ceil(log10(100/max(res))) < 0 or context.scene['viparams']['resnode'] == 'VI Sun Path' else ceil(log10(100/max(res)))
+    nres = ['{}'.format(format(r, '.{}f'.format(retdp(context, max(res))))) for ri, r in enumerate(res)]
     bds = [blf.dimensions(0, nr) for nr in nres]
     [(blf.position(0, posis[ri][0] - int(0.5*bds[ri][0]), posis[ri][1] - int(0.5 * bds[ri][1]), 0), blf.draw(0, nr)) for ri, nr in enumerate(nres) if (leg == 1 and (posis[ri][0] > 120 or posis[ri][1] < height - 530)) or leg == 0]
 

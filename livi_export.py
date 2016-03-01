@@ -105,8 +105,6 @@ def radgexport(export_op, node, **kwargs):
                 if o.bsdf_proxy or not o['bsdf'] or not o.vi_type == '5':
                     gradfile += radpoints(o, [face for face in bm.faces if o.data.materials and face.material_index < len(o.data.materials) and o.data.materials[face.material_index].radmatmenu != '8'], 0)
 
-                        
-                        
                 if o.get('merr'):
                     del o['merr']
                        
@@ -198,16 +196,14 @@ def createoconv(scene, frame, export_op, simnode, **kwargs):
     with open("{}.oct".format(fbase), "w") as octfile:
         Popen("oconv -w -".split(), stdin = PIPE, stdout = octfile).communicate(input = simnode['radfiles'][str(frame)].encode('utf-8'))
 
-def cyfc1(self):
+def spfc(self):
     scene = bpy.context.scene
-    if 'LiVi' in scene['viparams']['resnode'] or 'Shadow' in scene['viparams']['resnode']:
-        for material in [m for m in bpy.data.materials if m.use_nodes and m.mattype in ('1', '2')]:
-            try:
-                if any([node.bl_label == 'Attribute' for node in material.node_tree.nodes]):
-                    material.node_tree.nodes["Attribute"].attribute_name = str(scene.frame_current)
-            except Exception as e:
-                print(e, 'Something wrong with changing the material attribute name')
-
+    if not scene['viparams'].get('newframe'):
+        scene['viparams']['newframe'] = 1
+    else:
+        scene['viparams']['newframe'] = 0
+        scene.frame_set(scene.frame_current)
+        
     if scene['viparams']['resnode'] == 'VI Sun Path':
         spoblist = {ob.get('VIType'):ob for ob in scene.objects if ob.get('VIType') in ('Sun', 'SPathMesh')}
         beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
@@ -219,15 +215,16 @@ def cyfc1(self):
 
         for ob in scene.objects:
             if ob.get('VIType') == 'Sun':
-                ob.rotation_euler = pi * 0.5 - beta, 0, -phi
+                ob.rotation_euler = pi * 0.5 - beta, 0, -phi 
+                ob.location.z = spoblist['SPathMesh'].location.z + 100 * sin(beta)                
+                ob.location.x = spoblist['SPathMesh'].location.x -(100**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5 * sin(phi)
+                ob.location.y = spoblist['SPathMesh'].location.y -(100**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5 * cos(phi)
+
                 if ob.data.node_tree:
                     for blnode in [blnode for blnode in ob.data.node_tree.nodes if blnode.bl_label == 'Blackbody']:
                         blnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5
                     for emnode in [emnode for emnode in ob.data.node_tree.nodes if emnode.bl_label == 'Emission']:
                         emnode.inputs[1].default_value = 10 * sin(beta)
-
-#            elif ob.get('VIType') == 'SPathMesh':
-#                ob.scale = 3 * [scene.soldistance/100]
 
             elif ob.get('VIType') == 'SkyMesh':
                 ont = ob.data.materials['SkyMesh'].node_tree
@@ -235,15 +232,23 @@ def cyfc1(self):
                     ont.nodes['Sky Texture'].sun_direction = sin(phi), -cos(phi), sin(beta)
 
             elif ob.get('VIType') == 'SunMesh':
-#                ob.scale = 3*[scene.soldistance/100]
-                ob.location.z = spoblist['Sun'].location.z = spoblist['SPathMesh'].location.z + 100 * sin(beta)
-                ob.location.x = spoblist['Sun'].location.x = spoblist['SPathMesh'].location.x -(100**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5 * sin(phi)
-                ob.location.y = spoblist['Sun'].location.y = spoblist['SPathMesh'].location.y -(100**2 - (spoblist['Sun'].location.z-spoblist['SPathMesh'].location.z)**2)**0.5 * cos(phi)
                 if ob.data.materials[0].node_tree:
                     for smblnode in [smblnode for smblnode in ob.data.materials[0].node_tree.nodes if ob.data.materials and smblnode.bl_label == 'Blackbody']:
                         smblnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5
     else:
         return
+    
+def cyfc1(self):
+    scene = bpy.context.scene        
+    if 'LiVi' in scene['viparams']['resnode'] or 'Shadow' in scene['viparams']['resnode']:
+        for material in [m for m in bpy.data.materials if m.use_nodes and m.mattype in ('1', '2')]:
+            try:
+                if any([node.bl_label == 'Attribute' for node in material.node_tree.nodes]):
+                    material.node_tree.nodes["Attribute"].attribute_name = str(scene.frame_current)
+            except Exception as e:
+                print(e, 'Something wrong with changing the material attribute name')
+
+    
         
 def genbsdf(scene, export_op, o): 
     bsdfmats = [mat for mat in o.data.materials if mat.radmatmenu == '8']

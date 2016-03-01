@@ -600,7 +600,7 @@ def register():
     Scene.li_jobno = sprop("", "Project job number", 1024, '')
     Scene.li_disp_udi = EnumProperty(items = [("0", "Low", "Percentage of hours below minimum threshold"),("1", "Supplementary", "Percentage of hours requiring supplementary lighting"), ("2", "Autonomous", "Percentage of hours with autonomous lighting"), ("3", "Upper", "Percentage of hours excedding the upper limit")], name = "", description = "UDI range selection", default = "2", update = liviresupdate)
     Scene.li_disp_basic = EnumProperty(items = [("0", "Illuminance", "Display Illuminance values"), ("1", "Irradiance", "Display Irradiance values"), ("2", "DF", "Display Daylight factor values")], name = "", description = "Basic metric selection", default = "0", update = liviresupdate)
- 
+    Scene.li_disp_sda = EnumProperty(items = [("0", "sDA", "Spatial Daylight Autonomy"),("1", "ASE", "Annual sunlight exposure")], name = "", description = "Result selection", default = "0", update = liviresupdate)
 
     (Scene.resaa_disp, Scene.resaws_disp, Scene.resawd_disp, Scene.resah_disp, Scene.resas_disp, Scene.reszt_disp, Scene.reszh_disp, Scene.reszhw_disp, Scene.reszcw_disp, Scene.reszsg_disp, Scene.reszppd_disp, 
      Scene.reszpmv_disp, Scene.resvls_disp, Scene.resvmh_disp, Scene.resim_disp, Scene.resiach_disp, Scene.reszco_disp, Scene.resihl_disp, Scene.reszlf_disp, Scene.reszof_disp, Scene.resmrt_disp,

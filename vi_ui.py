@@ -41,6 +41,8 @@ class Vi3DPanel(bpy.types.Panel):
                     if not scene.ss_disp_panel:
                         if 'UDI' in scene['liparams']['unit']:
                             newrow(layout, 'UDI type:', scene, "li_disp_udi")
+                        if 'sDA' in scene['liparams']['unit'] or 'ASE' in scene['liparams']['unit']:
+                            newrow(layout, 'sDA/ASE:', scene, "li_disp_sda")
                         if scene['viparams']['visimcontext'] == 'LiVi Compliance':
                             newrow(layout, 'Metric:', scene, 'li_disp_sv')
                         if scene['viparams']['visimcontext'] == 'LiVi Basic':
@@ -176,7 +178,7 @@ class VIMatPanel(bpy.types.Panel):
             try:
                 if scene.get('viparams') and scene['viparams'].get('visimcontext') and scene['viparams']['visimcontext'] == 'LiVi Compliance':
                     simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
-                    coptions = simnode.inputs['Context in'].links[0].from_socket['Options']
+                    coptions = simnode.inputs['Context in'].links[0].from_node['Options']
                     if cm.mattype == '1':
                         if coptions['canalysis'] == '0':
                             if coptions['bambuild'] == '2':

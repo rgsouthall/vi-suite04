@@ -805,12 +805,14 @@ def udidacalcapply(self, scene, frames, rccmds, simnode):
     bm.free()
     
 def retvpvloc(context):
+#    context.space_data.region_3d.update()
     view_mat = context.space_data.region_3d.perspective_matrix
     view_pivot = context.region_data.view_location
 
     if context.space_data.region_3d.is_perspective:
         vw = mathutils.Vector((-view_mat[3][0], -view_mat[3][1], -view_mat[3][2])).normalized()
 #        view_location = view_pivot + (vw * bpy.context.region_data.view_distance)  
+        
         view_location = context.space_data.region_3d.view_matrix.inverted().translation
     else:
         vw =  mathutils.Vector((0.0, 0.0, 1.0))

@@ -238,9 +238,10 @@ def li3D_legend(self, context, simnode):
     dplaces = retdp(context, scene.vi_leg_max)
 
     try:
-        if scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or not scene.vi_leg_display  or not any([o.lires for o in scene.objects]):
+        if scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or not scene.vi_leg_display  or not any([o.lires for o in scene.objects]) or scene['liparams']['unit'] == 'Sky View':
             return
         else:
+            bgl.glLineWidth(1)
             resvals = [format(scene.vi_leg_min + i*(scene.vi_leg_max - scene.vi_leg_min)/19, '.{}f'.format(dplaces)) for i in range(20)] if scene.vi_leg_scale == '0' else \
                         [format(scene.vi_leg_min + (1 -log10(i)/log10(20))*(scene.vi_leg_max - scene.vi_leg_min), '.{}f'.format(dplaces)) for i in range(1, 21)[::-1]]
             height = context.region.height
@@ -248,7 +249,8 @@ def li3D_legend(self, context, simnode):
             font_id = 0
             drawpoly(20, height - 40, 70 + lenres*8, height - 520, 0.7, 1, 1, 1)
             drawloop(19, height - 40, 70 + lenres*8, height - 520)
-            blf.enable(0, 4)
+            blf.enable(0, blf.SHADOW)
+            blf.enable(0, blf.KERNING_DEFAULT)
             blf.shadow(0, 5, 0, 0, 0, 0.7)
             for i in range(20):
                 h = 0.75 - 0.75*(i/19)
@@ -270,7 +272,6 @@ def li3D_legend(self, context, simnode):
             
             blf.size(font_id, 20, 56)    
             drawfont(scene['liparams']['unit'], font_id, 0, height, 25, 57)
-            bgl.glLineWidth(1)
             bgl.glDisable(bgl.GL_BLEND)
             height = context.region.height
             font_id = 0
@@ -285,8 +286,10 @@ def li3D_legend(self, context, simnode):
                 drawfont("Ave: {}".format(format(scene['liparams']['avres'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 480)
                 drawfont("Max: {}".format(format(scene['liparams']['maxres'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 495)
                 drawfont("Min: {}".format(format(scene['liparams']['minres'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 510)
-        blf.disable(0, 4)
-    
+            
+            blf.disable(0, blf.KERNING_DEFAULT)
+            blf.disable(0, blf.SHADOW)
+            
     except Exception as e:
         print(e, 'Turning off legend display')
         scene.vi_leg_display = 0
@@ -567,6 +570,7 @@ def viwr_legend(self, context, simnode):
         drawpoly(newwidth, newheight, newwidth + int(hscale*(45 + lenres*8)), int((newheight - hscale*(simnode['nbins']+3.5)*20)), 0.7, 1, 1, 1)
         drawloop(newwidth - 1, newheight, newwidth + int(hscale*(45 + lenres*8)), int((newheight - hscale*(simnode['nbins']+3.5)*20)))
         cm = matplotlib.cm.jet if simnode.wrtype in ('0', '1') else matplotlib.cm.hot
+
         for i in range(simnode['nbins']):
             bgl.glColor4f(*cm(i * 1/(simnode['nbins']-1), 1))
             bgl.glBegin(bgl.GL_POLYGON)
@@ -596,21 +600,24 @@ def viwr_legend(self, context, simnode):
 
 def lipanel():
     pass
-    
-        
+            
 def li_compliance(self, context, simnode):
     height, scene, swidth, ewidth = context.region.height, context.scene, 120, 920
     if not scene.get('li_compliance') or scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or scene['viparams']['vidisp'] != 'lcpanel':
         return
     if simnode['coptions']['canalysis'] == '0':
-        buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retail', 'Office & Other')[int(simnode['coptions']['bambuild'])]
+        buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retail', 'Office & Other')[int(simnode['coptions']['buildtype'])]
     elif simnode['coptions']['canalysis'] == '1':
         buildtype = 'Residential'
         cfshpfsdict = {'totkit': 0, 'kitdf': 0, 'kitsv': 0, 'totliv': 0, 'livdf': 0, 'livsv': 0}
-    blf.enable(0, 4)
+    if simnode['coptions']['canalysis'] == '3':
+        buildtype = ('School/Office/Commercial', 'Healthcare')[int(simnode['coptions']['buildtype'])]
+        
+    blf.enable(0, blf.KERNING_DEFAULT)
     blf.shadow(0, 3, 0, 0, 0, 0.5)
     drawpoly(swidth, height - 40, ewidth, height - 65, 0.7, 1, 1, 1)
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+    bgl.glLineWidth(1)
     horpos, widths = (swidth, 337, 653, ewidth), (swidth, 480, 620, 770, ewidth)
 
     for p in range(3):
@@ -618,10 +625,11 @@ def li_compliance(self, context, simnode):
 
     font_id = 0
     blf.size(font_id, 20, 54)
-    drawfont('Standard: '+('BREEAM HEA1', 'CfSH', 'LEED EQ8.1', 'Green Star')[int(simnode['coptions']['Type'])], font_id, 0, height, 130, 58)
+    drawfont('Standard: '+('BREEAM HEA1', 'CfSH', 'Green Star', 'LEED EQ8.1')[int(simnode['coptions']['Type'])], font_id, 0, height, 130, 58)
     drawfont('Project Name: '+scene.li_projname, font_id, 0, height, 663, 58)
     blf.size(font_id, 20, 40)
-
+    os = [o for o in bpy.data.objects if o.get('lires')]
+    
     def space_compliance(os):
         frame, buildspace, pfs, epfs, lencrit = scene.frame_current, '', [], [], 0
         for o in os:
@@ -684,6 +692,11 @@ def li_compliance(self, context, simnode):
                         tables[c] = ('Average Daylight Factor (%)', cr[3], '{:.2f}'.format(o['comps'][str(frame)][:][c*2 + 1]), o['cr4'][c].upper())
                     elif cr[2] == 'PDF':    
                         tables[c] = ('Area with point Daylight Factor above {}'.format(cr[3]), cr[1], '{:.2f}'.format(o['comps'][str(frame)][:][c*2 + 1]), o['cr4'][c].upper())
+                    elif cr[2] == 'SDA':    
+                        tables[c] = ('% area achieving sDA300/50%', cr[1], '{:.2f}'.format(o['comps'][str(frame)][:][c*2 + 1]), o['cr4'][c].upper())
+                    elif cr[2] == 'ASE':    
+                        tables[c] = ('% area achieving ASE1000,250'.format(cr[3]), cr[1], '{:.2f}'.format(o['comps'][str(frame)][:][c*2 + 1]), o['cr4'][c].upper())
+   
                 elif cr[0] == 'Ratio':
                     tables[c] = ('Uniformity ratio', cr[3], '{:.2f}'.format(o['comps'][str(frame)][:][c*2 + 1]), o['cr4'][c].upper())
                 elif cr[0] == 'Min':
@@ -725,7 +738,6 @@ def li_compliance(self, context, simnode):
             etables = []
             lencrit = 0
         
-
         tpf = 'FAIL' if 'FAIL' in pfs or 'FAIL*' in pfs else 'PASS'
         if simnode['coptions']['canalysis'] == '0': 
             tpf = 'EXEMPLARY' if tpf == 'PASS' and ('FAIL' not in epfs and 'FAIL*' not in epfs) else tpf
@@ -735,7 +747,7 @@ def li_compliance(self, context, simnode):
         return(tpf, lencrit, buildspace, etables)
 
     
-    build_compliance, lencrit, bs, etables = space_compliance([o for o in bpy.data.objects if o.get('lires')])
+    build_compliance, lencrit, bs, etables = space_compliance(os)
 
     if build_compliance == 'EXEMPLARY':
         for t, tab in enumerate(etables):
@@ -791,6 +803,24 @@ def li_compliance(self, context, simnode):
         blf.position(font_id, 270, height - 87 - lencrit*26, 0)
         blf.draw(font_id, '{} of {}'.format(cfshcred, '3' if 0 not in (cfshpfsdict['totkit'], cfshpfsdict['totliv']) else '2'))
 
+    elif simnode['coptions']['canalysis'] == '3':
+        drawpoly(swidth, height - 70 - lencrit*26, 320, height - 95 - lencrit*26, 0.7, 1, 1, 1)
+        drawloop(swidth, height - 70 - lencrit*26, 320, height - 95 - lencrit*26)
+        drawfont('Credits achieved:', 0, lencrit, height, swidth + 10, 87)
+        totarea = sum([o['oarea'] for o in os])
+        totsdaarea = sum([o['sdapassarea'] for o in os])
+        totasearea = sum([o['asepassarea'] for o in os])
+        leedcred = 0
+        if simnode['coptions']['buildtype'] == '0':
+            if totsdaarea/totarea > 0.55:
+                leedcred += 2
+            if totsdaarea/totarea > 0.75:
+                leedcred += 1
+        if totasearea/totarea > 0.1:
+            leedcred = 0
+        blf.position(font_id, 270, height - 87 - lencrit*26, 0)
+        blf.draw(font_id, '{} of {}'.format(leedcred, ('2', '3')[simnode['coptions']['buildtype'] == '0']))
+        
     bgl.glEnable(bgl.GL_BLEND)
     bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
     bgl.glLineWidth(1)
@@ -815,7 +845,7 @@ def li_compliance(self, context, simnode):
     blf.draw(font_id, 'Job Number:')
     blf.position(font_id, 490 + aolen*sw + ailen*sw, 32, 0)
     blf.draw(font_id, scene.li_jobno)
-    blf.disable(0, 4)
+    blf.disable(0, blf.KERNING_DEFAULT)
 
 def rendview(i):
     for scrn in bpy.data.screens:

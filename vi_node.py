@@ -221,13 +221,15 @@ class LiViNode(bpy.types.Node, ViNodes):
     skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="", update = nodeupdate)
     resname = bpy.props.StringProperty()
     turb = bpy.props.FloatProperty(name="", description="Sky Turbidity", min=1.0, max=5.0, default=2.75, update = nodeupdate)
-    canalysistype = [('0', "BREEAM", "BREEAM HEA1 calculation"), ('1', "CfSH", "Code for Sustainable Homes calculation"), ('2', "LEED", "LEED v4 Daylight calculation"), ('3', "Green Star", "Green Star Calculation")]
+    canalysistype = [('0', "BREEAM", "BREEAM HEA1 calculation"), ('1', "CfSH", "Code for Sustainable Homes calculation"), ('2', "Green Star", "Green Star Calculation"), ('3', "LEED", "LEED v4 Daylight calculation")]
     bambuildtype = [('0', "School", "School lighting standard"), ('1', "Higher Education", "Higher education lighting standard"), ('2', "Healthcare", "Healthcare lighting standard"), ('3', "Residential", "Residential lighting standard"), ('4', "Retail", "Retail lighting standard"), ('5', "Office & other", "Office and other space lighting standard")]
+    lebuildtype = [('0', "Office/Education/Commercial", "Office/Education/Commercial lighting standard"), ('1', "Healthcare", "Healthcare lighting standard")]
     canalysismenu = bpy.props.EnumProperty(name="", description="Type of analysis", items = canalysistype, default = '0', update = nodeupdate)
     bambuildmenu = bpy.props.EnumProperty(name="", description="Type of building", items=bambuildtype, default = '0', update = nodeupdate)
+    lebuildmenu = bpy.props.EnumProperty(name="", description="Type of building", items=lebuildtype, default = '0', update = nodeupdate)
     cusacc = bpy.props.StringProperty(name="", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
     buildstorey = bpy.props.EnumProperty(items=[("0", "Single", "Single storey building"),("1", "Multi", "Multi-storey building")], name="", description="Building storeys", default="0", update = nodeupdate)
-    cbanalysistype = [('0', "Light Exposure", "LuxHours Calculation"), ('1', "Radiation Exposure", "kWh/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Autonomy", "DA (%) Calculation"), ('3', "Hourly irradiance", "Irradiance for each simulation time step"), ('4', "UDI", "Useful Daylight Illuminance"), ('5', "SDA (%) & ASE (hours)", "Spatial Daylight Autonomy & Annual Sunlight Exposure")]
+    cbanalysistype = [('0', "Light Exposure", "LuxHours Calculation"), ('1', "Radiation Exposure", "kWh/m"+ u'\u00b2' + " Calculation"), ('2', "Hourly irradiance", "Irradiance for each simulation time step"), ('3', "DA/UDI/SDA/ASE", "Useful Daylight Illuminance")]
     cbanalysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = cbanalysistype, default = '0', update = nodeupdate)
 #    leanalysistype = [('0', "Light Exposure", "LuxHours Calculation"), ('1', "Radiation Exposure", "kWh/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Autonomy", "DA (%) Calculation")]
     sourcetype = [('0', "EPW", "EnergyPlus weather file"), ('1', "HDR", "HDR sky file")]
@@ -304,38 +306,49 @@ class LiViNode(bpy.types.Node, ViNodes):
                 newrow(layout, "Building type:", self, 'bambuildmenu')
                 newrow(layout, "Storeys:", self, 'buildstorey')
             if self.canalysismenu == '2':
+                newrow(layout, "Building type:", self, 'bambuildmenu')
+            if self.canalysismenu == '3':
+                newrow(layout, "Building type:", self, 'lebuildmenu')
                 newrow(layout, 'Weekdays only:', self, 'weekdays')
                 newrow(layout, 'Start hour:', self, 'cbdm_start_hour')
                 newrow(layout, 'End hour:', self, 'cbdm_end_hour')
-                
+            newrow(layout, 'Source file:', self, 'sourcemenu2') 
+            if self.sourcemenu2 == '1':
+                row = layout.row()
+                row.operator('node.mtxselect', text = 'Select MTX').nodeid = self['nodeid']
+                row = layout.row()
+                row.prop(self, 'mtxname')
             newrow(layout, 'HDR:', self, 'hdr')
                 
         elif self.contextmenu == 'CBDM':
             row = layout.row()
-            row.label("Analysis Type:")
+            
+#            row.label("Analysis Type:")
             row.prop(self, 'cbanalysismenu')
             newrow(layout, 'Start month:', self, "startmonth")
             newrow(layout, 'End month:', self, "endmonth")
-            if self.cbanalysismenu in ('2', '4', '5'):
-               newrow(layout, 'Weekdays only:', self, 'weekdays')
-               newrow(layout, 'Start hour:', self, 'cbdm_start_hour')
-               newrow(layout, 'End hour:', self, 'cbdm_end_hour')
-               if self.cbanalysismenu == '2':
-                   newrow(layout, 'Min Lux level:', self, 'dalux')
-               elif self.cbanalysismenu == '4':
-                   newrow(layout, 'Fell short (Max):', self, 'damin')
-                   newrow(layout, 'Supplementry (Max):', self, 'dasupp')
-                   newrow(layout, 'Autonomous (Max):', self, 'daauto')
-               elif self.cbanalysismenu == '5':
-                   newrow(layout, 'Min Lux level:', self, 'sdamin')
-                   newrow(layout, 'Max Lux level:', self, 'asemax')
+#            if self.cbanalysismenu in ('2', '4', '5'):
+            newrow(layout, 'Weekdays only:', self, 'weekdays')
+            newrow(layout, 'Start hour:', self, 'cbdm_start_hour')
+            newrow(layout, 'End hour:', self, 'cbdm_end_hour')
+            if self.cbanalysismenu == '3':
+                newrow(layout, '(S)DA Min lux:', self, 'dalux')
+                row = layout.row()
+                row.label("--")
+                newrow(layout, 'UDI Fell short (Max):', self, 'damin')
+                newrow(layout, 'UDI Supplementry (Max):', self, 'dasupp')
+                newrow(layout, 'UDI Autonomous (Max):', self, 'daauto')
+                row = layout.row()
+                row.label("--")
+#                newrow(layout, 'SDA Lux level:', self, 'sdamin')
+                newrow(layout, 'ASE Lux level:', self, 'asemax')
                    
             if self.cbanalysismenu in ('0', '1'):
                 newrow(layout, 'Source file:', self, 'sourcemenu')
             else:
                 newrow(layout, 'Source file:', self, 'sourcemenu2')
             row = layout.row()
-            if self.sourcemenu2 == '1' and self.cbanalysismenu in ('2', '3', '4', '5'):
+            if self.sourcemenu2 == '1' and self.cbanalysismenu in ('2', '3'):
                 row.operator('node.mtxselect', text = 'Select MTX').nodeid = self['nodeid']
                 row = layout.row()
                 row.prop(self, 'mtxname')
@@ -397,19 +410,19 @@ class LiViNode(bpy.types.Node, ViNodes):
             elif self['skynum'] == 4:
                 if self.hdrname not in bpy.data.images:
                     bpy.data.images.load(self.hdrname)
-                self['Text'][str(scene['liparams']['fs'])] = hdrsky(self.hdrname)
+                self['Text'][str(scene.frame_current)] = hdrsky(self.hdrname)
             
             elif self['skynum'] == 5:
                 shutil.copyfile(self.radname, "{}-0.sky".format(scene['viparams']['filebase']))
                 with open(self.radname, 'r') as radfiler:
-                    self['Text'][str(scene['liparams']['fs'])] =  [radfiler.read()]
+                    self['Text'][str(scene.frame_current)] =  [radfiler.read()]
                     if self.hdr:
                         hdrexport(scene, 0, scene.frame_current, self, radfiler.read())
             elif self['skynum'] == 6:
                 self['Text'][str(scene.frame_current)] = ''
         
         elif self.contextmenu == "CBDM":
-            if (self.cbanalysismenu in ('0', '1') and self.sourcemenu == '0') or (self.cbanalysismenu in ('2', '3', '4') and self.sourcemenu2 == '0'):
+            if (self.cbanalysismenu in ('0', '1') and self.sourcemenu == '0') or (self.cbanalysismenu in ('2', '3', '4', '5') and self.sourcemenu2 == '0'):
                 self['mtxfile'] = cbdmmtx(self, scene, self.inputs['Location in'].links[0].from_node, export_op)
             elif self.cbanalysismenu in ('2', '3', '4', '5') and self.sourcemenu2 == '1':
                 self['mtxfile'] = self.mtxname
@@ -425,23 +438,43 @@ class LiViNode(bpy.types.Node, ViNodes):
                 else:
                     with open(self.mtxname, 'r') as mtxfile:
                         self['Options']['MTX'] = mtxfile.read()
+                if self.hdr:
+                    self['Text'][str(scene['liparams']['fs'])] = cbdmhdr(self, scene)
 
         elif self.contextmenu == "Compliance":
-            self['skytypeparams'] = ("-b 22.86 -c", "-b 22.86 -c", "+s")[int(self.canalysismenu)]
-            skyentry = sunexport(scene, self, 0, 0) + skyexport(3)
-            if self.canalysismenu in ('0', '1'):
-                self.starttime = datetime.datetime(2015, 1, 1, 12)
-                if self.hdr:
-                    hdrexport(scene, 0, scene.frame_current, self, skyentry)
+            if self.canalysismenu in ('0', '1', '2'):            
+                self['skytypeparams'] = ("-b 22.86 -c", "-b 22.86 -c", "-b 22.86 -c")[int(self.canalysismenu)]
+                skyentry = sunexport(scene, self, 0, 0) + skyexport(3)
+                if self.canalysismenu in ('0', '1'):
+                    self.starttime = datetime.datetime(2015, 1, 1, 12)
+                    if self.hdr:
+                        hdrexport(scene, 0, scene.frame_current, self, skyentry)
+                else:
+                    self.starttime = datetime.datetime(2015, 9, 11, 9)
+                self['Text'][str(scene.frame_current)] = skyentry
             else:
-                self.starttime = datetime.datetime(2015, 9, 11, 9)
-            self['Text'][str(scene['liparams']['fs'])] = skyentry
-    
-    def postexport(self):    
+                if self.sourcemenu2 == '0':
+                    self['mtxfile'] = cbdmmtx(self, scene, self.inputs['Location in'].links[0].from_node, export_op)
+                elif self.sourcemenu2 == '1':
+                    self['mtxfile'] = self.mtxname
+                
+                self['Text'][str(scene['liparams']['fs'])] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
+
+                if self.sourcemenu2 == '0':
+                    with open("{}.mtx".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'r') as mtxfile:
+                        self['Options']['MTX'] = mtxfile.read()
+                else:
+                    with open(self.mtxname, 'r') as mtxfile:
+                        self['Options']['MTX'] = mtxfile.read()
+                if self.hdr:
+                    self['Text'][str(scene['liparams']['fs'])] = cbdmhdr(self, scene)
+                
+    def postexport(self):  
         typedict = {'Basic': self.banalysismenu, 'Compliance': self.canalysismenu, 'CBDM': self.cbanalysismenu}
-        unitdict = {'Basic': ("Lux", '')[int(self.banalysismenu)], 'Compliance': ('DF (%)', 'DF (%)')[int(self.canalysismenu)], 'CBDM': ('Mlxh', 'kWh/m'+ u'\u00b2', 'DA (%)', 'kW', 'UDI-a (%)', 'SDA(%) & ASE(hrs)')[int(self.cbanalysismenu)]}
+        unitdict = {'Basic': ("Lux", '')[int(self.banalysismenu)], 'Compliance': ('DF (%)', 'DF (%)', 'DF (%)', 'SDA (%)')[int(self.canalysismenu)], 'CBDM': ('Mlxh', 'kWh/m'+ u'\u00b2', 'DA (%)', 'kW', 'UDI-a (%)', 'SDA(%) & ASE(hrs)')[int(self.cbanalysismenu)]}
+        btypedict = {'0': self.bambuildmenu, '1': '', '2': '', '3': self.lebuildmenu}
         self['Options'] = {'Context': self.contextmenu, 'Type': typedict[self.contextmenu], 'fs': self.startframe, 'fe': self['endframe'],
-                    'anim': self.animated, 'shour': self.shour, 'sdoy': self.sdoy, 'interval': self.interval, 'bambuild': self.bambuildmenu, 'canalysis': self.canalysismenu, 'storey': self.buildstorey,
+                    'anim': self.animated, 'shour': self.shour, 'sdoy': self.sdoy, 'interval': self.interval, 'buildtype': btypedict[self.canalysismenu], 'canalysis': self.canalysismenu, 'storey': self.buildstorey,
                     'cbanalysis': self.cbanalysismenu, 'unit': unitdict[self.contextmenu], 'damin': self.damin, 'dalux': self.dalux, 'dasupp': self.dasupp, 'daauto': self.daauto, 'cbdm_sh': self.cbdm_start_hour, 
                     'cbdm_eh': self.cbdm_end_hour, 'weekdays': (7, 5)[self.weekdays], 'sourcemenu': (self.sourcemenu, self.sourcemenu2)[self.cbanalysismenu not in ('2', '3', '4', '5')],
                     'mtxfile': self['mtxfile']}

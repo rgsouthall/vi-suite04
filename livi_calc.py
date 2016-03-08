@@ -39,7 +39,7 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
     
     for f, frame in enumerate(frames):
         simnode['resdictnew'][str(frame)] = {}
-        if context in ('Basic', 'Compliance') or (context == 'CBDM' and int(subcontext) < 2):
+        if context == 'Basic' or (context == 'CBDM' and int(subcontext) < 2) or (context == 'Compliance' and int(subcontext) < 3):
             if os.path.isfile("{}-{}.af".format(scene['viparams']['filebase'], frame)):
                 os.remove("{}-{}.af".format(scene['viparams']['filebase'], frame))
             if simnode.pmap:
@@ -65,7 +65,6 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
     startstep = 0
 
     for oi, o in enumerate([scene.objects[on] for on in scene['liparams']['livic']]):
-        print(startstep)
         selobj(scene, o)
         o['omax'], o['omin'], o['oave'] = {}, {}, {}
         if context == 'Basic':
@@ -74,7 +73,7 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
         elif context == 'CBDM' and int(subcontext) < 2:
             if o.lhcalcapply(scene, frames, rtcmds, simnode, oi, datetime.datetime.now(), len(scene['liparams']['livic']), tpoints, startstep) == 'CANCELLED':
                 return 'CANCELLED'
-        elif context == 'CBDM' and int(subcontext) > 1:
+        elif (context == 'CBDM' and int(subcontext) > 1) or (context == 'Compliance' and int(subcontext) == 3):
             o.udidacalcapply(scene, frames, rccmds, simnode)
         elif context == 'Compliance':
             o.compcalcapply(scene, frames, rtcmds, simnode)   

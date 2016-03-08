@@ -41,11 +41,11 @@ class Vi3DPanel(bpy.types.Panel):
                     if not scene.ss_disp_panel:
                         if 'UDI' in scene['liparams']['unit']:
                             newrow(layout, 'UDI type:', scene, "li_disp_udi")
-                        if 'sDA' in scene['liparams']['unit'] or 'ASE' in scene['liparams']['unit']:
+                        elif 'SDA' in scene['liparams']['unit'] or 'ASE' in scene['liparams']['unit']:
                             newrow(layout, 'sDA/ASE:', scene, "li_disp_sda")
-                        if scene['viparams']['visimcontext'] == 'LiVi Compliance':
+                        elif scene['viparams']['visimcontext'] == 'LiVi Compliance': 
                             newrow(layout, 'Metric:', scene, 'li_disp_sv')
-                        if scene['viparams']['visimcontext'] == 'LiVi Basic':
+                        elif scene['viparams']['visimcontext'] == 'LiVi Basic':
                             newrow(layout, 'Metric:', scene, 'li_disp_basic')
                         if scene.vi_leg_display:
                             newrow(layout, 'Legend max:', scene, "vi_leg_max")
@@ -192,6 +192,8 @@ class VIMatPanel(bpy.types.Panel):
                                 newrow(layout, "Space type:", cm, 'respacemenu')
                         elif coptions['canalysis'] == '1':
                             newrow(layout, "Space type:", cm, 'crspacemenu')
+                        elif coptions['canalysis'] == '3':
+                            newrow(layout, "Space type:", cm, 'lespacemenu')    
             except Exception as e:
                 print('Compliance specification problem', e)
     

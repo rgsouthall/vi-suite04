@@ -229,7 +229,7 @@ class LiViNode(bpy.types.Node, ViNodes):
     lebuildmenu = bpy.props.EnumProperty(name="", description="Type of building", items=lebuildtype, default = '0', update = nodeupdate)
     cusacc = bpy.props.StringProperty(name="", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
     buildstorey = bpy.props.EnumProperty(items=[("0", "Single", "Single storey building"),("1", "Multi", "Multi-storey building")], name="", description="Building storeys", default="0", update = nodeupdate)
-    cbanalysistype = [('0', "Light Exposure", "LuxHours Calculation"), ('1', "Radiation Exposure", "kWh/m"+ u'\u00b2' + " Calculation"), ('2', "Hourly irradiance", "Irradiance for each simulation time step"), ('3', "DA/UDI/SDA/ASE", "Useful Daylight Illuminance")]
+    cbanalysistype = [('0', "Exposure", "LuxHours/Irradiance Exposure Calculation"), ('1', "Hourly irradiance", "Irradiance for each simulation time step"), ('2', "DA/UDI/SDA/ASE", "Useful Daylight Illuminance")]
     cbanalysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = cbanalysistype, default = '0', update = nodeupdate)
 #    leanalysistype = [('0', "Light Exposure", "LuxHours Calculation"), ('1', "Radiation Exposure", "kWh/m"+ u'\u00b2' + " Calculation"), ('2', "Daylight Autonomy", "DA (%) Calculation")]
     sourcetype = [('0', "EPW", "EnergyPlus weather file"), ('1', "HDR", "HDR sky file")]
@@ -246,7 +246,7 @@ class LiViNode(bpy.types.Node, ViNodes):
     dasupp = bpy.props.IntProperty(name = '', default = 300, min = 1, max = 2000, update = nodeupdate)
     daauto = bpy.props.IntProperty(name = '', default = 3000, min = 1, max = 5000, update = nodeupdate)
     sdamin = bpy.props.IntProperty(name = '', default = 300, min = 1, max = 2000, update = nodeupdate) 
-    asemax = bpy.props.IntProperty(name = '', default = 300, min = 1, max = 700, update = nodeupdate)
+    asemax = bpy.props.IntProperty(name = '', default = 1000, min = 1, max = 2000, update = nodeupdate)
     startmonth = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 12, description = 'Start Month', update = nodeupdate)
     endmonth = bpy.props.IntProperty(name = '', default = 12, min = 1, max = 12, description = 'End Month', update = nodeupdate)
     startframe = bpy.props.IntProperty(name = '', default = 0, min = 0, description = 'Start Frame', update = nodeupdate)
@@ -257,20 +257,16 @@ class LiViNode(bpy.types.Node, ViNodes):
         self['whitesky'] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
         self.outputs.new('ViLiC', 'Context out')
         self.inputs.new('ViLoc', 'Location in')
-#        self['Text'] = {}
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Context:', self, 'contextmenu')
-        if self.contextmenu == 'Basic':
-            (sdate, edate) = retdates(self.sdoy, self.edoy)
-#            datetime.datetime(2015, 1, 1) + datetime.timedelta(self.sdoy - 1)
-#            edate = datetime.datetime(2015, 1, 1) + datetime.timedelta(self.edoy - 1)
+        (sdate, edate) = retdates(self.sdoy, self.edoy)
+        if self.contextmenu == 'Basic':            
             newrow(layout, "Standard:", self, 'banalysismenu')
             newrow(layout, "Sky type:", self, 'skymenu')
             if self.skymenu in ('0', '1', '2'):
                 newrow(layout, "Start hour:", self, 'shour')
-#                newrow(layout, "Start day:", self, 'sdoy')
                 newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
                 newrow(layout, "Animation;", self, 'animated')
                 if self.animated:
@@ -280,7 +276,6 @@ class LiViNode(bpy.types.Node, ViNodes):
                     row.label(text = '{}'.format(self['endframe']))
                     newrow(layout, "End hour:", self, 'ehour')
                     newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
-#                    newrow(layout, "End day of year:", self, 'edoy')
                     newrow(layout, "Interval (hours):", self, 'interval')
                 newrow(layout, "Turbidity", self, 'turb')
             elif self.skymenu == '4':
@@ -312,27 +307,26 @@ class LiViNode(bpy.types.Node, ViNodes):
                 newrow(layout, 'Weekdays only:', self, 'weekdays')
                 newrow(layout, 'Start hour:', self, 'cbdm_start_hour')
                 newrow(layout, 'End hour:', self, 'cbdm_end_hour')
-            newrow(layout, 'Source file:', self, 'sourcemenu2') 
-            if self.sourcemenu2 == '1':
-                row = layout.row()
-                row.operator('node.mtxselect', text = 'Select MTX').nodeid = self['nodeid']
-                row = layout.row()
-                row.prop(self, 'mtxname')
+                newrow(layout, 'Source file:', self, 'sourcemenu2') 
+                if self.sourcemenu2 == '1':
+                    row = layout.row()
+                    row.operator('node.mtxselect', text = 'Select MTX').nodeid = self['nodeid']
+                    row = layout.row()
+                    row.prop(self, 'mtxname')
             newrow(layout, 'HDR:', self, 'hdr')
                 
         elif self.contextmenu == 'CBDM':
             row = layout.row()
-            
-#            row.label("Analysis Type:")
             row.prop(self, 'cbanalysismenu')
-            newrow(layout, 'Start month:', self, "startmonth")
-            newrow(layout, 'End month:', self, "endmonth")
-#            if self.cbanalysismenu in ('2', '4', '5'):
+            newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
+            newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
             newrow(layout, 'Weekdays only:', self, 'weekdays')
             newrow(layout, 'Start hour:', self, 'cbdm_start_hour')
             newrow(layout, 'End hour:', self, 'cbdm_end_hour')
-            if self.cbanalysismenu == '3':
-                newrow(layout, '(S)DA Min lux:', self, 'dalux')
+            row = layout.row()
+            row.label("--")
+            if self.cbanalysismenu == '2':
+                newrow(layout, '(s)DA Min lux:', self, 'dalux')
                 row = layout.row()
                 row.label("--")
                 newrow(layout, 'UDI Fell short (Max):', self, 'damin')
@@ -340,19 +334,18 @@ class LiViNode(bpy.types.Node, ViNodes):
                 newrow(layout, 'UDI Autonomous (Max):', self, 'daauto')
                 row = layout.row()
                 row.label("--")
-#                newrow(layout, 'SDA Lux level:', self, 'sdamin')
                 newrow(layout, 'ASE Lux level:', self, 'asemax')
                    
-            if self.cbanalysismenu in ('0', '1'):
+            if self.cbanalysismenu == '0':
                 newrow(layout, 'Source file:', self, 'sourcemenu')
             else:
                 newrow(layout, 'Source file:', self, 'sourcemenu2')
             row = layout.row()
-            if self.sourcemenu2 == '1' and self.cbanalysismenu in ('2', '3'):
+            if self.sourcemenu2 == '1' and self.cbanalysismenu in ('1', '2'):
                 row.operator('node.mtxselect', text = 'Select MTX').nodeid = self['nodeid']
                 row = layout.row()
                 row.prop(self, 'mtxname')
-            if self.sourcemenu == '1' and self.cbanalysismenu in ('0', '1'):
+            if self.sourcemenu == '1' and self.cbanalysismenu == '0':
                 row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
                 row = layout.row()
                 row.prop(self, 'hdrname')
@@ -383,7 +376,7 @@ class LiViNode(bpy.types.Node, ViNodes):
         self['hours'] = 0 if not self.animated or int(self.skymenu) > 2  else (self.endtime-self.starttime).seconds/3600
         self['epwbase'] = os.path.splitext(os.path.basename(self.inputs['Location in'].links[0].from_node.weather)) if self.inputs['Location in'].links else ''
         self['Text'], self['Options'] = {}, {}
-        self['watts'] = 1 if self.contextmenu == "CBDM" and self.cbanalysismenu in ('1', '3') else 0
+        self['watts'] = 0#1 if self.contextmenu == "CBDM" and self.cbanalysismenu in ('1', '2') else 0
         
     def export(self, scene, export_op):        
         self.startframe = self.startframe if self.animated and self.contextmenu == 'Basic' and self.banalysismenu in ('0', '1', '2') else scene.frame_current 
@@ -422,12 +415,12 @@ class LiViNode(bpy.types.Node, ViNodes):
                 self['Text'][str(scene.frame_current)] = ''
         
         elif self.contextmenu == "CBDM":
-            if (self.cbanalysismenu in ('0', '1') and self.sourcemenu == '0') or (self.cbanalysismenu in ('2', '3', '4', '5') and self.sourcemenu2 == '0'):
+            if (self.cbanalysismenu =='0' and self.sourcemenu == '0') or (self.cbanalysismenu != '0' and self.sourcemenu2 == '0'):
                 self['mtxfile'] = cbdmmtx(self, scene, self.inputs['Location in'].links[0].from_node, export_op)
-            elif self.cbanalysismenu in ('2', '3', '4', '5') and self.sourcemenu2 == '1':
+            elif self.cbanalysismenu != '0' and self.sourcemenu2 == '1':
                 self['mtxfile'] = self.mtxname
 
-            if self.cbanalysismenu in ('0', '1'):
+            if self.cbanalysismenu == '0' :
                 self['Text'][str(scene['liparams']['fs'])] = cbdmhdr(self, scene)
             else:
                 self['Text'][str(scene['liparams']['fs'])] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
@@ -471,13 +464,13 @@ class LiViNode(bpy.types.Node, ViNodes):
                 
     def postexport(self):  
         typedict = {'Basic': self.banalysismenu, 'Compliance': self.canalysismenu, 'CBDM': self.cbanalysismenu}
-        unitdict = {'Basic': ("Lux", '')[int(self.banalysismenu)], 'Compliance': ('DF (%)', 'DF (%)', 'DF (%)', 'SDA (%)')[int(self.canalysismenu)], 'CBDM': ('Mlxh', 'kWh/m'+ u'\u00b2', 'DA (%)', 'kW', 'UDI-a (%)', 'SDA(%) & ASE(hrs)')[int(self.cbanalysismenu)]}
+        unitdict = {'Basic': ("Lux", '')[int(self.banalysismenu)], 'Compliance': ('DF (%)', 'DF (%)', 'DF (%)', 'SDA (%)')[int(self.canalysismenu)], 'CBDM': ('Mlxh', 'kW', 'DA (%)')[int(self.cbanalysismenu)]}
         btypedict = {'0': self.bambuildmenu, '1': '', '2': '', '3': self.lebuildmenu}
         self['Options'] = {'Context': self.contextmenu, 'Type': typedict[self.contextmenu], 'fs': self.startframe, 'fe': self['endframe'],
-                    'anim': self.animated, 'shour': self.shour, 'sdoy': self.sdoy, 'interval': self.interval, 'buildtype': btypedict[self.canalysismenu], 'canalysis': self.canalysismenu, 'storey': self.buildstorey,
-                    'cbanalysis': self.cbanalysismenu, 'unit': unitdict[self.contextmenu], 'damin': self.damin, 'dalux': self.dalux, 'dasupp': self.dasupp, 'daauto': self.daauto, 'cbdm_sh': self.cbdm_start_hour, 
+                    'anim': self.animated, 'shour': self.shour, 'sdoy': self.sdoy, 'ehour': self.ehour, 'edoy': self.edoy, 'interval': self.interval, 'buildtype': btypedict[self.canalysismenu], 'canalysis': self.canalysismenu, 'storey': self.buildstorey,
+                    'cbanalysis': self.cbanalysismenu, 'unit': unitdict[self.contextmenu], 'damin': self.damin, 'dalux': self.dalux, 'dasupp': self.dasupp, 'daauto': self.daauto, 'asemax': self.asemax, 'cbdm_sh': self.cbdm_start_hour, 
                     'cbdm_eh': self.cbdm_end_hour, 'weekdays': (7, 5)[self.weekdays], 'sourcemenu': (self.sourcemenu, self.sourcemenu2)[self.cbanalysismenu not in ('2', '3', '4', '5')],
-                    'mtxfile': self['mtxfile']}
+                    'mtxfile': self['mtxfile'], 'cbdm_sm': self.startmonth, 'cbdm_em': self.endmonth}
         nodecolour(self, 0)
         self['exportstate'] = [str(x) for x in (self.contextmenu, self.banalysismenu, self.canalysismenu, self.cbanalysismenu, 
                    self.animated, self.skymenu, self.shour, self.sdoy, self.startmonth, self.endmonth, self.damin, self.dasupp, self.dalux, self.daauto,
@@ -527,9 +520,9 @@ class ViLiSNode(bpy.types.Node, ViNodes):
     cusacc = bpy.props.StringProperty(
             name="", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
     rtracebasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0, 0.5, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.000002), ("-lr", 2, 3, 4))
-    rtraceadvance = (("-ab", 3, 5), ("-ad", 2048, 4096), ("-as", 1024, 2048), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 0.00001, 0.000002), ("-lr", 3, 5))
+    rtraceadvance = (("-ab", 3, 5), ("-ad", 4096, 8192), ("-as", 512, 1024), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 1e-4, 1e-5), ("-lr", 3, 5))
     rvubasic = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0.5, 0.15, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.0000002), ("-lr", 3, 3, 4))
-    rvuadvance = (("-ab", 3, 5), ("-ad", 2048, 4096), ("-as", 1024, 2048), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 0.00001, 0.000002), ("-lr", 3, 5))
+    rvuadvance = (("-ab", 3, 5), ("-ad", 4096, 8192), ("-as", 1024, 2048), ("-aa", 0.0, 0.0), ("-dj", 0.7, 1), ("-ds", 0.5, 0.15), ("-dr", 2, 3), ("-ss", 2, 5), ("-st", 0.75, 0.1), ("-lw", 1e-4, 1e-5), ("-lr", 3, 5))
     pmap = bpy.props.BoolProperty(name = '', default = False)
     pmapgno = bpy.props.IntProperty(name = '', default = 50000)
     pmapcno = bpy.props.IntProperty(name = '', default = 0)
@@ -965,8 +958,8 @@ class ViEnRNode(bpy.types.Node, ViNodes):
     bl_label = 'VI Chart'
 
     ctypes = [("0", "Line/Scatter", "Line/Scatter Plot"), ("1", "Bar", "Bar Chart")]
-    dsh = bpy.props.IntProperty(name = "Start", description = "", min = 1, max = 24, default = 1)
-    deh = bpy.props.IntProperty(name = "End", description = "", min = 1, max = 24, default = 24)
+#    dsh = bpy.props.IntProperty(name = "Start", description = "", min = 1, max = 24, default = 1)
+#    deh = bpy.props.IntProperty(name = "End", description = "", min = 1, max = 24, default = 24)
     charttype = bpy.props.EnumProperty(items = ctypes, name = "Chart Type", default = "0")
     timemenu = bpy.props.EnumProperty(items=[("0", "Hourly", "Hourly results"),("1", "Daily", "Daily results"), ("2", "Monthly", "Monthly results")],
                 name="", description="Results frequency", default="0")
@@ -995,15 +988,18 @@ class ViEnRNode(bpy.types.Node, ViNodes):
             zrl = list(zip(*rl))
             if len(set(zrl[0])) > 1:
                 newrow(layout, 'Animated:', self, 'animated')
+            if not self.animated:
+                (sdate, edate) = retdates(self['Start'], self['End']) 
             row = layout.row()
-            row.label(("Day:", "Frame")[self.animated])
+            row.label(("Start/End Day: {}/{} {}/{}".format(sdate.day, sdate.month, edate.day, edate.month), "Frame")[self.animated])
+                          
             row.prop(self, '["Start"]')
             row.prop(self, '["End"]')
-            if not self.animated:
-                row = layout.row()
-                row.label("Hour:")
-                row.prop(self, "dsh")
-                row.prop(self, "deh")
+#            if not self.animated:
+#                row = layout.row()
+#                row.label("Hour:")
+#                row.prop(self, "dsh")
+#                row.prop(self, "deh")
             row = layout.row()
             row.prop(self, "charttype")
             if not self.animated:
@@ -1033,9 +1029,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 self["_RNA_UI"] = {"Start": {"min":startframe, "max":endframe}, "End": {"min":startframe, "max":endframe}}
                 self['Start'], self['End'] = startframe, endframe
             else:
-                if 'DOS' in zrl[3]:
-                    doss = zrl[4][zrl[3].index('DOS')].split()
-                startday, endday = int(doss[0]), int(doss[-1])
+
                 startday = datetime.datetime(2015, int(zrl[4][zrl[3].index('Month')].split()[0]), int(zrl[4][zrl[3].index('Day')].split()[0])).timetuple().tm_yday
                 endday = datetime.datetime(2015, int(zrl[4][zrl[3].index('Month')].split()[-1]), int(zrl[4][zrl[3].index('Day')].split()[-1])).timetuple().tm_yday
                 self["_RNA_UI"] = {"Start": {"min":startday, "max":endday}, "End": {"min":startday, "max":endday}}

@@ -187,7 +187,7 @@ def linumdisplay(disp_op, context, simnode):
     bgl.glColor3f = scene.vi_display_rp_fc
     fn = context.scene.frame_current - scene['liparams']['fs']
     mid_x, mid_y, width, height = viewdesc(context)
-    (view_location, view_mat, vw) = retvpvloc(context)  
+    view_location = retvpvloc(context)  
     
     if scene.vi_display_sel_only == False:
         obd = obreslist
@@ -209,15 +209,17 @@ def linumdisplay(disp_op, context, simnode):
                 faces = [f for f in bm.faces if f.select] if scene.vi_disp_3d else bm.faces
                             
                 if scene.vi_display_vis_only:
-                    faces = [f for f in faces if not scene.ray_cast(view_location, f.calc_center_bounds() + scene.vi_display_rp_off * f.normal)[0]]
-    
+                    print('hi', faces[0].calc_center_bounds() + scene.vi_display_rp_off * faces[0].normal, view_location)
+                    faces = [f for f in faces if not scene.ray_cast(f.calc_center_bounds() + scene.vi_display_rp_off * f.normal,view_location, distance=1e+5)[0]]
+#                    print([f for f in faces if not scene.ray_cast(view_location, f.calc_center_bounds() + scene.vi_display_rp_off * f.normal, distance=1e+5)[0]])
+                print(len(faces))
                 face2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, f.calc_center_bounds()) for f in faces]
                 (faces, pcs) = map(list, zip(*[[f, face2d[fi]] for fi, f in enumerate(faces) if face2d[fi] and 0 < face2d[fi][0] < width and 0 < face2d[fi][1] < height]))          
                 res = [f[livires] for f in faces]
             
             elif bm.verts.layers.float.get('res{}'.format(scene.frame_current)):            
                 livires = bm.verts.layers.float['res{}'.format(scene.frame_current)]                         
-                verts = [v for v in bm.verts if not v.hide and v.select and mathutils.Vector.angle(vw, view_location - v.co) < pi * 0.5]
+                verts = [v for v in bm.verts if not v.hide and v.select]
                 
                 if scene.vi_display_vis_only:
                     verts = [v for v in verts if not scene.ray_cast(v.co + scene.vi_display_rp_off * v.normal, view_location)[0]]
@@ -676,7 +678,7 @@ def li_compliance(self, context, simnode):
             drawloop(swidth, height - 70, ewidth, height - 70  - (lencrit)*25)
             mat = bpy.data.materials[o['compmat']]
             if simnode['coptions']['canalysis'] == '0':
-                buildspace = ('', '', (' - Public/Staff', ' - Patient')[int(mat.hspacemenu)], (' - Kitchen', ' - Living/Dining/Study', ' - Communal')[int(mat.brspacemenu)], (' - Sales', ' - Office')[int(mat.respacemenu)], '')[int(simnode['coptions']['bambuild'])]
+                buildspace = ('', '', (' - Public/Staff', ' - Patient')[int(mat.hspacemenu)], (' - Kitchen', ' - Living/Dining/Study', ' - Communal')[int(mat.brspacemenu)], (' - Sales', ' - Office')[int(mat.respacemenu)], '')[int(simnode['coptions']['buildtype'])]
             elif simnode['coptions']['canalysis'] == '1':
                 buildspace = (' - Kitchen', ' - Living/Dining/Study')[int(mat.crspacemenu)]
 
@@ -783,9 +785,9 @@ def li_compliance(self, context, simnode):
         drawfont('Credits achieved:', 0, lencrit, height, 380, 87)
         blf.position(font_id, 500, height - 87 - lencrit*26, 0)
         if build_compliance == 'PASS':
-           blf.draw(font_id,  ('1', '2', '2', '1', '1', '1')[int(simnode['coptions']['bambuild'])])
+           blf.draw(font_id,  ('1', '2', '2', '1', '1', '1')[int(simnode['coptions']['buildtype'])])
         elif build_compliance == 'EXEMPLARY':
-            blf.draw(font_id,  ('2', '3', '3', '2', '2', '2')[int(simnode['coptions']['bambuild'])])
+            blf.draw(font_id,  ('2', '3', '3', '2', '2', '2')[int(simnode['coptions']['buildtype'])])
         else:
             blf.draw(font_id, '0')
 

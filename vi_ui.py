@@ -39,10 +39,12 @@ class Vi3DPanel(bpy.types.Panel):
                     row.prop(view, "show_only_render")
                     newrow(layout, 'Legend', scene, "vi_leg_display")
                     if not scene.ss_disp_panel:
-                        if 'UDI' in scene['liparams']['unit']:
-                            newrow(layout, 'UDI type:', scene, "li_disp_udi")
-                        elif 'SDA' in scene['liparams']['unit'] or 'ASE' in scene['liparams']['unit']:
-                            newrow(layout, 'sDA/ASE:', scene, "li_disp_sda")
+                        if scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)'):
+                            newrow(layout, 'Result type:', scene, "li_disp_da")
+                        if scene['liparams']['unit'] in ('Mlxh', u'kWh/m\u00b2(f)', u'kWh/m\u00b2(v)'):
+                            newrow(layout, 'Result type:', scene, "li_disp_exp")
+#                        elif 'SDA' in scene['liparams']['unit'] or 'ASE' in scene['liparams']['unit']:
+#                            newrow(layout, 'sDA/ASE:', scene, "li_disp_sda")
                         elif scene['viparams']['visimcontext'] == 'LiVi Compliance': 
                             newrow(layout, 'Metric:', scene, 'li_disp_sv')
                         elif scene['viparams']['visimcontext'] == 'LiVi Basic':

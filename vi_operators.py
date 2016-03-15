@@ -306,7 +306,7 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
 
         if li_calc(self, simnode, livisimacc(simnode)) == 'CANCELLED':
             return {'CANCELLED'}
-        if simnode['coptions']['Context'] != 'CBDM' and simnode['coptions']['Context'] != '3':
+        if simnode['coptions']['Context'] != 'CBDM' and simnode['coptions']['Context'] != '1':
             scene.vi_display = 1
 
         scene['viparams']['vidisp'] = 'li'
@@ -955,8 +955,8 @@ class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
             self.report({'ERROR'},"Matplotlib cannot be found by the Python installation used by Blender")
             return {'CANCELLED'}
 
-        Sdate = dt.fromordinal(dt(2015, 1, 1).toordinal() + node['Start'] - 1) + datetime.timedelta(hours = node.dsh - 1)
-        Edate = dt.fromordinal(dt(2015, 1, 1).toordinal() + node['End'] - 1) + datetime.timedelta(hours = node.deh - 1)
+        Sdate = dt.fromordinal(dt(2015, 1, 1).toordinal() + node['Start'] - 1)# + datetime.timedelta(hours = node.dsh - 1)
+        Edate = dt.fromordinal(dt(2015, 1, 1).toordinal() + node['End'] - 1)# + datetime.timedelta(hours = node.deh - 1)
         chart_disp(self, plt, node, innodes, Sdate, Edate)
         return {'FINISHED'}
 
@@ -1322,7 +1322,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             o['omin'], o['omax'], o['oave'] = {}, {}, {}
             bm = bmesh.new()
             bm.from_mesh(o.data)
-            clearlayers(bm)
+            clearlayers(bm, 'a')
             bm.transform(o.matrix_world)
             geom = bm.faces if simnode.cpoint == '0' else bm.verts
             geom.layers.int.new('cindex')

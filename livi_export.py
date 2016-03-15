@@ -43,6 +43,11 @@ def radgexport(export_op, node, **kwargs):
         if o in caloblist:
             o['rtpoints'] = {}
             o['lisenseareas'] = {}
+#        bm = bmesh.new()
+#        bm.from_object(o)
+#        clearlayers(bm, 'a')
+#        bm.to_mesh(o.data)
+#        bm.free()
     
     for frame in frames:
         scene.frame_set(frame)
@@ -57,17 +62,20 @@ def radgexport(export_op, node, **kwargs):
 
         gradfile = "# Geometry \n\n"
         radmesh(scene, eolist, export_op)
+
         for o in eolist:
             bm = bmesh.new()
             bm.from_mesh(o.data)
             bm.transform(o.matrix_world)
-            bm.normal_update()
-            if frame == frames[0]:
-                clearlayers(bm)
-                if o in caloblist:
-                    geom = (bm.faces, bm.verts)[int(node.cpoint)]
+            bm.normal_update()            
+
+            if o in caloblist:
+                geom = (bm.faces, bm.verts)[int(node.cpoint)]
+                if frame == frames[0]:
+                    clearlayers(bm, 'a')                                    
                     geom.layers.int.new('cindex')
                     o['cpoint'] = node.cpoint
+                geom.layers.string.new('rt{}'.format(frame))
                 
             if o in geooblist:
                 selobj(scene, o)
@@ -110,11 +118,11 @@ def radgexport(export_op, node, **kwargs):
                        
                 # rtrace export routine
     
-                if o in caloblist:  
+                if o in caloblist: 
                     o.rtpoints(bm, node.offset, str(frame))
                     bm.transform(o.matrix_world.inverted())
                     bm.to_mesh(o.data)
-                bm.free()
+            bm.free()
 
     # Lights export routine
 
@@ -175,7 +183,7 @@ def hdrexport(scene, f, frame, node, skytext):
 
 def skyexport(sn):
     skytext = "4 .8 .8 1 0\n\n" if sn < 3 else "4 1 1 1 0\n\n"
-    return "\nskyfunc glow skyglow\n0\n0\n" + skytext + "skyglow source sky\n0\n0\n4 0 0 1  180\n\n"
+    return "\nskyfunc glow sky_glow\n0\n0\n" + skytext + "sky_glow source sky\n0\n0\n4 0 0 1  180\n\n"
 
 def createradfile(scene, frame, export_op, simnode):
     radtext = ''

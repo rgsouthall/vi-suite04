@@ -58,6 +58,7 @@ def retframe(axis, dnode, frames):
         return frames[0]
     
 def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
+    print(Sdate, Edate)
     variant = rvariant(dnode)
     rnx = dnode.inputs['X-axis'].links[0].from_node
     rlx = rnx['reslists']
@@ -75,10 +76,13 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
         (dm, dd, dh) = ([int(x) for x in mdata[0]], [int(x) for x in ddata[0]], [int(x) for x in hdata[0]])
         
         for i in range(len(hdata[0])):
-            if sm == dm[i] and sd == dd[i] and sh == dh[i] - 1:
+            if sm == dm[i] and sd == dd[i]:# and sh == dh[i] - 1:
                 si = i
-            elif em == dm[i] and ed == dd[i] and eh == dh[i] - 1:
+                break
+        for i in range(len(hdata[0])):
+            if em == dm[i] and ed == dd[i]:# and eh == dh[i] - 1:
                 ei = i
+                break
                 
         mdata = [int(m) for m in mdata[0]][si:ei + 1]
         ddata = [int(d) for d in ddata[0]][si:ei + 1]

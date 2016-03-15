@@ -39,7 +39,7 @@ if "bpy" in locals():
 else:
     from .vi_node import vinode_categories, envinode_categories
     from .envi_mat import envi_materials, envi_constructions, envi_layero, envi_layer1, envi_layer2, envi_layer3, envi_layer4, envi_layerotype, envi_layer1type, envi_layer2type, envi_layer3type, envi_layer4type, envi_con_list
-    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, fvmat, radmat, radbsdf
+    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, fvmat, radmat, radbsdf, retsv
     from .vi_func import resnameunits, aresnameunits, recalculate_text, rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, lividisplay, setscenelivivals
     from .vi_operators import *
     from .vi_ui import *
@@ -141,7 +141,7 @@ def eupdate(self, context):
             for o in [obj for obj in bpy.data.objects if obj.lires == 1 and obj.data.shape_keys and str(frame) in [sk.name for sk in obj.data.shape_keys.key_blocks]]:  
                 bm = bmesh.new()
                 bm.from_mesh(o.data)  
-                bm.normal_update()
+         #       bm.normal_update()
                 bm.transform(o.matrix_world)            
                 skb = bm.verts.layers.shape['Basis']
                 skf = bm.verts.layers.shape[str(frame)]
@@ -301,6 +301,7 @@ def register():
     Object.li_bsdf_ksamp = bpy.props.IntProperty(name = '', description = 'BSDF resolution', min = 1, default = 2000)
     Object.li_bsdf_rcparam = sprop("", "rcontrib parameters", 1024, "")
     Object.radbsdf = radbsdf
+    Object.retsv = retsv
 
 # EnVi zone definitions
     Object.envi_type = eprop([("0", "Thermal", "Thermal Zone"), ("1", "Shading", "Shading Object"), ("2", "Chimney", "Thermal Chimney Object")], "EnVi object type", "Specify the EnVi object type", "0")
@@ -601,10 +602,11 @@ def register():
     Scene.li_assorg = sprop("", "Name of the assessing organisation", 1024, '')
     Scene.li_assind = sprop("", "Name of the assessing individual", 1024, '')
     Scene.li_jobno = sprop("", "Project job number", 1024, '')
-    Scene.li_disp_udi = EnumProperty(items = [("0", "Low", "Percentage of hours below minimum threshold"),("1", "Supplementary", "Percentage of hours requiring supplementary lighting"), ("2", "Autonomous", "Percentage of hours with autonomous lighting"), ("3", "Upper", "Percentage of hours excedding the upper limit")], name = "", description = "UDI range selection", default = "2", update = liviresupdate)
-    Scene.li_disp_basic = EnumProperty(items = [("0", "Illuminance", "Display Illuminance values"), ("1", "Irradiance", "Display Irradiance values"), ("2", "DF", "Display Daylight factor values")], name = "", description = "Basic metric selection", default = "0", update = liviresupdate)
-    Scene.li_disp_sda = EnumProperty(items = [("0", "sDA", "Spatial Daylight Autonomy"),("1", "ASE", "Annual sunlight exposure")], name = "", description = "Result selection", default = "0", update = liviresupdate)
-
+#    Scene.li_disp_udi = EnumProperty(items = [("0", "Low", "Percentage of hours below minimum threshold"),("1", "Supplementary", "Percentage of hours requiring supplementary lighting"), ("2", "Autonomous", "Percentage of hours with autonomous lighting"), ("3", "Upper", "Percentage of hours excedding the upper limit")], name = "", description = "UDI range selection", default = "2", update = liviresupdate)
+    Scene.li_disp_basic = EnumProperty(items = [("0", "Illuminance", "Display Illuminance values"), ("1", "Visible Irradiance", "Display Irradiance values"), ("2", "Full Irradiance", "Display Irradiance values"), ("3", "DF", "Display Daylight factor values")], name = "", description = "Basic metric selection", default = "0", update = liviresupdate)
+#    Scene.li_disp_sda = EnumProperty(items = [("0", "sDA", "Spatial Daylight Autonomy"),("1", "ASE", "Annual sunlight exposure")], name = "", description = "Result selection", default = "0", update = liviresupdate)
+    Scene.li_disp_da = EnumProperty(items = [("0", "DA", "Daylight Autonomy"), ("1", "sDA", "Spatial Daylight Autonomy"), ("2", "UDILow", "Spatial Daylight Autonomy"), ("3", "UDISup", "Spatial Daylight Autonomy"), ("4", "UDIAuto", "Spatial Daylight Autonomy"), ("5", "UDIHigh", "Spatial Daylight Autonomy"), ("6", "ASE", "Annual sunlight exposure")], name = "", description = "Result selection", default = "0", update = liviresupdate)
+    Scene.li_disp_exp = EnumProperty(items = [("0", "LuxHours", "Display LuhHours values"), ("1", "Full Irradiance", "Display full spectrum radiation exposure values"), ("2", "Visible Irradiance", "Display visible spectrum radiation exposure values")], name = "", description = "Result selection", default = "0", update = liviresupdate)
     (Scene.resaa_disp, Scene.resaws_disp, Scene.resawd_disp, Scene.resah_disp, Scene.resas_disp, Scene.reszt_disp, Scene.reszh_disp, Scene.reszhw_disp, Scene.reszcw_disp, Scene.reszsg_disp, Scene.reszppd_disp, 
      Scene.reszpmv_disp, Scene.resvls_disp, Scene.resvmh_disp, Scene.resim_disp, Scene.resiach_disp, Scene.reszco_disp, Scene.resihl_disp, Scene.reszlf_disp, Scene.reszof_disp, Scene.resmrt_disp,
      Scene.resocc_disp, Scene.resh_disp, Scene.resfhb_disp, Scene.ressah_disp, Scene.ressac_disp, Scene.reshrhw_disp, Scene.restcvf_disp, Scene.restcmf_disp, Scene.restcot_disp, Scene.restchl_disp, Scene.restchg_disp, Scene.restcv_disp, Scene.restcm_disp)  = resnameunits() 

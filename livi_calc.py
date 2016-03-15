@@ -39,7 +39,7 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
     
     for f, frame in enumerate(frames):
         simnode['resdictnew'][str(frame)] = {}
-        if context == 'Basic' or (context == 'CBDM' and int(subcontext) < 2) or (context == 'Compliance' and int(subcontext) < 3):
+        if context == 'Basic' or (context == 'CBDM' and subcontext == '0') or (context == 'Compliance' and int(subcontext) < 3):
             if os.path.isfile("{}-{}.af".format(scene['viparams']['filebase'], frame)):
                 os.remove("{}-{}.af".format(scene['viparams']['filebase'], frame))
             if simnode.pmap:
@@ -56,27 +56,33 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
                         calc_op.report({'ERROR'}, errdict[line.decode()])
                         return 
                 rtcmds.append("rtrace -n {0} -w {1} -ap {2}-{3}.gpm 50 {4} -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame, cpfileentry)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
-            else: 
+            else:
+#                if context == 'Compliance':
+#                    rtcmds.append("rcontrib -w -n {} {} -m sky_glow -I+ -V+ {}-{}.oct ".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame))    
+#
+#                else:
                 rtcmds.append("rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
         else:
             rccmds.append("rcontrib -w  -h -I -fo -bn 146 {} -n {} -f tregenza.cal -b tbin -m sky_glow {}-{}.oct".format(simnode['radparams'], scene['viparams']['nproc'], scene['viparams']['filebase'], frame))
 
     tpoints = sum([bpy.data.objects[lc]['rtpnum'] for lc in scene['liparams']['livic']])
+    calcsteps = [int(i * (tpoints * len(frames))/20) for i in range(0, 21)]
+    starttime = datetime.datetime.now()
     startstep = 0
 
     for oi, o in enumerate([scene.objects[on] for on in scene['liparams']['livic']]):
         selobj(scene, o)
         o['omax'], o['omin'], o['oave'] = {}, {}, {}
         if context == 'Basic':
-            if o.basiccalcapply(scene, frames, rtcmds, simnode, oi, datetime.datetime.now(), len(scene['liparams']['livic']), tpoints, startstep) == 'CANCELLED':
+            if o.basiccalcapply(scene, frames, rtcmds, simnode, oi, starttime, len(scene['liparams']['livic']), calcsteps, startstep) == 'CANCELLED':
                 return 'CANCELLED'
-        elif context == 'CBDM' and int(subcontext) < 2:
-            if o.lhcalcapply(scene, frames, rtcmds, simnode, oi, datetime.datetime.now(), len(scene['liparams']['livic']), tpoints, startstep) == 'CANCELLED':
+        elif context == 'CBDM' and subcontext == '0':
+            if o.lhcalcapply(scene, frames, rtcmds, simnode, oi, starttime, len(scene['liparams']['livic']), calcsteps, startstep) == 'CANCELLED':
                 return 'CANCELLED'
-        elif (context == 'CBDM' and int(subcontext) > 1) or (context == 'Compliance' and int(subcontext) == 3):
-            o.udidacalcapply(scene, frames, rccmds, simnode)
+        elif (context == 'CBDM' and subcontext in ('1', '2')) or (context == 'Compliance' and subcontext == '3'):
+            o.udidacalcapply(scene, frames, rccmds, simnode, starttime, calcsteps)
         elif context == 'Compliance':
-            o.compcalcapply(scene, frames, rtcmds, simnode)   
+            o.compcalcapply(scene, frames, rtcmds, simnode, starttime, calcsteps)   
         startstep += o['rtpnum']
         
     if kivyrun.poll() is None:

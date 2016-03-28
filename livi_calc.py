@@ -40,6 +40,8 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
     for f, frame in enumerate(frames):
         simnode['resdictnew'][str(frame)] = {}
         if context == 'Basic' or (context == 'CBDM' and subcontext == '0') or (context == 'Compliance' and int(subcontext) < 3):
+#        if context == 'Basic' or (context == 'Compliance' and int(subcontext) < 3):
+
             if os.path.isfile("{}-{}.af".format(scene['viparams']['filebase'], frame)):
                 os.remove("{}-{}.af".format(scene['viparams']['filebase'], frame))
             if simnode.pmap:
@@ -64,9 +66,10 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
                 rtcmds.append("rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
         else:
             rccmds.append("rcontrib -w  -h -I -fo -bn 146 {} -n {} -f tregenza.cal -b tbin -m sky_glow {}-{}.oct".format(simnode['radparams'], scene['viparams']['nproc'], scene['viparams']['filebase'], frame))
+#            rccmds.append("rcontrib -w  -h -I- -fo -bn 146 {} -n {} -f tregenza.cal -b tbin -m env_glow {}-{}.oct".format(simnode['radparams'], scene['viparams']['nproc'], scene['viparams']['filebase'], frame))
 
     tpoints = sum([bpy.data.objects[lc]['rtpnum'] for lc in scene['liparams']['livic']])
-    calcsteps = [int(i * (tpoints * len(frames))/20) for i in range(0, 21)]
+    calcsteps = tpoints * len(frames)
     starttime = datetime.datetime.now()
     startstep = 0
 

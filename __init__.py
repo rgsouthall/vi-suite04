@@ -46,7 +46,7 @@ else:
 
 import sys, os, inspect, bpy, nodeitems_utils, bmesh, shutil, colorsys, math
 from bpy.app.handlers import persistent
-from numpy import array, digitize
+from numpy import array, digitize, logspace, vectorize
 from bpy.props import StringProperty, EnumProperty, IntProperty
 from bpy.types import Operator, AddonPreferences
 
@@ -178,35 +178,49 @@ def wupdate(self, context):
     o = context.active_object
     if o and o.type == 'MESH':
         (o.show_wire, o.show_all_edges) = (1, 1) if context.scene.vi_disp_wire else (0, 0)
-        
+
 def legupdate(self, context):
     scene = context.scene
-    for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
-        for o in [o for o in scene.objects if o.get('lires')]:
-            bm = bmesh.new()
-            bm.from_mesh(o.data)
+    frames = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
+    obs = [o for o in scene.objects if o.get('lires')]
+    
+    if scene.vi_leg_scale == '0':
+        bins = array([0.05 * i for i in range(1, 20)])
+    elif scene.vi_leg_scale == '1':
+        slices = logspace(0, 2, 21, True)
+        bins = array([(slices[i] - 0.05 * (20 - i))/100 for i in range(21)])
+        bins = array([1 - math.log10(i)/math.log10(21) for i in range(1, 22)][::-1])
+        bins = bins[1:-1]
+    
+    for o in obs:
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+        
+        for f, frame in enumerate(frames):
             if bm.faces.layers.float.get('res{}'.format(frame)):
                 livires = bm.faces.layers.float['res{}'.format(frame)] 
+                ovals = array([f[livires] for f in bm.faces])
             elif bm.verts.layers.float.get('res{}'.format(frame)):
-                livires = bm.verts.layers.float['res{}'.format(frame)]                
+                livires = bm.verts.layers.float['res{}'.format(frame)] 
+                ovals = array([sum([vert[livires] for vert in f.verts])/len(f.verts) for f in bm.faces])
+            
             try:
-                vals = array([(f[livires] - scene.vi_leg_min)/(scene.vi_leg_max - scene.vi_leg_min) for f in bm.faces]) if scene['liparams']['cp'] == '0' else \
-                        array([(sum([vert[livires] for vert in f.verts])/len(f.verts) - scene.vi_leg_min)/(scene.vi_leg_max - scene.vi_leg_min) for f in bm.faces])
+                vals = ovals - scene.vi_leg_min
+                vals = vals/(scene.vi_leg_max - scene.vi_leg_min)
             except Exception as e:
                 print('there is an error in results retrieval ' + e)
                 vals = array([0 for f in bm.faces])
-            bm.free()
-            if scene.vi_leg_scale == '0':
-                bins = array([0.05 * i for i in range(1, 20)])
-            elif scene.vi_leg_scale == '1':
-                slices = numpy.logspace(0, 2, 21, True)
-                bins = array([(slices[i] - 0.05 * (20 - i))/100 for i in range(21)])
-                bins = array([1 - math.log10(i)/math.log10(21) for i in range(1, 22)][::-1])
-                bins = bins[1:-1]
+                        
             nmatis = digitize(vals, bins)
-            for fi, f in enumerate(o.data.polygons):
-                f.material_index = nmatis[fi]
-                f.keyframe_insert('material_index', frame=frame)
+
+            if len(frames) == 1:                
+                o.data.polygons.foreach_set('material_index', nmatis)
+                o.data.update()
+
+            elif len(frames) > 1:
+                for fi, fc in enumerate(o.data.animation_data.action.fcurves):
+                    fc.keyframe_points[f].co = frame, nmatis[fi]
+        bm.free()
     scene.frame_set(scene.frame_current)
 
 def liviresupdate(self, context):

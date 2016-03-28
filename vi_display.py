@@ -112,9 +112,9 @@ def li_display(simnode):
                         
         bm.transform(o.matrix_world.inverted())
         bm.to_mesh(ores.data)
-        ores.lividisplay(scene)
         bm.free()
-        
+        ores.lividisplay(scene)
+                
         if scene.vi_disp_3d == 1 and ores.data.shape_keys == None:
             selobj(scene, ores)
             bpy.ops.object.shape_key_add(from_mix = False)
@@ -134,8 +134,7 @@ def spnumdisplay(disp_op, context, simnode):
         spob = bpy.data.objects['SPathMesh'] 
         ob_mat = spob.matrix_world
         mid_x, mid_y, width, height = viewdesc(context)
-        (view_location, view_mat, vw) = retvpvloc(context) 
-        total_mat = view_mat * ob_mat
+        vl = retvpvloc(context)
                 
         if scene.hourdisp:
             blf.enable(0, 4)
@@ -145,28 +144,38 @@ def spnumdisplay(disp_op, context, simnode):
             pvecs = [ob_mat * mathutils.Vector(p[:]) for p in spob['numpos'].values()]
             pvals = [int(p.split('-')[1]) for p in spob['numpos'].keys()]
             p2ds = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, p) for p in pvecs]
-            (hs, posis) = map(list, zip(*[[p, p2ds[pi]] for pi, p in enumerate(pvals) if p2ds[pi] and not scene.ray_cast(0.95 * pvecs[pi], view_location)[0]]))           
-            draw_index(context, leg, mid_x, mid_y, width, height, posis, hs)
+            try:
+                (hs, posis) = map(list, zip(*[[p, p2ds[pi]] for pi, p in enumerate(pvals) if p2ds[pi] and 0 < p2ds[pi][0] < width and 0 < p2ds[pi][1] < height and not scene.ray_cast(pvecs[pi] - 0.05 * (pvecs[pi] - vl), vl - 0.95 * pvecs[pi])[0]]))
+                draw_index(context, leg, mid_x, mid_y, width, height, posis, hs)
+            except:
+                pass
             blf.disable(0, 4)
 
         if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects]:
             sobs = [ob for ob in bpy.data.objects if ob.get('VIType') == 'Sun']
-            if sobs and scene.timedisp and mathutils.Vector.angle(vw, view_location - ob_mat*sobs[0].matrix_world*mathutils.Vector(sobs[0].location)) < pi * 0.5:
-                blf.enable(0, 4)
-                blf.shadow(0, 5,scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])
-                bgl.glColor4f(scene.vi_display_rp_fc[0], scene.vi_display_rp_fc[1], scene.vi_display_rp_fc[2], scene.vi_display_rp_fc[3])
-                blf.size(0, scene.vi_display_rp_fs, 72)
-                pos = total_mat*mathutils.Vector(sobs[0].location).to_4d()
-                soltime = datetime.datetime.fromordinal(scene.solday)
-                soltime += datetime.timedelta(hours = scene.solhour)
-                draw_time(context, mid_x, mid_y, width, height, pos, soltime.strftime('  %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90-sobs[0].rotation_euler[0]*180/pi, (180, -180)[sobs[0].rotation_euler[2] < -pi] - sobs[0].rotation_euler[2]*180/pi))
-                blf.disable(0, 4)
+            if sobs and scene.timedisp:
+                sunloc = ob_mat * sobs[0].location
+                solpos = view3d_utils.location_3d_to_region_2d(context.region, context.region_data, sunloc)
+                try:
+                    if 0 < solpos[0] < width and 0 < solpos[1] < height and not scene.ray_cast(sobs[0].location + 0.05 * (vl - sunloc), vl- sunloc)[0]:
+                        blf.enable(0, 4)
+                        blf.shadow(0, 5, *scene.vi_display_rp_fsh)
+                        bgl.glColor4f(*scene.vi_display_rp_fc)
+                        blf.size(0, scene.vi_display_rp_fs, 72)
+                        soltime = datetime.datetime.fromordinal(scene.solday)
+                        soltime += datetime.timedelta(hours = scene.solhour)
+                        sre = sobs[0].rotation_euler
+                        draw_time(solpos, soltime.strftime('  %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90 - sre[0]*180/pi, (180, -180)[sre[2] < -pi] - sre[2]*180/pi))
+                        blf.disable(0, 4)
+                except:
+                    pass
     else:
         return
 
 def linumdisplay(disp_op, context, simnode):
     scene = context.scene    
-    if scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel'):
+    if not scene.get('viparams') or scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel'):
+        scene.vi_display = 0
         return
     if scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
         disp_op.report({'INFO'},"Outside result frame range")
@@ -187,8 +196,8 @@ def linumdisplay(disp_op, context, simnode):
     bgl.glColor3f = scene.vi_display_rp_fc
     fn = context.scene.frame_current - scene['liparams']['fs']
     mid_x, mid_y, width, height = viewdesc(context)
-    view_location = retvpvloc(context)  
-    
+    view_location = retvpvloc(context)
+
     if scene.vi_display_sel_only == False:
         obd = obreslist
     else:
@@ -200,19 +209,18 @@ def linumdisplay(disp_op, context, simnode):
         try:
             omw = ob.matrix_world
             bm = bmesh.new()
-            bm.from_object(ob, scene, deform = True)
+            bm.from_mesh(ob.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW'))
             bm.transform(omw)
-            bm.normal_update() 
     
             if bm.faces.layers.float.get('res{}'.format(scene.frame_current)): 
                 livires = bm.faces.layers.float['res{}'.format(scene.frame_current)]
                 faces = [f for f in bm.faces if f.select] if scene.vi_disp_3d else bm.faces
                             
                 if scene.vi_display_vis_only:
-                    print('hi', faces[0].calc_center_bounds() + scene.vi_display_rp_off * faces[0].normal, view_location)
-                    faces = [f for f in faces if not scene.ray_cast(f.calc_center_bounds() + scene.vi_display_rp_off * f.normal,view_location, distance=1e+5)[0]]
-#                    print([f for f in faces if not scene.ray_cast(view_location, f.calc_center_bounds() + scene.vi_display_rp_off * f.normal, distance=1e+5)[0]])
-                print(len(faces))
+                    fcos = [f.calc_center_bounds() + scene.vi_display_rp_off * f.normal for f in faces]
+                    direcs = [view_location - f for f in fcos]
+                    faces = [f for i, f in enumerate(faces) if not scene.ray_cast(fcos[i], direcs[i], distance=1e+5)[0]]
+
                 face2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, f.calc_center_bounds()) for f in faces]
                 (faces, pcs) = map(list, zip(*[[f, face2d[fi]] for fi, f in enumerate(faces) if face2d[fi] and 0 < face2d[fi][0] < width and 0 < face2d[fi][1] < height]))          
                 res = [f[livires] for f in faces]
@@ -222,7 +230,9 @@ def linumdisplay(disp_op, context, simnode):
                 verts = [v for v in bm.verts if not v.hide and v.select]
                 
                 if scene.vi_display_vis_only:
-                    verts = [v for v in verts if not scene.ray_cast(v.co + scene.vi_display_rp_off * v.normal, view_location)[0]]
+                    vcos = [v.co + scene.vi_display_rp_off * v.normal for v in verts]
+                    direcs = [view_location - v for v in vcos]
+                    verts = [v for i, v in enumerate(verts) if not scene.ray_cast(vcos[i], direcs[i])[0]]
                     
                 vert2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, v.co) for v in verts]
                 (verts, pcs) = map(list, zip(*[[v, vert2d[vi]] for vi, v in enumerate(verts) if vert2d[vi] and 0 < vert2d[vi][0] < width and 0 < vert2d[vi][1] < height]))
@@ -238,6 +248,10 @@ def li3D_legend(self, context, simnode):
     scene = context.scene
     fc = str(scene.frame_current)
     dplaces = retdp(context, scene.vi_leg_max)
+    
+    if not scene.get('liparams'):
+        scene.vi_display = 0
+        return
 
     try:
         if scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or not scene.vi_leg_display  or not any([o.lires for o in scene.objects]) or scene['liparams']['unit'] == 'Sky View':
@@ -404,7 +418,6 @@ class en_temp_panel():
         return (self.location[0] - 50, self.location[1] - 50, self.location[0] + 50, self.location[1] + 50)
                 
     def metrics(scene, resnode):
-#        scene = context.scene
         rl = resnode['reslists']
         zrl = list(zip(*rl))
         reszones = [o.name.upper() for o in bpy.data.objects if o.name.upper() in zrl[2]]

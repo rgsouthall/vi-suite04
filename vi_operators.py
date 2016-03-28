@@ -729,8 +729,6 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
             return {'CANCELLED'}
         scene['viparams']['vidisp'] = ''
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-#        node.sdoy = datetime.datetime(2015, node.startmonth, 1).timetuple().tm_yday
-#        node.edoy = (datetime.date(2015, node.endmonth + (1, -11)[node.endmonth == 12], 1) - datetime.timedelta(days = 1)).timetuple().tm_yday
         (scene['enparams']['fs'], scene['enparams']['fe']) = (node.fs, node.fe) if node.animated else (scene.frame_current, scene.frame_current)
         locnode = node.inputs['Location in'].links[0].from_node
         if not os.path.isfile(locnode.weather):
@@ -740,7 +738,6 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
         node.preexport(scene)
         
         for frame in range(node.fs, node.fe + 1):
-#            scene.frame_set(frame)
             shutil.copyfile(locnode.weather, os.path.join(scene['viparams']['newdir'], "in{}.epw".format(frame)))
 
         shutil.copyfile(os.path.join(os.path.dirname(os.path.abspath(os.path.realpath( __file__ ))), "EPFiles", "Energy+.idd"), os.path.join(scene['viparams']['newdir'], "Energy+.idd"))
@@ -947,10 +944,11 @@ class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
         innodes = list(OrderedDict.fromkeys([inputs.links[0].from_node for inputs in node.inputs if inputs.links]))
         rl = innodes[0]['reslists']
         zrl = list(zip(*rl))
+        
         if node.inputs['X-axis'].framemenu not in zrl[0]:
-#        if not len(innodes[0]['reslists'][node.inputs['X-axis'].framemenu]['Time']['Hour']):
             self.report({'ERROR'},"There are no results in the results file. Check the results.err file in Blender's text editor")
             return {'CANCELLED'}
+        
         if not mp:
             self.report({'ERROR'},"Matplotlib cannot be found by the Python installation used by Blender")
             return {'CANCELLED'}
@@ -994,14 +992,15 @@ class NODE_OT_SunPath(bpy.types.Operator):
         scene['viparams']['vidisp'] = 'sp'
         context.scene['viparams']['visimcontext'] = 'SunPath'
         scene.cursor_location = (0.0, 0.0, 0.0)
+        suns = [ob for ob in context.scene.objects if ob.type == 'LAMP' and ob.data.type == 'SUN']
         matdict = {'SolEquoRings': (1, 0, 0), 'HourRings': (1, 1, 0), 'SPBase': (1, 1, 1), 'Sun': (1, 1, 1), 'PathDash': (1, 1, 1),
                    'SumAng': (1, 0, 0), 'EquAng': (0, 1, 0), 'WinAng': (0, 0, 1)}
+        
         for mat in [mat for mat in matdict if mat not in bpy.data.materials]:
             bpy.data.materials.new(mat)
             bpy.data.materials[mat].diffuse_color = matdict[mat]
             bpy.data.materials[mat].use_shadeless = 1
 
-        suns = [ob for ob in context.scene.objects if ob.type == 'LAMP' and ob.data.type == 'SUN']
         if suns:
             sun = suns[0]
             [scene.objects.unlink(sun) for sun in suns[1:]]
@@ -1059,6 +1058,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
             for hour in range(1, 25):
                 ([solalt, solazi]) = solarPosition(doy, hour, scene.latitude, scene.longitude)[2:]
                 bm.verts.new().co = [-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]
+        
         if hasattr(bm.verts, "ensure_lookup_table"):
             bm.verts.ensure_lookup_table()
         for v in range(24, len(bm.verts)):
@@ -1094,6 +1094,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         spathob.material_slots[0].material, spathob['numpos'] = bpy.data.materials['HourRings'], numpos
         bpy.ops.object.material_slot_add()
         spathob.material_slots[1].material = bpy.data.materials['PathDash']
+
         for face in spathob.data.polygons:
             face.material_index = 0 if not int(face.index/16)%2 else 1
                 
@@ -1120,6 +1121,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
 
         if spfc not in bpy.app.handlers.frame_change_post:
             bpy.app.handlers.frame_change_post.append(spfc)
+
         bpy.ops.view3d.spnumdisplay('INVOKE_DEFAULT')
         return {'FINISHED'}
 
@@ -1226,10 +1228,6 @@ class NODE_OT_WindRose(bpy.types.Operator):
         wro['maxres'], wro['minres'], wro['avres'] = max(aws), min(aws), sum(aws)/len(aws)
         windnum(simnode['maxfreq'], (0,0,0), scale, compass((0,0,0), scale, wro, wro.data.materials['wr-000000']))
         bpy.ops.view3d.wrlegdisplay('INVOKE_DEFAULT')
-#        if simnode.wrtype == '4':
-#            (fig, ax) = wr_axes()
-#            ax.contour(awd, aws, bins=sbinvals, normed=True, cmap=cm.hot)
-#            plt.savefig(scene['viparams']['newdir']+'/disp_wind.svg')
         return {'FINISHED'}
 
 class VIEW3D_OT_WRLegDisplay(bpy.types.Operator):
@@ -1263,7 +1261,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-#        return context.window_manager.invoke_props_dialog(self)
         scene = context.scene        
         if viparams(self, scene):            
             return {'CANCELLED'}
@@ -1282,7 +1279,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
         scene['viparams']['vidisp'] = 'ss'
         clearscene(scene, self)
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-#        simnode.running = 1
         scene['viparams']['visimcontext'] = 'Shadow'
         if not scene.get('liparams'):
            scene['liparams'] = {}
@@ -1305,14 +1301,12 @@ class NODE_OT_Shadow(bpy.types.Operator):
         frange = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
         time = datetime.datetime(2014, simnode.sdate.month, simnode.sdate.day, simnode.starthour - 1)
         y =  2014 if simnode.edoy >= simnode.sdoy else 2014 + 1
-#        endtime = datetime.datetime(y, simnode.endmonth, (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)[simnode.endmonth - 1], simnode.endhour - 1)
         endtime = datetime.datetime(y, simnode.edate.month, simnode.edate.day, simnode.endhour - 1)
         interval = datetime.timedelta(hours = 1/simnode.interval)
         times = [time + interval*t for t in range(int((endtime - time)/interval)) if simnode.starthour <= (time + interval*t).hour <= simnode.endhour]
         sps = [solarPosition(t.timetuple().tm_yday, t.hour+t.minute/60, scene.latitude, scene.longitude)[2:] for t in times]
         direcs = [mathutils.Vector((-sin(sp[1]), -cos(sp[1]), tan(sp[0]))) for sp in sps if sp[0] > 0]
-        calcno = len(frange) * sum(len([f for f in o.data.polygons if o.data.materials[f.material_index].mattype == '2']) for o in [scene.objects[on] for on in scene['liparams']['shadc']])
-        calcsteps = [int(i * calcno/20) for i in range(0, 21)]     
+        calcsteps = len(frange) * sum(len([f for f in o.data.polygons if o.data.materials[f.material_index].mattype == '2']) for o in [scene.objects[on] for on in scene['liparams']['shadc']])
         curres = 0
         starttime = datetime.datetime.now()
         progressfile(scene, starttime, calcsteps, curres, 'clear')
@@ -1330,8 +1324,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             [geom.layers.float.new('res{}'.format(fi)) for fi in frange]
 
             for frame in frange:                
-#                scene.frame_set(frame)
-                shadtree = rettree(scene, shadobs)
+                shadtree = rettree(scene, shadobs, ('', '2')[simnode.signore])
                 shadres = geom.layers.float['res{}'.format(frame)]
                 if simnode.cpoint == '0':
                     gpoints = [f for f in geom if o.data.materials[f.material_index].mattype == '2']
@@ -1340,21 +1333,14 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 for g, gp in enumerate(gpoints):
                     gp[cindex] = g + 1                    
                     if simnode.cpoint == '0':
-                        gp[shadres] = 100 * (1 - sum([(1, 0)[shadtree.ray_cast(gp.calc_center_bounds(), direc)[3] == None] for direc in direcs])/len(direcs))
+                        gp[shadres] = 100 * (1 - sum([(1, 0)[shadtree.ray_cast(gp.calc_center_bounds() + gp.normal.normalized() * simnode.offset, direc)[3] == None] for direc in direcs])/len(direcs))
                     else:
-                        gp[shadres] = 100 * (1 - sum([(1, 0)[shadtree.ray_cast(gp.co, direc)[3] == None] for direc in direcs])/len(direcs))
+                        gp[shadres] = 100 * (1 - sum([(1, 0)[shadtree.ray_cast(gp.co + gp.normal.normalized() * simnode.offset, direc)[3] == None] for direc in direcs])/len(direcs))
 
                     curres += 1
-                    if curres in calcsteps:
+                    if not curres*20%calcsteps:
                         if progressfile(scene, starttime, calcsteps, curres, 'run') == 'CANCELLED':
                             return {'CANCELLED'}
-#                    if curres in calcsteps:
-#                        with open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'r') as progressfile:
-#                            if 'Cancel' in progressfile.read():
-#                                return {'CANCELLED'}
-#                                
-#                        with open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'w') as progressfile:
-#                            progressfile.write('{} {}'.format(5 * calcsteps.index(curres), (time.now() - starttime)/calcsteps.index(curres) * (20 - calcsteps.index(curres))))
                     
                 o['omin']['res{}'.format(frame)], o['omax']['res{}'.format(frame)], o['oave']['res{}'.format(frame)] = min([gp[shadres] for gp in gpoints]), max([gp[shadres] for gp in gpoints]), sum([gp[shadres] for gp in gpoints])/len(gpoints)
 
@@ -1363,10 +1349,10 @@ class NODE_OT_Shadow(bpy.types.Operator):
             bm.free()
 
         scene.vi_leg_max, scene.vi_leg_min = 100, 0
-#        scene.frame_set(scene['liparams']['fs'])
+
         if kivyrun.poll() is None:
             kivyrun.kill()
-#        simnode.running = 0
+
         scene.vi_display = 1
         simnode.postexport(scene)
         return {'FINISHED'}

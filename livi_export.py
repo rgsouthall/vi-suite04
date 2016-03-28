@@ -18,8 +18,8 @@
 
 import bpy, os, math, subprocess, datetime, bmesh, mathutils, shlex
 from math import sin, cos, pi
-from subprocess import PIPE, Popen, STDOUT
-from .vi_func import clearscene, solarPosition, retobjs, selobj, radpoints, clearlayers, radmesh
+from subprocess import PIPE, Popen
+from .vi_func import clearscene, solarPosition, retobjs, radpoints, clearlayers, bmesh2mesh
 
 def radgexport(export_op, node, **kwargs):
     scene = bpy.context.scene
@@ -43,11 +43,6 @@ def radgexport(export_op, node, **kwargs):
         if o in caloblist:
             o['rtpoints'] = {}
             o['lisenseareas'] = {}
-#        bm = bmesh.new()
-#        bm.from_object(o)
-#        clearlayers(bm, 'a')
-#        bm.to_mesh(o.data)
-#        bm.free()
     
     for frame in frames:
         scene.frame_set(frame)
@@ -61,14 +56,14 @@ def radgexport(export_op, node, **kwargs):
         # Geometry export routine
 
         gradfile = "# Geometry \n\n"
-        radmesh(scene, eolist, export_op)
 
         for o in eolist:
             bm = bmesh.new()
-            bm.from_mesh(o.data)
+            bm.from_mesh(o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW'))
             bm.transform(o.matrix_world)
-            bm.normal_update()            
-
+            bm.normal_update() 
+            gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename)
+                        
             if o in caloblist:
                 geom = (bm.faces, bm.verts)[int(node.cpoint)]
                 if frame == frames[0]:
@@ -76,53 +71,15 @@ def radgexport(export_op, node, **kwargs):
                     geom.layers.int.new('cindex')
                     o['cpoint'] = node.cpoint
                 geom.layers.string.new('rt{}'.format(frame))
-                
-            if o in geooblist:
-                selobj(scene, o)
-                bsdffaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu == '8']
-                o['bsdf'] = 1 if bsdffaces else 0
-                if not o['merr'] or not o['bsdf']:
-                    try:
-                        bpy.ops.export_scene.obj(filepath=os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(o.name.replace(" ", "_"), frame)), check_existing=True, filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=False, use_normals=o.data.polygons[0].use_smooth, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=True, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=False, keep_vertex_order=True, global_scale=1.0, axis_forward='Y', axis_up='Z', path_mode='AUTO')
-                        objcmd = "obj2mesh -w -a {} {} {}".format(tempmatfilename, os.path.join(scene['liparams']['objfilebase'], "{}-{}.obj".format(o.name.replace(" ", "_"), frame)), os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(o.name.replace(" ", "_"), frame)))
-                        objrun = Popen(objcmd.split(), stdout = PIPE, stderr=STDOUT)
-                        for line in objrun.stdout:
-                            if 'non-triangle' in line.decode():
-                                export_op.report({'INFO'}, o.name+" has an incompatible mesh. Doing a simplified export")
-                                o['merr'] = 1
-                                break 
-                    except:
-                        o['merr'] = 1
-                
-                if not o['merr'] and not o['bsdf']:
-                    gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(o.name.replace(" ", "_"), frame)))
-
-                elif bsdffaces:
-                        zvec, xvec = mathutils.Vector((0, 0, 1)), mathutils.Vector((1, 0, 0))
-                        bm.faces.ensure_lookup_table()
-                        for face in bsdffaces:
-                            fmat = o.data.materials[face.material_index]
-                            radname = '{}_{}_{}'.format(fmat.name, o.name, face.index)
-                            svec = face.normal * mathutils.Matrix.Rotation(1.5 * math.pi, 4, zvec)                            
-                            bsdfrotz = mathutils.Matrix.Rotation(mathutils.Vector.angle(face.normal, zvec), 4, mathutils.Vector.cross(face.normal, zvec))
-                            bsdfrotx = mathutils.Matrix.Rotation(mathutils.Vector.angle(svec, xvec), 4, mathutils.Vector.cross(svec, xvec))
-                            mradfile += o.radbsdf(radname, face.index, (bsdfrotz.inverted() * bsdfrotx.inverted()).to_euler('XYZ'), face.calc_center_bounds())
-                        if not o.bsdf_proxy:    
-                            gradfile += radpoints(o, [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu == '8'], 0)
-
-                if o.bsdf_proxy or not o['bsdf'] or not o.vi_type == '5':
-                    gradfile += radpoints(o, [face for face in bm.faces if o.data.materials and face.material_index < len(o.data.materials) and o.data.materials[face.material_index].radmatmenu != '8'], 0)
-
-                if o.get('merr'):
-                    del o['merr']
-                       
-                # rtrace export routine
-    
+                    
                 if o in caloblist: 
                     o.rtpoints(bm, node.offset, str(frame))
                     bm.transform(o.matrix_world.inverted())
                     bm.to_mesh(o.data)
+            
+            
             bm.free()
+            
 
     # Lights export routine
 
@@ -149,20 +106,10 @@ def sunexport(scene, node, locnode, frame):
     if locnode and node.contextmenu == 'Basic':        
         simtime = node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
         solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour + (simtime.minute)*0.016666, scene.latitude, scene.longitude)
-        gsrun = Popen("gensky -ang {} {} {} -t {}".format(solalt, solazi, node['skytypeparams'], node.turb).split(), stdout = PIPE)
-        return gsrun.stdout.read().decode()
-#    elif locnode and node.contextmenu == 'Compliance':
-#        simtimes = (node.starttime, node.starttime + datetime.timedelta(seconds = 3600 *6 ))
-#        skies = []
-#        for simtime in simtimes:
-#            solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour + (simtime.minute)*0.016666, scene.latitude, scene.longitude)
-#            gsrun = Popen("gensky -ang {} {} {} -t {}".format(solalt, solazi, node['skytypeparams'], 2.46).split(), stdout = PIPE) 
-#            skies.append(gsrun.stdout.read().decode() + skyexport(0)) 
-#        return '{}# LEED Split\n{}'.format(skies[0], skies[1]) 
-            
+        gsrun = Popen("gensky -ang {} {} {} -t {}".format(solalt, solazi, node['skytypeparams'], node.turb).split(), stdout = PIPE)           
     else:
         gsrun = Popen("gensky -ang {} {} {}".format(45, 0, node['skytypeparams']).split(), stdout = PIPE)
-        return gsrun.stdout.read().decode()
+    return gsrun.stdout.read().decode()
 
 def hdrexport(scene, f, frame, node, skytext):
     with open('{}-{}sky.oct'.format(scene['viparams']['filebase'], frame), 'w') as skyoct:
@@ -254,9 +201,7 @@ def cyfc1(self):
                 if any([node.bl_label == 'Attribute' for node in material.node_tree.nodes]):
                     material.node_tree.nodes["Attribute"].attribute_name = str(scene.frame_current)
             except Exception as e:
-                print(e, 'Something wrong with changing the material attribute name')
-
-    
+                print(e, 'Something wrong with changing the material attribute name')    
         
 def genbsdf(scene, export_op, o): 
     bsdfmats = [mat for mat in o.data.materials if mat.radmatmenu == '8']
@@ -287,24 +232,13 @@ def genbsdf(scene, export_op, o):
     bm.transform(bsdfrotz)
     bsdfrotx = mathutils.Matrix.Rotation(mathutils.Vector.angle(svec, xvec), 4, mathutils.Vector.cross(svec, xvec))
     bm.transform(bsdfrotx)
-    maxz = max([v.co[2] for v in bm.verts])
-    minz = min([v.co[2] for v in bm.verts])
-    maxx = max([v.co[0] for v in bm.verts])
-    minx = min([v.co[0] for v in bm.verts])
-    maxy = max([v.co[1] for v in bm.verts])
-    miny = min([v.co[1] for v in bm.verts])
-
+    vposis = list(zip(*[v.co[:] for v in bm.verts]))
+    (maxx, maxy, maxz) = [max(p) for p in vposis]
+    (minx, miny, minz) = [min(p) for p in vposis]
     bsdftrans = mathutils.Matrix.Translation(mathutils.Vector((-(maxx + minx)/2, -(maxy + miny)/2, -maxz)))
     bm.transform(bsdftrans)
     mradfile = ''.join([m.radmat(scene) for m in o.data.materials if m.radmatmenu != '8'])                  
     gradfile = radpoints(o, [face for face in bm.faces if o.data.materials and face.material_index < len(o.data.materials) and o.data.materials[face.material_index].radmatmenu != '8'], 0)
-
-# Create BSDF in sample position for testing
-#    bsdfme = bpy.data.meshes.new('bsdfme')
-#    bm.to_mesh(bsdfme)
-#    ob = bpy.data.objects.new('bsdfob', bsdfme)
-#    scene.objects.link(ob)
-
     bm.free()  
     bsdfsamp = o.li_bsdf_ksamp if o.li_bsdf_tensor == ' ' else 2**(int(o.li_bsdf_res) * 2) * int(o.li_bsdf_tsamp) 
     bsdfxml = os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(o.name))

@@ -16,10 +16,10 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex
+import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex, gc, bpy_extras
 from collections import OrderedDict
 from subprocess import Popen, PIPE, STDOUT
-from numpy import array, digitize, amax, amin, average, zeros, inner, broadcast_to, transpose
+from numpy import array, digitize, amax, amin, average, zeros, inner, broadcast_to, transpose, unique, where
 from numpy import sum as nsum
 from math import sin, cos, asin, acos, pi, isnan, tan, ceil, log10
 from mathutils import Vector, Matrix
@@ -37,6 +37,8 @@ except Exception as e:
     mp = 0
 
 dtdf = datetime.date.fromordinal
+unitdict = {'Lux': 'illu', u'W/m\u00b2(f)': 'firrad', u'W/m\u00b2(v)': 'virrad', 'DF (%)': 'df', 'DA (%)': 'res', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi',
+            'Sky View': 'sv', 'Mlxh': 'illu', u'kWh/m\u00b2(f)': 'firrad', u'kWh/m\u00b2(v)': 'virrad', '% Sunlit': 'res', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase'}
 
 def cmap(cm):
     cmdict = {'hot': 'livi', 'grey': 'shad'}
@@ -50,6 +52,51 @@ def cmap(cm):
         bpy.data.materials['{}#{}'.format(cmdict[cm], i)].specular_color = (0, 0, 0)
         bpy.data.materials['{}#{}'.format(cmdict[cm], i)].use_shadeless = 1
 
+def bmesh2mesh(scene, obmesh, o, frame, tmf):
+    print('0', datetime.datetime.now())
+    ftext = ''
+    gradfile = ''
+    bm = obmesh.copy()
+    bmesh.ops.triangulate(bm, faces = bm.faces, quad_method = 0, ngon_method = 0)
+    bm.verts.ensure_lookup_table()
+    mfaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu in ('0', '1', '2', '3')]
+    ffaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu not in ('0', '1', '2', '3', '7', '8')]
+    #    fvis = unique(array([[v.index for v in face.verts] for face in faces]))    
+    mmats = [mat for mat in o.data.materials if mat.radmatmenu in ('0', '1', '2', '3')]
+#    fmats = [mat for mat in o.data.materials if mat.radmatmenu not in ('0', '1', '2', '3', '7', '8')]
+    otext = 'o {}\n'.format(o.name)
+#    vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts if v.index in fvis])
+    vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts])
+    
+    if o.data.polygons[0].use_smooth:
+#        vtext += ''.join(['vn {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(bm.verts[v].normal.normalized()) for v in fvis])
+        vtext += ''.join(['vn {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.normal.normalized()) for v in bm.verts])
+
+    for mat in mmats:
+        if o.data.polygons[0].use_smooth:            
+            ftext += "usemtl {}\n".format(mat.name) + ''.join(['f {0[0]}//{0[0]} {0[1]}//{0[1]} {0[2]}//{0[2]}\n'.format([v.index + 1 for v in f.verts]) for f in mfaces if o.data.materials[f.material_index] == mat])            
+        else:
+            print('1', datetime.datetime.now())
+#                ftext += "usemtl {}\n".format(mat.name) + ''.join(['f {0[0]} {0[1]} {0[2]}\n'.format([where(fvis == v.index)[0][0] + 1 for v in f.verts]) for f in faces if o.data.materials[f.material_index] == mat])
+            ftext += "usemtl {}\n".format(mat.name) + ''.join(['f {0[0]} {0[1]} {0[2]}\n'.format([v.index + 1 for v in f.verts]) for f in mfaces if o.data.materials[f.material_index] == mat])
+            print('2', datetime.datetime.now())
+            
+    if ffaces:
+        gradfile += radpoints(o, ffaces, 0)
+
+#    with open('/home/ryan/test.obj', 'w') as objfile:
+#        objfile.write(otext + vtext + ftext)
+    bm.free()
+    if ftext:
+        mfile = os.path.join(scene['viparams']['newdir'], 'obj', '{}-{}.mesh'.format(o.name.replace(' ', '_'), frame))
+        with open(mfile, 'w') as mesh:
+#            gc.collect()
+            Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout = mesh, stdin = PIPE).communicate(input = (otext + vtext + ftext).encode('utf-8'))
+        gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(o.name.replace(" ", "_"), frame)))
+#            o2m.stdout.flush()
+    gc.collect()
+    return gradfile
+    
 def radmat(self, scene):
     radname = self.name.replace(" ", "_")         
     radentry = '# ' + ('plastic', 'glass', 'dielectric', 'translucent', 'mirror', 'light', 'metal', 'antimatter', 'bsdf', 'custom')[int(self.radmatmenu)] + ' material\n' + \
@@ -96,20 +143,18 @@ def rtpoints(self, bm, offset, frame):
     self['cfaces'] = [face.index for face in resfaces]
        
     if self['cpoint'] == '0': 
-        for face in resfaces:
-            face[rt] = '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([face.calc_center_bounds()[i] + offset * face.normal.normalized()[i] for i in range(3)], face.normal[:]).encode('utf-8')
         gpoints = resfaces
-        csfc = [face.calc_center_median() for face in gpoints]                      
-        self['rtpoints'][frame] = ''.join(['{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([csfc[fi][i] + offset * f.normal.normalized()[i] for i in range(3)], f.normal[:]) for fi, f in enumerate(gpoints)])
+        gpcos =  [gp.calc_center_bounds() for gp in gpoints]
         self['cverts'], self['lisenseareas'][frame] = [], [f.calc_area() for f in gpoints]       
 
     elif self['cpoint'] == '1': 
         gis = sorted(set([item.index for sublist in [face.verts[:] for face in resfaces] for item in sublist]))
         gpoints = [geom[gi] for gi in gis]
-        self['rtpoints'][frame]  = ''.join(['{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} \n'.format([gp.co[i] + offset * gp.normal[i] for i in range(3)], gp.normal) for gp in gpoints])
-        self['cverts'], self['lisenseareas'][frame] = gp.index, [vertarea(bm, gp) for gp in gpoints]
+        gpcos = [gp.co for gp in gpoints]
+        self['cverts'], self['lisenseareas'][frame] = gp.index, [vertarea(bm, gp) for gp in gpoints]    
     
     for g, gp in enumerate(gpoints):
+        gp[rt] = '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f}'.format([gpcos[g][i] + offset * gp.normal.normalized()[i] for i in range(3)], gp.normal[:]).encode('utf-8')
         gp[cindex] = g + 1
         
     self['rtpnum'] = g + 1
@@ -139,17 +184,18 @@ def clearlayers(bm, ltype):
             bm.verts.layers.int.remove(bm.verts.layers.int[0])
 
 def cbdmmtx(self, scene, locnode, export_op):
-    os.chdir(scene['viparams']['newdir'])        
+    os.chdir(scene['viparams']['newdir'])  
+    dates = retdates(self.sdoy, self.edoy)      
     if self['epwbase'][1] in (".epw", ".EPW"):
         with open(locnode.weather, "r") as epwfile:
             epwlines = epwfile.readlines()
             self['epwyear'] = epwlines[8].split(",")[0]
         Popen(("epw2wea", locnode.weather, "{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])))).wait()
-        if self.startmonth != 1 or self.endmonth != 12:
+        if self.sdoy != 1 or self.edoy != 365 or self.cbdm_start_hour != 1 or self.cbdm_end_hour != 24:
             with open("{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'r') as weafile:
                 wealines = weafile.readlines()
-                weaheader = [line for line in wealines[:6]]
-                wearange = [line for line in wealines[6:] if int(line.split()[0]) in range (self.startmonth, self.endmonth + 1)]
+                weaheader = [line for line in wealines[:6]]               
+                wearange = [line for line in wealines[6:] if dates[0] <= datetime.datetime(2015, int(line.split()[0]), int(line.split()[1])) <= dates[1] and int(line.split()[2].split('.')[0]) + 1 in range(self.cbdm_start_hour, self.cbdm_end_hour + 1)]
             with open("{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'w') as weafile:
                 [weafile.write(line) for line in weaheader + wearange]
         gdmcmd = ("gendaymtx -m 1 {} {}".format(('', '-O1')[self['watts']], "{0}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0]))))
@@ -210,7 +256,7 @@ def setscenelivivals(scene):
     expunits = ('Mlxh', "kWh/m"+ u'\u00b2(f)', "kWh/m"+ u'\u00b2(v)')
 
     if scene['viparams']['visimcontext'] == 'LiVi Basic':
-        udict = {'0': 'Lux', '1': "W/m"+ u'\u00b2(v)', '2': 'DF (%)'}
+        udict = {'0': 'Lux', '1': "W/m"+ u'\u00b2(v)', '2': "W/m"+ u'\u00b2(f)', '3': 'DF (%)'}
         scene['liparams']['unit'] = udict[scene.li_disp_basic]
 
     if scene['viparams']['visimcontext'] == 'LiVi CBDM':        
@@ -230,8 +276,7 @@ def setscenelivivals(scene):
             scene['liparams']['unit'] = udict[scene.li_disp_sv]
             
     olist = [scene.objects[on] for on in scene['liparams']['shadc']] if scene['viparams']['visimcontext'] == 'Shadow' else [scene.objects[on] for on in scene['liparams']['livic']]
-    unitdict = {'Lux': 'illu', "W/m"+ u'\u00b2(v)': 'virrad', "W/m"+ u'\u00b2(f)': 'firrad', 'DF (%)': 'df', 'Sky View': 'sv', 'Mlxh': 'illu', u'kWh/m\u00b2(f)': 'firrad', u'kWh/m\u00b2(v)': 'virrad', 
-                'DA (%)': 'da', 'UDI-f (%)': 'low', 'UDI-s (%)': 'sup', 'UDI-a (%)': 'auto', 'UDI-e (%)': 'high', '% Sunlit': 'res', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase'}
+
     for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
         scene['liparams']['maxres'][str(frame)] = max([o['omax']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])
         scene['liparams']['minres'][str(frame)] = min([o['omin']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])
@@ -239,14 +284,14 @@ def setscenelivivals(scene):
     scene.vi_leg_max = max(scene['liparams']['maxres'].values())
     scene.vi_leg_min = min(scene['liparams']['minres'].values())
     
-def rettree(scene, obs):
+def rettree(scene, obs, ignore):
     bmob = bmesh.new()
     for soi, so in enumerate(obs):
         btemp = bpy.data.meshes.new("temp")
         bmtemp = bmesh.new()
-        bmtemp.from_mesh(so.data)
-        bmtemp.transform(so.matrix_world)
-        delfaces = [face for face in bmtemp.faces if so.data.materials[face.material_index].mattype == '2']
+        bmtemp.from_mesh(so.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW'))
+#        bmtemp.transform(so.matrix_world)
+        delfaces = [face for face in bmtemp.faces if so.data.materials[face.material_index].mattype == ignore]
         bmesh.ops.delete(bmtemp, geom = delfaces, context = 5)
         bmtemp.to_mesh(btemp)
         bmob.from_mesh(btemp)
@@ -255,7 +300,7 @@ def rettree(scene, obs):
     bmob.free()
     bmtemp.free()
     return tree
-
+    
 def progressfile(scene, starttime, calcsteps, curres, action):   
     if os.path.isfile(os.path.join(scene['viparams']['newdir'], 'viprogress')):
         with open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'r') as pfile:
@@ -267,8 +312,8 @@ def progressfile(scene, starttime, calcsteps, curres, action):
         if action == 'clear':
             pfile.write('STARTING')
         else:
-            dt = (datetime.datetime.now() - starttime)/calcsteps.index(curres) * (20 - calcsteps.index(curres))
-            pfile.write('{} {}'.format(5 * calcsteps.index(curres), datetime.timedelta(seconds = dt.seconds)))
+            dt = (datetime.datetime.now() - starttime) * (calcsteps - curres)/curres
+            pfile.write('{} {}'.format(int(100 * curres/calcsteps), datetime.timedelta(seconds = dt.seconds)))
         
 def progressbar(file):
     kivytext = "from kivy.app import App \n\
@@ -350,7 +395,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, ca
         geom.layers.float.new('illu{}'.format(frame))
         geom.layers.float.new('df{}'.format(frame))
         geom.layers.float.new('res{}'.format(frame))
-        firradres = geom.layers.float['virrad{}'.format(frame)]
+        firradres = geom.layers.float['firrad{}'.format(frame)]
         virradres = geom.layers.float['virrad{}'.format(frame)]
         illures = geom.layers.float['illu{}'.format(frame)]
         dfres = geom.layers.float['df{}'.format(frame)]
@@ -364,7 +409,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, ca
         
         rt =  geom.layers.string['rt{}'.format(rtframe)]
             
-        for chunk in chunks([g for g in geom if g[rt]], int(scene['viparams']['nproc']) * 50):
+        for chunk in chunks([g for g in geom if g[rt]], int(scene['viparams']['nproc']) * 4000):
             rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
             xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()])
             virrad = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1)
@@ -378,22 +423,24 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, ca
                 gp[dfres] = df[gi]
                 gp[res] = illu[gi]
                 
-            curres += int(scene['viparams']['nproc']) * 50
-            if curres in calcsteps:
-                if progressfile(scene, starttime, calcsteps, curres, 'run') == 'CANCELLED':
-                    bm.free()
-                    return {'CANCELLED'}
+            curres += len(chunk)
+            if progressfile(scene, starttime, calcsteps, curres, 'run') == 'CANCELLED':
+                bm.free()
+                return {'CANCELLED'}
 
         ovirrad = array([g[virradres] for g in geom])
         self['omax']['virrad{}'.format(frame)] = max(ovirrad)
         self['omax']['illu{}'.format(frame)] =  max(ovirrad * 179)
         self['omax']['df{}'.format(frame)] =  max(ovirrad * 1.79)
+        self['omax']['firrad{}'.format(frame)] =  max(ovirrad * 1.64)
         self['omin']['virrad{}'.format(frame)] = min(ovirrad)
         self['omin']['illu{}'.format(frame)] = min(ovirrad * 179)
         self['omin']['df{}'.format(frame)] = min(ovirrad * 1.79)
+        self['omin']['firrad{}'.format(frame)] = min(ovirrad * 1.64)
         self['oave']['virrad{}'.format(frame)] = sum(ovirrad)/reslen
         self['oave']['illu{}'.format(frame)] = sum(ovirrad * 179)/reslen
-        self['oave']['df{}'.format(frame)] = sum(ovirrad * 1.79)/reslen    
+        self['oave']['df{}'.format(frame)] = sum(ovirrad * 1.79)/reslen 
+        self['oave']['firrad{}'.format(frame)] = 1.64 * sum(ovirrad)/reslen
 
         posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 1]
         reslists.append([str(frame), 'Position', self.name, 'X', ' '.join([str(p[0]) for p in posis])])
@@ -437,8 +484,9 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, calcs
             rtframe  = max(kints) if frame > max(kints) else  min(kints)
         
         rt = geom.layers.string['rt{}'.format(rtframe)]
-        
-        for chunk in chunks([g for g in geom if g[rt]], int(scene['viparams']['nproc']) * 50):
+        gps = [g for g in geom if g[rt]]
+
+        for chunk in chunks(gps, int(calcsteps/50)):
             rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
             xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()])
             virrad = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1) * 1e-3
@@ -449,11 +497,10 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, calcs
                 gp[virradres] = virrad[gi]
                 gp[illures] = illu[gi]
                 gp[res] = illu[gi]
-            curres += int(scene['viparams']['nproc']) * 40
-            if curres in calcsteps:
-                if progressfile(scene, starttime, calcsteps, curres, 'run') == 'CANCELLED':
-                    bm.free()
-                    return {'CANCELLED'}
+            curres += len(chunk)
+            if progressfile(scene, starttime, calcsteps, curres, 'run') == 'CANCELLED':
+                bm.free()
+                return {'CANCELLED'}
 
         ofirrad = array([g[firradres] for g in geom]) 
         ovirrad = array([g[virradres] for g in geom])
@@ -768,8 +815,6 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, starttime, calcsteps):
             reslists.append([str(frame), 'Time', '', 'Month', ' '.join([str(t.month) for t in times])])
             reslists.append([str(frame), 'Time', '', 'Day', ' '.join([str(t.day) for t in times])])
             reslists.append([str(frame), 'Time', '', 'Hour', ' '.join([str(t.hour) for t in times])])
-            print([str(t.month) for t in times])
-            
             reslists.append([str(frame), 'Time', '', 'DOS', ' '.join([str(t.timetuple().tm_yday - times[0].timetuple().tm_yday) for t in times])])
             simnode['reslists'] = reslists
             simnode['frames'] = [str(frame) for frame in frames]
@@ -862,14 +907,13 @@ def retcrits(simnode, matname):
     return [[c[0], str(c[1]), c[2], str(c[3]), c[4]] for c in crit[:]], [[c[0], str(c[1]), c[2], str(c[3]), c[4]] for c in ecrit[:]]
     
 def lividisplay(self, scene): 
-    unitdict = {'Lux': 'illu', u'W/m\u00b2(f)': 'firrad', u'W/m\u00b2(v)': 'virrad', 'DF (%)': 'df', 'DA (%)': 'res', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi',
-                'Sky View': 'sv', 'Mlxh': 'illu', u'kWh/m\u00b2(f)': 'firrad', u'kWh/m\u00b2(v)': 'virrad', '% Sunlit': 'res', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase'}
     frames = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
+    
     if len(frames) > 1:
         if not self.data.animation_data:
             self.data.animation_data_create()
         
-        self.data.animation_data.action = bpy.data.actions.new(name="LiVi MI")
+        self.data.animation_data.action = bpy.data.actions.new(name="LiVi {} MI".format(self.name))
         fis = [str(face.index) for face in self.data.polygons]
         lms = {fi: self.data.animation_data.action.fcurves.new(data_path='polygons[{}].material_index'.format(fi)) for fi in fis}
         for fi in fis:
@@ -884,12 +928,12 @@ def lividisplay(self, scene):
         oreslist = [g[livires] for g in geom]
         self['omax'][str(frame)], self['omin'][str(frame)], self['oave'][str(frame)] = max(oreslist), min(oreslist), sum(oreslist)/len(oreslist)
         smaxres, sminres =  max(scene['liparams']['maxres'].values()), min(scene['liparams']['minres'].values())
-        if smaxres > sminres:
-            vals = array([(f[livires] - sminres)/(smaxres - sminres) for f in bm.faces]) if scene['liparams']['cp'] == '0' else \
-                    ([(sum([vert[livires] for vert in f.verts])/len(f.verts) - sminres)/(smaxres - sminres) for f in bm.faces])
+        if smaxres > sminres:        
+            vals = (array([f[livires] for f in bm.faces]) - sminres)/(smaxres - sminres) if scene['liparams']['cp'] == '0' else \
+                (array([(sum([vert[livires] for vert in f.verts])/len(f.verts)) for f in bm.faces]) - sminres)/(smaxres - sminres)
         else:
             vals = array([max(scene['liparams']['maxres'].values()) for x in range(len(bm.faces))])
-            
+    
         if livires != res:
             for g in geom:
                 g[res] = g[livires]  
@@ -907,22 +951,7 @@ def lividisplay(self, scene):
                 lms[fi].keyframe_points[f].co = frame, nmatis[fii]  
                 
 def retvpvloc(context):
-#    region = context.region
-#    rv3d = context.region_data
-#    print(bpy_extras.view3d_utils.region_2d_to_origin_3d(region, rv3d, (region.width/2.0, region.height/2.0)))
-    view_pivot = context.region_data.view_location
-    vw =  mathutils.Vector((0.0, 0.0, 1.0))
-    vw.rotate(bpy.context.region_data.view_rotation)
-    if context.space_data.region_3d.is_perspective:
-#        model = bgl.Buffer(bgl.GL_FLOAT, 16)
-#        bgl.glGetFloatv(bgl.GL_VIEWPORT, model)
-#        print(model)
-#        vw = mathutils.Vector((-view_mat[3][0], -view_mat[3][1], -view_mat[3][2])).normalized()
-#        view_location = context.space_data.region_3d.view_matrix.inverted().translation
-        view_location = view_pivot + vw.normalized()*bpy.context.region_data.view_distance
-    else:        
-        view_location = view_pivot + vw.normalized()*bpy.context.region_data.view_distance * 100 
-    return view_location
+    return bpy_extras.view3d_utils.region_2d_to_origin_3d(context.region, context.space_data.region_3d, (context.region.width/2.0, context.region.height/2.0))
           
 def fvmat(self, mn, bound):
 #    fvname = on.replace(" ", "_") + self.name.replace(" ", "_") 
@@ -2074,10 +2103,10 @@ def radmesh(scene, obs, export_op):
                 export_op.report({'INFO'}, o.name+" has an antimatter, photon port, emission or mirror material. Basic export routine used with no modifiers.")
                 o['merr'] = 1 
         selobj(scene, o)
-        selmesh('selenm')                        
-        if [edge for edge in o.data.edges if edge.select]:
-            export_op.report({'INFO'}, o.name+" has a non-manifold mesh. Basic export routine used with no modifiers.")
-            o['merr'] = 1
+#        selmesh('selenm')                        
+#        if [edge for edge in o.data.edges if edge.select]:
+#            export_op.report({'INFO'}, o.name+" has a non-manifold mesh. Basic export routine used with no modifiers.")
+#            o['merr'] = 1
         if not o.get('merr'):
             o['merr'] = 0
 
@@ -2119,7 +2148,10 @@ def selmesh(sel):
     bpy.ops.object.mode_set(mode = 'OBJECT')
     
 def retdp(context, mres):
-    dplaces = 0 if ceil(log10(100/mres)) < 0 or context.scene['viparams']['resnode'] == 'VI Sun Path' else ceil(log10(100/mres))
+    try:
+        dplaces = 0 if ceil(log10(100/mres)) < 0 or context.scene['viparams']['resnode'] == 'VI Sun Path' else ceil(log10(100/mres))
+    except:
+        dplaces = 0
     return dplaces
 
 def draw_index(context, leg, mid_x, mid_y, width, height, posis, res):
@@ -2128,11 +2160,8 @@ def draw_index(context, leg, mid_x, mid_y, width, height, posis, res):
     bds = [blf.dimensions(0, nr) for nr in nres]
     [(blf.position(0, posis[ri][0] - int(0.5*bds[ri][0]), posis[ri][1] - int(0.5 * bds[ri][1]), 0), blf.draw(0, nr)) for ri, nr in enumerate(nres) if (leg == 1 and (posis[ri][0] > 120 or posis[ri][1] < height - 530)) or leg == 0]
 
-def draw_time(context, mid_x, mid_y, width, height, pos, time):
-    vec = mathutils.Vector((pos[0] / pos[3], pos[1] / pos[3], pos[2] / pos[3]))
-    x = int(mid_x + vec[0] * mid_x) 
-    y = int(mid_y + vec[1] * mid_y)
-    blf.position(0, x, y, 0)
+def draw_time(pos, time):
+    blf.position(0, pos[0], pos[1], 0)
     blf.draw(0, time)
         
 def edgelen(ob, edge):

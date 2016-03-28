@@ -540,7 +540,8 @@ class ViLiSNode(bpy.types.Node, ViNodes):
         
     def draw_buttons(self, context, layout): 
         scene = context.scene
-        if self.inputs['Geometry in'].links and self.inputs['Context in'].links:
+        try:
+#        if self.inputs['Geometry in'].links and self.inputs['Context in'].links:
             row = layout.row()
             row.label(text = 'Frames: {} - {}'.format(min([c['fs'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])]), max([c['fe'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])])))
             cinnode = self.inputs['Context in'].links[0].from_node
@@ -564,6 +565,8 @@ class ViLiSNode(bpy.types.Node, ViNodes):
                     row.operator("node.liviglare", text = 'Calculate').nodeid = self['nodeid']
                 elif [o.name for o in scene.objects if o.name in scene['liparams']['livic']]:
                     row.operator("node.livicalc", text = 'Calculate').nodeid = self['nodeid']
+        except:
+            pass
 
     def update(self):
         if self.outputs.get('Data out'):
@@ -622,7 +625,8 @@ class ViSSNode(bpy.types.Node, ViNodes):
     cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
             name="", description="Specify the calculation point geometry", default="0", update = nodeupdate)
     offset = bpy.props.FloatProperty(name="", description="Calc point offset", min=0.001, max=1, default=0.01, update = nodeupdate)
-
+    signore = bpy.props.BoolProperty(name = '', default = 0, description = 'Ignore sensor surfaces', update = nodeupdate)
+    
     def init(self, context):
         self['nodeid'] = nodeid(self)
         self.inputs.new('ViLoc', 'Location in')
@@ -633,6 +637,7 @@ class ViSSNode(bpy.types.Node, ViNodes):
     def draw_buttons(self, context, layout):
         if nodeinputs(self):
             (sdate, edate) = retdates(self.sdoy, self.edoy)
+            newrow(layout, 'Ignore sensor:', self, "signore")
             newrow(layout, 'Animation:', self, "animmenu")
             newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
             newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")

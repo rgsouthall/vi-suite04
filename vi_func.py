@@ -53,47 +53,37 @@ def cmap(cm):
         bpy.data.materials['{}#{}'.format(cmdict[cm], i)].use_shadeless = 1
 
 def bmesh2mesh(scene, obmesh, o, frame, tmf):
-    print('0', datetime.datetime.now())
     ftext = ''
     gradfile = ''
     bm = obmesh.copy()
-    bmesh.ops.triangulate(bm, faces = bm.faces, quad_method = 0, ngon_method = 0)
     bm.verts.ensure_lookup_table()
-    mfaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu in ('0', '1', '2', '3')]
-    ffaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu not in ('0', '1', '2', '3', '7', '8')]
+    mfaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu in ('0', '1', '2', '3') and not o.data.materials[face.material_index].pport]
+    ffaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu not in ('0', '1', '2', '3', '7', '8') or o.data.materials[face.material_index].pport]
     #    fvis = unique(array([[v.index for v in face.verts] for face in faces]))    
     mmats = [mat for mat in o.data.materials if mat.radmatmenu in ('0', '1', '2', '3')]
-#    fmats = [mat for mat in o.data.materials if mat.radmatmenu not in ('0', '1', '2', '3', '7', '8')]
     otext = 'o {}\n'.format(o.name)
-#    vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts if v.index in fvis])
     vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts])
     
     if o.data.polygons[0].use_smooth:
-#        vtext += ''.join(['vn {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(bm.verts[v].normal.normalized()) for v in fvis])
         vtext += ''.join(['vn {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.normal.normalized()) for v in bm.verts])
 
     for mat in mmats:
         if o.data.polygons[0].use_smooth:            
-            ftext += "usemtl {}\n".format(mat.name) + ''.join(['f {0[0]}//{0[0]} {0[1]}//{0[1]} {0[2]}//{0[2]}\n'.format([v.index + 1 for v in f.verts]) for f in mfaces if o.data.materials[f.material_index] == mat])            
+            ftext += "usemtl {}\n".format(mat.name) + ''.join(['f {}\n'.format(' '.join('{0}//{0}'.format(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])            
         else:
-            print('1', datetime.datetime.now())
-#                ftext += "usemtl {}\n".format(mat.name) + ''.join(['f {0[0]} {0[1]} {0[2]}\n'.format([where(fvis == v.index)[0][0] + 1 for v in f.verts]) for f in faces if o.data.materials[f.material_index] == mat])
-            ftext += "usemtl {}\n".format(mat.name) + ''.join(['f {0[0]} {0[1]} {0[2]}\n'.format([v.index + 1 for v in f.verts]) for f in mfaces if o.data.materials[f.material_index] == mat])
-            print('2', datetime.datetime.now())
+            ftext += "usemtl {}\n".format(mat.name) + ''.join(['f {}\n'.format(' '.join(str(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])
+
             
     if ffaces:
         gradfile += radpoints(o, ffaces, 0)
 
-#    with open('/home/ryan/test.obj', 'w') as objfile:
-#        objfile.write(otext + vtext + ftext)
     bm.free()
     if ftext:
         mfile = os.path.join(scene['viparams']['newdir'], 'obj', '{}-{}.mesh'.format(o.name.replace(' ', '_'), frame))
         with open(mfile, 'w') as mesh:
-#            gc.collect()
             Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout = mesh, stdin = PIPE).communicate(input = (otext + vtext + ftext).encode('utf-8'))
         gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(o.name.replace(" ", "_"), frame)))
-#            o2m.stdout.flush()
+
     gc.collect()
     return gradfile
     

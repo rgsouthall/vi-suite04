@@ -18,6 +18,7 @@
 
 import bpy, os, datetime
 from subprocess import Popen, PIPE
+from time import sleep
 from . import livi_export
 from .vi_func import retpmap, selobj, progressbar, progressfile
 
@@ -45,18 +46,42 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
             if os.path.isfile("{}-{}.af".format(scene['viparams']['filebase'], frame)):
                 os.remove("{}-{}.af".format(scene['viparams']['filebase'], frame))
             if simnode.pmap:
+                pmappfile = open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'w')
+                pmappfile.close()
                 errdict = {'fatal - too many prepasses, no global photons stored\n': "Too many prepasses have ocurred. Make sure light sources can see your geometry",
                 'fatal - too many prepasses, no global photons stored, no caustic photons stored\n': "Too many prepasses have ocurred. Turn off caustic photons and encompass the scene",
                'fatal - zero flux from light sources\n': "No light flux, make sure there is a light source and that photon port normals point inwards",
                'fatal - no light sources\n': "No light sources. Photon mapping does not work with HDR skies"}
                 amentry, pportentry, cpentry, cpfileentry = retpmap(simnode, frame, scene)
-                pmcmd = ('mkpmap -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, scene['viparams']['filebase'], frame, simnode.pmapgno, cpentry, amentry))                   
-                pmrun = Popen(pmcmd.split(), stderr = PIPE)
-                for line in pmrun.stderr: 
-                    print(line)
-                    if line.decode() in errdict:
-                        calc_op.report({'ERROR'}, errdict[line.decode()])
-                        return 
+                pmcmd = ('mkpmap -e {1}.pmapmom -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, scene['viparams']['filebase'], frame, simnode.pmapgno, cpentry, amentry))                   
+                pmrun = Popen(pmcmd.split(), stderr = PIPE, stdout = PIPE)
+                while pmrun.poll() is None:
+                    with open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'r') as pfile:
+                        if 'CANCELLED' in pfile.read():
+                            pmrun.kill()
+                            return 'CANCELLED'
+                        sleep(1)
+                        
+                with open('{}.pmapmon'.format(scene['viparams']['filebase']), 'r') as pmapfile:
+                    for line in pmapfile.readlines():
+                        if line in errdict:
+                            calc_op.report({'ERROR'}, errdict[line])
+                            return
+                            
+                
+                    
+                    
+                    
+                    
+#                for line in pmrun.stdout: 
+#                    print(line)
+#                for line in pmrun.stderr: 
+#                    print(line)
+#                    if line.decode() in errdict:
+#                        calc_op.report({'ERROR'}, errdict[line.decode()])
+#                        return
+                
+
                 rtcmds.append("rtrace -n {0} -w {1} -ap {2}-{3}.gpm 50 {4} -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame, cpfileentry)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
             else:
 #                if context == 'Compliance':

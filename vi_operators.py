@@ -25,6 +25,7 @@ from subprocess import Popen, PIPE, call
 from collections import OrderedDict
 from datetime import datetime as dt
 from math import cos, sin, pi, ceil, tan, modf
+from time import sleep
 
 try:
     import matplotlib.pyplot as plt
@@ -246,19 +247,32 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
             vv = 180 if simnode['coptions']['Context'] == 'Basic' and simnode['coptions']['Type'] == '1' else cang * scene.render.resolution_y/scene.render.resolution_x
             vd = (0.001, 0, -1*cam.matrix_world[2][2]) if (round(-1*cam.matrix_world[0][2], 3), round(-1*cam.matrix_world[1][2], 3)) == (0.0, 0.0) else [-1*cam.matrix_world[i][2] for i in range(3)]
             if simnode.pmap:
+                progressfile(scene, datetime.datetime.now(), [int(i * 100/20) for i in range(0, 21)], 5, 'clear')
+                kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'))
                 errdict = {'fatal - too many prepasses, no global photons stored\n': "Too many prepasses have ocurred. Make sure light sources can see your geometry",
                 'fatal - too many prepasses, no global photons stored, no caustic photons stored\n': "Too many prepasses have ocurred. Turn off caustic photons and encompass the scene",
                'fatal - zero flux from light sources\n': "No light flux, make sure there is a light source and that photon port normals point inwards",
                'fatal - no light sources\n': "No light sources. Photon mapping does not work with HDR skies"}
                 amentry, pportentry, cpentry, cpfileentry = retpmap(simnode, frame, scene)
-                pmcmd = 'mkpmap -fo+ -bv+ -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, scene['viparams']['filebase'], frame, simnode.pmapgno, cpentry, amentry)
-                pmrun = Popen(pmcmd.split(), stderr = PIPE)
-                for line in pmrun.stderr: 
-                    if line.decode() in errdict:
-                        self.report({'ERROR'}, errdict[line.decode()])
-                        return {'CANCELLED'}
+                pmcmd = 'mkpmap -t 20 -e {1}.pmapmon -fo+ -bv+ -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, scene['viparams']['filebase'], frame, simnode.pmapgno, cpentry, amentry)
+                pmrun = Popen(pmcmd.split(), stderr = PIPE, stdout = PIPE)
+                while pmrun.poll() is None:
+                    with open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'r') as pfile:
+                        if 'CANCELLED' in pfile.read():
+                            pmrun.kill()
+                            return {'CANCELLED'}
+                        sleep(1)
+                        
+                with open('{}.pmapmon'.format(scene['viparams']['filebase']), 'r') as pmapfile:
+                    for line in pmapfile.readlines():
+                        if line in errdict:
+                            self.report({'ERROR'}, errdict[line])
+                            return
                 
                 rvucmd = "rvu -w -ap {8} 50 {9} -n {0} -vv {1:.3f} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), cpfileentry)
+                print(kivyrun.poll())
+                if kivyrun.poll() is None:
+                    kivyrun.kill()
             else:
                 rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current)
 

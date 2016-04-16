@@ -52,7 +52,8 @@ class Vi3DPanel(bpy.types.Panel):
                         if scene.vi_leg_display:
                             newrow(layout, 'Legend max:', scene, "vi_leg_max")
                             newrow(layout, 'Legend min:', scene, "vi_leg_min")
-                            newrow(layout, 'Legend scale', scene, "vi_leg_scale")
+                            newrow(layout, 'Legend scale:', scene, "vi_leg_scale")
+                            newrow(layout, 'Legend colour:', scene, "vi_leg_col")
                     
                     if context.active_object and context.active_object.type == 'MESH':
                         newrow(layout, 'Draw wire:', scene, 'vi_disp_wire')                    

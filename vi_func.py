@@ -25,11 +25,13 @@ from math import sin, cos, asin, acos, pi, isnan, tan, ceil, log10
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
+
 try:
     import matplotlib
     matplotlib.use('Qt4Agg', force = True)
     import matplotlib.pyplot as plt
     import matplotlib.colors as colors
+    import matplotlib.cm as mcm
     from .windrose import WindroseAxes
     mp = 1
 except Exception as e:
@@ -40,17 +42,49 @@ dtdf = datetime.date.fromordinal
 unitdict = {'Lux': 'illu', u'W/m\u00b2(f)': 'firrad', u'W/m\u00b2(v)': 'virrad', 'DF (%)': 'df', 'DA (%)': 'res', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi',
             'Sky View': 'sv', 'Mlxh': 'illu', u'kWh/m\u00b2(f)': 'firrad', u'kWh/m\u00b2(v)': 'virrad', '% Sunlit': 'res', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase'}
 
-def cmap(cm):
-    cmdict = {'hot': 'livi', 'grey': 'shad'}
+def sinebow(h):
+  h += 1/2
+  h *= -1
+  r = sin(pi * h)
+  g = sin(pi * (h + 1/3))
+  b = sin(pi * (h + 2/3))
+  return [chan**2 for chan in (r, g, b)]
+  
+def retcols(scene):
+    try:
+        if scene.vi_leg_col == '0':
+            hs = [0.75 - 0.75*(i/19) for i in range(20)]
+            rgbas = [(*colorsys.hsv_to_rgb(h, 1.0, 1.0), 1.0) for h in hs]
+        elif scene.vi_leg_col == '1':
+            rgbas = [(i/19, i/19, i/19, 1) for i in range(20)]
+        elif scene.vi_leg_col == '2':
+            rgbas = [mcm.hot(int(i * 256/19)) for i in range(20)]
+        elif scene.vi_leg_col == '3':
+            rgbas = [mcm.CMRmap(int(i * 256/19)) for i in range(20)]
+        elif scene.vi_leg_col == '4':
+            rgbas = [mcm.jet(int(i * 256/19)) for i in range(20)]
+        elif scene.vi_leg_col == '5':
+            rgbas = [mcm.plasma(int(i * 256/19)) for i in range(20)]
+    except:
+        hs = [0.75 - 0.75*(i/19) for i in range(20)]
+        rgbas = [(*colorsys.hsv_to_rgb(h, 1.0, 1.0), 1.0) for h in hs]
+    return rgbas
+  
+def cmap(scene):
+#    cmdict = {'hot': 'livi', 'grey': 'shad'}
     for i in range(20):       
-        if not bpy.data.materials.get('{}#{}'.format(cmdict[cm], i)):
-            bpy.data.materials.new('{}#{}'.format(cmdict[cm], i))
-        bpy.data.materials['{}#{}'.format(cmdict[cm], i)].diffuse_color = colorsys.hsv_to_rgb(0.75 - 0.75*(i/19), 1, 1) if cm == 'hot' else colorsys.hsv_to_rgb(1, 0, (i/19))
-        if cm == 'grey':
-            bpy.data.materials['{}#{}'.format(cmdict[cm], i)].diffuse_intensity = i/19
-        bpy.data.materials['{}#{}'.format(cmdict[cm], i)].specular_intensity = 0
-        bpy.data.materials['{}#{}'.format(cmdict[cm], i)].specular_color = (0, 0, 0)
-        bpy.data.materials['{}#{}'.format(cmdict[cm], i)].use_shadeless = 1
+        if not bpy.data.materials.get('{}#{}'.format('vi-suite', i)):
+            bpy.data.materials.new('{}#{}'.format('vi-suite', i))
+#        bpy.data.materials['{}#{}'.format(cmdict[cm], i)].diffuse_color = colorsys.hsv_to_rgb(0.75 - 0.75*(i/19), 1, 1) if cm == 'hot' else colorsys.hsv_to_rgb(1, 0, (i/19))
+#        bpy.data.materials['{}#{}'.format(cmdict[cm], i)].diffuse_color = sinebow(0.8 - 0.8 * (i/19)) if cm == 'hot' else colorsys.hsv_to_rgb(1, 0, (i/19))
+#        bpy.data.materials['{}#{}'.format(cmdict[cm], i)].diffuse_color = mcm.hot(int(i * 256/19))[0:3] if cm == 'hot' else colorsys.hsv_to_rgb(1, 0, (i/19))
+        cols = retcols(scene)
+        bpy.data.materials['{}#{}'.format('vi-suite', i)].diffuse_color = cols[i][0:3]
+#        if cm == 'grey':
+#            bpy.data.materials['{}#{}'.format(cmdict[cm], i)].diffuse_intensity = i/19
+        bpy.data.materials['{}#{}'.format('vi-suite', i)].specular_intensity = 0
+        bpy.data.materials['{}#{}'.format('vi-suite', i)].specular_color = (0, 0, 0)
+        bpy.data.materials['{}#{}'.format('vi-suite', i)].use_shadeless = 1
 
 def bmesh2mesh(scene, obmesh, o, frame, tmf):
     ftext = ''
@@ -399,7 +433,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, ca
         
         rt =  geom.layers.string['rt{}'.format(rtframe)]
             
-        for chunk in chunks([g for g in geom if g[rt]], int(scene['viparams']['nproc']) * 4000):
+        for chunk in chunks([g for g in geom if g[rt]], int(scene['viparams']['nproc']) * 500):
             rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
             xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()])
             virrad = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1)
@@ -1966,7 +2000,7 @@ def livisimacc(simnode):
     context = simnode.inputs['Context in'].links[0].from_node['Options']['Context']
     return(simnode.csimacc if context in ('Compliance', 'CBDM') else simnode.simacc)
 
-def drawpoly(x1, y1, x2, y2, a, r, g, b):
+def drawpoly(x1, y1, x2, y2, r, g, b, a):
     bgl.glEnable(bgl.GL_BLEND)
     bgl.glColor4f(r, g, b, a)
     bgl.glBegin(bgl.GL_POLYGON)

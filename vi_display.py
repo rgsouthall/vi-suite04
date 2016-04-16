@@ -28,7 +28,8 @@ except:
     mp = 0
 
 from . import livi_export
-from .vi_func import cmap, skframe, selobj, retvpvloc, viewdesc, drawloop, drawpoly, draw_index, drawfont, retdp, objmode, drawcircle, drawtri, setscenelivivals, draw_time
+from .vi_func import cmap, skframe, selobj, retvpvloc, viewdesc, drawloop, drawpoly, draw_index, drawfont 
+from .vi_func import retdp, objmode, drawcircle, drawtri, setscenelivivals, draw_time, retcols
 
 nh = 768
 
@@ -40,7 +41,7 @@ def li_display(simnode):
     setscenelivivals(scene)
     
     (rcol, mtype) =  ('hot', 'livi') if 'LiVi' in simnode.bl_label else ('grey', 'shad')
-    cmap(rcol)
+    cmap(scene)
 
     for geo in scene.objects:
         scene.objects.active = geo
@@ -87,6 +88,8 @@ def li_display(simnode):
         
         selobj(scene, o)
         bpy.ops.object.duplicate() 
+        if not bpy.context.active_object:
+            bpy.ops.view3d.localview()
         ores = bpy.context.active_object
         ores.name, ores.show_wire, ores.draw_type = o.name+"res", 1, 'SOLID'
         while ores.material_slots:
@@ -101,7 +104,7 @@ def li_display(simnode):
                 ores[c] = o[c]
         selobj(scene, ores)
         
-        for matname in ['{}#{}'.format(mtype, i) for i in range(20)]:
+        for matname in ['{}#{}'.format('vi-suite', i) for i in range(20)]:
             if bpy.data.materials[matname] not in ores.data.materials[:]:
                 bpy.ops.object.material_slot_add()
                 ores.material_slots[-1].material = bpy.data.materials[matname]
@@ -217,9 +220,9 @@ def linumdisplay(disp_op, context, simnode):
                 faces = [f for f in bm.faces if f.select] if scene.vi_disp_3d else bm.faces
                             
                 if scene.vi_display_vis_only:
-                    fcos = [f.calc_center_bounds() + scene.vi_display_rp_off * f.normal for f in faces]
+                    fcos = [f.calc_center_bounds() + scene.vi_display_rp_off * f.normal.normalized() for f in faces]
                     direcs = [view_location - f for f in fcos]
-                    faces = [f for i, f in enumerate(faces) if not scene.ray_cast(fcos[i], direcs[i], distance=1e+5)[0]]
+                    faces = [f for i, f in enumerate(faces) if not scene.ray_cast(fcos[i], direcs[i], distance=(fcos[i] - view_location).length)[0]]
 
                 face2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, f.calc_center_bounds()) for f in faces]
                 (faces, pcs) = map(list, zip(*[[f, face2d[fi]] for fi, f in enumerate(faces) if face2d[fi] and 0 < face2d[fi][0] < width and 0 < face2d[fi][1] < height]))          
@@ -230,15 +233,15 @@ def linumdisplay(disp_op, context, simnode):
                 verts = [v for v in bm.verts if not v.hide and v.select]
                 
                 if scene.vi_display_vis_only:
-                    vcos = [v.co + scene.vi_display_rp_off * v.normal for v in verts]
+                    vcos = [v.co + scene.vi_display_rp_off * v.normal.normalized() for v in verts]
                     direcs = [view_location - v for v in vcos]
-                    verts = [v for i, v in enumerate(verts) if not scene.ray_cast(vcos[i], direcs[i])[0]]
+                    verts = [v for i, v in enumerate(verts) if not scene.ray_cast(vcos[i], direcs[i], distance=(vcos[i] - view_location).length)[0]]
                     
                 vert2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, v.co) for v in verts]
                 (verts, pcs) = map(list, zip(*[[v, vert2d[vi]] for vi, v in enumerate(verts) if vert2d[vi] and 0 < vert2d[vi][0] < width and 0 < vert2d[vi][1] < height]))
                 res = [v[livires] for v in verts]
-            draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, pcs, res)
-    
+            
+            draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, pcs, res)    
             bm.free()
         except:
             pass
@@ -257,30 +260,23 @@ def li3D_legend(self, context, simnode):
         if scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or not scene.vi_leg_display  or not any([o.lires for o in scene.objects]) or scene['liparams']['unit'] == 'Sky View':
             return
         else:
+            mid_x, mid_y, width, height = viewdesc(context)
             bgl.glLineWidth(1)
             resvals = [format(scene.vi_leg_min + i*(scene.vi_leg_max - scene.vi_leg_min)/19, '.{}f'.format(dplaces)) for i in range(20)] if scene.vi_leg_scale == '0' else \
                         [format(scene.vi_leg_min + (1 -log10(i)/log10(20))*(scene.vi_leg_max - scene.vi_leg_min), '.{}f'.format(dplaces)) for i in range(1, 21)[::-1]]
-            height = context.region.height
             lenres = len(resvals[-1])
             font_id = 0
-            drawpoly(20, height - 40, 70 + lenres*8, height - 520, 0.7, 1, 1, 1)
+            drawpoly(20, height - 40, 70 + lenres*8, height - 520, 1, 1, 1, 0.9)
             drawloop(19, height - 40, 70 + lenres*8, height - 520)
             blf.enable(0, blf.SHADOW)
             blf.enable(0, blf.KERNING_DEFAULT)
             blf.shadow(0, 5, 0, 0, 0, 0.7)
+            cols = retcols(scene)
             for i in range(20):
-                h = 0.75 - 0.75*(i/19)
-                if scene['viparams']['visimcontext'] == 'Shadow':
-                    bgl.glColor4f(i/19, i/19, i/19, 1)
-                else:
-                    bgl.glColor4f(colorsys.hsv_to_rgb(h, 1.0, 1.0)[0], colorsys.hsv_to_rgb(h, 1.0, 1.0)[1], colorsys.hsv_to_rgb(h, 1.0, 1.0)[2], 1.0)
-                    
-                bgl.glBegin(bgl.GL_POLYGON)
-                bgl.glVertex2i(20, (i*20)+height - 460)
-                bgl.glVertex2i(60, (i*20)+height - 460)
-                bgl.glVertex2i(60, (i*20)+height - 440)
-                bgl.glVertex2i(20, (i*20)+height - 440)
-                bgl.glEnd()
+#                h = 0.75 - 0.75*(i/19)
+                rgba = cols[i]
+                #(1, i/19, i/19, i/19) if scene['viparams']['visimcontext'] == 'Shadow' else (1.0, *colorsys.hsv_to_rgb(h, 1.0, 1.0))
+                drawpoly(20, (i*20)+height - 440, 60, (i*20)+height - 460, *rgba)    
                 blf.size(font_id, 20, 48)
                 bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
                 blf.position(font_id, 65, (i*20)+height - 455, 0)
@@ -289,7 +285,6 @@ def li3D_legend(self, context, simnode):
             blf.size(font_id, 20, 56)    
             drawfont(scene['liparams']['unit'], font_id, 0, height, 25, 57)
             bgl.glDisable(bgl.GL_BLEND)
-            height = context.region.height
             font_id = 0
             bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
             blf.size(font_id, 20, 48)

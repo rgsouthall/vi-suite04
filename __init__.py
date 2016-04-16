@@ -20,7 +20,7 @@ bl_info = {
     "name": "VI-Suite v04",
     "author": "Ryan Southall",
     "version": (0, 4, 0),
-    "blender": (2, 7, 6),
+    "blender": (2, 7, 7),
     "api":"",
     "location": "Node Editor & 3D View > Properties Panel",
     "description": "Radiance/EnergyPlus exporter and results visualiser",
@@ -39,7 +39,7 @@ if "bpy" in locals():
 else:
     from .vi_node import vinode_categories, envinode_categories
     from .envi_mat import envi_materials, envi_constructions, envi_layero, envi_layer1, envi_layer2, envi_layer3, envi_layer4, envi_layerotype, envi_layer1type, envi_layer2type, envi_layer3type, envi_layer4type, envi_con_list
-    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, fvmat, radmat, radbsdf, retsv
+    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, fvmat, radmat, radbsdf, retsv, cmap
     from .vi_func import resnameunits, aresnameunits, recalculate_text, rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, lividisplay, setscenelivivals
     from .vi_operators import *
     from .vi_ui import *
@@ -118,18 +118,14 @@ if not os.environ.get('RAYPATH') or os.path.join('{}'.format(addonpath), 'Radfil
     os.environ["RAYPATH"] = '{0}{1}{2}'.format(radldir[0], evsep[str(sys.platform)], os.path.join(addonpath, 'Radfiles', 'lib'))        
     os.environ["PATH"] = os.environ["PATH"] + "{0}{1}{0}{2}".format(evsep[str(sys.platform)], radbdir[0], epdir)    
     
-#def matfunc(i):
-#    matfuncdict = {'0': envi_mats.brick_dat.keys(), '1': envi_mats.stone_dat.keys(), '2': envi_mats.metal_dat.keys(), '3': envi_mats.wood_dat.keys(), '4': envi_mats.gas_dat.keys(),
-#                   '5': envi_mats.glass_dat.keys(), '6': envi_mats.concrete_dat.keys(), '7': envi_mats.insulation_dat.keys(), '8': envi_mats.wgas_dat.keys(), 
-#                   '9': envi_mats.cladding_dat.keys(), '10': envi_mats.pcm_dat.keys()}
-#    return [((mat, mat, 'Contruction type')) for mat in list(matfuncdict[str(i)])]
+def colupdate(self, context):
+    cmap(self)
 
 def confunc(i):
     confuncdict = {'0': envi_cons.wall_con.keys(), '1': envi_cons.floor_con.keys(), '2': envi_cons.roof_con.keys(), 
     '3': envi_cons.door_con.keys(), '4': envi_cons.glaze_con.keys()}
     return [((con, con, 'Contruction type')) for con in list(confuncdict[str(i)])]
 
-#(bricklist, stonelist, metallist, woodlist, gaslist, glasslist, concretelist, insullist, wgaslist, claddinglist, pcmlist) = [matfunc(i) for i in range(11)]
 (wallconlist, floorconlist, roofconlist, doorconlist, glazeconlist) = [confunc(i) for i in range(5)]
 
 def eupdate(self, context):
@@ -171,7 +167,7 @@ def eupdate(self, context):
 def tupdate(self, context):
     for o in [o for o in context.scene.objects if o.type == 'MESH'  and 'lightarray' not in o.name and o.hide == False and o.layers[context.scene.active_layer] == True and o.get('lires')]:
         o.show_transparent = 1
-    for mat in [bpy.data.materials['{}#{}'.format(('livi', 'shad')['Shadow' in context.scene['viparams']['resnode']], index)] for index in range(20)]:
+    for mat in [bpy.data.materials['{}#{}'.format('vi-suite', index)] for index in range(20)]:
         mat.use_transparency, mat.transparency_method, mat.alpha = 1, 'MASK', context.scene.vi_disp_trans
         
 def wupdate(self, context):
@@ -238,16 +234,6 @@ def setcols(self, context):
 
     for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] in ('envi_temp', 'envi_hum', 'envi_heat', 'envi_cool', 'envi_co2') and o.get('envires')]:
         (rmax, rmin) = mmdict[o['VIType']]        
-#        if o['VIType'] == 'envi_temp':
-#            rmax, rmin = scene.en_temp_max, scene.en_temp_min
-#        elif o['VIType'] == 'envi_hum':
-#            rmax, rmin = scene.en_hum_max, scene.en_hum_min
-#        elif o['VIType'] == 'envi_heat':
-#            rmax, rmin = scene.en_heat_max, scene.en_heat_min
-#        elif o['VIType'] == 'envi_cool':
-#            rmax, rmin = scene.en_cool_max, scene.en_cool_min
-#        elif o['VIType'] == 'envi_co2':
-#            rmax, rmin = scene.en_co2_max, scene.en_co2_min
         mat = o.material_slots[0].material
         mfcs = mat.animation_data.action.fcurves
         
@@ -322,94 +308,6 @@ def register():
     Object.envi_oca = eprop([("0", "Default", "Use the system wide convection algorithm"), ("1", "Simple", "Use the simple convection algorithm"), ("2", "TARP", "Use the detailed convection algorithm"), ("3", "DOE-2", "Use the Trombe wall convection algorithm"), ("4", "MoWitt", "Use the adaptive convection algorithm"), ("5", "Adaptive", "Use the adaptive convection algorithm")], "", "Specify the EnVi zone outside convection algorithm", "0")
     Object.envi_ica = eprop([("0", "Default", "Use the system wide convection algorithm"), ("1", "Simple", "Use the simple convection algorithm"), ("2", "Detailed", "Use the detailed convection algorithm"), ("3", "Trombe", "Use the Trombe wall convection algorithm"), ("4", "Adaptive", "Use the adaptive convection algorithm")], "", "Specify the EnVi zone inside convection algorithm", "0")
 
-# EnVi HVAC Template definitions
-#    Object.envi_hvacsched = bprop("", "Create a system level schedule", False)
-#    Object.envi_hvact = bprop("", "", False)
-#    Object.envi_hvacht = fprop("", "Heating temperature:", 1, 99, 50)
-#    Object.envi_hvacct = fprop("", "Cooling temperature:", -10, 20, 13)
-#    Object.envi_hvachlt = eprop([('0', 'LimitFlowRate', 'LimitFlowRate'), ('1', 'LimitCapacity', 'LimitCapacity'), ('2', 'LimitFlowRateAndCapacity', 'LimitFlowRateAndCapacity'), ('3', 'NoLimit', 'NoLimit'), ('4', 'None', 'No heating')], '', "Heating limit type", '4')    
-#    Object.envi_hvachaf = fprop("", "Heating air flow rate", 0, 60, 1)
-#    Object.envi_hvacshc = fprop("", "Sensible heating capacity", 0, 10000, 1000)
-#    Object.envi_hvacclt = eprop([('0', 'LimitFlowRate', 'LimitFlowRate'), ('1', 'LimitCapacity', 'LimitCapacity'), ('2', 'LimitFlowRateAndCapacity', 'LimitFlowRateAndCapacity'), ('3', 'NoLimit', 'NoLimit'), ('4', 'None', 'No cooling')], '', "Cooling limit type", '4')
-#    Object.envi_hvaccaf = fprop("", "Heating air flow rate", 0, 60, 1)
-#    Object.envi_hvacscc = fprop("", "Sensible cooling capacity", 0, 10000, 1000)
-#    Object.envi_hvacoam = eprop([('0', 'None', 'None'), ('1', 'Flow/Zone', 'Flow/Zone'), ('2', 'Flow/Person', 'Flow/Person'), ('3', 'Flow/Area', 'Flow/Area'), ('4', 'Sum', 'Sum'), ('5', 'Maximum ', 'Maximum'), ('6', 'ACH/Detailed', 'ACH/Detailed')], '', "Cooling limit type", '2')
-#    Object.envi_hvacfrp = fprop("", "Flow rate per person", 0, 1, 0.008)
-#    Object.envi_hvacfrzfa = fprop("", "Flow rate per zone area", 0, 1, 0.008)
-#    Object.envi_hvacfrz = fprop('m{}/s'.format(u'\u00b3'), "Flow rate per zone", 0, 100, 0.1)
-#    Object.envi_hvacfach = fprop("", "ACH", 0, 10, 1)
-#    (Object.hvacu1, Object.hvacu2, Object.hvacu3, Object.hvacu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-#    (Object.hvacf1, Object.hvacf2, Object.hvacf3, Object.hvacf4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
-#    (Object.hvact1, Object.hvact2, Object.hvact3, Object.hvact4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
-#
-## Heating defintions
-#    Object.envi_heat = bprop("Heating", 'Turn on zone heating', 0)
-#    Object.envi_htsp = fprop(u'\u00b0'+"C", "Temperature", 0, 50, 20)
-#    Object.envi_htspsched = bprop("Schedule", "Create a thermostat level schedule", False)
-#    (Object.htspu1, Object.htspu2, Object.htspu3, Object.htspu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-#    (Object.htspf1, Object.htspf2, Object.htspf3, Object.htspf4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
-#    (Object.htspt1, Object.htspt2, Object.htspt3, Object.htspt4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
-## Cooling definitions
-#    Object.envi_cool = bprop("Cooling", "Turn on zone cooling", 0)
-#    Object.envi_ctsp = fprop(u'\u00b0'+"C", "Temperature", 0, 50, 20)
-#    Object.envi_ctspsched = bprop("Schedule", "Create a thermostat level schedule", False)
-#    (Object.ctspu1, Object.ctspu2, Object.ctspu3, Object.ctspu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-#    (Object.ctspf1, Object.ctspf2, Object.ctspf3, Object.ctspf4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
-#    (Object.ctspt1, Object.ctspt2, Object.ctspt3, Object.ctspt4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
-#Occupancy definitions
-#    Object.envi_occsched = bprop("Schedule", "Create an occupancy level schedule", False)
-#    (Object.occu1, Object.occu2, Object.occu3, Object.occu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-#    (Object.occf1, Object.occf2, Object.occf3, Object.occf4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
-#    (Object.occt1, Object.occt2, Object.occt3, Object.occt4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
-#    Object.envi_occwatts = iprop("W/p", "Watts per person", 1, 800, 90)
-#    Object.envi_asched = bprop("Schedule", "Create an activity level schedule", False)
-#    (Object.aoccu1, Object.aoccu2, Object.aoccu3, Object.aoccu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-#    (Object.aoccf1, Object.aoccf2, Object.aoccf3, Object.aoccf4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
-#    (Object.aocct1, Object.aocct2, Object.aocct3, Object.aocct4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
-#    Object.envi_weff = fprop("Efficiency", "Work efficiency", 0, 1, 0.0)
-#    Object.envi_wsched = bprop("Schedule", "Create a work efficiency schedule", False)
-#    (Object.woccu1, Object.woccu2, Object.woccu3, Object.woccu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-#    (Object.woccf1, Object.woccf2, Object.woccf3, Object.woccf4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
-#    (Object.wocct1, Object.wocct2, Object.wocct3, Object.wocct4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
-#    Object.envi_airv = fprop("Air velocity", "Average air velocity", 0, 1, 0.1)
-#    Object.envi_avsched = bprop("Schedule", "Create an air velocity schedule", False)
-#    (Object.avoccu1, Object.avoccu2, Object.avoccu3, Object.avoccu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-#    (Object.avoccf1, Object.avoccf2, Object.avoccf3, Object.avoccf4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
-#    (Object.avocct1, Object.avocct2, Object.avocct3, Object.avocct4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
-#    Object.envi_cloth = fprop("Clothing", "Clothing level", 0, 10, 0.5)
-#    Object.envi_clsched = bprop("Schedule", "Create an clothing level schedule", False)
-#    (Object.coccu1, Object.coccu2, Object.coccu3, Object.coccu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-#    (Object.coccf1, Object.coccf2, Object.coccf3, Object.coccf4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
-#    (Object.cocct1, Object.cocct2, Object.cocct3, Object.cocct4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
-#    Object.envi_occtype = eprop([("0", "None", "No occupancy"),("1", "Occupants", "Actual number of people"), ("2", "Person/m"+ u'\u00b2', "Number of people per squared metre floor area"),
-#                                              ("3", "m"+ u'\u00b2'+"/Person", "Floor area per person")], "", "The type of zone occupancy specification", "0")
-#    Object.envi_occsmax = fprop("Max", "Maximum level of occupancy that will occur in this schedule", 1, 500, 1)
-#    Object.envi_comfort = bprop("Comfort", "Enable comfort calculations for this space", False)
-#    Object.envi_co2 = bprop("C02", "Enable CO2 concentration calculations", False)
-    
-# Equipment definitions
-#    Object.envi_equiptype = eprop([("0", "None", "No equipment"),("1", "EquipmentLevel", "Overall equpiment gains"), ("2", "Watts/Area", "Equipment gains per square metre floor area"),
-#                                              ("3", "Watts/Person", "Equipment gains per occupant")], "", "The type of zone equipment gain specification", "0")
-#    Object.envi_equipmax = fprop("Max", "Maximum level of equipment gain", 1, 50000, 1)
-#
-#    Object.envi_equipsched = bprop("Schedule", "Create an equipment gains schedule", False)
-#    (Object.equipu1, Object.equipu2, Object.equipu3, Object.equipu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-#    (Object.equipf1, Object.equipf2, Object.equipf3, Object.equipf4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
-#    (Object.equipt1, Object.equipt2, Object.equipt3, Object.equipt4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
-#
-    
-# Infiltration definitions
-#    Object.envi_inftype = eprop([("0", "None", "No infiltration"), ("1", 'Flow/Zone', "Absolute flow rate in m{}/s".format(u'\u00b3')), ("2", "Flow/Area", 'Flow in m{}/s per m{} floor area'.format(u'\u00b3', u'\u00b2')), 
-#                                 ("3", "Flow/ExteriorArea", 'Flow in m{}/s per m{} external surface area'.format(u'\u00b3', u'\u00b2')), ("4", "Flow/ExteriorWallArea", 'Flow in m{}/s per m{} external wall surface area'.format(u'\u00b3', u'\u00b2')), 
-#                                 ("4", "ACH", "ACH flow rate")], "", "The type of zone infiltration specification", "0")
-#    Object.envi_inflevel = fprop("Level", "Level of Infiltration", 0, 500, 0.001)
-#    Object.envi_infsched = bprop("Schedule", "Create an infiltration schedule", False)
-#    (Object.infu1, Object.infu2, Object.infu3, Object.infu4) =  [StringProperty(name = "", description = "Valid entries (; separated for each 'For', comma separated for hour range, space separated for each time value pair)")] * 4
-#    (Object.inff1, Object.inff2, Object.inff3, Object.inff4) =  [StringProperty(name = "", description = "Valid entries (space separated): AllDays, Weekdays, Weekends, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, AllOtherDays")] * 4
-#    (Object.inft1, Object.inft2, Object.inft3, Object.inft4) = [bpy.props.IntProperty(name = "", default = 365, min = 1, max = 365)] * 4
-#    Object.envi_occinftype = eprop([("0", "None", "No infiltration"), ("1", 'Flow/Zone', "Absolute flow rate in m{}/s".format(u'\u00b3')), ("2", "Flow/Area", 'Flow in m{}/s per m{} floor area'.format(u'\u00b3', u'\u00b2')), 
-#                                 ("3", "Flow/ExteriorArea", 'Flow in m{}/s per m{} external surface area'.format(u'\u00b3', u'\u00b2')), ("4", "Flow/ExteriorWallArea", 'Flow in m{}/s per m{} external wall surface area'.format(u'\u00b3', u'\u00b2')), 
-#                                 ("5", "ACH", "ACH flow rate"), ("6", "l/s/p", 'Litres per second per person')], "", "The type of zone infiltration specification", "0")
 # FloVi object definitions
               
 # Vi_suite material definitions
@@ -593,6 +491,8 @@ def register():
     Scene.vi_leg_max = bpy.props.FloatProperty(name = "", description = "Legend maximum", min = 0, max = 1000000, default = 1000, update=legupdate)
     Scene.vi_leg_min = bpy.props.FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0, update=legupdate)
     Scene.vi_leg_scale = EnumProperty(items = [('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name = "", description = "Legend scale", default = '0', update=legupdate)    
+    Scene.vi_leg_col = EnumProperty(items = [('0', 'Rainbow', 'Rainbow colour scale'), ('1', 'Grey', 'Grey colour scale'), ('2', 'Hot', 'Hot colour scale'),
+                                             ('3', 'CMR', 'CMR colour scale'), ('4', 'Jet', 'Jet colour scale'), ('5', 'Plasma', 'Plasma colour scale')], name = "", description = "Legend scale", default = '0', update=colupdate)
     Scene.en_disp = EnumProperty(items = [('0', 'Cylinder', 'Cylinder display'), ('1', 'Box', 'Box display')], name = "", description = "Type of EnVi metric display", default = '0')    
     Scene.en_frame = iprop("", "EnVi frame", 0, 500, 0)
     Scene.en_temp_max = bpy.props.FloatProperty(name = "Max", description = "Temp maximum", default = 24, update=setcols)
@@ -616,9 +516,7 @@ def register():
     Scene.li_assorg = sprop("", "Name of the assessing organisation", 1024, '')
     Scene.li_assind = sprop("", "Name of the assessing individual", 1024, '')
     Scene.li_jobno = sprop("", "Project job number", 1024, '')
-#    Scene.li_disp_udi = EnumProperty(items = [("0", "Low", "Percentage of hours below minimum threshold"),("1", "Supplementary", "Percentage of hours requiring supplementary lighting"), ("2", "Autonomous", "Percentage of hours with autonomous lighting"), ("3", "Upper", "Percentage of hours excedding the upper limit")], name = "", description = "UDI range selection", default = "2", update = liviresupdate)
     Scene.li_disp_basic = EnumProperty(items = [("0", "Illuminance", "Display Illuminance values"), ("1", "Visible Irradiance", "Display Irradiance values"), ("2", "Full Irradiance", "Display Irradiance values"), ("3", "DF", "Display Daylight factor values")], name = "", description = "Basic metric selection", default = "0", update = liviresupdate)
-#    Scene.li_disp_sda = EnumProperty(items = [("0", "sDA", "Spatial Daylight Autonomy"),("1", "ASE", "Annual sunlight exposure")], name = "", description = "Result selection", default = "0", update = liviresupdate)
     Scene.li_disp_da = EnumProperty(items = [("0", "DA", "Daylight Autonomy"), ("1", "sDA", "Spatial Daylight Autonomy"), ("2", "UDILow", "Spatial Daylight Autonomy"), ("3", "UDISup", "Spatial Daylight Autonomy"), ("4", "UDIAuto", "Spatial Daylight Autonomy"), ("5", "UDIHigh", "Spatial Daylight Autonomy"), ("6", "ASE", "Annual sunlight exposure")], name = "", description = "Result selection", default = "0", update = liviresupdate)
     Scene.li_disp_exp = EnumProperty(items = [("0", "LuxHours", "Display LuhHours values"), ("1", "Full Irradiance", "Display full spectrum radiation exposure values"), ("2", "Visible Irradiance", "Display visible spectrum radiation exposure values")], name = "", description = "Result selection", default = "0", update = liviresupdate)
     (Scene.resaa_disp, Scene.resaws_disp, Scene.resawd_disp, Scene.resah_disp, Scene.resas_disp, Scene.reszt_disp, Scene.reszh_disp, Scene.reszhw_disp, Scene.reszcw_disp, Scene.reszsg_disp, Scene.reszppd_disp, 

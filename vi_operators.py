@@ -487,6 +487,10 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context):
+        
+        if context:
+            print(dir(context.screen))
+#            bpy.ops.view3d.localview()
         dispdict = {'LiVi Compliance': 'lcpanel', 'LiVi Basic': 'lipanel', 'LiVi CBDM': 'lipanel', 'Shadow': 'sspanel'}
         scene = context.scene
         scene['liparams']['disp_count'] = scene['liparams']['disp_count'] + 1 if scene['liparams']['disp_count'] < 10 else 0 

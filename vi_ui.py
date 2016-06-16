@@ -39,7 +39,7 @@ class Vi3DPanel(bpy.types.Panel):
                     row.prop(view, "show_only_render")
                     newrow(layout, 'Legend', scene, "vi_leg_display")
                     if not scene.ss_disp_panel:
-                        if scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)'):
+                        if scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'kWh/m2'):
                             newrow(layout, 'Result type:', scene, "li_disp_da")
                         if scene['liparams']['unit'] in ('Mlxh', u'kWh/m\u00b2(f)', u'kWh/m\u00b2(v)'):
                             newrow(layout, 'Result type:', scene, "li_disp_exp")
@@ -213,6 +213,11 @@ class VIMatPanel(bpy.types.Panel):
                     
             if cm.radmatmenu == '8':
                 row.operator("material.load_bsdf", text="Load BSDF")
+            if cm.get('bsdf'):
+                row.operator("material.del_bsdf", text="Delete BSDF")
+                row = layout.row()
+                row.operator("material.save_bsdf", text="Save BSDF")
+#                row.operator("material.vis_bsdf", text="Visualise BSDF")
                 
 #                newrow(layout, 'Direction:', cm, 'li_bsdf_direc')
 #                newrow(layout, 'Klems/Tensor:', cm, 'li_bsdf_tensor')

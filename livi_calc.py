@@ -34,12 +34,13 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
     frames = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) if not kwargs.get('genframe') else [kwargs['genframe']]
     os.chdir(scene['viparams']['newdir'])
     rtcmds, rccmds = [], []
-    simnode['resdictnew'] = {}
+#    simnode['frames'] = frames
+#    simnode['resdictnew'] = {}
     progressfile(scene, datetime.datetime.now(), [int(i * 100/20) for i in range(0, 21)], 5, 'clear')
     kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'))
     
     for f, frame in enumerate(frames):
-        simnode['resdictnew'][str(frame)] = {}
+#        simnode['resdictnew'][str(frame)] = {}
         if context == 'Basic' or (context == 'CBDM' and subcontext == '0') or (context == 'Compliance' and int(subcontext) < 3):
 #        if context == 'Basic' or (context == 'Compliance' and int(subcontext) < 3):
 
@@ -97,22 +98,42 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
     calcsteps = tpoints * len(frames)
     starttime = datetime.datetime.now()
     startstep = 0
+#    starttime = datetime.datetime(2015, 1, 1, int(simnode['coptions']['shour'])) + datetime.timedelta(days = int(simnode['coptions']['sdoy']))
+#    endtime = datetime.datetime(2015, 1, 1, int(simnode['coptions']['ehour'])) + datetime.timedelta(days = int(simnode['coptions']['edoy'])) if simnode['coptions']['anim'] else starttime
+#    times = [starttime]
+#    time = starttime
+#    while time < endtime:
+#        time = starttime + datetime.timedelta(hours = simnode['coptions']['interval'])
+#        times.append(time)
+#    reslists = [[str(frame), 'Time', '', 'Month', ' '.join([str(t.month) for t in times])], [str(frame), 'Time', '', 'Day', ' '.join([str(t.day) for t in times])], [str(frame), 'Time', '', 'Hour', ' '.join([str(t.hour) for t in times])]]
+    reslists = []
 
     for oi, o in enumerate([scene.objects[on] for on in scene['liparams']['livic']]):
         selobj(scene, o)
         o['omax'], o['omin'], o['oave'] = {}, {}, {}
         if context == 'Basic':
-            if o.basiccalcapply(scene, frames, rtcmds, simnode, oi, starttime, len(scene['liparams']['livic']), calcsteps, startstep) == 'CANCELLED':
+            bccout = o.basiccalcapply(scene, frames, rtcmds, simnode, oi, starttime, len(scene['liparams']['livic']), calcsteps, startstep)
+            if bccout == 'CANCELLED':
                 return 'CANCELLED'
+            else:
+                reslists += bccout
+                
         elif context == 'CBDM' and subcontext == '0':
             if o.lhcalcapply(scene, frames, rtcmds, simnode, oi, starttime, len(scene['liparams']['livic']), calcsteps, startstep) == 'CANCELLED':
                 return 'CANCELLED'
         elif (context == 'CBDM' and subcontext in ('1', '2')) or (context == 'Compliance' and subcontext == '3'):
-            o.udidacalcapply(scene, frames, rccmds, simnode, starttime, calcsteps)
+            udiout = o.udidacalcapply(scene, frames, rccmds, simnode, starttime, calcsteps)
+            if udiout == 'CANCELLED':
+                return 'CANCELLED'
+            else:
+                reslists += udiout
         elif context == 'Compliance':
             o.compcalcapply(scene, frames, rtcmds, simnode, starttime, calcsteps)   
         startstep += o['rtpnum']
-        
+#    print(reslists)
+
+    simnode['reslists'] = reslists    
+
     if kivyrun.poll() is None:
         kivyrun.kill()
             

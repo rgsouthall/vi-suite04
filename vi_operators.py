@@ -112,9 +112,36 @@ class MATERIAL_DelBSDF(bpy.types.Operator):
     bl_undo = True
     
     def execute(self, context):
-        o = context.active_object
-        del o['bsdf']
+#        o = context.active_object
+        del context.material['bsdf']
         return {'FINISHED'}
+        
+class MATERIAL_SaveBSDF(bpy.types.Operator):
+    bl_idname = "material.save_bsdf"
+    bl_label = "ave BSDF"
+    bl_description = "Save a BSDF for the current selected object"
+    bl_register = True
+#    bl_undo = True
+    filename_ext = ".XML;.xml;"
+    filter_glob = bpy.props.StringProperty(default="*.XML;*.xml;", options={'HIDDEN'})
+    filepath = bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+    
+    def draw(self,context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Save BSDF XML file with the file browser", icon='WORLD_DATA')
+
+    def execute(self, context):
+#        context.material['bsdf'] = {}
+        with open(self.filepath, 'w') as bsdfsave:
+            bsdfsave.write(context.material['bsdf']['xml'])
+#        if " " in self.filepath:
+#            self.report({'ERROR'}, "There is a space either in the filename or its directory location. Remove this space and retry opening the file.")
+        return {'FINISHED'}
+
+    def invoke(self,context,event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
 class NODE_OT_FileSelect(bpy.types.Operator, io_utils.ImportHelper):
     bl_idname = "node.fileselect"
@@ -302,7 +329,7 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
         objmode()
         clearscene(scene, self)
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        simnode.preexport()
+        simnode.presim()
         contextdict = {'Basic': 'LiVi Basic', 'Compliance': 'LiVi Compliance', 'CBDM': 'LiVi CBDM'}        
         
         # Set scene parameters
@@ -313,6 +340,8 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
         scene['liparams']['unit'] = simnode['coptions']['unit']
         scene['liparams']['type'] = simnode['coptions']['Type']
         scene.frame_start, scene.frame_end = scene['liparams']['fs'], scene['liparams']['fe']
+        
+        simnode.sim(scene)
 
         for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
             createradfile(scene, frame, self, simnode)
@@ -326,7 +355,7 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
         scene['viparams']['vidisp'] = 'li'
         scene['viparams']['resnode'] = simnode.name
         scene['viparams']['restree'] = self.nodeid.split('@')[1]
-        simnode.postexport()
+        simnode.postsim()
         self.report({'INFO'},"Simulation is finished")
         return {'FINISHED'}
         
@@ -1246,6 +1275,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
         wro['maxres'], wro['minres'], wro['avres'] = max(aws), min(aws), sum(aws)/len(aws)
         windnum(simnode['maxfreq'], (0,0,0), scale, compass((0,0,0), scale, wro, wro.data.materials['wr-000000']))
         bpy.ops.view3d.wrlegdisplay('INVOKE_DEFAULT')
+        plt.close()
         return {'FINISHED'}
 
 class VIEW3D_OT_WRLegDisplay(bpy.types.Operator):

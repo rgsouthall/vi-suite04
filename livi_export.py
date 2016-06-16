@@ -46,8 +46,7 @@ def radgexport(export_op, node, **kwargs):
     
     for frame in frames:
         scene.frame_set(frame)
-        mradfile = "# Materials \n\n"
-        mradfile +=  ''.join([m.radmat(scene) for m in mats])
+        mradfile =  "# Materials \n\n" + ''.join([m.radmat(scene) for m in mats])
         bpy.ops.object.select_all(action='DESELECT')
         tempmatfilename = scene['viparams']['filebase']+".tempmat"
         with open(tempmatfilename, "w") as tempmatfile:
@@ -76,11 +75,9 @@ def radgexport(export_op, node, **kwargs):
                     o.rtpoints(bm, node.offset, str(frame))
                     bm.transform(o.matrix_world.inverted())
                     bm.to_mesh(o.data)
-            
-            
+                        
             bm.free()
             
-
     # Lights export routine
 
         lradfile = "# Lights \n\n"
@@ -209,9 +206,9 @@ def genbsdf(scene, export_op, o):
         mat = bsdfmats[0]
         mat['bsdf'] = {} 
     else:
-        del o['bsdf']
+#        del o['bsdf']
         export_op.report({'ERROR'}, '{} does not have a BSDF material attached'.format(o.name))
-    o['bsdf'] = {} 
+#    o['bsdf'] = {} 
     bm = bmesh.new()    
     bm.from_mesh(o.data) 
     bm.transform(o.matrix_world)
@@ -241,11 +238,11 @@ def genbsdf(scene, export_op, o):
     gradfile = radpoints(o, [face for face in bm.faces if o.data.materials and face.material_index < len(o.data.materials) and o.data.materials[face.material_index].radmatmenu != '8'], 0)
     bm.free()  
     bsdfsamp = o.li_bsdf_ksamp if o.li_bsdf_tensor == ' ' else 2**(int(o.li_bsdf_res) * 2) * int(o.li_bsdf_tsamp) 
-    bsdfxml = os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(o.name))
+#    bsdfxml = os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(mat.name))
     gbcmd = "genBSDF +geom meter -r '{}' {} {} -c {} {} -n {}".format(o.li_bsdf_rcparam,  o.li_bsdf_tensor, (o.li_bsdf_res, ' ')[o.li_bsdf_tensor == ' '], bsdfsamp, o.li_bsdf_direc, scene['viparams']['nproc'])
-    with open(bsdfxml, 'w') as bsdfwrite:        
-        Popen(shlex.split(gbcmd), stdin = PIPE, stdout = bsdfwrite).communicate(input = (mradfile+gradfile).encode('utf-8'))[0]
-    mat['bsdf']['xml'] = bsdfxml
+#    with open(bsdfxml, 'w') as bsdfwrite:        
+    mat['bsdf']['xml'] = Popen(shlex.split(gbcmd), stdin = PIPE, stdout = PIPE).communicate(input = (mradfile+gradfile).encode('utf-8'))[0].decode()
+#    mat['bsdf']['xml'] = bsdfxml
     mat['bsdf']['proxy_depth'] = -minz
     
 

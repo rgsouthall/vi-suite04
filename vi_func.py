@@ -19,12 +19,18 @@
 import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex, gc, bpy_extras
 from collections import OrderedDict
 from subprocess import Popen, PIPE, STDOUT
-from numpy import array, digitize, amax, amin, average, zeros, inner, broadcast_to, transpose, unique, where
+from numpy import arange, array, digitize, amax, amin, average, zeros, inner, broadcast_to, transpose, nan, set_printoptions, choose, where
+set_printoptions(threshold=nan)
 from numpy import sum as nsum
+from numpy import delete as ndelete
+from numpy import append as nappend
+from numpy import add as nadd
 from math import sin, cos, asin, acos, pi, isnan, tan, ceil, log10
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
+from xml.dom import minidom
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
+from .plots import solarscatter2
 
 try:
     import matplotlib
@@ -39,9 +45,10 @@ except Exception as e:
     mp = 0
 
 dtdf = datetime.date.fromordinal
-unitdict = {'Lux': 'illu', u'W/m\u00b2(f)': 'firrad', u'W/m\u00b2(v)': 'virrad', 'DF (%)': 'df', 'DA (%)': 'res', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi',
-            'Sky View': 'sv', 'Mlxh': 'illu', u'kWh/m\u00b2(f)': 'firrad', u'kWh/m\u00b2(v)': 'virrad', '% Sunlit': 'res', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase'}
+unitdict = {'Lux': 'illu', u'W/m\u00b2(f)': 'firrad', u'W/m\u00b2(v)': 'virrad', 'DF (%)': 'df', 'DA (%)': 'da', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi',
+            'Sky View': 'sv', 'Mlxh': 'illu', u'kWh/m\u00b2(f)': 'firrad', u'kWh/m\u00b2(v)': 'virrad', '% Sunlit': 'res', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase', 'kW': 'watts'}
 
+coldict = {'0': 'rainbow', '1': 'gray', '2': 'hot', '3': 'CMRmap', '4': 'jet', '5': 'plasma'}
 def sinebow(h):
   h += 1/2
   h *= -1
@@ -106,7 +113,6 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
             ftext += "usemtl {}\n".format(mat.name) + ''.join(['f {}\n'.format(' '.join('{0}//{0}'.format(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])            
         else:
             ftext += "usemtl {}\n".format(mat.name) + ''.join(['f {}\n'.format(' '.join(str(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])
-
             
     if ffaces:
         gradfile += radpoints(o, ffaces, 0)
@@ -118,7 +124,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
             Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout = mesh, stdin = PIPE).communicate(input = (otext + vtext + ftext).encode('utf-8'))
         gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(o.name.replace(" ", "_"), frame)))
 
-    gc.collect()
+    vtext, ftext = '', ''
     return gradfile
     
 def radmat(self, scene):
@@ -209,19 +215,21 @@ def clearlayers(bm, ltype):
 
 def cbdmmtx(self, scene, locnode, export_op):
     os.chdir(scene['viparams']['newdir'])  
-    dates = retdates(self.sdoy, self.edoy)      
+#    dates = retdates(self.sdoy, self.edoy)      
     if self['epwbase'][1] in (".epw", ".EPW"):
         with open(locnode.weather, "r") as epwfile:
             epwlines = epwfile.readlines()
             self['epwyear'] = epwlines[8].split(",")[0]
         Popen(("epw2wea", locnode.weather, "{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])))).wait()
-        if self.sdoy != 1 or self.edoy != 365 or self.cbdm_start_hour != 1 or self.cbdm_end_hour != 24:
-            with open("{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'r') as weafile:
-                wealines = weafile.readlines()
-                weaheader = [line for line in wealines[:6]]               
-                wearange = [line for line in wealines[6:] if dates[0] <= datetime.datetime(2015, int(line.split()[0]), int(line.split()[1])) <= dates[1] and int(line.split()[2].split('.')[0]) + 1 in range(self.cbdm_start_hour, self.cbdm_end_hour + 1)]
-            with open("{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'w') as weafile:
-                [weafile.write(line) for line in weaheader + wearange]
+#        if self.sdoy != 1 or self.edoy != 365 or self.cbdm_start_hour != 1 or self.cbdm_end_hour != 24:
+#            with open("{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'r') as weafile:
+#                sdatetime = datetime.datetime(2015, 1, 1, self.cbdm_start_hour) + datetime.timedelta(days = self.sdoy - 1)
+#                edatetime = datetime.datetime(2015, 1, 1, self.cbdm_end_hour) + datetime.timedelta(days = self.edoy - 1)
+#                wealines = weafile.readlines()
+#                weaheader = [line for line in wealines[:6]]               
+#                wearange = [line for line in wealines[6:] if sdatetime <= datetime.datetime(2015, int(line.split()[0]), int(line.split()[1]), int(float(line.split()[2]))) <= edatetime and int(line.split()[2].split('.')[0]) + 1 in range(self.cbdm_start_hour + 1, self.cbdm_end_hour + 1)]
+#            with open("{}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'w') as weafile:
+#                [weafile.write(line) for line in weaheader + wearange]
         gdmcmd = ("gendaymtx -m 1 {} {}".format(('', '-O1')[self['watts']], "{0}.wea".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0]))))
         with open("{}.mtx".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'w') as mtxfile:
             Popen(gdmcmd.split(), stdout = mtxfile, stderr=STDOUT).communicate()
@@ -237,8 +245,10 @@ def cbdmhdr(node, scene):
     targethdr = os.path.join(scene['viparams']['newdir'], node['epwbase'][0]+"{}.hdr".format(('l', 'w')[node['watts']]))
     latlonghdr = os.path.join(scene['viparams']['newdir'], node['epwbase'][0]+"{}p.hdr".format(('l', 'w')[node['watts']]))
     skyentry = hdrsky(targethdr)
-    if node.sourcemenu != '1':
-        vecvals, vals = mtx2vals(open(node['mtxfile'], 'r').readlines(), datetime.datetime(2010, 1, 1).weekday(), '')
+#    times = [datetime.datetime.strptime(time, "%d/%m/%y %H:%M:%S") for time in node['Options']['times']]
+
+    if node.sourcemenu != '1' or node.cbanalysismenu == '2':
+        vecvals, vals = mtx2vals(open(node['mtxfile'], 'r').readlines(), datetime.datetime(2010, 1, 1).weekday(), node, node.times)
         pcombfiles = ''.join(["{} ".format(os.path.join(scene['viparams']['newdir'], 'ps{}.hdr'.format(i))) for i in range(146)])
         vwcmd = "vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0"
         rcontribcmd = "rcontrib -bn 146 -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o {} -m sky_glow {}-whitesky.oct".format(scene['viparams']['nproc'], os.path.join(scene['viparams']['newdir'], 'p%d.hdr'), os.path.join(scene['viparams']['newdir'], scene['viparams']['filename']))
@@ -407,11 +417,12 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, ca
     bm = bmesh.new()
     bm.from_mesh(self.data)
     bm.transform(self.matrix_world)
-    self['omax'], self['omin'], self['oave'] = {}, {}, {}
+    self['omax'], self['omin'], self['oave'], self['livires'] = {}, {}, {}, {}
     clearlayers(bm, 'f')
     geom = bm.verts if self['cpoint'] == '1' else bm.faces
     reslen = len(geom)
     cindex = geom.layers.int['cindex']
+    totarea = sum([gp.calc_area() for gp in geom if gp[cindex] > 0]) if self['cpoint'] == '0' else sum([vertarea(bm, gp) for gp in geom])
     
     for f, frame in enumerate(frames):
         geom.layers.float.new('firrad{}'.format(frame))
@@ -467,18 +478,40 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, ca
         self['oave']['firrad{}'.format(frame)] = 1.64 * sum(ovirrad)/reslen
 
         posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 1]
+        illubinvals = [self['omin']['illu{}'.format(frame)] + (self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)])/20 * (i + 0.05) for i in range(20)]
+        bins = array([0.05 * i for i in range(1, 20)])
+        vals = [(gp[illures] - self['omin']['illu{}'.format(frame)])/(self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)]) for gp in geom]         
+        ais = digitize(vals, bins)
+        sareas = zeros(20)
+        for ai in range(20):
+            sareas[ai] = sum([gp.calc_area()/totarea for gi, gp in enumerate(geom) if ais[gi] == ai])
+        rgeom = [g for g in geom if g[cindex] > 0]
+        
+        self['livires']['areabins'] = sareas
+        self['livires']['valbins'] = illubinvals
         reslists.append([str(frame), 'Position', self.name, 'X', ' '.join([str(p[0]) for p in posis])])
         reslists.append([str(frame), 'Position', self.name, 'Y', ' '.join([str(p[0]) for p in posis])])
         reslists.append([str(frame), 'Position', self.name, 'Z', ' '.join([str(p[0]) for p in posis])])
-        reslists.append([str(frame), 'Lighting', self.name, 'Illuminance(lux)', ' '.join([str(g[illures]) for g in geom if g[cindex] > 0])])
-        reslists.append([str(frame), 'Lighting', self.name, 'DF (%)', ' '.join([str(g[dfres]) for g in geom if g[cindex] > 0])])
-        reslists.append([str(frame), 'Lighting', self.name, 'Full Irradiance (W/m2)', ' '.join([str(g[firradres]) for g in geom if g[cindex] > 0])])
-        reslists.append([str(frame), 'Lighting', self.name, 'Visible Irradiance (W/m2)', ' '.join([str(g[virradres]) for g in geom if g[cindex] > 0])])
-#        print('Radiance simulation {:.0f}% complete'.format((oi + (f+1)/fnum)/onum * 100))
-        
+        reslists.append([str(frame), 'Position', self.name, 'Area (m2)', ' '.join([str(g.calc_area()) for g in rgeom])])
+        reslists.append([str(frame), 'Lighting', self.name, 'Illuminance(lux)', ' '.join([str(g[illures]) for g in rgeom])])
+        reslists.append([str(frame), 'Lighting', self.name, 'DF (%)', ' '.join([str(g[dfres]) for g in rgeom])])
+        reslists.append([str(frame), 'Lighting', self.name, 'Full Irradiance (W/m2)', ' '.join([str(g[firradres]) for g in rgeom])])
+        reslists.append([str(frame), 'Lighting', self.name, 'Visible Irradiance (W/m2)', ' '.join([str(g[virradres]) for g in rgeom])])
+#        reslists.append([str(frame), 'Lighting', '{} areabins'.format(self.name), 'Illuminance(lux)', ' '.join([str(bv) for bv in illubinvals])])
+#        reslists.append([str(frame), 'Lighting', '{} areabins'.format(self.name), 'Area (%)', ' '.join([str(sa) for sa in sareas])])
+
+#        bins = array([0.05 * i for i in range(1, 20)])
+#        
+#        self['lareas'] = sareas
+#        width = (self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)]) * 0.04
+#        ax = plt.subplot(111)
+#        ax.bar(x, sareas, width, color="red")
+#        plt.show()
+#    simnode['reslists'] += reslists    
     bm.transform(self.matrix_world.inverted())
     bm.to_mesh(self.data)
     bm.free()
+    return reslists
     
 def lhcalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, calcsteps, sstep):
     reslists = []
@@ -521,6 +554,7 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, calcs
                 gp[virradres] = virrad[gi]
                 gp[illures] = illu[gi]
                 gp[res] = illu[gi]
+            
             curres += len(chunk)
             if progressfile(scene, starttime, calcsteps, curres, 'run') == 'CANCELLED':
                 bm.free()
@@ -588,11 +622,11 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, starttime, calcsteps):
                 gp[dfres] = df[gi]
                 gp[svres] = sv[gi]
                 gp[res] = illu[gi]
-            curres += int(scene['viparams']['nproc']) * 50
-            if curres in calcsteps:
-                if progressfile(scene, starttime, calcsteps, curres, 'run') == 'CANCELLED':
-                    bm.free()
-                    return {'CANCELLED'}
+            
+            curres += len(chunk)
+            if progressfile(scene, starttime, calcsteps, curres, 'run') == 'CANCELLED':
+                bm.free()
+                return {'CANCELLED'}
     
         resdf = [gp[dfres] for gp in geom]
         ressv = [gp[svres] for gp in geom]
@@ -687,8 +721,9 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, starttime, calcsteps):
     scene['liparams']['crits'], scene['liparams']['dfpass'] = crits, dfpass
     bm.to_mesh(self.data)
     bm.free()
-
-def udidacalcapply(self, scene, frames, rccmds, simnode, starttime, calcsteps):  
+    
+def udidacalcapply(self, scene, frames, rccmds, simnode, simstarttime, calcsteps):
+    self['livires'] = {}
     selobj(scene, self)
     bm = bmesh.new()
     bm.from_mesh(self.data)
@@ -696,27 +731,34 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, starttime, calcsteps):
     clearlayers(bm, 'f')
     geom = bm.verts if self['cpoint'] == '1' else bm.faces
     reslen = len(geom)
-    sensarray = zeros((reslen, 146))
 
     if self.get('wattres'):
         del self['wattres']
-    wattarray = array((0.265, 0.67, 0.065))
-    illuarray = 179 * wattarray                              
-    vecvals, vals = mtx2vals(open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfile'], 'r').readlines(), datetime.datetime(2010, 1, 1).weekday(), '')
-    hours = len(vecvals)
+        
+    illuarray = array((47.4, 120, 11.6))
+    vwattarray = array((0.265, 0.67, 0.065))
+    fwattarray = vwattarray * 1.64
+    times = [datetime.datetime.strptime(time, "%d/%m/%y %H:%M:%S") for time in simnode['coptions']['times']]                           
+    vecvals, vals = mtx2vals(open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfile'], 'r').readlines(), datetime.datetime(2010, 1, 1).weekday(), simnode, times)
+    cbdm_days = [d for d in range(simnode['coptions']['sdoy'], simnode['coptions']['edoy'] + 1)]
+    cbdm_hours = [h for h in range(simnode['coptions']['cbdm_sh'], simnode['coptions']['cbdm_eh'] + 1)]
+    dno, hno = len(cbdm_days), len(cbdm_hours)    
     (luxmin, luxmax) = (simnode['coptions']['dalux'], simnode['coptions']['asemax']) if scene['viparams']['visimcontext'] != 'LiVi Compliance' else (300, 1000)
     curres = 0
+    vecvals = array([vv[2:] for vv in vecvals if vv[1] < simnode['coptions']['weekdays']])
+    hours = vecvals.shape[0]
+    restypes = ('da', 'sda', 'ase', 'res', 'udilow', 'udisup', 'udiauto', 'udihi', 'kw', 'kwm2')
     
-    if simnode['coptions']['unit'] in ('DA (%)', 'UDI-a (%)', 'SDA (%)'):
-        vecvals = array([vv[2:] for vv in vecvals if simnode['coptions']['cbdm_sh'] <= vv[0] < simnode['coptions']['cbdm_eh'] and vv[1] < simnode['coptions']['weekdays']])
-    elif simnode['coptions']['unit'] == 'kW':
-        vecvals = array([vv[2:] for vv in vecvals])
-    
-    for f, frame in enumerate(frames):
-        restypes = ('da', 'sda', 'ase', 'res', 'udilow', 'udisup', 'udiauto', 'udihi')
+    for f, frame in enumerate(frames):        
+        reslists = [[str(frame), 'Time', '', 'Month', ' '.join([str(t.month) for t in times])]]
+        reslists.append([str(frame), 'Time', '', 'Day', ' '.join([str(t.day) for t in times])])
+        reslists.append([str(frame), 'Time', '', 'Hour', ' '.join([str(t.hour) for t in times])])
+        reslists.append([str(frame), 'Time', '', 'DOS', ' '.join([str(t.timetuple().tm_yday - times[0].timetuple().tm_yday) for t in times])])
+
         for restype in restypes:
             geom.layers.float.new('{}{}'.format(restype, frame))
-        (resda, ressda, resase, res, resudilow, resudisup, resudiauto, resudihi) = [geom.layers.float['{}{}'.format(r, frame)] for r in restypes]
+        (resda, ressda, resase, res, resudilow, resudisup, resudiauto, resudihi, reskw, reskwm2) = [geom.layers.float['{}{}'.format(r, frame)] for r in restypes]
+
         if simnode['coptions']['buildtype'] == '1':
             geom.layers.float.new('sv{}'.format(frame))
             ressv = geom.layers.float['sv{}'.format(frame)]
@@ -728,125 +770,178 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, starttime, calcsteps):
             rtframe  = max(kints) if frame > max(kints) else  min(kints)
         
         rt = geom.layers.string['rt{}'.format(rtframe)]
-        
+        totarea = sum([g.calc_area() for g in geom if g[rt]])
+                
         for ch, chunk in enumerate(chunks([g for g in geom if g[rt]], int(scene['viparams']['nproc']) * 40)):
             sensrun = Popen(rccmds[f].split(), stdin=PIPE, stdout=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))
             resarray = array([[float(v) for v in sl.split('\t') if v] for sl in sensrun[0].splitlines() if sl not in ('\n', '\r\n')]).reshape(len(chunk), 146, 3)
+            chareas = array([c.calc_area() for c in chunk]) if self['cpoint'] == '0' else array([vertarea(bm, c) for c in chunk])
+            sensarray = nsum(resarray*illuarray, axis = 2)
+            wsensearray  = nsum(resarray*fwattarray, axis = 2)
+            finalillu = inner(sensarray, vecvals) 
+            finalwattm2 = inner(wsensearray, vecvals)
+            wsensearraym2 = (wsensearray.T * chareas).T
+            finalwatt = inner(wsensearraym2, vecvals) 
+            finalilluarea = (finalillu.T*(chareas/totarea)).T  
+            dabool = choose(finalillu >= simnode['coptions']['dalux'], [0, 1]) 
+            udilbool = choose(finalillu < simnode['coptions']['damin'], [0, 1])
+            udisbool = choose(finalillu < simnode['coptions']['dasupp'], [0, 1]) - udilbool
+            udiabool = choose(finalillu < simnode['coptions']['daauto'], [0, 1]) - udilbool - udisbool
+            udihbool = choose(finalillu >= simnode['coptions']['daauto'], [0, 1])
+            sdabool = choose(finalillu >= luxmin, [0, 1])
+            asebool = choose(finalillu >= luxmax, [0, 1])            
+            daareares = (dabool.T*chareas).T             
+            udilareares = (udilbool.T*chareas).T
+            udisareares = (udisbool.T*chareas).T
+            udiaareares = (udiabool.T*chareas).T
+            udihareares = (udihbool.T*chareas).T
+            aseareares = (asebool.T*chareas).T
+            sdaareares = (sdabool.T*chareas).T
+            dares = dabool.sum(axis = 1)*100/hours
+            sdares = sdabool.sum(axis = 1)*100/hours
+            aseres = asebool.sum(axis = 1)*1.0
+            udilow = udilbool.sum(axis = 1)*100/hours
+            udisup = udisbool.sum(axis = 1)*100/hours
+            udiauto = udiabool.sum(axis = 1)*100/hours
+            udihi = udihbool.sum(axis = 1)*100/hours
+            kwh = 0.001 * nsum(finalwatt, axis = 1)
+            kwhm2 = 0.001 * nsum(finalwattm2, axis = 1)
+             
+            if scene['viparams']['visimcontext'] == 'LiVi Compliance' and simnode['coptions']['buildtype'] == '1':
+                svres = self.retsv(scene, frame, rtframe, chunk, rt)
+            
+            for gi, gp in enumerate(chunk):
+                gp[resda] = dares[gi]
+                gp[ressda] = sdares[gi]
+                gp[resase] = aseres[gi]
+                gp[res] = dares[gi]
+                gp[resudilow] = udilow[gi]
+                gp[resudisup] = udisup[gi]
+                gp[resudiauto] = udiauto[gi]
+                gp[resudihi] = udihi[gi]
+                gp[reskw] = kwh[gi]
+                gp[reskwm2] = kwhm2[gi]
+                if simnode['coptions']['buildtype'] == '1':
+                    gp[ressv] = svres[gi]
 
-            if simnode['coptions']['unit'] in ('DA (%)', 'UDI-a (%)', 'SDA (%)', 'ASE(hrs)'):
-                sensarray = nsum(resarray*illuarray, axis = 2)
-                finalillu = inner(sensarray, vecvals)    
-                dares = array([len(f[f >= simnode['coptions']['dalux']]) for f in finalillu])*100/hours
-                sdares = array([len(f[f >= luxmin]) for f in finalillu])*100/hours
-                aseres = array([len(f[f >= luxmax]) for f in finalillu])*1.0
-                udilow = array([len(f[f < simnode['coptions']['damin']]) for f in finalillu])*100/hours
-                udisup = array([len(f[(f > simnode['coptions']['damin']) & (f < simnode['coptions']['dasupp'])]) for f in finalillu])*100/hours
-                udiauto = array([len(f[(simnode['coptions']['dasupp'] < f) & (f < simnode['coptions']['daauto'])]) for f in finalillu])*100/hours
-                udihi = array([len(f[f > simnode['coptions']['daauto']]) for f in finalillu])*100/hours
-    
-                if scene['viparams']['visimcontext'] == 'LiVi Compliance' and simnode['coptions']['buildtype'] == '1':
-                    svres = self.retsv(scene, frame, rtframe, chunk, rt)
+            if not ch:
+                totfinalillu = finalilluarea
+                totdaarea = nsum(daareares, axis = 0)
+                totudiaarea = nsum(udiaareares, axis = 0)
+                totudisarea = nsum(udisareares, axis = 0)
+                totudilarea = nsum(udilareares, axis = 0)
+                totudiharea = nsum(udihareares, axis = 0)
+                totsdaarea = nsum(sdaareares, axis = 0)
+                totasearea = nsum(aseareares, axis = 0)
+                totfinalwatt = nsum(finalwatt, axis = 0)#nsum(inner(sensarray, vecvals), axis = 0)
+                totfinalwattm2 = average(finalwattm2, axis = 0)
+            else:
+                nappend(totfinalillu, finalilluarea)
+                totdaarea += nsum(daareares, axis = 0)
+                totudiaarea += nsum(udiaareares, axis = 0)
+                totudilarea += nsum(udilareares, axis = 0)
+                totudisarea += nsum(udisareares, axis = 0)
+                totudiharea += nsum(udihareares, axis = 0)
+                totsdaarea += nsum(sdaareares, axis = 0)
+                totasearea += nsum(aseareares, axis = 0)
+                totfinalwatt += nsum(finalwatt, axis = 0)#nsum(inner(sensarray, vecvals), axis = 0)
+                totfinalwattm2 += average(finalwattm2, axis = 0)
+            
+            curres += len(chunk)
+            if progressfile(scene, simstarttime, calcsteps, curres, 'run') == 'CANCELLED':
+                bm.free()
+                return {'CANCELLED'}
+
+        dares = [gp[resda] for gp in geom] 
+        sdares = [gp[ressda] for gp in geom]
+        aseres = [gp[resase] for gp in geom] 
+        udilow = [gp[resudilow] for gp in geom] 
+        udisup = [gp[resudisup] for gp in geom]
+        udiauto = [gp[resudiauto] for gp in geom]
+        udihi = [gp[resudihi] for gp in geom]
+        kwh = [gp[reskw] for gp in geom]
+        kwhm2 = [gp[reskwm2] for gp in geom]
+        self['omax']['da{}'.format(frame)] =  max(dares)
+        self['omin']['da{}'.format(frame)] = min(dares)
+        self['oave']['da{}'.format(frame)] = sum(dares)/reslen
+        self['omax']['sda{}'.format(frame)] = max(sdares)
+        self['omin']['sda{}'.format(frame)] = min(sdares)
+        self['oave']['sda{}'.format(frame)] = sum(sdares)/reslen
+        self['omax']['ase{}'.format(frame)] = max(aseres)
+        self['omin']['ase{}'.format(frame)] = min(aseres)
+        self['oave']['ase{}'.format(frame)] = sum(aseres)/reslen
+        self['omax']['udilow{}'.format(frame)] = max(udilow)
+        self['omin']['udilow{}'.format(frame)] = min(udilow)
+        self['oave']['udilow{}'.format(frame)] = sum(udilow)/reslen
+        self['omax']['udisup{}'.format(frame)] = max(udisup)
+        self['omin']['udisup{}'.format(frame)] = min(udisup)
+        self['oave']['udisup{}'.format(frame)] = sum(udisup)/reslen
+        self['omax']['udiauto{}'.format(frame)] = max(udiauto)
+        self['omin']['udiauto{}'.format(frame)] = min(udiauto)
+        self['oave']['udiauto{}'.format(frame)] = sum(udiauto)/reslen
+        self['omax']['udihi{}'.format(frame)] = max(udihi)
+        self['omin']['udihi{}'.format(frame)] = min(udihi)
+        self['oave']['udihi{}'.format(frame)] = sum(udihi)/reslen
+        self['omax']['kWh{}'.format(frame)] = max(kwh)
+        self['omin']['kWh{}'.format(frame)] = min(kwh)
+        self['oave']['kWh{}'.format(frame)] = sum(kwh)/reslen
+        self['omax']['kWh/m2{}'.format(frame)] = max(kwhm2)
+        self['omin']['kWh/m2{}'.format(frame)] = min(kwhm2)
+        self['oave']['kWh/m2{}'.format(frame)] = sum(kwhm2)/reslen
+        self['livires']['dhilluave'] = average(totfinalillu, axis = 0).flatten().reshape(dno, hno).transpose()
+        self['livires']['dhillumin'] = amin(totfinalillu, axis = 0).reshape(dno, hno).transpose()
+        self['livires']['dhillumax'] = amax(totfinalillu, axis = 0).reshape(dno, hno).transpose()
+        self['livires']['daarea'] = (totdaarea*100/totarea).reshape(dno, hno).transpose()
+        self['livires']['udiaarea'] = (totudiaarea*100/totarea).reshape(dno, hno).transpose()
+        self['livires']['udisarea'] = (totudisarea*100/totarea).reshape(dno, hno).transpose()
+        self['livires']['udilarea'] = (totudilarea*100/totarea).reshape(dno, hno).transpose()
+        self['livires']['udiharea'] = (totudiharea*100/totarea).reshape(dno, hno).transpose()
+        self['livires']['asearea'] = (totasearea*100/totarea).reshape(dno, hno).transpose()
+        self['livires']['sdaarea'] = (totsdaarea*100/totarea).reshape(dno, hno).transpose()
+        self['livires']['kW'] =  (0.001*totfinalwatt).reshape(dno, hno).transpose()
+        self['livires']['kW/m2'] =  (0.001*totfinalwattm2).reshape(dno, hno).transpose()
+        self['livires']['cbdm_days'] = cbdm_days
+        self['livires']['cbdm_hours'] = cbdm_hours
+#        self['livires']['table'] = array([])
+        reslists.append([str(frame), 'Zone', self.name, 'Total kW', ' '.join([str(p) for p in 0.001 * totfinalwatt])])
+        reslists.append([str(frame), 'Zone', self.name, 'Average kW/m2', ' '.join([str(p) for p in 0.001 * totfinalwattm2])])
+        reslists.append([str(frame), 'Zone', self.name, 'Daylight Autonomy Area (%)', ' '.join([str(p) for p in totdaarea])])
+        reslists.append([str(frame), 'Zone', self.name, 'UDI-a Area (%)', ' '.join([str(p) for p in totudiaarea])])
+        reslists.append([str(frame), 'Zone', self.name, 'UDI-s Area (%)', ' '.join([str(p) for p in totudisarea])])
+        reslists.append([str(frame), 'Zone', self.name, 'UDI-l Area (%)', ' '.join([str(p) for p in totudilarea])])
+        reslists.append([str(frame), 'Zone', self.name, 'UDI-h Area (%)', ' '.join([str(p) for p in totudiharea])])
+#        reslists.append([str(frame), 'Zone', self.name, 'Annual Sunlight Exposure (hours)', ' '.join([str(p) for p in totasehours])])
+#        reslists.append([str(frame), 'Zone', self.name, 'Spatial Daylight Autonomy (%)', ' '.join([str(p) for p in totsdaarea])])
+        
+        if scene['viparams']['visimcontext'] == 'LiVi Compliance':
+            self['crit'], self['ecrit'] = retcrits(simnode, self['compmat'])
+            sdapassarea, asepassarea, comps = 0, 0, {str(f): [] for f in frames}
+            oareas = self['lisenseareas'][str(frame)]
+            oarea = sum(oareas)
+            geom.ensure_lookup_table()
+            hoarea = sum([oa for o, oa in enumerate(oareas) if geom[o][ressv] > 0]) if simnode['coptions']['buildtype'] == '3' else oarea
                 
-                for gi, gp in enumerate(chunk):
-                    gp[resda] = dares[gi]
-                    gp[ressda] = sdares[gi]
-                    gp[resase] = aseres[gi]
-                    gp[res] = dares[gi]
-                    gp[resudilow] = udilow[gi]
-                    gp[resudisup] = udisup[gi]
-                    gp[resudiauto] = udiauto[gi]
-                    gp[resudihi] = udihi[gi]
-                    if simnode['coptions']['buildtype'] == '1':
-                        gp[ressv] = svres[gi]
+            for c in self['crit']:
+                aoarea = hoarea if simnode['coptions']['buildtype'] == '1' else oarea 
+                if c[0] == 'Percent':        
+                    if c[2] == 'SDA':
+                        sdapassarea = sum([area for p, area in enumerate(oareas) if sdares[p] >= 50 and svres[p] > 0]) if simnode['coptions']['buildtype'] == '1' else sum([area for p, area in enumerate(oareas) if sdares[p] >= 50])
+                        comps[str(frame)].append((0, 1)[sdapassarea >= float(c[1])*oarea/100])
+                        comps[str(frame)].append(100*sdapassarea/aoarea)
+                        self['oarea'], self['sdapassarea'] = aoarea, sdapassarea
+                    
+                    elif c[2] == 'ASE':
+                        asepassarea = sum([area for p, area in enumerate(oareas) if aseres[p] > 250 and svres[p] > 0]) if simnode['coptions']['buildtype'] == '1' else sum([area for p, area in enumerate(oareas) if aseres[p] > 250])
+                        comps[str(frame)].append((0, 1)[asepassarea <= float(c[1])*aoarea/100])
+                        comps[str(frame)].append(100*asepassarea/aoarea)
+                        self['asepassarea'] = asepassarea
 
-                curres += len(chunk)
-                if curres in calcsteps:
-                    if progressfile(scene, starttime, calcsteps, curres, 'run') == 'CANCELLED':
-                        bm.free()
-                        return {'CANCELLED'}
-            
-            elif simnode['coptions']['unit'] == 'kW':
-                areas = broadcast_to(array([c.calc_area() for c in chunk]), (146, len(chunk)))
-                if ch == 0:
-                    sensarray = nsum(resarray*wattarray, axis = 2) * areas.T
-                    finalwatt = nsum(inner(sensarray, vecvals), axis = 0)
-                else:
-                    sensarray = nsum(resarray*wattarray, axis = 2) * areas.T
-                    finalwatt += nsum(inner(sensarray, vecvals), axis = 0)
+            self['comps'] = comps
         
-        if simnode['coptions']['unit'] in ('DA (%)', 'UDI-a (%)', 'SDA (%)', 'ASE(hrs)'):
-            dares = [gp[resda] for gp in geom] 
-            sdares = [gp[ressda] for gp in geom]
-            aseres = [gp[resase] for gp in geom] 
-            udilow = [gp[resudilow] for gp in geom] 
-            udisup = [gp[resudisup] for gp in geom]
-            udiauto = [gp[resudiauto] for gp in geom]
-            udihi = [gp[resudihi] for gp in geom]
-            self['omax']['da{}'.format(frame)] =  max(dares)
-            self['omin']['da{}'.format(frame)] = min(dares)
-            self['oave']['da{}'.format(frame)] = sum(dares)/reslen
-            self['omax']['sda{}'.format(frame)] = max(sdares)
-            self['omin']['sda{}'.format(frame)] = min(sdares)
-            self['oave']['sda{}'.format(frame)] = sum(sdares)/reslen
-            self['omax']['ase{}'.format(frame)] = max(aseres)
-            self['omin']['ase{}'.format(frame)] = min(aseres)
-            self['oave']['ase{}'.format(frame)] = sum(aseres)/reslen
-            self['omax']['low{}'.format(frame)] = max(udilow)
-            self['omin']['low{}'.format(frame)] = min(udilow)
-            self['oave']['low{}'.format(frame)] = sum(udilow)/reslen
-            self['omax']['sup{}'.format(frame)] = max(udisup)
-            self['omin']['sup{}'.format(frame)] = min(udisup)
-            self['oave']['sup{}'.format(frame)] = sum(udisup)/reslen
-            self['omax']['auto{}'.format(frame)] = max(udiauto)
-            self['omin']['auto{}'.format(frame)] = min(udiauto)
-            self['oave']['auto{}'.format(frame)] = sum(udiauto)/reslen
-            self['omax']['high{}'.format(frame)] = max(udihi)
-            self['omin']['high{}'.format(frame)] = min(udihi)
-            self['oave']['high{}'.format(frame)] = sum(udihi)/reslen
-                    
-            if scene['viparams']['visimcontext'] == 'LiVi Compliance':
-                self['crit'], self['ecrit'] = retcrits(simnode, self['compmat'])
-                sdapassarea, asepassarea, comps = 0, 0, {str(f): [] for f in frames}
-                oareas = self['lisenseareas'][str(frame)]
-                oarea = sum(oareas)
-                geom.ensure_lookup_table()
-                hoarea = sum([oa for o, oa in enumerate(oareas) if geom[o][ressv] > 0]) if simnode['coptions']['buildtype'] == '3' else oarea
-                    
-                for c in self['crit']:
-                    aoarea = hoarea if simnode['coptions']['buildtype'] == '1' else oarea 
-                    if c[0] == 'Percent':        
-                        if c[2] == 'SDA':
-                            sdapassarea = sum([area for p, area in enumerate(oareas) if sdares[p] >= 50 and svres[p] > 0]) if simnode['coptions']['buildtype'] == '1' else sum([area for p, area in enumerate(oareas) if sdares[p] >= 50])
-                            comps[str(frame)].append((0, 1)[sdapassarea >= float(c[1])*oarea/100])
-                            comps[str(frame)].append(100*sdapassarea/aoarea)
-                            self['oarea'], self['sdapassarea'] = aoarea, sdapassarea
-                        
-                        elif c[2] == 'ASE':
-                            asepassarea = sum([area for p, area in enumerate(oareas) if aseres[p] > 250 and svres[p] > 0]) if simnode['coptions']['buildtype'] == '1' else sum([area for p, area in enumerate(oareas) if aseres[p] > 250])
-                            comps[str(frame)].append((0, 1)[asepassarea <= float(c[1])*aoarea/100])
-                            comps[str(frame)].append(100*asepassarea/aoarea)
-                            self['asepassarea'] = asepassarea
-    
-                self['comps'] = comps
-        
-        elif simnode['coptions']['unit'] == 'kW':
-            reslists = [[str(frame), 'Zone', self.name, 'Watts', ' '.join([str(p) for p in finalwatt])]]
-            (y1, y2) = (2015, 2015) if simnode['coptions']['edoy'] >= simnode['coptions']['sdoy'] else (2014, 2015)
-            sdate = datetime.datetime(y1, 1, 1) + datetime.timedelta(simnode['coptions']['sdoy'] - 1)#, hours = simnode['coptions']['cbdm_sh'] - 1)
-            edate = datetime.datetime(y2, 1, 1) + datetime.timedelta(simnode['coptions']['edoy'])#, hours = simnode['coptions']['cbdm_eh'] - 1)
-            
-            times = [sdate + datetime.timedelta(hours = hi) for hi in range(((edate - sdate).days + 1) * 24) if (sdate + datetime.timedelta(hours = hi)).hour in range(simnode['coptions']['cbdm_sh'] - 1, simnode['coptions']['cbdm_eh'])]
-            reslists.append([str(frame), 'Time', '', 'Month', ' '.join([str(t.month) for t in times])])
-            reslists.append([str(frame), 'Time', '', 'Day', ' '.join([str(t.day) for t in times])])
-            reslists.append([str(frame), 'Time', '', 'Hour', ' '.join([str(t.hour) for t in times])])
-            reslists.append([str(frame), 'Time', '', 'DOS', ' '.join([str(t.timetuple().tm_yday - times[0].timetuple().tm_yday) for t in times])])
-            simnode['reslists'] = reslists
-            simnode['frames'] = [str(frame) for frame in frames]
-            
-            
     bm.transform(self.matrix_world.inverted())        
     bm.to_mesh(self.data)
     bm.free()
+    return reslists
 
 def retcrits(simnode, matname):
     mat = bpy.data.materials[matname]
@@ -1807,64 +1902,54 @@ def vsarea(obj, vs):
         return(area)
 
 def wind_rose(maxws, wrsvg, wrtype):
-    pa, zp, lpos, scene, vs = 0, 0, [], bpy.context.scene, []    
+    zp, scene = 0, bpy.context.scene    
     bm = bmesh.new()
     wrme = bpy.data.meshes.new("Wind_rose")   
     wro = bpy.data.objects.new('Wind_rose', wrme)     
     scene.objects.link(wro)
     scene.objects.active = wro
-    wro.select, wro.location = True, (0, 0 ,0)
-    
-    with open(wrsvg, 'r') as svgfile:  
-        svglines = svgfile.readlines()     
-        for line in svglines:
-            if "<svg height=" in line:
-                dimen = int(line.split('"')[1].strip('pt'))
-                scale = 0.04 * dimen
-            if '/>' in line:
-                lcolsplit = line.split(';')
-                for lcol in lcolsplit: 
-                    if 'style="fill:#' in lcol and lcol[-6:] != 'ffffff':
-                        fillrgb = colors.hex2color(lcol[-7:])
-                        if 'wr-{}'.format(lcol[-6:]) not in [mat.name for mat in bpy.data.materials]:
-                            bpy.data.materials.new('wr-{}'.format(lcol[-6:]))
-                        bpy.data.materials['wr-{}'.format(lcol[-6:])].diffuse_color = fillrgb
-                        if 'wr-{}'.format(lcol[-6:]) not in [mat.name for mat in wro.data.materials]:
-                            bpy.ops.object.material_slot_add()
-                            wro.material_slots[-1].material = bpy.data.materials['wr-{}'.format(lcol[-6:])]  
-                
-        for line in svglines:
-            linesplit = [line for line in line.strip('\n').split(' ') if line]
-            if '<path' in line:
-                pa = 1
-            if pa and 'd="M' in line:
-                spos = [((float(linesplit[-2])- dimen/2) * 0.1, (float(linesplit[-1]) - dimen/2) * -0.1, 0.05)]
-            if pa and line[0:2] == 'L ':
-                lpos.append(((float(linesplit[-2]) - dimen/2) * 0.1, (float(linesplit[-1].strip('"')) - dimen/2) *-0.1, 0.05))
-            if pa and '/>' in line:
-                lcolsplit = line.split(';')
-                for lcol in lcolsplit:                
-                    if 'style="fill:#' in lcol and lcol[-6:] != 'ffffff':
-                        for pos in spos + lpos[::-1]:
-                            vs.append(bm.verts.new(pos))                        
-                        if len(vs) > 2:
-                            nf = bm.faces.new(vs)
-                            nf.material_index = wro.data.materials[:].index(wro.data.materials['wr-{}'.format(lcol[-6:])])                            
-                            if wrtype in ('2', '3', '4'):
-                                zp += 0.0005 * scale 
-                                for vert in nf.verts:
-                                    vert.co[2] = zp
-                bmesh.ops.remove_doubles(bm, verts=vs, dist = scale * 0.01)
-                pa, lpos, vs = 0, [], []  
+    wro.select, wro.location = True, (0, 0 ,0)    
+    svg = minidom.parse(wrsvg)
+    pos_strings = [path.getAttribute('d') for path in svg.getElementsByTagName('path')]
+    style_strings = [path.getAttribute('style').split(';') for path in svg.getElementsByTagName('path')]     
+    dimen = [eval(path.getAttribute('height').strip('pt')) for path in svg.getElementsByTagName('svg')][0]
+    scale = 0.04 * dimen
+    svg.unlink()    
+    sposnew = [[(eval(ss.split()[ss.index('M') + 1]) - dimen/2) * 0.1, (eval(ss.split()[ss.index('M') + 2]) - dimen/2) * -0.1, 0.05] for ss in pos_strings]
+    lposnew = [[[(eval(ss.split()[li + 1]) - dimen/2) * 0.1, (eval(ss.split()[li + 2]) - dimen/2) * -0.1, 0.05] for li in [si for si, s in enumerate(ss.split()) if s == 'L']] for ss in pos_strings]
 
-            if 'wr-000000' not in [mat.name for mat in bpy.data.materials]:
-                bpy.data.materials.new('wr-000000')
-            bpy.data.materials['wr-000000'].diffuse_color = (0, 0, 0)
-            if 'wr-000000' not in [mat.name for mat in wro.data.materials]:
+    for stsi, sts in enumerate(style_strings):        
+        if 'fill:#' in sts[0] and sts[0][-6:] != 'ffffff':
+            hexcol, col = sts[0][-7:], sts[0][-6:]
+            fillrgb = colors.hex2color(hexcol)
+
+            if 'wr-{}'.format(col) not in [mat.name for mat in bpy.data.materials]:
+                bpy.data.materials.new('wr-{}'.format(col))
+            bpy.data.materials['wr-{}'.format(col)].diffuse_color = fillrgb
+
+            if 'wr-{}'.format(col) not in [mat.name for mat in wro.data.materials]:
                 bpy.ops.object.material_slot_add()
-                wro.material_slots[-1].material = bpy.data.materials['wr-000000']
-            
+                wro.material_slots[-1].material = bpy.data.materials['wr-{}'.format(col)]    
 
+            vs = [bm.verts.new(pos) for pos in [sposnew[stsi]] + lposnew[stsi]]                        
+
+            if len(vs) > 2:
+                nf = bm.faces.new(vs)
+                nf.material_index = wro.data.materials[:].index(wro.data.materials['wr-{}'.format(col)])                            
+                if wrtype in ('2', '3', '4'):
+                    zp += 0.0005 * scale 
+                    for vert in nf.verts:
+                        vert.co[2] = zp
+                        
+        if 'wr-000000' not in [mat.name for mat in bpy.data.materials]:
+            bpy.data.materials.new('wr-000000')
+        bpy.data.materials['wr-000000'].diffuse_color = (0, 0, 0)
+        if 'wr-000000' not in [mat.name for mat in wro.data.materials]:
+            bpy.ops.object.material_slot_add()
+            wro.material_slots[-1].material = bpy.data.materials['wr-000000']
+            
+    bmesh.ops.remove_doubles(bm, verts=vs, dist = scale * 0.01)    
+            
     if wrtype in ('0', '1', '3', '4'):            
         thick = scale * 0.005 if wrtype == '4' else scale * 0.0025
         faces = bmesh.ops.inset_individual(bm, faces=bm.faces, thickness = thick, use_even_offset = True)['faces']
@@ -1980,12 +2065,12 @@ def spathrange(mats):
 
 def windnum(maxws, loc, scale, wr):
     txts = []
-    matrot = Matrix.Rotation(-pi*0.125, 4, 'Z')
+    matrot = Matrix.Rotation(-pi*0.075, 4, 'Z')
     direc = Vector((0, 1, 0))
-    for i in range(5):
-        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=((i+1)/5)*scale*(matrot*direc))
+    for i in range(2, 6):
+        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=((i**2)/25)*scale*(matrot*direc))
         txt = bpy.context.active_object
-        txt.data.body, txt.scale, txt.location[2] = '{:.1f}'.format((i+1)*maxws/5), (scale*0.05, scale*0.05, scale*0.05), scale*0.01
+        txt.data.body, txt.scale, txt.location[2] = '{:.1f}'.format((i**2)*maxws/25), (scale*0.05, scale*0.05, scale*0.05), scale*0.01
         bpy.ops.object.convert(target='MESH')
         bpy.ops.object.material_slot_add()
         txt.material_slots[-1].material = bpy.data.materials['wr-000000']
@@ -2055,22 +2140,54 @@ def drawfont(text, fi, lencrit, height, x1, y1):
     blf.position(fi, x1, height - y1 - lencrit*26, 0)
     blf.draw(fi, text)
     
-def mtx2vals(mtxlines, fwd, node):
+#def rethours(sdoy, edoy, shour, ehour, valid):
+#    validhours = [(0, 1)[sdoy * 24 <= h <= edoy * 24 and shour <= h%24 <= ehour] for h in range(8760)]
+##    print(validhours)
+#    if valid == 'invalid':
+#        return [h for h in range(8760) if h < sdoy * 24 or h > edoy * 24 or h%24 < shour or h%24 > ehour]
+#    if valid == 'valid':
+#        return validhours
+#    if valid == 'dh':
+#        st = datetime.datetime(2015, 1, 1, 1)
+##        return [((datetime.timedelta(hours = t)).days + 1, (st + datetime.timedelta(hours = t)).hour) for t in range(8760) if validhours[t]]
+#        return ([d for d in range(sdoy, edoy + 1)], [h for h in range(shour, ehour + 1)])
+    
+def mtx2vals(mtxlines, fwd, node, times):    
     for m, mtxline in enumerate(mtxlines):
         if 'NROWS' in mtxline:
             patches = int(mtxline.split('=')[1])
-        elif 'NCOLS' in mtxline:
-            hours = int(mtxline.split('=')[1])
+#        elif 'NCOLS' in mtxline:
+#            hours = int(mtxline.split('=')[1])
         elif mtxline == '\n':
             startline = m + 1
             break
+#    times = [datetime.datetime.strptime(time, "%d/%m/%y %H:%M:%S") for time in node['coptions']['times']]
+#    print(times)
+    sdoy = (times[0] - datetime.datetime(2015, 1, 1)).days
+    shour = times[0].hour + 1
+    edoy = (times[-1] - datetime.datetime(2015, 1, 1)).days + 1
+    ehour = times[-1].hour + 1
+#    print(sdoy, shour, edoy, ehour)
+#    mtxlines = [line for line in mtxlines[startline:] if line and line != '\n']
+#    print(mtxlines)
+            
+  #  sdoy, edoy, shour, ehour = node['coptions']['sdoy'] - 1, node['coptions']['edoy'], node['coptions']['cbdm_sh'] - 1, node['coptions']['cbdm_eh'] - 1 
+#    validhours = rethours(sdoy, edoy, shour, ehour, 'valid')
+#    print(rethours(sdoy, edoy, shour, ehour, 'dh'))
+    tothours = len(times)
+    hours = [t.hour for t in times]
+    
+    invalidhours = [h for h in range(8760) if h < sdoy * 24 or h > edoy * 24 or h%24 < shour or h%24 > ehour] 
 
-    mtxlarray = array([0.333 * sum([float(lv) for lv in fvals.split(" ")]) for fvals in mtxlines[startline:] if fvals != '\n'], dtype=float)
-    mtxshapearray = mtxlarray.reshape(patches, hours)
+    mtxlarray = array([0.333 * sum([float(lv) for lv in fval.split(" ")]) for fval in mtxlines[startline:] if fval != '\n'], dtype=float)
+    mtxshapearray = mtxlarray.reshape(patches, 8760)
+    mtxshapearray = ndelete(mtxshapearray, invalidhours, 1)
+#    print(mtxshapearray.shape, tothours, hours)
     vals = nsum(mtxshapearray, axis = 1)
     vvarray = transpose(mtxshapearray)
     vvlist = vvarray.tolist()
-    vecvals = [[x%24, (fwd+int(x/24))%7, *vvlist[x]] for x in range(hours)]
+    vecvals = [[hours[x], (fwd+int(hours[x]/24))%7, *vvlist[x]] for x in range(tothours)]
+#    print(vecvals)
     return(vecvals, vals)
 
 def bres(scene, o):
@@ -2178,14 +2295,16 @@ def retdp(context, mres):
         dplaces = 0
     return dplaces
 
-def draw_index(context, leg, mid_x, mid_y, width, height, posis, res):
-#    dplaces = 0 if ceil(log10(100/max(res))) < 0 or context.scene['viparams']['resnode'] == 'VI Sun Path' else ceil(log10(100/max(res)))
+def draw_index(context, mid_x, mid_y, width, height, posis, res, distances):
+    avdistance = sum(distances)/len(distances)
+    leg = context.scene.vi_leg_display
+    fs = context.scene.vi_display_rp_fs
+    fsd = fs * avdistance
     nres = ['{}'.format(format(r, '.{}f'.format(retdp(context, max(res))))) for ri, r in enumerate(res)]
-    bds = [blf.dimensions(0, nr) for nr in nres]
-    [(blf.position(0, posis[ri][0] - int(0.5*bds[ri][0]), posis[ri][1] - int(0.5 * bds[ri][1]), 0), blf.draw(0, nr)) for ri, nr in enumerate(nres) if (leg == 1 and (posis[ri][0] > 120 or posis[ri][1] < height - 530)) or leg == 0]
+    [(blf.size(0, int(fsd/distances[ri]), 72), blf.position(0, posis[ri][0] - int(0.5*blf.dimensions(0, nr)[0]), posis[ri][1] - int(0.5 * blf.dimensions(0, nr)[1]), 0.9), blf.draw(0, nr)) for ri, nr in enumerate(nres) if (leg == 1 and (posis[ri][0] > 120 or posis[ri][1] < height - 530)) or leg == 0]
 
 def draw_time(pos, time):
-    blf.position(0, pos[0], pos[1], 0)
+    blf.position(0, pos[0], pos[1] - blf.dimensions(0, time)[1] * 0.5, 0)
     blf.draw(0, time)
         
 def edgelen(ob, edge):
@@ -2684,12 +2803,12 @@ def sunposlivi(scene, skynode, frames, sun, stime):
     sun.data.shadow_method, sun.data.shadow_ray_samples, sun.data.sky.use_sky = 'RAY_SHADOW', 8, 1
     if skynode['skynum'] < 3: 
         times = [stime + frame*datetime.timedelta(seconds = 3600*skynode.interval) for frame in range(len(frames))]  
-        solposs = [solarPosition(time.timetuple()[7], time.hour + (time.minute)*0.016666, scene.latitude, scene.longitude) for time in times]
+        solposs = [solarPosition(t.timetuple()[7], t.hour + (t.minute)*0.016666, scene.latitude, scene.longitude) for t in times]
         beamvals = [solposs[t][0]/15 for t in range(len(times))] if skynode['skynum'] < 2 else [0 for t in range(len(times))]
         skyvals = beamvals
     elif skynode['skynum'] == 3: 
         times = [datetime.datetime(2015, 3, 20, 12, 0)]
-        solposs = [solarPosition(time.timetuple()[7], time.hour + (time.minute)*0.016666, 0, 0) for time in times]
+        solposs = [solarPosition(t.timetuple()[7], t.hour + (t.minute)*0.016666, 0, 0) for t in times]
         beamvals = [0 for t in range(len(times))]
         skyvals = [5 for t in range(len(times))]
     shaddict = {'0': 0.01, '1': 2, '2': 5, '3': 5}
@@ -2723,11 +2842,15 @@ def sunapply(scene, sun, values, solposs, frames):
         sun.data.node_tree.animation_data.action = bpy.data.actions.new(name="EnVi Sun Node")
         emnodes = [emnode for emnode in sun.data.node_tree.nodes if emnode.bl_label == 'Emission']
         for emnode in emnodes:
-            em1 = sun.data.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].inputs[0].default_value'.format(emnode.name), index = 2)
-            em2 = sun.data.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].inputs[1].default_value'.format(emnode.name))
+            em1 = sun.data.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].inputs[1].default_value'.format(emnode.name))
+#            em2 = sun.data.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].inputs[1].default_value'.format(emnode.name))
             em1.keyframe_points.add(len(frames))
-            em2.keyframe_points.add(len(frames))
-    
+#            em2.keyframe_points.add(len(frames))
+        bbnodes = [bbnode for bbnode in sun.data.node_tree.nodes if bbnode.bl_label == 'Blackbody']
+        for bbnode in bbnodes:
+            bb1 = sun.data.node_tree.animation_data.action.fcurves.new(data_path='nodes["{}"].inputs[0].default_value'.format(bbnode.name))
+            bb1.keyframe_points.add(len(frames))
+            
     if scene.world.node_tree:
         scene.world.node_tree.animation_data_clear() 
         scene.world.node_tree.animation_data_create()
@@ -2758,9 +2881,10 @@ def sunapply(scene, sun, values, solposs, frames):
             b1.keyframe_points[f].co = frame, values[f][2]
 
         if scene.render.engine == 'CYCLES' and sun.data.node_tree:
-            for emnode in [emnode for emnode in sun.data.node_tree.nodes if emnode.bl_label == 'Emission']:
+            for emnode in emnodes:
                 em1.keyframe_points[f].co = frame, values[f][1]
-                em2.keyframe_points[f].co = frame, values[f][1]
+        for bbnode in bbnodes:
+            bb1.keyframe_points[f].co = frame, retsunct(solposs[f][2])
                    
         sunposx.keyframe_points[f].co = frame, sunpos[0]
         sunposy.keyframe_points[f].co = frame, sunpos[1]
@@ -2771,3 +2895,7 @@ def sunapply(scene, sun, values, solposs, frames):
         sunenergy.keyframe_points[f].co = frame, values[f][1]
 
     sun.data.cycles.use_multiple_importance_sampling = True
+
+def retsunct(beta):
+    return 2500 + 3000*sin(beta)**0.5 if beta > 0 else 2500
+    

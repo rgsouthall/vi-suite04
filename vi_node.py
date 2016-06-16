@@ -66,9 +66,7 @@ class ViLoc(bpy.types.Node, ViNodes):
             self.outputs['Location out']['epwtext'] = ''
             self.outputs['Location out']['valid'] = ['Location']
         socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])
-        print(reslists)
         self['reslists'] = reslists
-        print(self['reslists'])
 
     epwpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))+'/EPFiles/Weather/'
     weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]
@@ -370,8 +368,39 @@ class LiViNode(bpy.types.Node, ViNodes):
             self.nodeupdate(bpy.context) 
     
     def preexport(self):
-        self.starttime = datetime.datetime(2015, 1, 1, int(self.shour), int((self.shour - int(self.shour))*60)) + datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(2015, 1, 1, 12)
-        self.endtime = datetime.datetime(2013, 1, 1, int(self.ehour), int((self.ehour - int(self.ehour))*60)) + datetime.timedelta(self.edoy - 1) if self.animated and self['skynum'] < 3 else self.starttime
+#        times = []
+        (interval, shour, ehour) = (1, self.cbdm_start_hour - 1, self.cbdm_end_hour - 1) if self.contextmenu == 'CBDM' else (round(self.interval, 3), self.shour, self.ehour)        
+        starttime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days = self.sdoy - 1) + datetime.timedelta(hours = shour)
+        if self.contextmenu == 'CBDM' or (self.contextmenu == 'Basic' and self.animated):            
+            endtime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days = self.edoy - 1)  + datetime.timedelta(hours = ehour + 1)
+        else:
+            endtime = starttime
+
+        times = [starttime]
+        time = starttime
+        while time < endtime:
+            time += datetime.timedelta(hours = interval)
+            if time.hour in range(shour, ehour + 1):
+                times.append(time)
+            
+
+                
+#        elif self.contextmenu == 'Basic':
+#            starttime = datetime.datetime(2015, 1, 1, 1) + datetime.timedelta(days = self.sdoy - 1) + datetime.timedelta(hours = self.shour - 1)
+#            if self.animated:
+#                time = starttime
+#                while time <= datetime.datetime(2015, 1, 1, 1) + datetime.timedelta(days = self.edoy - 1)  + datetime.timedelta(hours = self.ehour - 1):
+#                    times.append(time)
+#                    time += datetime.timedelta(hours = round(self.interval, 3))
+#            else:
+#                times.append(starttime)
+#        
+#        elif self.contextmenu == 'Compliance':
+#            times = [datetime.datetime(2015, 1, 1, 12)]
+            
+        self.times = times 
+        self.starttime = times[0]
+        self.endtime = times[-1]
         self['skynum'] = int(self.skymenu)
         self['hours'] = 0 if not self.animated or int(self.skymenu) > 2  else (self.endtime-self.starttime).seconds/3600
         self['epwbase'] = os.path.splitext(os.path.basename(self.inputs['Location in'].links[0].from_node.weather)) if self.inputs['Location in'].links else ''
@@ -421,9 +450,9 @@ class LiViNode(bpy.types.Node, ViNodes):
                 self['mtxfile'] = self.mtxname
 
             if self.cbanalysismenu == '0' :
-                self['Text'][str(scene['liparams']['fs'])] = cbdmhdr(self, scene)
+                self['Text'][str(scene.frame_current)] = cbdmhdr(self, scene)
             else:
-                self['Text'][str(scene['liparams']['fs'])] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
+                self['Text'][str(scene.frame_current)] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
 
                 if self.sourcemenu2 == '0':
                     with open("{}.mtx".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'r') as mtxfile:
@@ -432,7 +461,7 @@ class LiViNode(bpy.types.Node, ViNodes):
                     with open(self.mtxname, 'r') as mtxfile:
                         self['Options']['MTX'] = mtxfile.read()
                 if self.hdr:
-                    self['Text'][str(scene['liparams']['fs'])] = cbdmhdr(self, scene)
+                    self['Text'][str(scene.frame_current)] = cbdmhdr(self, scene)
 
         elif self.contextmenu == "Compliance":
             if self.canalysismenu in ('0', '1', '2'):            
@@ -451,7 +480,7 @@ class LiViNode(bpy.types.Node, ViNodes):
                 elif self.sourcemenu2 == '1':
                     self['mtxfile'] = self.mtxname
                 
-                self['Text'][str(scene['liparams']['fs'])] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
+                self['Text'][str(scene.frame_current)] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
 
                 if self.sourcemenu2 == '0':
                     with open("{}.mtx".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0])), 'r') as mtxfile:
@@ -460,17 +489,17 @@ class LiViNode(bpy.types.Node, ViNodes):
                     with open(self.mtxname, 'r') as mtxfile:
                         self['Options']['MTX'] = mtxfile.read()
                 if self.hdr:
-                    self['Text'][str(scene['liparams']['fs'])] = cbdmhdr(self, scene)
+                    self['Text'][str(scene.frame_current)] = cbdmhdr(self, scene)
                 
     def postexport(self):  
         typedict = {'Basic': self.banalysismenu, 'Compliance': self.canalysismenu, 'CBDM': self.cbanalysismenu}
-        unitdict = {'Basic': ("Lux", '')[int(self.banalysismenu)], 'Compliance': ('DF (%)', 'DF (%)', 'DF (%)', 'SDA (%)')[int(self.canalysismenu)], 'CBDM': ('Mlxh', 'kW', 'DA (%)')[int(self.cbanalysismenu)]}
+        unitdict = {'Basic': ("Lux", '')[int(self.banalysismenu)], 'Compliance': ('DF (%)', 'DF (%)', 'DF (%)', 'SDA (%)')[int(self.canalysismenu)], 'CBDM': ('Mlxh', 'kWh', 'DA (%)')[int(self.cbanalysismenu)]}
         btypedict = {'0': self.bambuildmenu, '1': '', '2': '', '3': self.lebuildmenu}
         self['Options'] = {'Context': self.contextmenu, 'Type': typedict[self.contextmenu], 'fs': self.startframe, 'fe': self['endframe'],
                     'anim': self.animated, 'shour': self.shour, 'sdoy': self.sdoy, 'ehour': self.ehour, 'edoy': self.edoy, 'interval': self.interval, 'buildtype': btypedict[self.canalysismenu], 'canalysis': self.canalysismenu, 'storey': self.buildstorey,
                     'cbanalysis': self.cbanalysismenu, 'unit': unitdict[self.contextmenu], 'damin': self.damin, 'dalux': self.dalux, 'dasupp': self.dasupp, 'daauto': self.daauto, 'asemax': self.asemax, 'cbdm_sh': self.cbdm_start_hour, 
                     'cbdm_eh': self.cbdm_end_hour, 'weekdays': (7, 5)[self.weekdays], 'sourcemenu': (self.sourcemenu, self.sourcemenu2)[self.cbanalysismenu not in ('2', '3', '4', '5')],
-                    'mtxfile': self['mtxfile'], 'cbdm_sm': self.startmonth, 'cbdm_em': self.endmonth}
+                    'mtxfile': self['mtxfile'], 'cbdm_sm': self.startmonth, 'cbdm_em': self.endmonth, 'times': [t.strftime("%d/%m/%y %H:%M:%S") for t in self.times]}
         nodecolour(self, 0)
         self['exportstate'] = [str(x) for x in (self.contextmenu, self.banalysismenu, self.canalysismenu, self.cbanalysismenu, 
                    self.animated, self.skymenu, self.shour, self.sdoy, self.startmonth, self.endmonth, self.damin, self.dasupp, self.dalux, self.daauto,
@@ -537,6 +566,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
         self.outputs['Results out'].hide = True
         nodecolour(self, 1)
         self['maxres'], self['minres'], self['avres'], self['exportstate'] = {}, {}, {}, ''
+#        self['reslists'] = []
         
     def draw_buttons(self, context, layout): 
         scene = context.scene
@@ -573,7 +603,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             socklink(self.outputs['Data out'], self['nodeid'].split('@')[1])
         self.run = 0
     
-    def preexport(self):
+    def presim(self):
         self['coptions'] = self.inputs['Context in'].links[0].from_node['Options']
         self['goptions'] = self.inputs['Geometry in'].links[0].from_node['Options']
         self['resdict'], self['allresdict'], self['radfiles'] = {}, {}, {}
@@ -581,8 +611,11 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rtracebasic], [n[int(self.simacc)+1] for n in self.rtracebasic]))
         else:
             self['radparams'] = self.cusacc if self.csimacc == '0' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rtraceadvance], [n[int(self.csimacc)] for n in self.rtraceadvance]))
-           
-    def postexport(self):
+    
+    def sim(self, scene):
+        self['frames'] = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
+        
+    def postsim(self):
         self['exportstate'] = [str(x) for x in (self.cusacc, self.simacc, self.csimacc, self.pmap, self.pmapcno, self.pmapgno)]
         self.outputs['Results out'].hide = False
         nodecolour(self, 0)
@@ -946,7 +979,7 @@ class ViResSock(bpy.types.NodeSocket):
         return (0.0, 1.0, 0.0, 0.75)
         
 class ViResUSock(bpy.types.NodeSocket):
-    '''Vi unlinked esults socket'''
+    '''Vi unlinked results socket'''
     bl_idname = 'ViEnRInU'
     bl_label = 'Axis'
     valid = ['Vi Results']

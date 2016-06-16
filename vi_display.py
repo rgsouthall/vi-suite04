@@ -65,7 +65,7 @@ def li_display(simnode):
         bm = bmesh.new()
         bm.from_mesh(o.data)  
         bm.transform(o.matrix_world)
-        bm.normal_update() 
+#        bm.normal_update() 
         
         if scene['liparams']['cp'] == '0':  
             cindex = bm.faces.layers.int['cindex']
@@ -142,7 +142,7 @@ def spnumdisplay(disp_op, context, simnode):
         if scene.hourdisp:
             blf.enable(0, 4)
             blf.shadow(0, 5,scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])
-            bgl.glColor4f(scene.vi_display_rp_fc[0], scene.vi_display_rp_fc[1], scene.vi_display_rp_fc[2], scene.vi_display_rp_fc[3])
+            bgl.glColor4f(*scene.vi_display_rp_fc)
             blf.size(0, scene.vi_display_rp_fs, 72)
             pvecs = [ob_mat * mathutils.Vector(p[:]) for p in spob['numpos'].values()]
             pvals = [int(p.split('-')[1]) for p in spob['numpos'].keys()]
@@ -218,33 +218,38 @@ def linumdisplay(disp_op, context, simnode):
             if bm.faces.layers.float.get('res{}'.format(scene.frame_current)): 
                 livires = bm.faces.layers.float['res{}'.format(scene.frame_current)]
                 faces = [f for f in bm.faces if f.select] if scene.vi_disp_3d else bm.faces
+                distances = [(view_location - f.calc_center_bounds() + scene.vi_display_rp_off * f.normal.normalized()).length for f in faces]
                             
                 if scene.vi_display_vis_only:
                     fcos = [f.calc_center_bounds() + scene.vi_display_rp_off * f.normal.normalized() for f in faces]
                     direcs = [view_location - f for f in fcos]
-                    faces = [f for i, f in enumerate(faces) if not scene.ray_cast(fcos[i], direcs[i], distance=(fcos[i] - view_location).length)[0]]
+#                    distances = [d.length for d in direcs]
+                    (faces, distances) = map(list, zip(*[[f, distances[i]] for i, f in enumerate(faces) if not scene.ray_cast(fcos[i], direcs[i], distance=distances[i])[0]]))
 
                 face2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, f.calc_center_bounds()) for f in faces]
-                (faces, pcs) = map(list, zip(*[[f, face2d[fi]] for fi, f in enumerate(faces) if face2d[fi] and 0 < face2d[fi][0] < width and 0 < face2d[fi][1] < height]))          
+                (faces, pcs, depths) = map(list, zip(*[[f, face2d[fi], distances[fi]] for fi, f in enumerate(faces) if face2d[fi] and 0 < face2d[fi][0] < width and 0 < face2d[fi][1] < height]))          
                 res = [f[livires] for f in faces]
             
             elif bm.verts.layers.float.get('res{}'.format(scene.frame_current)):            
                 livires = bm.verts.layers.float['res{}'.format(scene.frame_current)]                         
                 verts = [v for v in bm.verts if not v.hide and v.select]
+                distances = [(view_location - v.co + scene.vi_display_rp_off * v.normal.normalized()).length for v in verts]
                 
                 if scene.vi_display_vis_only:
                     vcos = [v.co + scene.vi_display_rp_off * v.normal.normalized() for v in verts]
                     direcs = [view_location - v for v in vcos]
-                    verts = [v for i, v in enumerate(verts) if not scene.ray_cast(vcos[i], direcs[i], distance=(vcos[i] - view_location).length)[0]]
+#                    distances = [d.length for d in direcs]
+                    (verts, distances) = map(list, zip(*[[v, distances[i]] for i, v in enumerate(verts) if not scene.ray_cast(vcos[i], direcs[i], distance=distances[i])[0]]))
                     
                 vert2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, v.co) for v in verts]
-                (verts, pcs) = map(list, zip(*[[v, vert2d[vi]] for vi, v in enumerate(verts) if vert2d[vi] and 0 < vert2d[vi][0] < width and 0 < vert2d[vi][1] < height]))
+                (verts, pcs, depths) = map(list, zip(*[[v, vert2d[vi], distances[vi]] for vi, v in enumerate(verts) if vert2d[vi] and 0 < vert2d[vi][0] < width and 0 < vert2d[vi][1] < height]))
                 res = [v[livires] for v in verts]
             
-            draw_index(context, scene.vi_leg_display, mid_x, mid_y, width, height, pcs, res)    
+            draw_index(context, mid_x, mid_y, width, height, pcs, res, depths)    
             bm.free()
-        except:
-            pass
+            
+        except Exception as e:
+            print(e)
     blf.disable(0, 4)
 
 def li3D_legend(self, context, simnode):
@@ -273,9 +278,7 @@ def li3D_legend(self, context, simnode):
             blf.shadow(0, 5, 0, 0, 0, 0.7)
             cols = retcols(scene)
             for i in range(20):
-#                h = 0.75 - 0.75*(i/19)
                 rgba = cols[i]
-                #(1, i/19, i/19, i/19) if scene['viparams']['visimcontext'] == 'Shadow' else (1.0, *colorsys.hsv_to_rgb(h, 1.0, 1.0))
                 drawpoly(20, (i*20)+height - 440, 60, (i*20)+height - 460, *rgba)    
                 blf.size(font_id, 20, 48)
                 bgl.glColor4f(0.0, 0.0, 0.0, 1.0)

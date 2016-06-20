@@ -1738,6 +1738,9 @@ def processf(pro_op, scene, node):
         aheats = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Air Heating (W)']
         acools = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Air Cooling (W)']
         co2s = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'CO2 (ppm)']
+        comfppds = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'PPD']
+        comfpmvs = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'PMV']
+#        zns = set([zrls[2][zi] for zi, z in enumerate(zrls[1]) if z == 'Zone'])
 
         for zn in set([t[0] for t in temps]):
             if temps:
@@ -1772,9 +1775,20 @@ def processf(pro_op, scene, node):
                 reslists.append(['All', 'Zone', zn, 'Max CO2 (ppm)', ' '.join([str(max(t[1])) for t in co2s if t[0] == zn])])
                 reslists.append(['All', 'Zone', zn, 'Min CO2 (ppm)', ' '.join([str(min(t[1])) for t in co2s if t[0] == zn])])
                 reslists.append(['All', 'Zone', zn, 'Ave Co2 (ppm)', ' '.join([str(sum(t[1])/len(t[1])) for t in co2s if t[0] == zn])])
-                                                                                                         
+            if comfppds:
+                reslists.append(['All', 'Zone', zn, 'Max PPD', ' '.join([str(max(t[1])) for t in comfppds if t[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Min PPD', ' '.join([str(min(t[1])) for t in comfppds if t[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Ave PPD', ' '.join([str(sum(t[1])/len(t[1])) for t in comfppds if t[0] == zn])])
+            if comfpmvs:
+                reslists.append(['All', 'Zone', zn, 'Max PMV', ' '.join([str(max(t[1])) for t in comfpmvs if t[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Min PMV', ' '.join([str(min(t[1])) for t in comfpmvs if t[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Ave PMV', ' '.join([str(sum(t[1])/len(t[1])) for t in comfpmvs if t[0] == zn])])
+    
+#    for zn in zns:    
+#        bpy.data.objects[zn].rcarray =                                                                                                  
     node['reslists'] = reslists
     
+#    array([["", 'Average', 'Minimum', 'Maximum', '% hours over ', '% hours under'], ['DA (%)', '1', '2', '3']])
     if node.outputs['Results out'].links:
        node.outputs['Results out'].links[0].to_node.update() 
 

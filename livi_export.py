@@ -206,9 +206,8 @@ def genbsdf(scene, export_op, o):
         mat = bsdfmats[0]
         mat['bsdf'] = {} 
     else:
-#        del o['bsdf']
         export_op.report({'ERROR'}, '{} does not have a BSDF material attached'.format(o.name))
-#    o['bsdf'] = {} 
+
     bm = bmesh.new()    
     bm.from_mesh(o.data) 
     bm.transform(o.matrix_world)

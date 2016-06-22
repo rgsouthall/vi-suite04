@@ -29,7 +29,7 @@ except:
 
 from . import livi_export
 from .vi_func import cmap, skframe, selobj, retvpvloc, viewdesc, drawloop, drawpoly, draw_index, drawfont 
-from .vi_func import retdp, objmode, drawcircle, drawtri, setscenelivivals, draw_time, retcols
+from .vi_func import retdp, objmode, drawcircle, drawtri, setscenelivivals, draw_time, retcols, draw_index_distance
 
 nh = 768
 
@@ -132,7 +132,7 @@ def li_display(simnode):
 
 def spnumdisplay(disp_op, context, simnode):
     scene = context.scene
-    leg = 0 if simnode.bl_label == 'VI Sun Path' else 1
+#    leg = 0 if simnode.bl_label == 'VI Sun Path' else 1
     if bpy.data.objects.get('SPathMesh'):
         spob = bpy.data.objects['SPathMesh'] 
         ob_mat = spob.matrix_world
@@ -140,18 +140,15 @@ def spnumdisplay(disp_op, context, simnode):
         vl = retvpvloc(context)
                 
         if scene.hourdisp:
-            blf.enable(0, 4)
-            blf.shadow(0, 5,scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])
-            bgl.glColor4f(*scene.vi_display_rp_fc)
-            blf.size(0, scene.vi_display_rp_fs, 72)
             pvecs = [ob_mat * mathutils.Vector(p[:]) for p in spob['numpos'].values()]
             pvals = [int(p.split('-')[1]) for p in spob['numpos'].keys()]
             p2ds = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, p) for p in pvecs]
+            
             try:
                 (hs, posis) = map(list, zip(*[[p, p2ds[pi]] for pi, p in enumerate(pvals) if p2ds[pi] and 0 < p2ds[pi][0] < width and 0 < p2ds[pi][1] < height and not scene.ray_cast(pvecs[pi] - 0.05 * (pvecs[pi] - vl), vl - 0.95 * pvecs[pi])[0]]))
-                draw_index(context, leg, mid_x, mid_y, width, height, posis, hs)
-            except:
-                pass
+                draw_index(posis, hs, scene.vi_display_rp_fs, scene.vi_display_rp_fc, scene.vi_display_rp_fsh)
+            except Exception as E:
+                print(E)
             blf.disable(0, 4)
 
         if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects]:
@@ -164,12 +161,13 @@ def spnumdisplay(disp_op, context, simnode):
                         blf.enable(0, 4)
                         blf.shadow(0, 5, *scene.vi_display_rp_fsh)
                         bgl.glColor4f(*scene.vi_display_rp_fc)
-                        blf.size(0, scene.vi_display_rp_fs, 72)
+#                        blf.size(0, scene.vi_display_rp_fs, 72)
                         soltime = datetime.datetime.fromordinal(scene.solday)
                         soltime += datetime.timedelta(hours = scene.solhour)
                         sre = sobs[0].rotation_euler
-                        draw_time(solpos, soltime.strftime('  %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90 - sre[0]*180/pi, (180, -180)[sre[2] < -pi] - sre[2]*180/pi))
-                        blf.disable(0, 4)
+                        draw_time(solpos, soltime.strftime('  %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90 - sre[0]*180/pi, (180, -180)[sre[2] < -pi] - sre[2]*180/pi), 
+                                   scene.vi_display_rp_fs, scene.vi_display_rp_fc, scene.vi_display_rp_fsh)
+                        
                 except:
                     pass
     else:
@@ -192,11 +190,6 @@ def linumdisplay(disp_op, context, simnode):
         return
         
     objmode()    
-    blf.enable(0, 4)
-    blf.shadow(0, 5, scene.vi_display_rp_fsh[0], scene.vi_display_rp_fsh[1], scene.vi_display_rp_fsh[2], scene.vi_display_rp_fsh[3])
-    bgl.glColor4f(*scene.vi_display_rp_fc[:])
-    blf.size(0, scene.vi_display_rp_fs, 72)
-    bgl.glColor3f = scene.vi_display_rp_fc
     fn = context.scene.frame_current - scene['liparams']['fs']
     mid_x, mid_y, width, height = viewdesc(context)
     view_location = retvpvloc(context)
@@ -245,7 +238,7 @@ def linumdisplay(disp_op, context, simnode):
                 (verts, pcs, depths) = map(list, zip(*[[v, vert2d[vi], distances[vi]] for vi, v in enumerate(verts) if vert2d[vi] and 0 < vert2d[vi][0] < width and 0 < vert2d[vi][1] < height]))
                 res = [v[livires] for v in verts]
             
-            draw_index(context, mid_x, mid_y, width, height, pcs, res, depths)    
+            draw_index_distance(pcs, res, scene.vi_display_rp_fs, scene.vi_display_rp_fc, scene.vi_display_rp_fsh, depths)    
             bm.free()
             
         except Exception as e:

@@ -594,7 +594,7 @@ class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
     filename_ext = ".asc"
     filter_glob = bpy.props.StringProperty(default="*.asc", options={'HIDDEN'})
     bl_register = True
-    bl_undo = True
+    bl_undo = False
     nodeid = bpy.props.StringProperty()
 
     def draw(self,context):
@@ -615,7 +615,7 @@ class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
                 startys.append(starty)
         minstartx,  minstarty = min(startxs), min(startys)
 
-        bpy.context.user_preferences.edit.use_global_undo = False
+#        bpy.context.user_preferences.edit.use_global_undo = False
         for file in ascfiles:
             with open(file, 'r') as ascfile:
                 lines = ascfile.readlines()
@@ -640,7 +640,7 @@ class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
                     ob.location = (ostartx - minstartx, ostarty - minstarty, 0) if node.splitmesh else (0, 0, 0)   # position object at 3d-cursor
                     bpy.context.scene.objects.link(ob)
                     bm.free()
-        bpy.context.user_preferences.edit.use_global_undo = True
+#        bpy.context.user_preferences.edit.use_global_undo = True
         return {'FINISHED'}
 
     def invoke(self,context,event):
@@ -1055,7 +1055,8 @@ class NODE_OT_SunPath(bpy.types.Operator):
         else: 
             bpy.ops.object.lamp_add(type = "SUN")
             sun = context.active_object
-                  
+        
+        
         sun.data.shadow_soft_size = 0.01            
         sun['VIType'] = 'Sun'
         
@@ -1086,9 +1087,13 @@ class NODE_OT_SunPath(bpy.types.Operator):
         if len(sunob.material_slots) == 0:
              bpy.ops.object.material_slot_add()
              sunob.material_slots[0].material = bpy.data.materials['Sun']
-
+        
+        if bpy.context.active_object and not bpy.context.active_object.hide:
+            if bpy.context.active_object.type == 'MESH':
+                bpy.ops.object.mode_set(mode = 'OBJECT')
+        
         for ob in context.scene.objects:
-            if ob.get('VIType') == "SPathMesh":
+            if ob.get('VIType') == "SPathMesh":                
                 context.scene.objects.unlink(ob)
                 ob.name = 'oldspathmesh'
 
@@ -1098,10 +1103,14 @@ class NODE_OT_SunPath(bpy.types.Operator):
         sun.parent = spathob
         sunob.parent = sun
         smesh.parent = spathob
+#        beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:] 
+#        sun.location.z = sd * sin(beta)
+#        sun.location.x = -sd * sin(phi)
+#        sun.location.y = -sd * cos(phi)
         bm = bmesh.new()
         bm.from_mesh(spathmesh)
 
-        for doy in range(0, 365):
+        for doy in range(0, 365, 2):
             for hour in range(1, 25):
                 ([solalt, solazi]) = solarPosition(doy, hour, scene.latitude, scene.longitude)[2:]
                 bm.verts.new().co = [-(sd-(sd-(sd*cos(solalt))))*sin(solazi), -(sd-(sd-(sd*cos(solalt))))*cos(solazi), sd*sin(solalt)]

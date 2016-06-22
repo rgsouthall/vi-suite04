@@ -90,7 +90,7 @@ def display_off(dummy):
     if bpy.context.scene.get('vi_display'):
         bpy.context.scene.vi_display = 0
 
-epversion = "8-4-0"
+epversion = "8-5-0"
 addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 matpath, epwpath, envi_mats, envi_cons, conlayers  = addonpath+'/EPFiles/Materials/Materials.data', addonpath+'/EPFiles/Weather/', envi_materials(), envi_constructions(), 5
 
@@ -475,11 +475,11 @@ def register():
 #    Material.flovi_bmionut_z = fprop("Z", "Value in the Z-direction", -1000, 1000, 0.0)   
     
 # Scene parameters
-    Scene.latitude = bpy.props.FloatProperty(name = "Latitude", description = "Site Latitude", default = 52.0)
-    Scene.longitude = bpy.props.FloatProperty(name = "Longitude", description = "Site Longitude", default = 0.0)
+    Scene.latitude = bpy.props.FloatProperty(name = "Latitude", description = "Site Latitude", min = -89.99, max = 89.99, default = 52.0)
+    Scene.longitude = bpy.props.FloatProperty(name = "Longitude", description = "Site Longitude", min = -180, max = 180, default = 0.0)
     Scene.vipath = sprop("VI Path", "Path to files included with the VI-Suite ", 1024, addonpath)
     Scene.solday = bpy.props.IntProperty(name = "", description = "Day of year", min = 1, max = 365, default = 1, update=sunpath1)
-    Scene.solhour = bpy.props.FloatProperty(name = "", description = "Time of day", min = 0, max = 24, default = 12, update=sunpath1)
+    Scene.solhour = bpy.props.FloatProperty(name = "", description = "Time of day", subtype='TIME', unit='TIME', min = 0, max = 24, default = 12, update=sunpath1)
     (Scene.hourdisp, Scene.spupdate, Scene.timedisp) = [bprop("", "",0)] * 3
     Scene.li_disp_panel = iprop("Display Panel", "Shows the Display Panel", -1, 2, 0)
     Scene.li_disp_count = iprop("", "", 0, 1000, 0)
@@ -532,8 +532,9 @@ def register():
     
     if not update_ntree in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(update_ntree)
-    if not display_off in bpy.app.handlers.load_pre:
-        bpy.app.handlers.load_pre.append(display_off)
+        
+    if not display_off in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(display_off)
 
 def unregister():
     bpy.utils.unregister_module(__name__)

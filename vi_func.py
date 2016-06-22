@@ -1342,7 +1342,7 @@ def viparams(op, scene):
     if not scene.get('enparams'):
         scene['enparams'] = {}
     scene['enparams']['idf_file'] = idf
-    scene['enparams']['epversion'] = '8.4'
+    scene['enparams']['epversion'] = '8.5'
     if not scene.get('flparams'):
         scene['flparams'] = {}
     scene['flparams']['offilebase'] = offb
@@ -2054,25 +2054,36 @@ def spathrange(mats):
     bpy.context.scene.objects.active = spro
     spro.location = (0, 0, 0)
     bm = bmesh.new()
+    params = ((177, 0.05, 0), (80, 0.1, 1), (355, 0.15, 2)) if bpy.context.scene.latitude >= 0 else ((355, 0.05, 0), (80, 0.1, 1), (177, 0.15, 2))
     
-    for params in ((177, 0.05, 0), (80, 0.1, 1), (355, 0.15, 2)):
+    for param in params:
         bpy.ops.object.material_slot_add()
-        spro.material_slots[-1].material = mats[params[2]]
-        morn = solarRiseSet(params[0], 0, bpy.context.scene.latitude, bpy.context.scene.longitude, 'morn')
-        eve = solarRiseSet(params[0], 0, bpy.context.scene.latitude, bpy.context.scene.longitude, 'eve')
-        angrange = [morn + a * 0.0125 * (eve - morn) for a in range (0, 81)]
-        bm.verts.new().co = (95*sin(angrange[0]*pi/180), 95*cos(angrange[0]*pi/180), params[1])
+        spro.material_slots[-1].material = mats[param[2]]
+        morn = solarRiseSet(param[0], 0, bpy.context.scene.latitude, bpy.context.scene.longitude, 'morn')
+        eve = solarRiseSet(param[0], 0, bpy.context.scene.latitude, bpy.context.scene.longitude, 'eve')
+        if morn or param[2] == 0:
+            if morn:
+                mornevediff = eve - morn if bpy.context.scene.latitude >= 0 else 360 - eve + morn
+            else:
+                mornevediff = 360# if bpy.context.scene.latitude >= 0 else 360
+            
+            startset = morn if bpy.context.scene.latitude >= 0 else eve
+            angrange = [startset + a * 0.0125 * mornevediff for a in range (0, 81)]
+            bm.verts.new().co = (95*sin(angrange[0]*pi/180), 95*cos(angrange[0]*pi/180), param[1])
+        
+            for a in angrange[1:-1]:
+                bm.verts.new().co = (92*sin(a*pi/180), 92*cos(a*pi/180), param[1])
+            
+            bm.verts.new().co = (95*sin(angrange[len(angrange) - 1]*pi/180), 95*cos(angrange[len(angrange) - 1]*pi/180), param[1])
+            angrange.reverse()
     
-        for a in angrange[1:-1]:
-            bm.verts.new().co = (92*sin(a*pi/180), 92*cos(a*pi/180), params[1])
-        bm.verts.new().co = (95*sin(angrange[len(angrange) - 1]*pi/180), 95*cos(angrange[len(angrange) - 1]*pi/180), params[1])
-        angrange.reverse()
-        for b in angrange[1:-1]:
-            bm.verts.new().co = (98*sin(b*pi/180), 98*cos(b*pi/180), params[1])
+            for b in angrange[1:-1]:
+                bm.verts.new().co = (98*sin(b*pi/180), 98*cos(b*pi/180), param[1])
+    
+            bm.faces.new(bm.verts[-160:])
+            bm.faces.ensure_lookup_table()
+            bm.faces[-1].material_index = param[2]
 
-        bm.faces.new(bm.verts[-160:])
-        bm.faces.ensure_lookup_table()
-        bm.faces[-1].material_index = params[2]
     bm.to_mesh(sprme)
     bm.free()
     return spro
@@ -2302,25 +2313,36 @@ def selmesh(sel):
         bpy.ops.object.vertex_group_assign()
     bpy.ops.object.mode_set(mode = 'OBJECT')
     
-def retdp(context, mres):
-    try:
-        dplaces = 0 if ceil(log10(100/mres)) < 0 or context.scene['viparams']['resnode'] == 'VI Sun Path' else ceil(log10(100/mres))
-    except:
-        dplaces = 0
-    return dplaces
+def retdp(mres, dp):
+    dp = 0 if ceil(log10(100/mres)) < 0 or not dp else ceil(log10(100/mres))
+    return dp
 
-def draw_index(context, mid_x, mid_y, width, height, posis, res, distances):
+def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
+    blf_props(fontsize, fontcol, shadcol)
     avdistance = sum(distances)/len(distances)
-    leg = context.scene.vi_leg_display
-    fs = context.scene.vi_display_rp_fs
-    fsd = fs * avdistance
-    nres = ['{}'.format(format(r, '.{}f'.format(retdp(context, max(res))))) for ri, r in enumerate(res)]
-    [(blf.size(0, int(fsd/distances[ri]), 72), blf.position(0, posis[ri][0] - int(0.5*blf.dimensions(0, nr)[0]), posis[ri][1] - int(0.5 * blf.dimensions(0, nr)[1]), 0.9), blf.draw(0, nr)) for ri, nr in enumerate(nres) if (leg == 1 and (posis[ri][0] > 120 or posis[ri][1] < height - 530)) or leg == 0]
-
-def draw_time(pos, time):
+    fsd = fontsize * avdistance
+    nres = ['{}'.format(format(r, '.{}f'.format(retdp(max(res), 0)))) for ri, r in enumerate(res)]
+    [(blf.size(0, int(fsd/distances[ri]), 72), blf.position(0, posis[ri][0] - int(0.5*blf.dimensions(0, nr)[0]), posis[ri][1] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99), blf.draw(0, nr)) for ri, nr in enumerate(nres)]
+    blf.disable(0, 4)
+    
+def draw_index(posis, res, fontsize, fontcol, shadcol): 
+    blf_props(fontsize, fontcol, shadcol)
+    nres = ['{}'.format(format(r, '.{}f'.format(retdp(max(res), 0)))) for ri, r in enumerate(res)]    
+    [(blf.position(0, posis[ri][0] - int(0.5*blf.dimensions(0, nr)[0]), posis[ri][1] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99), blf.draw(0, nr)) for ri, nr in enumerate(nres)]
+    blf.disable(0, 4)
+    
+def draw_time(pos, time, fontsize, fontcol, shadcol):
+    blf_props(fontsize, fontcol, shadcol)
     blf.position(0, pos[0], pos[1] - blf.dimensions(0, time)[1] * 0.5, 0)
     blf.draw(0, time)
-        
+    blf.disable(0, 4)
+    
+def blf_props(fontsize, fontcol, shadcol):
+    blf.enable(0, 4)
+    blf.shadow(0, 5, *shadcol)
+    bgl.glColor4f(*fontcol)
+    blf.size(0, fontsize, 92)
+    
 def edgelen(ob, edge):
     omw = ob.matrix_world
     vdiff = omw * (ob.data.vertices[edge.vertices[0]].co - ob.data.vertices[edge.vertices[1]].co)
@@ -2342,9 +2364,9 @@ def sunpath():
         spathobs = [ob for ob in scene.objects if ob.get('VIType') == 'SPathMesh']
         beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
         if spathobs:
-            suns[0].location.z = spathobs[0].location.z + 100 * sin(beta)
-            suns[0].location.x = spathobs[0].location.x -(100**2 - (suns[0].location.z-spathobs[0].location.z)**2)**0.5 * sin(phi)
-            suns[0].location.y = spathobs[0].location.y -(100**2 - (suns[0].location.z-spathobs[0].location.z)**2)**0.5 * cos(phi)
+            suns[0].location.z = 100 * sin(beta)
+            suns[0].location.x = -(100**2 - (suns[0].location.z)**2)**0.5 * sin(phi)
+            suns[0].location.y = -(100**2 - (suns[0].location.z)**2)**0.5 * cos(phi)
         suns[0].rotation_euler = pi * 0.5 - beta, 0, -phi
 
         if scene.render.engine == 'CYCLES':
@@ -2409,8 +2431,11 @@ def solarRiseSet(doy, beta, lat, lon, riseset):
     radToDeg = 1/degToRad
     delta = degToRad*23.45 * sin(2*pi*(284+doy)/365)
     l = degToRad*lat
-    phi = acos((sin(beta) * sin(l) - sin(delta))/(cos(beta) * cos(l)))
-    phi = pi - phi if riseset == 'morn' else pi + phi
+    try:
+        phi = acos((sin(beta) * sin(l) - sin(delta))/(cos(beta) * cos(l)))
+        phi = pi - phi if riseset == 'morn' else pi + phi
+    except:
+        phi = 0    
     return(phi*radToDeg)
 
 def set_legend(ax):

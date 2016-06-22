@@ -3,6 +3,7 @@ from collections import OrderedDict
 from .vi_func import newrow
 
 from .envi_mat import envi_materials, envi_constructions
+from .vi_func import retdates
 envi_mats = envi_materials()
 envi_cons = envi_constructions()
 
@@ -22,7 +23,8 @@ class Vi3DPanel(bpy.types.Panel):
                 newrow(layout, 'Legend', scene, "vi_leg_display")
 
             elif scene['viparams']['vidisp'] == 'sp' and scene.vi_display:
-                for i in (("Day of year:", "solday"), ("Time of day:", "solhour"), ("Display hours:", "hourdisp"), ("Display time:", "timedisp")):
+                (sdate, edate) = retdates(scene.solday, 365)
+                for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "solday"), ("Time of day:", "solhour"), ("Display hours:", "hourdisp"), ("Display time:", "timedisp")):
                     newrow(layout, i[0], scene, i[1])
                 if scene.hourdisp or scene.timedisp:
                     for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_fsh")):
@@ -160,8 +162,9 @@ class Vi3DPanel(bpy.types.Panel):
                         row = layout.row()
                         row.prop(scene, 'en_co2_max')
                         row.prop(scene, 'en_co2_min')
-                        
-            newrow(layout, 'Display active', scene, 'vi_display')
+            
+            if scene.vi_display:            
+                newrow(layout, 'Display active', scene, 'vi_display')
 
 class VIMatPanel(bpy.types.Panel):
     bl_label = "VI-Suite Material"

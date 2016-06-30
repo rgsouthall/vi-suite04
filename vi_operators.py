@@ -31,13 +31,14 @@ try:
     import matplotlib.pyplot as plt
     import matplotlib.cm as cm
     mp = 1
+    
 except Exception as e:
     print('Matplotlib problem:', e)    
     mp = 0
 
 from .livi_export import radgexport, spfc, createoconv, createradfile, genbsdf
 from .livi_calc  import li_calc
-from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend, en_air, en_panel, en_temp_panel
+from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend, en_air, en_panel, en_temp_panel, wr_legend, wr_legend_disp
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum, envizres, envilres
@@ -1103,10 +1104,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
         sun.parent = spathob
         sunob.parent = sun
         smesh.parent = spathob
-#        beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:] 
-#        sun.location.z = sd * sin(beta)
-#        sun.location.x = -sd * sin(phi)
-#        sun.location.y = -sd * cos(phi)
         bm = bmesh.new()
         bm.from_mesh(spathmesh)
 
@@ -1259,7 +1256,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
         cdoys = [int(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Time' and r[2] == '' and r[3] == 'DOS'][0]]
         cwd = [int(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == '' and r[3] == 'Wind Direction (deg)'][0]]
         cws = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == '' and r[3] == 'Wind Speed (m/s)'][0]]
-        doys = range(simnode.sdoy, simnode.edoy + 1) if simnode.edoy > simnode.sdoy else list(range(simnode.sdoy, 366)) + list(range(1, simnode.edoy + 1))
+        doys = range(simnode.sdoy, simnode.edoy + 1) if simnode.edoy > simnode.sdoy else list(range(1, simnode.edoy + 1)) + list(range(simnode.sdoy, 366))
         awd = [wd for di, wd in enumerate(cwd) if cdoys[di] in doys]
         aws = [ws for di, ws in enumerate(cws) if cdoys[di] in doys]
         simnode['maxres'], simnode['minres'], simnode['avres']= max(cws), min(cws), sum(cws)/len(cws)
@@ -1273,17 +1270,17 @@ class NODE_OT_WindRose(bpy.types.Operator):
         simnode['nbins'] = len(sbinvals)
 
         if simnode.wrtype == '0':
-            ax.bar(awd, aws, bins=sbinvals, normed=True, opening=0.8, edgecolor='white')
+            ax.bar(awd, aws, bins=sbinvals, normed=True, opening=0.8, edgecolor='white', cmap=cm.get_cmap(scene.vi_leg_col))
         if simnode.wrtype == '1':
-            ax.box(awd, aws, bins=sbinvals, normed=True)
+            ax.box(awd, aws, bins=sbinvals, normed=True, cmap=cm.get_cmap(scene.vi_leg_col))
         if simnode.wrtype in ('2', '3', '4'):
-            ax.contourf(awd, aws, bins=sbinvals, normed=True, cmap=cm.hot)
+            ax.contourf(awd, aws, bins=sbinvals, normed=True, cmap=cm.get_cmap(scene.vi_leg_col))
 
         plt.savefig(scene['viparams']['newdir']+'/disp_wind.svg')
         (wro, scale) = wind_rose(simnode['maxres'], scene['viparams']['newdir']+'/disp_wind.svg', simnode.wrtype)
-        wro['maxres'], wro['minres'], wro['avres'] = max(aws), min(aws), sum(aws)/len(aws)
+        wro['maxres'], wro['minres'], wro['avres'], wro['nbins'] = max(aws), min(aws), sum(aws)/len(aws), len(sbinvals)
         windnum(simnode['maxfreq'], (0,0,0), scale, compass((0,0,0), scale, wro, wro.data.materials['wr-000000']))
-        bpy.ops.view3d.wrlegdisplay('INVOKE_DEFAULT')
+#        bpy.ops.view3d.wrlegdisplay('INVOKE_DEFAULT')
         plt.close()
         return {'FINISHED'}
 
@@ -1296,16 +1293,71 @@ class VIEW3D_OT_WRLegDisplay(bpy.types.Operator):
     bl_undo = True
 
     def modal(self, context, event):
-        if context.area:
-            context.area.tag_redraw()
+        if context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW': 
+            mx, my = event.mouse_region_x, event.mouse_region_y            
+            if self.legend.spos[0] < mx < self.legend.epos[0] and self.legend.spos[1] < my < self.legend.epos[1]:
+                self.legend.hl = (0, 1, 1, 1)  
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.legend.press = 1
+                        self.legend.move = 0
+                        return {'RUNNING_MODAL'}
+                    elif event.value == 'RELEASE':
+                        if not self.legend.move:
+                            self.legend.expand = 0 if self.legend.expand else 1
+                        self.legend.press = 0
+                        self.legend.move = 0
+                        context.area.tag_redraw()
+                        return {'RUNNING_MODAL'}
+                
+                elif event.type == 'ESC':
+                    bpy.data.images.remove(self.bsdf.image)
+                    self.bsdf.plt.close()
+                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_legend_disp, 'WINDOW')
+                    context.area.tag_redraw()
+                    return {'CANCELLED'}
+                    
+                elif self.legend.press and event.type == 'MOUSEMOVE':
+                     self.legend.move = 1
+                     self.legend.press = 0
+            
+            elif abs(self.legend.lepos[0] - mx) < 10 and abs(self.legend.lspos[1] - my) < 10:
+                self.legend.hl = (0, 1, 1, 1) 
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.legend.resize = 1
+                    if self.legend.resize and event.value == 'RELEASE':
+                        self.legend.resize = 0
+                    return {'RUNNING_MODAL'}
+                    
+            else:
+                self.legend.hl = (1, 1, 1, 1)
+            
+            if event.type == 'MOUSEMOVE':                
+                if self.legend.move:
+                    self.legend.pos = [mx, my]
+                if self.legend.resize:
+                    self.legend.lepos[0], self.legend.lspos[1] = mx, my
+                    
+            context.area.tag_redraw()        
+        
+        if self.legend.cao != context.active_object:
+#            self.legend.cao = context.active_object
+            self.legend.update(context)
+            
         if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'wr' or 'Wind_Plane' not in [o['VIType'] for o in bpy.data.objects if o.get('VIType')]:
-            bpy.types.SpaceView3D.draw_handler_remove(self._handle_spnum, 'WINDOW')
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle_wr_leg, 'WINDOW')
             return {'CANCELLED'}
+        
+        
         return {'PASS_THROUGH'}
 
     def invoke(self, context, event):
         simnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]
-        self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(viwr_legend, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
+        self.legend = wr_legend([80, context.region.height - 40], context.region.width, context.region.height)
+        self.legend.update(context)
+#        self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(viwr_legend, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
+        self._handle_wr_leg = bpy.types.SpaceView3D.draw_handler_add(wr_legend_disp, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 

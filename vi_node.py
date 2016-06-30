@@ -717,6 +717,7 @@ class ViWRNode(bpy.types.Node, ViNodes):
             newrow(layout, 'Type:', self, "wrtype")
             newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
             newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
+            newrow(layout, 'Colour:', context.scene, 'vi_leg_col')
             row = layout.row()
             row.operator("node.windrose", text="Create Wind Rose").nodeid = self['nodeid']
         else:

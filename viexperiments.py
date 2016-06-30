@@ -18,7 +18,7 @@ bl_info = {
     "tracker_url": "",
     "category": "Import-Export"}
     
-import bpy, bgl, blf, os, colorsys, io, datetime
+import bpy, bgl, blf, os, colorsys, sys
 from math import sin, pi, log10, ceil
 import matplotlib
 matplotlib.use('Qt5Agg', force = True)
@@ -65,6 +65,7 @@ class Exper3DPanel(bpy.types.Panel):
         row = layout.row()    
         row.operator("view3d.cbdm_display", text="CBDM Display")
         row.operator("view3d.bsdf_display", text="BSDF Display")
+        row.operator("view3d.bsdf2_display", text="BSDF2 Display")
         row = layout.row()
         row.prop(context.scene, 'vi_leg_col')
         row.prop(context.scene, 'bsdf_leg_max')
@@ -99,6 +100,131 @@ class VIEW3D_OT_En_Disp(bpy.types.Operator):
         else:
             self.report({'ERROR'},"Selected object contains no BSDF information")
             return {'CANCELLED'}
+
+class VIEW3D_OT_BSDF2_Disp(bpy.types.Operator):
+    bl_idname = "view3d.bsdf2_display"
+    bl_label = "BSDF2 display"
+    bl_description = "Display BSDF2"
+    bl_register = True
+    bl_undo = False
+    
+    def modal(self, context, event): 
+        if context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW': 
+            mx, my = event.mouse_region_x, event.mouse_region_y
+            if self.bsdf.spos[0] < mx < self.bsdf.epos[0] and self.bsdf.spos[1] < my < self.bsdf.epos[1]:
+                self.bsdf.hl = (0, 1, 1, 1)  
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.bsdfpress = 1
+                        self.bsdfmove = 0
+                        return {'RUNNING_MODAL'}
+                    elif event.value == 'RELEASE':
+                        if not self.bsdfmove:
+                            self.bsdf.expand = 0 if self.bsdf.expand else 1
+                        self.bsdfpress = 0
+                        self.bsdfmove = 0
+                        context.area.tag_redraw()
+                        return {'RUNNING_MODAL'}
+                elif event.type == 'ESC':
+                    bpy.data.images.remove(self.bsdf.image)
+                    self.bsdf.plt.close()
+                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_bsdf_disp, 'WINDOW')
+                    context.area.tag_redraw()
+                    return {'CANCELLED'}
+                    
+                elif self.bsdfpress and event.type == 'MOUSEMOVE':
+                     self.bsdfmove = 1
+                     self.bsdfpress = 0
+                            
+            elif abs(self.bsdf.gepos[0] - mx) < 10 and abs(self.bsdf.gspos[1] - my) < 10:
+                self.bsdf.hl = (0, 1, 1, 1) 
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.bsdf.resize = 1
+                    if self.bsdf.resize and event.value == 'RELEASE':
+                        self.bsdf.resize = 0
+                    return {'RUNNING_MODAL'}  
+            
+            elif self.bsdf.gspos[0] + 0.45 * self.bsdf.xdiff < mx < self.bsdf.gspos[0] + 0.8 * self.bsdf.xdiff and self.bsdf.gspos[1] + 0.06 * self.bsdf.ydiff < my < self.bsdf.gepos[1] - 5:
+                if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+                    self.bsdf.plt.show()
+            
+            else:
+                for butrange in self.bsdf.buttons:
+                    if self.bsdf.buttons[butrange][0] - 0.0075 * self.bsdf.xdiff < mx < self.bsdf.buttons[butrange][0] + 0.0075 * self.bsdf.xdiff and self.bsdf.buttons[butrange][1] - 0.01 * self.bsdf.ydiff < my < self.bsdf.buttons[butrange][1] + 0.01 * self.bsdf.ydiff:
+                        if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+                            if butrange in ('Front', 'Back'):
+                                self.bsdf.dir_select = butrange
+                            elif butrange in ('Visible', 'Solar', 'Discrete'):
+                                self.bsdf.rad_select = butrange
+                            elif butrange in ('Transmission', 'Reflection'):
+                                self.bsdf.type_select = butrange
+                            elif butrange in ('Log', 'Linear'):
+                                self.bsdf.scale_select = butrange
+#                            self.bsdf.plot(context.scene)
+#                            self.bsdf.save(context.scene)
+
+                self.bsdf.hl = (1, 1, 1, 1)
+                                
+            if event.type == 'MOUSEMOVE':                
+                if self.bsdfmove:
+                    self.bsdf.pos = [mx, my]
+                if self.bsdf.resize:
+                    self.bsdf.gepos[0], self.bsdf.gspos[1] = mx, my
+            
+            if self.bsdf.expand and self.bsdf.gspos[0] < mx < self.bsdf.gepos[0] and self.bsdf.gspos[1] < my < self.bsdf.gepos[1]:
+                theta, phi = xy2radial(self.bsdf.centre, (mx, my), self.bsdf.pw, self.bsdf.ph)
+                phi = math.atan2(-my + self.bsdf.centre[1], mx - self.bsdf.centre[0]) + math.pi
+
+                if theta < self.bsdf.radii[-1]:
+                    for ri, r in enumerate(self.bsdf.radii):
+                        if theta < r:
+                            break
+
+                    upperangles = [p * 2 * math.pi/self.bsdf.phis[ri] + math.pi/self.bsdf.phis[ri]  for p in range(int(self.bsdf.phis[ri]))]
+                    uai = 0
+
+                    if ri > 0:
+                        for uai, ua in enumerate(upperangles): 
+                            if phi > upperangles[-1]:
+                                uai = 0
+                                break
+                            if phi < ua:
+                                break
+
+                    self.bsdf.patch_hl = sum(self.bsdf.phis[0:ri]) + uai
+                    if event.type in ('LEFTMOUSE', 'RIGHTMOUSE')  and event.value == 'PRESS':                        
+                        self.bsdf.num_disp = 1 if event.type == 'RIGHTMOUSE' else 0    
+                        self.bsdf.patch_select = sum(self.bsdf.phis[0:ri]) + uai
+#                        self.bsdf.plot(context.scene)
+#                        self.bsdf.save(context.scene)
+                else:
+                    self.bsdf.patch_hl = None
+                    
+            if self.bsdf.leg_max != context.scene.bsdf_leg_max or self.bsdf.leg_min != context.scene.bsdf_leg_min or self.bsdf.col != coldict[context.scene.vi_leg_col]:
+                self.bsdf.col = coldict[context.scene.vi_leg_col]
+                self.bsdf.leg_max = context.scene.bsdf_leg_max
+                self.bsdf.leg_min = context.scene.bsdf_leg_min
+#                self.bsdf.plot(context.scene)
+#                self.bsdf.save(context.scene)
+            
+            context.area.tag_redraw()
+        
+        return {'PASS_THROUGH'}
+        
+    def invoke(self, context, event):
+        cao = context.active_object
+        if cao and cao.active_material.get('bsdf') and cao.active_material['bsdf']['xml']:
+            width, height = context.region.width, context.region.height
+            self.bsdf = bsdf2(context, width, height)
+            self.bsdfpress, self.bsdfmove, self.bsdfresize = 0, 0, 0
+            self._handle_bsdf_disp = bpy.types.SpaceView3D.draw_handler_add(bsdf2_disp, (self, context), 'WINDOW', 'POST_PIXEL')
+            context.window_manager.modal_handler_add(self)
+            context.area.tag_redraw()            
+            return {'RUNNING_MODAL'}
+        else:
+            self.report({'ERROR'},"Selected material contains no BSDF information")
+            return {'CANCELLED'}
         
 class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
     bl_idname = "view3d.bsdf_display"
@@ -106,7 +232,7 @@ class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
     bl_description = "Display BSDF"
     bl_register = True
     bl_undo = False
-    
+        
     def modal(self, context, event): 
         if context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW': 
             mx, my = event.mouse_region_x, event.mouse_region_y
@@ -722,6 +848,206 @@ class table():
         bgl.glEnd()
         bgl.glFlush()
         
+class bsdf2():
+    def __init__(self, context, width, height):
+        self.plt = plt
+        self.pos = [0.1 * width, 0.9 * height] 
+        self.spos = [int(self.pos[0] - 0.025 * width), int(self.pos[1] - 0.025 * height)]
+        self.epos = [int(self.pos[0] + 0.025 * width), int(self.pos[1] + 0.025 * height)]
+        self.xdiff, self.ydiff = 801, 401
+        self.gspos = [self.spos[0], self.spos[1] - self.ydiff]
+        self.gepos = [self.spos[0] + self.xdiff, self.spos[1]]
+        self.gpos = (self.pos[0] + 0.2 * width, self.pos[1] - 0.2 * height)
+        self.image = bpy.data.images.load(os.path.join(sys.path[0], 'images/bsdf.png'))       
+        self.image.user_clear()
+        self.bsdfloc = os.path.join(context.scene['viparams']['newdir'], 'images', 'bsdfplot.png') 
+
+        if 'bsdfplot.png' not in [i.name for i in bpy.data.images]:
+            self.gimage = bpy.data.images.load(self.bsdfloc)
+        else:
+            bpy.data.images['bsdfplot.png'].reload()
+            self.gimage = bpy.data.images['bsdfplot.png']
+
+        self.hl = (1, 1, 1, 1)
+        self.col = coldict[context.scene.vi_leg_col]
+        self.patch_select = 0
+        self.type_select = 0
+        self.patch_hl = 0
+        self.scale_select = 'Log'
+        self.resize = 0
+        self.buttons = {}
+        self.leg_max, self.leg_min = context.scene.bsdf_leg_max, context.scene.bsdf_leg_min 
+        self.num_disp = 0
+#        self.vicon = context.scene['viparams']['visimcontext']
+#        self.unit = context.scene.li_disp_da
+        self.mat = context.object.active_material
+        self.update()
+#        self.plot(context.scene)
+#        self.save(context.scene)
+        self.drawclosed(context, width, height)
+        self.expand = 0
+
+    def update(self):
+        bsdf = minidom.parseString(self.mat['bsdf']['xml'])
+        coltype = [path.firstChild.data for path in bsdf.getElementsByTagName('ColumnAngleBasis')]
+        rowtype = [path.firstChild.data for path in bsdf.getElementsByTagName('RowAngleBasis')]
+        self.radtype = [path.firstChild.data for path in bsdf.getElementsByTagName('Wavelength')]
+        self.rad_select = self.radtype[0]
+        self.dattype = [path.firstChild.data for path in bsdf.getElementsByTagName('WavelengthDataDirection')]
+        self.type_select = self.dattype[0].split()[0]
+        self.dir_select = self.dattype[0].split()[1]
+        lthetas = [path.firstChild.data for path in bsdf.getElementsByTagName('LowerTheta')]
+        self.uthetas = [float(path.firstChild.data) for path in bsdf.getElementsByTagName('UpperTheta')]
+        self.phis = [int(path.firstChild.data) for path in bsdf.getElementsByTagName('nPhis')]
+        self.scatdat = [array([float(nv) for nv in path.firstChild.data.strip('\t').strip('\n').strip(',').split(' ') if nv]) for path in bsdf.getElementsByTagName('ScatteringData')]
+            
+    def draw(self, context, width, height):  
+        if self.pos[1] > height:
+            self.pos[1] = height
+        self.spos = (int(self.pos[0] - (width * 0.025)), int(self.pos[1] - (height * 0.025)))
+        self.epos = (int(self.pos[0] + (width * 0.025)), int(self.pos[1] + (height * 0.025)))
+        if self.expand == 0:
+            self.drawclosed(context, width, height)
+        if self.expand == 1:
+            self.drawopen(context, width, height)
+            
+    def drawclosed(self, context, width, height):
+        font_id = 0
+        blf.enable(0, 4)
+        blf.enable(0, 8)
+        blf.shadow(font_id, 5, 0.5, 0.5, 0.5, 1)
+        blf.size(font_id, 56, int(height * 0.05))
+        drawpoly(self.spos[0], self.spos[1], self.epos[0], self.epos[1], *self.hl)        
+        drawloop(self.spos[0], self.spos[1], self.epos[0], self.epos[1])
+        bgl.glEnable(bgl.GL_BLEND)
+        self.image.gl_load(bgl.GL_NEAREST, bgl.GL_NEAREST)
+        bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.image.bindcode[0])
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D,
+                                bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D,
+                                bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+        bgl.glEnable(bgl.GL_TEXTURE_2D)
+        bgl.glColor4f(1, 1, 1, 1)
+        bgl.glBegin(bgl.GL_QUADS)
+        bgl.glTexCoord2i(0, 0)
+        bgl.glVertex2f(self.spos[0] + 5, self.spos[1] + 5)
+        bgl.glTexCoord2i(1, 0)
+        bgl.glVertex2f(self.epos[0] - 5, self.spos[1] + 5)
+        bgl.glTexCoord2i(1, 1)
+        bgl.glVertex2f(self.epos[0] - 5, self.epos[1] - 5)
+        bgl.glTexCoord2i(0, 1)
+        bgl.glVertex2f(self.spos[0] + 5, self.epos[1] - 5)
+        bgl.glEnd()
+        bgl.glDisable(bgl.GL_TEXTURE_2D)
+        bgl.glDisable(bgl.GL_BLEND)
+        bgl.glFlush()
+        
+    def drawopen(self, context, width, height):
+        bgl.glEnable(bgl.GL_BLEND)
+        bgl.glEnable(bgl.GL_DEPTH_TEST)
+        self.drawclosed(context, width, height)
+        self.gimage.reload()
+        self.xdiff = self.gepos[0] - self.gspos[0]
+        self.ydiff = self.gepos[1] - self.gspos[1]
+        
+        if not self.resize:
+            self.gspos = [self.spos[0], self.spos[1] - self.ydiff]
+            self.gepos = [self.spos[0] + self.xdiff, self.spos[1]]            
+        else:
+            self.gspos = [self.spos[0], self.gspos[1]]
+            self.gepos = [self.gepos[0], self.spos[1]]
+
+        self.centre = (self.gspos[0] + 0.225 * self.xdiff, self.gspos[1] + 0.425 * self.ydiff)
+        drawpoly(self.gspos[0], self.gspos[1], self.gepos[0], self.gepos[1], 1, 1, 1, 1)        
+        drawloop(self.gspos[0], self.gspos[1], self.gepos[0], self.gepos[1])
+        self.pw, self.ph = 0.175 * self.xdiff, 0.35 * self.ydiff
+        self.radii = array([0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1, 1.125])
+        cent = [self.gspos[0] + 0.02 * self.xdiff, self.gepos[1] - 0.03 * self.ydiff]
+        buttons = {}
+        drawcircle(self.centre, self.radii[-1] + 0.01, 360, 1, (0.95, 0.95, 0.95, 1), self.pw, self.ph, 0.04, 2)
+        
+        for rt in set(self.radtype):                
+            drawsquare(cent, 0.02 * self.xdiff, 0.03 * self.ydiff, 0)
+            if self.rad_select == rt:
+                drawsquare(cent, 0.015 * self.xdiff, 0.02 * self.ydiff, (0.5, 0.5, 0.5, 1))
+            blf.position(0, cent[0] + 0.015 * self.xdiff, cent[1] - 0.015 * self.ydiff, 0)
+            blf.size(0, 56, int(0.025 * self.xdiff))
+            blf.draw(0, rt)
+            buttons[rt] = cent[:]
+            cent[0] += 0.15 * self.xdiff                 
+
+        cent[1] = cent[1] - 0.05 * self.ydiff
+        cent[0] = self.gspos[0] + 0.02 * self.xdiff
+
+        for dt in set([dt.split()[1] for dt in self.dattype]):
+            drawsquare(cent, 0.02 * self.xdiff, 0.03 * self.ydiff, 0) 
+            if self.dir_select == dt:
+                drawsquare(cent, 0.015 * self.xdiff, 0.02 * self.ydiff, (0.5, 0.5, 0.5, 1))
+            blf.position(0, cent[0] + 0.015 * self.xdiff, cent[1] - 0.015 * self.ydiff, 0)
+            blf.size(0, 56, int(0.025 * self.xdiff))
+            blf.draw(0, dt)
+            buttons[dt] = cent[:]
+            cent[0] += 0.15 * self.xdiff
+            
+        cent[1] -= 0.05 * self.ydiff
+        cent[0] = self.gspos[0] + 0.02 * self.xdiff
+
+        for dt in set([dt.split()[0] for dt in self.dattype]):
+            drawsquare(cent, 0.02 * self.xdiff, 0.03 * self.ydiff, 0) 
+            if self.type_select == dt:
+                drawsquare(cent, 0.015 * self.xdiff, 0.02 * self.ydiff, (0.5, 0.5, 0.5, 1))
+            blf.position(0, cent[0] + 0.015 * self.xdiff, cent[1] - 0.015 * self.ydiff, 0)
+            blf.size(0, 56, int(0.025 * self.xdiff))
+            blf.draw(0, dt)
+            buttons[dt] = cent[:]
+            cent[0] += 0.15 * self.xdiff
+        cent = [self.gspos[0] + 0.55 * self.xdiff, self.gspos[1] + 0.04 * self.ydiff]
+        
+        for pt in ('Log', 'Linear'):            
+            drawsquare(cent, 0.02 * self.xdiff, 0.03 * self.ydiff, 0) 
+            if self.scale_select == pt:
+                drawsquare(cent, 0.015 * self.xdiff, 0.02 * self.ydiff, (0.5, 0.5, 0.5, 1))
+            blf.position(0, cent[0] + 0.015 * self.xdiff, cent[1] - 0.015 * self.ydiff, 0.01)
+            blf.size(0, 56, int(0.025 * self.xdiff))
+            blf.draw(0, pt)
+            buttons[pt] = cent[:]
+            cent[0] += 0.25 * self.xdiff
+        
+        for rdi, raddat in enumerate(['{0[0]} {0[1]}'.format(z) for z in zip(self.radtype, self.dattype)]):
+            if raddat == '{} {} {}'.format(self.rad_select, self.type_select, self.dir_select):
+                self.scat_select = rdi
+                break 
+        self.buttons = buttons
+        selectdat = self.scatdat[self.scat_select].reshape(145, 145)# if self.scale_select == 'Linear' else nlog10((self.scatdat[self.scat_select] + 1).reshape(145, 145)) 
+        sa = repeat(kfsa, self.phis)
+        act = repeat(kfact, self.phis)
+        patchdat = selectdat[self.patch_select] * act * sa * 100
+        patch = 0
+        centre2 = (self.centre[0] + 0.5 * self.xdiff, self.centre[1])
+        cmap = mcm.get_cmap(self.col)
+        
+        for phii, phi in enumerate(self.phis):
+            for w in range(phi):
+                if self.patch_select == patch:
+                    z, lw, col = 0.06, 5, (1, 0, 0, 1) 
+                elif self.patch_hl == patch:
+                    z, lw, col = 0.06, 5, (1, 1, 0, 1)
+                else:
+                    z, lw, col = 0.05, 1, 0
+    
+#                for centre in (self.centre, centre2)
+                if phi == 1:
+                    drawcircle(self.centre, self.radii[phii], 360, 0, col, self.pw, self.ph, z, lw)
+                elif phi > 1:
+                    drawwedge(self.centre, (int(360*w/phi) - int(180/phi) - 90, int(360*(w + 1)/phi) - int(180/phi) - 90), (self.radii[phii] - 0.125, self.radii[phii]), col, self.pw, self.ph)
+                    drawcolwedge(centre2, (int(360*w/phi) - int(180/phi) - 90, int(360*(w + 1)/phi) - int(180/phi) - 90), (self.radii[phii] - 0.125, self.radii[phii]), cmap(patchdat[patch]/max(patchdat)), self.pw, self.ph)
+                    
+                patch += 1
+
+        
+        
+
+
 class bsdf():
     def __init__(self, context, width, height):
         self.plt = plt
@@ -991,6 +1317,10 @@ def envi_disp(self, context):
     width, height = context.region.width, context.region.height
     self.scatter.draw(context, width, height)
     self.table.draw(context, width, height)
+
+def bsdf2_disp(self, context):
+    width, height = context.region.width, context.region.height
+    self.bsdf.draw(context, width, height)
     
 def bsdf_disp(self, context):
     width, height = context.region.width, context.region.height
@@ -1023,6 +1353,25 @@ def drawsquare(c, w, h, col):
 #    bgl.glDisable(bgl.GL_TEXTURE_2D)
 #    bgl.glDisable(bgl.GL_BLEND)
 #    bgl.glFlush()
+
+def drawcolwedge(c, phis, rs, col, w, h):
+    bgl.glEnable(bgl.GL_BLEND)
+    bgl.glEnable(bgl.GL_LINE_SMOOTH)    
+    bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA);
+    bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_FASTEST)
+#    z = 
+    (z, lw, col) = (1/rs[1], 5, col) if col else (0.05, 1.5, [0, 0, 0, 0.25])
+    bgl.glColor4f(*col)
+    bgl.glLineWidth(lw)
+    bgl.glBegin(bgl.GL_POLYGON)
+    for p in range(phis[0], phis[1] + 1):
+        bgl.glVertex3f(*radial2xy(c, rs[0], p, w, h), z)
+    for p in range(phis[1], phis[0] - 1, -1):
+        bgl.glVertex3f(*radial2xy(c, rs[1], p, w, h), z)
+    bgl.glLineWidth(1)
+    
+    bgl.glEnd()
+    bgl.glDisable(bgl.GL_BLEND)
             
 def drawwedge(c, phis, rs, col, w, h):
     bgl.glEnable(bgl.GL_BLEND)

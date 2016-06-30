@@ -17,7 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, blf, colorsys, bgl, mathutils, bmesh, datetime
+import bpy, blf, colorsys, bgl, mathutils, bmesh, datetime, os, inspect
 from bpy_extras import view3d_utils
 from math import pi, sin, cos, atan2, log10, ceil
 from numpy import sum as nsum
@@ -603,6 +603,66 @@ def viwr_legend(self, context, simnode):
         drawfont("Max: {:.1f}".format(datasource['maxres']), font_id, 0, newheight, newwidth + hscale * 2, int(hscale*(simnode['nbins']*20 + 50)))
         drawfont("Min: {:.1f}".format(datasource['minres']), font_id, 0, newheight, newwidth + hscale * 2, int(hscale*(simnode['nbins']*20 + 65)))
         blf.disable(0, 4)
+        
+class Base_Legend():
+    def __init__(self, pos, width, height):
+        self.pos = pos
+        self.spos = [int(self.pos[0] - 0.025 * width), int(self.pos[1] - 0.025 * height)]
+        self.epos = [int(self.pos[0] + 0.025 * width), int(self.pos[1] + 0.025 * height)]
+        self.xdiff, self.ydiff = 150, 600
+        self.lspos = [self.spos[0], self.spos[1] - self.ydiff]
+        self.lepos = [self.spos[0] + self.xdiff, self.spos[1]]
+        self.lpos = (self.pos[0] + 0.2 * width, self.pos[1] - 0.2 * height)
+        self.resize = 0
+        self.press = 0
+        self.move = 0
+        self.expand = 0
+        self.image = bpy.data.images.load(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'images/legend.png'))
+        self.hl = [1, 1, 1, 1]
+        self.cao = None
+        
+    def draw(self, context, width, height):
+        self.width, self.height = context.region.width, context.region.height
+        if self.pos[1] > height:
+            self.pos[1] = height
+        self.spos = (int(self.pos[0] - (width * 0.025)), int(self.pos[1] - (height * 0.025)))
+        self.epos = (int(self.pos[0] + (width * 0.025)), int(self.pos[1] + (height * 0.025)))
+        if self.expand == 0:
+            self.drawclosed(context)
+        if self.expand == 1:
+            self.drawopen(context)
+            
+    def drawclosed(self, context):
+        draw_icon(self)
+        
+    def drawopen(self, context):
+        draw_legend(self, context.scene, 'Speed (m/s)')
+                
+class wr_legend(Base_Legend):
+    def update(self, context):
+        simnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]        
+        self.cao = context.active_object
+        if self.cao and self.cao.get('VIType') and self.cao['VIType'] == 'Wind_Plane':
+            scene = context.scene
+            levels = self.cao['nbins']
+            maxres = self.cao['maxres']
+        else:
+            levels = simnode['nbins']
+            maxres = simnode['maxres']
+        self.cols = retcols(context.scene, levels)
+        
+        if not context.scene.get('liparams'):
+            scene.vi_display = 0
+            return
+
+        self.resvals = ['{0:.0f} - {1:.0f}'.format(2*i, 2*(i+1)) for i in range(simnode['nbins'])]
+        self.resvals[-1] = self.resvals[-1][:-int(len('{:.0f}'.format(maxres)))] + u"\u221E"  
+            
+def wr_legend_disp(self, context, simnode):
+#    width, height = context.region.width, context.region.height
+    self.legend.draw(context, context.region.width, context.region.height)
+#    self.scatter.draw(context, width, height)
+#    self.table.draw(context, width, height)
 
 def lipanel():
     pass
@@ -864,3 +924,86 @@ def rendview(i):
                             space.clip_start = 0.1
                             bpy.context.scene['cs'] = space.clip_start
 
+def draw_icon(self):
+    drawpoly(self.spos[0], self.spos[1], self.epos[0], self.epos[1], *self.hl)        
+    drawloop(self.spos[0], self.spos[1], self.epos[0], self.epos[1])
+    bgl.glEnable(bgl.GL_BLEND)
+    self.image.gl_load(bgl.GL_NEAREST, bgl.GL_NEAREST)
+    bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.image.bindcode[0])
+    bgl.glTexParameteri(bgl.GL_TEXTURE_2D,
+                            bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+    bgl.glTexParameteri(bgl.GL_TEXTURE_2D,
+                            bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+    bgl.glEnable(bgl.GL_TEXTURE_2D)
+    bgl.glColor4f(1, 1, 1, 1)
+    bgl.glBegin(bgl.GL_QUADS)
+    bgl.glTexCoord2i(0, 0)
+    bgl.glVertex2f(self.spos[0] + 5, self.spos[1] + 5)
+    bgl.glTexCoord2i(1, 0)
+    bgl.glVertex2f(self.epos[0] - 5, self.spos[1] + 5)
+    bgl.glTexCoord2i(1, 1)
+    bgl.glVertex2f(self.epos[0] - 5, self.epos[1] - 5)
+    bgl.glTexCoord2i(0, 1)
+    bgl.glVertex2f(self.spos[0] + 5, self.epos[1] - 5)
+    bgl.glEnd()
+    bgl.glDisable(bgl.GL_TEXTURE_2D)
+    bgl.glDisable(bgl.GL_BLEND)
+    bgl.glFlush()
+    
+def draw_legend(self, scene, unit):
+    draw_icon(self)
+    font_id = 0
+    fs = int(self.width * 0.05)
+    blf.enable(0, 4)
+    blf.enable(0, 8)
+    blf.shadow(font_id, 5, 0.7, 0.7, 0.7, 1)
+    
+    levels = len(self.resvals)
+    self.xdiff = self.lepos[0] - self.lspos[0]
+    self.ydiff = self.lepos[1] - self.lspos[1]
+    blf.size(font_id, 44, int(self.xdiff * 0.3))
+    mdimen = max(2 * blf.dimensions(font_id, self.resvals[-1])[0], blf.dimensions(font_id, unit)[0]) + int(self.width * 0.01)
+    
+    
+    print(self.spos, self.epos, self.xdiff, self.ydiff, self.resize)
+    
+    if not self.resize:
+        self.lspos = [self.spos[0], self.spos[1] - self.ydiff]
+        self.lepos = [self.lspos[0] + self.xdiff, self.spos[1]]            
+    else:
+        self.lspos = [self.spos[0], self.lspos[1]]
+        self.lepos = [self.lepos[0], self.spos[1]]
+    
+    bgl.glLineWidth(2)
+    drawpoly(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1], 0.9, 1, 1, 1)
+    drawloop(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1])
+    blf.position(font_id, self.lspos[0] + (self.xdiff - blf.dimensions(font_id, unit)[0]) * 0.5, self.spos[1] - 0.5 * self.ydiff/levels - blf.dimensions(font_id, unit)[1] * 0.25, 0)
+#        drawfont(scene['liparams']['unit'], font_id, 0, height, 25, 57)        
+    blf.draw(font_id, unit)
+#    blf.enable(0, blf.SHADOW)
+#    blf.enable(0, blf.KERNING_DEFAULT)
+#    blf.shadow(0, 5, 0, 0, 0, 0.7)
+    
+#    bgl.glColor4f(*scene.vi_display_rp_fc)
+
+    blf.shadow(font_id, 5, 0.6, 0.6, 0.6, 1)
+    lh = self.ydiff/(levels + 1)
+#        cols = retcols(scene)
+    blf.size(font_id, 44, int(self.xdiff * 0.25))
+    for i in range(levels):
+        num = self.resvals[i]
+        rgba = self.cols[i]
+        bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)
+        drawpoly(self.lspos[0], int(self.lspos[1] + i * lh), int(self.lspos[0] + self.xdiff * 0.4), int(self.lspos[1] + (i + 1) * lh), *rgba)    
+        drawloop(self.lspos[0], int(self.lspos[1] + i * lh), int(self.lspos[0] + self.xdiff * 0.4), int(self.lspos[1] + (i + 1) * lh))
+        drawloop(int(self.lspos[0] + self.xdiff * 0.4), int(self.lspos[1] + i * lh), self.lepos[0], int(self.lspos[1] + (i + 1) * lh))
+        
+        ndimen = blf.dimensions(font_id, "{}".format(num))
+        blf.position(font_id, int(self.lepos[0] - mdimen * 0.075 - ndimen[0]), int(self.lspos[1] + i * lh) + int((lh - ndimen[1])*0.5), 0)
+        bgl.glColor4f(0, 0, 0, 1)
+        blf.draw(font_id, "{}".format(self.resvals[i]))
+    
+    bgl.glLineWidth(1)
+    bgl.glColor4f(0, 0, 0, 1)
+    blf.disable(0, 8)  
+    blf.disable(0, 4)

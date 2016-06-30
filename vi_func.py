@@ -57,23 +57,26 @@ def sinebow(h):
   b = sin(pi * (h + 2/3))
   return [chan**2 for chan in (r, g, b)]
   
-def retcols(scene):
+def retcols(scene, levels):
     try:
-        if scene.vi_leg_col == '0':
-            hs = [0.75 - 0.75*(i/19) for i in range(20)]
-            rgbas = [(*colorsys.hsv_to_rgb(h, 1.0, 1.0), 1.0) for h in hs]
-        elif scene.vi_leg_col == '1':
-            rgbas = [(i/19, i/19, i/19, 1) for i in range(20)]
-        elif scene.vi_leg_col == '2':
-            rgbas = [mcm.hot(int(i * 256/19)) for i in range(20)]
-        elif scene.vi_leg_col == '3':
-            rgbas = [mcm.CMRmap(int(i * 256/19)) for i in range(20)]
-        elif scene.vi_leg_col == '4':
-            rgbas = [mcm.jet(int(i * 256/19)) for i in range(20)]
-        elif scene.vi_leg_col == '5':
-            rgbas = [mcm.plasma(int(i * 256/19)) for i in range(20)]
+        cmap = mcm.get_cmap(scene.vi_leg_col)
+        hs = [0.75 - 0.75*(i/19) for i in range(levels)]
+        rgbas = [cmap(int(i * 256/(levels - 1))) for i in range(levels)]
+#        if scene.vi_leg_col == '0':
+#            hs = [0.75 - 0.75*(i/19) for i in range(levels)]
+#            rgbas = [(*colorsys.hsv_to_rgb(h, 1.0, 1.0), 1.0) for h in hs]
+#        elif scene.vi_leg_col == '1':
+#            rgbas = [(i/19, i/19, i/19, 1) for i in range(levels)]
+#        elif scene.vi_leg_col == '2':
+#            rgbas = [mcm.hot(int(i * 256/19)) for i in range(levels)]
+#        elif scene.vi_leg_col == '3':
+#            rgbas = [mcm.CMRmap(int(i * 256/19)) for i in range(levels)]
+#        elif scene.vi_leg_col == '4':
+#            rgbas = [mcm.jet(int(i * 256/19)) for i in range(levels)]
+#        elif scene.vi_leg_col == '5':
+#            rgbas = [mcm.plasma(int(i * 256/19)) for i in range(levels)]
     except:
-        hs = [0.75 - 0.75*(i/19) for i in range(20)]
+        hs = [0.75 - 0.75*(i/19) for i in range(levels)]
         rgbas = [(*colorsys.hsv_to_rgb(h, 1.0, 1.0), 1.0) for h in hs]
     return rgbas
   
@@ -1945,10 +1948,11 @@ def wind_rose(maxws, wrsvg, wrtype):
                 bpy.ops.object.material_slot_add()
                 wro.material_slots[-1].material = bpy.data.materials['wr-{}'.format(col)]    
 
-            vs = [bm.verts.new(pos) for pos in [sposnew[stsi]] + lposnew[stsi]]                        
+            vs = [bm.verts.new(pos) for pos in [sposnew[stsi]] + lposnew[stsi]] 
+            vs.reverse()                       
 
             if len(vs) > 2:
-                nf = bm.faces.new(vs)
+                nf = bm.faces.new(vs[::])
                 nf.material_index = wro.data.materials[:].index(wro.data.materials['wr-{}'.format(col)])                            
                 if wrtype in ('2', '3', '4'):
                     zp += 0.0005 * scale 
@@ -1965,7 +1969,7 @@ def wind_rose(maxws, wrsvg, wrtype):
     bmesh.ops.remove_doubles(bm, verts=vs, dist = scale * 0.01)    
             
     if wrtype in ('0', '1', '3', '4'):            
-        thick = scale * 0.005 if wrtype == '4' else scale * 0.0025
+        thick = scale * 0.005 if wrtype == '4' else scale * 0.0005
         faces = bmesh.ops.inset_individual(bm, faces=bm.faces, thickness = thick, use_even_offset = True)['faces']
         if wrtype == '4':
             [bm.faces.remove(f) for f in bm.faces if f not in faces]
@@ -2445,6 +2449,7 @@ def set_legend(ax):
 def wr_axes():
     fig = plt.figure(figsize=(8, 8), dpi=150, facecolor='w', edgecolor='w')
     rect = [0.1, 0.1, 0.8, 0.8]
+#    print(coldict[scene.vi_leg_col], mcm.get_cmap(coldict[scene.vi_leg_col]))
     ax = WindroseAxes(fig, rect, axisbg='w')
     fig.add_axes(ax)
     return(fig, ax)

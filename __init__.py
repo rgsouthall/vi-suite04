@@ -492,7 +492,7 @@ def register():
     Scene.vi_leg_min = bpy.props.FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0, update=legupdate)
     Scene.vi_leg_scale = EnumProperty(items = [('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name = "", description = "Legend scale", default = '0', update=legupdate)    
     Scene.vi_leg_col = EnumProperty(items = [('rainbow', 'Rainbow', 'Rainbow colour scale'), ('gray', 'Grey', 'Grey colour scale'), ('hot', 'Hot', 'Hot colour scale'),
-                                             ('CMRmap', 'CMR', 'CMR colour scale'), ('jet', 'Jet', 'Jet colour scale'), ('plasma', 'Plasma', 'Plasma colour scale')], name = "", description = "Legend scale", default = 'rainbow', update=colupdate)
+                                             ('CMRmap', 'CMR', 'CMR colour scale'), ('jet', 'Jet', 'Jet colour scale'), ('plasma', 'Plasma', 'Plasma colour scale'), ('hsv', 'HSV', 'HSV colour scale')], name = "", description = "Legend scale", default = 'rainbow', update=colupdate)
     Scene.en_disp = EnumProperty(items = [('0', 'Cylinder', 'Cylinder display'), ('1', 'Box', 'Box display')], name = "", description = "Type of EnVi metric display", default = '0')    
     Scene.en_frame = iprop("", "EnVi frame", 0, 500, 0)
     Scene.en_temp_max = bpy.props.FloatProperty(name = "Max", description = "Temp maximum", default = 24, update=setcols)

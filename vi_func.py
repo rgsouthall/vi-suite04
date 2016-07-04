@@ -30,7 +30,7 @@ from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 from xml.dom import minidom
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
-from .plots import solarscatter2
+#from .plots import solarscatter2
 
 try:
     import matplotlib
@@ -60,7 +60,7 @@ def sinebow(h):
 def retcols(scene, levels):
     try:
         cmap = mcm.get_cmap(scene.vi_leg_col)
-        hs = [0.75 - 0.75*(i/19) for i in range(levels)]
+        hs = [0.75 - 0.75*(i/levels - 1) for i in range(levels)]
         rgbas = [cmap(int(i * 256/(levels - 1))) for i in range(levels)]
 #        if scene.vi_leg_col == '0':
 #            hs = [0.75 - 0.75*(i/19) for i in range(levels)]
@@ -82,13 +82,14 @@ def retcols(scene, levels):
   
 def cmap(scene):
 #    cmdict = {'hot': 'livi', 'grey': 'shad'}
+    cols = retcols(scene, 20)
     for i in range(20):       
         if not bpy.data.materials.get('{}#{}'.format('vi-suite', i)):
             bpy.data.materials.new('{}#{}'.format('vi-suite', i))
 #        bpy.data.materials['{}#{}'.format(cmdict[cm], i)].diffuse_color = colorsys.hsv_to_rgb(0.75 - 0.75*(i/19), 1, 1) if cm == 'hot' else colorsys.hsv_to_rgb(1, 0, (i/19))
 #        bpy.data.materials['{}#{}'.format(cmdict[cm], i)].diffuse_color = sinebow(0.8 - 0.8 * (i/19)) if cm == 'hot' else colorsys.hsv_to_rgb(1, 0, (i/19))
 #        bpy.data.materials['{}#{}'.format(cmdict[cm], i)].diffuse_color = mcm.hot(int(i * 256/19))[0:3] if cm == 'hot' else colorsys.hsv_to_rgb(1, 0, (i/19))
-        cols = retcols(scene)
+        
         bpy.data.materials['{}#{}'.format('vi-suite', i)].diffuse_color = cols[i][0:3]
 #        if cm == 'grey':
 #            bpy.data.materials['{}#{}'.format(cmdict[cm], i)].diffuse_intensity = i/19
@@ -2549,8 +2550,8 @@ def rettimes(ts, fs, us):
                 ustrings[t][uf].append(['Until: '+','.join([u.strip() for u in utime.split(' ') if u.strip(' ')])])
     return(tstrings, fstrings, ustrings)
 
-def retdates(sdoy, edoy):
-    (y1, y2) = (2015, 2015) if edoy >= sdoy else (2014, 2015)
+def retdates(sdoy, edoy, y):
+    (y1, y2) = (y, y) if edoy >= sdoy else (y - 1, y)
     sdate = datetime.datetime(y1, 1, 1) + datetime.timedelta(sdoy - 1)
     edate = datetime.datetime(y2, 1, 1) + datetime.timedelta(edoy - 1)
     return(sdate, edate)

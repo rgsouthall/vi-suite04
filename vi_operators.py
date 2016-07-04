@@ -19,7 +19,7 @@
 import bpy, datetime, mathutils, os, bmesh, shutil
 from os import rename
 import numpy
-from numpy import arange, histogram
+from numpy import arange, histogram, array, int16
 import bpy_extras.io_utils as io_utils
 from subprocess import Popen, PIPE, call
 from collections import OrderedDict
@@ -38,7 +38,7 @@ except Exception as e:
 
 from .livi_export import radgexport, spfc, createoconv, createradfile, genbsdf
 from .livi_calc  import li_calc
-from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, viwr_legend, en_air, en_panel, en_temp_panel, wr_legend, wr_legend_disp
+from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, li3D_legend, en_air, en_panel, en_temp_panel, wr_legend, wr_disp, wr_scatter
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum, envizres, envilres
@@ -992,6 +992,7 @@ class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
         innodes = list(OrderedDict.fromkeys([inputs.links[0].from_node for inputs in node.inputs if inputs.links]))
         rl = innodes[0]['reslists']
         zrl = list(zip(*rl))
+        year = int(zrl[4][zrl[3].index('Year')].split()[0])
         
         if node.inputs['X-axis'].framemenu not in zrl[0]:
             self.report({'ERROR'},"There are no results in the results file. Check the results.err file in Blender's text editor")
@@ -1001,8 +1002,8 @@ class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
             self.report({'ERROR'},"Matplotlib cannot be found by the Python installation used by Blender")
             return {'CANCELLED'}
 
-        Sdate = dt.fromordinal(dt(2015, 1, 1).toordinal() + node['Start'] - 1)# + datetime.timedelta(hours = node.dsh - 1)
-        Edate = dt.fromordinal(dt(2015, 1, 1).toordinal() + node['End'] - 1)# + datetime.timedelta(hours = node.deh - 1)
+        Sdate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['Start'] - 1)# + datetime.timedelta(hours = node.dsh - 1)
+        Edate = dt.fromordinal(dt(year, 1, 1).toordinal() + node['End'] - 1)# + datetime.timedelta(hours = node.deh - 1)
         chart_disp(self, plt, node, innodes, Sdate, Edate)
         return {'FINISHED'}
 
@@ -1204,32 +1205,6 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
         scene.vi_display = 1
         return {'RUNNING_MODAL'}
         
-#class VIEW3D_OT_SPTime(bpy.types.Operator):
-#    '''Display results legend and stats in the 3D View'''
-#    bl_idname = "view3d.sptimeisplay"
-#    bl_label = "Point numbers"
-#    bl_description = "Display the current solar time on the sunpath"
-#    bl_register = True
-#    bl_undo = True
-#
-#    def modal(self, context, event):
-#        scene = context.scene
-#        if context.area:
-#            context.area.tag_redraw()
-#        if scene.vi_display == 0 or scene['viparams']['vidisp'] != 'sp':
-#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_sptime, 'WINDOW')
-#            [scene.objects.unlink(o) for o in scene.objects if o.get('VIType') and o['VIType'] in ('SunMesh', 'SkyMesh')]
-#            return {'CANCELLED'}
-#        return {'PASS_THROUGH'}
-#
-#    def invoke(self, context, event):
-#        scene = context.scene
-#        simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
-#        self._handle_sptime = bpy.types.SpaceView3D.draw_handler_add(sptimedisplay, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
-#        context.window_manager.modal_handler_add(self)
-#        scene.vi_display = 1
-#        return {'RUNNING_MODAL'}
-
 class NODE_OT_WindRose(bpy.types.Operator):
     bl_idname = "node.windrose"
     bl_label = "Wind Rose"
@@ -1253,22 +1228,21 @@ class NODE_OT_WindRose(bpy.types.Operator):
         scene['viparams']['vidisp'], scene.vi_display = 'wr', 1
         context.scene['viparams']['visimcontext'] = 'Wind'
         rl = locnode['reslists']
-        cdoys = [int(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Time' and r[2] == '' and r[3] == 'DOS'][0]]
-        cwd = [int(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == '' and r[3] == 'Wind Direction (deg)'][0]]
+        cdoys = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Time' and r[2] == '' and r[3] == 'DOS'][0]]
+        cwd = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == '' and r[3] == 'Wind Direction (deg)'][0]]
         cws = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == '' and r[3] == 'Wind Speed (m/s)'][0]]
-        doys = range(simnode.sdoy, simnode.edoy + 1) if simnode.edoy > simnode.sdoy else list(range(1, simnode.edoy + 1)) + list(range(simnode.sdoy, 366))
+        doys = list(range(simnode.sdoy, simnode.edoy + 1)) if simnode.edoy > simnode.sdoy else list(range(1, simnode.edoy + 1)) + list(range(simnode.sdoy, 366))
         awd = [wd for di, wd in enumerate(cwd) if cdoys[di] in doys]
         aws = [ws for di, ws in enumerate(cws) if cdoys[di] in doys]
-        simnode['maxres'], simnode['minres'], simnode['avres']= max(cws), min(cws), sum(cws)/len(cws)
+        simnode['maxres'], simnode['minres'], simnode['avres'] = max(cws), min(cws), sum(cws)/len(cws)
         (fig, ax) = wr_axes()
         sbinvals = arange(0,int(ceil(max(cws))),2)
         dbinvals = arange(-11.25,372.25,22.5)
         dfreq = histogram(awd, bins=dbinvals)[0]
+        adfreq = histogram(cwd, bins=dbinvals)[0]
         dfreq[0] = dfreq[0] + dfreq[-1]
         dfreq = dfreq[:-1]
-        simnode['maxfreq'] = 100*numpy.max(dfreq)/len(awd)
-        simnode['nbins'] = len(sbinvals)
-
+        
         if simnode.wrtype == '0':
             ax.bar(awd, aws, bins=sbinvals, normed=True, opening=0.8, edgecolor='white', cmap=cm.get_cmap(scene.vi_leg_col))
         if simnode.wrtype == '1':
@@ -1280,15 +1254,21 @@ class NODE_OT_WindRose(bpy.types.Operator):
         (wro, scale) = wind_rose(simnode['maxres'], scene['viparams']['newdir']+'/disp_wind.svg', simnode.wrtype)
         wro['maxres'], wro['minres'], wro['avres'], wro['nbins'] = max(aws), min(aws), sum(aws)/len(aws), len(sbinvals)
         windnum(simnode['maxfreq'], (0,0,0), scale, compass((0,0,0), scale, wro, wro.data.materials['wr-000000']))
-#        bpy.ops.view3d.wrlegdisplay('INVOKE_DEFAULT')
+
         plt.close()
+        simnode['maxfreq'] = 100*numpy.max(adfreq)/len(cwd)
+        simnode['nbins'] = len(sbinvals)
+        simnode['ws'] = array(cws).reshape(365, 24).T
+        simnode['wd'] = array(cwd).reshape(365, 24).T
+        simnode['days'] = arange(1, 366, dtype = float)
+        simnode['hours'] = arange(1, 25, dtype = float)
         return {'FINISHED'}
 
-class VIEW3D_OT_WRLegDisplay(bpy.types.Operator):
+class VIEW3D_OT_WRDisplay(bpy.types.Operator):
     '''Display results legend and stats in the 3D View'''
-    bl_idname = "view3d.wrlegdisplay"
-    bl_label = "Wind rose legend"
-    bl_description = "Display Wind Rose legend"
+    bl_idname = "view3d.wrdisplay"
+    bl_label = "Wind rose display"
+    bl_description = "Display wind metrics"
     bl_register = True
     bl_undo = True
 
@@ -1332,12 +1312,75 @@ class VIEW3D_OT_WRLegDisplay(bpy.types.Operator):
                     
             else:
                 self.legend.hl = (1, 1, 1, 1)
+                
+            if self.dhscatter.spos[0] < mx < self.dhscatter.epos[0] and self.dhscatter.spos[1] < my < self.dhscatter.epos[1]:
+                self.dhscatter.hl = (0, 1, 1, 1)  
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.dhscatter.press = 1
+                        self.dhscatter.move = 0
+                        return {'RUNNING_MODAL'}
+                    elif event.value == 'RELEASE':
+                        if not self.dhscatter.move:
+                            self.dhscatter.expand = 0 if self.dhscatter.expand else 1
+                        self.dhscatter.press = 0
+                        self.dhscatter.move = 0
+                        context.area.tag_redraw()
+                        return {'RUNNING_MODAL'}
+                
+                elif event.type == 'ESC':
+                    bpy.data.images.remove(self.bsdf.image)
+                    self.dhscatter.plt.close()
+                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_wr_disp, 'WINDOW')
+                    context.area.tag_redraw()
+                    return {'CANCELLED'}
+                    
+                elif self.dhscatter.press and event.type == 'MOUSEMOVE':
+                     self.dhscatter.move = 1
+                     self.dhscatter.press = 0
             
+            elif abs(self.legend.lepos[0] - mx) < 10 and abs(self.legend.lspos[1] - my) < 10:
+                self.legend.hl = (0, 1, 1, 1) 
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.legend.resize = 1
+                    if self.legend.resize and event.value == 'RELEASE':
+                        self.legend.resize = 0
+                    return {'RUNNING_MODAL'}
+                    
+            elif abs(self.dhscatter.lepos[0] - mx) < 10 and abs(self.dhscatter.lspos[1] - my) < 10:
+                self.dhscatter.hl = (0, 1, 1, 1) 
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.dhscatter.resize = 1
+                    if self.dhscatter.resize and event.value == 'RELEASE':
+                        self.dhscatter.resize = 0
+                    return {'RUNNING_MODAL'}
+            
+            else:
+                self.dhscatter.hl = (1, 1, 1, 1)
+                if self.dhscatter.expand:
+                    for butrange in self.dhscatter.buttons:
+                        if self.dhscatter.buttons[butrange][0] - 0.02 * self.dhscatter.xdiff < mx < self.dhscatter.buttons[butrange][0] + 0.02 * self.dhscatter.xdiff and self.dhscatter.buttons[butrange][1] - 0.02 * self.dhscatter.ydiff < my < self.dhscatter.buttons[butrange][1] + 0.02 * self.dhscatter.ydiff:
+                            if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.dhscatter.type_select != butrange:
+                                self.dhscatter.type_select = butrange
+                                self.dhscatter.update(context)
+#                            elif butrange in ('Visible', 'Solar', 'Discrete'):
+#                                self.bsdf.rad_select = butrange
+#                            elif butrange in ('Transmission', 'Reflection'):
+#                                self.bsdf.type_select = butrange
+#                            elif butrange in ('Log', 'Linear'):
+#                                self.bsdf.scale_select = butrange
+                
             if event.type == 'MOUSEMOVE':                
                 if self.legend.move:
                     self.legend.pos = [mx, my]
                 if self.legend.resize:
                     self.legend.lepos[0], self.legend.lspos[1] = mx, my
+                if self.dhscatter.move:
+                    self.dhscatter.pos = [mx, my]
+                if self.dhscatter.resize:
+                    self.dhscatter.lepos[0], self.dhscatter.lspos[1] = mx, my
                     
             context.area.tag_redraw()        
         
@@ -1346,18 +1389,20 @@ class VIEW3D_OT_WRLegDisplay(bpy.types.Operator):
             self.legend.update(context)
             
         if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'wr' or 'Wind_Plane' not in [o['VIType'] for o in bpy.data.objects if o.get('VIType')]:
-            bpy.types.SpaceView3D.draw_handler_remove(self._handle_wr_leg, 'WINDOW')
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle_wr_disp, 'WINDOW')
             return {'CANCELLED'}
-        
         
         return {'PASS_THROUGH'}
 
     def invoke(self, context, event):
+        context.scene.vi_display = 1
         simnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]
-        self.legend = wr_legend([80, context.region.height - 40], context.region.width, context.region.height)
+        self.legend = wr_legend([80, context.region.height - 40], context.region.width, context.region.height, 'legend.png', 150, 450)
+        self.dhscatter = wr_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
         self.legend.update(context)
+        self.dhscatter.update(context)
 #        self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(viwr_legend, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
-        self._handle_wr_leg = bpy.types.SpaceView3D.draw_handler_add(wr_legend_disp, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
+        self._handle_wr_disp = bpy.types.SpaceView3D.draw_handler_add(wr_disp, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 
@@ -1577,3 +1622,29 @@ class NODE_OT_FVSolve(bpy.types.Operator):
         Popen(("paraFoam", "-case", "{}".format(scene['viparams']['offilebase'])))
         simnode.export()
         return {'FINISHED'}
+
+#class VIEW3D_OT_SPTime(bpy.types.Operator):
+#    '''Display results legend and stats in the 3D View'''
+#    bl_idname = "view3d.sptimeisplay"
+#    bl_label = "Point numbers"
+#    bl_description = "Display the current solar time on the sunpath"
+#    bl_register = True
+#    bl_undo = True
+#
+#    def modal(self, context, event):
+#        scene = context.scene
+#        if context.area:
+#            context.area.tag_redraw()
+#        if scene.vi_display == 0 or scene['viparams']['vidisp'] != 'sp':
+#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_sptime, 'WINDOW')
+#            [scene.objects.unlink(o) for o in scene.objects if o.get('VIType') and o['VIType'] in ('SunMesh', 'SkyMesh')]
+#            return {'CANCELLED'}
+#        return {'PASS_THROUGH'}
+#
+#    def invoke(self, context, event):
+#        scene = context.scene
+#        simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
+#        self._handle_sptime = bpy.types.SpaceView3D.draw_handler_add(sptimedisplay, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
+#        context.window_manager.modal_handler_add(self)
+#        scene.vi_display = 1
+#        return {'RUNNING_MODAL'}

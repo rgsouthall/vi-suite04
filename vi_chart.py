@@ -115,7 +115,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     y1data = timedata([dnode.inputs['Y-axis 1'].multfactor * float(y) for y in y1d], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, mdata, ddata, sdata, dnode, Sdate, Edate)
     ylabel = label(dnode, menusy1[1], 'Y-axis 1', variant)
     line, = plt.plot(xdata, [dnode.inputs['Y-axis 1'].multfactor * float(yd) for yd in y1data], color='k', linewidth = 0.2, label = llabel(dnode, menusy1[1], 'Y-axis 1', variant))    
-       
+    print(xdata, y1data)   
     if dnode.inputs['Y-axis 2'].links:
         rny2 = dnode.inputs['Y-axis 2'].links[0].from_node
         rly2 = rny2['reslists']

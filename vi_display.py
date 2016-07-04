@@ -22,7 +22,8 @@ from bpy_extras import view3d_utils
 from math import pi, sin, cos, atan2, log10, ceil
 from numpy import sum as nsum
 try:
-    import matplotlib
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as mcm
     mp = 1
 except:
     mp = 0
@@ -562,64 +563,24 @@ def en_panel(self, context, resnode):
         blf.disable(0, 4)        
     return
         
-def viwr_legend(self, context, simnode):
-    scene = context.scene
-    if scene.vi_leg_display != True or scene.vi_display == 0:
-        return
-    else:
-        blf.enable(0, 4)
-        blf.shadow(0, 3, 0, 0, 0, 0.5)
-        resvals = ['{0:.0f} to {1:.0f}'.format(2*i, 2*(i+1)) for i in range(simnode['nbins'])]
-        resvals[-1] = resvals[-1][:-int(len('{:.0f}'.format(simnode['maxres'])))] + u"\u221E"
-        height, lenres, font_id = context.region.height, len(resvals[-1]) + 1 , 0
-        hscale, newheight, newwidth = height/nh, height-50, 20     
-        drawpoly(newwidth, newheight, newwidth + int(hscale*(45 + lenres*8)), int((newheight - hscale*(simnode['nbins']+3.5)*20)), 0.7, 1, 1, 1)
-        drawloop(newwidth - 1, newheight, newwidth + int(hscale*(45 + lenres*8)), int((newheight - hscale*(simnode['nbins']+3.5)*20)))
-        cm = matplotlib.cm.jet if simnode.wrtype in ('0', '1') else matplotlib.cm.hot
 
-        for i in range(simnode['nbins']):
-            bgl.glColor4f(*cm(i * 1/(simnode['nbins']-1), 1))
-            bgl.glBegin(bgl.GL_POLYGON)
-            bgl.glVertex2i(newwidth, int(newheight - hscale*(simnode['nbins'] * 20 - (i*20) + 20)))
-            bgl.glVertex2i(int(newwidth + hscale*40), int(newheight - hscale*(simnode['nbins'] * 20 - (i*20) + 20)))
-            bgl.glVertex2i(int(newwidth + hscale*40), int(newheight - hscale*(simnode['nbins'] * 20 - (i*20))))
-            bgl.glVertex2i(newwidth, int(newheight - hscale*(simnode['nbins'] * 20 - (i*20))))
-            bgl.glEnd()
-            blf.size(font_id, 20, int(height/14))
-            bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-            blf.position(font_id, int(newwidth + hscale*45), int(newheight - hscale*(simnode['nbins'] * 20 - i*20 + 15)), 0)
-            blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
-
-        blf.size(font_id, 20, int(hscale*64))
-        cu = 'Speed (m/s)'
-        drawfont(cu, font_id, 0, newheight, newwidth + 5 * hscale, 17 * hscale)
-        bgl.glLineWidth(1)
-        bgl.glDisable(bgl.GL_BLEND)
-        font_id = 0
-        bgl.glColor4f(0.0, 0.0, 0.0, 1)
-        blf.size(font_id, 20, int(hscale*48))
-        datasource = context.active_object if context.active_object and bpy.context.active_object.get('VIType') == 'Wind_Plane' else simnode                
-        drawfont("Ave: {:.1f}".format(datasource['avres']), font_id, 0, newheight , newwidth + hscale * 2, int(hscale*(simnode['nbins']*20 + 35)))
-        drawfont("Max: {:.1f}".format(datasource['maxres']), font_id, 0, newheight, newwidth + hscale * 2, int(hscale*(simnode['nbins']*20 + 50)))
-        drawfont("Min: {:.1f}".format(datasource['minres']), font_id, 0, newheight, newwidth + hscale * 2, int(hscale*(simnode['nbins']*20 + 65)))
-        blf.disable(0, 4)
         
-class Base_Legend():
-    def __init__(self, pos, width, height):
+class Base_Display():
+    def __init__(self, pos, width, height, iname, xdiff, ydiff):
         self.pos = pos
         self.spos = [int(self.pos[0] - 0.025 * width), int(self.pos[1] - 0.025 * height)]
-        self.epos = [int(self.pos[0] + 0.025 * width), int(self.pos[1] + 0.025 * height)]
-        self.xdiff, self.ydiff = 150, 600
-        self.lspos = [self.spos[0], self.spos[1] - self.ydiff]
-        self.lepos = [self.spos[0] + self.xdiff, self.spos[1]]
+        self.epos = [int(self.pos[0] + 0.025 * width), int(self.pos[1] + 0.025 * height)]        
+        self.lspos = [self.spos[0], self.spos[1] - ydiff]
+        self.lepos = [self.spos[0] + xdiff, self.spos[1]]
         self.lpos = (self.pos[0] + 0.2 * width, self.pos[1] - 0.2 * height)
         self.resize = 0
         self.press = 0
         self.move = 0
         self.expand = 0
-        self.image = bpy.data.images.load(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'images/legend.png'))
+        self.image = bpy.data.images.load(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'images', iname))
         self.hl = [1, 1, 1, 1]
         self.cao = None
+        self.xdiff, self.ydiff = xdiff, ydiff
         
     def draw(self, context, width, height):
         self.width, self.height = context.region.width, context.region.height
@@ -628,17 +589,18 @@ class Base_Legend():
         self.spos = (int(self.pos[0] - (width * 0.025)), int(self.pos[1] - (height * 0.025)))
         self.epos = (int(self.pos[0] + (width * 0.025)), int(self.pos[1] + (height * 0.025)))
         if self.expand == 0:
-            self.drawclosed(context)
+            self.drawclosed()
         if self.expand == 1:
             self.drawopen(context)
-            
-    def drawclosed(self, context):
-        draw_icon(self)
-        
-    def drawopen(self, context):
-        draw_legend(self, context.scene, 'Speed (m/s)')
+    
+    def drawclosed(self):
+        draw_icon(self)       
+
                 
-class wr_legend(Base_Legend):
+class wr_legend(Base_Display):
+    def __init__(self, pos, width, height, iname, xdiff, ydiff):
+        Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
+        
     def update(self, context):
         simnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]        
         self.cao = context.active_object
@@ -657,11 +619,57 @@ class wr_legend(Base_Legend):
 
         self.resvals = ['{0:.0f} - {1:.0f}'.format(2*i, 2*(i+1)) for i in range(simnode['nbins'])]
         self.resvals[-1] = self.resvals[-1][:-int(len('{:.0f}'.format(maxres)))] + u"\u221E"  
+        
+    def drawopen(self, context):
+        draw_legend(self, context.scene, 'Speed (m/s)')
+        
+class wr_scatter(Base_Display):
+    def __init__(self, pos, width, height, iname, xdiff, ydiff):
+        Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
+        self.ws, self.type_select = 1, 'Speed'
+        
+    def update(self, context):
+        self.cao = context.active_object
+        if self.cao and self.cao.get('ws'):
+#        simnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]
+        
+            zdata = self.cao['ws'] if self.type_select == 'Speed' else self.cao['wd']  
+            (title, cbtitle) = ('Wind Speed', 'Speed (m/s)') if self.type_select == 'Speed' else ('Wind Direction', u'Direction (\u00B0)')
+            self.plt = plt
+            draw_dhscatter(self, context, self.cao['days'], self.cao['hours'], zdata, title, 'Days', 'Hours', cbtitle)  
+        
+    def drawopen(self, context):
+        draw_image(self, self.ydiff * 0.1)
+        butcents = [[int(self.lspos[0] + 0.07 * self.xdiff), int(self.lepos[1] - self.ydiff * 0.05)], [int(self.lspos[0] + 0.93 * self.xdiff), int(self.lepos[1] - self.ydiff * 0.05)]]
+        drawloop(int(self.lspos[0] + 0.05 * self.xdiff), int(self.lepos[1] - self.ydiff * 0.03), int(self.lspos[0] + 0.09 * self.xdiff), int(self.lepos[1] - self.ydiff * 0.07))
+        drawloop(int(self.lspos[0] + 0.91 * self.xdiff), int(self.lepos[1] - self.ydiff * 0.03), int(self.lspos[0] + 0.95 * self.xdiff), int(self.lepos[1] - self.ydiff * 0.07))
+        self.buttons = {'Speed': butcents[0], 'Direction': butcents[1]}
+#        for b, but in enumerate(self.buttons):
+        blf.position(0, butcents[0][0] + 0.025 * self.xdiff, butcents[0][1] - 0.4 * blf.dimensions(0, 'Speed')[1], 0)
+        blf.draw(0, 'Speed')
+        blf.position(0, butcents[1][0] - 0.025 * self.xdiff - blf.dimensions(0, 'Direction')[0], butcents[1][1] - 0.5 * blf.dimensions(0, 'Direction')[1], 0)
+        blf.draw(0, 'Direction')
+        drawpoly(int(self.buttons[self.type_select][0] - 0.015 * self.xdiff), int(self.buttons[self.type_select][1] - 0.015 * self.ydiff), int(self.buttons[self.type_select][0] + 0.015 * self.xdiff), int(self.buttons[self.type_select][1] + 0.015 * self.ydiff), 0.5, 0.5, 0.5, 1)
+#(x1, y1, x2, y2, r, g, b, a)
+class wr_table(Base_Display):
+    def __init__(self, pos, width, height, iname):
+        Base_Display.__init__(self, pos, width, height, iname)
+        self.ws = 1
+        
+    def update(self, context):
+        simnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]
+        zdata = simnode['ws'] if self.ws else simnode['wd']  
+        (title, cbtitle) = ('Wind Speed', 'Speed (m/s)') if self.ws else ('Wind Direction', u'Direction (\u00B0)')
+        self.plt = plt
+        draw_dhscatter(self, context, simnode['days'], simnode['hours'], zdata, title, 'Days', 'Hours', cbtitle)  
+        
+    def drawopen(self, context):
+        draw_table(self)
             
-def wr_legend_disp(self, context, simnode):
+def wr_disp(self, context, simnode):
 #    width, height = context.region.width, context.region.height
     self.legend.draw(context, context.region.width, context.region.height)
-#    self.scatter.draw(context, width, height)
+    self.dhscatter.draw(context, context.region.width, context.region.height)
 #    self.table.draw(context, width, height)
 
 def lipanel():
@@ -953,23 +961,18 @@ def draw_icon(self):
 def draw_legend(self, scene, unit):
     draw_icon(self)
     font_id = 0
-    fs = int(self.width * 0.05)
     blf.enable(0, 4)
     blf.enable(0, 8)
-    blf.shadow(font_id, 5, 0.7, 0.7, 0.7, 1)
-    
+    blf.shadow(font_id, 5, 0.7, 0.7, 0.7, 1)    
     levels = len(self.resvals)
-    self.xdiff = self.lepos[0] - self.lspos[0]
-    self.ydiff = self.lepos[1] - self.lspos[1]
-    blf.size(font_id, 44, int(self.xdiff * 0.3))
+    xdiff = self.lepos[0] - self.lspos[0]
+    ydiff = self.lepos[1] - self.lspos[1]
+    blf.size(font_id, 44, int(xdiff * 0.3))
     mdimen = max(2 * blf.dimensions(font_id, self.resvals[-1])[0], blf.dimensions(font_id, unit)[0]) + int(self.width * 0.01)
     
-    
-    print(self.spos, self.epos, self.xdiff, self.ydiff, self.resize)
-    
     if not self.resize:
-        self.lspos = [self.spos[0], self.spos[1] - self.ydiff]
-        self.lepos = [self.lspos[0] + self.xdiff, self.spos[1]]            
+        self.lspos = [self.spos[0], self.spos[1] - ydiff]
+        self.lepos = [self.lspos[0] + xdiff, self.spos[1]]            
     else:
         self.lspos = [self.spos[0], self.lspos[1]]
         self.lepos = [self.lepos[0], self.spos[1]]
@@ -977,8 +980,7 @@ def draw_legend(self, scene, unit):
     bgl.glLineWidth(2)
     drawpoly(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1], 0.9, 1, 1, 1)
     drawloop(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1])
-    blf.position(font_id, self.lspos[0] + (self.xdiff - blf.dimensions(font_id, unit)[0]) * 0.5, self.spos[1] - 0.5 * self.ydiff/levels - blf.dimensions(font_id, unit)[1] * 0.25, 0)
-#        drawfont(scene['liparams']['unit'], font_id, 0, height, 25, 57)        
+    blf.position(font_id, self.lspos[0] + (xdiff - blf.dimensions(font_id, unit)[0]) * 0.5, self.spos[1] - 0.5 * ydiff/levels - blf.dimensions(font_id, unit)[1] * 0.25, 0)       
     blf.draw(font_id, unit)
 #    blf.enable(0, blf.SHADOW)
 #    blf.enable(0, blf.KERNING_DEFAULT)
@@ -987,16 +989,16 @@ def draw_legend(self, scene, unit):
 #    bgl.glColor4f(*scene.vi_display_rp_fc)
 
     blf.shadow(font_id, 5, 0.6, 0.6, 0.6, 1)
-    lh = self.ydiff/(levels + 1)
+    lh = ydiff/(levels + 1)
 #        cols = retcols(scene)
-    blf.size(font_id, 44, int(self.xdiff * 0.25))
+    blf.size(font_id, 44, int(xdiff * 0.25))
     for i in range(levels):
         num = self.resvals[i]
         rgba = self.cols[i]
         bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)
-        drawpoly(self.lspos[0], int(self.lspos[1] + i * lh), int(self.lspos[0] + self.xdiff * 0.4), int(self.lspos[1] + (i + 1) * lh), *rgba)    
-        drawloop(self.lspos[0], int(self.lspos[1] + i * lh), int(self.lspos[0] + self.xdiff * 0.4), int(self.lspos[1] + (i + 1) * lh))
-        drawloop(int(self.lspos[0] + self.xdiff * 0.4), int(self.lspos[1] + i * lh), self.lepos[0], int(self.lspos[1] + (i + 1) * lh))
+        drawpoly(self.lspos[0], int(self.lspos[1] + i * lh), int(self.lspos[0] + xdiff * 0.4), int(self.lspos[1] + (i + 1) * lh), *rgba)    
+        drawloop(self.lspos[0], int(self.lspos[1] + i * lh), int(self.lspos[0] + xdiff * 0.4), int(self.lspos[1] + (i + 1) * lh))
+        drawloop(int(self.lspos[0] + xdiff * 0.4), int(self.lspos[1] + i * lh), self.lepos[0], int(self.lspos[1] + (i + 1) * lh))
         
         ndimen = blf.dimensions(font_id, "{}".format(num))
         blf.position(font_id, int(self.lepos[0] - mdimen * 0.075 - ndimen[0]), int(self.lspos[1] + i * lh) + int((lh - ndimen[1])*0.5), 0)
@@ -1007,3 +1009,112 @@ def draw_legend(self, scene, unit):
     bgl.glColor4f(0, 0, 0, 1)
     blf.disable(0, 8)  
     blf.disable(0, 4)
+    
+def draw_dhscatter(self, context, x, y, z, tit, xlab, ylab, zlab):
+#    try:
+    self.plt.close()
+    
+    
+    col = context.scene.vi_leg_col
+#        col = cm.get_cmap(context.scene.vi_leg_col)
+    x = [x[0] - 0.5] + [xval + 0.5 for xval in x] 
+    y = [y[0] - 0.5] + [yval + 0.5 for yval in y]
+    self.plt.title(tit, size = 20)
+    self.plt.xlabel(xlab, size = 18)
+    self.plt.ylabel(ylab, size = 18)
+    self.plt.pcolor(x, y, z, cmap=col)#, norm=plt.matplotlib.colors.LogNorm())#, edgecolors='b', linewidths=1, vmin = 0, vmax = 4000)
+    self.plt.colorbar().set_label(label=zlab,size=18)
+    self.plt.axis([min(x),max(x),min(y),max(y)], size = 16)
+#            self.plt.rcParams["figure.figsize"] = [16, 8]
+    self.plt.tight_layout()
+    scatterloc = os.path.join(context.scene['viparams']['newdir'], 'images', 'scatter.png')
+    self.plt.savefig(scatterloc, pad_inches = 0)
+    if 'scatter.png' not in [i.name for i in bpy.data.images]:
+        self.gimage = bpy.data.images.load(scatterloc)
+    else:
+        bpy.data.images['scatter.png'].reload()
+        self.gimage = bpy.data.images['scatter.png']
+
+    self.gimage.user_clear()
+#    except Exception as e:
+#        print(e)
+        
+def draw_image(self, topgap):
+    draw_icon(self)
+    self.xdiff = self.lepos[0] - self.lspos[0]
+    self.ydiff = self.lepos[1] - self.lspos[1]
+    if not self.resize:
+        self.lspos = [self.spos[0], self.spos[1] - self.ydiff]
+        self.lepos = [self.lspos[0] + self.xdiff, self.spos[1]]            
+    else:
+        self.lspos = [self.spos[0], self.lspos[1]]
+        self.lepos = [self.lepos[0], self.spos[1]]
+    self.gimage.reload()
+#    self.gspos = [self.spos[0], int(self.spos[1] - 0.4 * height)]
+#    self.gepos = [int(self.spos[0] + 0.6 * width), self.spos[1]]
+    drawpoly(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1], 1, 1, 1, 1)        
+    drawloop(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1])
+    
+    bgl.glEnable(bgl.GL_BLEND)
+    self.gimage.gl_load(bgl.GL_NEAREST, bgl.GL_NEAREST)
+    bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.gimage.bindcode[0])
+    bgl.glTexParameteri(bgl.GL_TEXTURE_2D,
+                            bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+    bgl.glTexParameteri(bgl.GL_TEXTURE_2D,
+                            bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+    bgl.glEnable(bgl.GL_TEXTURE_2D)
+    bgl.glColor4f(1, 1, 1, 1)
+    bgl.glBegin(bgl.GL_QUADS)
+    bgl.glTexCoord2i(0, 0)
+    bgl.glVertex2f(self.lspos[0] + 5, self.lspos[1] + 5)
+    bgl.glTexCoord2i(1, 0)
+    bgl.glVertex2f(self.lepos[0] - 5, self.lspos[1] + 5)
+    bgl.glTexCoord2i(1, 1)
+    bgl.glVertex2f(self.lepos[0] - 5, self.lepos[1] - topgap)
+    bgl.glTexCoord2i(0, 1)
+    bgl.glVertex2f(self.lspos[0] + 5, self.lepos[1] - topgap)
+    bgl.glEnd()
+    bgl.glDisable(bgl.GL_TEXTURE_2D)
+    bgl.glFlush()
+    
+#def viwr_legend(self, context, simnode):
+#    scene = context.scene
+#    if scene.vi_leg_display != True or scene.vi_display == 0:
+#        return
+#    else:
+#        blf.enable(0, 4)
+#        blf.shadow(0, 3, 0, 0, 0, 0.5)
+#        resvals = ['{0:.0f} to {1:.0f}'.format(2*i, 2*(i+1)) for i in range(simnode['nbins'])]
+#        resvals[-1] = resvals[-1][:-int(len('{:.0f}'.format(simnode['maxres'])))] + u"\u221E"
+#        height, lenres, font_id = context.region.height, len(resvals[-1]) + 1 , 0
+#        hscale, newheight, newwidth = height/nh, height-50, 20     
+#        drawpoly(newwidth, newheight, newwidth + int(hscale*(45 + lenres*8)), int((newheight - hscale*(simnode['nbins']+3.5)*20)), 0.7, 1, 1, 1)
+#        drawloop(newwidth - 1, newheight, newwidth + int(hscale*(45 + lenres*8)), int((newheight - hscale*(simnode['nbins']+3.5)*20)))
+#        cm = matplotlib.cm.jet if simnode.wrtype in ('0', '1') else matplotlib.cm.hot
+#
+#        for i in range(simnode['nbins']):
+#            bgl.glColor4f(*cm(i * 1/(simnode['nbins']-1), 1))
+#            bgl.glBegin(bgl.GL_POLYGON)
+#            bgl.glVertex2i(newwidth, int(newheight - hscale*(simnode['nbins'] * 20 - (i*20) + 20)))
+#            bgl.glVertex2i(int(newwidth + hscale*40), int(newheight - hscale*(simnode['nbins'] * 20 - (i*20) + 20)))
+#            bgl.glVertex2i(int(newwidth + hscale*40), int(newheight - hscale*(simnode['nbins'] * 20 - (i*20))))
+#            bgl.glVertex2i(newwidth, int(newheight - hscale*(simnode['nbins'] * 20 - (i*20))))
+#            bgl.glEnd()
+#            blf.size(font_id, 20, int(height/14))
+#            bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+#            blf.position(font_id, int(newwidth + hscale*45), int(newheight - hscale*(simnode['nbins'] * 20 - i*20 + 15)), 0)
+#            blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
+#
+#        blf.size(font_id, 20, int(hscale*64))
+#        cu = 'Speed (m/s)'
+#        drawfont(cu, font_id, 0, newheight, newwidth + 5 * hscale, 17 * hscale)
+#        bgl.glLineWidth(1)
+#        bgl.glDisable(bgl.GL_BLEND)
+#        font_id = 0
+#        bgl.glColor4f(0.0, 0.0, 0.0, 1)
+#        blf.size(font_id, 20, int(hscale*48))
+#        datasource = context.active_object if context.active_object and bpy.context.active_object.get('VIType') == 'Wind_Plane' else simnode                
+#        drawfont("Ave: {:.1f}".format(datasource['avres']), font_id, 0, newheight , newwidth + hscale * 2, int(hscale*(simnode['nbins']*20 + 35)))
+#        drawfont("Max: {:.1f}".format(datasource['maxres']), font_id, 0, newheight, newwidth + hscale * 2, int(hscale*(simnode['nbins']*20 + 50)))
+#        drawfont("Min: {:.1f}".format(datasource['minres']), font_id, 0, newheight, newwidth + hscale * 2, int(hscale*(simnode['nbins']*20 + 65)))
+#        blf.disable(0, 4)    

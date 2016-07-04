@@ -52,7 +52,8 @@ class ViLoc(bpy.types.Node, ViNodes):
                 self['frames'] = ['0']
                 epwlines = epwfile.readlines()[8:]
                 epwcolumns = list(zip(*[epwline.split(',') for epwline in epwlines]))
-                reslists.append(['0', 'Time', 'Year', epwcolumns[0][0]])
+#                reslists.append(['0', 'Time', '', 'Year', epwcolumns[0][0]])
+                self['year'] = int(epwcolumns[0][0])
                 times = ('Month', 'Day', 'Hour', 'DOS')
                 for t, time in enumerate([' '.join(epwcolumns[c]) for c in range(1,4)] + [' '.join(['{}'.format(int(d/24) + 1) for d in range(len(epwlines))])]):
                     reslists.append(['0', 'Time', '', times[t], time])
@@ -713,7 +714,7 @@ class ViWRNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         if nodeinputs(self) and self.inputs[0].links[0].from_node.loc == '1':
-            (sdate, edate) = retdates(self.sdoy, self.edoy)
+            (sdate, edate) = retdates(self.sdoy, self.edoy, self.inputs[0].links[0].from_node['year'])
             newrow(layout, 'Type:', self, "wrtype")
             newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
             newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
@@ -1023,16 +1024,18 @@ class ViEnRNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         if self.inputs['X-axis'].links:
-            rl = self.inputs['X-axis'].links[0].from_node['reslists']
+            innode = self.inputs['X-axis'].links[0].from_node
+            rl = innode['reslists']
             zrl = list(zip(*rl))
             if len(set(zrl[0])) > 1:
                 newrow(layout, 'Animated:', self, 'animated')
             if not self.animated:
-                (sdate, edate) = retdates(self['Start'], self['End']) 
+                (sdate, edate) = retdates(self['Start'], self['End'], innode['year']) 
             row = layout.row()
             row.label(("Start/End Day: {}/{} {}/{}".format(sdate.day, sdate.month, edate.day, edate.month), "Frame")[self.animated])
                           
             row.prop(self, '["Start"]')
+
             row.prop(self, '["End"]')
 #            if not self.animated:
 #                row = layout.row()
@@ -1061,16 +1064,15 @@ class ViEnRNode(bpy.types.Node, ViNodes):
             innode = self.inputs['X-axis'].links[0].from_node
             rl = innode['reslists']
             zrl = list(zip(*rl))
-            
+
             if self.animated and len(set(zrl[0])) > 1:
                 frames = [int(k) for k in set(zrl[0]) if k != 'All']
                 startframe, endframe = min(frames), max(frames)
                 self["_RNA_UI"] = {"Start": {"min":startframe, "max":endframe}, "End": {"min":startframe, "max":endframe}}
                 self['Start'], self['End'] = startframe, endframe
             else:
-
-                startday = datetime.datetime(2015, int(zrl[4][zrl[3].index('Month')].split()[0]), int(zrl[4][zrl[3].index('Day')].split()[0])).timetuple().tm_yday
-                endday = datetime.datetime(2015, int(zrl[4][zrl[3].index('Month')].split()[-1]), int(zrl[4][zrl[3].index('Day')].split()[-1])).timetuple().tm_yday
+                startday = datetime.datetime(int(innode['year']), int(zrl[4][zrl[3].index('Month')].split()[0]), int(zrl[4][zrl[3].index('Day')].split()[0])).timetuple().tm_yday
+                endday = datetime.datetime(int(innode['year']), int(zrl[4][zrl[3].index('Month')].split()[-1]), int(zrl[4][zrl[3].index('Day')].split()[-1])).timetuple().tm_yday
                 self["_RNA_UI"] = {"Start": {"min":startday, "max":endday}, "End": {"min":startday, "max":endday}}
                 self['Start'], self['End'] = startday, endday
 

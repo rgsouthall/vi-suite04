@@ -71,35 +71,35 @@ class Exper3DPanel(bpy.types.Panel):
         row.prop(context.scene, 'bsdf_leg_max')
         row.prop(context.scene, 'bsdf_leg_min')
         
-class VIEW3D_OT_En_Disp(bpy.types.Operator):
-    bl_idname = "view3d.en_display"
-    bl_label = "EnergyPlus display"
-    bl_description = "Display EnergyPlus Result Metrics"
-    bl_register = True
-    bl_undo = False
-    
-    def invoke(self, context, event, resnode):
-        scene = context.scene
-        rl = resnode['reslists']
-        zrl = list(zip(*rl))
-        reszones = [o.name.upper() for o in bpy.data.objects if o.name.upper() in zrl[2]]
-        if not reszones:
-            self.report({'ERROR'},"There are no EnVi results to display")
-            return {'CANCELLED'}
-        
-        if not bpy.context.active_object or 'EN_'+bpy.context.active_object.name.upper() not in reszones:
-            return
-        if cao and cao.active_material.get('bsdf') and cao.active_material['bsdf']['xml']:
-            width, height = context.region.width, context.region.height
-            self.bsdf = bsdf(context, width, height)
-            self.bsdfpress, self.bsdfmove, self.bsdfresize = 0, 0, 0
-            self._handle_bsdf_disp = bpy.types.SpaceView3D.draw_handler_add(bsdf_disp, (self, context), 'WINDOW', 'POST_PIXEL')
-            context.window_manager.modal_handler_add(self)
-            context.area.tag_redraw()            
-            return {'RUNNING_MODAL'}
-        else:
-            self.report({'ERROR'},"Selected object contains no BSDF information")
-            return {'CANCELLED'}
+#class VIEW3D_OT_En_Disp(bpy.types.Operator):
+#    bl_idname = "view3d.en_display"
+#    bl_label = "EnergyPlus display"
+#    bl_description = "Display EnergyPlus Result Metrics"
+#    bl_register = True
+#    bl_undo = False
+#    
+#    def invoke(self, context, event, resnode):
+#        scene = context.scene
+#        rl = resnode['reslists']
+#        zrl = list(zip(*rl))
+#        reszones = [o.name.upper() for o in bpy.data.objects if o.name.upper() in zrl[2]]
+#        if not reszones:
+#            self.report({'ERROR'},"There are no EnVi results to display")
+#            return {'CANCELLED'}
+#        
+#        if not bpy.context.active_object or 'EN_'+bpy.context.active_object.name.upper() not in reszones:
+#            return
+#        if cao and cao.active_material.get('bsdf') and cao.active_material['bsdf']['xml']:
+#            width, height = context.region.width, context.region.height
+#            self.bsdf = bsdf(context, width, height)
+#            self.bsdfpress, self.bsdfmove, self.bsdfresize = 0, 0, 0
+#            self._handle_bsdf_disp = bpy.types.SpaceView3D.draw_handler_add(bsdf_disp, (self, context), 'WINDOW', 'POST_PIXEL')
+#            context.window_manager.modal_handler_add(self)
+#            context.area.tag_redraw()            
+#            return {'RUNNING_MODAL'}
+#        else:
+#            self.report({'ERROR'},"Selected object contains no BSDF information")
+#            return {'CANCELLED'}
 
 class VIEW3D_OT_BSDF2_Disp(bpy.types.Operator):
     bl_idname = "view3d.bsdf2_display"
@@ -498,7 +498,7 @@ class VIEW3D_OT_CBDM_Disp(bpy.types.Operator):
         width, height = context.region.width, context.region.height
         self.legend = legend(context, width, height)
         self.scatter = dhscatter(context, width, height)
-        self.table = table(context, width, height, array([["", 'Average', 'Minimum', 'Maximum'], ['DA (%)', '1', '2', '3']]))
+        self.table = table(context, width, height)
         self.tablepress, self.tablemove, self.scatterpress, self.scattermove, self.legpress, self.lmb = 0, 0, 0, 0, 0, 0
         self._handle_cbdm_disp = bpy.types.SpaceView3D.draw_handler_add(cbdm_disp, (self, context), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
@@ -572,10 +572,8 @@ class legend():
             rgba = cols[i]
             drawpoly(lspos[0], int(lspos[1] + i * lheight/20), int(lspos[0] + lwidth * 0.4), int(lspos[1] + (i + 1) * lheight/20), *rgba)    
             drawloop(lspos[0], int(lspos[1] + i * lheight/20), int(lspos[0] + lwidth * 0.4), int(lspos[1] + (i + 1) * lheight/20))
-            drawloop(int(lspos[0] + lwidth * 0.4), int(lspos[1] + i * lheight/20), lepos[0], int(lspos[1] + (i + 1) * lheight/20))
-                
-            bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)
-            
+            drawloop(int(lspos[0] + lwidth * 0.4), int(lspos[1] + i * lheight/20), lepos[0], int(lspos[1] + (i + 1) * lheight/20))                
+            bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)            
             blf.size(font_id, 14, int((lepos[1] - lspos[1]) * 0.2))
             ndimen = blf.dimensions(font_id, "{}".format(num))
             blf.position(font_id, int(lepos[0] - mdimen * 0.075 - ndimen[0]), int(lspos[1] + i * lheight/20) + int((lheight/20 - ndimen[1])*0.5), 0)
@@ -587,19 +585,22 @@ class legend():
 
 def retcols(scene):
     try:
-        if scene.vi_leg_col == '0':
-            hs = [0.75 - 0.75*(i/19) for i in range(20)]
-            rgbas = [(*colorsys.hsv_to_rgb(h, 1.0, 1.0), 1.0) for h in hs]
-        elif scene.vi_leg_col == '1':
-            rgbas = [(i/19, i/19, i/19, 1) for i in range(20)]
-        elif scene.vi_leg_col == '2':
-            rgbas = [mcm.hot(int(i * 256/19)) for i in range(20)]
-        elif scene.vi_leg_col == '3':
-            rgbas = [mcm.CMRmap(int(i * 256/19)) for i in range(20)]
-        elif scene.vi_leg_col == '4':
-            rgbas = [mcm.jet(int(i * 256/19)) for i in range(20)]
-        elif scene.vi_leg_col == '5':
-            rgbas = [mcm.plasma(int(i * 256/19)) for i in range(20)]
+        cmap = mcm.get_cmap(scene.vi_leg_col)
+        hs = [0.75 - 0.75*(i/19) for i in range(20)]
+        rgbas = [cmap(int(i * 256/(20 - 1))) for i in range(20)]
+#        if scene.vi_leg_col == '0':
+#            hs = [0.75 - 0.75*(i/19) for i in range(levels)]
+#            rgbas = [(*colorsys.hsv_to_rgb(h, 1.0, 1.0), 1.0) for h in hs]
+#        elif scene.vi_leg_col == '1':
+#            rgbas = [(i/19, i/19, i/19, 1) for i in range(levels)]
+#        elif scene.vi_leg_col == '2':
+#            rgbas = [mcm.hot(int(i * 256/19)) for i in range(levels)]
+#        elif scene.vi_leg_col == '3':
+#            rgbas = [mcm.CMRmap(int(i * 256/19)) for i in range(levels)]
+#        elif scene.vi_leg_col == '4':
+#            rgbas = [mcm.jet(int(i * 256/19)) for i in range(levels)]
+#        elif scene.vi_leg_col == '5':
+#            rgbas = [mcm.plasma(int(i * 256/19)) for i in range(levels)]
     except:
         hs = [0.75 - 0.75*(i/19) for i in range(20)]
         rgbas = [(*colorsys.hsv_to_rgb(h, 1.0, 1.0), 1.0) for h in hs]
@@ -680,9 +681,10 @@ class dhscatter():
     def scattergraph(self, context, x, y, z, tit, xlab, ylab, zlab):
         try:
             self.plt.close()
-            col = coldict[context.scene.vi_leg_col]
+            col = context.scene.vi_leg_col
             x = [x[0] - 0.5] + [xval + 0.5 for xval in x] 
             y = [y[0] - 0.5] + [yval + 0.5 for yval in y]
+            print(len(x), len(y), z.shape)
             self.plt.title(tit, size = 20)
             self.plt.xlabel(xlab, size = 18)
             self.plt.ylabel(ylab, size = 18)
@@ -779,7 +781,7 @@ class table():
         self.expand = 0
 #        self.rcarray = rcarray
         
-    def draw(self, context, width, height): 
+    def draw(self, context, width, height, rcarray): 
         if self.pos[1] > height:
             self.pos[1] = height
         self.spos = (int(self.pos[0] - (width * 0.025)), int(self.pos[1] - (height * 0.025)))
@@ -787,7 +789,7 @@ class table():
         if self.expand == 0:
             self.drawclosed(context, width, height)
         if self.expand == 1:
-            self.drawopen(context, width, height)
+            self.drawopen(context, width, height, rcarray)
         
     def drawclosed(self, context, width, height):
         self.spos = (int(self.pos[0] - (width * 0.025)), int(self.pos[1] - (height * 0.025)))
@@ -823,14 +825,14 @@ class table():
         blf.enable(0, 8)
         blf.shadow(font_id, 5, 0.9, 0.9, 0.9, 1)
         blf.size(font_id, 42, int(height * 0.05))
-        rcshape = self.rcarray.shape
-        [rowno, colno] = self.rcarray.shape
+        rcshape = rcarray.shape
+        [rowno, colno] = rcarray.shape
         colpos = [0]
-        colwidths = [int(max([blf.dimensions(font_id, '{}'.format(e))[0] for e in entry]) + 0.01 * width) for entry in self.rcarray.T]
+        colwidths = [int(max([blf.dimensions(font_id, '{}'.format(e))[0] for e in entry]) + 0.01 * width) for entry in rcarray.T]
         for cw in colwidths:
             colpos.append(cw + colpos[-1])
 
-        rowheight = max([int(max([blf.dimensions(font_id, '{}'.format(e))[1] + 0.005 * width for e in entry]) + 0.005 * width) for entry in self.rcarray.T])
+        rowheight = max([int(max([blf.dimensions(font_id, '{}'.format(e))[1] + 0.005 * width for e in entry]) + 0.005 * width) for entry in rcarray.T])
         self.gspos = [self.spos[0], int(self.spos[1] - rowno * rowheight) - 10]
         self.gepos = [int(self.spos[0] + sum(colwidths) + 10), self.spos[1]]
         drawpoly(self.gspos[0], self.gspos[1], self.gepos[0], self.gepos[1], *self.hl)        
@@ -839,9 +841,9 @@ class table():
         
         for r in range(rcshape[0]):
             for c in range(rcshape[1]):
-                blf.position(font_id, self.gspos[0] + 5 + colpos[c] + colwidths[c] * 0.5 - int(blf.dimensions(font_id, '{}'.format(self.rcarray[r][c]))[0] * 0.5), self.gepos[1] - 5 - int(rowheight * (r + 0.5)) - int(blf.dimensions(font_id, '{}'.format(self.rcarray[1][1]))[1] * 0.5), 0)
+                blf.position(font_id, self.gspos[0] + 5 + colpos[c] + colwidths[c] * 0.5 - int(blf.dimensions(font_id, '{}'.format(rcarray[r][c]))[0] * 0.5), self.gepos[1] - 5 - int(rowheight * (r + 0.5)) - int(blf.dimensions(font_id, '{}'.format(rcarray[1][1]))[1] * 0.5), 0)
                 drawloop(self.gspos[0] + colpos[c] + 5, self.gspos[1] + int(r * rowheight) + 5, self.gspos[0] + colpos[c + 1] + 5, self.gspos[1] + int((r + 1) * rowheight) + 5)                
-                blf.draw(font_id, '{}'.format(self.rcarray[r][c]))
+                blf.draw(font_id, '{}'.format(rcarray[r][c]))
         blf.disable(0, 8)
         blf.disable(0, 4)
         
@@ -1305,7 +1307,7 @@ def cbdm_disp(self, context):
     width, height = context.region.width, context.region.height
     self.legend.draw(context, width, height)
     self.scatter.draw(context, width, height)
-    self.table.draw(context, width, height)
+    self.table.draw(context, width, height, array([["", 'Average', 'Minimum', 'Maximum'], ['DA (%)', '1', '2', '3']]))
     
 def basic_disp(self, context):
     width, height = context.region.width, context.region.height

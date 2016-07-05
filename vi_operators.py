@@ -992,7 +992,7 @@ class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
         innodes = list(OrderedDict.fromkeys([inputs.links[0].from_node for inputs in node.inputs if inputs.links]))
         rl = innodes[0]['reslists']
         zrl = list(zip(*rl))
-        year = int(zrl[4][zrl[3].index('Year')].split()[0])
+        year = innodes[0]['year']
         
         if node.inputs['X-axis'].framemenu not in zrl[0]:
             self.report({'ERROR'},"There are no results in the results file. Check the results.err file in Blender's text editor")
@@ -1256,7 +1256,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
         windnum(simnode['maxfreq'], (0,0,0), scale, compass((0,0,0), scale, wro, wro.data.materials['wr-000000']))
         
         plt.close()
-        wro['table'] = array([["", 'Minimum', 'Average', 'Maximum'], ['Speed (m/s)', wro['minres'], '{:.1f}'.format(wro['avres']), wro['maxres']], ['Direction (deg)', min(awd), '{:.1f}'.format(sum(awd)/len(awd)), max(awd)]])
+        wro['table'] = array([["", 'Minimum', 'Average', 'Maximum'], ['Speed (m/s)', wro['minres'], '{:.1f}'.format(wro['avres']), wro['maxres']], ['Direction (\u00B0)', min(awd), '{:.1f}'.format(sum(awd)/len(awd)), max(awd)]])
         wro['ws'] = array(aws).reshape(len(doys), 24).T
         wro['wd'] = array(awd).reshape(len(doys), 24).T
         wro['days'] = array(doys, dtype = float)
@@ -1278,8 +1278,14 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
     bl_register = True
     bl_undo = True
 
-    def modal(self, context, event):
-        if context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW': 
+    def modal(self, context, event):            
+        if context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':
+            
+            if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'wr' or 'Wind_Plane' not in [o['VIType'] for o in bpy.data.objects if o.get('VIType')]:
+                bpy.types.SpaceView3D.draw_handler_remove(self._handle_wr_disp, 'WINDOW')
+                context.area.tag_redraw()
+                return {'CANCELLED'}
+            
             mx, my = event.mouse_region_x, event.mouse_region_y 
             
             # Legend routine 
@@ -1300,8 +1306,6 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
                         return {'RUNNING_MODAL'}
                 
                 elif event.type == 'ESC':
-                    bpy.data.images.remove(self.bsdf.image)
-                    self.bsdf.plt.close()
                     bpy.types.SpaceView3D.draw_handler_remove(self._handle_legend_disp, 'WINDOW')
                     context.area.tag_redraw()
                     return {'CANCELLED'}
@@ -1340,7 +1344,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
                         return {'RUNNING_MODAL'}
                 
                 elif event.type == 'ESC':
-                    bpy.data.images.remove(self.bsdf.image)
+                    bpy.data.images.remove(self.dhscatter.gimage)
                     self.dhscatter.plt.close()
                     bpy.types.SpaceView3D.draw_handler_remove(self._handle_wr_disp, 'WINDOW')
                     context.area.tag_redraw()
@@ -1349,15 +1353,24 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
                 elif self.dhscatter.press and event.type == 'MOUSEMOVE':
                      self.dhscatter.move = 1
                      self.dhscatter.press = 0
+        
+            elif self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lepos[1] and abs(self.dhscatter.lepos[0] - mx) > 20 and abs(self.dhscatter.lspos[1] - my) > 20:
+                if self.dhscatter.expand: 
+                    self.dhscatter.hl = (1, 1, 1, 1)
+                    if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.dhscatter.expand and self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff:
+                        self.dhscatter.show_plot()
                 
-            else:                    
+                    elif self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff < my < self.dhscatter.epos[1]:                    
+                        for butrange in self.dhscatter.buttons:
+                            if self.dhscatter.buttons[butrange][0] - 10 < mx < self.dhscatter.buttons[butrange][0] + 10 and self.dhscatter.buttons[butrange][1] - 0.015 * self.dhscatter.ydiff < my < self.dhscatter.buttons[butrange][1] + 0.015 * self.dhscatter.ydiff:
+                                if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+                                    self.dhscatter.type_select = 0 if self.dhscatter.type_select else 1
+                                    self.dhscatter.update(context)
+                    context.area.tag_redraw()
+                    return {'RUNNING_MODAL'}
+                   
+            else:
                 self.dhscatter.hl = (1, 1, 1, 1)
-                if self.dhscatter.expand:
-                    for butrange in self.dhscatter.buttons:
-                        if self.dhscatter.buttons[butrange][0] - 20 < mx < self.dhscatter.buttons[butrange][0] + 20 and self.dhscatter.buttons[butrange][1] - 0.02 * self.dhscatter.ydiff < my < self.dhscatter.buttons[butrange][1] + 0.02 * self.dhscatter.ydiff:
-                            if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.dhscatter.type_select != butrange:
-                                self.dhscatter.type_select = butrange
-                                self.dhscatter.update(context)
                                     
             # Table routine
                      
@@ -1390,7 +1403,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
                      
             # Resize routines
             
-            if abs(self.legend.lepos[0] - mx) < 10 and abs(self.legend.lspos[1] - my) < 10:
+            if abs(self.legend.lepos[0] - mx) < 20 and abs(self.legend.lspos[1] - my) < 20:
                 self.legend.hl = (0, 1, 1, 1) 
                 if event.type == 'LEFTMOUSE':
                     if event.value == 'PRESS':
@@ -1399,7 +1412,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
                         self.legend.resize = 0
                     return {'RUNNING_MODAL'}
                     
-            elif abs(self.dhscatter.lepos[0] - mx) < 10 and abs(self.dhscatter.lspos[1] - my) < 10:
+            elif abs(self.dhscatter.lepos[0] - mx) < 20 and abs(self.dhscatter.lspos[1] - my) < 20:
                 self.dhscatter.hl = (0, 1, 1, 1) 
                 if event.type == 'LEFTMOUSE':
                     if event.value == 'PRESS':
@@ -1408,7 +1421,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
                         self.dhscatter.resize = 0
                     return {'RUNNING_MODAL'}
                     
-            elif abs(self.table.lepos[0] - mx) < 10 and abs(self.table.lspos[1] - my) < 10:
+            elif abs(self.table.lepos[0] - mx) < 20 and abs(self.table.lspos[1] - my) < 20:
                 self.table.hl = (0, 1, 1, 1) 
                 if event.type == 'LEFTMOUSE':
                     if event.value == 'PRESS':
@@ -1443,10 +1456,6 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
                 
             if self.table.cao != context.active_object:
                 self.table.update(context)
-                
-            if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'wr' or 'Wind_Plane' not in [o['VIType'] for o in bpy.data.objects if o.get('VIType')]:
-                bpy.types.SpaceView3D.draw_handler_remove(self._handle_wr_disp, 'WINDOW')
-                return {'CANCELLED'}
             
             context.area.tag_redraw()
         return {'PASS_THROUGH'}
@@ -1454,9 +1463,9 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
     def invoke(self, context, event):
         context.scene.vi_display = 1
         simnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]
-        self.legend = wr_legend([80, context.region.height - 40], context.region.width, context.region.height, 'legend.png', 150, 450)
+        self.legend = wr_legend([80, context.region.height - 40], context.region.width, context.region.height, 'legend.png', 150, 350)
         self.dhscatter = wr_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
-        self.table = wr_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 300)       
+        self.table = wr_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 150)       
         self.legend.update(context)
         self.dhscatter.update(context)
         self.table.update(context)

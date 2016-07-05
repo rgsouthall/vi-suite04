@@ -20,6 +20,7 @@
 import bpy, blf, colorsys, bgl, mathutils, bmesh, datetime, os, inspect
 from bpy_extras import view3d_utils
 from math import pi, sin, cos, atan2, log10, ceil
+from numpy import array
 from numpy import sum as nsum
 try:
     import matplotlib.pyplot as plt
@@ -563,8 +564,6 @@ def en_panel(self, context, resnode):
         blf.disable(0, 4)        
     return
         
-
-        
 class Base_Display():
     def __init__(self, pos, width, height, iname, xdiff, ydiff):
         self.pos = pos
@@ -586,8 +585,8 @@ class Base_Display():
         self.width, self.height = context.region.width, context.region.height
         if self.pos[1] > height:
             self.pos[1] = height
-        self.spos = (int(self.pos[0] - (width * 0.025)), int(self.pos[1] - (height * 0.025)))
-        self.epos = (int(self.pos[0] + (width * 0.025)), int(self.pos[1] + (height * 0.025)))
+        self.spos = (int(self.pos[0] - 25), int(self.pos[1] - 25))
+        self.epos = (int(self.pos[0] + 25), int(self.pos[1] + 25))
         if self.expand == 0:
             self.drawclosed()
         if self.expand == 1:
@@ -596,7 +595,6 @@ class Base_Display():
     def drawclosed(self):
         draw_icon(self)       
 
-                
 class wr_legend(Base_Display):
     def __init__(self, pos, width, height, iname, xdiff, ydiff):
         Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
@@ -631,8 +629,6 @@ class wr_scatter(Base_Display):
     def update(self, context):
         self.cao = context.active_object
         if self.cao and self.cao.get('ws'):
-#        simnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]
-        
             zdata = self.cao['ws'] if self.type_select == 'Speed' else self.cao['wd']  
             (title, cbtitle) = ('Wind Speed', 'Speed (m/s)') if self.type_select == 'Speed' else ('Wind Direction', u'Direction (\u00B0)')
             self.plt = plt
@@ -641,36 +637,35 @@ class wr_scatter(Base_Display):
     def drawopen(self, context):
         draw_image(self, self.ydiff * 0.1)
         butcents = [[int(self.lspos[0] + 0.07 * self.xdiff), int(self.lepos[1] - self.ydiff * 0.05)], [int(self.lspos[0] + 0.93 * self.xdiff), int(self.lepos[1] - self.ydiff * 0.05)]]
-        drawloop(int(self.lspos[0] + 0.05 * self.xdiff), int(self.lepos[1] - self.ydiff * 0.03), int(self.lspos[0] + 0.09 * self.xdiff), int(self.lepos[1] - self.ydiff * 0.07))
-        drawloop(int(self.lspos[0] + 0.91 * self.xdiff), int(self.lepos[1] - self.ydiff * 0.03), int(self.lspos[0] + 0.95 * self.xdiff), int(self.lepos[1] - self.ydiff * 0.07))
+        butcents = [[int(self.lspos[0] + 30), int(self.lepos[1] - self.ydiff * 0.05)], [int(self.lepos[0] -30), int(self.lepos[1] - self.ydiff * 0.05)]]
+        drawloop(int(self.lspos[0] + 20), int(self.lepos[1] - self.ydiff * 0.03), int(self.lspos[0] + 40), int(self.lepos[1] - self.ydiff * 0.07))
+        drawloop(int(self.lepos[0] - 40), int(self.lepos[1] - self.ydiff * 0.03), int(self.lepos[0] - 20), int(self.lepos[1] - self.ydiff * 0.07))
         self.buttons = {'Speed': butcents[0], 'Direction': butcents[1]}
-#        for b, but in enumerate(self.buttons):
-        blf.position(0, butcents[0][0] + 0.025 * self.xdiff, butcents[0][1] - 0.4 * blf.dimensions(0, 'Speed')[1], 0)
+        blf.size(0, 44, int(self.ydiff * 0.1))
+        blf.position(0, butcents[0][0] + 25, butcents[0][1] - 0.4 * blf.dimensions(0, 'Speed')[1], 0)
         blf.draw(0, 'Speed')
-        blf.position(0, butcents[1][0] - 0.025 * self.xdiff - blf.dimensions(0, 'Direction')[0], butcents[1][1] - 0.5 * blf.dimensions(0, 'Direction')[1], 0)
+        blf.position(0, butcents[1][0] - 25 - blf.dimensions(0, 'Direction')[0], butcents[1][1] - 0.5 * blf.dimensions(0, 'Direction')[1], 0)
         blf.draw(0, 'Direction')
-        drawpoly(int(self.buttons[self.type_select][0] - 0.015 * self.xdiff), int(self.buttons[self.type_select][1] - 0.015 * self.ydiff), int(self.buttons[self.type_select][0] + 0.015 * self.xdiff), int(self.buttons[self.type_select][1] + 0.015 * self.ydiff), 0.5, 0.5, 0.5, 1)
-#(x1, y1, x2, y2, r, g, b, a)
+        drawpoly(int(self.buttons[self.type_select][0] - 9), int(self.buttons[self.type_select][1] - 0.015 * self.ydiff), int(self.buttons[self.type_select][0] + 9), int(self.buttons[self.type_select][1] + 0.015 * self.ydiff), 0.5, 0.5, 0.5, 1)
+
 class wr_table(Base_Display):
-    def __init__(self, pos, width, height, iname):
-        Base_Display.__init__(self, pos, width, height, iname)
-        self.ws = 1
+    def __init__(self, pos, width, height, iname, xdiff, ydiff):
+        Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
+        self.fontdpi = int(0.15 * ydiff)
         
     def update(self, context):
-        simnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]
-        zdata = simnode['ws'] if self.ws else simnode['wd']  
-        (title, cbtitle) = ('Wind Speed', 'Speed (m/s)') if self.ws else ('Wind Direction', u'Direction (\u00B0)')
-        self.plt = plt
-        draw_dhscatter(self, context, simnode['days'], simnode['hours'], zdata, title, 'Days', 'Hours', cbtitle)  
+        self.cao = context.active_object
+        if self.cao and self.cao.get('ws'):
+            self.rcarray = array(self.cao['table'])  
         
     def drawopen(self, context):
         draw_table(self)
             
 def wr_disp(self, context, simnode):
-#    width, height = context.region.width, context.region.height
-    self.legend.draw(context, context.region.width, context.region.height)
-    self.dhscatter.draw(context, context.region.width, context.region.height)
-#    self.table.draw(context, width, height)
+    width, height = context.region.width, context.region.height
+    self.legend.draw(context, width, height)
+    self.dhscatter.draw(context, width, height)
+    self.table.draw(context, width, height)
 
 def lipanel():
     pass
@@ -978,7 +973,7 @@ def draw_legend(self, scene, unit):
         self.lepos = [self.lepos[0], self.spos[1]]
     
     bgl.glLineWidth(2)
-    drawpoly(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1], 0.9, 1, 1, 1)
+    drawpoly(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1], 1, 1, 1, 1)
     drawloop(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1])
     blf.position(font_id, self.lspos[0] + (xdiff - blf.dimensions(font_id, unit)[0]) * 0.5, self.spos[1] - 0.5 * ydiff/levels - blf.dimensions(font_id, unit)[1] * 0.25, 0)       
     blf.draw(font_id, unit)
@@ -1011,24 +1006,21 @@ def draw_legend(self, scene, unit):
     blf.disable(0, 4)
     
 def draw_dhscatter(self, context, x, y, z, tit, xlab, ylab, zlab):
-#    try:
     self.plt.close()
-    
-    
     col = context.scene.vi_leg_col
-#        col = cm.get_cmap(context.scene.vi_leg_col)
     x = [x[0] - 0.5] + [xval + 0.5 for xval in x] 
     y = [y[0] - 0.5] + [yval + 0.5 for yval in y]
+    self.plt.figure(figsize=(2 * len(x)/len(y), 4))
     self.plt.title(tit, size = 20)
     self.plt.xlabel(xlab, size = 18)
     self.plt.ylabel(ylab, size = 18)
     self.plt.pcolor(x, y, z, cmap=col)#, norm=plt.matplotlib.colors.LogNorm())#, edgecolors='b', linewidths=1, vmin = 0, vmax = 4000)
     self.plt.colorbar().set_label(label=zlab,size=18)
     self.plt.axis([min(x),max(x),min(y),max(y)], size = 16)
-#            self.plt.rcParams["figure.figsize"] = [16, 8]
-    self.plt.tight_layout()
+    self.plt.tight_layout(rect=[0, 0, 1 + ((len(x)/len(y)) - 1) * 0.01, 1])
     scatterloc = os.path.join(context.scene['viparams']['newdir'], 'images', 'scatter.png')
     self.plt.savefig(scatterloc, pad_inches = 0)
+    
     if 'scatter.png' not in [i.name for i in bpy.data.images]:
         self.gimage = bpy.data.images.load(scatterloc)
     else:
@@ -1036,8 +1028,6 @@ def draw_dhscatter(self, context, x, y, z, tit, xlab, ylab, zlab):
         self.gimage = bpy.data.images['scatter.png']
 
     self.gimage.user_clear()
-#    except Exception as e:
-#        print(e)
         
 def draw_image(self, topgap):
     draw_icon(self)
@@ -1049,9 +1039,8 @@ def draw_image(self, topgap):
     else:
         self.lspos = [self.spos[0], self.lspos[1]]
         self.lepos = [self.lepos[0], self.spos[1]]
+
     self.gimage.reload()
-#    self.gspos = [self.spos[0], int(self.spos[1] - 0.4 * height)]
-#    self.gepos = [int(self.spos[0] + 0.6 * width), self.spos[1]]
     drawpoly(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1], 1, 1, 1, 1)        
     drawloop(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1])
     
@@ -1075,6 +1064,57 @@ def draw_image(self, topgap):
     bgl.glVertex2f(self.lspos[0] + 5, self.lepos[1] - topgap)
     bgl.glEnd()
     bgl.glDisable(bgl.GL_TEXTURE_2D)
+    bgl.glFlush()
+    
+def draw_table(self):
+    draw_icon(self) 
+    font_id = 0
+    blf.enable(0, 4)
+    blf.enable(0, 8)
+    blf.shadow(font_id, 5, 0.9, 0.9, 0.9, 1)
+    blf.size(font_id, 44, self.fontdpi)
+    rcshape = self.rcarray.shape
+    [rowno, colno] = self.rcarray.shape
+    
+    self.xdiff = self.lepos[0] - self.lspos[0]
+    self.ydiff = self.lepos[1] - self.lspos[1]
+    colpos = [int(0.01 * self.xdiff)]
+    
+    if not self.resize:
+        self.lspos = [self.spos[0], self.spos[1] - self.ydiff]
+        self.lepos = [self.lspos[0] + self.xdiff, self.spos[1]]            
+    else:
+        self.lspos = [self.spos[0], self.lspos[1]]
+        self.lepos = [self.lepos[0], self.spos[1]]
+        
+    coltextwidths = array([int(max([blf.dimensions(font_id, '{}'.format(e))[0] for e in entry]) + 0.05 * self.xdiff) for entry in self.rcarray.T])
+    colscale = sum(coltextwidths)/(self.xdiff * 0.98)
+    colwidths = (coltextwidths/colscale).astype(int)
+   
+    for cw in colwidths:
+        colpos.append(cw + colpos[-1])
+
+    rowtextheight = max([max([blf.dimensions(font_id, '{}'.format(e))[1] + 0.025 * self.ydiff for e in entry]) + 0.025 * self.ydiff for entry in self.rcarray.T])
+    rowscale = (rowno * rowtextheight)/(self.ydiff * 0.98)
+    rowheight = int(rowtextheight/rowscale)
+    
+    if abs(max(colscale, rowscale) - 1) > 0.05:
+        self.fontdpi = int(self.fontdpi/max(colscale, rowscale))
+        
+    blf.size(font_id, 44, self.fontdpi)
+    drawpoly(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1], *self.hl)        
+    drawloop(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1])        
+    bgl.glEnable(bgl.GL_BLEND)
+    
+    for r in range(rcshape[0]):
+        for c in range(rcshape[1]):
+            blf.position(font_id, self.lspos[0] + colpos[c] + colwidths[c] * 0.5 - int(blf.dimensions(font_id, '{}'.format(self.rcarray[r][c]))[0] * 0.5), self.lepos[1] - int(rowheight * (r + 0.5)) - int(blf.dimensions(font_id, '{}'.format(self.rcarray[1][1]))[1] * 0.5), 0)
+            drawloop(int(self.lspos[0] + colpos[c]), int(self.lspos[1] + 0.01 * self.ydiff + r * rowheight), self.lspos[0] + colpos[c + 1], int(self.lspos[1] + 0.01 * self.ydiff + (r + 1) * rowheight))                
+            blf.draw(font_id, '{}'.format(self.rcarray[r][c]))
+    blf.disable(0, 8)
+    blf.disable(0, 4)
+    
+    bgl.glEnd()
     bgl.glFlush()
     
 #def viwr_legend(self, context, simnode):

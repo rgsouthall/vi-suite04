@@ -54,8 +54,9 @@ class VIPreferences(AddonPreferences):
     bl_idname = __name__
     
     radbin = StringProperty(name = '', description = 'Radiance binary directory location', default = '', subtype='DIR_PATH')
-    radlib = StringProperty(name = '', description = 'Radiance binary directory location', default = '', subtype='DIR_PATH')
-    epbin = StringProperty(name = '', description = 'Radiance binary directory location', default = '', subtype='DIR_PATH')
+    radlib = StringProperty(name = '', description = 'Radiance library directory location', default = '', subtype='DIR_PATH')
+    epbin = StringProperty(name = '', description = 'EnergyPlus binary directory location', default = '', subtype='DIR_PATH')
+    epweath = StringProperty(name = '', description = 'EnergyPlus weather directory location', default = '', subtype='DIR_PATH')
 
     def draw(self, context):
         layout = self.layout       
@@ -68,6 +69,9 @@ class VIPreferences(AddonPreferences):
         row = layout.row()
         row.label(text="EnergyPlus bin directory:")   
         row.prop(self, 'epbin')
+        row = layout.row()
+        row.label(text="EnergyPlus weather directory:")   
+        row.prop(self, 'epweath')
 
 class OBJECT_OT_vi_prefs(Operator):
     """Display example preferences"""
@@ -76,7 +80,7 @@ class OBJECT_OT_vi_prefs(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        print(__name__)
+#        print(__name__)
 #        vi_prefs = context.user_preferences.addons[__name__].preferences
         return {'FINISHED'} 
 

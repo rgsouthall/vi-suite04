@@ -69,7 +69,13 @@ class ViLoc(bpy.types.Node, ViNodes):
         socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])
         self['reslists'] = reslists
 
-    epwpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))+'/EPFiles/Weather/'
+    vi_prefs = bpy.context.user_preferences.addons['vi-suite04'].preferences
+    
+    if vi_prefs and vi_prefs.epweath.is_dir:
+        epwpath = vi_prefs.epweath
+    else:
+        epwpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))+'/EPFiles/Weather/'
+#    epwpath = vi_prefs.epweath    
     weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]
     weather = bpy.props.EnumProperty(items = weatherlist, name="", description="Weather for this project", update = updatelatlong)
     loc = bpy.props.EnumProperty(items = [("0", "Manual", "Manual location"), ("1", "EPW ", "Get location from EPW file")], name = "", description = "Location", default = "0", update = updatelatlong)

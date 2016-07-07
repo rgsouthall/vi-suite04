@@ -19,7 +19,7 @@
 import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex, gc, bpy_extras
 from collections import OrderedDict
 from subprocess import Popen, PIPE, STDOUT
-from numpy import arange, array, digitize, amax, amin, average, zeros, inner, broadcast_to, transpose, nan, set_printoptions, choose, where
+from numpy import arange, array, digitize, amax, amin, average, zeros, inner, broadcast_to, transpose, nan, set_printoptions, choose, where, clip
 set_printoptions(threshold=nan)
 from numpy import sum as nsum
 from numpy import delete as ndelete
@@ -60,8 +60,9 @@ def sinebow(h):
 def retcols(scene, levels):
     try:
         cmap = mcm.get_cmap(scene.vi_leg_col)
-        hs = [0.75 - 0.75*(i/levels - 1) for i in range(levels)]
-        rgbas = [cmap(int(i * 256/(levels - 1))) for i in range(levels)]
+#        hs = [0.75 - 0.75*(i/levels - 1) for i in range(levels)]
+        rgbas = [cmap(int(i * 255/(levels - 1))) for i in range(levels)]
+        print('legend', rgbas)
 #        if scene.vi_leg_col == '0':
 #            hs = [0.75 - 0.75*(i/19) for i in range(levels)]
 #            rgbas = [(*colorsys.hsv_to_rgb(h, 1.0, 1.0), 1.0) for h in hs]
@@ -81,21 +82,16 @@ def retcols(scene, levels):
     return rgbas
   
 def cmap(scene):
-#    cmdict = {'hot': 'livi', 'grey': 'shad'}
     cols = retcols(scene, 20)
-    for i in range(20):       
-        if not bpy.data.materials.get('{}#{}'.format('vi-suite', i)):
-            bpy.data.materials.new('{}#{}'.format('vi-suite', i))
-#        bpy.data.materials['{}#{}'.format(cmdict[cm], i)].diffuse_color = colorsys.hsv_to_rgb(0.75 - 0.75*(i/19), 1, 1) if cm == 'hot' else colorsys.hsv_to_rgb(1, 0, (i/19))
-#        bpy.data.materials['{}#{}'.format(cmdict[cm], i)].diffuse_color = sinebow(0.8 - 0.8 * (i/19)) if cm == 'hot' else colorsys.hsv_to_rgb(1, 0, (i/19))
-#        bpy.data.materials['{}#{}'.format(cmdict[cm], i)].diffuse_color = mcm.hot(int(i * 256/19))[0:3] if cm == 'hot' else colorsys.hsv_to_rgb(1, 0, (i/19))
+    for i in range(20):   
+        matname = '{}#{}'.format('vi-suite', i)
+        if not bpy.data.materials.get(matname):
+            bpy.data.materials.new(matname)
         
-        bpy.data.materials['{}#{}'.format('vi-suite', i)].diffuse_color = cols[i][0:3]
-#        if cm == 'grey':
-#            bpy.data.materials['{}#{}'.format(cmdict[cm], i)].diffuse_intensity = i/19
-        bpy.data.materials['{}#{}'.format('vi-suite', i)].specular_intensity = 0
-        bpy.data.materials['{}#{}'.format('vi-suite', i)].specular_color = (0, 0, 0)
-        bpy.data.materials['{}#{}'.format('vi-suite', i)].use_shadeless = 1
+        bpy.data.materials[matname].diffuse_color = cols[i][0:3]
+        bpy.data.materials[matname].specular_intensity = 0
+        bpy.data.materials[matname].specular_color = (0, 0, 0)
+        bpy.data.materials[matname].use_shadeless = 0
 
 def bmesh2mesh(scene, obmesh, o, frame, tmf):
     ftext = ''
@@ -1063,8 +1059,12 @@ def lividisplay(self, scene):
         if scene['liparams']['unit'] == 'Sky View':
             nmatis = [(19, 10)[v == 1] for v in vals]
         else:
-            bins = array([0.05*i for i in range(1, 20)])
-            nmatis = digitize(vals, bins)
+            bins = array([0.05 * i for i in range(21)])
+#            print(bins)
+#            nmatis = digitize(vals, bins, right = True) - 1
+#            print(nmatis)
+            nmatis = clip(digitize(vals, bins, right = True) - 1, 0, 19, out=None)
+#            print(nmatis)
         bm.to_mesh(self.data)
         bm.free()
         if len(frames) == 1:
@@ -2106,7 +2106,7 @@ def windnum(maxws, loc, scale, wr):
         txt.material_slots[-1].material = bpy.data.materials['wr-000000']
         txts.append(txt)
     objoin(txts + [wr]).name = 'Wind Rose'
-    bpy.context.active_object['VIType']  = 'Wind_Plane'
+    bpy.context.active_object['rpe']  = 'Wind_Plane'
     
 def rgb2h(rgb):
     return colorsys.rgb_to_hsv(rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0)[0]
@@ -2116,7 +2116,8 @@ def livisimacc(simnode):
     return(simnode.csimacc if context in ('Compliance', 'CBDM') else simnode.simacc)
 
 def drawpoly(x1, y1, x2, y2, r, g, b, a):
-    bgl.glEnable(bgl.GL_BLEND)
+#    bgl.glEnable(bgl.GL_BLEND)
+#    bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_CONSTANT_COLOR)
     bgl.glColor4f(r, g, b, a)
     bgl.glBegin(bgl.GL_POLYGON)
     bgl.glVertex2i(x1, y2)
@@ -2124,7 +2125,8 @@ def drawpoly(x1, y1, x2, y2, r, g, b, a):
     bgl.glVertex2i(x2, y1)
     bgl.glVertex2i(x1, y1)
     bgl.glEnd()
-    bgl.glDisable(bgl.GL_BLEND)
+#    bgl.glDisable(bgl.GL_BLEND)
+    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
     
 def drawtri(posx, posy, l, d, hscale, radius):
     r, g, b = colorsys.hsv_to_rgb(0.75 - l * 0.75, 1.0, 1.0)
@@ -2323,6 +2325,7 @@ def retdp(mres, dp):
     return dp
 
 def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
+#    blf.enable(0, 4)
     blf_props(fontsize, fontcol, shadcol)
     avdistance = sum(distances)/len(distances)
     fsd = fontsize * avdistance
@@ -2346,7 +2349,7 @@ def blf_props(fontsize, fontcol, shadcol):
     blf.enable(0, 4)
     blf.shadow(0, 5, *shadcol)
     bgl.glColor4f(*fontcol)
-    blf.size(0, fontsize, 92)
+    blf.size(0, 12, int(fontsize))
     
 def edgelen(ob, edge):
     omw = ob.matrix_world

@@ -71,7 +71,7 @@ class ViLoc(bpy.types.Node, ViNodes):
 
     vi_prefs = bpy.context.user_preferences.addons['vi-suite04'].preferences
     
-    if vi_prefs and vi_prefs.epweath.is_dir:
+    if vi_prefs and os.path.isdir(vi_prefs.epweath):
         epwpath = vi_prefs.epweath
     else:
         epwpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))+'/EPFiles/Weather/'
@@ -676,7 +676,7 @@ class ViSSNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         if nodeinputs(self):
-            (sdate, edate) = retdates(self.sdoy, self.edoy)
+            (sdate, edate) = retdates(self.sdoy, self.edoy, self.inputs[0].links[0].from_node['year'])
             newrow(layout, 'Ignore sensor:', self, "signore")
             newrow(layout, 'Animation:', self, "animmenu")
             newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
@@ -690,7 +690,7 @@ class ViSSNode(bpy.types.Node, ViNodes):
             row.operator("node.shad", text = 'Calculate').nodeid = self['nodeid']
 
     def preexport(self):
-        (self.sdate, self.edate) = retdates(self.sdoy, self.edoy)
+        (self.sdate, self.edate) = retdates(self.sdoy, self.edoy, self.inputs[0].links[0].from_node['year'])
         self['goptions']['offset'] = self.offset
 
     def postexport(self, scene):

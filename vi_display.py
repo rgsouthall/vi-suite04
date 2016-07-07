@@ -41,7 +41,7 @@ def ss_display():
 def li_display(simnode):
     scene, obreslist, obcalclist = bpy.context.scene, [], []
     setscenelivivals(scene)
-    
+    scene.display_settings.display_device = 'None'
     (rcol, mtype) =  ('hot', 'livi') if 'LiVi' in simnode.bl_label else ('grey', 'shad')
     cmap(scene)
 
@@ -207,7 +207,7 @@ def linumdisplay(disp_op, context, simnode):
         try:
             omw = ob.matrix_world
             bm = bmesh.new()
-            bm.from_mesh(ob.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW'))
+            bm.from_object(ob, scene, deform=True, render=False, cage=False, face_normals=True)
             bm.transform(omw)
     
             if bm.faces.layers.float.get('res{}'.format(scene.frame_current)): 
@@ -218,7 +218,6 @@ def linumdisplay(disp_op, context, simnode):
                 if scene.vi_display_vis_only:
                     fcos = [f.calc_center_bounds() + scene.vi_display_rp_off * f.normal.normalized() for f in faces]
                     direcs = [view_location - f for f in fcos]
-#                    distances = [d.length for d in direcs]
                     (faces, distances) = map(list, zip(*[[f, distances[i]] for i, f in enumerate(faces) if not scene.ray_cast(fcos[i], direcs[i], distance=distances[i])[0]]))
 
                 face2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, f.calc_center_bounds()) for f in faces]
@@ -233,7 +232,6 @@ def linumdisplay(disp_op, context, simnode):
                 if scene.vi_display_vis_only:
                     vcos = [v.co + scene.vi_display_rp_off * v.normal.normalized() for v in verts]
                     direcs = [view_location - v for v in vcos]
-#                    distances = [d.length for d in direcs]
                     (verts, distances) = map(list, zip(*[[v, distances[i]] for i, v in enumerate(verts) if not scene.ray_cast(vcos[i], direcs[i], distance=distances[i])[0]]))
                     
                 vert2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, v.co) for v in verts]
@@ -250,7 +248,7 @@ def linumdisplay(disp_op, context, simnode):
 def li3D_legend(self, context, simnode):
     scene = context.scene
     fc = str(scene.frame_current)
-    dplaces = retdp(context, scene.vi_leg_max)
+    dplaces = retdp(scene.vi_leg_max, 1)
     
     if not scene.get('liparams'):
         scene.vi_display = 0
@@ -677,6 +675,34 @@ def wr_disp(self, context, simnode):
     self.legend.draw(context, width, height)
     self.dhscatter.draw(context, width, height)
     self.table.draw(context, width, height)
+    
+class ss_legend(Base_Display):
+    def __init__(self, pos, width, height, iname, xdiff, ydiff):
+        Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
+        
+    def update(self, context):
+        scene = context.scene
+        self.cao = context.active_object        
+        self.cols = retcols(context.scene, 20)
+        self.col, self.maxres, self.minres, self.scale = scene.vi_leg_col, scene.vi_leg_max, scene.vi_leg_min, scene.vi_leg_scale
+        dplaces = retdp(self.maxres, 1)
+        resdiff = self.maxres - self.minres
+        
+        if not context.scene.get('liparams'):
+            scene.vi_display = 0
+            return
+
+        self.resvals = [format(self.minres + i*(resdiff)/20, '.{}f'.format(dplaces)) for i in range(21)] if self.scale == '0' else \
+                        [format(self.minres + (1 - log10(i)/log10(20))*(resdiff), '.{}f'.format(dplaces)) for i in range(0, 21)[::-1]]
+
+        self.resvals = ['{0} - {1}'.format(self.resvals[i], self.resvals[i+1]) for i in range(20)]
+        
+    def drawopen(self, context):
+        draw_legend(self, context.scene, 'Sunlit Time (%)')
+    
+def ss_disp(self, context, simnode):
+    width, height = context.region.width, context.region.height
+    self.legend.draw(context, width, height)
 
 def lipanel():
     pass
@@ -973,9 +999,14 @@ def draw_legend(self, scene, unit):
     levels = len(self.resvals)
     xdiff = self.lepos[0] - self.lspos[0]
     ydiff = self.lepos[1] - self.lspos[1]
-    blf.size(font_id, 44, int(xdiff * 0.29))
-    mdimen = max(2 * blf.dimensions(font_id, self.resvals[-1])[0], blf.dimensions(font_id, unit)[0])
+    lh = ydiff/(levels + 1)
     
+    blf.size(font_id, 12, 300)
+    mxdimen = max(blf.dimensions(font_id, self.resvals[-1])[0], blf.dimensions(font_id, unit)[0])
+    mydimen = blf.dimensions(font_id, unit)[1]
+    print(mxdimen, mxdimen/(xdiff * 0.55), mydimen * 1.25/lh)
+    fontscale = max(mxdimen/(xdiff * 0.9), mydimen * 1.25/lh)
+    blf.size(font_id, 12, int(300/fontscale))
     if not self.resize:
         self.lspos = [self.spos[0], self.spos[1] - ydiff]
         self.lepos = [self.lspos[0] + xdiff, self.spos[1]]            
@@ -986,7 +1017,7 @@ def draw_legend(self, scene, unit):
     bgl.glLineWidth(2)
     drawpoly(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1], 1, 1, 1, 1)
     drawloop(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1])
-    blf.position(font_id, self.lspos[0] + (xdiff - blf.dimensions(font_id, unit)[0]) * 0.5, self.spos[1] - 0.5 * ydiff/levels - blf.dimensions(font_id, unit)[1] * 0.25, 0)       
+    blf.position(font_id, self.lspos[0] + (xdiff - blf.dimensions(font_id, unit)[0]) * 0.45, self.spos[1] - 0.5 * lh - blf.dimensions(font_id, unit)[1] * 0.4, 0)       
     blf.draw(font_id, unit)
 #    blf.enable(0, blf.SHADOW)
 #    blf.enable(0, blf.KERNING_DEFAULT)
@@ -997,17 +1028,19 @@ def draw_legend(self, scene, unit):
     blf.shadow(font_id, 5, 0.8, 0.8, 0.8, 1)
     lh = ydiff/(levels + 1)
 #        cols = retcols(scene)
-    blf.size(font_id, 44, int(xdiff * 0.25))
+    blf.size(font_id, 12, int(250/fontscale))
+    bgl.glDisable(bgl.GL_BLEND)
     for i in range(levels):
         num = self.resvals[i]
         rgba = self.cols[i]
+        print('absleg', self.cols)
         bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)
         drawpoly(self.lspos[0], int(self.lspos[1] + i * lh), int(self.lspos[0] + xdiff * 0.4), int(self.lspos[1] + (i + 1) * lh), *rgba)    
         drawloop(self.lspos[0], int(self.lspos[1] + i * lh), int(self.lspos[0] + xdiff * 0.4), int(self.lspos[1] + (i + 1) * lh))
         drawloop(int(self.lspos[0] + xdiff * 0.4), int(self.lspos[1] + i * lh), self.lepos[0], int(self.lspos[1] + (i + 1) * lh))
         
         ndimen = blf.dimensions(font_id, "{}".format(num))
-        blf.position(font_id, int(self.lepos[0] - mdimen * 0.075 - ndimen[0]), int(self.lspos[1] + i * lh) + int((lh - ndimen[1])*0.5), 0)
+        blf.position(font_id, int(self.lepos[0] - xdiff * 0.075 - ndimen[0]), int(self.lspos[1] + i * lh) + int((lh - ndimen[1])*0.5), 0)
         bgl.glColor4f(0, 0, 0, 1)
         blf.draw(font_id, "{}".format(self.resvals[i]))
     

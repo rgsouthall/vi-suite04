@@ -23,7 +23,6 @@ class Vi3DPanel(bpy.types.Panel):
                 row = layout.row()
                 row.operator('view3d.wrdisplay', text = 'Wind Metrics')#('INVOKE_DEFAULT'')
 
-
             elif scene['viparams']['vidisp'] == 'sp' and scene.vi_display:
                 (sdate, edate) = retdates(scene.solday, 365)
                 for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "solday"), ("Time of day:", "solhour"), ("Display hours:", "hourdisp"), ("Display time:", "timedisp")):
@@ -32,11 +31,22 @@ class Vi3DPanel(bpy.types.Panel):
                     for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_fsh")):
                         newrow(layout, i[0], scene, i[1])
 
-            elif scene['viparams']['vidisp'] in ('ss', 'li', 'lc', 'sspanel', 'lipanel', 'lcpanel'):
+#            elif scene['viparams']['vidisp'] in ('ss', 'sspanel'):
+#                row = layout.row()
+#                row.prop(scene, "vi_disp_3d")                 
+#                row = layout.row()
+#                row.operator("view3d.ssdisplay", text="Shadow Display 2")
+#
+                
+                
+            elif scene['viparams']['vidisp'] in ('ss', 'sspanel', 'li', 'lc', 'lipanel', 'lcpanel'):
                 row = layout.row()
                 row.prop(scene, "vi_disp_3d")                 
                 row = layout.row()
-                row.operator("view3d.lidisplay", text="Shadow Display") if scene['viparams']['visimcontext'] == 'Shadow' else row.operator("view3d.lidisplay", text="Radiance Display")
+                if scene['viparams']['vidisp'] in ('ss', 'sspanel'):
+                    row.operator("view3d.ssdisplay", text="Shadow Display")
+                else:
+                    row.operator("view3d.lidisplay", text="Radiance Display")
 
                 if scene['viparams']['vidisp'] in ('sspanel', 'lipanel', 'lcpanel') and [o for o in bpy.data.objects if o.lires]:
                     row = layout.row()

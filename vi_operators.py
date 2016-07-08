@@ -1253,6 +1253,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
         plt.savefig(scene['viparams']['newdir']+'/disp_wind.svg')
         (wro, scale) = wind_rose(simnode['maxres'], scene['viparams']['newdir']+'/disp_wind.svg', simnode.wrtype)
         wro['maxres'], wro['minres'], wro['avres'], wro['nbins'] = max(aws), min(aws), sum(aws)/len(aws), len(sbinvals)
+        simnode['maxfreq'] = 100*numpy.max(adfreq)/len(cwd)
         windnum(simnode['maxfreq'], (0,0,0), scale, compass((0,0,0), scale, wro, wro.data.materials['wr-000000']))
         
         plt.close()
@@ -1262,7 +1263,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
         wro['days'] = array(doys, dtype = float)
         wro['hours'] = arange(1, 25, dtype = float)
         wro['maxfreq'] = 100*numpy.max(dfreq)/len(awd)
-        simnode['maxfreq'] = 100*numpy.max(adfreq)/len(cwd)
+        
         simnode['nbins'] = len(sbinvals)
         simnode['ws'] = array(cws).reshape(365, 24).T
         simnode['wd'] = array(cwd).reshape(365, 24).T

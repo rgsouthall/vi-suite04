@@ -24,7 +24,7 @@ class Vi3DPanel(bpy.types.Panel):
                 row.operator('view3d.wrdisplay', text = 'Wind Metrics')#('INVOKE_DEFAULT'')
 
             elif scene['viparams']['vidisp'] == 'sp' and scene.vi_display:
-                (sdate, edate) = retdates(scene.solday, 365)
+                (sdate, edate) = retdates(scene.solday, 365, 2015)
                 for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "solday"), ("Time of day:", "solhour"), ("Display hours:", "hourdisp"), ("Display time:", "timedisp")):
                     newrow(layout, i[0], scene, i[1])
                 if scene.hourdisp or scene.timedisp:
@@ -39,144 +39,169 @@ class Vi3DPanel(bpy.types.Panel):
 #
                 
                 
-            elif scene['viparams']['vidisp'] in ('ss', 'sspanel', 'li', 'lc', 'lipanel', 'lcpanel'):
+            elif scene['viparams']['vidisp'] in ('ss', 'li', 'lc'):
                 row = layout.row()
                 row.prop(scene, "vi_disp_3d")                 
                 row = layout.row()
-                if scene['viparams']['vidisp'] in ('ss', 'sspanel'):
+                if scene['viparams']['vidisp'] == 'ss':
                     row.operator("view3d.ssdisplay", text="Shadow Display")
                 else:
-                    row.operator("view3d.lidisplay", text="Radiance Display")
+                    row.operator("view3d.livibasicdisplay", text="Radiance Display")
 
-                if scene['viparams']['vidisp'] in ('sspanel', 'lipanel', 'lcpanel') and [o for o in bpy.data.objects if o.lires]:
-                    row = layout.row()
-                    row.prop(view, "show_only_render")
-                    newrow(layout, 'Legend', scene, "vi_leg_display")
-                    if not scene.ss_disp_panel:
-                        if scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'kWh/m2'):
-                            newrow(layout, 'Result type:', scene, "li_disp_da")
-                        if scene['liparams']['unit'] in ('Mlxh', u'kWh/m\u00b2(f)', u'kWh/m\u00b2(v)'):
-                            newrow(layout, 'Result type:', scene, "li_disp_exp")
+            elif scene['viparams']['vidisp'] in ('sspanel', 'lipanel', 'lcpanel') and [o for o in bpy.data.objects if o.lires] and scene.vi_display:
+                row = layout.row()
+                row.prop(view, "show_only_render")
+#                newrow(layout, 'Legend', scene, "vi_leg_display")
+                if not scene.ss_disp_panel:
+                    if scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'kWh/m2'):
+                        newrow(layout, 'Result type:', scene, "li_disp_da")
+                    if scene['liparams']['unit'] in ('Mlxh', u'kWh/m\u00b2(f)', u'kWh/m\u00b2(v)'):
+                        newrow(layout, 'Result type:', scene, "li_disp_exp")
 #                        elif 'SDA' in scene['liparams']['unit'] or 'ASE' in scene['liparams']['unit']:
 #                            newrow(layout, 'sDA/ASE:', scene, "li_disp_sda")
-                        elif scene['viparams']['visimcontext'] == 'LiVi Compliance': 
-                            newrow(layout, 'Metric:', scene, 'li_disp_sv')
-                        elif scene['viparams']['visimcontext'] == 'LiVi Basic':
-                            newrow(layout, 'Metric:', scene, 'li_disp_basic')
-                        if scene.vi_leg_display:
-                            newrow(layout, 'Legend max:', scene, "vi_leg_max")
-                            newrow(layout, 'Legend min:', scene, "vi_leg_min")
-                            newrow(layout, 'Legend scale:', scene, "vi_leg_scale")
-                            newrow(layout, 'Legend colour:', scene, "vi_leg_col")
-                    
-                    if context.active_object and context.active_object.type == 'MESH':
-                        newrow(layout, 'Draw wire:', scene, 'vi_disp_wire')                    
-                    
-                    if int(context.scene.vi_disp_3d) == 1:
-                        newrow(layout, "3D Level", scene, "vi_disp_3dlevel")                        
-                    
-                    newrow(layout, "Transparency", scene, "vi_disp_trans")
+                    elif scene['viparams']['visimcontext'] == 'LiVi Compliance': 
+                        newrow(layout, 'Metric:', scene, 'li_disp_sv')
+                    elif scene['viparams']['visimcontext'] == 'LiVi Basic':
+                        newrow(layout, 'Metric:', scene, 'li_disp_basic')
+#                    if scene.vi_leg_display:
+                    newrow(layout, 'Legend max:', scene, "vi_leg_max")
+                    newrow(layout, 'Legend min:', scene, "vi_leg_min")
+                    newrow(layout, 'Legend scale:', scene, "vi_leg_scale")
+                    newrow(layout, 'Legend colour:', scene, "vi_leg_col")
+                
+                if context.active_object and context.active_object.type == 'MESH':
+                    newrow(layout, 'Draw wire:', scene, 'vi_disp_wire')                    
+                
+                if int(context.scene.vi_disp_3d) == 1:
+                    newrow(layout, "3D Level", scene, "vi_disp_3dlevel")                        
+                
+                newrow(layout, "Transparency", scene, "vi_disp_trans")
 
-                    if context.mode != "EDIT":
-                        row = layout.row()
-                        row.label(text="{:-<48}".format("Point visualisation "))
-                        propdict = OrderedDict([('Enable', "vi_display_rp"), ("Selected only:", "vi_display_sel_only"), ("Visible only:", "vi_display_vis_only"), ("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_fsh"), ("Position offset:", "vi_display_rp_off")])
-                        for prop in propdict.items():
-                            newrow(layout, prop[0], scene, prop[1])
-                        row = layout.row()
-                        row.label(text="{:-<60}".format(""))
+                if context.mode != "EDIT":
+                    row = layout.row()
+                    row.label(text="{:-<48}".format("Point visualisation "))
+                    propdict = OrderedDict([('Enable', "vi_display_rp"), ("Selected only:", "vi_display_sel_only"), ("Visible only:", "vi_display_vis_only"), ("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh"), ("Position offset:", "vi_display_rp_off")])
+                    for prop in propdict.items():
+                        newrow(layout, prop[0], scene, prop[1])
+                    row = layout.row()
+                    row.label(text="{:-<60}".format(""))
  
-                    if scene['viparams']['vidisp'] == 'lcpanel':
-                        propdict = OrderedDict([("Compliance Panel", "li_compliance"), ("Asessment organisation:", "li_assorg"), ("Assesment individiual:", "li_assind"), ("Job number:", "li_jobno"), ("Project name:", "li_projname")])
-                        for prop in propdict.items():
-                            newrow(layout, prop[0], scene, prop[1])
+                if scene['viparams']['vidisp'] == 'lcpanel':
+                    propdict = OrderedDict([("Compliance Panel", "li_compliance"), ("Asessment organisation:", "li_assorg"), ("Assesment individiual:", "li_assind"), ("Job number:", "li_jobno"), ("Project name:", "li_projname")])
+                    for prop in propdict.items():
+                        newrow(layout, prop[0], scene, prop[1])
             
-            elif scene['viparams']['vidisp'] in ('en', 'enpanel'):
+            elif scene['viparams']['vidisp'] in ('en', 'enpanel'):                
                 resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
                 rl = resnode['reslists']
                 zrl = list(zip(*rl))
 
-                if len(set(zrl[0])) > 1:
-                    return
+                if scene.en_disp_type == '1':
                     # Below is for viewport visualisation of the parametric EnVi results
                     zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone' and zrl[0][zri] == 'All'])
                     lmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Linkage' and zrl[0][zri] == 'All'])
                     zresdict = {"Max temp (C)": "resazmaxt_disp", 'Min temp (C)': 'resazmint_disp', 'Ave temp (C)': 'resazavet_disp', 'Heating (kWh)': 'resazhw_disp', 'Heating (kWh/m2)': 'resazhwm_disp', 
                     'Cooling (W)': 'resazcw_disp', 'Cooling (kWh)': 'resazcwm_disp','Max CO2 (ppm)': 'resazmaxco_disp', 'Ave CO2 (ppm)': 'resazaveco_disp', 'Min CO2 (ppm)': 'resazminco_disp'}
                     vresdict = {"Max Flow in": "resazlmaxf_disp", "Min Flow in": "resazlminf_disp", "Ave Flow in": "resazlavef_disp"}
-                    row = layout.row()               
-                    row.prop(resnode, '["AStart"]')
-                    row.prop(resnode, '["AEnd"]')
-                else:
-                    zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone' and zrl[0][zri] != 'All'])
-                    lmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Linkage' and zrl[0][zri] != 'All'])
+                    
+                else:                    
+                    zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone' and zrl[0][zri] == str(resnode["AStart"])])
+                    lmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Linkage' and zrl[0][zri] == str(resnode["AStart"])])
                     zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp', 'CO2 (ppm)': 'reszco_disp'}
                     vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}               
-                    row = layout.row()               
-                    row.prop(resnode, '["Start"]')
-                    row.prop(resnode, '["End"]')
-                    row = layout.row() 
-                    row.label(text = 'Ambient')
-                    row = layout.row() 
-                    row.prop(scene, 'resaa_disp')
-                    row.prop(scene, 'resas_disp')
                 
-                for ri, rname in enumerate(zmetrics):
-                    if ri == 0:                    
-                        row = layout.row()
-                        row.label(text = 'Zone')                    
-                    if not ri%2:
-                        row = layout.row()                            
-                    if rname in zresdict:
-                        row.prop(scene, zresdict[rname])
+                if scene['viparams']['vidisp'] == 'en':  
+                    newrow(layout, 'Static/Parametric', scene, 'en_disp_type')
+                    if scene.en_disp_type == '1':
+                        row = layout.row()               
+                        row.prop(resnode, '["AStart"]')
+                        row.prop(resnode, '["AEnd"]')
+                    else:  
+                        if len(set(zrl[0])) > 1:
+                            newrow(layout, 'Frame:', resnode, '["AStart"]')
+                        row = layout.row() 
+                        row.label(text = 'Start/End day:')
+                        row.prop(resnode, '["Start"]')
+                        row.prop(resnode, '["End"]')
+                        row = layout.row() 
+                        row.label(text = 'Ambient')
+                        row = layout.row() 
+                        row.prop(scene, 'resaa_disp')
+                        row.prop(scene, 'resas_disp')
                 
-                for ri, rname in enumerate(lmetrics):
-                    if ri == 0:                    
-                        row = layout.row()
-                        row.label(text = 'Ventilation')                    
-                    if not ri%2:
-                        row = layout.row()                            
-                    if rname in vresdict:
-                        row.prop(scene, vresdict[rname])  
+                    for ri, rname in enumerate(zmetrics):
+                        if ri == 0:                    
+                            row = layout.row()
+                            row.label(text = 'Zone')                    
+                        if not ri%2:
+                            row = layout.row()                            
+                        if rname in zresdict:
+                            row.prop(scene, zresdict[rname])
                     
-                newrow(layout, 'Link to object', scene, 'envi_flink')  
-                newrow(layout, 'Disply type:', scene, 'en_disp')
-                row = layout.row()    
-                row.operator("view3d.endisplay", text="EnVi Display")
-                if scene['viparams']['vidisp'] == 'enpanel':
-                    if 'Temperature (degC)' in zmetrics:
+                    for ri, rname in enumerate(lmetrics):
+                        if ri == 0:                    
+                            row = layout.row()
+                            row.label(text = 'Ventilation')                    
+                        if not ri%2:
+                            row = layout.row()                            
+                        if rname in vresdict:
+                            row.prop(scene, vresdict[rname])  
+                    if lmetrics:    
+                        newrow(layout, 'Link to object', scene, 'envi_flink')  
+                    
+                    row = layout.row()    
+                    row.operator("view3d.endisplay", text="EnVi Display")
+                
+            if scene['viparams']['vidisp'] == 'enpanel':                
+                newrow(layout, 'Display unit:', scene, 'en_disp_unit')  
+                newrow(layout, 'Legend colour:', scene, "vi_leg_col")
+                if len(set(zrl[0])) > 1:
+                    newrow(layout, 'Parametric frame:', resnode, '["AStart"]')
+                envimenudict = {'Temperature (degC)': ('en_temp_min', 'en_temp_max'), 'Humidity (%)' : ('en_hum_min', 'en_hum_max'), 'Heating (W)': ('en_heat_min', 'en_heat_max'),
+                                 'Cooling (W)': ('en_cool_min', 'en_cool_max'), 'Solar gain (W)': ('en_shg_min', 'en_shg_max'), 'CO2 (ppm)': ('en_co2_min', 'en_co2_max')}
+                for envirt in envimenudict:
+                    if envirt in zmetrics:
                         row = layout.row()
-                        row.label('Temperature')
-                        row = layout.row()
-                        row.prop(scene, 'en_temp_max')
-                        row.prop(scene, 'en_temp_min')
-                    if 'Humidity (%)' in zmetrics:
-                        row = layout.row()
-                        row.label('Humidity')
-                        row = layout.row()
-                        row.prop(scene, 'en_hum_max')
-                        row.prop(scene, 'en_hum_min')
-                    if 'Heating (W)' in zmetrics:
-                        row = layout.row()
-                        row.label('Heating')
-                        row = layout.row()
-                        row.prop(scene, 'en_heat_max')
-                        row.prop(scene, 'en_heat_min')
-                    if 'Cooling (W)' in zmetrics:
-                        row = layout.row()
-                        row.label('Cooling')
-                        row = layout.row()
-                        row.prop(scene, 'en_cool_max')
-                        row.prop(scene, 'en_cool_min')   
-                    if 'CO2 (ppm)' in zmetrics:
-                        row = layout.row()
-                        row.label('CO2')
-                        row = layout.row()
-                        row.prop(scene, 'en_co2_max')
-                        row.prop(scene, 'en_co2_min')
+                        row.label(envirt)
+#                        row = layout.row()
+                        row.prop(scene, envimenudict[envirt][0])
+                        row.prop(scene, envimenudict[envirt][1])
+                        
+#                if 'Temperature (degC)' in zmetrics:
+#                    row = layout.row()
+#                    row.label('Temperature')
+#                    row = layout.row()
+#                    row.prop(scene, 'en_temp_min')
+#                    row.prop(scene, 'en_temp_max')
+#                if 'Humidity (%)' in zmetrics:
+#                    row = layout.row()
+#                    row.label('Humidity')
+#                    row = layout.row()
+#                    row.prop(scene, 'en_hum_max')
+#                    row.prop(scene, 'en_hum_min')
+#                if 'Heating (W)' in zmetrics:
+#                    row = layout.row()
+#                    row.label('Heating')
+#                    row = layout.row()
+#                    row.prop(scene, 'en_heat_max')
+#                    row.prop(scene, 'en_heat_min')
+#                if 'Cooling (W)' in zmetrics:
+#                    row = layout.row()
+#                    row.label('Cooling')
+#                    row = layout.row()
+#                    row.prop(scene, 'en_cool_max')
+#                    row.prop(scene, 'en_cool_min')   
+#                if 'CO2 (ppm)' in zmetrics:
+#                    row = layout.row()
+#                    row.label('CO2')
+#                    row = layout.row()
+#                    row.prop(scene, 'en_co2_max')
+#                    row.prop(scene, 'en_co2_min')
+#                if 'Solar gain (W)' in zmetrics:
+                    
             
-            if scene.vi_display:            
-                newrow(layout, 'Display active', scene, 'vi_display')
+                if scene.vi_display:            
+                    newrow(layout, 'Display active', scene, 'vi_display')
 
 class VIMatPanel(bpy.types.Panel):
     bl_label = "VI-Suite Material"

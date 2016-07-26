@@ -3,14 +3,14 @@ from .vi_func import retmenu
 
 def label(dnode, metric, axis, variant):
     catdict = {'clim': 'Ambient', 'zone': 'Zone', 'Linkage': 'Linkage', 'External node': 'External node', 'Frames': 'Frame', 'metric': dnode.inputs[axis].rtypemenu + ' metric', 'type': metric} 
-    animdict = {'metric': dnode.inputs[axis].rtypemenu + ' metric', 'type': metric}
-    if dnode.animated:
+    animdict = {'metric': dnode.inputs[axis].rtypemenu, 'type': metric}
+    if dnode.parametricmenu == '1':
         return animdict[variant]
     else:
         return catdict[variant]
 
 def llabel(dnode, metric, axis, variant):
-    rdict = {'Climate': 'Ambient', 'Zone': dnode.inputs[axis].zonemenu, 'Linkage':dnode.inputs[axis].linkmenu}
+    rdict = {'Climate': 'Ambient', 'Zone': dnode.inputs[axis].zonemenu, 'Linkage':dnode.inputs[axis].linkmenu, 'Frames': 'Frames'}
     ldict = {'type': rdict[dnode.inputs[axis].rtypemenu], 'metric': metric, }
     return ldict[variant]
     
@@ -36,7 +36,7 @@ def rvariant(dnode):
         return 'metric'
             
 def timedata(datastring, timetype, stattype, months, days, dos, dnode, Sdate, Edate):
-    if timetype == '0' or dnode.animated:
+    if timetype == '0' or dnode.parametricmenu == '1':
         return datastring       
     else:
         if timetype == '1':  
@@ -50,7 +50,7 @@ def timedata(datastring, timetype, stattype, months, days, dos, dnode, Sdate, Ed
         return(statdata(res, stattype))
 
 def retframe(axis, dnode, frames):
-    if len(set(frames)) > 1 and dnode.animated:
+    if len(set(frames)) > 1 and dnode.parametricmenu == '1':
         return 'All'
     elif len(set(frames)) > 1:
         return dnode.inputs[axis].framemenu
@@ -58,7 +58,6 @@ def retframe(axis, dnode, frames):
         return frames[0]
     
 def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
-    print(Sdate, Edate)
     variant = rvariant(dnode)
     rnx = dnode.inputs['X-axis'].links[0].from_node
     rlx = rnx['reslists']
@@ -68,10 +67,12 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     ddata = [rx[4].split() for rx in rlx if rx[0] == framex and rx[1] == 'Time' and rx[2] == '' and rx[3] == 'Day']
     sdata = [rx[4].split() for rx in rlx if rx[0] == framex and rx[1] == 'Time' and rx[2] == '' and rx[3] == 'DOS']
     hdata = [rx[4].split() for rx in rlx if rx[0] == framex and rx[1] == 'Time' and rx[2] == '' and rx[3] == 'Hour']
+#    print(hdata)
     
-    if len(set(rzlx[0])) > 1 and dnode.animated:
+    if len(set(rzlx[0])) > 1 and dnode.parametricmenu == '1':
         si, ei = dnode["Start"] - bpy.context.scene.frame_start, dnode["End"]  - bpy.context.scene.frame_start
-    else:        
+    
+    elif rnx.bl_label in ('EnVi Simulation', 'VI Location', 'EnVi Results File'):        
         sm, sd, sh, em, ed, eh = Sdate.month, Sdate.day, Sdate.hour, Edate.month, Edate.day, Edate.hour    
         (dm, dd, dh) = ([int(x) for x in mdata[0]], [int(x) for x in ddata[0]], [int(x) for x in hdata[0]])
         
@@ -80,6 +81,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
                 si = i
                 break
         for i in range(len(hdata[0])):
+            print(i, em, ed, dm[i], dd[i])
             if em == dm[i] and ed == dd[i]:# and eh == dh[i] - 1:
                 ei = i
                 break
@@ -87,8 +89,12 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
         mdata = [int(m) for m in mdata[0]][si:ei + 1]
         ddata = [int(d) for d in ddata[0]][si:ei + 1]
         sdata = [int(s) for s in sdata[0]][si:ei + 1]
+    
+    else:
+        si, ei = 0, -2
 
-    plotstyle = ('k', 'k:', 'k--', 'o', 'o', 'o', 'r', 'b', 'g')
+    linestyles = ('solid', '--', ':')
+    colors = ('k', 'k', 'k')
 
     if dnode.inputs['X-axis'].rtypemenu == 'Time':
         if dnode.timemenu == '0':
@@ -101,7 +107,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
             xdata = range(Sdate.month, Edate.month + 1)
             xlabel = 'Time (months)'        
     else:
-        menus = retmenu(dnode, 'X-axis', dnode.inputs['X-axis'].rtypemenu)
+        menus = retmenu(dnode, 'X-axis', dnode.inputs['X-axis'].rtypemenu)        
         data = [rx[4].split()[si:ei + 1] for rx in rlx if rx[0] == framex and rx[1] == dnode.inputs['X-axis'].rtypemenu and rx[2] == menus[0] and rx[3] == menus[1]][0]
         xdata = timedata([dnode.inputs['X-axis'].multfactor * float(xd) for xd in data], dnode.timemenu, dnode.inputs['X-axis'].statmenu, mdata, ddata, sdata, dnode, Sdate, Edate)
         xlabel = label(dnode, menus[1], 'X-axis', variant)
@@ -114,8 +120,8 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     y1d = [ry1[4].split()[si:ei + 1] for ry1 in rly1 if ry1[0] == framey1 and ry1[1] == dnode.inputs['Y-axis 1'].rtypemenu and ry1[2] == menusy1[0] and ry1[3] == menusy1[1]][0]
     y1data = timedata([dnode.inputs['Y-axis 1'].multfactor * float(y) for y in y1d], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, mdata, ddata, sdata, dnode, Sdate, Edate)
     ylabel = label(dnode, menusy1[1], 'Y-axis 1', variant)
-    line, = plt.plot(xdata, [dnode.inputs['Y-axis 1'].multfactor * float(yd) for yd in y1data], color='k', linewidth = 0.2, label = llabel(dnode, menusy1[1], 'Y-axis 1', variant))    
-    print(xdata, y1data)   
+    line, = plt.plot(xdata, y1data, color=colors[0], ls = linestyles[0], linewidth = 1, label = llabel(dnode, menusy1[1], 'Y-axis 1', variant))    
+           
     if dnode.inputs['Y-axis 2'].links:
         rny2 = dnode.inputs['Y-axis 2'].links[0].from_node
         rly2 = rny2['reslists']
@@ -124,8 +130,8 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
         menusy2 = retmenu(dnode, 'Y-axis 2', dnode.inputs['Y-axis 2'].rtypemenu)
         y2d = [ry2[4].split()[si:ei + 1] for ry2 in rly2 if ry2[0] == framey2 and ry2[1] == dnode.inputs['Y-axis 2'].rtypemenu and ry2[2] == menusy2[0] and ry2[3] == menusy2[1]][0]
         y2data = timedata([float(y) for y in y2d], dnode.timemenu, dnode.inputs['Y-axis 2'].statmenu, mdata, ddata, sdata, dnode, Sdate, Edate)
-        ylabel = label(dnode, menusy2[1], 'Y-axis 2', variant)
-        line, = plt.plot(xdata, [dnode.inputs['Y-axis 2'].multfactor * float(yd) for yd in y2data], color='k', linewidth = 0.2, label = llabel(dnode, menusy2[1], 'Y-axis 2', variant))    
+    #    ylabel = label(dnode, menusy2[1], 'Y-axis 2', variant)
+        line, = plt.plot(xdata, y2data, color=colors[1], ls = linestyles[1], linewidth = 1, label = llabel(dnode, menusy2[1], 'Y-axis 2', variant))    
  
     if dnode.inputs['Y-axis 3'].links:
         rny3 = dnode.inputs['Y-axis 3'].links[0].from_node
@@ -135,8 +141,8 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
         menusy3 = retmenu(dnode, 'Y-axis 3', dnode.inputs['Y-axis 3'].rtypemenu)
         y3d = [ry3[4].split()[si:ei + 1] for ry3 in rly3 if ry3[0] == framey3 and ry3[1] == dnode.inputs['Y-axis 3'].rtypemenu and ry3[2] == menusy3[0] and ry3[3] == menusy3[1]][0]
         y3data = timedata([float(y) for y in y3d], dnode.timemenu, dnode.inputs['Y-axis 3'].statmenu, mdata, ddata, sdata, dnode, Sdate, Edate)
-        ylabel = label(dnode, menusy3[1], 'Y-axis 3', variant)
-        line, = plt.plot(xdata, [dnode.inputs['Y-axis 3'].multfactor * float(yd) for yd in y3data], color='k', linewidth = 0.2, label=dnode.inputs['Y-axis 3'].rtypemenu + (" ("+dnode.inputs['Y-axis 3'].statmenu + ")", "")[dnode.timemenu == '0'])    
+#        ylabel = label(dnode, menusy3[1], 'Y-axis 3', variant)
+        line, = plt.plot(xdata, y3data, color=colors[2], ls = linestyles[2], linewidth = 1, label=llabel(dnode, menusy3[1], 'Y-axis 3', variant))    
 
     try:
         plt.xlabel(xlabel)    

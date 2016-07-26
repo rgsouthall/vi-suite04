@@ -441,7 +441,7 @@ def pregeo(op):
     [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and node.bl_idname == 'EnViTC' and scene.objects[node.zone[3:]].envi_type != '2']            
 
     for obj in enviobjs:
-        reversefaces = []
+#        reversefaces = []
         omats = [om for om in obj.data.materials]
         if obj.envi_type in ('0', '2') and not omats:
             op.report({'ERROR'}, 'Object {} is specified as a thermal zone but has no materials'.format(obj.name))
@@ -462,6 +462,7 @@ def pregeo(op):
             selmesh('desel')
             bpy.ops.object.duplicate()    
             en_obj = scene.objects.active
+            
             enomats = [enom for enom in en_obj.data.materials if enom]
             obj.select, en_obj.select, en_obj.name, en_obj.data.name, en_obj.layers[1], en_obj.layers[0], bpy.data.scenes[0].layers[0:2] = False, True, 'en_'+obj.name, en_obj.data.name, True, False, (False, True)
             mis = [f.material_index for f in en_obj.data.polygons]
@@ -474,37 +475,44 @@ def pregeo(op):
                 if sm.material.envi_con_type in dcdict:
                     sm.material.diffuse_color = dcdict[mct]
     
-            for poly in en_obj.data.polygons:
-                mat = en_obj.data.materials[poly.material_index]
-                if poly.area < 0.001 or mat.envi_con_type == 'None' or (en_obj.data.materials[poly.material_index].envi_con_makeup == '1' and en_obj.data.materials[poly.material_index].envi_layero == '0'):
-                    poly.select = True 
+#            for poly in en_obj.data.polygons:
+#                mat = en_obj.data.materials[poly.material_index]
+#                if poly.area < 0.001 or mat.envi_con_type == 'None' or (en_obj.data.materials[poly.material_index].envi_con_makeup == '1' and en_obj.data.materials[poly.material_index].envi_layero == '0'):
+#                    poly.select = True 
                     
-            selmesh('delf')
+#            selmesh('delf')
             bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
             en_obj.select = False
             bm = bmesh.new()
             bm.from_mesh(en_obj.data)
+#            bm.transform(en_obj.matrix_world)
+            bmesh.ops.delete(bm, geom = [face for face in bm.faces if face.calc_area() < 0.001 and \
+                en_obj.data.materials[face.material_index].envi_con_type == 'None' or (en_obj.data.materials[face.material_index].envi_con_makeup == '1' and \
+                en_obj.data.materials[face.material_index].envi_layero == '0')])
             bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.001)
             
             if all([e.is_manifold for e in bm.edges]):
                 bmesh.ops.recalc_face_normals(bm, faces = bm.faces)
             else:  
-                for face in bm.faces:
-                    mat = en_obj.data.materials[face.material_index]
-                    if mat.envi_con_type in ('Wall', 'Window', 'Floor', 'Roof', 'Door'):
-                        if (face.calc_center_bounds()).dot(face.normal) < 0:
-                            reversefaces.append(face)
+                reversefaces = [face for face in bm.faces if en_obj.data.materials[face.material_index].envi_con_type in ('Wall', 'Window', 'Floor', 'Roof', 'Door') and (face.calc_center_bounds()).dot(face.normal) < 0]
+#                for face in bm.faces:
+#                    mat = en_obj.data.materials[face.material_index]
+#                    if mat.envi_con_type in ('Wall', 'Window', 'Floor', 'Roof', 'Door'):
+#                        if (face.calc_center_bounds()).dot(face.normal) < 0:
+#                            reversefaces.append(face)
                             
-            bmesh.ops.reverse_faces(bm, faces = reversefaces)
+                bmesh.ops.reverse_faces(bm, faces = reversefaces)
             bmesh.ops.split_edges(bm, edges = bm.edges)
             bmesh.ops.dissolve_limit(bm, angle_limit = 0.01, verts = bm.verts)
-            bm.faces.index_update()                
+            bmesh.ops.triangulate(bm, faces = [face for face in bm.faces if obj.data.materials[face.material_index].envi_con_type in ('Window', 'Door')])
+#            bm.faces.index_update()                
 #            bmesh.ops.triangulate(bm, faces = [face for face in bm.faces if en_obj.data.materials[face.material_index].envi_con_type == 'Shading'])
 #            bm.transform(en_obj.matrix_world)
 #            en_obj["volume"] = bm.calc_volume()
 #            bm.transform(en_obj.matrix_world.inverted())
             bm.to_mesh(en_obj.data)        
             bm.free()
+            en_obj.parent = obj
 
             linklist = []        
             for link in enng.links:

@@ -46,7 +46,7 @@ def radgexport(export_op, node, **kwargs):
     
     for frame in frames:
         scene.frame_set(frame)
-        mradfile =  "# Materials \n\n" + ''.join([m.radmat(scene) for m in mats])
+        mradfile =  "# Materials \n\n" + "".join([m.radmat(scene) for m in mats])
         bpy.ops.object.select_all(action='DESELECT')
         tempmatfilename = scene['viparams']['filebase']+".tempmat"
         with open(tempmatfilename, "w") as tempmatfile:
@@ -58,7 +58,9 @@ def radgexport(export_op, node, **kwargs):
 
         for o in eolist:
             bm = bmesh.new()
-            bm.from_mesh(o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW'))
+            tempmesh = o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW')
+            bm.from_mesh(tempmesh)
+            bpy.data.meshes.remove(tempmesh)
             bm.transform(o.matrix_world)
             bm.normal_update() 
             gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename)
@@ -194,7 +196,7 @@ def spfc(self):
 def cyfc1(self):
     scene = bpy.context.scene        
     if 'LiVi' in scene['viparams']['resnode'] or 'Shadow' in scene['viparams']['resnode']:
-        for material in [m for m in bpy.data.materials if m.use_nodes and m.mattype in ('1', '2')]:
+        for material in [m for m in bpy.data.materials if m.use_nodes and m.mattype == '1']:
             try:
                 if any([node.bl_label == 'Attribute' for node in material.node_tree.nodes]):
                     material.node_tree.nodes["Attribute"].attribute_name = str(scene.frame_current)

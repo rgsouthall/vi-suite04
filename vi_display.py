@@ -15,25 +15,39 @@
 #  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
-
-
+ # -*- coding: utf-8 -*-
+#from __future__ import unicode_literals
 import bpy, blf, colorsys, bgl, mathutils, bmesh, datetime, os, inspect
 from bpy_extras import view3d_utils
 from math import pi, sin, cos, atan2, log10, ceil
 from numpy import array
 from numpy import sum as nsum
+from numpy import min as nmin
+from numpy import max as nmax
 try:
     import matplotlib.pyplot as plt
     import matplotlib.cm as mcm
+    
     mp = 1
 except:
     mp = 0
 
 from . import livi_export
-from .vi_func import cmap, skframe, selobj, retvpvloc, viewdesc, drawloop, drawpoly, draw_index, drawfont 
-from .vi_func import retdp, objmode, drawcircle, drawtri, setscenelivivals, draw_time, retcols, draw_index_distance
+from .vi_func import cmap, skframe, selobj, retvpvloc, viewdesc, drawloop, drawpoly, draw_index, drawfont, blf_props
+from .vi_func import retdp, objmode, drawcircle, drawtri, setscenelivivals, draw_time, retcols, draw_index_distance, retenvires
 
 nh = 768
+enunitdict = {'Heating (W)': 'Watts (W)', 'Cooling (W)': 'Watts (W)', 'CO2 (ppm)': 'PPM', 'Solar gain (W)': 'Watts (W)', 'Temperature (degC)': u'Temperature (\u00B0C)'}
+entitledict = {'Heating (W)': 'Heating Consumtption', 'Cooling (W)': 'Cooling Consumption', 'CO2 (ppm)': r'CO$_2$ Concentration', 'Solar gain (W)': 'Solar Gain', 'Temperature (degC)': 'Temperature'}
+
+#envaldict = {'Heating (W)': 'Watts (W)', 'Cooling (W)': 'Watts (W)', 'CO2 (ppm)': 'PPM', 'Solar gain (W)': 'Watts (W)', 'Temperature (degC)': (scene.en_temp_min, scene.en_temp_max)}
+
+def envals(self, scene, data):
+    envaldict = {'Heating (W)': (scene.en_heat_min, scene.en_heat_max), 'Cooling (W)': (scene.en_cool_min, scene.en_cool_max), 'CO2 (ppm)': (scene.en_co2_min, scene.en_co2_max), 'Solar gain (W)': (scene.en_shg_min, scene.en_shg_max), 'Temperature (degC)': (scene.en_temp_min, scene.en_temp_max)}
+    if self.unit in envaldict:
+        return envaldict[self.unit]
+    else:
+        return (nmin(data), nmax(data))
 
 def ss_display():
     pass
@@ -41,7 +55,10 @@ def ss_display():
 def li_display(simnode):
     scene, obreslist, obcalclist = bpy.context.scene, [], []
     setscenelivivals(scene)
-    scene.display_settings.display_device = 'None'
+    try:
+        scene.display_settings.display_device = 'None'
+    except:
+        pass
     (rcol, mtype) =  ('hot', 'livi') if 'LiVi' in simnode.bl_label else ('grey', 'shad')
     cmap(scene)
 
@@ -112,8 +129,11 @@ def li_display(simnode):
                 ores.material_slots[-1].material = bpy.data.materials[matname]
         
         if scene.vi_disp_3d == 1 and scene['liparams']['cp'] == '0':
+            bm.faces.layers.int.new('extrude')
+            extrude = bm.faces.layers.int['extrude']
             for face in bmesh.ops.extrude_discrete_faces(bm, faces = bm.faces)['faces']:
                 face.select = True
+                face[extrude] = 1
                         
         bm.transform(o.matrix_world.inverted())
         bm.to_mesh(ores.data)
@@ -148,6 +168,7 @@ def spnumdisplay(disp_op, context, simnode):
             
             try:
                 (hs, posis) = map(list, zip(*[[p, p2ds[pi]] for pi, p in enumerate(pvals) if p2ds[pi] and 0 < p2ds[pi][0] < width and 0 < p2ds[pi][1] < height and not scene.ray_cast(pvecs[pi] - 0.05 * (pvecs[pi] - vl), vl - 0.95 * pvecs[pi])[0]]))
+                blf_props(scene)
                 draw_index(posis, hs, scene.vi_display_rp_fs, scene.vi_display_rp_fc, scene.vi_display_rp_fsh)
             except Exception as E:
                 print(E)
@@ -167,6 +188,7 @@ def spnumdisplay(disp_op, context, simnode):
                         soltime = datetime.datetime.fromordinal(scene.solday)
                         soltime += datetime.timedelta(hours = scene.solhour)
                         sre = sobs[0].rotation_euler
+                        blf_props(scene)
                         draw_time(solpos, soltime.strftime('  %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90 - sre[0]*180/pi, (180, -180)[sre[2] < -pi] - sre[2]*180/pi), 
                                    scene.vi_display_rp_fs, scene.vi_display_rp_fc, scene.vi_display_rp_fsh)
                         
@@ -175,132 +197,201 @@ def spnumdisplay(disp_op, context, simnode):
     else:
         return
 
-def linumdisplay(disp_op, context, simnode):
-    scene = context.scene    
-    if not scene.get('viparams') or scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel'):
-        scene.vi_display = 0
-        return
-    if scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
-        disp_op.report({'INFO'},"Outside result frame range")
-        return
-
-    obreslist = [ob for ob in scene.objects if ob.type == 'MESH'  and 'lightarray' not in ob.name and ob.hide == False and ob.layers[scene.active_layer] == True and ob.get('lires')]
-                    
-    if scene.vi_display_rp != True \
-         or (bpy.context.active_object not in obreslist and scene.vi_display_sel_only == True)  \
-         or (bpy.context.active_object and bpy.context.active_object.mode == 'EDIT'):
-        return
-        
-    objmode()    
-    fn = context.scene.frame_current - scene['liparams']['fs']
-    mid_x, mid_y, width, height = viewdesc(context)
-    view_location = retvpvloc(context)
-
-    if scene.vi_display_sel_only == False:
-        obd = obreslist
-    else:
-        obd = [context.active_object] if context.active_object in obreslist else []
-
-    for ob in obd:
-        if ob.data.shape_keys and str(fn) in [sk.name for sk in ob.data.shape_keys.key_blocks] and ob.active_shape_key.name != str(fn):
-            ob.active_shape_key_index = [sk.name for sk in ob.data.shape_keys.key_blocks].index(str(fn))
-        try:
-            omw = ob.matrix_world
-            bm = bmesh.new()
-            bm.from_object(ob, scene, deform=True, render=False, cage=False, face_normals=True)
-            bm.transform(omw)
-    
-            if bm.faces.layers.float.get('res{}'.format(scene.frame_current)): 
-                livires = bm.faces.layers.float['res{}'.format(scene.frame_current)]
-                faces = [f for f in bm.faces if f.select] if scene.vi_disp_3d else bm.faces
-                distances = [(view_location - f.calc_center_bounds() + scene.vi_display_rp_off * f.normal.normalized()).length for f in faces]
-                            
-                if scene.vi_display_vis_only:
-                    fcos = [f.calc_center_bounds() + scene.vi_display_rp_off * f.normal.normalized() for f in faces]
-                    direcs = [view_location - f for f in fcos]
-                    (faces, distances) = map(list, zip(*[[f, distances[i]] for i, f in enumerate(faces) if not scene.ray_cast(fcos[i], direcs[i], distance=distances[i])[0]]))
-
-                face2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, f.calc_center_bounds()) for f in faces]
-                (faces, pcs, depths) = map(list, zip(*[[f, face2d[fi], distances[fi]] for fi, f in enumerate(faces) if face2d[fi] and 0 < face2d[fi][0] < width and 0 < face2d[fi][1] < height]))          
-                res = [f[livires] for f in faces]
-            
-            elif bm.verts.layers.float.get('res{}'.format(scene.frame_current)):            
-                livires = bm.verts.layers.float['res{}'.format(scene.frame_current)]                         
-                verts = [v for v in bm.verts if not v.hide and v.select]
-                distances = [(view_location - v.co + scene.vi_display_rp_off * v.normal.normalized()).length for v in verts]
-                
-                if scene.vi_display_vis_only:
-                    vcos = [v.co + scene.vi_display_rp_off * v.normal.normalized() for v in verts]
-                    direcs = [view_location - v for v in vcos]
-                    (verts, distances) = map(list, zip(*[[v, distances[i]] for i, v in enumerate(verts) if not scene.ray_cast(vcos[i], direcs[i], distance=distances[i])[0]]))
-                    
-                vert2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, v.co) for v in verts]
-                (verts, pcs, depths) = map(list, zip(*[[v, vert2d[vi], distances[vi]] for vi, v in enumerate(verts) if vert2d[vi] and 0 < vert2d[vi][0] < width and 0 < vert2d[vi][1] < height]))
-                res = [v[livires] for v in verts]
-            
-            draw_index_distance(pcs, res, scene.vi_display_rp_fs, scene.vi_display_rp_fc, scene.vi_display_rp_fsh, depths)    
-            bm.free()
-            
-        except Exception as e:
-            print(e)
-    blf.disable(0, 4)
-
-def li3D_legend(self, context, simnode):
-    scene = context.scene
-    fc = str(scene.frame_current)
-    dplaces = retdp(scene.vi_leg_max, 1)
-    
-    if not scene.get('liparams'):
-        scene.vi_display = 0
-        return
-
-    try:
-        if scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or not scene.vi_leg_display  or not any([o.lires for o in scene.objects]) or scene['liparams']['unit'] == 'Sky View':
-            return
+class linumdisplay():
+    def __init__(self, disp_op, context, simnode):
+        self.scene = context.scene  
+        self.fn = self.scene.frame_current - self.scene['liparams']['fs']
+        self.level = self.scene.vi_disp_3dlevel
+        self.disp_op = disp_op
+        self.obreslist = [ob for ob in self.scene.objects if ob.type == 'MESH'  and 'lightarray' not in ob.name and ob.hide == False and ob.layers[self.scene.active_layer] == True and ob.get('lires')]
+        if self.scene.vi_display_sel_only == False:
+            self.obd = self.obreslist
         else:
-            mid_x, mid_y, width, height = viewdesc(context)
-            bgl.glLineWidth(1)
-            resvals = [format(scene.vi_leg_min + i*(scene.vi_leg_max - scene.vi_leg_min)/19, '.{}f'.format(dplaces)) for i in range(20)] if scene.vi_leg_scale == '0' else \
-                        [format(scene.vi_leg_min + (1 -log10(i)/log10(20))*(scene.vi_leg_max - scene.vi_leg_min), '.{}f'.format(dplaces)) for i in range(1, 21)[::-1]]
-            lenres = len(resvals[-1])
-            font_id = 0
-            drawpoly(20, height - 40, 70 + lenres*8, height - 520, 1, 1, 1, 0.9)
-            drawloop(19, height - 40, 70 + lenres*8, height - 520)
-            blf.enable(0, blf.SHADOW)
-            blf.enable(0, blf.KERNING_DEFAULT)
-            blf.shadow(0, 5, 0, 0, 0, 0.7)
-            cols = retcols(scene)
-            for i in range(20):
-                rgba = cols[i]
-                drawpoly(20, (i*20)+height - 440, 60, (i*20)+height - 460, *rgba)    
-                blf.size(font_id, 20, 48)
-                bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-                blf.position(font_id, 65, (i*20)+height - 455, 0)
-                blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])    
+            self.obd = [context.active_object] if context.active_object in self.obreslist else []
+        self.omws = [o.matrix_world for o in self.obd] 
+        mid_x, mid_y, self.width, self.height = viewdesc(context)
+        self.view_location = retvpvloc(context)
+        objmode()
+        self.update(context)
+        
+    def draw(self, context):
+        self.u = 0
+        self.scene = context.scene
+        if not self.scene.get('viparams') or self.scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel'):
+            self.scene.vi_display = 0
+            return
+        if self.scene.frame_current not in range(self.scene['liparams']['fs'], self.scene['liparams']['fe'] + 1):
+            self.disp_op.report({'INFO'},"Outside result frame range")
+            return
+        if self.scene.vi_display_rp != True \
+         or (bpy.context.active_object not in self.obreslist and self.scene.vi_display_sel_only == True)  \
+         or (bpy.context.active_object and bpy.context.active_object.mode == 'EDIT'):
+             return
+        
+#        self.fn = self.scene.frame_current - self.scene['liparams']['fs']
+        
+        if (self.width, self.height) != viewdesc(context)[2:]:
+            mid_x, mid_y, self.width, self.height = viewdesc(context)
+            self.u = 1
             
-            blf.size(font_id, 20, 56)    
-            drawfont(scene['liparams']['unit'], font_id, 0, height, 25, 57)
-            bgl.glDisable(bgl.GL_BLEND)
-            font_id = 0
-            bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
-            blf.size(font_id, 20, 48)
+        if self.view_location != retvpvloc(context):
+            self.view_location = retvpvloc(context)
+            self.u = 1
             
-            if context.active_object and context.active_object.get('lires'):
-                drawfont("Ave: {}".format(format(context.active_object['oave'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 480)
-                drawfont("Max: {}".format(format(context.active_object['omax'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 495)
-                drawfont("Min: {}".format(format(context.active_object['omin'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 510)
-            else:
-                drawfont("Ave: {}".format(format(scene['liparams']['avres'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 480)
-                drawfont("Max: {}".format(format(scene['liparams']['maxres'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 495)
-                drawfont("Min: {}".format(format(scene['liparams']['minres'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 510)
+        if self.scene.vi_display_sel_only == False:
+            obd = self.obreslist
+        else:
+            obd = [context.active_object] if context.active_object in self.obreslist else []
+        
+        if self.obd != obd:
+            self.obd = obd
+            self.u = 1
+        
+        if self.fn != self.scene.frame_current - self.scene['liparams']['fs']:
+#        if self.omws != [o.matrix_world for o in self.scene.objects]:
+#            self.omws = [o.matrix_world for o in self.scene.objects]
+            self.fn = self.scene.frame_current - self.scene['liparams']['fs']
+            self.u = 1
             
-            blf.disable(0, blf.KERNING_DEFAULT)
-            blf.disable(0, blf.SHADOW)
+        if self.level != self.scene.vi_disp_3dlevel:
+            self.level = self.scene.vi_disp_3dlevel
+            self.u = 1
+  
+        if self.u:
+            self.update(context)
+        else:
+            blf_props(self.scene)
+            draw_index_distance(self.allpcs, self.allres, self.scene.vi_display_rp_fs, self.scene.vi_display_rp_fc, self.scene.vi_display_rp_fsh, self.alldepths)    
+
+#    obreslist = [ob for ob in scene.objects if ob.type == 'MESH'  and 'lightarray' not in ob.name and ob.hide == False and ob.layers[scene.active_layer] == True and ob.get('lires')]
+                            
+    def update(self, context):
+        self.allpcs, self.alldepths, self.allres = [], [], []
+        try:
+            for ob in self.obd:
+                if ob.data.get('shape_keys') and str(self.fn) in [sk.name for sk in ob.data.shape_keys.key_blocks] and ob.active_shape_key.name != str(self.fn):
+                    ob.active_shape_key_index = [sk.name for sk in ob.data.shape_keys.key_blocks].index(str(self.fn))
+                try:
+                    omw = ob.matrix_world
+                    bm = bmesh.new()
+                    tempmesh = ob.to_mesh(scene = context.scene, apply_modifiers = True, settings = 'PREVIEW')
+                    bm.from_mesh(tempmesh)
+                    bpy.data.meshes.remove(tempmesh)
+                    bm.transform(omw)
+                    geom = bm.faces if bm.faces.layers.float.get('res{}'.format(self.scene.frame_current)) else bm.verts
+                    geom.ensure_lookup_table()
+                    livires = geom.layers.float['res{}'.format(self.scene.frame_current)]
             
-    except Exception as e:
-        print(e, 'Turning off legend display')
-        scene.vi_leg_display = 0
-        scene.update()
+                    if bm.faces.layers.float.get('res{}'.format(self.scene.frame_current)):
+#                        bm.faces.ensure_lookup_table()
+#                        livires = bm.faces.layers.float['res{}'.format(self.scene.frame_current)]
+                        if self.scene.vi_disp_3d:
+                            extrude = geom.layers.int['extrude']                                
+                            faces = [f for f in geom if f.select and f[extrude]]
+                        else:
+                            faces = [f for f in geom if f.select]
+
+                        distances = [(self.view_location - f.calc_center_median_weighted() + self.scene.vi_display_rp_off * f.normal.normalized()).length for f in faces]
+                                    
+                        if self.scene.vi_display_vis_only:
+                            fcos = [f.calc_center_median_weighted() + self.scene.vi_display_rp_off * f.normal.normalized() for f in faces]
+                            direcs = [self.view_location - f for f in fcos]
+                            (faces, distances) = map(list, zip(*[[f, distances[i]] for i, f in enumerate(faces) if not self.scene.ray_cast(fcos[i], direcs[i], distance=distances[i])[0]]))
+        
+                        face2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, f.calc_center_median_weighted()) for f in faces]
+                        (faces, self.pcs, self.depths) = map(list, zip(*[[f, face2d[fi], distances[fi]] for fi, f in enumerate(faces) if face2d[fi] and 0 < face2d[fi][0] < self.width and 0 < face2d[fi][1] < self.height]))          
+                        self.res = [f[livires] for f in faces]
+                    
+                    elif bm.verts.layers.float.get('res{}'.format(self.scene.frame_current)):
+#                        bm.verts.ensure_lookup_table()
+#                        livires = bm.verts.layers.float['res{}'.format(self.scene.frame_current)]                         
+                        verts = [v for v in geom if not v.hide and v.select]
+                        distances = [(self.view_location - v.co + self.scene.vi_display_rp_off * v.normal.normalized()).length for v in verts]
+                        
+                        if self.scene.vi_display_vis_only:
+                            vcos = [v.co + self.scene.vi_display_rp_off * v.normal.normalized() for v in verts]
+                            direcs = [self.view_location - v for v in vcos]
+                            (verts, distances) = map(list, zip(*[[v, distances[i]] for i, v in enumerate(verts) if not self.scene.ray_cast(vcos[i], direcs[i], distance=distances[i])[0]]))
+                            
+                        vert2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, v.co) for v in verts]
+                        (verts, self.pcs, self.depths) = map(list, zip(*[[v, vert2d[vi], distances[vi]] for vi, v in enumerate(verts) if vert2d[vi] and 0 < vert2d[vi][0] < self.width and 0 < vert2d[vi][1] < self.height]))
+                        self.res = [v[livires] for v in verts]
+                    
+                    bm.free()
+                except Exception as e:
+                    self.pcs, self.depths, self.res = [], [], []
+                    print(e)
+                    
+                self.allpcs += self.pcs
+                self.alldepths += self.depths
+                self.allres += self.res
+            self.allpcs  = array(self.allpcs)
+            self.alldepths = array(self.alldepths)
+            self.allres = array(self.allres)
+            draw_index_distance(self.allpcs, self.allres, self.scene.vi_display_rp_fs, self.scene.vi_display_rp_fc, self.scene.vi_display_rp_fsh, self.alldepths)    
+    
+                     
+                
+            blf.disable(0, 4)
+        except:
+            pass
+
+#def li3D_legend(self, context, simnode):
+#    scene = context.scene
+#    fc = str(scene.frame_current)
+#    dplaces = retdp(scene.vi_leg_max, 1)
+#    
+#    if not scene.get('liparams'):
+#        scene.vi_display = 0
+#        return
+#
+#    try:
+#        if scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or not scene.vi_leg_display  or not any([o.lires for o in scene.objects]) or scene['liparams']['unit'] == 'Sky View':
+#            return
+#        else:
+#            mid_x, mid_y, width, height = viewdesc(context)
+#            bgl.glLineWidth(1)
+#            resvals = [format(scene.vi_leg_min + i*(scene.vi_leg_max - scene.vi_leg_min)/19, '.{}f'.format(dplaces)) for i in range(20)] if scene.vi_leg_scale == '0' else \
+#                        [format(scene.vi_leg_min + (1 -log10(i)/log10(20))*(scene.vi_leg_max - scene.vi_leg_min), '.{}f'.format(dplaces)) for i in range(1, 21)[::-1]]
+#            lenres = len(resvals[-1])
+#            font_id = 0
+#            drawpoly(20, height - 40, 70 + lenres*8, height - 520, 1, 1, 1, 0.9)
+#            drawloop(19, height - 40, 70 + lenres*8, height - 520)
+#            blf.enable(0, blf.SHADOW)
+#            blf.enable(0, blf.KERNING_DEFAULT)
+#            blf.shadow(0, 5, 0, 0, 0, 0.7)
+#            cols = retcols(scene)
+#            for i in range(20):
+#                rgba = cols[i]
+#                drawpoly(20, (i*20)+height - 440, 60, (i*20)+height - 460, *rgba)    
+#                blf.size(font_id, 20, 48)
+#                bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+#                blf.position(font_id, 65, (i*20)+height - 455, 0)
+#                blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])    
+#            
+#            blf.size(font_id, 20, 56)    
+#            drawfont(scene['liparams']['unit'], font_id, 0, height, 25, 57)
+#            bgl.glDisable(bgl.GL_BLEND)
+#            font_id = 0
+#            bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
+#            blf.size(font_id, 20, 48)
+#            
+#            if context.active_object and context.active_object.get('lires'):
+#                drawfont("Ave: {}".format(format(context.active_object['oave'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 480)
+#                drawfont("Max: {}".format(format(context.active_object['omax'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 495)
+#                drawfont("Min: {}".format(format(context.active_object['omin'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 510)
+#            else:
+#                drawfont("Ave: {}".format(format(scene['liparams']['avres'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 480)
+#                drawfont("Max: {}".format(format(scene['liparams']['maxres'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 495)
+#                drawfont("Min: {}".format(format(scene['liparams']['minres'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 510)
+#            
+#            blf.disable(0, blf.KERNING_DEFAULT)
+#            blf.disable(0, blf.SHADOW)
+#            
+#    except Exception as e:
+#        print(e, 'Turning off legend display')
+#        scene.vi_leg_display = 0
+#        scene.update()
 
 def en_air(self, context, temp, ws, wd, hu):
     scene = context.scene
@@ -565,8 +656,8 @@ def en_panel(self, context, resnode):
 class Base_Display():
     def __init__(self, pos, width, height, iname, xdiff, ydiff):
         self.pos = pos
-        self.spos = [int(self.pos[0] - 0.025 * width), int(self.pos[1] - 0.025 * height)]
-        self.epos = [int(self.pos[0] + 0.025 * width), int(self.pos[1] + 0.025 * height)]        
+        self.spos = [int(self.pos[0] - 0.025 * width), int(self.pos[1] - 0.0125 * height)]
+        self.epos = [int(self.pos[0] + 0.025 * width), int(self.pos[1] + 0.0125 * height)]        
         self.lspos = [self.spos[0], self.spos[1] - ydiff]
         self.lepos = [self.spos[0] + xdiff, self.spos[1]]
         self.lpos = (self.pos[0] + 0.2 * width, self.pos[1] - 0.2 * height)
@@ -583,8 +674,8 @@ class Base_Display():
         self.width, self.height = context.region.width, context.region.height
         if self.pos[1] > height:
             self.pos[1] = height
-        self.spos = (int(self.pos[0] - 25), int(self.pos[1] - 25))
-        self.epos = (int(self.pos[0] + 25), int(self.pos[1] + 25))
+        self.spos = (int(self.pos[0] - 25), int(self.pos[1] - 15))
+        self.epos = (int(self.pos[0] + 25), int(self.pos[1] + 15))
         if self.expand == 0:
             self.drawclosed()
         if self.expand == 1:
@@ -656,6 +747,78 @@ class wr_scatter(Base_Display):
         
     def show_plot(self):
         show_plot(self)
+        
+class en_scatter(Base_Display):
+    def __init__(self, pos, width, height, iname, xdiff, ydiff):
+        Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
+#        self.ws, self.type_select = 1, 'Speed'
+        
+    def update(self, context):
+        self.cao = context.active_object
+        scene = context.scene
+        resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
+        self.unit = scene.en_disp_unit if scene.en_disp_unit else resnode[self.resstring].keys()[0]
+        self.resstring = retenvires(scene)
+
+        try:
+            zdata, hours, days = array(self.cao[self.resstring][self.unit]).reshape(len(self.cao['days']), 24).T, self.cao['hours'], self.cao['days']
+            title = self.cao.name
+        except:  
+            zdata, hours, days = array(resnode[self.resstring][self.unit]).reshape(len(resnode['days']), 24).T, resnode['hours'], resnode['days']
+            title = 'Total'
+            
+        (valmin, valmax) = envals(self, scene, zdata)
+
+        cbtitle = enunitdict[self.unit]
+        self.plt = plt
+        self.plt.rcParams['font.family']='Noto Sans'
+        draw_dhscatter(self, scene, days, hours, zdata, '{} {}'.format(title, entitledict[self.unit]), 'Days', 'Hours', cbtitle, valmin, valmax)  
+        save_plot(self, scene, 'scatter.png')
+        
+    def drawopen(self, context):
+        draw_image(self, 0)
+        
+    def show_plot(self):
+        show_plot(self)
+        
+class ss_scatter(Base_Display):
+    def __init__(self, pos, width, height, iname, xdiff, ydiff):
+        Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
+        self.type_select = 1
+        
+    def update(self, context):
+        self.cao = context.active_object
+        if self.cao and self.cao.get('dhres'):
+#            zdata = self.cao['ws'] if self.type_select else self.cao['wd']  
+            (title, cbtitle) = ('Wind Speed', 'Speed (m/s)') if self.type_select else ('Wind Direction', u'Direction (\u00B0)')
+            self.plt = plt
+            draw_dhscatter(self, context.scene, *self.cao['dhres'], title, 'Days', 'Hours', cbtitle)  
+            save_plot(self, context.scene, 'scatter.png')
+        
+    def drawopen(self, context):
+        draw_image(self, self.ydiff * 0.1)
+#        butcents = [[int(self.lspos[0] + 0.07 * self.xdiff), int(self.lepos[1] - self.ydiff * 0.05)], [int(self.lspos[0] + 0.93 * self.xdiff), int(self.lepos[1] - self.ydiff * 0.05)]]
+#        butcent = [int(self.lspos[0] + 30), int(self.lepos[1] - self.ydiff * 0.05)]
+#        if self.type_select:
+#            drawpoly(int(butcent[0] - 10), int(self.lepos[1] - self.ydiff * 0.03), int(butcent[0] + 10), int(self.lepos[1] - self.ydiff * 0.07), 0.5, 0.5, 0.5, 1)
+#
+#        drawloop(int(butcent[0] - 10), int(self.lepos[1] - self.ydiff * 0.03), int(butcent[0] + 10), int(self.lepos[1] - self.ydiff * 0.07))
+##        drawloop(int(butcents[1][0] - 10), int(self.lepos[1] - self.ydiff * 0.03), int(self.lepos[0] - 20), int(self.lepos[1] - self.ydiff * 0.07))
+#        self.buttons = {'Speed/Direction': butcent}
+#        blf.size(0, 44, int(self.ydiff * 0.075))
+#        blf.position(0, butcent[0]  + 10 + self.xdiff * 0.01, butcent[1] - 0.3 * blf.dimensions(0, 'Speed/Direction')[1], 0)
+#        blf.draw(0, 'Speed/Direction')
+#        blf.position(0, butcents[1][0] - 25 - blf.dimensions(0, 'Direction')[0], butcents[1][1] - 0.5 * blf.dimensions(0, 'Direction')[1], 0)
+#        blf.draw(0, 'Direction')
+#        if self.type_select:
+#            drawpoly(int(butcent[0] - 9), int(self.buttons[self.type_select][1] - 0.015 * self.ydiff), int(butcent[0] + 9), int(self.buttons[self.type_select][1] + 0.015 * self.ydiff), 0.5, 0.5, 0.5, 1)
+
+#    def save_fig(self, scene):
+#        save_fig(self, scene, 'scatter.png')
+        
+    def show_plot(self):
+        show_plot(self)
+
 
 class wr_table(Base_Display):
     def __init__(self, pos, width, height, iname, xdiff, ydiff):
@@ -669,12 +832,39 @@ class wr_table(Base_Display):
         
     def drawopen(self, context):
         draw_table(self)
+        
+class basic_table(Base_Display):
+    def __init__(self, pos, width, height, iname, xdiff, ydiff):
+        Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
+        self.fontdpi = int(0.15 * ydiff)
+        self.unitdict = {'Lux': 1, u'W/m\u00b2 (v)': 2, u'W/m\u00b2 (f)': 3, 'DF (%)': 4}
+        
+    def update(self, context):
+        self.unit = context.scene['liparams']['unit']
+        self.cao = context.active_object
+        if self.cao and self.cao.get('table{}'.format(context.scene.frame_current)):
+            self.rcarray = array((self.cao['table{}'.format(context.scene.frame_current)][0], self.cao['table{}'.format(context.scene.frame_current)][self.unitdict[context.scene['liparams']['unit']]]))  
+        
+    def drawopen(self, context):
+        draw_table(self)
             
 def wr_disp(self, context, simnode):
     width, height = context.region.width, context.region.height
     self.legend.draw(context, width, height)
     self.dhscatter.draw(context, width, height)
     self.table.draw(context, width, height)
+    
+def basic_disp(self, context, simnode):
+    width, height = context.region.width, context.region.height
+    self.legend.draw(context, width, height)
+#    self.dhscatter.draw(context, width, height)
+    self.table.draw(context, width, height)
+    
+def en_disp(self, context, simnode):
+    width, height = context.region.width, context.region.height
+#    self.legend.draw(context, width, height)
+    self.dhscatter.draw(context, width, height)
+#    self.table.draw(context, width, height)
     
 class ss_legend(Base_Display):
     def __init__(self, pos, width, height, iname, xdiff, ydiff):
@@ -693,16 +883,44 @@ class ss_legend(Base_Display):
             return
 
         self.resvals = [format(self.minres + i*(resdiff)/20, '.{}f'.format(dplaces)) for i in range(21)] if self.scale == '0' else \
-                        [format(self.minres + (1 - log10(i)/log10(20))*(resdiff), '.{}f'.format(dplaces)) for i in range(0, 21)[::-1]]
+                        [format(self.minres + (1 - log10(i)/log10(21))*(resdiff), '.{}f'.format(dplaces)) for i in range(1, 22)[::-1]]
 
         self.resvals = ['{0} - {1}'.format(self.resvals[i], self.resvals[i+1]) for i in range(20)]
         
     def drawopen(self, context):
         draw_legend(self, context.scene, 'Sunlit Time (%)')
     
+class basic_legend(Base_Display):
+    def __init__(self, pos, width, height, iname, xdiff, ydiff):
+        Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
+        
+    def update(self, context):
+        scene = context.scene
+        self.cao = context.active_object        
+        self.cols = retcols(context.scene, 20)
+        self.col, self.maxres, self.minres, self.scale = scene.vi_leg_col, scene.vi_leg_max, scene.vi_leg_min, scene.vi_leg_scale
+        dplaces = retdp(self.maxres, 1)
+        resdiff = self.maxres - self.minres
+        
+        if not context.scene.get('liparams'):
+            scene.vi_display = 0
+            return
+
+        self.resvals = [format(self.minres + i*(resdiff)/20, '.{}f'.format(dplaces)) for i in range(21)] if self.scale == '0' else \
+                        [format(self.minres + (1 - log10(i)/log10(21))*(resdiff), '.{}f'.format(dplaces)) for i in range(1, 22)[::-1]]
+
+        self.resvals = ['{0} - {1}'.format(self.resvals[i], self.resvals[i+1]) for i in range(20)]
+        
+    def drawopen(self, context):
+        draw_legend(self, context.scene, context.scene['liparams']['unit'])
+    
 def ss_disp(self, context, simnode):
-    width, height = context.region.width, context.region.height
-    self.legend.draw(context, width, height)
+    try:
+        width, height = context.region.width, context.region.height
+        self.legend.draw(context, width, height)
+    except:
+        pass
+#    self.dhscatter.draw(context, width, height)
 
 def lipanel():
     pass
@@ -999,13 +1217,12 @@ def draw_legend(self, scene, unit):
     levels = len(self.resvals)
     xdiff = self.lepos[0] - self.lspos[0]
     ydiff = self.lepos[1] - self.lspos[1]
-    lh = ydiff/(levels + 1)
-    
+    lh = ydiff/(levels + 1)    
     blf.size(font_id, 12, 300)
-    mxdimen = max(blf.dimensions(font_id, self.resvals[-1])[0], blf.dimensions(font_id, unit)[0])
+    titxdimen = blf.dimensions(font_id, unit)[0]
+    resxdimen = blf.dimensions(font_id, self.resvals[-1])[0]
     mydimen = blf.dimensions(font_id, unit)[1]
-    print(mxdimen, mxdimen/(xdiff * 0.55), mydimen * 1.25/lh)
-    fontscale = max(mxdimen/(xdiff * 0.9), mydimen * 1.25/lh)
+    fontscale = max(titxdimen/(xdiff * 0.9), resxdimen/(xdiff * 0.6), mydimen * 1.25/lh)
     blf.size(font_id, 12, int(300/fontscale))
     if not self.resize:
         self.lspos = [self.spos[0], self.spos[1] - ydiff]
@@ -1014,7 +1231,7 @@ def draw_legend(self, scene, unit):
         self.lspos = [self.spos[0], self.lspos[1]]
         self.lepos = [self.lepos[0], self.spos[1]]
     
-    bgl.glLineWidth(2)
+    bgl.glLineWidth(1)
     drawpoly(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1], 1, 1, 1, 1)
     drawloop(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1])
     blf.position(font_id, self.lspos[0] + (xdiff - blf.dimensions(font_id, unit)[0]) * 0.45, self.spos[1] - 0.5 * lh - blf.dimensions(font_id, unit)[1] * 0.4, 0)       
@@ -1033,14 +1250,13 @@ def draw_legend(self, scene, unit):
     for i in range(levels):
         num = self.resvals[i]
         rgba = self.cols[i]
-        print('absleg', self.cols)
         bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)
         drawpoly(self.lspos[0], int(self.lspos[1] + i * lh), int(self.lspos[0] + xdiff * 0.4), int(self.lspos[1] + (i + 1) * lh), *rgba)    
         drawloop(self.lspos[0], int(self.lspos[1] + i * lh), int(self.lspos[0] + xdiff * 0.4), int(self.lspos[1] + (i + 1) * lh))
         drawloop(int(self.lspos[0] + xdiff * 0.4), int(self.lspos[1] + i * lh), self.lepos[0], int(self.lspos[1] + (i + 1) * lh))
         
         ndimen = blf.dimensions(font_id, "{}".format(num))
-        blf.position(font_id, int(self.lepos[0] - xdiff * 0.075 - ndimen[0]), int(self.lspos[1] + i * lh) + int((lh - ndimen[1])*0.5), 0)
+        blf.position(font_id, int(self.lepos[0] - xdiff * 0.05 - ndimen[0]), int(self.lspos[1] + i * lh) + int((lh - ndimen[1])*0.5), 0)
         bgl.glColor4f(0, 0, 0, 1)
         blf.draw(font_id, "{}".format(self.resvals[i]))
     
@@ -1049,23 +1265,24 @@ def draw_legend(self, scene, unit):
     blf.disable(0, 8)  
     blf.disable(0, 4)
     
-def draw_dhscatter(self, scene, x, y, z, tit, xlab, ylab, zlab):
+def draw_dhscatter(self, scene, x, y, z, tit, xlab, ylab, zlab, valmin, valmax):
     self.plt.close()
-    col = scene.vi_leg_col
+    self.col = scene.vi_leg_col
     x = [x[0] - 0.5] + [xval + 0.5 for xval in x] 
     y = [y[0] - 0.5] + [yval + 0.5 for yval in y]
-    self.plt.figure(figsize=(3 * len(x)/len(y), 6))
-    self.plt.title(tit, size = 20)
+    self.plt.figure(figsize=(6 + len(x)/len(y), 6))
+    
+    self.plt.title(tit, size = 20).set_position([.5, 1.025])
     self.plt.xlabel(xlab, size = 18)
     self.plt.ylabel(ylab, size = 18)
-    self.plt.pcolor(x, y, z, cmap=col)#, norm=plt.matplotlib.colors.LogNorm())#, edgecolors='b', linewidths=1, vmin = 0, vmax = 4000)
-    self.plt.colorbar().set_label(label=zlab,size=18)
+    self.plt.pcolor(x, y, z, cmap=self.col, vmin=valmin, vmax=valmax)#, norm=plt.matplotlib.colors.LogNorm())#, edgecolors='b', linewidths=1, vmin = 0, vmax = 4000)
+    self.plt.colorbar(use_gridspec=True).set_label(label=zlab,size=18)
     self.plt.axis([min(x),max(x),min(y),max(y)], size = 16)
-    self.plt.tight_layout(rect=[0, 0, 1 + ((len(x)/len(y)) - 1) * 0.01, 1])
+    self.plt.tight_layout(rect=[0, 0, 1 + ((len(x)/len(y)) - 1) * 0.005, 1])
     
 def save_plot(self, scene, filename):
     fileloc = os.path.join(scene['viparams']['newdir'], 'images', filename)
-    self.plt.savefig(fileloc, pad_inches = 0)
+    self.plt.savefig(fileloc, pad_inches = 0.1)
     
     if filename not in [i.name for i in bpy.data.images]:
         self.gimage = bpy.data.images.load(fileloc)
@@ -1157,7 +1374,7 @@ def draw_table(self):
     
     for r in range(rcshape[0]):
         for c in range(rcshape[1]):
-            blf.position(font_id, self.lspos[0] + colpos[c] + colwidths[c] * 0.5 - int(blf.dimensions(font_id, '{}'.format(self.rcarray[r][c]))[0] * 0.5), self.lepos[1] - int(rowheight * (r + 0.5)) - int(blf.dimensions(font_id, '{}'.format(self.rcarray[1][1]))[1] * 0.75), 0)
+            blf.position(font_id, self.lspos[0] + colpos[c] + colwidths[c] * 0.5 - int(blf.dimensions(font_id, '{}'.format(self.rcarray[r][c]))[0] * 0.5), self.lepos[1] - int(rowheight * (r + 0.55)) - int(blf.dimensions(font_id, '{}'.format(self.rcarray[1][1]))[1]), 0)
             drawloop(int(self.lspos[0] + colpos[c]), int(self.lspos[1] + 0.01 * self.xdiff + r * rowheight), self.lspos[0] + colpos[c + 1], int(self.lspos[1] + 0.01 * self.xdiff + (r + 1) * rowheight))                
             blf.draw(font_id, '{}'.format(self.rcarray[r][c]))
     blf.disable(0, 8)

@@ -30,7 +30,7 @@ class ViNetwork(bpy.types.NodeTree):
     bl_label = 'Vi Network'
     bl_icon = 'LAMP_SUN'
     viparams = {}
-
+        
 class ViNodes:
     @classmethod
     def poll(cls, ntree):
@@ -43,16 +43,18 @@ class ViLoc(bpy.types.Node, ViNodes):
     bl_icon = 'FORCE_WIND'
 
     def updatelatlong(self, context):
+        print(dir(self))
+        context.space_data.edit_tree == ''
+#        bpy.types.NodeTree.get_from_context(context)
         scene = context.scene
         (scene.latitude, scene.longitude) = epwlatilongi(context.scene, self) if self.loc == '1' and self.weather else (scene.latitude, scene.longitude)
         nodecolour(self, self.ready())
-        if self.loc == '1' and self.weather:
-            reslists = []
+        reslists = []
+        if self.loc == '1' and self.weather:            
             with open(self.weather, 'r') as epwfile:                
                 self['frames'] = ['0']
                 epwlines = epwfile.readlines()[8:]
                 epwcolumns = list(zip(*[epwline.split(',') for epwline in epwlines]))
-#                reslists.append(['0', 'Time', '', 'Year', epwcolumns[0][0]])
                 self['year'] = int(epwcolumns[0][0])
                 times = ('Month', 'Day', 'Hour', 'DOS')
                 for t, time in enumerate([' '.join(epwcolumns[c]) for c in range(1,4)] + [' '.join(['{}'.format(int(d/24) + 1) for d in range(len(epwlines))])]):
@@ -68,16 +70,26 @@ class ViLoc(bpy.types.Node, ViNodes):
             self.outputs['Location out']['valid'] = ['Location']
         socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])
         self['reslists'] = reslists
+        
+    def update_weather(self, context):
+        entries = []
+        vi_prefs = bpy.context.user_preferences.addons['vi-suite04'].preferences
 
-    vi_prefs = bpy.context.user_preferences.addons['vi-suite04'].preferences
-    
-    if vi_prefs and os.path.isdir(vi_prefs.epweath):
-        epwpath = vi_prefs.epweath
-    else:
-        epwpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))+'/EPFiles/Weather/'
-#    epwpath = vi_prefs.epweath    
-    weatherlist = [((wfile, os.path.basename(wfile).strip('.epw').split(".")[0], 'Weather Location')) for wfile in glob.glob(epwpath+"/*.epw")]
-    weather = bpy.props.EnumProperty(items = weatherlist, name="", description="Weather for this project", update = updatelatlong)
+        if vi_prefs and os.path.isdir(vi_prefs.epweath):
+            epwpath = vi_prefs.epweath
+        else:
+            epwpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))+'/EPFiles/Weather/'
+        
+        for wfile in glob.glob(epwpath+"/*.epw"):
+            with open(wfile, 'r') as wf:
+                for wfl in wf.readlines():
+                    if wfl.split(',')[0].upper() == 'LOCATION':
+                        entries.append((wfile, wfl.split(',')[1], 'Weather Location'))
+                        break
+#        self.updatelatlong(context)
+        return entries
+   
+    weather = bpy.props.EnumProperty(name = 'Weather file', items=update_weather, update=updatelatlong)
     loc = bpy.props.EnumProperty(items = [("0", "Manual", "Manual location"), ("1", "EPW ", "Get location from EPW file")], name = "", description = "Location", default = "0", update = updatelatlong)
     maxws = bpy.props.FloatProperty(name="", description="Max wind speed", min=0, max=90, default=0)
     minws = bpy.props.FloatProperty(name="", description="Min wind speed", min=0, max=90, default=0)
@@ -87,6 +99,7 @@ class ViLoc(bpy.types.Node, ViNodes):
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
+#        
         bpy.data.node_groups[nodeid(self).split('@')[1]].use_fake_user = True
         self.outputs.new('ViLoc', 'Location out')
 
@@ -171,6 +184,7 @@ class LiViNode(bpy.types.Node, ViNodes):
     bl_icon = 'LAMP'
 
     def nodeupdate(self, context):
+        print(datetime.datetime.now())
         scene = context.scene
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.contextmenu, self.banalysismenu, self.canalysismenu, self.cbanalysismenu, 
                    self.animated, self.skymenu, self.shour, self.sdoy, self.startmonth, self.endmonth, self.damin, self.dasupp, self.dalux, self.daauto,
@@ -184,6 +198,8 @@ class LiViNode(bpy.types.Node, ViNodes):
         
         self['skynum'] = int(self.skymenu)         
         suns = [ob for ob in scene.objects if ob.type == 'LAMP' and ob.data.type == 'SUN'] 
+        
+        print(datetime.datetime.now())
         
         if self.contextmenu == 'Basic' and self['skynum'] < 2:
             starttime = datetime.datetime(2015, 1, 1, int(self.shour), int((self.shour - int(self.shour))*60)) + datetime.timedelta(self.sdoy - 1) if self['skynum'] < 3 else datetime.datetime(2013, 1, 1, 12)                                       
@@ -205,6 +221,8 @@ class LiViNode(bpy.types.Node, ViNodes):
             for so in suns:
                 selobj(scene, so)
                 bpy.ops.object.delete()
+                
+        print(datetime.datetime.now())
                                 
     banalysistype = [('0', "Illu/Irrad/DF", "Illumninance/Irradiance/Daylight Factor Calculation"), ('1', "Glare", "Glare Calculation")]
     skylist = [("0", "Sunny", "CIE Sunny Sky description"), ("1", "Partly Coudy", "CIE Sunny Sky description"),
@@ -266,7 +284,7 @@ class LiViNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Context:', self, 'contextmenu')
-        (sdate, edate) = retdates(self.sdoy, self.edoy)
+        (sdate, edate) = retdates(self.sdoy, self.edoy, 2015)
         if self.contextmenu == 'Basic':            
             newrow(layout, "Standard:", self, 'banalysismenu')
             newrow(layout, "Sky type:", self, 'skymenu')
@@ -385,10 +403,10 @@ class LiViNode(bpy.types.Node, ViNodes):
 
         times = [starttime]
         time = starttime
-        while time < endtime:
+        while time <= endtime:
             time += datetime.timedelta(hours = interval)
-            if time.hour in range(shour, ehour + 1):
-                times.append(time)
+#            if time.hour in range(shour, ehour + 1):
+            times.append(time)
             
 
                 
@@ -418,7 +436,9 @@ class LiViNode(bpy.types.Node, ViNodes):
         self.startframe = self.startframe if self.animated and self.contextmenu == 'Basic' and self.banalysismenu in ('0', '1', '2') else scene.frame_current 
         self['endframe'] = self.startframe + int(((24 * (self.edoy - self.sdoy) + self.ehour - self.shour)/self.interval)) if self.contextmenu == 'Basic' and self.banalysismenu in ('0', '1', '2') and self.animated else scene.frame_current
         self['mtxfile'] = ''
-        if self.contextmenu == "Basic":        
+        self['preview'] = 0
+        if self.contextmenu == "Basic":  
+            self['preview'] =1
             if self['skynum'] < 4:
                 locnode = self.inputs['Location in'].links[0].from_node if self['skynum'] < 3  else 0
                 self['skytypeparams'] = ("+s", "+i", "-c", "-b 22.86 -c")[self['skynum']]
@@ -457,6 +477,7 @@ class LiViNode(bpy.types.Node, ViNodes):
                 self['mtxfile'] = self.mtxname
 
             if self.cbanalysismenu == '0' :
+                self['preview'] = 1
                 self['Text'][str(scene.frame_current)] = cbdmhdr(self, scene)
             else:
                 self['Text'][str(scene.frame_current)] = "void glow sky_glow \n0 \n0 \n4 1 1 1 0 \nsky_glow source sky \n0 \n0 \n4 0 0 1 180 \nvoid glow ground_glow \n0 \n0 \n4 1 1 1 0 \nground_glow source ground \n0 \n0 \n4 0 0 -1 180\n\n"
@@ -476,6 +497,7 @@ class LiViNode(bpy.types.Node, ViNodes):
                 skyentry = sunexport(scene, self, 0, 0) + skyexport(3)
                 if self.canalysismenu in ('0', '1'):
                     self.starttime = datetime.datetime(2015, 1, 1, 12)
+                    self['preview'] = 1
                     if self.hdr:
                         hdrexport(scene, 0, scene.frame_current, self, skyentry)
                 else:
@@ -502,7 +524,7 @@ class LiViNode(bpy.types.Node, ViNodes):
         typedict = {'Basic': self.banalysismenu, 'Compliance': self.canalysismenu, 'CBDM': self.cbanalysismenu}
         unitdict = {'Basic': ("Lux", '')[int(self.banalysismenu)], 'Compliance': ('DF (%)', 'DF (%)', 'DF (%)', 'SDA (%)')[int(self.canalysismenu)], 'CBDM': ('Mlxh', 'kWh', 'DA (%)')[int(self.cbanalysismenu)]}
         btypedict = {'0': self.bambuildmenu, '1': '', '2': '', '3': self.lebuildmenu}
-        self['Options'] = {'Context': self.contextmenu, 'Type': typedict[self.contextmenu], 'fs': self.startframe, 'fe': self['endframe'],
+        self['Options'] = {'Context': self.contextmenu, 'Preview': self['preview'], 'Type': typedict[self.contextmenu], 'fs': self.startframe, 'fe': self['endframe'],
                     'anim': self.animated, 'shour': self.shour, 'sdoy': self.sdoy, 'ehour': self.ehour, 'edoy': self.edoy, 'interval': self.interval, 'buildtype': btypedict[self.canalysismenu], 'canalysis': self.canalysismenu, 'storey': self.buildstorey,
                     'cbanalysis': self.cbanalysismenu, 'unit': unitdict[self.contextmenu], 'damin': self.damin, 'dalux': self.dalux, 'dasupp': self.dasupp, 'daauto': self.daauto, 'asemax': self.asemax, 'cbdm_sh': self.cbdm_start_hour, 
                     'cbdm_eh': self.cbdm_end_hour, 'weekdays': (7, 5)[self.weekdays], 'sourcemenu': (self.sourcemenu, self.sourcemenu2)[self.cbanalysismenu not in ('2', '3', '4', '5')],
@@ -592,22 +614,19 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             row.prop(self, self['simdict'][cinnode['Options']['Context']])
             if (self.simacc == '3' and cinnode['Options']['Context'] == 'Basic') or (self.csimacc == '0' and cinnode['Options']['Context'] in ('Compliance', 'CBDM')):
                newrow(layout, "Radiance parameters:", self, 'cusacc')
-            if self.run and (self['coptions']['Context'] == 'Basic' and cinnode['Options']['Type'] == '1'):
-                row = layout.row()
-                row.label('Calculating'+(self.run%10 *'-'))
-            else:
+            if cinnode['Options']['Preview']:
                 row = layout.row()
                 row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']
-                if cinnode['Options']['Context'] == 'Basic' and cinnode['Options']['Type'] == '1':
-                    row.operator("node.liviglare", text = 'Calculate').nodeid = self['nodeid']
-                elif [o.name for o in scene.objects if o.name in scene['liparams']['livic']]:
-                    row.operator("node.livicalc", text = 'Calculate').nodeid = self['nodeid']
-        except:
-            pass
+            if cinnode['Options']['Type'] == '1':
+                row.operator("node.liviglare", text = 'Calculate').nodeid = self['nodeid']
+            elif [o.name for o in scene.objects if o.name in scene['liparams']['livic']]:
+                row.operator("node.livicalc", text = 'Calculate').nodeid = self['nodeid']
+        except Exception as e:
+            print(e)
 
     def update(self):
-        if self.outputs.get('Data out'):
-            socklink(self.outputs['Data out'], self['nodeid'].split('@')[1])
+        if self.outputs.get('Location out'):
+            socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])
         self.run = 0
     
     def presim(self):
@@ -670,6 +689,8 @@ class ViSSNode(bpy.types.Node, ViNodes):
     def init(self, context):
         self['nodeid'] = nodeid(self)
         self.inputs.new('ViLoc', 'Location in')
+        self.outputs.new('ViR', 'Results out')
+        self.outputs['Results out'].hide = True
         self['exportstate'] = ''
         self['goptions'] = {}
         nodecolour(self, 1)
@@ -695,9 +716,9 @@ class ViSSNode(bpy.types.Node, ViNodes):
 
     def postexport(self, scene):
         nodecolour(self, 0)
+        self.outputs['Results out'].hide = False if self.get('reslists') else True            
         self['exportstate'] = [str(x) for x in (self.animmenu, self.sdoy, self.edoy, self.starthour, self.endhour, self.interval, self.cpoint, self.offset)]
         
-
 class ViWRNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite wind rose generator'''
     bl_idname = 'ViWRNode'
@@ -766,7 +787,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
     bl_icon = 'LAMP'
 
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.loc, self.terrain, self.timesteps, self.animated, self.fs, self.fe)])
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.loc, self.terrain, self.timesteps, self.animated, self.fs, self.fe, self.sdoy, self.edoy)])
 
     animated = bpy.props.BoolProperty(name="", description="Animated analysis", update = nodeupdate)
     fs = bpy.props.IntProperty(name="", description="Start frame", default = 0, min = 0, update = nodeupdate)
@@ -779,8 +800,8 @@ class ViExEnNode(bpy.types.Node, ViNodes):
 
     addonpath = os.path.dirname(inspect.getfile(inspect.currentframe()))
     matpath = addonpath+'/EPFiles/Materials/Materials.data'
-    sdoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1)
-    edoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365)
+    sdoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 1, update = nodeupdate)
+    edoy = bpy.props.IntProperty(name = "", description = "Day of simulation", min = 1, max = 365, default = 365, update = nodeupdate)
     timesteps = bpy.props.IntProperty(name = "", description = "Time steps per hour", min = 1, max = 60, default = 1, update = nodeupdate)
     restype= bpy.props.EnumProperty(items = [("0", "Zone Thermal", "Thermal Results"), ("1", "Comfort", "Comfort Results"), ("2", "Zone Ventilation", "Zone Ventilation Results"), 
                                              ("3", "Ventilation Link", "Ventilation Link Results"), ("4", "Thermal Chimney", "Thermal Chimney Results")],
@@ -798,7 +819,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
-        (sdate, edate) = retdates(self.sdoy, self.edoy)
+        (sdate, edate) = retdates(self.sdoy, self.edoy, self['year'])
         row = layout.row()
         row.label('Animation:')
         row.prop(self, 'animated')
@@ -829,15 +850,16 @@ class ViExEnNode(bpy.types.Node, ViNodes):
 
     def update(self):
         socklink(self.outputs['Context out'], self['nodeid'].split('@')[1])
+        self['year'] = self.inputs['Location in'].links[0].from_node['year'] if self.inputs['Location in'].links else 2015
     
     def preexport(self, scene):
         (self.fs, self.fe) = (self.fs, self.fe) if self.animated else (scene.frame_current, scene.frame_current)
         scene['enparams']['fs'], scene['enparams']['fe'] = self.fs, self.fe
-        (self.sdate, self.edate) = retdates(self.sdoy, self.edoy)
+        (self.sdate, self.edate) = retdates(self.sdoy, self.edoy, self['year'])
         
     def postexport(self):
         nodecolour(self, 0)
-        self['exportstate'] = [str(x) for x in (self.loc, self.terrain, self.timesteps, self.animated, self.fs, self.fe)]
+        self['exportstate'] = [str(x) for x in (self.loc, self.terrain, self.timesteps, self.animated, self.fs, self.fe, self.sdoy, self.edoy)]
 
 class ViEnSimNode(bpy.types.Node, ViNodes):
     '''Node describing an EnergyPlus simulation'''
@@ -874,15 +896,17 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
         if self.outputs.get('Results out'):
             socklink(self.outputs['Results out'], self['nodeid'].split('@')[1])
 
-    def sim(self, context):
+    def presim(self, context):
         innode = self.inputs['Context in'].links[0].from_node
         self['frames'] = range(context.scene['enparams']['fs'], context.scene['enparams']['fe'])
+        self['year'] = innode['year']
         self.dsdoy = innode.sdoy # (locnode.startmonthnode.sdoy
         self.dedoy = innode.edoy
-        self["_RNA_UI"] = {"Start": {"min":innode.sdoy, "max":innode.edoy}, "End": {"min":innode.sdoy, "max":innode.edoy}}
-        self["_RNA_UI"] = {"AStart": {"min":context.scene['enparams']['fs'], "max":context.scene['enparams']['fe']}, "AEnd": {"min":context.scene['enparams']['fs'], "max":context.scene['enparams']['fe']}}
- #       self['Startself['Start'], self['End'] = innode.sdoy, innode.edoy
-
+        self["_RNA_UI"] = {"Start": {"min":innode.sdoy, "max":innode.edoy}, "End": {"min":innode.sdoy, "max":innode.edoy}, "AStart": {"name": '', "min":context.scene['enparams']['fs'], "max":context.scene['enparams']['fe']}, "AEnd": {"min":context.scene['enparams']['fs'], "max":context.scene['enparams']['fe']}}
+        self['Start'], self['End'] = innode.sdoy, innode.edoy
+#        self["_RNA_UI"] = {"AStart": {"min":context.scene['enparams']['fs'], "max":context.scene['enparams']['fe']}, "AEnd": {"min":context.scene['enparams']['fs'], "max":context.scene['enparams']['fe']}}
+        self['AStart'], self['AEnd'] = context.scene['enparams']['fs'], context.scene['enparams']['fe']
+        
 class ViEnRFNode(bpy.types.Node, ViNodes):
     '''Node for EnergyPlus results file selection'''
     bl_idname = 'ViEnRFNode'
@@ -890,14 +914,18 @@ class ViEnRFNode(bpy.types.Node, ViNodes):
 
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [self.resfilename])
-
-    resfilename = bpy.props.StringProperty(name="", description="Name of the EnVi results file", default="", update = nodeupdate)
+        self['frames'] = [context.scene.frame_current]
+        
+    resfilename = bpy.props.StringProperty(name="", description="Name of the EnVi results file", default="", update=nodeupdate)
+    filebase = bpy.props.StringProperty(name="", description="Name of the EnVi results file", default="")
     dsdoy, dedoy = bpy.props.IntProperty(), bpy.props.IntProperty()
+    
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
         self.outputs.new('ViR', 'Results out')
         self['exportstate'] = ''
+        self['year'] = 2015        
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
@@ -919,39 +947,46 @@ class ViEnInNode(bpy.types.Node, ViNodes):
     '''Node for EnergyPlus input file selection'''
     bl_idname = 'ViEnInNode'
     bl_label = 'EnVi Input File'
-
+    
     def nodeupdate(self, context):
-        oblist = []
-        self.outputs['Context out'].hide = False
-        shutil.copyfile(self.idffilename, context.scene['viparams']['idf_file'])
-#        Popen('{} {} {}'.format(context.scene['viparams']['cp'], self.idffilename, context.scene['viparams']['idf_file']), shell = True)
-        with open(self.idffilename, 'r', errors='ignore') as idff:
-            idfflines = idff.readlines()
-            for l, line in enumerate(idfflines):
-                if line.split(',')[0].lstrip(' ').upper() == 'ZONE' and not line.split(',')[1].strip('\n'):
-                    oblist.append(idfflines[l+1].split(',')[0].lstrip(' '))
-                if line.split(',')[0].lstrip(' ').upper() == 'RUNPERIOD':
-                    self.sdoy = datetime.datetime(2015, int(idfflines[l+2].split(',')[0].lstrip(' ')), int(idfflines[l+3].split(',')[0].lstrip(' '))).timetuple().tm_yday
-                    self.edoy = datetime.datetime(2015, int(idfflines[l+4].split(',')[0].lstrip(' ')), int(idfflines[l+5].split(',')[0].lstrip(' '))).timetuple().tm_yday
-        self.newdir = bpy.context.scene['viparams']['newdir']
-        self['oblist'] = oblist
+        if not self.inputs['Location in'].links:
+            nodecolour(self, 1)
+        else:
+            context.scene['enparams']['fs'] = context.scene['enparams']['fe'] = context.scene.frame_current
+            self.outputs['Context out'].hide = False
+            shutil.copyfile(self.idffilename, os.path.join(context.scene['viparams']['newdir'], 'in{}.idf'.format(context.scene.frame_current)))
+            locnode = self.inputs['Location in'].links[0].from_node
+            self['year'] = locnode['year']
+            shutil.copyfile(locnode.weather, os.path.join(context.scene['viparams']['newdir'], 'in{}.epw'.format(context.scene.frame_current)))
+            with open(self.idffilename, 'r', errors='ignore') as idff:
+                idfflines = idff.readlines()
+                for l, line in enumerate(idfflines):
+                    if line.split(',')[0].lstrip(' ').upper() == 'RUNPERIOD':
+                        self.sdoy = datetime.datetime(self['year'], int(idfflines[l+2].split(',')[0].lstrip(' ')), int(idfflines[l+3].split(',')[0].lstrip(' '))).timetuple().tm_yday
+                        self.edoy = datetime.datetime(self['year'], int(idfflines[l+4].split(',')[0].lstrip(' ')), int(idfflines[l+5].split(',')[0].lstrip(' '))).timetuple().tm_yday
+                        break
+            nodecolour(self, 0)
 
-    idffilename = bpy.props.StringProperty(name="", description="Name of the EnVi results file", default="", update = nodeupdate)
+    idffilename = bpy.props.StringProperty(name="", description="Name of the EnVi results file", default="", update=nodeupdate)
     sdoy = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 365)
     edoy = bpy.props.IntProperty(name = '', default = 365, min = 1, max = 365)
     newdir = bpy.props.StringProperty()
 
     def init(self, context):
+        self.inputs.new('ViLoc', 'Location in')
         self.outputs.new('ViEnC', 'Context out')
         self.outputs['Context out'].hide = True
         self['nodeid'] = nodeid(self)
 
     def draw_buttons(self, context, layout):
         row = layout.row()
-        row.label('ESO file:')
-        row.operator('node.idfselect', text = 'Select IDF file').nodeid = self['nodeid']
-        row = layout.row()
-        row.prop(self, 'idffilename')
+        if self.inputs['Location in'].links:            
+            row.label('ESO file:')
+            row.operator('node.idfselect', text = 'Select IDF file').nodeid = self['nodeid']
+            row = layout.row()
+            row.prop(self, 'idffilename')
+        else:
+            row.label('Connect Location node')
 
     def update(self):
         socklink(self.outputs['Context out'], self['nodeid'].split('@')[1])
@@ -966,7 +1001,7 @@ class ViResSock(bpy.types.NodeSocket):
         typedict = {"Time": [], "Frames": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"), "Linkage":("linkmenu", "linkrmenu"), "External node":("enmenu", "enrmenu"), "Chimney":("chimmenu", "chimrmenu")}
         row = layout.row()
         if self.links:
-            if len(self.links[0].from_node['frames']) > 1 and not node.animated: 
+            if len(self.links[0].from_node['frames']) > 1 and node.parametricmenu == '0': 
                 row.prop(self, "framemenu", text = text)
                 row.prop(self, "rtypemenu")
             else:
@@ -978,7 +1013,7 @@ class ViResSock(bpy.types.NodeSocket):
 #            else:
 ##                self.zfmenu = self.zonermenu[self.zonemenu]
             row.prop(self, rtype)
-        if self.node.timemenu in ('1', '2') and self.rtypemenu !='Time' and not node.animated:
+        if self.node.timemenu in ('1', '2') and self.rtypemenu !='Time' and node.parametricmenu == '0':
             row.prop(self, "statmenu")
         if self.rtypemenu != 'Time':
             row.prop(self, 'multfactor')
@@ -1002,6 +1037,21 @@ class ViEnRNode(bpy.types.Node, ViNodes):
     '''Node for 2D results plotting'''
     bl_idname = 'ViChNode'
     bl_label = 'VI Chart'
+    
+    def aupdate(self, context):
+        self.update()
+
+    def pmitems(self, context):
+        try:
+            innode = self.inputs['X-axis'].links[0].from_node
+            rl = innode['reslists']
+            zrl = list(zip(*rl))
+            if len(set(zrl[0])) > 1:
+                return [("0", "Static", "Static results"), ("1", "Parametric", "Parametric results")]
+            else:
+                return [("0", "Static", "Static results")]
+        except:
+            return [("0", "Static", "Static results")]
 
     ctypes = [("0", "Line/Scatter", "Line/Scatter Plot"), ("1", "Bar", "Bar Chart")]
 #    dsh = bpy.props.IntProperty(name = "Start", description = "", min = 1, max = 24, default = 1)
@@ -1009,12 +1059,14 @@ class ViEnRNode(bpy.types.Node, ViNodes):
     charttype = bpy.props.EnumProperty(items = ctypes, name = "Chart Type", default = "0")
     timemenu = bpy.props.EnumProperty(items=[("0", "Hourly", "Hourly results"),("1", "Daily", "Daily results"), ("2", "Monthly", "Monthly results")],
                 name="", description="Results frequency", default="0")
+    parametricmenu = bpy.props.EnumProperty(items=pmitems,
+                name="", description="Parametric result display", update=aupdate)
+    
     bl_width_max = 800
     
-    def aupdate(self, context):
-        self.update()
+    
         
-    animated = bpy.props.BoolProperty(name = "", description = "Plot the results from an animation", default = 0, update = aupdate)
+#    animated = bpy.props.BoolProperty(name = "", description = "Plot the results from an animation", default = 0, update = aupdate)
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
@@ -1031,26 +1083,32 @@ class ViEnRNode(bpy.types.Node, ViNodes):
     def draw_buttons(self, context, layout):
         if self.inputs['X-axis'].links:
             innode = self.inputs['X-axis'].links[0].from_node
-            rl = innode['reslists']
-            zrl = list(zip(*rl))
-            if len(set(zrl[0])) > 1:
-                newrow(layout, 'Animated:', self, 'animated')
-            if not self.animated:
+#            rl = innode['reslists']
+#            zrl = list(zip(*rl))
+#            if len(set(zrl[0])) > 1:
+            newrow(layout, 'Animated:', self, 'parametricmenu')
+            if self.parametricmenu == '0':                
                 (sdate, edate) = retdates(self['Start'], self['End'], innode['year']) 
-            row = layout.row()
-            row.label(("Start/End Day: {}/{} {}/{}".format(sdate.day, sdate.month, edate.day, edate.month), "Frame")[self.animated])
-                          
+                label = "Start/End Day: {}/{} {}/{}".format(sdate.day, sdate.month, edate.day, edate.month)
+            else:
+                row = layout.row()
+                label = "Frame"
+            
+#            if self.parametricmenu == '2' or innode.bl_label in ('VI Location', 'EnVi Simulation'): 
+            row = layout.row()    
+            row.label(label)
             row.prop(self, '["Start"]')
-
             row.prop(self, '["End"]')
+                
+            if self.parametricmenu == '0':
 #            if not self.animated:
 #                row = layout.row()
 #                row.label("Hour:")
 #                row.prop(self, "dsh")
 #                row.prop(self, "deh")
-            row = layout.row()
-            row.prop(self, "charttype")
-            if not self.animated:
+                row = layout.row()
+                row.prop(self, "charttype")
+#                if self.parametricmenu != '1':
                 row.prop(self, "timemenu")
 
             if self.inputs['Y-axis 1'].links and 'NodeSocketUndefined' not in [sock.bl_idname for sock in self.inputs if sock.links]:
@@ -1071,16 +1129,17 @@ class ViEnRNode(bpy.types.Node, ViNodes):
             rl = innode['reslists']
             zrl = list(zip(*rl))
 
-            if self.animated and len(set(zrl[0])) > 1:
+            if self.parametricmenu == '1' and len(set(zrl[0])) > 1:
                 frames = [int(k) for k in set(zrl[0]) if k != 'All']
                 startframe, endframe = min(frames), max(frames)
                 self["_RNA_UI"] = {"Start": {"min":startframe, "max":endframe}, "End": {"min":startframe, "max":endframe}}
                 self['Start'], self['End'] = startframe, endframe
             else:
-                startday = datetime.datetime(int(innode['year']), int(zrl[4][zrl[3].index('Month')].split()[0]), int(zrl[4][zrl[3].index('Day')].split()[0])).timetuple().tm_yday
-                endday = datetime.datetime(int(innode['year']), int(zrl[4][zrl[3].index('Month')].split()[-1]), int(zrl[4][zrl[3].index('Day')].split()[-1])).timetuple().tm_yday
-                self["_RNA_UI"] = {"Start": {"min":startday, "max":endday}, "End": {"min":startday, "max":endday}}
-                self['Start'], self['End'] = startday, endday
+                if 'Month' in zrl[3]:
+                    startday = datetime.datetime(int(innode['year']), int(zrl[4][zrl[3].index('Month')].split()[0]), int(zrl[4][zrl[3].index('Day')].split()[0])).timetuple().tm_yday
+                    endday = datetime.datetime(int(innode['year']), int(zrl[4][zrl[3].index('Month')].split()[-1]), int(zrl[4][zrl[3].index('Day')].split()[-1])).timetuple().tm_yday
+                    self["_RNA_UI"] = {"Start": {"min":startday, "max":endday}, "End": {"min":startday, "max":endday}}
+                    self['Start'], self['End'] = startday, endday
 
             if self.inputs.get('Y-axis 1'):
                 self.inputs['Y-axis 1'].hide = False
@@ -3228,3 +3287,4 @@ class ViASCImport(bpy.types.Node, ViNodes):
             row.prop(self, 'splitmesh')
         row = layout.row()
         row.operator('node.ascimport', text = 'Import ASC').nodeid = self['nodeid']
+

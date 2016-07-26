@@ -45,7 +45,7 @@ except Exception as e:
     mp = 0
 
 dtdf = datetime.date.fromordinal
-unitdict = {'Lux': 'illu', u'W/m\u00b2(f)': 'firrad', u'W/m\u00b2(v)': 'virrad', 'DF (%)': 'df', 'DA (%)': 'da', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi',
+unitdict = {'Lux': 'illu', u'W/m\u00b2 (f)': 'firrad', u'W/m\u00b2 (v)': 'virrad', 'DF (%)': 'df', 'DA (%)': 'da', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi',
             'Sky View': 'sv', 'Mlxh': 'illu', u'kWh/m\u00b2(f)': 'firrad', u'kWh/m\u00b2(v)': 'virrad', '% Sunlit': 'res', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase', 'kW': 'watts'}
 
 coldict = {'0': 'rainbow', '1': 'gray', '2': 'hot', '3': 'CMRmap', '4': 'jet', '5': 'plasma'}
@@ -62,7 +62,7 @@ def retcols(scene, levels):
         cmap = mcm.get_cmap(scene.vi_leg_col)
 #        hs = [0.75 - 0.75*(i/levels - 1) for i in range(levels)]
         rgbas = [cmap(int(i * 255/(levels - 1))) for i in range(levels)]
-        print('legend', rgbas)
+
 #        if scene.vi_leg_col == '0':
 #            hs = [0.75 - 0.75*(i/19) for i in range(levels)]
 #            rgbas = [(*colorsys.hsv_to_rgb(h, 1.0, 1.0), 1.0) for h in hs]
@@ -109,16 +109,18 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
         vtext += ''.join(['vn {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.normal.normalized()) for v in bm.verts])
 
     for mat in mmats:
+        matname = mat.name.replace(' ', '_')
         if o.data.polygons[0].use_smooth:            
-            ftext += "usemtl {}\n".format(mat.name) + ''.join(['f {}\n'.format(' '.join('{0}//{0}'.format(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])            
+            ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join('{0}//{0}'.format(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])            
         else:
-            ftext += "usemtl {}\n".format(mat.name) + ''.join(['f {}\n'.format(' '.join(str(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])
+            ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(str(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])
             
     if ffaces:
         gradfile += radpoints(o, ffaces, 0)
 
     bm.free()
     if ftext:
+        
         mfile = os.path.join(scene['viparams']['newdir'], 'obj', '{}-{}.mesh'.format(o.name.replace(' ', '_'), frame))
         with open(mfile, 'w') as mesh:
             Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout = mesh, stdin = PIPE).communicate(input = (otext + vtext + ftext).encode('utf-8'))
@@ -159,7 +161,7 @@ def radbsdf(self, radname, fi, rot, trans):
     radname = '{}_{}_{}'.format(fmat.name, self.name, fi)
 #    with open(bsdfxml, 'w') as bsdffile:
 #        bsdffile.write(self['bsdf']['xml'].decode())
-    radentry = 'void BSDF {0}\n16 {4:.3f} {1} 0 0 1 . -rx {2[0]:.3f} -ry {2[1]:.3f} -rz {2[2]:.3f} -t {3[0]:.3f} {3[1]:.3f} {3[2]:.3f}\n0\n0\n\n'.format(radname, bsdfxml, rot, trans, pdepth)
+    radentry = 'void BSDF {0}\n16 {4:.4f} {1} 0 0 1 . -rx {2[0]:.4f} -ry {2[1]:.4f} -rz {2[2]:.4f} -t {3[0]:.4f} {3[1]:.4f} {3[2]:.4f}\n0\n0\n\n'.format(radname, bsdfxml, rot, trans, pdepth)
     return radentry
            
 def rtpoints(self, bm, offset, frame):    
@@ -174,7 +176,7 @@ def rtpoints(self, bm, offset, frame):
        
     if self['cpoint'] == '0': 
         gpoints = resfaces
-        gpcos =  [gp.calc_center_bounds() for gp in gpoints]
+        gpcos =  [gp.calc_center_median_weighted() for gp in gpoints]
         self['cverts'], self['lisenseareas'][frame] = [], [f.calc_area() for f in gpoints]       
 
     elif self['cpoint'] == '1': 
@@ -184,7 +186,7 @@ def rtpoints(self, bm, offset, frame):
         self['cverts'], self['lisenseareas'][frame] = gp.index, [vertarea(bm, gp) for gp in gpoints]    
     
     for g, gp in enumerate(gpoints):
-        gp[rt] = '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1[0]:.3f} {1[1]:.3f} {1[2]:.3f}'.format([gpcos[g][i] + offset * gp.normal.normalized()[i] for i in range(3)], gp.normal[:]).encode('utf-8')
+        gp[rt] = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f} {1[0]:.4f} {1[1]:.4f} {1[2]:.4f}'.format([gpcos[g][i] + offset * gp.normal.normalized()[i] for i in range(3)], gp.normal[:]).encode('utf-8')
         gp[cindex] = g + 1
         
     self['rtpnum'] = g + 1
@@ -287,10 +289,10 @@ def retpmap(node, frame, scene):
 def setscenelivivals(scene):
     scene['liparams']['maxres'], scene['liparams']['minres'], scene['liparams']['avres'] = {}, {}, {}
     cbdmunits = ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)')
-    expunits = ('Mlxh', "kWh/m"+ u'\u00b2(f)', "kWh/m"+ u'\u00b2(v)')
+    expunits = ('Mlxh', "kWh/m"+ u'\u00b2 (f)', "kWh/m"+ u'\u00b2 (v)')
 
     if scene['viparams']['visimcontext'] == 'LiVi Basic':
-        udict = {'0': 'Lux', '1': "W/m"+ u'\u00b2(v)', '2': "W/m"+ u'\u00b2(f)', '3': 'DF (%)'}
+        udict = {'0': 'Lux', '1': u'W/m\u00b2 (v)', '2': u'W/m\u00b2 (f)', '3': 'DF (%)'}
         scene['liparams']['unit'] = udict[scene.li_disp_basic]
 
     if scene['viparams']['visimcontext'] == 'LiVi CBDM':        
@@ -323,31 +325,41 @@ def rettree(scene, obs, ignore):
     for soi, so in enumerate(obs):
         btemp = bpy.data.meshes.new("temp")
         bmtemp = bmesh.new()
-        bmtemp.from_mesh(so.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW'))
-#        bmtemp.transform(so.matrix_world)
+        tempmesh = so.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW')
+        bmtemp.from_mesh(tempmesh)
+        bpy.data.meshes.remove(tempmesh)
+#        bmtemp.from_object(so, scene, deform=True, render=False, cage=False, face_normals=True)
+#        bm.transform(so.matrix_world)
+        bmtemp.transform(so.matrix_world)
         delfaces = [face for face in bmtemp.faces if so.data.materials[face.material_index].mattype == ignore]
         bmesh.ops.delete(bmtemp, geom = delfaces, context = 5)
         bmtemp.to_mesh(btemp)
         bmob.from_mesh(btemp)
         bpy.data.meshes.remove(btemp)
+        
     tree = BVHTree.FromBMesh(bmob)
     bmob.free()
     bmtemp.free()
     return tree
     
-def progressfile(scene, starttime, calcsteps, curres, action):   
-    if os.path.isfile(os.path.join(scene['viparams']['newdir'], 'viprogress')):
-        with open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'r') as pfile:
-            if 'CANCELLED' in pfile.read():
-                if action != 'clear':
-                    return 'CANCELLED'
-            
-    with open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'w') as pfile:
-        if action == 'clear':
+class progressfile(): 
+    def __init__(self, scene, starttime, calcsteps):
+        self.starttime = starttime
+        self.calcsteps = calcsteps
+        self.scene = scene
+        self.pfile = os.path.join(self.scene['viparams']['newdir'], 'viprogress')
+
+        with open(self.pfile, 'w') as pfile:
             pfile.write('STARTING')
-        else:
-            dt = (datetime.datetime.now() - starttime) * (calcsteps - curres)/curres
-            pfile.write('{} {}'.format(int(100 * curres/calcsteps), datetime.timedelta(seconds = dt.seconds)))
+    
+    def check(self, curres):
+        with open(self.pfile, 'r') as pfile:
+            if 'CANCELLED' in pfile.read():
+                return 'CANCELLED'
+                
+        with open(os.path.join(self.scene['viparams']['newdir'], 'viprogress'), 'w') as pfile:
+            dt = (datetime.datetime.now() - self.starttime) * (self.calcsteps - curres)/curres
+            pfile.write('{} {}'.format(int(100 * curres/self.calcsteps), datetime.timedelta(seconds = dt.seconds)))
         
 def progressbar(file):
     kivytext = "from kivy.app import App \n\
@@ -435,7 +447,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, ca
         illures = geom.layers.float['illu{}'.format(frame)]
         dfres = geom.layers.float['df{}'.format(frame)]
         res =  geom.layers.float['res{}'.format(frame)]
-
+        
         if geom.layers.string.get('rt{}'.format(frame)):
             rtframe = frame
         else:
@@ -476,27 +488,33 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, oi, starttime, onum, ca
         self['oave']['illu{}'.format(frame)] = sum(ovirrad * 179)/reslen
         self['oave']['df{}'.format(frame)] = sum(ovirrad * 1.79)/reslen 
         self['oave']['firrad{}'.format(frame)] = 1.64 * sum(ovirrad)/reslen
-
+        self['table{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+            ['Illuminance (lux)', '{:.1f}'.format(self['omin']['illu{}'.format(frame)]), '{:.1f}'.format(self['oave']['illu{}'.format(frame)]), '{:.1f}'.format(self['omax']['illu{}'.format(frame)])], 
+            ['Visual Irradiance (W/m2)', '{:.1f}'.format(self['omin']['virrad{}'.format(frame)]), '{:.1f}'.format(self['oave']['virrad{}'.format(frame)]), '{:.1f}'.format(self['omax']['virrad{}'.format(frame)])],
+            ['Full Irradiance (W/m2)', '{:.1f}'.format(self['omin']['firrad{}'.format(frame)]), '{:.1f}'.format(self['oave']['firrad{}'.format(frame)]), '{:.1f}'.format(self['omax']['firrad{}'.format(frame)])],
+            ['Daylight Factor', '{:.1f}'.format(self['omin']['df{}'.format(frame)]), '{:.1f}'.format(self['oave']['df{}'.format(frame)]), '{:.1f}'.format(self['omax']['df{}'.format(frame)])]])
         posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 1]
         illubinvals = [self['omin']['illu{}'.format(frame)] + (self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)])/20 * (i + 0.05) for i in range(20)]
         bins = array([0.05 * i for i in range(1, 20)])
         vals = [(gp[illures] - self['omin']['illu{}'.format(frame)])/(self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)]) for gp in geom]         
         ais = digitize(vals, bins)
+        rgeom = [g for g in geom if g[cindex] > 0]
+        rareas = [gp.calc_area() for gp in geom] if self['cpoint'] == '0' else [vertarea(bm, gp) for gp in geom]
         sareas = zeros(20)
         for ai in range(20):
-            sareas[ai] = sum([gp.calc_area()/totarea for gi, gp in enumerate(geom) if ais[gi] == ai])
-        rgeom = [g for g in geom if g[cindex] > 0]
+            sareas[ai] = sum([rareas[gi]/totarea for gi in range(len(rgeom)) if ais[gi] == ai])
+        
         
         self['livires']['areabins'] = sareas
         self['livires']['valbins'] = illubinvals
-        reslists.append([str(frame), 'Position', self.name, 'X', ' '.join([str(p[0]) for p in posis])])
-        reslists.append([str(frame), 'Position', self.name, 'Y', ' '.join([str(p[0]) for p in posis])])
-        reslists.append([str(frame), 'Position', self.name, 'Z', ' '.join([str(p[0]) for p in posis])])
-        reslists.append([str(frame), 'Position', self.name, 'Area (m2)', ' '.join([str(g.calc_area()) for g in rgeom])])
-        reslists.append([str(frame), 'Lighting', self.name, 'Illuminance(lux)', ' '.join([str(g[illures]) for g in rgeom])])
-        reslists.append([str(frame), 'Lighting', self.name, 'DF (%)', ' '.join([str(g[dfres]) for g in rgeom])])
-        reslists.append([str(frame), 'Lighting', self.name, 'Full Irradiance (W/m2)', ' '.join([str(g[firradres]) for g in rgeom])])
-        reslists.append([str(frame), 'Lighting', self.name, 'Visible Irradiance (W/m2)', ' '.join([str(g[virradres]) for g in rgeom])])
+        reslists.append([str(frame), 'Position', self.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
+        reslists.append([str(frame), 'Position', self.name, 'Y', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
+        reslists.append([str(frame), 'Position', self.name, 'Z', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
+        reslists.append([str(frame), 'Position', self.name, 'Area (m2)', ' '.join(['{:.3f}'.format(ra) for ra in rareas])])
+        reslists.append([str(frame), 'Lighting', self.name, 'Illuminance(lux)', ' '.join(['{:.3f}'.format(g[illures]) for g in rgeom])])
+        reslists.append([str(frame), 'Lighting', self.name, 'DF (%)', ' '.join(['{:.3f}'.format(g[dfres]) for g in rgeom])])
+        reslists.append([str(frame), 'Lighting', self.name, 'Full Irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[firradres]) for g in rgeom])])
+        reslists.append([str(frame), 'Lighting', self.name, 'Visible Irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[virradres]) for g in rgeom])])
 #        reslists.append([str(frame), 'Lighting', '{} areabins'.format(self.name), 'Illuminance(lux)', ' '.join([str(bv) for bv in illubinvals])])
 #        reslists.append([str(frame), 'Lighting', '{} areabins'.format(self.name), 'Area (%)', ' '.join([str(sa) for sa in sareas])])
 
@@ -1136,12 +1154,24 @@ def fvmat(self, mn, bound):
         
 def recalculate_text(scene):   
     resdict = {'Temp': ('envi_temp', u'\u00b0C'), 'Hum': ('envi_hum', '%'), 'CO2': ('envi_co2', 'ppm'), 'Heat': ('envi_heat', 'hW'), 'Cool': ('envi_cool', 'cW')}
-    for res in resdict:    
+    resstring = retenvires(scene)
+    
+    for res in resdict:          
         for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == resdict[res][0] and o.children]:
             txt = o.children[0] 
             sf = scene.frame_current if scene.frame_current <= scene.frame_end else scene.frame_end
-            txt.data.body = ("{:.1f}", "{:.0f}")[res in ('Heat', 'CO2')].format(o['envires'][res][sf]) + resdict[res][1]
-        
+            txt.data.body = ("{:.1f}", "{:.0f}")[res in ('Heat', 'CO2')].format(o[resstring][res][sf]) + resdict[res][1]
+
+def retenvires(scene):
+    if scene.en_disp_type == '0':
+        if scene['enparams']['fs'] == scene['enparams']['fe']:
+            resstring = 'envires'
+        else:
+            resstring = 'envires{}'.format(bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]['AStart'])
+    else:
+        resstring = 'envires{}'.format(scene.frame_current)
+    return resstring
+
 def envilres(scene, resnode):
     for rd in resnode['resdict']:
         if resnode['resdict'][rd][0][:4] == 'WIN-':
@@ -1192,23 +1222,28 @@ def envizres(scene, eresobs, resnode, restype):
     resend = resstart + 24 * (1 + resnode['End'] - resnode['Start'])
     maxval = max([[max(float(r) for r in zrl[4][ri].split())][0] for ri, r in enumerate(zrl[3]) if r == resdict[restype][0]and zrl[1][ri] == 'Zone']) 
     minval = min([[min(float(r) for r in zrl[4][ri].split())][0] for ri, r in enumerate(zrl[3]) if r == resdict[restype][0]and zrl[1][ri] == 'Zone'])
+    resstrings = ['envires'] if scene['enparams']['fs'] == scene['enparams']['fe'] else ['envires{}'.format(f) for f in range(scene['enparams']['fs'], scene['enparams']['fe'] + 1)]
+    frames = [str(scene['enparams']['fs'])] if scene['enparams']['fs'] == scene['enparams']['fe'] else [str(f) for f in range(scene['enparams']['fs'], scene['enparams']['fe'] + 1)]
 
     for eo in eresobs:
         o = bpy.data.objects[eo[3:]]
-        valstring = [r[4].split()[resstart:resend] for r in rl if r[2] == eo.upper() and r[3] == resdict[restype][0]]
-        vals = [float(v) for v in valstring[0]]
+        
         opos = o.matrix_world * mathutils.Vector([sum(ops)/8 for ops in zip(*o.bound_box)])
     
-        if not o.children or not any([restype in oc['envires'] for oc in o.children if oc.get('envires')]):
+        if not o.children or not any([restype in oc[resstrings[0]] for oc in o.children if oc.get(resstrings[0])]):
             if scene.en_disp == '1':
                 bpy.ops.mesh.primitive_plane_add()  
             elif scene.en_disp == '0':
                 bpy.ops.mesh.primitive_circle_add(fill_type = 'NGON')   
             ores = bpy.context.active_object
             ores['VIType'] = 'envi_{}'.format(restype.lower())
-            if not ores.get('envires'):
-                ores['envires'] = {}
-            ores['envires'][restype] = vals
+            for rs, resstring in enumerate(resstrings):
+                valstring = [r[4].split()[resstart:resend] for r in rl if r[0] == frames[rs] and r[2] == eo.upper() and r[3] == resdict[restype][0]]
+                vals = [float(v) for v in valstring[0]]
+                print(resstring)
+                if not ores.get(resstring):
+                    ores[resstring] = {}
+                    ores[resstring][restype] = vals
             bpy.ops.object.editmode_toggle()
             bpy.ops.mesh.extrude_region_move(MESH_OT_extrude_region={"mirror":False}, TRANSFORM_OT_translate={"value":(0, 0, 1), "constraint_axis":(False, False, True), "constraint_orientation":'NORMAL', "mirror":False, "proportional":'DISABLED', "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False})
             bpy.ops.object.editmode_toggle()
@@ -1224,14 +1259,21 @@ def envizres(scene, eresobs, resnode, restype):
             txt.parent = ores
             txt.location, txt.scale = (0,0,0), (ores.scale[0]*2, ores.scale[1]*2, 1)
             txt.data.align = 'CENTER'
+            # For Blender 2.78
+            # txt.data.align_x,txt.data.align_y  = 'CENTER', 'CENTER'
             txt.name = '{}_{}_text'.format(o.name, restype)
-            txt.data.body = "{:.1f}{}".format(ores['envires'][restype][0], resdict[restype][3]) if restype !='CO2' else "{:.0f}{}".format(ores['envires'][restype][0], resdict[restype][2])
+            txt.data.body = "{:.1f}{}".format(ores[resstring][restype][0], resdict[restype][3]) if restype !='CO2' else "{:.0f}{}".format(ores[resstring][restype][0], resdict[restype][2])
             tmat = bpy.data.materials.new(name = '{}'.format(txt.name))
             tmat.diffuse_color = (0, 0, 0)
             txt.material_slots[0].material = tmat
         else:
-            ores = [o for o in o.children if o.get('envires') and restype in o['envires']][0] 
-            ores['envires'][restype] = vals
+            ores = [o for o in o.children if o.get(resstrings[0]) and restype in o[resstrings[0]]][0] 
+            for rs, resstring in enumerate(resstrings):
+                valstring = [r[4].split()[resstart:resend] for r in rl if r[0] == frames[rs] and r[2] == eo.upper() and r[3] == resdict[restype][0]]
+                vals = [float(v) for v in valstring[0]]
+                print(resstring)
+                ores[resstring][restype] = vals
+            ores[resstring][restype] = vals
             mat = ores.material_slots[0].material
             if not ores.children:
                 bpy.ops.object.text_add(radius=1, view_align=False, enter_editmode=False, layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
@@ -1241,13 +1283,15 @@ def envizres(scene, eresobs, resnode, restype):
                 txt.parent = ores
                 txt.location, txt.scale = (0,0,0), (ores.scale[0], ores.scale[1], 1)
                 txt.data.align = 'CENTER'
+                # For Blender 2.78
+                # txt.data.align_x,txt.data.align_y  = 'CENTER', 'CENTER'
                 txt.name = '{}_{}_text'.format(o.name, restype)
                 tmat = bpy.data.materials.new(name = '{}'.format(txt.name))
                 tmat.diffuse_color = (0, 0, 0)
                 txt.material_slots[0].material = tmat
             else:
                 txt = ores.children[0]
-            txt.data.body = u"{:.1f}\u00b0C".format(ores['envires'][restype][0]) 
+            txt.data.body = u"{:.1f}\u00b0C".format(ores[resstring][restype][0]) 
 
         scaleval =  [(vals[frame] - minval)/(maxval - minval) for frame in range(0, len(vals))]
         sv = [(sv, 0.1)[sv <= 0.1] for sv in scaleval]
@@ -1290,9 +1334,9 @@ def radpoints(o, faces, sks):
         mname = '{}_{}_{}'.format(fmat.name.replace(" ", "_"), o.name.replace(" ", "_"), face.index) if fmat.radmatmenu == '8' else fmat.name.replace(" ", "_")
         fentry = "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(mname, o.name.replace(" ", "_"), face.index, 3*len(face.verts))
         if sks:
-            ventries = ''.join([" {0[0]} {0[1]} {0[2]}\n".format((o.matrix_world*mathutils.Vector((v[skl0][0]+(v[skl1][0]-v[skl0][0])*skv1, v[skl0][1]+(v[skl1][1]-v[skl0][1])*skv1, v[skl0][2]+(v[skl1][2]-v[skl0][2])*skv1)))) for v in face.verts])
+            ventries = ''.join([" {0[0]:.4f} {0[1]:.4f} {0[2]:.4f}\n".format((o.matrix_world*mathutils.Vector((v[skl0][0]+(v[skl1][0]-v[skl0][0])*skv1, v[skl0][1]+(v[skl1][1]-v[skl0][1])*skv1, v[skl0][2]+(v[skl1][2]-v[skl0][2])*skv1)))) for v in face.verts])
         else:
-            ventries = ''.join([" {0[0]:.3f} {0[1]:.3f} {0[2]:.3f}\n".format(v.co) for v in face.verts])
+            ventries = ''.join([" {0[0]:.4f} {0[1]:.4f} {0[2]:.4f}\n".format(v.co) for v in face.verts])
         fentries[f] = ''.join((fentry, ventries+'\n'))        
     return ''.join(fentries)
                        
@@ -1310,6 +1354,8 @@ def viparams(op, scene):
         os.makedirs(os.path.join(fd, fn, 'obj'))
     if not os.path.isdir(os.path.join(fd, fn, 'bsdfs')):
         os.makedirs(os.path.join(fd, fn, 'bsdfs'))
+    if not os.path.isdir(os.path.join(fd, fn, 'images')):
+        os.makedirs(os.path.join(fd, fn, 'images'))
     if not os.path.isdir(os.path.join(fd, fn, 'lights')):
         os.makedirs(os.path.join(fd, fn, 'lights'))
     if not os.path.isdir(os.path.join(fd, fn, 'Openfoam')):
@@ -1511,11 +1557,11 @@ def clearscene(scene, op):
             if 'export' in op.name or 'simulation' in op.name:
                 bm = bmesh.new()
                 bm.from_mesh(ob.data)
-                if "export" in op.name:
-                    if bm.faces.layers.int.get('rtindex'):
-                        bm.faces.layers.int.remove(bm.faces.layers.int['rtindex'])
-                    if bm.verts.layers.int.get('rtindex'):
-                        bm.verts.layers.int.remove(bm.verts.layers.int['rtindex'])
+#                if "export" in op.name:
+#                    if bm.faces.layers.int.get('rtindex'):
+#                        bm.faces.layers.int.remove(bm.faces.layers.int['rtindex'])
+#                    if bm.verts.layers.int.get('rtindex'):
+#                        bm.verts.layers.int.remove(bm.verts.layers.int['rtindex'])
                 if "simulation" in op.name:
                     while bm.verts.layers.float.get('res{}'.format(v)):
                         livires = bm.verts.layers.float['res{}'.format(v)]
@@ -1584,9 +1630,17 @@ def retdata(dnode, axis, mtype, resdict, frame):
 #    self.items = 
 
 def zrupdate(self, context):
-    try:
+    try: 
         rl = self.links[0].from_node['reslists']
-        zri = [(zr[3], zr[3], 'Plot {}'.format(zr[3])) for zr in rl if zr[2] == self.zonemenu]
+        zri = [(zr[3], zr[3], 'Plot {}'.format(zr[3])) for zr in rl if zr[2] == self.zonemenu and zr[0] == self.framemenu] if self.node.parametricmenu == '0' else [(zr[3], zr[3], 'Plot {}'.format(zr[3])) for zr in rl if zr[2] == self.zonemenu and zr[0] == 'All']
+        return zri
+    except:
+        return []
+        
+def rtupdate(self, context):
+    try: 
+        rl = self.links[0].from_node['reslists']
+        zri = set([(zr[1], zr[1], 'Plot {}'.format(zr[1])) for zr in rl if zr[0] == self.framemenu])
         return zri
     except:
         return []
@@ -1595,7 +1649,7 @@ def retrmenus(innode, node):
     rl = innode['reslists']
     zrl = list(zip(*rl))
     ftype = [(frame, frame, "Plot "+frame) for frame in list(OrderedDict.fromkeys(zrl[0])) if frame != 'All']        
-    frame = 'All' if node.animated and len(ftype) > 1 else zrl[0][0]
+    frame = 'All' if node.parametricmenu == '1' and len(ftype) > 1 else zrl[0][0]
     rtypes = list(OrderedDict.fromkeys([zrl[1][ri] for ri, r in enumerate(zrl[1]) if zrl[0][ri] == frame]))
     rtype = [(metric, metric, "Plot " + metric) for metric in rtypes]
     ctype = [(metric, metric, "Plot " + metric) for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Climate' and zrl[0][m] == frame]
@@ -1623,6 +1677,7 @@ def retrmenus(innode, node):
     chimrtype = [(metric, metric, "Plot " + metric) for metric in chimrtypes] 
     
     fmenu = bpy.props.EnumProperty(items=ftype, name="", description="Frame number", default = ftype[0][0])
+#    rtypemenu = bpy.props.EnumProperty(items=rtupdate, name="", description="Result types")
     rtypemenu = bpy.props.EnumProperty(items=rtype, name="", description="Result types", default = rtype[0][0])
     statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
     valid = ['Vi Results']    
@@ -1714,10 +1769,11 @@ def checkenvierrors(file, sim_op):
         
 def processf(pro_op, scene, node):
     reslists = []
-    frames = range(scene['enparams']['fs'], scene['enparams']['fe'] + 1)
-
+    frames = range(scene['enparams']['fs'], scene['enparams']['fe'] + 1) if node.bl_label == 'EnVi Simulation' else [scene.frame_current]    
     for frame in frames:
-        with open(os.path.join(scene['viparams']['newdir'], '{}{}out.eso'.format(pro_op.resname, frame)), 'r') as resfile:
+        node['envires{}'.format(frame)] = {}
+        resfileloc = os.path.join(scene['viparams']['newdir'], '{}{}out.eso'.format(pro_op.resname, frame)) if node.bl_label == 'EnVi Simulation' else node.resfilename
+        with open(resfileloc, 'r') as resfile:
             lines = resfile.readlines()
             hdict, lstart = processh(lines)          
             bodylines = lines[lstart:-2]            
@@ -1726,15 +1782,35 @@ def processf(pro_op, scene, node):
             for k in sorted(hdict.keys(), key=int):
                 if hdict[k] == ['Time']:
                     reslists.append([str(frame), 'Time', '', 'Month', ' '.join([line.strip('\n').split(',')[2] for line in bodylines if line.strip('\n').split(',')[0] == k])])
-                    reslists.append([str(frame), 'Time', '', 'Day', ' '.join([line.strip('\n').split(',')[3] for line in bodylines if line.strip('\n').split(',')[0] == k])])
+                    reslists.append([str(frame), 'Time', '', 'Day', ' '.join([line.strip('\n').split(',')[3] for line in bodylines if line.strip('\n').split(',')[0] == k])])                    
                     reslists.append([str(frame), 'Time', '', 'Hour', ' '.join([line.strip('\n').split(',')[5] for line in bodylines if line.strip('\n').split(',')[0] == k])])
                     reslists.append([str(frame), 'Time', '', 'DOS', ' '.join([line.strip('\n').split(',')[1] for line in bodylines if line.strip('\n').split(',')[0] == k])])
                 else:
                     reslists.append([str(frame)] + hdict[k] + [bdict[k]])
-                
-    if len(frames) > 1:
+
         rls = reslists
         zrls = list(zip(*rls))
+        zonerls = [zonerl for zonerl in rls if zonerl[1] == 'Zone']
+        zzonerls = list(zip(*zonerls))
+
+
+        for resname in set(zzonerls[3]):
+            hczres = [zres[4].split() for zres in zonerls if zres[0] == str(frame) and zres[3] == resname]
+            node['envires{}'.format(frame)][resname] = nsum(array([array([float(zr) for zr in hc]) for hc in hczres]), axis = 0)
+        node['hours'] = arange(1, 25, dtype = float)
+        node['days'] = arange(node.dsdoy, node.dedoy + 1, dtype = float)    
+        for o in bpy.context.scene.objects:
+            if 'EN_' + o.name.upper() in zrls[2]:
+                envires = {}
+                oress = [[zrls[3][z], zrls[4][z]]  for z, zr in enumerate(zrls[0]) if zr == str(frame) and zrls[2][z] == 'EN_' + o.name.upper()]
+                for ores in oress:                    
+                    envires[ores[0]] = array([float(val) for val in ores[1].split()])
+                if frame == frames[0]:
+                    o['hours'] = arange(1, 25, dtype = float)
+                    o['days'] = arange(node.dsdoy, node.dedoy + 1, dtype = float)
+                o['envires{}'.format((frame, '')[len(frames) == 1])] = envires
+                
+    if len(frames) > 1:        
         reslists.append(['All', 'Frames', '', 'Frames', ' '.join([str(f) for f in frames])])
         temps = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Temperature (degC)']
         heats = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Heating (W)']
@@ -1744,6 +1820,7 @@ def processf(pro_op, scene, node):
         co2s = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'CO2 (ppm)']
         comfppds = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'PPD']
         comfpmvs = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'PMV']
+        shgs = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Solar gain (W)]
 #        zns = set([zrls[2][zi] for zi, z in enumerate(zrls[1]) if z == 'Zone'])
 
         for zn in set([t[0] for t in temps]):
@@ -1787,6 +1864,10 @@ def processf(pro_op, scene, node):
                 reslists.append(['All', 'Zone', zn, 'Max PMV', ' '.join([str(max(t[1])) for t in comfpmvs if t[0] == zn])])
                 reslists.append(['All', 'Zone', zn, 'Min PMV', ' '.join([str(min(t[1])) for t in comfpmvs if t[0] == zn])])
                 reslists.append(['All', 'Zone', zn, 'Ave PMV', ' '.join([str(sum(t[1])/len(t[1])) for t in comfpmvs if t[0] == zn])])
+            if shgs:
+                reslists.append(['All', 'Zone', zn, 'Max SHG', ' '.join([str(max(t[1])) for t in shgs if t[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Min SHG', ' '.join([str(min(t[1])) for t in shgs if t[0] == zn])])
+                reslists.append(['All', 'Zone', zn, 'Ave SHG', ' '.join([str(sum(t[1])/len(t[1])) for t in shgs if t[0] == zn])])
     
 #    for zn in zns:    
 #        bpy.data.objects[zn].rcarray =                                                                                                  
@@ -1795,6 +1876,26 @@ def processf(pro_op, scene, node):
 #    array([["", 'Average', 'Minimum', 'Maximum', '% hours over ', '% hours under'], ['DA (%)', '1', '2', '3']])
     if node.outputs['Results out'].links:
        node.outputs['Results out'].links[0].to_node.update() 
+       
+def enunits(self, context):
+    try: #context.active_object and context.active_object.children[0].get('envires{}'.format(context.scene.frame_current)):
+        resnode = bpy.data.node_groups[context.scene['viparams']['resnode'].split('@')[1]].nodes[context.scene['viparams']['resnode'].split('@')[0]]
+        resstring = retenvires(context.scene)
+        return [(k, k, 'Display {}'.format(k)) for k in resnode[resstring].keys()]
+    except:
+        return []
+
+def enparametric(self, context):
+    resnode = bpy.data.node_groups[context.scene['viparams']['resnode'].split('@')[1]].nodes[context.scene['viparams']['resnode'].split('@')[0]]
+    try:
+        rl = resnode['reslists']
+        zrl = list(zip(*rl))
+        if len(set(zrl[0])) > 1:
+            return [("0", "Static", "Static results"), ("1", "Parametric", "Parametric results")]
+        else:
+            return [("0", "Static", "Static results")]
+    except:
+        return [("0", "Static", "Static results")]
 
 def iprop(iname, idesc, imin, imax, idef):
     return(IntProperty(name = iname, description = idesc, min = imin, max = imax, default = idef))
@@ -2028,9 +2129,11 @@ def compass(loc, scale, wro, mat):
         for vert in verts:
             vert.co += 1.0*scale*(tmatrot*direc)
             vert.co[2] = 0
-        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + scale*1.1*(tmatrot*direc), rotation=tmatrot.to_euler())
+        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + scale*1.13*(tmatrot*direc), rotation=tmatrot.to_euler())
         txt = bpy.context.active_object
         txt.scale, txt.data.body, txt.data.align, txt.location[2]  = (scale*0.075, scale*0.075, scale*0.075), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER', txt.location[2]
+        # For Blender 2.78
+#        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*0.075, scale*0.075, scale*0.075), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER', 'CENTER', txt.location[2]
         bpy.ops.object.convert(target='MESH')
         bpy.ops.object.material_slot_add()
         txt.material_slots[-1].material = mat
@@ -2039,9 +2142,11 @@ def compass(loc, scale, wro, mat):
 
     tmatrot = Matrix.Rotation(0, 4, 'Z')
     for d in range(16):
-        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + scale*1.0125*(tmatrot*direc), rotation=tmatrot.to_euler())
+        bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + scale*1.04*(tmatrot*direc), rotation=tmatrot.to_euler())
         txt = bpy.context.active_object
-        txt.scale, txt.data.body, txt.data.align, txt.location[2]  = (scale*0.05, scale*0.05, scale*0.05), (u'0\u00B0', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', u'270\u00B0', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', u'180\u00B0', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', u'90\u00B0', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')[d], 'CENTER', txt.location[2]
+        txt.scale, txt.data.body, txt.data.align, txt.location[2]  = (scale*0.05, scale*0.05, scale*0.05), (u'0\u00B0', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', u'270\u00B0', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', u'180\u00B0', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', u'90\u00B0', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')[d], 'CENTER', txt.location[2]       
+        # For Blender 2.78
+#        txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*0.05, scale*0.05, scale*0.05), (u'0\u00B0', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', u'270\u00B0', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', u'180\u00B0', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', u'90\u00B0', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')[d], 'CENTER', 'CENTER', txt.location[2]
         bpy.ops.object.convert(target='MESH')
         bpy.ops.object.material_slot_add()
         txt.material_slots[-1].material = mat
@@ -2267,7 +2372,7 @@ def retobjs(otypes):
     elif otypes == 'envig':
         return([o for o in validobs if o.type == 'MESH' and o.hide == False and o.layers[0] == True])
     elif otypes == 'ssc':
-        return [o for o in validobs if o.type == 'MESH' and o.lires == 0 and o.hide == False and o.layers[scene.active_layer] == True and any([m.mattype == '2' for m in o.data.materials])]
+        return [o for o in validobs if o.type == 'MESH' and o.lires == 0 and o.hide == False and o.layers[scene.active_layer] == True and any([m.mattype == '1' for m in o.data.materials])]
 
 def radmesh(scene, obs, export_op):
     for o in obs:
@@ -2325,31 +2430,32 @@ def retdp(mres, dp):
     return dp
 
 def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
-#    blf.enable(0, 4)
-    blf_props(fontsize, fontcol, shadcol)
-    avdistance = sum(distances)/len(distances)
-    fsd = fontsize * avdistance
-    nres = ['{}'.format(format(r, '.{}f'.format(retdp(max(res), 0)))) for ri, r in enumerate(res)]
-    [(blf.size(0, int(fsd/distances[ri]), 72), blf.position(0, posis[ri][0] - int(0.5*blf.dimensions(0, nr)[0]), posis[ri][1] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99), blf.draw(0, nr)) for ri, nr in enumerate(nres)]
-    blf.disable(0, 4)
+    if len(distances):
+#        blf_props(fontsize, fontcol, shadcol)
+        nres = [str(int(r)) for r in res]
+        fsdist = (6 * fontsize/distances).astype(int)
+        xposis = posis[:,0]
+        yposis = posis[:,1]
+        [(blf.size(0, fontsize, fsdist[ri]), blf.position(0, xposis[ri] - int(0.5*blf.dimensions(0, nr)[0]), yposis[ri] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99), blf.draw(0, nr)) for ri, nr in enumerate(nres)]
+        blf.disable(0, 4)
     
 def draw_index(posis, res, fontsize, fontcol, shadcol): 
-    blf_props(fontsize, fontcol, shadcol)
+#    blf_props(fontsize, fontcol, shadcol)
     nres = ['{}'.format(format(r, '.{}f'.format(retdp(max(res), 0)))) for ri, r in enumerate(res)]    
     [(blf.position(0, posis[ri][0] - int(0.5*blf.dimensions(0, nr)[0]), posis[ri][1] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99), blf.draw(0, nr)) for ri, nr in enumerate(nres)]
     blf.disable(0, 4)
     
 def draw_time(pos, time, fontsize, fontcol, shadcol):
-    blf_props(fontsize, fontcol, shadcol)
     blf.position(0, pos[0], pos[1] - blf.dimensions(0, time)[1] * 0.5, 0)
     blf.draw(0, time)
     blf.disable(0, 4)
     
-def blf_props(fontsize, fontcol, shadcol):
-    blf.enable(0, 4)
-    blf.shadow(0, 5, *shadcol)
-    bgl.glColor4f(*fontcol)
-    blf.size(0, 12, int(fontsize))
+def blf_props(scene):
+    if scene.vi_display_rp_sh:
+        blf.enable(0, 4)
+        blf.shadow(0, 3, *scene.vi_display_rp_fsh)
+    bgl.glColor4f(*scene.vi_display_rp_fc)
+    blf.size(0, 12, scene.vi_display_rp_fs)
     
 def edgelen(ob, edge):
     omw = ob.matrix_world
@@ -2577,7 +2683,7 @@ def li_calcob(ob, li):
     if not ob.data.materials:
         return False
     else:
-        ob.licalc = 1 if [face.index for face in ob.data.polygons if (ob.data.materials[face.material_index].mattype == '2', ob.data.materials[face.material_index].mattype == '1')[li == 'livi']] else 0
+        ob.licalc = 1 if [face.index for face in ob.data.polygons if ob.data.materials[face.material_index].mattype == '1'] else 0
         return ob.licalc
 
 # FloVi functions
@@ -2668,7 +2774,7 @@ def fvvarwrite(scene, obs, node):
     for o in obs:
         for mat in o.data.materials: 
             matname = '{}_{}'.format(o.name, mat.name) if o.vi_type == '3' else mat.name 
-            if mat.mattype == '3':
+            if mat.mattype == '2':
                 pentry += mat.fvmat(matname, 'p')
                 Uentry += mat.fvmat(matname, 'U')
                 if node.solver != 'icoFoam':
@@ -2931,8 +3037,9 @@ def sunapply(scene, sun, values, solposs, frames):
         if scene.render.engine == 'CYCLES' and sun.data.node_tree:
             for emnode in emnodes:
                 em1.keyframe_points[f].co = frame, values[f][1]
-        for bbnode in bbnodes:
-            bb1.keyframe_points[f].co = frame, retsunct(solposs[f][2])
+        if sun.data.node_tree:
+            for bbnode in bbnodes:
+                bb1.keyframe_points[f].co = frame, retsunct(solposs[f][2])
                    
         sunposx.keyframe_points[f].co = frame, sunpos[0]
         sunposy.keyframe_points[f].co = frame, sunpos[1]

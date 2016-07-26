@@ -52,6 +52,8 @@ def envi_sim(calc_op, node, connode):
     node.dedoy = connode.edoy
     if node.resname+".err" not in [im.name for im in bpy.data.texts]:
         bpy.data.texts.load(os.path.join(scene['viparams']['newdir'], node.resname+".err"))
+    else:
+        bpy.data.texts.reload(os.path.join(scene['viparams']['newdir'], node.resname+".err"))
     calc_op.report({'INFO'}, "Calculation is finished.")  
             
    

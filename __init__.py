@@ -20,7 +20,7 @@ bl_info = {
     "name": "VI-Suite v04",
     "author": "Ryan Southall",
     "version": (0, 4, 0),
-    "blender": (2, 7, 7),
+    "blender": (2, 7, 8),
     "api":"",
     "location": "Node Editor & 3D View > Properties Panel",
     "description": "Radiance/EnergyPlus exporter and results visualiser",
@@ -39,14 +39,15 @@ if "bpy" in locals():
 else:
     from .vi_node import vinode_categories, envinode_categories
     from .envi_mat import envi_materials, envi_constructions, envi_layero, envi_layer1, envi_layer2, envi_layer3, envi_layer4, envi_layerotype, envi_layer1type, envi_layer2type, envi_layer3type, envi_layer4type, envi_con_list
-    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, fvmat, radmat, radbsdf, retsv, cmap
-    from .vi_func import resnameunits, aresnameunits, recalculate_text, rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, lividisplay, setscenelivivals
+    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, fvmat, radmat, radbsdf, retsv, cmap, enparametric, retenvires
+    from .vi_func import resnameunits, aresnameunits, recalculate_text, rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, lividisplay, setscenelivivals, enunits
     from .vi_operators import *
     from .vi_ui import *
 
-import sys, os, inspect, bpy, nodeitems_utils, bmesh, shutil, colorsys, math
+import sys, os, inspect, bpy, nodeitems_utils, bmesh, shutil, colorsys, math, datetime, mathutils
 from bpy.app.handlers import persistent
-from numpy import array, digitize, logspace, vectorize
+from numpy import array, digitize, logspace, vectorize, multiply
+from numpy import log10 as nlog10
 from bpy.props import StringProperty, EnumProperty, IntProperty
 from bpy.types import Operator, AddonPreferences
 
@@ -73,16 +74,16 @@ class VIPreferences(AddonPreferences):
         row.label(text="EnergyPlus weather directory:")   
         row.prop(self, 'epweath')
 
-class OBJECT_OT_vi_prefs(Operator):
-    """Display example preferences"""
-    bl_idname = "object.vi_prefs"
-    bl_label = "VI Preferences"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    def execute(self, context):
+#class OBJECT_OT_vi_prefs(Operator):
+#    """Display example preferences"""
+#    bl_idname = "object.vi_prefs"
+#    bl_label = "VI Preferences"
+#    bl_options = {'REGISTER', 'UNDO'}
+#
+#    def execute(self, context):
 #        print(__name__)
-#        vi_prefs = context.user_preferences.addons[__name__].preferences
-        return {'FINISHED'} 
+#        self.vi_prefs = context.user_preferences.addons[__name__].preferences
+#        return {'FINISHED'} 
 
 @persistent
 def update_ntree(dummy):
@@ -91,9 +92,33 @@ def update_ntree(dummy):
         
 @persistent
 def display_off(dummy):
-    if bpy.context.scene.get('vi_display'):
+    if bpy.context.scene.get('viparams'):
         bpy.context.scene.vi_display = 0
+        ifdict = {'sspanel': 'ss', 'lipanel': 'li', 'enpanel': 'en'}
+        if bpy.context.scene['viparams']['vidisp'] in ifdict:
+            bpy.context.scene['viparams']['vidisp'] = ifdict[bpy.context.scene['viparams']['vidisp']]
+            
+@persistent
+def select_nodetree(dummy): 
+    for space in getViEditorSpaces():
+        vings = [ng for ng in bpy.data.node_groups if ng.bl_idname == 'ViN']
+        if vings:
+            space.node_tree = vings[0]
+    for space in getEnViEditorSpaces():
+        envings = [ng for ng in bpy.data.node_groups if ng.bl_idname == 'EnViN']
+        if envings:
+            space.node_tree = envings[0]
+        
+def getViEditorSpaces():
+    spaces = [area.spaces.active for area in bpy.context.screen.areas if area.type == "NODE_EDITOR" and area.spaces.active.tree_type == "ViN" and not area.spaces.active.edit_tree]
+    return spaces
+    
+def getEnViEditorSpaces():
+    spaces = [area.spaces.active for area in bpy.context.screen.areas if area.type == "NODE_EDITOR" and area.spaces.active.tree_type == "EnViN" and not area.spaces.active.edit_tree]
+    return spaces
 
+bpy.app.handlers.scene_update_post.append(select_nodetree)
+            
 epversion = "8-5-0"
 addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 matpath, epwpath, envi_mats, envi_cons, conlayers  = addonpath+'/EPFiles/Materials/Materials.data', addonpath+'/EPFiles/Weather/', envi_materials(), envi_constructions(), 5
@@ -145,25 +170,30 @@ def eupdate(self, context):
                 bm.transform(o.matrix_world)            
                 skb = bm.verts.layers.shape['Basis']
                 skf = bm.verts.layers.shape[str(frame)]
-    
+                
                 if str(frame) in o['omax']:
                     if bm.faces.layers.float.get('res{}'.format(frame)):
+                        extrude = bm.faces.layers.int['extrude']
                         res = bm.faces.layers.float['res{}'.format(frame)] #if context.scene['cp'] == '0' else bm.verts.layers.float['res{}'.format(frame)]                
-                        faces = [f for f in bm.faces if f.select]
-                        extrudes = [0.1 * scene.vi_disp_3dlevel * (math.log10(maxo * (f[res] + 1 - mino)/odiff)) * f.normal.normalized() for f in faces] if scene.vi_leg_scale == '1' else \
-                            [scene.vi_disp_3dlevel * ((f[res] - mino)/odiff) * f.normal.normalized() for f in faces]
-    
+                        faces = [f for f in bm.faces if f[extrude]]
+                        fnorms = array([f.normal.normalized() for f in faces]).T
+                        fres = array([f[res] for f in faces])
+                        extrudes = (0.1 * scene.vi_disp_3dlevel * (nlog10(maxo * (fres + 1 - mino)/odiff)) * fnorms).T if scene.vi_leg_scale == '1' else \
+                            multiply(fnorms, scene.vi_disp_3dlevel * ((fres - mino)/odiff)).T
+
                         for f, face in enumerate(faces):
                             for v in face.verts:
-                                v[skf] = v[skb] + extrudes[f]
+                                v[skf] = v[skb] + mathutils.Vector(extrudes[f])
                     
                     elif bm.verts.layers.float.get('res{}'.format(frame)):
                         res = bm.verts.layers.float['res{}'.format(frame)]
-                        extrudes = [scene.vi_disp_3dlevel * ((v[res]-mino)/odiff) * v.normal.normalized() for v in bm.verts] if scene.vi_leg_scale == '0' else \
+                        vnorms = array([v.normal.normalized() for v in bm.verts]).T
+                        vres = array([v[res] for v in bm.verts])
+                        extrudes = multiply(vnorms, scene.vi_disp_3dlevel * ((vres-mino)/odiff)).T if scene.vi_leg_scale == '0' else \
                             [0.1 * scene.vi_disp_3dlevel * (math.log10(maxo * (v[res] + 1 - mino)/odiff)) * v.normal.normalized() for v in bm.verts]  
                         for v, vert in enumerate(bm.verts):
-                            vert[skf] = vert[skb] + extrudes[v]
-    
+                            vert[skf] = vert[skb] + mathutils.Vector(extrudes[v])
+
                 bm.transform(o.matrix_world.inverted())
                 bm.to_mesh(o.data)
                 bm.free()
@@ -235,48 +265,47 @@ def setcols(self, context):
     fc = scene.frame_current
     rdict = {'envi_temp': 'Temp', 'envi_hum': 'Hum', 'envi_heat': 'Heat', 'envi_cool': 'Cool', 'envi_co2': 'CO2'}
     mmdict = {'envi_temp': (scene.en_temp_max, scene.en_temp_min), 'envi_hum': (scene.en_hum_max, scene.en_hum_min), 'envi_heat': (scene.en_heat_max, scene.en_heat_min), 'envi_cool': (scene.en_cool_max, scene.en_cool_min), 'envi_co2': (scene.en_co2_max, scene.en_co2_min)}
-
-    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] in ('envi_temp', 'envi_hum', 'envi_heat', 'envi_cool', 'envi_co2') and o.get('envires')]:
+    resstring = retenvires(scene)
+#    if scene.en_disp_type == '0':
+#        if scene['enparams']['fs'] == scene['enparams']['fe']:
+#            resstring = 'envires'
+#        else:
+#            resstring = 'envires{}'.format(bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]['AStart'])
+#    else:
+#        resstring = 'envires{}'.format(scene.frame_current)
+#    
+    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] in ('envi_temp', 'envi_hum', 'envi_heat', 'envi_cool', 'envi_co2') and o.get(resstring)]:
         (rmax, rmin) = mmdict[o['VIType']]        
         mat = o.material_slots[0].material
         mfcs = mat.animation_data.action.fcurves
-        
+        dclist = []
+
         for mfc in mfcs:
             if mfc.data_path == 'diffuse_color':
-                (dcr, dcg, dcb)[mfc.array_index] = mfc
-#                if mfc.array_index == 0:
-#                    dcr = mfc
-#                elif mfc.array_index == 1:
-#                    dcg = mfc
-#                elif mfc.array_index == 2:
-#                    dcb = mfc
+                dclist.append(mfc)
 
         frames = range(scene.frame_start, scene.frame_end + 1)
-#        cols = [colorsys.hsv_to_rgb(0.667 * (rmax - o['envires'][rdict[o['VIType']]][frame])/(rmax - rmin), 1, 1) for frame in frames]
+
         for frame in frames:
-            if o['envires'][rdict[o['VIType']]][frame] < rmin:
+            if o[resstring][rdict[o['VIType']]][frame] < rmin:
                 col = (0, 0, 1) 
-            elif o['envires'][rdict[o['VIType']]][frame] > rmax:
+            elif o[resstring][rdict[o['VIType']]][frame] > rmax:
                 col = (1, 0, 0)
             else:
-                col = colorsys.hsv_to_rgb(0.667 * (rmax - o['envires'][rdict[o['VIType']]][frame])/(rmax - rmin), 1, 1)
+                col = colorsys.hsv_to_rgb(0.667 * (rmax - o[resstring][rdict[o['VIType']]][frame])/(rmax - rmin), 1, 1)
             
-            dcr.keyframe_points[frame].co = frame, col[0]
-            dcg.keyframe_points[frame].co = frame, col[1]
-            dcb.keyframe_points[frame].co = frame, col[2]
+            dclist[0].keyframe_points[frame].co = frame, col[0]
+            dclist[1].keyframe_points[frame].co = frame, col[1]
+            dclist[2].keyframe_points[frame].co = frame, col[2]
 
-#        rvals = [item for sublist in zip(frames,[col[0] for col in cols]) for item in sublist]
-#        gvals = [item for sublist in zip(frames,[col[1] for col in cols]) for item in sublist]
-#        bvals = [item for sublist in zip(frames,[col[2] for col in cols]) for item in sublist]
-#        dcr.keyframe_points.foreach_set('co', rvals)
-#        dcg.keyframe_points.foreach_set('co', gvals)
-#        dcb.keyframe_points.foreach_set('co', bvals)
 
     scene.frame_set(fc)
-    if not bpy.app.handlers.frame_change_pre:
+    if recalculate_text not in bpy.app.handlers.frame_change_pre:
         bpy.app.handlers.frame_change_pre.append(recalculate_text)    
            
 def register():
+#    bpy.utils.register_class(VIPreferences)
+#    bpy.utils.register_class(OBJECT_OT_vi_prefs)
     bpy.utils.register_module(__name__)
     Object, Scene, Material = bpy.types.Object, bpy.types.Scene, bpy.types.Material
 
@@ -315,7 +344,7 @@ def register():
 # FloVi object definitions
               
 # Vi_suite material definitions
-    Material.mattype = eprop([("0", "Geometry", "Geometry"), ("1", 'LiVi sensor', "LiVi sensing material".format(u'\u00b3')), ("2", "Shadow sensor", 'Shadow sensing material'), ("3", "FloVi boundary", 'FloVi blockmesh boundary')], "", "VI-Suite material type", "0")
+    Material.mattype = eprop([("0", "Geometry", "Geometry"), ("1", 'Light sensor', "LiVi sensing material".format(u'\u00b3')), ("2", "FloVi boundary", 'FloVi blockmesh boundary')], "", "VI-Suite material type", "0")
                                  
 # LiVi material definitions
                                  
@@ -497,7 +526,10 @@ def register():
     Scene.vi_leg_scale = EnumProperty(items = [('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name = "", description = "Legend scale", default = '0', update=legupdate)    
     Scene.vi_leg_col = EnumProperty(items = [('rainbow', 'Rainbow', 'Rainbow colour scale'), ('gray', 'Grey', 'Grey colour scale'), ('hot', 'Hot', 'Hot colour scale'),
                                              ('CMRmap', 'CMR', 'CMR colour scale'), ('jet', 'Jet', 'Jet colour scale'), ('plasma', 'Plasma', 'Plasma colour scale'), ('hsv', 'HSV', 'HSV colour scale')], name = "", description = "Legend scale", default = 'rainbow', update=colupdate)
-    Scene.en_disp = EnumProperty(items = [('0', 'Cylinder', 'Cylinder display'), ('1', 'Box', 'Box display')], name = "", description = "Type of EnVi metric display", default = '0')    
+    Scene.en_disp = EnumProperty(items = [('0', 'Cylinder', 'Cylinder display'), ('1', 'Box', 'Box display')], name = "", description = "Shape of EnVi result object", default = '0')    
+    Scene.en_disp_unit = EnumProperty(items = enunits, name = "", description = "Type of EnVi metric display")  
+    Scene.en_disp_type = EnumProperty(items = enparametric, name = "", description = "Type of EnVi display") 
+
     Scene.en_frame = iprop("", "EnVi frame", 0, 500, 0)
     Scene.en_temp_max = bpy.props.FloatProperty(name = "Max", description = "Temp maximum", default = 24, update=setcols)
     Scene.en_temp_min = bpy.props.FloatProperty(name = "Min", description = "Temp minimum", default = 18, update=setcols)
@@ -509,8 +541,11 @@ def register():
     Scene.en_cool_min = bpy.props.FloatProperty(name = "Min", description = "Cooling minimum", default = 0, update=setcols)
     Scene.en_co2_max = bpy.props.FloatProperty(name = "Max", description = "CO2 maximum", default = 10000, update=setcols)
     Scene.en_co2_min = bpy.props.FloatProperty(name = "Min", description = "CO2 minimum", default = 0, update=setcols)
-    Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 48, 9)
+    Scene.en_shg_max = bpy.props.FloatProperty(name = "Max", description = "Solar heat gain maximum", default = 10000, update=setcols)
+    Scene.en_shg_min = bpy.props.FloatProperty(name = "Min", description = "Solar heat gain minimum", default = 0, update=setcols)
+    Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 300, 50)
     Scene.vi_display_rp_fc = fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
+    Scene.vi_display_rp_sh = bprop("", "Toggle for font shadow display",  False)
     Scene.vi_display_rp_fsh = fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     Scene.vi_display_rp_off = fprop("", "Surface offset for number display", 0, 1, 0.001)
     Scene.vi_disp_trans = bpy.props.FloatProperty(name = "", description = "Sensing material transparency", min = 0, max = 1, default = 1, update = tupdate)
@@ -537,14 +572,14 @@ def register():
     if not update_ntree in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(update_ntree)
         
-    if not display_off in bpy.app.handlers.load_post:
+    if display_off not in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(display_off)
 
 def unregister():
     bpy.utils.unregister_module(__name__)
     nodeitems_utils.unregister_node_categories("Vi Nodes")
     nodeitems_utils.unregister_node_categories("EnVi Nodes")
-    if not update_ntree in bpy.app.handlers.load_post:
+    if update_ntree in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.remove(update_ntree)
 
 

@@ -94,7 +94,13 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
             rccmds.append("rcontrib -w  -h -I -fo -bn 146 {} -n {} -f tregenza.cal -b tbin -m sky_glow {}-{}.oct".format(simnode['radparams'], scene['viparams']['nproc'], scene['viparams']['filebase'], frame))
 #            rccmds.append("rcontrib -w  -h -I- -fo -bn 146 {} -n {} -f tregenza.cal -b tbin -m env_glow {}-{}.oct".format(simnode['radparams'], scene['viparams']['nproc'], scene['viparams']['filebase'], frame))
 
-    tpoints = sum([bpy.data.objects[lc]['rtpnum'] for lc in scene['liparams']['livic']])
+    try:
+        tpoints = sum([bpy.data.objects[lc]['rtpnum'] for lc in scene['liparams']['livic']])
+    except:
+        calc_op.report({'ERROR'}, 'Re-export the LiVi geometry')
+        if kivyrun.poll() is None:
+            kivyrun.kill()
+        return
     calcsteps = tpoints * len(frames)
     starttime = datetime.datetime.now()
     startstep = 0

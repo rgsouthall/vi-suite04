@@ -539,7 +539,7 @@ class legend():
         fc = str(scene.frame_current)
         dplaces = retdp(context, scene.vi_leg_max)
         resvals = [format(scene.vi_leg_min + i*(scene.vi_leg_max - scene.vi_leg_min)/19, '.{}f'.format(dplaces)) for i in range(20)] if scene.vi_leg_scale == '0' else \
-                        [format(scene.vi_leg_min + (1 -log10(i)/log10(20))*(scene.vi_leg_max - scene.vi_leg_min), '.{}f'.format(dplaces)) for i in range(1, 21)[::-1]]
+                        [format(scene.vi_leg_min + (1 - log10(i)/log10(20))*(scene.vi_leg_max - scene.vi_leg_min), '.{}f'.format(dplaces)) for i in range(1, 21)[::-1]]
         lenres = len(resvals[-1])
         font_id = 0
         blf.enable(0, 4)

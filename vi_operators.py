@@ -24,7 +24,7 @@ import bpy_extras.io_utils as io_utils
 from subprocess import Popen, PIPE, call
 from collections import OrderedDict
 from datetime import datetime as dt
-from math import cos, sin, pi, ceil, tan, modf
+from math import cos, sin, pi, ceil, tan
 from time import sleep
 
 try:
@@ -38,7 +38,7 @@ except Exception as e:
 
 from .livi_export import radgexport, spfc, createoconv, createradfile, genbsdf
 from .livi_calc  import li_calc
-from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, en_air, en_panel, en_temp_panel, wr_legend, wr_disp, wr_scatter, wr_table, ss_disp, ss_legend, basic_legend, basic_table, basic_disp, ss_scatter, en_disp, en_scatter#, li3D_legend
+from .vi_display import li_display, li_compliance, linumdisplay, spnumdisplay, en_air, en_panel, en_temp_panel, wr_legend, wr_disp, wr_scatter, wr_table, ss_disp, ss_legend, basic_legend, basic_table, basic_disp, ss_scatter, en_disp, en_scatter, comp_table, comp_disp, leed_scatter, cbdm_disp, cbdm_scatter#, li3D_legend
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum, envizres, envilres
@@ -346,6 +346,7 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
         scene['liparams']['cp'] = simnode['goptions']['cp']
         scene['liparams']['unit'] = simnode['coptions']['unit']
         scene['liparams']['type'] = simnode['coptions']['Type']
+        scene['viparams']['vidisp'] = ''
         scene.frame_start, scene.frame_end = scene['liparams']['fs'], scene['liparams']['fe']
         
         simnode.sim(scene)
@@ -353,9 +354,13 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
         for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
             createradfile(scene, frame, self, simnode)
             createoconv(scene, frame, self, simnode)
+        
+        calcout = li_calc(self, simnode, livisimacc(simnode))
 
-        if li_calc(self, simnode, livisimacc(simnode)) == 'CANCELLED':
+        if calcout == 'CANCELLED':
             return {'CANCELLED'}
+        else:
+            simnode['reslists'] = calcout
         if simnode['coptions']['Context'] != 'CBDM' and simnode['coptions']['Context'] != '1':
             scene.vi_display = 1
 
@@ -544,10 +549,6 @@ class VIEW3D_OT_LiDisplay(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def execute(self, context):
-        
-        if context:
-            print(dir(context.screen))
-#            bpy.ops.view3d.localview()
         dispdict = {'LiVi Compliance': 'lcpanel', 'LiVi Basic': 'lipanel', 'LiVi CBDM': 'lipanel', 'Shadow': 'sspanel'}
         scene = context.scene
         scene['liparams']['disp_count'] = scene['liparams']['disp_count'] + 1 if scene['liparams']['disp_count'] < 10 else 0 
@@ -695,18 +696,20 @@ class NODE_OT_CSVExport(bpy.types.Operator, io_utils.ExportHelper):
         resstring = ''
         resnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].inputs['Results in'].links[0].from_node
         rl = resnode['reslists']
-        rzl = list(zip(*rl))
-        if node.animated:
+        zrl = list(zip(*rl))
+
+        if len(set(zrl[0])) > 1 and node.animated:
             resstring = ''.join(['{} {},'.format(r[2], r[3]) for r in rl if r[0] == 'All']) + '\n'
-            metriclist = list(zip(*[r.split() for ri, r in enumerate(rzl[4]) if rzl[0][ri] == 'All']))
+            metriclist = list(zip(*[r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] == 'All']))
         else:
             resstring = ''.join(['{} {} {},'.format(r[0], r[2], r[3]) for r in rl if r[0] != 'All']) + '\n'
-            metriclist = list(zip(*[r.split() for ri, r in enumerate(rzl[4]) if rzl[0][ri] != 'All']))
+            metriclist = list(zip(*[r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] != 'All']))
 
         for ml in metriclist:
             resstring += ''.join(['{},'.format(m) for m in ml]) + '\n'
 
         resstring += '\n'
+        print(resstring)
         with open(self.filepath, 'w') as csvfile:
             csvfile.write(resstring)
         return {'FINISHED'}
@@ -843,7 +846,6 @@ class NODE_OT_EnSim(bpy.types.Operator):
                     
                     with open(os.path.join(scene['viparams']['newdir'], '{}{}out.eso'.format(self.resname, self.frame)), 'r') as resfile:
                         for resline in [line for line in resfile.readlines()[::-1] if line.split(',')[0] == '2' and len(line.split(',')) == 9]:
-                            print(int((100/self.lenframes) * (self.frame - scene['enparams']['fs'])) + int((100/self.lenframes) * int(resline.split(',')[1])/(self.simnode.dedoy - self.simnode.dsdoy)))
                             if self.pfile.check(int((100/self.lenframes) * (self.frame - scene['enparams']['fs'])) + int((100/self.lenframes) * int(resline.split(',')[1])/(self.simnode.dedoy - self.simnode.dsdoy))) == 'CANCELLED':
                                 self.simnode.run = -1
                                 return {'CANCELLED'}
@@ -1870,11 +1872,11 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
     bl_register = True
     bl_undo = False
 
-    def modal(self, context, event):            
+    def modal(self, context, event):           
         if context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':
             
             if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'lipanel' or not [o.lires for o in bpy.data.objects]:
-                bpy.types.SpaceView3D.draw_handler_remove(self._handle_basic_disp, 'WINDOW')
+                bpy.types.SpaceView3D.draw_handler_remove(self._handle_disp, 'WINDOW')
                 bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
                 context.scene['viparams']['vidisp'] = 'li'
                 context.area.tag_redraw()
@@ -1903,7 +1905,9 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
                         return {'RUNNING_MODAL'}
                 
                 elif event.type == 'ESC':
-                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_basic_disp, 'WINDOW')
+                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_disp, 'WINDOW')
+                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
+                    context.scene['viparams']['vidisp'] = 'li'
                     context.area.tag_redraw()
                     return {'CANCELLED'}
                     
@@ -1930,7 +1934,6 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
                 self.frame = context.scene.frame_current
             if self.table.unit != context.scene['liparams']['unit']:
                 self.table.update(context)
-                self.table.unit = context.scene['liparams']['unit']
             
             if self.table.spos[0] < mx < self.table.epos[0] and self.table.spos[1] < my < self.table.epos[1]:
                 self.table.hl = (0, 1, 1, 1)  
@@ -1948,7 +1951,9 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
                         return {'RUNNING_MODAL'}
                 
                 elif event.type == 'ESC':
-                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_basic_disp, 'WINDOW')
+                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_disp, 'WINDOW')
+                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
+                    context.scene['viparams']['vidisp'] = 'li'
                     context.area.tag_redraw()
                     return {'CANCELLED'}
                     
@@ -1957,7 +1962,94 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
                      self.table.press = 0                     
             else:
                 self.table.hl = (1, 1, 1, 1)
-                                     
+                
+            if context.scene['viparams']['visimcontext'] == 'LiVi Compliance':
+                if self.frame != context.scene.frame_current:
+                    self.tablecomp.update(context)
+                    self.frame = context.scene.frame_current
+                if self.tablecomp.unit != context.scene['liparams']['unit']:
+                    self.tablecomp.update(context)
+                    self.tablecomp.unit = context.scene['liparams']['unit']
+                if self.tablecomp.cao != context.active_object:
+                    self.tablecomp.update(context)
+                
+                if self.tablecomp.spos[0] < mx < self.tablecomp.epos[0] and self.tablecomp.spos[1] < my < self.tablecomp.epos[1]:
+                    self.tablecomp.hl = (0, 1, 1, 1)  
+                    if event.type == 'LEFTMOUSE':
+                        if event.value == 'PRESS':
+                            self.tablecomp.press = 1
+                            self.tablecomp.move = 0
+                            return {'RUNNING_MODAL'}
+                        elif event.value == 'RELEASE':
+                            if not self.tablecomp.move:
+                                self.tablecomp.expand = 0 if self.tablecomp.expand else 1
+                            self.tablecomp.press = 0
+                            self.tablecomp.move = 0
+                            context.area.tag_redraw()
+                            return {'RUNNING_MODAL'}
+                    
+                    elif event.type == 'ESC':
+                        bpy.types.SpaceView3D.draw_handler_remove(self._handle_disp, 'WINDOW')
+                        bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
+                        context.scene['viparams']['vidisp'] = 'li'
+                        context.area.tag_redraw()
+                        return {'CANCELLED'}
+                        
+                    elif self.tablecomp.press and event.type == 'MOUSEMOVE':
+                         self.tablecomp.move = 1
+                         self.tablecomp.press = 0                     
+                else:
+                    self.tablecomp.hl = (1, 1, 1, 1)
+                
+            if context.scene['liparams']['unit'] in ('ASE (hrs)', 'sDA (%)', 'DA (%)', 'UDI-f (%)', 'UDI-e (%)', 'UDI-l (%)', 'UDI-a (%)', 'Max lux', 'Min lux', 'Ave lux', 'kWh', 'kWh/m2'):
+                if self.frame != context.scene.frame_current:
+                    self.dhscatter.update(context)
+                    self.frame = context.scene.frame_current
+                if self.dhscatter.unit != context.scene['liparams']['unit']:
+                    self.dhscatter.update(context)
+                if self.dhscatter.cao != context.active_object:
+                    self.dhscatter.update(context)
+                if self.dhscatter.col != context.scene.vi_leg_col:
+                    self.dhscatter.update(context)
+                if context.scene['liparams']['unit'] in ('Max lux', 'Min lux', 'Ave lux', 'kWh', 'kWh/m2'):
+                    if (self.dhscatter.vmin, self.dhscatter.vmax) != (context.scene.vi_scatter_min, context.scene.vi_scatter_max):
+                       self.dhscatter.update(context) 
+                        
+                
+                if self.dhscatter.spos[0] < mx < self.dhscatter.epos[0] and self.dhscatter.spos[1] < my < self.dhscatter.epos[1]:
+                    self.dhscatter.hl = (0, 1, 1, 1)  
+                    if event.type == 'LEFTMOUSE':
+                        if event.value == 'PRESS':
+                            self.dhscatter.press = 1
+                            self.dhscatter.move = 0
+                            return {'RUNNING_MODAL'}
+                        elif event.value == 'RELEASE':
+                            if not self.dhscatter.move:
+                                self.dhscatter.expand = 0 if self.dhscatter.expand else 1
+                            self.dhscatter.press = 0
+                            self.dhscatter.move = 0
+                            context.area.tag_redraw()
+                            return {'RUNNING_MODAL'}
+                    
+                    elif event.type == 'ESC':
+                        bpy.types.SpaceView3D.draw_handler_remove(self._handle_disp, 'WINDOW')
+                        bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
+                        context.scene['viparams']['vidisp'] = 'li'
+                        context.area.tag_redraw()
+                        return {'CANCELLED'}
+                        
+                    elif self.dhscatter.press and event.type == 'MOUSEMOVE':
+                         self.dhscatter.move = 1
+                         self.dhscatter.press = 0   
+                                            
+                else:
+                    self.dhscatter.hl = (1, 1, 1, 1)
+                    if self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lepos[1] and abs(self.dhscatter.lepos[0] - mx) > 20 and abs(self.dhscatter.lspos[1] - my) > 20:
+                        if self.dhscatter.expand: 
+                            self.dhscatter.hl = (1, 1, 1, 1)
+                            if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.dhscatter.expand and self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff:
+                                self.dhscatter.show_plot()
+                                                         
             # Resize routines
             
             if abs(self.legend.lepos[0] - mx) < 20 and abs(self.legend.lspos[1] - my) < 20:
@@ -1978,6 +2070,23 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
                         self.table.resize = 0
                     return {'RUNNING_MODAL'}
             
+            elif context.scene['viparams']['visimcontext'] == 'LiVi Compliance' and abs(self.tablecomp.lepos[0] - mx) < 20 and abs(self.tablecomp.lspos[1] - my) < 20:
+                self.tablecomp.hl = (0, 1, 1, 1) 
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.tablecomp.resize = 1
+                    if self.tablecomp.resize and event.value == 'RELEASE':
+                        self.tablecomp.resize = 0
+                    return {'RUNNING_MODAL'}
+
+            elif context.scene['liparams']['unit'] in ('ASE (hrs)', 'sDA (%)', 'DA (%)', 'UDI-f (%)', 'UDI-e (%)', 'UDI-l (%)', 'UDI-a (%)', 'Max lux', 'Min lux', 'Ave lux', 'kWh', 'kWh/m2') and abs(self.dhscatter.lepos[0] - mx) < 20 and abs(self.dhscatter.lspos[1] - my) < 20:
+                self.dhscatter.hl = (0, 1, 1, 1) 
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.dhscatter.resize = 1
+                    if self.dhscatter.resize and event.value == 'RELEASE':
+                        self.dhscatter.resize = 0
+                    return {'RUNNING_MODAL'}
             # Move routines
                      
             if event.type == 'MOUSEMOVE':                
@@ -1989,7 +2098,19 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
                     self.table.pos = [mx, my]
                 if self.table.resize:
                     self.table.lepos[0], self.table.lspos[1] = mx, my
-            
+                if context.scene['viparams']['visimcontext'] == 'LiVi Compliance':
+                    if self.tablecomp.move:
+                        self.tablecomp.pos = [mx, my]
+                    if self.tablecomp.resize:
+                        self.tablecomp.lepos[0], self.tablecomp.lspos[1] = mx, my
+                try:
+                    if self.dhscatter.move:
+                        self.dhscatter.pos = [mx, my]
+                    if self.dhscatter.resize:
+                        self.dhscatter.lepos[0], self.dhscatter.lspos[1] = mx, my
+                except:
+                    pass
+                                
             context.area.tag_redraw()
         return {'PASS_THROUGH'}
 
@@ -2005,13 +2126,31 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
         lnd = linumdisplay(self, context, self.simnode)
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(lnd.draw, (context, ), 'WINDOW', 'POST_PIXEL')
         self.legend = basic_legend([80, context.region.height - 40], context.region.width, context.region.height, 'legend.png', 150, 600)
-#        self.dhscatter = wr_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
-        self.table = basic_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 100)       
         self.legend.update(context)
-#        self.dhscatter.update(context)
+#        self.dhscatter = wr_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
+#        if scene['viparams']['visimcontext'] == 'LiVi Basic':
+        self.table = basic_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 100)  
         self.table.update(context)
+        if scene['viparams']['visimcontext'] == 'LiVi Compliance':
+            self.tablecomp = comp_table([300, context.region.height - 40], context.region.width, context.region.height, 'compliance.png', 600, 200)
+            self.tablecomp.update(context)
+            if self.simnode['coptions']['canalysis'] == '3':
+                self.dhscatter = leed_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
+                self.dhscatter.update(context)        
+            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(comp_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
+
+#        self.dhscatter.update(context)
+        
 #        self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(viwr_legend, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
-        self._handle_basic_disp = bpy.types.SpaceView3D.draw_handler_add(basic_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
+        elif scene['viparams']['visimcontext'] == 'LiVi Basic':
+            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(basic_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
+#        if scene['viparams']['visimcontext'] == 'LiVi Compliance':
+#            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(comp_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
+        elif scene['viparams']['visimcontext'] == 'LiVi CBDM':
+            if self.simnode['coptions']['cbanalysis'] != '0':
+                self.dhscatter = cbdm_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
+                self.dhscatter.update(context)
+            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(cbdm_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
 

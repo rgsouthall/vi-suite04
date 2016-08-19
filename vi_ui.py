@@ -53,14 +53,21 @@ class Vi3DPanel(bpy.types.Panel):
                 row.prop(view, "show_only_render")
 #                newrow(layout, 'Legend', scene, "vi_leg_display")
                 if not scene.ss_disp_panel:
-                    if scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'kWh/m2'):
-                        newrow(layout, 'Result type:', scene, "li_disp_da")
-                    if scene['liparams']['unit'] in ('Mlxh', u'kWh/m\u00b2(f)', u'kWh/m\u00b2(v)'):
-                        newrow(layout, 'Result type:', scene, "li_disp_exp")
+                    if scene['viparams']['visimcontext'] == 'LiVi CBDM':
+                        if scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Min lux', 'Max lux', 'Ave lux'):
+                            newrow(layout, 'Result type:', scene, "li_disp_da")
+                        elif scene['liparams']['unit'] in ('Mlxh', u'kWh/m\u00b2 (f)', u'kWh/m\u00b2 (v)'):
+                            newrow(layout, 'Result type:', scene, "li_disp_exp")
+                        elif scene['liparams']['unit'] in ('kWh', 'kWh/m2'):
+                            newrow(layout, 'Result type:', scene, "li_disp_irrad")
 #                        elif 'SDA' in scene['liparams']['unit'] or 'ASE' in scene['liparams']['unit']:
 #                            newrow(layout, 'sDA/ASE:', scene, "li_disp_sda")
                     elif scene['viparams']['visimcontext'] == 'LiVi Compliance': 
-                        newrow(layout, 'Metric:', scene, 'li_disp_sv')
+                        if scene['liparams']['unit'] in ('sDA (%)', 'ASE (hrs)'):
+                            newrow(layout, 'Metric:', scene, 'li_disp_sda')
+#                            newrow(layout, 'Metric:', scene, 'li_disp_leed_scatter')
+                        else:
+                            newrow(layout, 'Metric:', scene, 'li_disp_sv')
                     elif scene['viparams']['visimcontext'] == 'LiVi Basic':
                         newrow(layout, 'Metric:', scene, 'li_disp_basic')
 #                    if scene.vi_leg_display:
@@ -68,6 +75,10 @@ class Vi3DPanel(bpy.types.Panel):
                     newrow(layout, 'Legend min:', scene, "vi_leg_min")
                     newrow(layout, 'Legend scale:', scene, "vi_leg_scale")
                     newrow(layout, 'Legend colour:', scene, "vi_leg_col")
+                    
+                    if scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux', 'Ave lux', 'Min lux', 'kWh', 'kWh/m2'):
+                        newrow(layout, 'Scatter max:', scene, "vi_scatter_max")
+                        newrow(layout, 'Scatter min:', scene, "vi_scatter_min")
                 
                 if context.active_object and context.active_object.type == 'MESH':
                     newrow(layout, 'Draw wire:', scene, 'vi_disp_wire')                    
@@ -86,10 +97,10 @@ class Vi3DPanel(bpy.types.Panel):
                     row = layout.row()
                     row.label(text="{:-<60}".format(""))
  
-                if scene['viparams']['vidisp'] == 'lcpanel':
-                    propdict = OrderedDict([("Compliance Panel", "li_compliance"), ("Asessment organisation:", "li_assorg"), ("Assesment individiual:", "li_assind"), ("Job number:", "li_jobno"), ("Project name:", "li_projname")])
-                    for prop in propdict.items():
-                        newrow(layout, prop[0], scene, prop[1])
+#                if scene['viparams']['visimcontext'] == 'LiVi Compliance':
+#                    propdict = OrderedDict([("Compliance Panel", "li_compliance"), ("Asessment organisation:", "li_assorg"), ("Assesment individiual:", "li_assind"), ("Job number:", "li_jobno"), ("Project name:", "li_projname")])
+#                    for prop in propdict.items():
+#                        newrow(layout, prop[0], scene, prop[1])
             
             elif scene['viparams']['vidisp'] in ('en', 'enpanel'):                
                 resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
@@ -200,8 +211,8 @@ class Vi3DPanel(bpy.types.Panel):
 #                if 'Solar gain (W)' in zmetrics:
                     
             
-                if scene.vi_display:            
-                    newrow(layout, 'Display active', scene, 'vi_display')
+            if scene.vi_display:            
+                newrow(layout, 'Display active', scene, 'vi_display')
 
 class VIMatPanel(bpy.types.Panel):
     bl_label = "VI-Suite Material"
@@ -217,28 +228,33 @@ class VIMatPanel(bpy.types.Panel):
         cm, scene = context.material, context.scene
         layout = self.layout
         newrow(layout, 'Material type', cm, "mattype")
-        if cm.mattype != '3':
-            try:
-                if scene.get('viparams') and scene['viparams'].get('visimcontext') and scene['viparams']['visimcontext'] == 'LiVi Compliance':
-                    simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
-                    coptions = simnode.inputs['Context in'].links[0].from_node['Options']
-                    if cm.mattype == '1':
-                        if coptions['canalysis'] == '0':
-                            if coptions['bambuild'] == '2':
-                                newrow(layout, "Space type:", cm, 'hspacemenu')
-                            elif coptions['bambuild'] == '3':
-                                newrow(layout, "Space type:", cm, 'brspacemenu')
-                                if cm.brspacemenu == '2':
-                                    row = layout.row()
-                                    row.prop(cm, 'gl_roof')
-                            elif coptions['bambuild'] == '4':
-                                newrow(layout, "Space type:", cm, 'respacemenu')
-                        elif coptions['canalysis'] == '1':
-                            newrow(layout, "Space type:", cm, 'crspacemenu')
-                        elif coptions['canalysis'] == '3':
-                            newrow(layout, "Space type:", cm, 'lespacemenu')    
-            except Exception as e:
-                print('Compliance specification problem', e)
+        if cm.mattype == '1':
+#            try:
+            if scene.get('viparams') and scene['viparams'].get('visimcontext') and scene['viparams']['visimcontext'] == 'LiVi Compliance':
+                simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
+                coptions = simnode.inputs['Context in'].links[0].from_node['Options']
+                if cm.mattype == '1':
+                    if coptions['canalysis'] == '0':
+                        if coptions['bambuild'] == '2':
+                            newrow(layout, "Space type:", cm, 'hspacemenu')
+                        elif coptions['bambuild'] == '3':
+                            newrow(layout, "Space type:", cm, 'brspacemenu')
+                            if cm.brspacemenu == '2':
+                                row = layout.row()
+                                row.prop(cm, 'gl_roof')
+                        elif coptions['bambuild'] == '4':
+                            newrow(layout, "Space type:", cm, 'respacemenu')
+                    elif coptions['canalysis'] == '1':
+                        newrow(layout, "Space type:", cm, 'crspacemenu')
+                    elif coptions['canalysis'] == '2':
+                        if coptions['bambuild'] == '2':
+                            newrow(layout, "Space type:", cm, 'hspacemenu')
+                        if coptions['bambuild'] == '3':
+                            newrow(layout, "Space type:", cm, 'brspacemenu')
+                    elif coptions['canalysis'] == '3':
+                        newrow(layout, "Space type:", cm, 'lespacemenu')    
+#            except Exception as e:
+#                print('Compliance specification problem', e)
     
             row = layout.row()
             row.label('LiVi Radiance type:')

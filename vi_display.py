@@ -138,6 +138,7 @@ def li_display(simnode):
         bm.transform(o.matrix_world.inverted())
         bm.to_mesh(ores.data)
         bm.free()
+        bpy.ops.object.shade_flat()
         ores.lividisplay(scene)
                 
         if scene.vi_disp_3d == 1 and ores.data.shape_keys == None:
@@ -748,10 +749,60 @@ class wr_scatter(Base_Display):
     def show_plot(self):
         show_plot(self)
         
+class leed_scatter(Base_Display):
+    def __init__(self, pos, width, height, iname, xdiff, ydiff):
+        Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
+        self.unitdict = {'ASE (hrs)': 'asearea', 'sDA (%)': 'sdaarea'}
+        self.unit = 'sDA (%)'
+
+    def update(self, context):
+        self.cao = context.active_object
+        self.unit = context.scene['liparams']['unit']
+        self.frame = context.scene.frame_current
+        if self.cao and self.cao.get('livires') and self.cao['livires'].get('{}{}'.format(self.unitdict[context.scene['liparams']['unit']], context.scene.frame_current)):
+            zdata = array(self.cao['livires']['{}{}'.format(self.unitdict[context.scene['liparams']['unit']], context.scene.frame_current)])
+            (title, cbtitle) = ('% area with Illuminance above 1000 lux', 'Area (%)') if context.scene['liparams']['unit'] == 'ASE (hrs)' else ('% area with Illuminance above 300 lux', 'Area (%)')
+            self.plt = plt
+            draw_dhscatter(self, context.scene, self.cao['livires']['cbdm_days'], self.cao['livires']['cbdm_hours'], zdata, title, 'Days', 'Hours', cbtitle, 0, 100)  
+            save_plot(self, context.scene, 'scatter.png')
+        
+    def drawopen(self, context):
+        draw_image(self, 0)
+        
+    def show_plot(self):
+        show_plot(self)
+        
+class cbdm_scatter(Base_Display):
+    def __init__(self, pos, width, height, iname, xdiff, ydiff):
+        Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
+        self.unitdict = {'ASE (hrs)': 'asearea', 'sDA (%)': 'sdaarea', 'DA (%)': 'daarea', 'UDI-f (%)': 'udilarea', 'UDI-s (%)': 'udisarea', 'UDI-a (%)': 'udiaarea', 'UDI-e (%)': 'udiharea', 'Max lux': 'dhillumax', 'Ave lux': 'dhilluave', 'Min lux': 'dhillumin', 'kWh': 'kW', 'kWh/m2': 'kW/m2'}
+        self.titledict = {'ASE (hrs)': 'ASE Area', 'sDA (%)': 'sDa Area', 'DA (%)': 'DA Area', 'UDI-f (%)': 'UDI-f Area', 'UDI-s (%)': 'UDI-s Area', 'UDI-a (%)': 'UDI-a Area', 'UDI-e (%)': 'UDI-e Area', 'Max lux': 'Maximum Object Illuminance', 'Ave lux': 'Average Object Illuminance', 
+        'Min lux': 'Minimum Object Illuminance', 'kWh': 'Object Irradiance', 'kWh/m2': 'Object Irradiance Density'}
+        self.cbtitledict = {'ASE (hrs)': 'Area (%)', 'sDA (%)': 'Area (%)', 'DA (%)': 'Area (%)', 'UDI-f (%)': 'Area (%)', 'UDI-s (%)': 'Area (%)', 'UDI-a (%)': 'Area (%)', 'UDI-e (%)': 'Area (%)', 'Max lux': 'Lux', 'Ave lux': 'Lux', 
+        'Min lux': 'Lux', 'kWh': 'kW', 'kWh/m2': u'kW/m\u00b2'}
+
+    def update(self, context):
+        self.cao = context.active_object
+        self.unit = context.scene['liparams']['unit']
+        self.frame = context.scene.frame_current
+
+        if self.cao and self.cao.get('livires') and self.cao['livires'].get('{}{}'.format(self.unitdict[context.scene['liparams']['unit']], context.scene.frame_current)):
+            zdata = array(self.cao['livires']['{}{}'.format(self.unitdict[context.scene['liparams']['unit']], context.scene.frame_current)])
+            (self.vmax, self.vmin) = (context.scene.vi_scatter_max, context.scene.vi_scatter_min) if context.scene['liparams']['unit'] in ('Max lux', 'Min lux', 'Ave lux', 'kWh', 'kWh/m2') else (100, 0)
+            (title, cbtitle) = (self.titledict[context.scene['liparams']['unit']], self.cbtitledict[context.scene['liparams']['unit']])
+            self.plt = plt
+            draw_dhscatter(self, context.scene, self.cao['livires']['cbdm_days'], self.cao['livires']['cbdm_hours'], zdata, title, 'Days', 'Hours', cbtitle, self.vmin, self.vmax)  
+            save_plot(self, context.scene, 'scatter.png')
+        
+    def drawopen(self, context):
+        draw_image(self, 0)
+        
+    def show_plot(self):
+        show_plot(self)
+        
 class en_scatter(Base_Display):
     def __init__(self, pos, width, height, iname, xdiff, ydiff):
         Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
-#        self.ws, self.type_select = 1, 'Speed'
         
     def update(self, context):
         self.cao = context.active_object
@@ -819,7 +870,6 @@ class ss_scatter(Base_Display):
     def show_plot(self):
         show_plot(self)
 
-
 class wr_table(Base_Display):
     def __init__(self, pos, width, height, iname, xdiff, ydiff):
         Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
@@ -837,16 +887,38 @@ class basic_table(Base_Display):
     def __init__(self, pos, width, height, iname, xdiff, ydiff):
         Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
         self.fontdpi = int(0.15 * ydiff)
-        self.unitdict = {'Lux': 1, u'W/m\u00b2 (v)': 2, u'W/m\u00b2 (f)': 3, 'DF (%)': 4}
+        self.unitdict = {'Lux': 'illu', 'DF (%)': 'df', u'W/m\u00b2 (v)': 'vi', u'W/m\u00b2 (f)': 'fi', 'Sky View': 'sv', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase',
+                         'Mlxh': 'mlxh', u'kWh/m\u00b2 (f)': 'fi', u'kWh/m\u00b2 (v)': 'vi', 'DA (%)': 'da', 'UDI-f (%)': 'udil', 'UDI-s (%)': 'udis', 
+                         'UDI-a (%)': 'udia', 'UDI-e (%)': 'udie', 'Max lux': 'illu', 'Ave lux': 'illu', 'Min lux': 'illu', 'kWh': 'kwh', 'kWh/m2': 'kwhm2'}
         
     def update(self, context):
         self.unit = context.scene['liparams']['unit']
         self.cao = context.active_object
-        if self.cao and self.cao.get('table{}'.format(context.scene.frame_current)):
-            self.rcarray = array((self.cao['table{}'.format(context.scene.frame_current)][0], self.cao['table{}'.format(context.scene.frame_current)][self.unitdict[context.scene['liparams']['unit']]]))  
+
+        if self.cao and self.cao.get('table{}{}'.format(self.unitdict[context.scene['liparams']['unit']], context.scene.frame_current)):
+            self.rcarray = array(self.cao['table{}{}'.format(self.unitdict[context.scene['liparams']['unit']], context.scene.frame_current)])
+
+    def drawopen(self, context):
+        draw_table(self)
+        
+class comp_table(Base_Display):
+    def __init__(self, pos, width, height, iname, xdiff, ydiff):
+        Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
+        self.fontdpi = int(0.15 * ydiff)
+        self.unitdict = {'DF (%)': 'df', 'Sky View': 'sv'}
+        
+    def update(self, context):
+        self.unit = context.scene['liparams']['unit']
+        self.cao = context.active_object
+        resnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]
+        if self.cao and self.cao.get('tablecomp{}'.format(context.scene.frame_current)):
+            self.rcarray = array((self.cao['tablecomp{}'.format(context.scene.frame_current)]))  
+        else:
+            self.rcarray = array((resnode['tablecomp{}'.format(context.scene.frame_current)]))
         
     def drawopen(self, context):
         draw_table(self)
+#        print(self.__class__.__name__)
             
 def wr_disp(self, context, simnode):
     width, height = context.region.width, context.region.height
@@ -857,9 +929,25 @@ def wr_disp(self, context, simnode):
 def basic_disp(self, context, simnode):
     width, height = context.region.width, context.region.height
     self.legend.draw(context, width, height)
-#    self.dhscatter.draw(context, width, height)
     self.table.draw(context, width, height)
     
+def comp_disp(self, context, simnode):
+    width, height = context.region.width, context.region.height
+    self.legend.draw(context, width, height)
+    self.table.draw(context, width, height)
+    self.tablecomp.draw(context, width, height)
+    
+    if context.scene['liparams']['unit'] in ('ASE (hrs)', 'sDA (%)'):
+        self.dhscatter.draw(context, width, height)
+
+def cbdm_disp(self, context, simnode):
+    width, height = context.region.width, context.region.height
+    self.legend.draw(context, width, height)
+    self.table.draw(context, width, height)
+
+    if context.scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux', 'Ave lux', 'Min lux', 'kWh', 'kWh/m2'):
+        self.dhscatter.draw(context, width, height)
+        
 def en_disp(self, context, simnode):
     width, height = context.region.width, context.region.height
 #    self.legend.draw(context, width, height)
@@ -1272,12 +1360,12 @@ def draw_dhscatter(self, scene, x, y, z, tit, xlab, ylab, zlab, valmin, valmax):
     y = [y[0] - 0.5] + [yval + 0.5 for yval in y]
     self.plt.figure(figsize=(6 + len(x)/len(y), 6))
     
-    self.plt.title(tit, size = 20).set_position([.5, 1.025])
-    self.plt.xlabel(xlab, size = 18)
-    self.plt.ylabel(ylab, size = 18)
+    self.plt.title(tit, size = 22).set_position([.5, 1.025])
+    self.plt.xlabel(xlab, size = 20)
+    self.plt.ylabel(ylab, size = 20)
     self.plt.pcolor(x, y, z, cmap=self.col, vmin=valmin, vmax=valmax)#, norm=plt.matplotlib.colors.LogNorm())#, edgecolors='b', linewidths=1, vmin = 0, vmax = 4000)
-    self.plt.colorbar(use_gridspec=True).set_label(label=zlab,size=18)
-    self.plt.axis([min(x),max(x),min(y),max(y)], size = 16)
+    self.plt.colorbar(use_gridspec=True).set_label(label=zlab,size=20)
+    self.plt.axis([min(x),max(x),min(y),max(y)], size = 19)
     self.plt.tight_layout(rect=[0, 0, 1 + ((len(x)/len(y)) - 1) * 0.005, 1])
     
 def save_plot(self, scene, filename):
@@ -1360,9 +1448,13 @@ def draw_table(self):
     for cw in colwidths:
         colpos.append(cw + colpos[-1])
 
-    rowtextheight = max([max([blf.dimensions(font_id, '{}'.format(e))[1] + 0.025 * self.ydiff for e in entry]) + 0.025 * self.ydiff for entry in self.rcarray.T])
-    rowscale = (rowno * rowtextheight)/(self.ydiff - self.xdiff * 0.02)
-    rowheight = int(rowtextheight/rowscale)
+    maxrowtextheight = max([max([blf.dimensions(font_id, '{}'.format(e))[1] for e in entry])  for entry in self.rcarray.T])
+    rowtextheight = maxrowtextheight + 0.1 * self.ydiff/rowno
+    rowscale = (rowno * rowtextheight)/(self.ydiff - self.xdiff * 0.01)
+    rowheight = int((self.ydiff - self.xdiff * 0.01)/rowno)
+    rowoffset = 0.5 * maxrowtextheight
+    rowtops = [int(self.lepos[1]  - self.xdiff * 0.005 - r * rowheight) for r in range(rowno)]
+    rowbots = [int(self.lepos[1]  - self.xdiff * 0.005 - (r + 1) * rowheight) for r in range(rowno)]
     
     if abs(max(colscale, rowscale) - 1) > 0.05:
         self.fontdpi = int(self.fontdpi/max(colscale, rowscale))
@@ -1374,9 +1466,31 @@ def draw_table(self):
     
     for r in range(rcshape[0]):
         for c in range(rcshape[1]):
-            blf.position(font_id, self.lspos[0] + colpos[c] + colwidths[c] * 0.5 - int(blf.dimensions(font_id, '{}'.format(self.rcarray[r][c]))[0] * 0.5), self.lepos[1] - int(rowheight * (r + 0.55)) - int(blf.dimensions(font_id, '{}'.format(self.rcarray[1][1]))[1]), 0)
-            drawloop(int(self.lspos[0] + colpos[c]), int(self.lspos[1] + 0.01 * self.xdiff + r * rowheight), self.lspos[0] + colpos[c + 1], int(self.lspos[1] + 0.01 * self.xdiff + (r + 1) * rowheight))                
-            blf.draw(font_id, '{}'.format(self.rcarray[r][c]))
+            if self.rcarray[r][c]:
+                
+                if c == 0:
+                    blf.position(font_id, self.lspos[0] + colpos[c] + 0.005 * self.xdiff, int(self.lepos[1] - rowoffset - rowheight * (r + 0.5)), 0)#int(self.lepos[1] - rowoffset - rowheight * (r + 0.5)), 0)
+                else:
+                    blf.position(font_id, self.lspos[0] + colpos[c] + colwidths[c] * 0.5 - int(blf.dimensions(font_id, '{}'.format(self.rcarray[r][c]))[0] * 0.5), int(self.lepos[1] - rowoffset - rowheight * (r + 0.5)), 0)
+                drawloop(int(self.lspos[0] + colpos[c]), rowtops[r], self.lspos[0] + colpos[c + 1], rowbots[r])                
+                if self.rcarray[r][c] == 'Pass':
+                    bgl.glColor3f(0, 0.6, 0)
+                elif self.rcarray[r][c] == 'Fail':
+                    bgl.glColor3f(0.6, 0, 0)
+                else:
+                    bgl.glColor3f(0.0, 0.0, 0.0)
+                blf.draw(font_id, '{}'.format(self.rcarray[r][c]))
+#    else:
+#        for r in range(rcshape[0]):
+#            for c in range(rcshape[1]):
+#                if self.rcarray[r][c]:
+#                    if c == 0:
+#                        blf.position(font_id, self.lspos[0] + colpos[c] + 0.01 * self.xdiff, self.lepos[1] -  0.01 * self.xdiff - int(rowheight * (r + 0.25)) - int(blf.dimensions(font_id, '{}'.format(self.rcarray[1][1]))[1]), 0)
+#                    else:
+#                        blf.position(font_id, self.lspos[0] + colpos[c] + colwidths[c] * 0.5 - int(blf.dimensions(font_id, '{}'.format(self.rcarray[r][c]))[0] * 0.5), self.lepos[1] -  0.01 * self.xdiff - int(rowheight * (r + 0.25)) - int(blf.dimensions(font_id, '{}'.format(self.rcarray[1][1]))[1]), 0)
+#                    drawloop(int(self.lspos[0] + colpos[c]), int(self.lepos[1] - 0.01 * self.xdiff - r * rowheight), self.lspos[0] + colpos[c + 1], int(self.lepos[1] - 0.01 * self.xdiff - (r + 1) * rowheight))                
+#                    blf.draw(font_id, '{}'.format(self.rcarray[r][c]))
+        
     blf.disable(0, 8)
     blf.disable(0, 4)
     

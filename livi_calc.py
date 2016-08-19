@@ -28,19 +28,16 @@ def radfexport(scene, export_op, connode, geonode, frames):
 
 def li_calc(calc_op, simnode, simacc, **kwargs): 
     scene = bpy.context.scene
+    pfs, epfs = [], []
     context = simnode['coptions']['Context']
     subcontext = simnode['coptions']['Type']
     scene['liparams']['maxres'], scene['liparams']['minres'], scene['liparams']['avres'] = {}, {}, {}
     frames = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) if not kwargs.get('genframe') else [kwargs['genframe']]
     os.chdir(scene['viparams']['newdir'])
     rtcmds, rccmds = [], []
-#    simnode['frames'] = frames
-#    simnode['resdictnew'] = {}
-    progressfile(scene, datetime.datetime.now(), [int(i * 100/20) for i in range(0, 21)], 5, 'clear')
-    kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'))
+    builddict = {'0': ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retail', 'Office & Other'), '2': ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retail', 'Office & Other'), '3': ('Office/Education/Commercial', 'Healthcare')}
     
     for f, frame in enumerate(frames):
-#        simnode['resdictnew'][str(frame)] = {}
         if context == 'Basic' or (context == 'CBDM' and subcontext == '0') or (context == 'Compliance' and int(subcontext) < 3):
 #        if context == 'Basic' or (context == 'Compliance' and int(subcontext) < 3):
 
@@ -68,11 +65,6 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
                         if line in errdict:
                             calc_op.report({'ERROR'}, errdict[line])
                             return
-                            
-                
-                    
-                    
-                    
                     
 #                for line in pmrun.stdout: 
 #                    print(line)
@@ -95,52 +87,85 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
 #            rccmds.append("rcontrib -w  -h -I- -fo -bn 146 {} -n {} -f tregenza.cal -b tbin -m env_glow {}-{}.oct".format(simnode['radparams'], scene['viparams']['nproc'], scene['viparams']['filebase'], frame))
 
     try:
-        tpoints = sum([bpy.data.objects[lc]['rtpnum'] for lc in scene['liparams']['livic']])
+        tpoints = [bpy.data.objects[lc]['rtpnum'] for lc in scene['liparams']['livic']]
     except:
         calc_op.report({'ERROR'}, 'Re-export the LiVi geometry')
-        if kivyrun.poll() is None:
-            kivyrun.kill()
         return
-    calcsteps = tpoints * len(frames)
-    starttime = datetime.datetime.now()
-    startstep = 0
-#    starttime = datetime.datetime(2015, 1, 1, int(simnode['coptions']['shour'])) + datetime.timedelta(days = int(simnode['coptions']['sdoy']))
-#    endtime = datetime.datetime(2015, 1, 1, int(simnode['coptions']['ehour'])) + datetime.timedelta(days = int(simnode['coptions']['edoy'])) if simnode['coptions']['anim'] else starttime
-#    times = [starttime]
-#    time = starttime
-#    while time < endtime:
-#        time = starttime + datetime.timedelta(hours = simnode['coptions']['interval'])
-#        times.append(time)
-#    reslists = [[str(frame), 'Time', '', 'Month', ' '.join([str(t.month) for t in times])], [str(frame), 'Time', '', 'Day', ' '.join([str(t.day) for t in times])], [str(frame), 'Time', '', 'Hour', ' '.join([str(t.hour) for t in times])]]
+        
+    calcsteps = sum(tpoints) * len(frames)
+    pfile = progressfile(scene, datetime.datetime.now(), calcsteps)
+    kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'))
     reslists = []
 
     for oi, o in enumerate([scene.objects[on] for on in scene['liparams']['livic']]):
+        curres = sum(tpoints[:oi])
         selobj(scene, o)
-        o['omax'], o['omin'], o['oave'] = {}, {}, {}
+        o['omax'], o['omin'], o['oave'], totsensearea, totsdaarea, totasearea  = {}, {}, {}, 0, 0, 0
         if context == 'Basic':
-            bccout = o.basiccalcapply(scene, frames, rtcmds, simnode, oi, starttime, len(scene['liparams']['livic']), calcsteps, startstep)
+            bccout = o.basiccalcapply(scene, frames, rtcmds, simnode, curres, pfile)
             if bccout == 'CANCELLED':
                 return 'CANCELLED'
             else:
                 reslists += bccout
                 
         elif context == 'CBDM' and subcontext == '0':
-            if o.lhcalcapply(scene, frames, rtcmds, simnode, oi, starttime, len(scene['liparams']['livic']), calcsteps, startstep) == 'CANCELLED':
+            if o.lhcalcapply(scene, frames, rtcmds, simnode, curres, pfile) == 'CANCELLED':
                 return 'CANCELLED'
+        
         elif (context == 'CBDM' and subcontext in ('1', '2')) or (context == 'Compliance' and subcontext == '3'):
-            udiout = o.udidacalcapply(scene, frames, rccmds, simnode, starttime, calcsteps)
+            udiout = o.udidacalcapply(scene, frames, rccmds, simnode, curres, pfile)
             if udiout == 'CANCELLED':
                 return 'CANCELLED'
             else:
-                reslists += udiout
+                reslists += udiout[2]
+                pfs.append(udiout[0])
+                epfs.append(udiout[1])
+
         elif context == 'Compliance':
-            o.compcalcapply(scene, frames, rtcmds, simnode, starttime, calcsteps)   
-        startstep += o['rtpnum']
-#    print(reslists)
+            compout = o.compcalcapply(scene, frames, rtcmds, simnode, curres, pfile)  
+            if compout == 'CANCELLED':
+                return 'CANCELLED'
+            else:
+                reslists += compout[2]
+                pfs.append(compout[0])
+                epfs.append(compout[1])
+                
+    for f, frame in enumerate(frames):
+        if context == 'Compliance':
+            tpf = 'FAIL' if 'FAIL' in pfs[f] or 'FAIL*' in pfs[f] else 'PASS'
+            if simnode['coptions']['canalysis'] == '0': 
+                tpf = 'EXEMPLARY' if tpf == 'PASS' and ('FAIL' not in epfs[f] and 'FAIL*' not in epfs[f]) else tpf
+                cred = '0' if tpf == 'FAIL' else ('1', '2', '2', '1', '1', '1')[int(simnode['coptions']['buildtype'])]
+                ecred = '1' if tpf == 'EXEMPLARY' else '0'
+                simnode['tablecomp{}'.format(frame)] = [['Standard: BREEAM HEA1'], 
+                        ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])])], [''], ['Standard credits: ' + cred], 
+                         ['Exemplary credits: '+ ecred]]
+            
+            elif simnode['coptions']['canalysis'] == '1':
+                cfshcred = 0
+                for pf in pfs[f]:
+                    for stype in [0, 1, 2]:
+                        if all([p[1] == 'Pass' for p in pf if p[0] == stype]) and [p for p in pf if p[0] == stype]:
+                            cfshcred += 1
+                    simnode['tablecomp{}'.format(frame)] = [['Standard: CfSH'], 
+                            ['Build type: Residential'], [''], ['Standard credits: {}'.format(cfshcred)]]
+            
+            elif simnode['coptions']['canalysis'] == '2':
+                gscred = max(len(p) for p in pfs[f]) - max([sum([(0, 1)[p == 'Fail'] for p in pf]) for pf in pfs[f]])
+                simnode['tablecomp{}'.format(frame)] = [['Standard: Green Star'], 
+                            ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])])], [''], ['Standard credits: {}'.format(gscred)]]
 
-    simnode['reslists'] = reslists    
-
+            elif simnode['coptions']['canalysis'] == '3':
+                cred = 0
+                for z in list(zip(pfs[f], epfs[f])):
+                    if all([pf == 'Pass' for pf in z[:-1]]):
+                        cred += int(z[-1])
+                    simnode['tablecomp{}'.format(frame)] = [['Standard: LEEDv4'], 
+                            ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])])], [''], ['Credits: {}'.format(cred)]]
+                
     if kivyrun.poll() is None:
         kivyrun.kill()
+        
+    return reslists
             
 

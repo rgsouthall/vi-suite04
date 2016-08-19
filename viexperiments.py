@@ -504,7 +504,7 @@ class VIEW3D_OT_CBDM_Disp(bpy.types.Operator):
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
         
-def drawpoly(x1, y1, x2, y2, r, g, b, a):
+def drawsquarepoly(x1, y1, x2, y2, r, g, b, a):
 #    bgl.glEnable(bgl.GL_BLEND)
     bgl.glColor4f(r, g, b, a)
     bgl.glBegin(bgl.GL_POLYGON)
@@ -515,7 +515,7 @@ def drawpoly(x1, y1, x2, y2, r, g, b, a):
     bgl.glEnd()
 #    bgl.glDisable(bgl.GL_BLEND)
     
-def drawloop(x1, y1, x2, y2):
+def drawsquareloop(x1, y1, x2, y2):
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
     bgl.glBegin(bgl.GL_LINE_LOOP)
     bgl.glVertex2i(x1, y2)
@@ -523,6 +523,41 @@ def drawloop(x1, y1, x2, y2):
     bgl.glVertex2i(x2, y1)
     bgl.glVertex2i(x1, y1)
     bgl.glEnd()
+    
+def drawloop(verts):
+    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+    bgl.glBegin(bgl.GL_LINE_LOOP)
+    for vert in verts:
+        bgl.glVertex2i(vert)
+    bgl.glEnd()
+    
+class visbar():
+    def __init__(self, pops):
+#        self.spos = [int(0.05 * width), int(0.1 * height)]
+#        self.epos = [int(0.1 * width), int(0.9 * height)]
+        self.pops = pops
+        
+    def visadd(self, vis):
+        if vis not in self.pops:
+            self.pops.append(vis)
+
+    def visrem(self, vis):
+        if vis in self.pops:
+            self.pops.remove(vis)
+            
+    def draw(self, width, height):
+        self.width = 50 if width / 10 < 50 else width
+        self.popsizex = width * 0.8
+        self.popsizey = height * 0.8 / 10 if len(self.pops) <= 10 else height * 0.8 / len(self.pops)
+        self.height = len(self.pops) * self.popsizey
+        self.cpos = [width * 0.05 + 0.5 * self.width, 0.5 * height]
+        xdiff, ydiff = self.width * 0.45, self.height * 0.5 - self.width * 0.45
+        corners = [[self.cpos[0] - xdiff, self.cpos[1] + ydiff], [self.cpos[0] + xdiff, self.cpos[1] + ydiff], [self.cpos[0] + xdiff, self.cpos[1] - ydiff], [self.cpos[0] - xdiff, self.cpos[1] - ydiff]]
+        verts = [[corners[0][0] - self.width * 0.05 * math.cos(a), corners[0][1] + self.width * 0.05 * math.sin(a)] for a in range(0, 90, 10)] + \
+                [[corners[1][0] + self.width * 0.05 * math.cos(a), corners[1][1] + self.width * 0.05 * math.sin(a)] for a in range(0, 90, 10)] + \
+                [[corners[2][0] + self.width * 0.05 * math.cos(a), corners[2][1] - self.width * 0.05 * math.sin(a)] for a in range(0, 90, 10)] + \
+                [[corners[3][0] - self.width * 0.05 * math.cos(a), corners[3][1] - self.width * 0.05 * math.sin(a)] for a in range(0, 90, 10)]
+        drawloop(verts)
     
 class legend():
     def __init__(self, context, width, height):

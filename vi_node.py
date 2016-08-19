@@ -394,10 +394,13 @@ class LiViNode(bpy.types.Node, ViNodes):
     
     def preexport(self):
 #        times = []
-        (interval, shour, ehour) = (1, self.cbdm_start_hour - 1, self.cbdm_end_hour - 1) if self.contextmenu == 'CBDM' else (round(self.interval, 3), self.shour, self.ehour)        
+        (interval, shour, ehour) = (1, self.cbdm_start_hour, self.cbdm_end_hour) if self.contextmenu == 'CBDM' or (self.contextmenu == 'Compliance' and self.canalysismenu =='3') else (round(self.interval, 3), self.shour, self.ehour)        
         starttime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days = self.sdoy - 1) + datetime.timedelta(hours = shour)
         if self.contextmenu == 'CBDM' or (self.contextmenu == 'Basic' and self.animated):            
             endtime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days = self.edoy - 1)  + datetime.timedelta(hours = ehour + 1)
+        elif self.contextmenu == 'Compliance' and self.canalysismenu == '3':
+            starttime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(hours = shour + 1)
+            endtime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days = 364)  + datetime.timedelta(hours = ehour + 1)
         else:
             endtime = starttime
 
@@ -405,11 +408,15 @@ class LiViNode(bpy.types.Node, ViNodes):
         time = starttime
         while time <= endtime:
             time += datetime.timedelta(hours = interval)
-#            if time.hour in range(shour, ehour + 1):
-            times.append(time)
+            if (self.contextmenu == 'Compliance' and self.canalysismenu == '3') or self.contextmenu == 'CBDM':
+                if shour <= time.hour <= ehour:
+                    times.append(time)
+#                    print(time)
+            else:
+                times.append(time)
             
 
-                
+#        print(len(times))       
 #        elif self.contextmenu == 'Basic':
 #            starttime = datetime.datetime(2015, 1, 1, 1) + datetime.timedelta(days = self.sdoy - 1) + datetime.timedelta(hours = self.shour - 1)
 #            if self.animated:
@@ -422,7 +429,7 @@ class LiViNode(bpy.types.Node, ViNodes):
 #        
 #        elif self.contextmenu == 'Compliance':
 #            times = [datetime.datetime(2015, 1, 1, 12)]
-            
+        print(times, shour, ehour, len(times))    
         self.times = times 
         self.starttime = times[0]
         self.endtime = times[-1]
@@ -493,7 +500,7 @@ class LiViNode(bpy.types.Node, ViNodes):
 
         elif self.contextmenu == "Compliance":
             if self.canalysismenu in ('0', '1', '2'):            
-                self['skytypeparams'] = ("-b 22.86 -c", "-b 22.86 -c", "-b 22.86 -c")[int(self.canalysismenu)]
+                self['skytypeparams'] = ("-b 22.86 -c", "-b 22.86 -c", "-b 18 -u")[int(self.canalysismenu)]
                 skyentry = sunexport(scene, self, 0, 0) + skyexport(3)
                 if self.canalysismenu in ('0', '1'):
                     self.starttime = datetime.datetime(2015, 1, 1, 12)
@@ -522,13 +529,13 @@ class LiViNode(bpy.types.Node, ViNodes):
                 
     def postexport(self):  
         typedict = {'Basic': self.banalysismenu, 'Compliance': self.canalysismenu, 'CBDM': self.cbanalysismenu}
-        unitdict = {'Basic': ("Lux", '')[int(self.banalysismenu)], 'Compliance': ('DF (%)', 'DF (%)', 'DF (%)', 'SDA (%)')[int(self.canalysismenu)], 'CBDM': ('Mlxh', 'kWh', 'DA (%)')[int(self.cbanalysismenu)]}
-        btypedict = {'0': self.bambuildmenu, '1': '', '2': '', '3': self.lebuildmenu}
+        unitdict = {'Basic': ("Lux", '')[int(self.banalysismenu)], 'Compliance': ('DF (%)', 'DF (%)', 'DF (%)', 'sDA (%)')[int(self.canalysismenu)], 'CBDM': ('Mlxh', 'kWh', 'DA (%)')[int(self.cbanalysismenu)]}
+        btypedict = {'0': self.bambuildmenu, '1': '', '2': self.bambuildmenu, '3': self.lebuildmenu}
         self['Options'] = {'Context': self.contextmenu, 'Preview': self['preview'], 'Type': typedict[self.contextmenu], 'fs': self.startframe, 'fe': self['endframe'],
                     'anim': self.animated, 'shour': self.shour, 'sdoy': self.sdoy, 'ehour': self.ehour, 'edoy': self.edoy, 'interval': self.interval, 'buildtype': btypedict[self.canalysismenu], 'canalysis': self.canalysismenu, 'storey': self.buildstorey,
-                    'cbanalysis': self.cbanalysismenu, 'unit': unitdict[self.contextmenu], 'damin': self.damin, 'dalux': self.dalux, 'dasupp': self.dasupp, 'daauto': self.daauto, 'asemax': self.asemax, 'cbdm_sh': self.cbdm_start_hour, 
+                    'bambuild': self.bambuildmenu, 'cbanalysis': self.cbanalysismenu, 'unit': unitdict[self.contextmenu], 'damin': self.damin, 'dalux': self.dalux, 'dasupp': self.dasupp, 'daauto': self.daauto, 'asemax': self.asemax, 'cbdm_sh': self.cbdm_start_hour, 
                     'cbdm_eh': self.cbdm_end_hour, 'weekdays': (7, 5)[self.weekdays], 'sourcemenu': (self.sourcemenu, self.sourcemenu2)[self.cbanalysismenu not in ('2', '3', '4', '5')],
-                    'mtxfile': self['mtxfile'], 'cbdm_sm': self.startmonth, 'cbdm_em': self.endmonth, 'times': [t.strftime("%d/%m/%y %H:%M:%S") for t in self.times]}
+                    'mtxfile': self['mtxfile'], 'times': [t.strftime("%d/%m/%y %H:%M:%S") for t in self.times]}
         nodecolour(self, 0)
         self['exportstate'] = [str(x) for x in (self.contextmenu, self.banalysismenu, self.canalysismenu, self.cbanalysismenu, 
                    self.animated, self.skymenu, self.shour, self.sdoy, self.startmonth, self.endmonth, self.damin, self.dasupp, self.dalux, self.daauto,
@@ -617,7 +624,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             if cinnode['Options']['Preview']:
                 row = layout.row()
                 row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']
-            if cinnode['Options']['Type'] == '1':
+            if cinnode['Options']['Context'] == '0' and cinnode['Options']['Type'] == '1':
                 row.operator("node.liviglare", text = 'Calculate').nodeid = self['nodeid']
             elif [o.name for o in scene.objects if o.name in scene['liparams']['livic']]:
                 row.operator("node.livicalc", text = 'Calculate').nodeid = self['nodeid']

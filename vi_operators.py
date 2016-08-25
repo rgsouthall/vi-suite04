@@ -43,7 +43,7 @@ from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import processf, selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum, envizres, envilres
 from .vi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, sunposenvi, recalculate_text, clearlayers
-from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, retenvires
+from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, retenvires, chunks
 from .vi_chart import chart_disp
 #from .vi_gen import vigen
 
@@ -1635,18 +1635,20 @@ class NODE_OT_Shadow(bpy.types.Operator):
         y =  2014 if simnode.edoy >= simnode.sdoy else 2014 + 1
         endtime = datetime.datetime(y, simnode.edate.month, simnode.edate.day, simnode.endhour - 1)
         interval = datetime.timedelta(hours = 1/simnode.interval)
-        times = [time + interval*t for t in range(int((endtime - time)/interval)) if simnode.starthour <= (time + interval*t).hour <= simnode.endhour]
+        
+        times = [time + interval*t for t in range(int((endtime - time)/interval) + simnode.interval) if simnode.starthour - 1 <= (time + interval*t).hour <= simnode.endhour  - 1]
         sps = [solarPosition(t.timetuple().tm_yday, t.hour+t.minute/60, scene.latitude, scene.longitude)[2:] for t in times]
-        direcs = [mathutils.Vector((-sin(sp[1]), -cos(sp[1]), tan(sp[0]))) for sp in sps if sp[0] > 0]
-        validtimes = [t for ti, t in enumerate(times) if sps[ti][0] > 0]
+        direcs = [mathutils.Vector((-sin(sp[1]), -cos(sp[1]), tan(sp[0]))) for sp in sps]# if sp[0] > 0]                  
+#        validtimes = [t for ti, t in enumerate(times) if sps[ti][0] > 0]
         calcsteps = len(frange) * sum(len([f for f in o.data.polygons if o.data.materials[f.material_index].mattype == '1']) for o in [scene.objects[on] for on in scene['liparams']['shadc']])
         curres, reslists = 0, []
-        starttime = datetime.datetime.now()
-        progressfile(scene, starttime, calcsteps, curres, 'clear')
+        pfile = progressfile(scene, datetime.datetime.now(), calcsteps)
         kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'))
         
         for oi, o in enumerate([scene.objects[on] for on in scene['liparams']['shadc']]):
-            o['omin'], o['omax'], o['oave'], o['hours'], o['days'] = {}, {}, {}, [t.hour for t in validtimes], [t.day for t in validtimes]
+            o['omin'], o['omax'], o['oave'] = {}, {}, {}
+            o['days'] = arange(simnode.sdoy, simnode.edoy + 1, dtype = float)
+            o['hours'] = arange(simnode.starthour, simnode.endhour + 1, 1/simnode.interval, dtype = float)
             bm = bmesh.new()
             bm.from_mesh(o.data)
             clearlayers(bm, 'f')
@@ -1655,7 +1657,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             geom.layers.int.new('cindex')
             cindex = geom.layers.int['cindex']
             [geom.layers.float.new('res{}'.format(fi)) for fi in frange]
-            avres, minres, maxres = [], [], []
+            avres, minres, maxres, g = [], [], [], 0
             
             for frame in frange:                 
                 scene.frame_set(frame)
@@ -1667,17 +1669,21 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     gpoints = [v for v in geom if any([o.data.materials[f.material_index].mattype == '1' for f in v.link_faces])]
                 posis = [gp.calc_center_bounds() + gp.normal.normalized() * simnode.offset for gp in gpoints] if simnode.cpoint == '0' else [gp.co + gp.normal.normalized() * simnode.offset for gp in gpoints]
                 allpoints = numpy.zeros((len(gpoints), len(direcs)))
-                for g, gp in enumerate(gpoints):
-                    gp[cindex] = g + 1                      
-                    pointres = array([(1, 0)[shadtree.ray_cast(posis[g], direc)[3] == None] for direc in direcs])
-                    allpoints[g] = pointres
-                    gp[shadres] = 100 * (1 - numpy.sum(pointres)/len(direcs))
-                    curres += 1
-                    if not curres*20%calcsteps:
-                        if progressfile(scene, starttime, calcsteps, curres, 'run') == 'CANCELLED':
-                            return {'CANCELLED'}
-                allpoints = numpy.average(allpoints, axis=0)
-                o['dhres'] = array((o['days'], o['hours'], 100 * (1 - allpoints)))
+                
+                for chunk in chunks(gpoints, int(scene['viparams']['nproc']) * 200):
+                    for gp in chunk:
+                        gp[cindex] = g + 1                      
+                        pointres = array([(1, 0)[shadtree.ray_cast(posis[g], direc)[3] == None and direc[2] > 0] for direc in direcs])
+                        allpoints[g] = pointres#numpy.average(pointres.reshape(len(pointres)/simnode.interval, simnode.interval), axis = 1)
+                        gp[shadres] = 100 * (1 - numpy.sum(pointres)/len(direcs))
+                        g += 1
+                    curres += len(chunk)
+                    if pfile.check(curres) == 'CANCELLED':
+                        return {'CANCELLED'}
+
+                ap = numpy.average(allpoints, axis=0)
+
+                o['dhres{}'.format(frame)] = array(100 * (1 - ap)).reshape(len(o['days']), len(o['hours'])).T
                 shadres = [gp[shadres] for gp in gpoints]
                 o['omin']['res{}'.format(frame)], o['omax']['res{}'.format(frame)], o['oave']['res{}'.format(frame)] = min(shadres), max(shadres), sum(shadres)/len(shadres)
                 reslists.append([str(frame), 'Zone', o.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
@@ -1772,49 +1778,49 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
             
             # Scatter routine
                 
-#            if self.dhscatter.spos[0] < mx < self.dhscatter.epos[0] and self.dhscatter.spos[1] < my < self.dhscatter.epos[1]:
-#                self.dhscatter.hl = (0, 1, 1, 1)  
-#                if event.type == 'LEFTMOUSE':
-#                    if event.value == 'PRESS':
-#                        self.dhscatter.press = 1
-#                        self.dhscatter.move = 0
-#                        return {'RUNNING_MODAL'}
-#                    elif event.value == 'RELEASE':
-#                        if not self.dhscatter.move:
-#                            self.dhscatter.expand = 0 if self.dhscatter.expand else 1
-#                        self.dhscatter.press = 0
-#                        self.dhscatter.move = 0
-#                        context.area.tag_redraw()
-#                        return {'RUNNING_MODAL'}
-#                
-#                elif event.type == 'ESC':
-#                    bpy.data.images.remove(self.dhscatter.gimage)
-#                    self.dhscatter.plt.close()
-#                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_wr_disp, 'WINDOW')
-#                    context.area.tag_redraw()
-#                    return {'CANCELLED'}
-#                    
-#                elif self.dhscatter.press and event.type == 'MOUSEMOVE':
-#                     self.dhscatter.move = 1
-#                     self.dhscatter.press = 0
-#        
-#            elif self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lepos[1] and abs(self.dhscatter.lepos[0] - mx) > 20 and abs(self.dhscatter.lspos[1] - my) > 20:
-#                if self.dhscatter.expand: 
-#                    self.dhscatter.hl = (1, 1, 1, 1)
-#                    if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.dhscatter.expand and self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff:
-#                        self.dhscatter.show_plot()
-#                
+            if self.dhscatter.spos[0] < mx < self.dhscatter.epos[0] and self.dhscatter.spos[1] < my < self.dhscatter.epos[1]:
+                self.dhscatter.hl = (0, 1, 1, 1)  
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.dhscatter.press = 1
+                        self.dhscatter.move = 0
+                        return {'RUNNING_MODAL'}
+                    elif event.value == 'RELEASE':
+                        if not self.dhscatter.move:
+                            self.dhscatter.expand = 0 if self.dhscatter.expand else 1
+                        self.dhscatter.press = 0
+                        self.dhscatter.move = 0
+                        context.area.tag_redraw()
+                        return {'RUNNING_MODAL'}
+                
+                elif event.type == 'ESC':
+                    bpy.data.images.remove(self.dhscatter.gimage)
+                    self.dhscatter.plt.close()
+                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_wr_disp, 'WINDOW')
+                    context.area.tag_redraw()
+                    return {'CANCELLED'}
+                    
+                elif self.dhscatter.press and event.type == 'MOUSEMOVE':
+                     self.dhscatter.move = 1
+                     self.dhscatter.press = 0
+        
+            elif self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lepos[1] and abs(self.dhscatter.lepos[0] - mx) > 20 and abs(self.dhscatter.lspos[1] - my) > 20:
+                if self.dhscatter.expand: 
+                    self.dhscatter.hl = (1, 1, 1, 1)
+                    if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.dhscatter.expand and self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff:
+                        self.dhscatter.show_plot()
+                
 #                    elif self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff < my < self.dhscatter.epos[1]:                    
 #                        for butrange in self.dhscatter.buttons:
 #                            if self.dhscatter.buttons[butrange][0] - 10 < mx < self.dhscatter.buttons[butrange][0] + 10 and self.dhscatter.buttons[butrange][1] - 0.015 * self.dhscatter.ydiff < my < self.dhscatter.buttons[butrange][1] + 0.015 * self.dhscatter.ydiff:
 #                                if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
 #                                    self.dhscatter.type_select = 0 if self.dhscatter.type_select else 1
 #                                    self.dhscatter.update(context)
-#                    context.area.tag_redraw()
-#                    return {'RUNNING_MODAL'}
-#                   
-#            else:
-#                self.dhscatter.hl = (1, 1, 1, 1)
+                    context.area.tag_redraw()
+                    return {'RUNNING_MODAL'}
+                   
+            else:
+                self.dhscatter.hl = (1, 1, 1, 1)
                          
             # Resize routines
             
@@ -1827,6 +1833,15 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
                         self.legend.resize = 0
                     return {'RUNNING_MODAL'}
             
+            if abs(self.dhscatter.lepos[0] - mx) < 20 and abs(self.dhscatter.lspos[1] - my) < 20:
+                self.dhscatter.hl = (0, 1, 1, 1) 
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.dhscatter.resize = 1
+                    if self.dhscatter.resize and event.value == 'RELEASE':
+                        self.dhscatter.resize = 0
+                    return {'RUNNING_MODAL'}
+            
             # Move routines
                      
             if event.type == 'MOUSEMOVE':                
@@ -1834,7 +1849,10 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
                     self.legend.pos = [mx, my]
                 if self.legend.resize:
                     self.legend.lepos[0], self.legend.lspos[1] = mx, my
-            
+                if self.dhscatter.move:
+                    self.dhscatter.pos = [mx, my]
+                if self.dhscatter.resize:
+                    self.dhscatter.lepos[0], self.dhscatter.lspos[1] = mx, my
             context.area.tag_redraw()
         return {'PASS_THROUGH'}
 
@@ -1854,10 +1872,10 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         lnd = linumdisplay(self, context, self.simnode)
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(lnd.draw, (context, ), 'WINDOW', 'POST_PIXEL')
         self.legend = ss_legend([80, context.region.height - 40], context.region.width, context.region.height, 'legend.png', 150, 600)
-#        self.dhscatter = ss_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
+        self.dhscatter = ss_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
 #        self.table = wr_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 150)       
         self.legend.update(context)
-#        self.dhscatter.update(context)
+        self.dhscatter.update(context)
 #        self.table.update(context)
 #        self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(viwr_legend, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
         self._handle_ss_disp = bpy.types.SpaceView3D.draw_handler_add(ss_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')

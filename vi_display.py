@@ -719,10 +719,10 @@ class wr_scatter(Base_Display):
     def update(self, context):
         self.cao = context.active_object
         if self.cao and self.cao.get('ws'):
-            zdata = self.cao['ws'] if self.type_select else self.cao['wd']  
+            zdata = array(self.cao['ws']) if self.type_select else array(self.cao['wd'])  
             (title, cbtitle) = ('Wind Speed', 'Speed (m/s)') if self.type_select else ('Wind Direction', u'Direction (\u00B0)')
             self.plt = plt
-            draw_dhscatter(self, context.scene, self.cao['days'], self.cao['hours'], zdata, title, 'Days', 'Hours', cbtitle)  
+            draw_dhscatter(self, context.scene, self.cao['days'], self.cao['hours'], zdata, title, 'Days', 'Hours', cbtitle, nmin(zdata), nmax(zdata))  
             save_plot(self, context.scene, 'scatter.png')
         
     def drawopen(self, context):
@@ -839,33 +839,13 @@ class ss_scatter(Base_Display):
         
     def update(self, context):
         self.cao = context.active_object
-        if self.cao and self.cao.get('dhres'):
-#            zdata = self.cao['ws'] if self.type_select else self.cao['wd']  
-            (title, cbtitle) = ('Wind Speed', 'Speed (m/s)') if self.type_select else ('Wind Direction', u'Direction (\u00B0)')
+        if self.cao and self.cao.get('dhres'): 
             self.plt = plt
-            draw_dhscatter(self, context.scene, *self.cao['dhres'], title, 'Days', 'Hours', cbtitle)  
+            draw_dhscatter(self, context.scene, self.cao['days'], self.cao['hours'], self.cao['dhres{}'.format(context.scene.frame_current)], '% Area Sunlit', 'Days', 'Hours', 'Area (%)', 0, 100)  
             save_plot(self, context.scene, 'scatter.png')
         
     def drawopen(self, context):
-        draw_image(self, self.ydiff * 0.1)
-#        butcents = [[int(self.lspos[0] + 0.07 * self.xdiff), int(self.lepos[1] - self.ydiff * 0.05)], [int(self.lspos[0] + 0.93 * self.xdiff), int(self.lepos[1] - self.ydiff * 0.05)]]
-#        butcent = [int(self.lspos[0] + 30), int(self.lepos[1] - self.ydiff * 0.05)]
-#        if self.type_select:
-#            drawpoly(int(butcent[0] - 10), int(self.lepos[1] - self.ydiff * 0.03), int(butcent[0] + 10), int(self.lepos[1] - self.ydiff * 0.07), 0.5, 0.5, 0.5, 1)
-#
-#        drawloop(int(butcent[0] - 10), int(self.lepos[1] - self.ydiff * 0.03), int(butcent[0] + 10), int(self.lepos[1] - self.ydiff * 0.07))
-##        drawloop(int(butcents[1][0] - 10), int(self.lepos[1] - self.ydiff * 0.03), int(self.lepos[0] - 20), int(self.lepos[1] - self.ydiff * 0.07))
-#        self.buttons = {'Speed/Direction': butcent}
-#        blf.size(0, 44, int(self.ydiff * 0.075))
-#        blf.position(0, butcent[0]  + 10 + self.xdiff * 0.01, butcent[1] - 0.3 * blf.dimensions(0, 'Speed/Direction')[1], 0)
-#        blf.draw(0, 'Speed/Direction')
-#        blf.position(0, butcents[1][0] - 25 - blf.dimensions(0, 'Direction')[0], butcents[1][1] - 0.5 * blf.dimensions(0, 'Direction')[1], 0)
-#        blf.draw(0, 'Direction')
-#        if self.type_select:
-#            drawpoly(int(butcent[0] - 9), int(self.buttons[self.type_select][1] - 0.015 * self.ydiff), int(butcent[0] + 9), int(self.buttons[self.type_select][1] + 0.015 * self.ydiff), 0.5, 0.5, 0.5, 1)
-
-#    def save_fig(self, scene):
-#        save_fig(self, scene, 'scatter.png')
+        draw_image(self, 0)
         
     def show_plot(self):
         show_plot(self)
@@ -1006,6 +986,7 @@ def ss_disp(self, context, simnode):
     try:
         width, height = context.region.width, context.region.height
         self.legend.draw(context, width, height)
+        self.dhscatter.draw(context, width, height)
     except:
         pass
 #    self.dhscatter.draw(context, width, height)

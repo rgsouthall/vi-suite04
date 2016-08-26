@@ -1821,6 +1821,17 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
                    
             else:
                 self.dhscatter.hl = (1, 1, 1, 1)
+                
+            # Update routine
+                
+            if self.dhscatter.frame != context.scene.frame_current:
+                self.dhscatter.update(context)
+#                self.dhscatter.frame = context.scene.frame_current
+
+            if self.dhscatter.cao != context.active_object:
+                self.dhscatter.update(context)
+            if self.dhscatter.col != context.scene.vi_leg_col:
+                self.dhscatter.update(context)
                          
             # Resize routines
             
@@ -1877,7 +1888,6 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         self.legend.update(context)
         self.dhscatter.update(context)
 #        self.table.update(context)
-#        self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(viwr_legend, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
         self._handle_ss_disp = bpy.types.SpaceView3D.draw_handler_add(ss_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}

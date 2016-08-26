@@ -839,9 +839,10 @@ class ss_scatter(Base_Display):
         
     def update(self, context):
         self.cao = context.active_object
+        self.frame = context.scene.frame_current
         if self.cao and self.cao.get('dhres'): 
             self.plt = plt
-            draw_dhscatter(self, context.scene, self.cao['days'], self.cao['hours'], self.cao['dhres{}'.format(context.scene.frame_current)], '% Area Sunlit', 'Days', 'Hours', 'Area (%)', 0, 100)  
+            draw_dhscatter(self, context.scene, self.cao['days'], self.cao['hours'], self.cao['dhres{}'.format(self.frame)], '% Area Sunlit', 'Days', 'Hours', 'Area (%)', 0, 100)  
             save_plot(self, context.scene, 'scatter.png')
         
     def drawopen(self, context):
@@ -1341,9 +1342,9 @@ def draw_dhscatter(self, scene, x, y, z, tit, xlab, ylab, zlab, valmin, valmax):
     y = [y[0] - 0.5] + [yval + 0.5 for yval in y]
     self.plt.figure(figsize=(6 + len(x)/len(y), 6))
     
-    self.plt.title(tit, size = 22).set_position([.5, 1.025])
-    self.plt.xlabel(xlab, size = 20)
-    self.plt.ylabel(ylab, size = 20)
+    self.plt.title(tit, size = 20).set_position([.5, 1.025])
+    self.plt.xlabel(xlab, size = 18)
+    self.plt.ylabel(ylab, size = 18)
     self.plt.pcolor(x, y, z, cmap=self.col, vmin=valmin, vmax=valmax)#, norm=plt.matplotlib.colors.LogNorm())#, edgecolors='b', linewidths=1, vmin = 0, vmax = 4000)
     self.plt.colorbar(use_gridspec=True).set_label(label=zlab,size=20)
     self.plt.axis([min(x),max(x),min(y),max(y)], size = 19)

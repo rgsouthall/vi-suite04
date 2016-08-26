@@ -110,12 +110,10 @@ def select_nodetree(dummy):
             space.node_tree = envings[0]
         
 def getViEditorSpaces():
-    spaces = [area.spaces.active for area in bpy.context.screen.areas if area.type == "NODE_EDITOR" and area.spaces.active.tree_type == "ViN" and not area.spaces.active.edit_tree]
-    return spaces
+    return [area.spaces.active for area in bpy.context.screen.areas if area.type == "NODE_EDITOR" and area.spaces.active.tree_type == "ViN" and not area.spaces.active.edit_tree]
     
 def getEnViEditorSpaces():
-    spaces = [area.spaces.active for area in bpy.context.screen.areas if area.type == "NODE_EDITOR" and area.spaces.active.tree_type == "EnViN" and not area.spaces.active.edit_tree]
-    return spaces
+    return [area.spaces.active for area in bpy.context.screen.areas if area.type == "NODE_EDITOR" and area.spaces.active.tree_type == "EnViN" and not area.spaces.active.edit_tree]
 
 bpy.app.handlers.scene_update_post.append(select_nodetree)
             

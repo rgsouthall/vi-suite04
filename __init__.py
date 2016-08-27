@@ -554,6 +554,7 @@ def register():
     Scene.vi_disp_wire = bpy.props.BoolProperty(name = "", description = "Draw wire frame", default = 0, update=wupdate)
     Scene.li_disp_sv = EnumProperty(items = [("0", "Daylight Factor", "Display Daylight factor"),("1", "Sky view", "Display the Sky View")], name = "", description = "Compliance data type", default = "0", update = liviresupdate)
     Scene.li_disp_sda = EnumProperty(items = [("0", "sDA (%)", "Display spatial Daylight Autonomy"), ("1", "ASE (hrs)", "Display the Annual Solar Exposure")], name = "", description = "Compliance data type", default = "0", update = liviresupdate)
+    Scene.li_disp_wr = EnumProperty(items = [("0", "Wind Speed", "Wind speed (m/s)"),("1", "Wind Direction", "Wind direction (deg from North)")], name = "", description = "Compliance data type", default = "0", update = liviresupdate)
  #   Scene.li_disp_lh = EnumProperty(items = [("0", "Mluxhours", "Display mega luxhours"), ("1", "Visible Irradiance", "Display visible irradiance"), ("1", "Full Irradiance", "Display full irradiance")], name = "", description = "Exposure data type", default = "0", update = liviresupdate)
     Scene.li_projname = sprop("", "Name of the building project", 1024, '')
     Scene.li_assorg = sprop("", "Name of the assessing organisation", 1024, '')

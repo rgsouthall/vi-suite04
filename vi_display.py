@@ -1342,7 +1342,7 @@ def draw_dhscatter(self, scene, x, y, z, tit, xlab, ylab, zlab, valmin, valmax):
     y = [y[0] - 0.5] + [yval + 0.5 for yval in y]
     self.plt.figure(figsize=(6 + len(x)/len(y), 6))
     
-    self.plt.title(tit, size = 20).set_position([.5, 1.025])
+    self.plt.title(tit, size = 18).set_position([.5, 1.025])
     self.plt.xlabel(xlab, size = 18)
     self.plt.ylabel(ylab, size = 18)
     self.plt.pcolor(x, y, z, cmap=self.col, vmin=valmin, vmax=valmax)#, norm=plt.matplotlib.colors.LogNorm())#, edgecolors='b', linewidths=1, vmin = 0, vmax = 4000)

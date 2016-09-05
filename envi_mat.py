@@ -1,7 +1,7 @@
 # EnVi materials database
 
-from collections import OrderedDict, Counter
-from .vi_func import epentry
+from collections import OrderedDict
+from .envi_func import epentry
 
 class envi_materials(object):
     '''Defines materials with a comma separated dictionary, with material name as key, giving 

@@ -1,5 +1,5 @@
 import sys, bpy
-from .vi_func import retmenu
+from .envi_func import retmenu
 
 def label(dnode, metric, axis, variant):
     catdict = {'clim': 'Ambient', 'zone': 'Zone', 'Linkage': 'Linkage', 'External node': 'External node', 'Frames': 'Frame', 'metric': dnode.inputs[axis].rtypemenu + ' metric', 'type': metric} 

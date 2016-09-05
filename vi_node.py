@@ -19,8 +19,9 @@
 
 import bpy, glob, os, inspect, datetime, shutil
 from nodeitems_utils import NodeCategory, NodeItem
-from .vi_func import objvol, socklink, uvsocklink, newrow, epwlatilongi, nodeid, nodeinputs, remlink, rettimes, epentry, sockhide, selobj, cbdmhdr, cbdmmtx
-from .vi_func import hdrsky, nodecolour, epschedwrite, facearea, retelaarea, retrmenus, resnameunits, enresprops, iprop, bprop, eprop, fprop, sunposlivi, retdates
+from .vi_func import objvol, socklink, uvsocklink, newrow, epwlatilongi, nodeid, nodeinputs, remlink, rettimes, sockhide, selobj, cbdmhdr, cbdmmtx
+from .vi_func import hdrsky, nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, sunposlivi, retdates
+from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite
 from .livi_export import sunexport, skyexport, hdrexport
 from .envi_mat import retuval
 
@@ -222,7 +223,6 @@ class LiViNode(bpy.types.Node, ViNodes):
                 selobj(scene, so)
                 bpy.ops.object.delete()
                 
-        print(datetime.datetime.now())
                                 
     banalysistype = [('0', "Illu/Irrad/DF", "Illumninance/Irradiance/Daylight Factor Calculation"), ('1', "Glare", "Glare Calculation")]
     skylist = [("0", "Sunny", "CIE Sunny Sky description"), ("1", "Partly Coudy", "CIE Sunny Sky description"),
@@ -823,6 +823,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
         self.inputs.new('ViEnG', 'Geometry in')
         self.inputs.new('ViLoc', 'Location in')
         self['exportstate'] = ''
+        self['year'] = 2015
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
@@ -2302,18 +2303,18 @@ class EnViHvac(bpy.types.Node, EnViNodes):
         self['hc'] = ('', 'SingleHeating', 'SingleCooling', 'DualSetpoint')[(not self.h and not self.c, self.h and not self.c, not self.h and self.c, self.h and self.c).index(1)]
         
     envi_hvact = bprop("", "", False)
-    envi_hvacht = fprop("", "Heating temperature:", 1, 99, 50)
-    envi_hvacct = fprop("", "Cooling temperature:", -10, 20, 13)
+    envi_hvacht = fprop(u'\u00b0C', "Heating temperature:", 1, 99, 50)
+    envi_hvacct = fprop(u'\u00b0C', "Cooling temperature:", -10, 20, 13)
     envi_hvachlt = bpy.props.EnumProperty(items = [('0', 'LimitFlowRate', 'LimitFlowRate'), ('1', 'LimitCapacity', 'LimitCapacity'), ('2', 'LimitFlowRateAndCapacity', 'LimitFlowRateAndCapacity'), ('3', 'NoLimit', 'NoLimit'), ('4', 'None', 'No heating')], name = '', description = "Heating limit type", default = '4', update = hupdate)
-    envi_hvachaf = bpy.props.FloatProperty(name = "", description = "Heating air flow rate", min = 0, max = 60, default = 1, precision = 4)
-    envi_hvacshc = fprop("", "Sensible heating capacity", 0, 10000, 1000)
+    envi_hvachaf = bpy.props.FloatProperty(name = u'm\u00b3/s', description = "Heating air flow rate", min = 0, max = 60, default = 1, precision = 4)
+    envi_hvacshc = fprop("W", "Sensible heating capacity", 0, 10000, 1000)
     envi_hvacclt = bpy.props.EnumProperty(items = [('0', 'LimitFlowRate', 'LimitFlowRate'), ('1', 'LimitCapacity', 'LimitCapacity'), ('2', 'LimitFlowRateAndCapacity', 'LimitFlowRateAndCapacity'), ('3', 'NoLimit', 'NoLimit'), ('4', 'None', 'No cooling')], name = '', description = "Cooling limit type", default = '4', update = hupdate)
-    envi_hvaccaf = bpy.props.FloatProperty(name = "", description = "Cooling air flow rate", min = 0, max = 60, default = 1, precision = 4)
-    envi_hvacscc = fprop("", "Sensible cooling capacity", 0, 10000, 1000)
+    envi_hvaccaf = bpy.props.FloatProperty(name = u'm\u00b3/s', description = "Cooling air flow rate", min = 0, max = 60, default = 1, precision = 4)
+    envi_hvacscc = fprop("W", "Sensible cooling capacity", 0, 10000, 1000)
     envi_hvacoam = eprop([('0', 'None', 'None'), ('1', 'Flow/Zone', 'Flow/Zone'), ('2', 'Flow/Person', 'Flow/Person'), ('3', 'Flow/Area', 'Flow/Area'), ('4', 'Sum', 'Sum'), ('5', 'Maximum ', 'Maximum'), ('6', 'ACH/Detailed', 'ACH/Detailed')], '', "Cooling limit type", '2')
-    envi_hvacfrp = fprop("", "Flow rate per person", 0, 1, 0.008)
+    envi_hvacfrp = fprop(u'm\u00b3/s/p', "Flow rate per person", 0, 1, 0.008)
     envi_hvacfrzfa = fprop("", "Flow rate per zone area", 0, 1, 0.008)
-    envi_hvacfrz = fprop('m{}/s'.format(u'\u00b3'), "Flow rate per zone", 0, 100, 0.1)
+    envi_hvacfrz = bpy.props.FloatProperty(name = u'm\u00b3/s', description = "Flow rate per zone", min = 0, max = 100, default = 0.1, precision = 4)
     envi_hvacfach = fprop("", "ACH", 0, 10, 1)
     envi_hvachr = eprop([('0', 'None', 'None'), ('1', 'Sensible', 'Flow/Zone')], '', "Heat recovery type", '0')
     envi_hvachre = fprop("", "Heat recovery efficiency", 0, 1, 0.7)
@@ -2325,7 +2326,7 @@ class EnViHvac(bpy.types.Node, EnViNodes):
     compdict = {'0': 'AirFlow Network Window/Door Opening'}
     actdict =  {'0': ('Venting Opening Factor', 'of')}
     envi_heat = bpy.props.BoolProperty(name = "Heating", description = 'Turn on zone heating', default = 0)
-    envi_htsp = bpy.props.FloatProperty(name = u'\u00b0'+"C", description = "Temperature", min = 0, max = 50, default = 20)
+    envi_htsp = bpy.props.FloatProperty(name = u'\u00b0C', description = "Temperature", min = 0, max = 50, default = 20)
     envi_cool = bpy.props.BoolProperty(name = "Cooling", description = "Turn on zone cooling", default = 0)
     envi_ctsp = bpy.props.FloatProperty(name = u'\u00b0'+"C", description = "Temperature", min = 0, max = 50, default = 20)
 
@@ -2375,11 +2376,11 @@ class EnViHvac(bpy.types.Node, EnViNodes):
             row.label('Outdoor air --------------')
             newrow(layout, 'Outdoor air:', self, 'envi_hvacoam')
             if self.envi_hvacoam in ('2', '4', '5'):
-                newrow(layout, 'Flow/person (m3/s.p:', self, 'envi_hvacfrp')
+                newrow(layout, 'Flow/person:', self, 'envi_hvacfrp')
             if self.envi_hvacoam in ('1', '4', '5'):
-                newrow(layout, 'Zone flow (m3/s):', self, 'envi_hvacfrz')
+                newrow(layout, 'Zone flow:', self, 'envi_hvacfrz')
             if self.envi_hvacoam in ('3', '4', '5'):
-                newrow(layout, 'Flow/area (m3/s.a):', self, 'envi_hvacfrzfa')
+                newrow(layout, 'Flow/area:', self, 'envi_hvacfrzfa')
             if self.envi_hvacoam in ('4', '5', '6') and not self.envi_hvact:
                 newrow(layout, 'ACH', self, 'envi_hvacfach')
 
@@ -2481,10 +2482,8 @@ class EnViZone(bpy.types.Node, EnViNodes):
         ssfacelist = sorted([face for face in obj.data.polygons if odm[face.material_index].envi_afsurface == 1 and odm[face.material_index].envi_con_type in ('Window', 'Door')], key=lambda face: -face.center[2])
         sssocklist = ['{}_{}_ss'.format(odm[face.material_index].name, face.index) for face in ssfacelist]
 
-        for oname in [outputs for outputs in self.outputs if outputs.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
-            self.outputs.remove(oname)
-        for iname in [inputs for inputs in self.inputs if inputs.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
-            self.inputs.remove(iname)            
+        [self.outputs.remove(oname) for oname in self.outputs if oname.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]
+        [self.inputs.remove(iname) for iname in self.inputs if iname.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]
 
         for sock in bsocklist:
             self.outputs.new('EnViBoundSocket', sock).sn = sock.split('_')[-2]
@@ -2494,13 +2493,11 @@ class EnViZone(bpy.types.Node, EnViNodes):
             self.inputs.new('EnViSFlowSocket', sock).sn = sock.split('_')[-2]
         for sock in sssocklist:
             self.outputs.new('EnViSSFlowSocket', sock).sn = sock.split('_')[-2]
-            self.inputs.new('EnViSSFlowSocket', sock).sn = sock.split('_')[-2]
-                
+            self.inputs.new('EnViSSFlowSocket', sock).sn = sock.split('_')[-2]                
         for s, sock in enumerate(bsocklist):
             self.outputs[sock].uvalue = '{:.4f}'.format(buvals[s])    
             self.inputs[sock].uvalue = '{:.4f}'.format(buvals[s]) 
                 
-
     zone = bpy.props.StringProperty(name = '', update = zupdate)
     controltype = [("NoVent", "None", "No ventilation control"), ("Constant", "Constant", "From vent availability schedule"), ("Temperature", "Temperature", "Temperature control")]
     control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='NoVent')
@@ -2568,7 +2565,7 @@ class EnViZone(bpy.types.Node, EnViNodes):
 #                            remlink(self, [outp.links[0]])
 
         except Exception as e:
-            print(e)
+            print("Don't panic")
         nodecolour(self, (self.control == 'Temperature' and not self.inputs['TSPSchedule'].is_linked) or not all((bi, si, ssi, bo, so, sso)))
 
     def draw_buttons(self, context, layout):

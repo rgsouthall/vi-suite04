@@ -20,30 +20,33 @@
 import bpy, blf, colorsys, bgl, mathutils, bmesh, datetime, os, inspect
 from bpy_extras import view3d_utils
 from math import pi, sin, cos, atan2, log10, ceil
-from numpy import array
+from numpy import array, where, arange
 from numpy import sum as nsum
 from numpy import min as nmin
 from numpy import max as nmax
 try:
     import matplotlib.pyplot as plt
-    import matplotlib.cm as mcm
-    
+    import matplotlib.cm as mcm    
     mp = 1
 except:
     mp = 0
 
 from . import livi_export
 from .vi_func import cmap, skframe, selobj, retvpvloc, viewdesc, drawloop, drawpoly, draw_index, drawfont, blf_props
-from .vi_func import retdp, objmode, drawcircle, drawtri, setscenelivivals, draw_time, retcols, draw_index_distance, retenvires
+from .vi_func import retdp, objmode, drawcircle, drawtri, setscenelivivals, draw_time, retcols, draw_index_distance
+from .envi_func import retenvires, retenresdict
 
 nh = 768
-enunitdict = {'Heating (W)': 'Watts (W)', 'Cooling (W)': 'Watts (W)', 'CO2 (ppm)': 'PPM', 'Solar gain (W)': 'Watts (W)', 'Temperature (degC)': u'Temperature (\u00B0C)'}
-entitledict = {'Heating (W)': 'Heating Consumtption', 'Cooling (W)': 'Cooling Consumption', 'CO2 (ppm)': r'CO$_2$ Concentration', 'Solar gain (W)': 'Solar Gain', 'Temperature (degC)': 'Temperature'}
+enunitdict = {'Heating (W)': 'Watts (W)', 'Cooling (W)': 'Watts (W)', 'CO2 (ppm)': 'PPM', 'Solar gain (W)': 'Watts (W)', 'Temperature (degC)': u'Temperature (\u00B0C)', 'PMV': 'PMV', 'PPD (%)': 'PPD (%)', 'Air heating (W)': 'W', 'Air cooling (W)': 'W', 'HR heating (W)': 'W'}
+entitledict = {'Heating (W)': 'Heating Consumption', 'Cooling (W)': 'Cooling Consumption', 'CO2 (ppm)': r'CO$_2$ Concentration', 'Solar gain (W)': 'Solar Gain', 'Temperature (degC)': 'Temperature', 'PMV': 'Predicted Mean Vote', 
+               'PPD (%)': 'Predicted Percentage of Dissatisfied', 'Air heating (W)': 'Air Heating', 'Air cooling (W)': 'Air Cooling', 'HR heating (W)': 'Heat recovery'}
 
 #envaldict = {'Heating (W)': 'Watts (W)', 'Cooling (W)': 'Watts (W)', 'CO2 (ppm)': 'PPM', 'Solar gain (W)': 'Watts (W)', 'Temperature (degC)': (scene.en_temp_min, scene.en_temp_max)}
 
 def envals(self, scene, data):
-    envaldict = {'Heating (W)': (scene.en_heat_min, scene.en_heat_max), 'Cooling (W)': (scene.en_cool_min, scene.en_cool_max), 'CO2 (ppm)': (scene.en_co2_min, scene.en_co2_max), 'Solar gain (W)': (scene.en_shg_min, scene.en_shg_max), 'Temperature (degC)': (scene.en_temp_min, scene.en_temp_max)}
+    envaldict = {'Heating (W)': (scene.en_heat_min, scene.en_heat_max), 'Cooling (W)': (scene.en_cool_min, scene.en_cool_max), 'CO2 (ppm)': (scene.en_co2_min, scene.en_co2_max), 
+    'Solar gain (W)': (scene.en_shg_min, scene.en_shg_max), 'Temperature (degC)': (scene.en_temp_min, scene.en_temp_max), 'PMV': (scene.en_pmv_min, scene.en_pmv_max), 'PPD (%)': (scene.en_ppd_min, scene.en_ppd_max),
+    'Air heating (W)': (scene.en_aheat_min, scene.en_aheat_max), 'Air cooling (W)': (scene.en_acool_min, scene.en_acool_max)}
     if self.unit in envaldict:
         return envaldict[self.unit]
     else:
@@ -807,24 +810,26 @@ class en_scatter(Base_Display):
     def update(self, context):
         self.cao = context.active_object
         scene = context.scene
+        self.resstring = retenvires(scene)
+        self.maxmins = (scene.en_co2_min, scene.en_co2_max, scene.en_temp_min, scene.en_temp_max, scene.en_hum_max, scene.en_hum_min, 
+                        scene.en_shg_max, scene.en_shg_min, scene.en_pmv_max, scene.en_pmv_min, scene.en_ppd_max, scene.en_ppd_min)
         resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
         self.unit = scene.en_disp_unit if scene.en_disp_unit else resnode[self.resstring].keys()[0]
-        self.resstring = retenvires(scene)
+        self.col = scene.vi_leg_col
+        self.gimage = bpy.data.images['stats.png']
 
         try:
-            zdata, hours, days = array(self.cao[self.resstring][self.unit]).reshape(len(self.cao['days']), 24).T, self.cao['hours'], self.cao['days']
+            zdata, hours, days = array(self.cao[self.resstring][self.unit]).reshape(len(self.cao['days']), 24).T, self.cao['hours'], self.cao['days']        
             title = self.cao.name
-        except:  
-            zdata, hours, days = array(resnode[self.resstring][self.unit]).reshape(len(resnode['days']), 24).T, resnode['hours'], resnode['days']
-            title = 'Total'
-            
-        (valmin, valmax) = envals(self, scene, zdata)
+            (valmin, valmax) = envals(self, scene, zdata)    
+            cbtitle = enunitdict[self.unit]
+            self.plt = plt
+            self.plt.rcParams['font.family']='Noto Sans'
+            draw_dhscatter(self, scene, days, hours, zdata, '{} {}'.format(title, entitledict[self.unit]), 'Days', 'Hours', cbtitle, valmin, valmax)  
+            save_plot(self, scene, 'scatter.png')
 
-        cbtitle = enunitdict[self.unit]
-        self.plt = plt
-        self.plt.rcParams['font.family']='Noto Sans'
-        draw_dhscatter(self, scene, days, hours, zdata, '{} {}'.format(title, entitledict[self.unit]), 'Days', 'Hours', cbtitle, valmin, valmax)  
-        save_plot(self, scene, 'scatter.png')
+        except Exception as e:  
+            print('e', e)
         
     def drawopen(self, context):
         draw_image(self, 0)
@@ -832,6 +837,42 @@ class en_scatter(Base_Display):
     def show_plot(self):
         show_plot(self)
         
+class en_barchart(Base_Display):
+    def __init__(self, pos, width, height, iname, xdiff, ydiff):
+        Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
+        
+    def quickupdate(self, scene):
+        self.rangedict = {'Max temp (C)': (scene.en_maxtemp_min, scene.en_maxtemp_max), 'Ave temp (C)': (scene.en_avetemp_min, scene.en_avetemp_max),
+                          'Min temp (C)': (scene.en_mintemp_min, scene.en_mintemp_max), 'Max heating (W)': (scene.en_maxheat_min, scene.en_maxheat_max),
+                          'Ave heating (C)': (scene.en_aveheat_min, scene.en_aveheat_max), 'Min heating (C)': (scene.en_minheat_min, scene.en_minheat_max)}
+    
+    def update(self, context):
+        scene = context.scene
+        resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
+#        self.rangedict = {'Max temp (C)': (scene.en_maxtemp_min, scene.en_maxtemp_max)}
+        self.cao = context.active_object
+        self.unit = scene.en_disp_punit if scene.en_disp_punit else resnode[self.resstring].keys()[0] 
+        self.resstring = retenvires(scene)
+        self.col = scene.vi_leg_col
+        self.plt = plt
+        if self.cao and self.cao.get(self.resstring) and self.cao[self.resstring].get(self.unit):
+#        try:
+            x = arange(resnode['AStart'], resnode['AEnd'] + 1)
+            y = array(self.cao[self.resstring][self.unit])
+            self.minmax = self.rangedict[self.unit] if self.unit in self.rangedict else (0, 30)
+            title = self.cao.name
+            draw_barchart(self, scene, x, y, title, 'Frame', 'Max. Temp', self.minmax[0], self.minmax[1])  
+            save_plot(self, scene, 'barchart.png')
+        
+    def drawopen(self, context):
+        draw_image(self, 0)
+        
+    def show_plot(self):
+        show_plot(self)
+#        except:  
+#            zdata, hours, days = array(resnode[self.resstring][self.unit]).reshape(len(resnode['days']), 24).T, resnode['hours'], resnode['days']
+#            title = 'Total'
+     
 class ss_scatter(Base_Display):
     def __init__(self, pos, width, height, iname, xdiff, ydiff):
         Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
@@ -899,7 +940,60 @@ class comp_table(Base_Display):
         
     def drawopen(self, context):
         draw_table(self)
-#        print(self.__class__.__name__)
+
+class en_table(Base_Display):
+    def __init__(self, pos, width, height, iname, xdiff, ydiff):
+        Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
+        self.fontdpi = int(0.15 * ydiff)
+        self.unitdict = {'Temperature (degC)': 'Temperature (C)', 'Sky View': 'sv'}
+        
+    def update(self, context):
+        scene = context.scene
+        self.cao = context.active_object
+        self.menudict = {'Temperature (degC)': (scene.en_temp_max, scene.en_temp_min), 'PMV': (scene.en_pmv_max, scene.en_pmv_min), 'PPD': (scene.en_ppd_max, scene.en_ppd_min),
+                         'CO2 (ppm)': (scene.en_co2_max, scene.en_co2_min), 'PPD (%)': (scene.en_ppd_max, scene.en_ppd_min), 'Heating (W)': (scene.en_heat_max, scene.en_heat_min),
+                        'Cooling (W)': (scene.en_cool_max, scene.en_cool_min), 'Solar gain (W)': (scene.en_shg_max, scene.en_shg_min), 'Air heating (W)': (scene.en_aheat_max, scene.en_aheat_min),
+                        'Air cooling (W)': (scene.en_acool_max, scene.en_acool_min)}
+        rcarray = [['', 'Minimum', 'Average', 'Maximum', '% time under lower threshold', '% time over upper threshold']]
+#        resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
+        resstring = retenvires(scene)
+        if self.cao and self.cao.get(resstring): 
+            resdict = self.cao[resstring]
+            for res in sorted(resdict.keys()):
+                resarray = array(resdict[res])
+                (maxv, minv) = self.menudict[res] if res in self.menudict else (100, 0)
+                rcarray.append([res, '{:.1f}'.format(nmin(resarray)), '{:.1f}'.format(nsum(resarray)/resarray.size), '{:.1f}'.format(nmax(resarray)), '{:.1f}'.format(100 * nsum(resarray < minv)/resarray.size), '{:.1f}'.format(100 * nsum(resarray > maxv)/resarray.size)])
+
+            if 'Heating (W)' in resdict or 'Cooling (W)' in resdict or 'Air heating (W)' in resdict or 'Air cooling (W)' in resdict:
+                rcarray.append(['', '', '', '', '', ''])
+                if 'Heating (W)' in resdict:
+                    hkwh = nsum(array(resdict['Heating (W)'])) * 0.001
+                    rcarray.append(['Total heating (kWh)', '{:.1f}'.format(hkwh), '', '', 'Total heating (kWh/m2)', '{:.1f}'.format(hkwh/self.cao['floorarea'])])
+
+                if 'Cooling (W)' in resdict:
+                    ckwh = nsum(array(resdict['Cooling (W)'])) * 0.001
+                    rcarray.append(['Total cooling (kWh)', '{:.1f}'.format(ckwh), '', '', 'Total cooling (kWh/m2)', '{:.1f}'.format(ckwh/self.cao['floorarea'])])
+                
+                if 'Heating (W)' in resdict and 'Cooling (W)' in resdict:
+                    rcarray.append(['Total conditioning (kWh)', '{:.1f}'.format(hkwh + ckwh), '', '', 'Total conditioning (kWh/m2)', '{:.1f}'.format((hkwh + ckwh)/self.cao['floorarea'])])
+
+                if 'Air heating (W)' in resdict:
+                    ahkwh = nsum(array(resdict['Air heating (W)'])) * 0.001
+                    rcarray.append(['Total air heating (kWh)', '{:.1f}'.format(ahkwh), '', '', 'Total air heating (kWh/m2)', '{:.1f}'.format(ahkwh/self.cao['floorarea'])])
+
+                if 'Air cooling (W)' in resdict:
+                    ackwh = nsum(array(resdict['Air cooling (W)'])) * 0.001
+                    rcarray.append(['Total air cooling (kWh)', '{:.1f}'.format(ackwh), '', '', 'Total air cooling (kWh/m2)', '{:.1f}'.format(ackwh/self.cao['floorarea'])])
+                
+                if 'Air heating (W)' in resdict and 'Air cooling (W)' in resdict:
+                    rcarray.append(['Total air conditioning (kWh)', '{:.1f}'.format(ahkwh + ackwh), '', '', 'Total air conditioning (kWh/m2)', '{:.1f}'.format((ahkwh + ackwh)/self.cao['floorarea'])])
+
+            self.rcarray = array(rcarray) 
+        else:
+            self.rcarray = array([['Invalid object']])
+
+    def drawopen(self, context):
+        draw_table(self)
             
 def wr_disp(self, context, simnode):
     width, height = context.region.width, context.region.height
@@ -933,7 +1027,14 @@ def en_disp(self, context, simnode):
     width, height = context.region.width, context.region.height
 #    self.legend.draw(context, width, height)
     self.dhscatter.draw(context, width, height)
+    self.table.draw(context, width, height)
 #    self.table.draw(context, width, height)
+
+def en_pdisp(self, context, simnode):
+    width, height = context.region.width, context.region.height
+#    self.legend.draw(context, width, height)
+    self.barchart.draw(context, width, height)
+    self.table.draw(context, width, height)
     
 class ss_legend(Base_Display):
     def __init__(self, pos, width, height, iname, xdiff, ydiff):
@@ -1349,6 +1450,21 @@ def draw_dhscatter(self, scene, x, y, z, tit, xlab, ylab, zlab, valmin, valmax):
     self.plt.colorbar(use_gridspec=True).set_label(label=zlab,size=20)
     self.plt.axis([min(x),max(x),min(y),max(y)], size = 19)
     self.plt.tight_layout(rect=[0, 0, 1 + ((len(x)/len(y)) - 1) * 0.005, 1])
+
+def draw_barchart(self, scene, x, y, tit, xlab, ylab, ymin, ymax):
+    self.plt.close()
+#    self.col = scene.vi_leg_col
+#    x = [x[0] - 0.5] + [xval + 0.5 for xval in x] 
+#    y = [y[0] - 0.5] + [yval + 0.5 for yval in y]
+    self.plt.figure(figsize=(6 + len(x)/len(y), 6))
+    
+    self.plt.title(tit, size = 18).set_position([.5, 1.025])
+    self.plt.xlabel(xlab, size = 18)
+    self.plt.ylabel(ylab, size = 18)
+    cols = [(yval - ymin)/(ymax - ymin) for yval in y]
+    self.plt.bar(x, y, align='center', color = [mcm.get_cmap(self.col)(i) for i in cols])
+#    self.plt.axis([min(x),max(x),min(y),max(y)], size = 19)
+    self.plt.tight_layout(rect=[0, 0, 1 + ((len(x)/len(y)) - 1) * 0.005, 1])
     
 def save_plot(self, scene, filename):
     fileloc = os.path.join(scene['viparams']['newdir'], 'images', filename)
@@ -1430,35 +1546,36 @@ def draw_table(self):
     for cw in colwidths:
         colpos.append(cw + colpos[-1])
 
-    maxrowtextheight = max([max([blf.dimensions(font_id, '{}'.format(e))[1] for e in entry])  for entry in self.rcarray.T])
+    maxrowtextheight = max([max([blf.dimensions(font_id, '{}'.format(e))[1] for e in entry if e])  for entry in self.rcarray.T])
     rowtextheight = maxrowtextheight + 0.1 * self.ydiff/rowno
-    rowscale = (rowno * rowtextheight)/(self.ydiff - self.xdiff * 0.01)
+    rowscale = (rowno * rowtextheight)/(self.ydiff - self.xdiff * 0.05)
     rowheight = int((self.ydiff - self.xdiff * 0.01)/rowno)
-    rowoffset = 0.5 * maxrowtextheight
+#    rowoffset = 0.5 * maxrowtextheight
     rowtops = [int(self.lepos[1]  - self.xdiff * 0.005 - r * rowheight) for r in range(rowno)]
     rowbots = [int(self.lepos[1]  - self.xdiff * 0.005 - (r + 1) * rowheight) for r in range(rowno)]
+    rowmids = [0.5 * (rowtops[r] + rowbots[r]) for r in range(rowno)]
     
     if abs(max(colscale, rowscale) - 1) > 0.05:
         self.fontdpi = int(self.fontdpi/max(colscale, rowscale))
-        
+   
     blf.size(font_id, 44, self.fontdpi)
     drawpoly(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1], 1, 1, 1, 1)        
-    drawloop(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1])        
+    drawloop(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1])       
     bgl.glEnable(bgl.GL_BLEND)
+    bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
     
     for r in range(rcshape[0]):
         for c in range(rcshape[1]):
-            if self.rcarray[r][c]:
-                
+            if self.rcarray[r][c]:                
                 if c == 0:
-                    blf.position(font_id, self.lspos[0] + colpos[c] + 0.005 * self.xdiff, int(self.lepos[1] - rowoffset - rowheight * (r + 0.5)), 0)#int(self.lepos[1] - rowoffset - rowheight * (r + 0.5)), 0)
+                    blf.position(font_id, self.lspos[0] + colpos[c] + 0.005 * self.xdiff, int(rowmids[r] - 0.5 * blf.dimensions(font_id, 'H')[1]), 0)#.format(self.rcarray[r][c]))[1])), 0)#int(self.lepos[1] - rowoffset - rowheight * (r + 0.5)), 0)
                 else:
-                    blf.position(font_id, self.lspos[0] + colpos[c] + colwidths[c] * 0.5 - int(blf.dimensions(font_id, '{}'.format(self.rcarray[r][c]))[0] * 0.5), int(self.lepos[1] - rowoffset - rowheight * (r + 0.5)), 0)
+                    blf.position(font_id, self.lspos[0] + colpos[c] + colwidths[c] * 0.5 - int(blf.dimensions(font_id, '{}'.format(self.rcarray[r][c]))[0] * 0.5), int(rowmids[r] - 0.5 * blf.dimensions(font_id, 'H')[1]), 0)
                 drawloop(int(self.lspos[0] + colpos[c]), rowtops[r], self.lspos[0] + colpos[c + 1], rowbots[r])                
                 if self.rcarray[r][c] == 'Pass':
-                    bgl.glColor3f(0, 0.6, 0)
+                    bgl.glColor3f(0.0, 0.6, 0.0)
                 elif self.rcarray[r][c] == 'Fail':
-                    bgl.glColor3f(0.6, 0, 0)
+                    bgl.glColor3f(0.6, 0.0, 0.0)
                 else:
                     bgl.glColor3f(0.0, 0.0, 0.0)
                 blf.draw(font_id, '{}'.format(self.rcarray[r][c]))
@@ -1472,10 +1589,9 @@ def draw_table(self):
 #                        blf.position(font_id, self.lspos[0] + colpos[c] + colwidths[c] * 0.5 - int(blf.dimensions(font_id, '{}'.format(self.rcarray[r][c]))[0] * 0.5), self.lepos[1] -  0.01 * self.xdiff - int(rowheight * (r + 0.25)) - int(blf.dimensions(font_id, '{}'.format(self.rcarray[1][1]))[1]), 0)
 #                    drawloop(int(self.lspos[0] + colpos[c]), int(self.lepos[1] - 0.01 * self.xdiff - r * rowheight), self.lspos[0] + colpos[c + 1], int(self.lepos[1] - 0.01 * self.xdiff - (r + 1) * rowheight))                
 #                    blf.draw(font_id, '{}'.format(self.rcarray[r][c]))
-        
+    bgl.glDisable(bgl.GL_BLEND) 
     blf.disable(0, 8)
     blf.disable(0, 4)
-    
     bgl.glEnd()
     bgl.glFlush()
     

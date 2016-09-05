@@ -17,7 +17,9 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import bpy, os, itertools, subprocess, datetime, shutil, mathutils, bmesh
-from .vi_func import epentry, ceilheight, selobj, facearea, boundpoly, epschedwrite, selmesh
+from .vi_func import ceilheight, selobj, facearea, boundpoly, selmesh
+from .envi_func import epentry, epschedwrite
+
 dtdf = datetime.date.fromordinal
 caidict = {"0": "", "1": "Simple", "2": "Detailed", "3": "TrombeWall", "4": "AdaptiveConvectionAlgorithm"}
 caodict = {"0": "", "1": "SimpleCombined", "2": "TARP", "3": "DOE-2", "4": "MoWiTT", "5": "AdaptiveConvectionAlgorithm"}
@@ -329,13 +331,16 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 en_idf.write(eqlink.from_node.oewrite(zn.zone))
        
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: CONTAMINANTS ===========\n\n")
+        zacb = 0
         for zn in zonenodes:
-            for occlink in zn.inputs['Occupancy'].links:
-                if occlink.from_node.envi_co2 and occlink.from_node.envi_comfort:
-                    params = ('Carbon Dioxide Concentration', 'Outdoor Carbon Dioxide Schedule Name', 'Generic Contaminant Concentration', 'Outdoor Generic Contaminant Schedule Name')
-                    paramvs = ('Yes', 'Default outdoor CO2 levels 400 ppm', 'No', '')
-                    en_idf.write(epentry('ZoneAirContaminantBalance', params, paramvs))
-                    break
+            if not zacb:
+                for occlink in zn.inputs['Occupancy'].links:
+                    if occlink.from_node.envi_co2 and occlink.from_node.envi_comfort:
+                        params = ('Carbon Dioxide Concentration', 'Outdoor Carbon Dioxide Schedule Name', 'Generic Contaminant Concentration', 'Outdoor Generic Contaminant Schedule Name')
+                        paramvs = ('Yes', 'Default outdoor CO2 levels 400 ppm', 'No', '')
+                        en_idf.write(epentry('ZoneAirContaminantBalance', params, paramvs))
+                        zacb = 1
+                        break
     
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: INFILTRATION ===========\n\n")
         for zn in zonenodes:
@@ -459,10 +464,10 @@ def pregeo(op):
                     enng['enviparams']['pcm'] = 1
     
             selobj(scene, obj)
-            selmesh('desel')
+            
             bpy.ops.object.duplicate()    
             en_obj = scene.objects.active
-            
+            selmesh('desel')
             enomats = [enom for enom in en_obj.data.materials if enom]
             obj.select, en_obj.select, en_obj.name, en_obj.data.name, en_obj.layers[1], en_obj.layers[0], bpy.data.scenes[0].layers[0:2] = False, True, 'en_'+obj.name, en_obj.data.name, True, False, (False, True)
             mis = [f.material_index for f in en_obj.data.polygons]
@@ -474,21 +479,27 @@ def pregeo(op):
                     sm.material.envi_export = True    
                 if sm.material.envi_con_type in dcdict:
                     sm.material.diffuse_color = dcdict[mct]
+            
     
-#            for poly in en_obj.data.polygons:
-#                mat = en_obj.data.materials[poly.material_index]
-#                if poly.area < 0.001 or mat.envi_con_type == 'None' or (en_obj.data.materials[poly.material_index].envi_con_makeup == '1' and en_obj.data.materials[poly.material_index].envi_layero == '0'):
-#                    poly.select = True 
+            for poly in en_obj.data.polygons:
+                mat = en_obj.data.materials[poly.material_index]
+                if poly.area < 0.001 or mat.envi_con_type == 'None' or (en_obj.data.materials[poly.material_index].envi_con_makeup == '1' and en_obj.data.materials[poly.material_index].envi_layero == '0'):
+                    poly.select = True 
                     
-#            selmesh('delf')
-            bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
-            en_obj.select = False
+            selmesh('delf')
+#            bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
+#            en_obj.select = False  
+#            bpy.ops.object.editmode_toggle()
+#            bm = bmesh.from_edit_mesh(en_obj.data)
+
+
+
             bm = bmesh.new()
             bm.from_mesh(en_obj.data)
 #            bm.transform(en_obj.matrix_world)
-            bmesh.ops.delete(bm, geom = [face for face in bm.faces if face.calc_area() < 0.001 and \
-                en_obj.data.materials[face.material_index].envi_con_type == 'None' or (en_obj.data.materials[face.material_index].envi_con_makeup == '1' and \
-                en_obj.data.materials[face.material_index].envi_layero == '0')])
+#            bm.faces.ensure_lookup_table()
+#            bmesh.ops.delete(bm, geom = [face for face in bm.faces if face.calc_area() < 0.001 or en_obj.data.materials[face.material_index].envi_con_type == 'None' or (en_obj.data.materials[face.material_index].envi_con_makeup == '1' and \
+#                en_obj.data.materials[face.material_index].envi_layero == '0')], context = 1)
             bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.001)
             
             if all([e.is_manifold for e in bm.edges]):
@@ -510,10 +521,13 @@ def pregeo(op):
 #            bm.transform(en_obj.matrix_world)
 #            en_obj["volume"] = bm.calc_volume()
 #            bm.transform(en_obj.matrix_world.inverted())
-            bm.to_mesh(en_obj.data)        
+            bm.to_mesh(en_obj.data)  
+#            bmesh.update_edit_mesh(en_obj.data, True)
+#            bpy.ops.object.editmode_toggle()
+#            bmesh.ops.bmesh_to_mesh(bm, mesh = en_obj.data, object = en_obj)
             bm.free()
-            en_obj.parent = obj
-
+#            en_obj.parent = obj
+            obj['children'] = en_obj.name
             linklist = []        
             for link in enng.links:
                 if link.from_socket.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket'):

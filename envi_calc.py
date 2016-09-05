@@ -39,6 +39,12 @@ def envi_sim(calc_op, node, connode):
                 print(line) 
                 calc_op.report({'ERROR'}, "There was an error in the input IDF file. Chect the *.err file in Blender's text editor.")
                 err = 1
+        with open(os.path.join(scene['viparams']['newdir'], node.resname+".err")) as errfile:
+            for line in errfile.readlines():
+                if '**  Fatal  **' in line:
+                    calc_op.report({'ERROR'}, "There was an error in the input IDF file. Check the *.err file in Blender's text editor. Message")
+                    err = 1
+                    break
         for fname in os.listdir('.'):
             if fname.split(".")[0] == node.resname:
                 os.remove(os.path.join(scene['viparams']['newdir'], fname))

@@ -1960,11 +1960,10 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
     bl_register = True
     bl_undo = False
 
-    def modal(self, context, event):            
-        if context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':
-            
+    def modal(self, context, event):           
+        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':            
             if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'sspanel' or not [o.lires for o in bpy.data.objects]:
-#                bpy.types.SpaceView3D.draw_handler_remove(self._handle_ss_disp, 'WINDOW')
+                bpy.types.SpaceView3D.draw_handler_remove(self._handle_ss_disp, 'WINDOW')
                 bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
                 context.area.tag_redraw()
                 context.scene['viparams']['vidisp'] = 'ss'
@@ -2043,7 +2042,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         
             elif self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lepos[1] and abs(self.dhscatter.lepos[0] - mx) > 20 and abs(self.dhscatter.lspos[1] - my) > 20:
                 if self.dhscatter.expand: 
-                    self.dhscatter.hl = (1, 1, 1, 1)
+                    self.dhscatter.hl = (0, 1, 1, 1)
                     if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.dhscatter.expand and self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff:
                         self.dhscatter.show_plot()
                 
@@ -2102,6 +2101,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
                 if self.dhscatter.resize:
                     self.dhscatter.lepos[0], self.dhscatter.lspos[1] = mx, my
             context.area.tag_redraw()
+
         return {'PASS_THROUGH'}
 
     def invoke(self, context, event):

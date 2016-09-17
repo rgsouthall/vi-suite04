@@ -870,8 +870,10 @@ class ss_scatter(Base_Display):
     def update(self, context):
         self.cao = context.active_object
         self.frame = context.scene.frame_current
-        self.col = context.scene.vi_leg_col
-        if self.cao and self.cao.get('dhres'): 
+        self.col = context.scene.vi_leg_col        
+        self.gimage = bpy.data.images['stats.png']
+
+        if self.cao and self.cao.get('dhres{}'.format(context.scene.frame_current)): 
             self.plt = plt
             draw_dhscatter(self, context.scene, self.cao['days'], self.cao['hours'], self.cao['dhres{}'.format(self.frame)], '% Area Sunlit', 'Days', 'Hours', 'Area (%)', 0, 100)  
             save_plot(self, context.scene, 'scatter.png')

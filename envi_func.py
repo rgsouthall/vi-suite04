@@ -249,7 +249,7 @@ def enunits(self, context):
         return [(k, k, 'Display {}'.format(k)) for k in context.active_object[resstring].keys()]
     except:
 #        return [(k, k, 'Display {}'.format(k)) for k in resnode[resstring].keys()]
-        return []
+        return [('', '', '')]
 
 def enpunits(self, context):
     try: #context.active_object and context.active_object.children[0].get('envires{}'.format(context.scene.frame_current)):

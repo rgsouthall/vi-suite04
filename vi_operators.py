@@ -932,7 +932,7 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
 
     def modal(self, context, event):
         scene = context.scene
-        if context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':            
+        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':  
             if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'enpanel':
                 context.scene['viparams']['vidisp'] = 'en'
                 bpy.types.SpaceView3D.draw_handler_remove(self._handle_en_disp, 'WINDOW')
@@ -980,20 +980,12 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                      self.dhscatter.move = 1
                      self.dhscatter.press = 0
         
-            elif self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lepos[1] and abs(self.dhscatter.lepos[0] - mx) > 20 and abs(self.dhscatter.lspos[1] - my) > 20:
-                if self.dhscatter.expand: 
-                    self.dhscatter.hl = (1, 1, 1, 1)
-                    if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.dhscatter.expand and self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff:
-                        self.dhscatter.show_plot()
-                
-    #                elif self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff < my < self.dhscatter.epos[1]:                    
-    #                    for butrange in self.dhscatter.buttons:
-    #                        if self.dhscatter.buttons[butrange][0] - 10 < mx < self.dhscatter.buttons[butrange][0] + 10 and self.dhscatter.buttons[butrange][1] - 0.015 * self.dhscatter.ydiff < my < self.dhscatter.buttons[butrange][1] + 0.015 * self.dhscatter.ydiff:
-    #                            if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
-    #                                self.dhscatter.type_select = 0 if self.dhscatter.type_select else 1
-    #                                self.dhscatter.update(context)
-                        context.area.tag_redraw()
-                        return {'RUNNING_MODAL'}
+            elif self.dhscatter.expand and self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lepos[1] and abs(self.dhscatter.lepos[0] - mx) > 20 and abs(self.dhscatter.lspos[1] - my) > 20: 
+                self.dhscatter.hl = (1, 1, 1, 1)
+                if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.dhscatter.expand and self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff:
+                    self.dhscatter.show_plot()
+                    context.area.tag_redraw()
+                    return {'RUNNING_MODAL'}
                    
             else:
                 self.dhscatter.hl = (1, 1, 1, 1)
@@ -1023,6 +1015,8 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                 elif self.table.press and event.type == 'MOUSEMOVE':
                      self.table.move = 1
                      self.table.press = 0
+            else:
+                self.table.hl = (1, 1, 1, 1)
                 
             if abs(self.dhscatter.lepos[0] - mx) < 20 and abs(self.dhscatter.lspos[1] - my) < 20 and self.dhscatter.expand:
                 self.dhscatter.hl = (0, 1, 1, 1) 

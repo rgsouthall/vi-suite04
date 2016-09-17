@@ -58,6 +58,7 @@ def retframe(axis, dnode, frames):
         return frames[0]
     
 def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
+    plt.close()
     variant = rvariant(dnode)
     rnx = dnode.inputs['X-axis'].links[0].from_node
     rlx = rnx['reslists']

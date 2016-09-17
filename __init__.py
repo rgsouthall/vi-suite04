@@ -301,8 +301,6 @@ def setcols(self, context):
         bpy.app.handlers.frame_change_pre.append(recalculate_text)    
            
 def register():
-#    bpy.utils.register_class(VIPreferences)
-#    bpy.utils.register_class(OBJECT_OT_vi_prefs)
     bpy.utils.register_module(__name__)
     Object, Scene, Material = bpy.types.Object, bpy.types.Scene, bpy.types.Material
 

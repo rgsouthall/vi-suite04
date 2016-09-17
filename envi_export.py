@@ -467,6 +467,7 @@ def pregeo(op):
             
             bpy.ops.object.duplicate()    
             en_obj = scene.objects.active
+            bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
             selmesh('desel')
             enomats = [enom for enom in en_obj.data.materials if enom]
             obj.select, en_obj.select, en_obj.name, en_obj.data.name, en_obj.layers[1], en_obj.layers[0], bpy.data.scenes[0].layers[0:2] = False, True, 'en_'+obj.name, en_obj.data.name, True, False, (False, True)
@@ -487,6 +488,8 @@ def pregeo(op):
                     poly.select = True 
                     
             selmesh('delf')
+#            selmesh('mc')
+#            selmesh('mp')
 #            bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
 #            en_obj.select = False  
 #            bpy.ops.object.editmode_toggle()
@@ -515,7 +518,12 @@ def pregeo(op):
                 bmesh.ops.reverse_faces(bm, faces = reversefaces)
             bmesh.ops.split_edges(bm, edges = bm.edges)
             bmesh.ops.dissolve_limit(bm, angle_limit = 0.01, verts = bm.verts)
-            bmesh.ops.triangulate(bm, faces = [face for face in bm.faces if obj.data.materials[face.material_index].envi_con_type in ('Window', 'Door')])
+            bm.faces.ensure_lookup_table()
+            regfaces = [face for face in bm.faces if not any((obj.data.materials[face.material_index].envi_boundary, obj.data.materials[face.material_index].envi_afsurface))]
+            bmesh.ops.connect_verts_nonplanar(bm, angle_limit = 0.01, faces = regfaces)
+            bmesh.ops.connect_verts_concave(bm, faces = regfaces)
+            
+            bmesh.ops.triangulate(bm, faces = [face for face in bm.faces if obj.data.materials[face.material_index].envi_con_type in ('Window', 'Door') and ['{:.5f}'.format(fl.calc_angle()) for fl in face.loops] != ['1.57080'] * 4])
 #            bm.faces.index_update()                
 #            bmesh.ops.triangulate(bm, faces = [face for face in bm.faces if en_obj.data.materials[face.material_index].envi_con_type == 'Shading'])
 #            bm.transform(en_obj.matrix_world)
@@ -565,6 +573,8 @@ def pregeo(op):
             bpy.ops.object.duplicate()
             en_obj = scene.objects.active  
             en_obj.name = 'en_' + obj.name
+            selmesh('mc')
+            selmesh('mp')
             
             if 'en_shading' not in [m.name for m in bpy.data.materials]:
                 bpy.data.materials.new('en_shading')
@@ -580,6 +590,8 @@ def pregeo(op):
             en_obj.material_slots[0].material = shadmat
             en_obj.material_slots[0].material.diffuse_color = (1, 0, 0)
             en_obj.layers[1], en_obj.layers[0] = True, False
+#            selmesh('delf')
+            
 
 def writeafn(exp_op, en_idf, enng):
     if [enode for enode in enng.nodes if enode.bl_idname == 'AFNCon'] and not [enode for enode in enng.nodes if enode.bl_idname == 'EnViZone']:

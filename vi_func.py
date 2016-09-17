@@ -2071,6 +2071,14 @@ def selmesh(sel):
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.mesh.remove_doubles()
         bpy.ops.mesh.select_all(action='DESELECT')
+    elif sel == 'mc':
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.mesh.vert_connect_concave()
+        bpy.ops.mesh.select_all(action='DESELECT')
+    elif sel == 'mp':
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.mesh.vert_connect_nonplanar(angle_limit=0.001)
+        bpy.ops.mesh.select_all(action='DESELECT')
     elif sel in ('SELECT', 'INVERT', 'PASS'):
         if sel in ('SELECT', 'INVERT'):
             bpy.ops.mesh.select_all(action=sel)    

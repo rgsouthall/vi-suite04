@@ -360,7 +360,7 @@ class CancelButton(Button):\n\
     def on_touch_down(self, touch):\n\
         if 'button' in touch.profile:\n\
             if self.collide_point(*touch.pos):\n\
-                with open('"+file+"', 'w') as pffile:\n\
+                with open(r'"+file+"', 'w') as pffile:\n\
                     pffile.write('CANCELLED')\n\
                 App.get_running_app().stop()\n\
         else:\n\
@@ -381,7 +381,7 @@ class Calculating(App):\n\
         return self.bl\n\
 \n\
     def timer(self, dt):\n\
-        with open('"+file+"', 'r') as pffile:\n\
+        with open(r'"+file+"', 'r') as pffile:\n\
             try:    (percent, tr) = pffile.readlines()[0].split()\n\
             except: percent, tr = 0, 'Not known'\n\
         self.rpb.value = int(percent)\n\

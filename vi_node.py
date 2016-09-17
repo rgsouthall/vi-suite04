@@ -102,7 +102,7 @@ class ViLoc(bpy.types.Node, ViNodes):
 #        
         bpy.data.node_groups[nodeid(self).split('@')[1]].use_fake_user = True
         self.outputs.new('ViLoc', 'Location out')
-        self.updatelatlong(self, context)
+        self.updatelatlong(context)
 
     def update(self):
         socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])

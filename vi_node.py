@@ -86,7 +86,6 @@ class ViLoc(bpy.types.Node, ViNodes):
                     if wfl.split(',')[0].upper() == 'LOCATION':
                         entries.append((wfile, wfl.split(',')[1], 'Weather Location'))
                         break
-#        self.updatelatlong(context)
         return entries
    
     weather = bpy.props.EnumProperty(name = 'Weather file', items=update_weather, update=updatelatlong)
@@ -98,11 +97,10 @@ class ViLoc(bpy.types.Node, ViNodes):
     dedoy = bpy.props.IntProperty(name="", description="", min=1, max=365, default=365)
 
     def init(self, context):
-        self['nodeid'] = nodeid(self)
-#        
+        self['nodeid'] = nodeid(self)        
         bpy.data.node_groups[nodeid(self).split('@')[1]].use_fake_user = True
         self.outputs.new('ViLoc', 'Location out')
-        self.updatelatlong(context)
+        self['year'] = 2015
 
     def update(self):
         socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])

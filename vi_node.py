@@ -44,7 +44,6 @@ class ViLoc(bpy.types.Node, ViNodes):
     bl_icon = 'FORCE_WIND'
 
     def updatelatlong(self, context):
-        print(dir(self))
         context.space_data.edit_tree == ''
 #        bpy.types.NodeTree.get_from_context(context)
         scene = context.scene
@@ -103,6 +102,7 @@ class ViLoc(bpy.types.Node, ViNodes):
 #        
         bpy.data.node_groups[nodeid(self).split('@')[1]].use_fake_user = True
         self.outputs.new('ViLoc', 'Location out')
+        self.updatelatlong(self, context)
 
     def update(self):
         socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])

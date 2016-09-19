@@ -34,7 +34,10 @@ from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, 
 
 try:
     import matplotlib
-    matplotlib.use('Qt5Agg', force = True)
+    if sys.platform == 'win32':
+        matplotlib.use('Qt4Agg', force = True)
+    else:
+        matplotlib.use('Qt5Agg', force = True)
     import matplotlib.pyplot as plt
     import matplotlib.colors as colors
     import matplotlib.cm as mcm

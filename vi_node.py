@@ -681,6 +681,8 @@ class ViSSNode(bpy.types.Node, ViNodes):
 
     animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis")]
     animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeupdate)
+    startframe = bpy.props.IntProperty(name = '', default = 0, min = 0, max = 1024, description = 'Start frame')
+    endframe = bpy.props.IntProperty(name = '', default = 0, min = 0, max = 1024, description = 'End frame')
     starthour = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 24, description = 'Start hour')
     endhour = bpy.props.IntProperty(name = '', default = 24, min = 1, max = 24, description = 'End hour')
     interval = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 60, description = 'Interval')
@@ -705,6 +707,12 @@ class ViSSNode(bpy.types.Node, ViNodes):
             (sdate, edate) = retdates(self.sdoy, self.edoy, self.inputs[0].links[0].from_node['year'])
             newrow(layout, 'Ignore sensor:', self, "signore")
             newrow(layout, 'Animation:', self, "animmenu")
+            if self.animmenu != 'Static':            
+                row = layout.row(align=True)
+                row.alignment = 'EXPAND'
+                row.label('Frames:')
+                row.prop(self, 'startframe')
+                row.prop(self, 'endframe')
             newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
             newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
             newrow(layout, 'Start hour:', self, "starthour")

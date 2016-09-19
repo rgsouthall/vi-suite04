@@ -1853,7 +1853,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
            scene['liparams'] = {}
         scene['liparams']['cp'], scene['liparams']['unit'], scene['liparams']['type'] = simnode.cpoint, '% Sunlit', 'VI Shadow'
         simnode.preexport()
-        (scene['liparams']['fs'], scene['liparams']['fe']) = (scene.frame_current, scene.frame_current) if simnode.animmenu == 'Static' else (scene.frame_start, scene.frame_end)
+        (scene['liparams']['fs'], scene['liparams']['fe']) = (scene.frame_current, scene.frame_current) if simnode.animmenu == 'Static' else (simnode.startframe, simnode.endframe)
         cmap('grey')
 
         if simnode.starthour > simnode.endhour:
@@ -1861,11 +1861,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             return{'CANCELLED'}
         
         scene['viparams']['resnode'], simnode['Animation'] = simnode.name, simnode.animmenu
-
-        if simnode['Animation'] == 'Static':
-            scmaxres, scminres, scavres, scene['liparams']['fs'] = [0], [100], [0], scene.frame_current
-        else:
-            (scmaxres, scminres, scavres) = [[x] * (scene.frame_end - scene.frame_start + 1) for x in (0, 100, 0)]
+        (scmaxres, scminres, scavres) = [[x] * (scene['liparams']['fe'] - scene['liparams']['fs'] + 1) for x in (0, 100, 0)]
         
         frange = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
         time = datetime.datetime(2014, simnode.sdate.month, simnode.sdate.day, simnode.starthour - 1)
@@ -1896,7 +1892,8 @@ class NODE_OT_Shadow(bpy.types.Operator):
             [geom.layers.float.new('res{}'.format(fi)) for fi in frange]
             avres, minres, maxres, g = [], [], [], 0
             
-            for frame in frange:                 
+            for frame in frange: 
+                g = 0                
                 scene.frame_set(frame)
                 shadtree = rettree(scene, shadobs, ('', '2')[simnode.signore])
                 shadres = geom.layers.float['res{}'.format(frame)]
@@ -1909,7 +1906,8 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 
                 for chunk in chunks(gpoints, int(scene['viparams']['nproc']) * 200):
                     for gp in chunk:
-                        gp[cindex] = g + 1                      
+                        if frame == frange[0]:
+                            gp[cindex] = g + 1                      
                         pointres = array([(1, 0)[shadtree.ray_cast(posis[g], direc)[3] == None and direc[2] > 0] for direc in direcs])
                         allpoints[g] = pointres#numpy.average(pointres.reshape(len(pointres)/simnode.interval, simnode.interval), axis = 1)
                         gp[shadres] = 100 * (1 - numpy.sum(pointres)/len(direcs))
@@ -1919,7 +1917,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
                         return {'CANCELLED'}
 
                 ap = numpy.average(allpoints, axis=0)
-
                 o['dhres{}'.format(frame)] = array(100 * (1 - ap)).reshape(len(o['days']), len(o['hours'])).T
                 shadres = [gp[shadres] for gp in gpoints]
                 o['omin']['res{}'.format(frame)], o['omax']['res{}'.format(frame)], o['oave']['res{}'.format(frame)] = min(shadres), max(shadres), sum(shadres)/len(shadres)
@@ -1944,7 +1941,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         if kivyrun.poll() is None:
             kivyrun.kill()
         
-        
+        scene.frame_start, scene.frame_end = scene['liparams']['fs'], scene['liparams']['fe']
         scene.vi_display = 1
         simnode['reslists'] = reslists
         simnode['frames'] = [f for f in frange]

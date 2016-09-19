@@ -1626,14 +1626,13 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
     bl_register = True
     bl_undo = False
 
-    def modal(self, context, event):            
-        if context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':
-            
-            if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'wr' or 'Wind_Plane' not in [o['VIType'] for o in bpy.data.objects if o.get('VIType')]:
+    def modal(self, context, event): 
+        if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'wr' or 'Wind_Plane' not in [o['VIType'] for o in bpy.data.objects if o.get('VIType')]:
                 bpy.types.SpaceView3D.draw_handler_remove(self._handle_wr_disp, 'WINDOW')
                 context.area.tag_redraw()
-                return {'CANCELLED'}
-            
+                return {'CANCELLED'}           
+
+        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':            
             mx, my = event.mouse_region_x, event.mouse_region_y 
             
             # Legend routine 
@@ -1708,12 +1707,12 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
                     if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.dhscatter.expand and self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff:
                         self.dhscatter.show_plot()
                 
-                    elif self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff < my < self.dhscatter.epos[1]:                    
-                        for butrange in self.dhscatter.buttons:
-                            if self.dhscatter.buttons[butrange][0] - 10 < mx < self.dhscatter.buttons[butrange][0] + 10 and self.dhscatter.buttons[butrange][1] - 0.015 * self.dhscatter.ydiff < my < self.dhscatter.buttons[butrange][1] + 0.015 * self.dhscatter.ydiff:
-                                if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
-                                    self.dhscatter.type_select = 0 if self.dhscatter.type_select else 1
-                                    self.dhscatter.update(context)
+#                    elif self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff < my < self.dhscatter.epos[1]:                    
+#                        for butrange in self.dhscatter.buttons:
+#                            if self.dhscatter.buttons[butrange][0] - 10 < mx < self.dhscatter.buttons[butrange][0] + 10 and self.dhscatter.buttons[butrange][1] - 0.015 * self.dhscatter.ydiff < my < self.dhscatter.buttons[butrange][1] + 0.015 * self.dhscatter.ydiff:
+#                                if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+#                                    self.dhscatter.type_select = 0 if self.dhscatter.type_select else 1
+#                                    self.dhscatter.update(context)
                     context.area.tag_redraw()
                     return {'RUNNING_MODAL'}
                    
@@ -1799,7 +1798,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
             if self.legend.cao != context.active_object:
                 self.legend.update(context)
             
-            if self.dhscatter.cao != context.active_object:
+            if self.dhscatter.cao != context.active_object or self.dhscatter.unit != context.scene.wind_type:
                 self.dhscatter.update(context)
                 
             if self.table.cao != context.active_object:

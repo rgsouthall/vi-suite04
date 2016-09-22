@@ -20,11 +20,13 @@ class Vi3DPanel(bpy.types.Panel):
             layout = self.layout
 
             if scene['viparams']['vidisp'] == 'wr' and 'Wind_Plane' in [o['VIType'] for o in bpy.data.objects if o.get('VIType')]:
-                newrow(layout, 'Wind metric', scene, 'wind_type')
                 row = layout.row()
                 row.operator('view3d.wrdisplay', text = 'Wind Metrics')#('INVOKE_DEFAULT'')
                 
-
+            elif scene['viparams']['vidisp'] == 'wrpanel' and scene.vi_display:
+                newrow(layout, 'Wind metric:', scene, 'wind_type')
+                newrow(layout, 'Colour:', scene, 'vi_leg_col')
+                
             elif scene['viparams']['vidisp'] == 'sp' and scene.vi_display:
                 (sdate, edate) = retdates(scene.solday, 365, 2015)
                 for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "solday"), ("Time of day:", "solhour"), ("Display hours:", "hourdisp"), ("Display time:", "timedisp")):

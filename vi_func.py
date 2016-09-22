@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex, bpy_extras
+import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex, bpy_extras, gpu
 from collections import OrderedDict
 from subprocess import Popen, PIPE, STDOUT
 from numpy import arange, array, digitize, amax, amin, average, zeros, inner, outer, transpose, nan, set_printoptions, choose, clip
@@ -70,12 +70,13 @@ def cmap(scene):
         
         if not bpy.data.materials.get(matname):
             bpy.data.materials.new(matname)
+            bpy.data.materials[matname].specular_intensity = 0
+            bpy.data.materials[matname].specular_color = (0, 0, 0)
+            bpy.data.materials[matname].use_shadeless = 0
         
-        bpy.data.materials[matname].diffuse_color = cols[i][0:3]
-        bpy.data.materials[matname].specular_intensity = 0
-        bpy.data.materials[matname].specular_color = (0, 0, 0)
-        bpy.data.materials[matname].use_shadeless = 0
-
+        if bpy.data.materials[matname].users:
+            bpy.data.materials[matname].diffuse_color = cols[i][0:3]
+        
 def bmesh2mesh(scene, obmesh, o, frame, tmf):
     ftext = ''
     gradfile = ''
@@ -475,10 +476,10 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         self['oave']['df{}'.format(frame)] = sum(ovirrad * 1.79)/reslen 
         self['oave']['firrad{}'.format(frame)] = 1.64 * sum(ovirrad)/reslen
         tableheaders = [["", 'Minimum', 'Average', 'Maximum']]
-        self['tableillu{}'.format(frame)] = array(tableheaders + ['Illuminance (lux)', '{:.1f}'.format(self['omin']['illu{}'.format(frame)]), '{:.1f}'.format(self['oave']['illu{}'.format(frame)]), '{:.1f}'.format(self['omax']['illu{}'.format(frame)])])
-        self['tabledf{}'.format(frame)] = array(tableheaders + ['DF (%)', '{:.1f}'.format(self['omin']['df{}'.format(frame)]), '{:.1f}'.format(self['oave']['df{}'.format(frame)]), '{:.1f}'.format(self['omax']['df{}'.format(frame)])])
-        self['tablevi{}'.format(frame)] = array(tableheaders + ['Visual Irradiance (W/m2)', '{:.1f}'.format(self['omin']['virrad{}'.format(frame)]), '{:.1f}'.format(self['oave']['virrad{}'.format(frame)]), '{:.1f}'.format(self['omax']['virrad{}'.format(frame)])])
-        self['tablefi{}'.format(frame)] = array(tableheaders + ['Full Irradiance (W/m2)', '{:.1f}'.format(self['omin']['firrad{}'.format(frame)]), '{:.1f}'.format(self['oave']['firrad{}'.format(frame)]), '{:.1f}'.format(self['omax']['firrad{}'.format(frame)])])
+        self['tableillu{}'.format(frame)] = array(tableheaders + [['Illuminance (lux)', '{:.1f}'.format(self['omin']['illu{}'.format(frame)]), '{:.1f}'.format(self['oave']['illu{}'.format(frame)]), '{:.1f}'.format(self['omax']['illu{}'.format(frame)])]])
+        self['tabledf{}'.format(frame)] = array(tableheaders + [['DF (%)', '{:.1f}'.format(self['omin']['df{}'.format(frame)]), '{:.1f}'.format(self['oave']['df{}'.format(frame)]), '{:.1f}'.format(self['omax']['df{}'.format(frame)])]])
+        self['tablevi{}'.format(frame)] = array(tableheaders + [['Visual Irradiance (W/m2)', '{:.1f}'.format(self['omin']['virrad{}'.format(frame)]), '{:.1f}'.format(self['oave']['virrad{}'.format(frame)]), '{:.1f}'.format(self['omax']['virrad{}'.format(frame)])]])
+        self['tablefi{}'.format(frame)] = array(tableheaders + [['Full Irradiance (W/m2)', '{:.1f}'.format(self['omin']['firrad{}'.format(frame)]), '{:.1f}'.format(self['oave']['firrad{}'.format(frame)]), '{:.1f}'.format(self['omax']['firrad{}'.format(frame)])]])
         posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 1]
         illubinvals = [self['omin']['illu{}'.format(frame)] + (self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)])/20 * (i + 0.05) for i in range(20)]
         bins = array([0.05 * i for i in range(1, 20)])
@@ -1716,12 +1717,13 @@ def wind_rose(maxws, wrsvg, wrtype):
                     for vert in nf.verts:
                         vert.co[2] = zp
                         
-        if 'wr-000000' not in [mat.name for mat in bpy.data.materials]:
-            bpy.data.materials.new('wr-000000')
+    if 'wr-000000' not in [mat.name for mat in bpy.data.materials]:
+        bpy.data.materials.new('wr-000000')
         bpy.data.materials['wr-000000'].diffuse_color = (0, 0, 0)
-        if 'wr-000000' not in [mat.name for mat in wro.data.materials]:
-            bpy.ops.object.material_slot_add()
-            wro.material_slots[-1].material = bpy.data.materials['wr-000000']
+                                
+    if 'wr-000000' not in [mat.name for mat in wro.data.materials]:
+        bpy.ops.object.material_slot_add()
+        wro.material_slots[-1].material = bpy.data.materials['wr-000000']        
             
     bmesh.ops.remove_doubles(bm, verts=vs, dist = scale * 0.01)    
             
@@ -2097,18 +2099,25 @@ def retdp(mres, dp):
 
 def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
     if len(distances):
-#        blf_props(fontsize, fontcol, shadcol)
-        nres = [str(int(r)) for r in res]
-        fsdist = (6 * fontsize/distances).astype(int)
-        xposis = posis[:,0]
-        yposis = posis[:,1]
-        [(blf.size(0, fontsize, fsdist[ri]), blf.position(0, xposis[ri] - int(0.5*blf.dimensions(0, nr)[0]), yposis[ri] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99), blf.draw(0, nr)) for ri, nr in enumerate(nres)]
-        blf.disable(0, 4)
-    
+        try:
+            nres = [str(int(r)) for r in res]
+            fsdist = (6 * fontsize/distances).astype(int)
+            xposis = posis[:,0]
+            yposis = posis[:,1]
+#            [(blf.size(0, fontsize, fsdist[ri]), blf.position(0, xposis[ri] - int(0.5*blf.dimensions(0, nr)[0]), yposis[ri] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99), blf.draw(0, nr)) for ri, nr in enumerate(nres)]
+            for ri, nr in enumerate(nres):
+                if distances[ri] > 1.25:
+                    blf.size(0, fontsize, fsdist[ri])
+                    blf.position(0, xposis[ri] - int(0.5*blf.dimensions(0, nr)[0]), yposis[ri] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99)
+                    blf.draw(0, nr)
+        except Exception as e:
+            print(e)
+
 def draw_index(posis, res, fontsize, fontcol, shadcol): 
-#    blf_props(fontsize, fontcol, shadcol)
     nres = ['{}'.format(format(r, '.{}f'.format(retdp(max(res), 0)))) for ri, r in enumerate(res)]    
-    [(blf.position(0, posis[ri][0] - int(0.5*blf.dimensions(0, nr)[0]), posis[ri][1] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99), blf.draw(0, nr)) for ri, nr in enumerate(nres)]
+    for ri, nr in enumerate(nres):
+        blf.position(0, posis[ri][0] - int(0.5*blf.dimensions(0, nr)[0]), posis[ri][1] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99)        
+        blf.draw(0, nr)        
     blf.disable(0, 4)
     
 def draw_time(pos, time, fontsize, fontcol, shadcol):
@@ -2116,12 +2125,19 @@ def draw_time(pos, time, fontsize, fontcol, shadcol):
     blf.draw(0, time)
     blf.disable(0, 4)
     
-def blf_props(scene):
+def blf_props(scene, width, height):
+    blf.enable(0, 2)
+    blf.clipping(0, 0, 0, width, height)
     if scene.vi_display_rp_sh:
         blf.enable(0, 4)
         blf.shadow(0, 3, *scene.vi_display_rp_fsh)
     bgl.glColor4f(*scene.vi_display_rp_fc)
     blf.size(0, 12, scene.vi_display_rp_fs)
+    
+def blf_unprops():
+    blf.disable(0, 2)
+    blf.disable(0, 4)
+    bgl.glColor4f(0, 0, 0, 1)
     
 def edgelen(ob, edge):
     omw = ob.matrix_world
@@ -2599,7 +2615,7 @@ def sunposenvi(scene, sun, dirsol, difsol, mdata, ddata, hdata):
     sunapply(scene, sun, values, solposs, frames)
 
 def hdrsky(hdrfile):
-    return("# Sky material\nvoid colorpict hdr_env\n7 red green blue {} angmap.cal sb_u sb_v\n0\n0\n\nhdr_env glow env_glow\n0\n0\n4 1 1 1 0\n\nenv_glow bubble sky\n0\n0\n4 0 0 0 5000\n\n".format(hdrfile))
+    return("# Sky material\nvoid colorpict hdr_env\n7 red green blue '{}' angmap.cal sb_u sb_v\n0\n0\n\nhdr_env glow env_glow\n0\n0\n4 1 1 1 0\n\nenv_glow bubble sky\n0\n0\n4 0 0 0 5000\n\n".format(hdrfile))
        
 def sunposlivi(scene, skynode, frames, sun, stime):
     sun.data.shadow_method, sun.data.shadow_ray_samples, sun.data.sky.use_sky = 'RAY_SHADOW', 8, 1

@@ -570,7 +570,7 @@ def register():
     Scene.en_avetemp_min = bpy.props.FloatProperty(name = "Min", description = "Average temperature minimum", default = 20, max = 30, min = 5, update=setcols)
     Scene.en_mintemp_max = bpy.props.FloatProperty(name = "Max", description = "Minimum temperature maximum", default = 15, max = 30, min = 0, update=setcols)
     Scene.en_mintemp_min = bpy.props.FloatProperty(name = "Min", description = "Minimum temperature minimum", default = 5, max = 30, min = 0, update=setcols)
-    Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 300, 50)
+    Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 48, 24)
     Scene.vi_display_rp_fc = fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     Scene.vi_display_rp_sh = bprop("", "Toggle for font shadow display",  False)
     Scene.vi_display_rp_fsh = fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)

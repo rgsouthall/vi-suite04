@@ -32,7 +32,7 @@ except:
     mp = 0
 
 from . import livi_export
-from .vi_func import cmap, skframe, selobj, retvpvloc, viewdesc, drawloop, drawpoly, draw_index, drawfont, blf_props
+from .vi_func import cmap, skframe, selobj, retvpvloc, viewdesc, drawloop, drawpoly, draw_index, drawfont, blf_props, blf_unprops
 from .vi_func import retdp, objmode, drawcircle, drawtri, setscenelivivals, draw_time, retcols, draw_index_distance
 from .envi_func import retenvires, retenresdict
 
@@ -175,7 +175,7 @@ def spnumdisplay(disp_op, context, simnode):
                 blf_props(scene)
                 draw_index(posis, hs, scene.vi_display_rp_fs, scene.vi_display_rp_fc, scene.vi_display_rp_fsh)
             except Exception as E:
-                print(E)
+                print('178', E)
             blf.disable(0, 4)
 
         if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects]:
@@ -207,6 +207,8 @@ class linumdisplay():
         self.fn = self.scene.frame_current - self.scene['liparams']['fs']
         self.level = self.scene.vi_disp_3dlevel
         self.disp_op = disp_op
+        self.fs = self.scene.vi_display_rp_fs
+        self.fontmult = 1 if context.space_data.region_3d.is_perspective else 10
         self.obreslist = [ob for ob in self.scene.objects if ob.type == 'MESH'  and 'lightarray' not in ob.name and ob.hide == False and ob.layers[self.scene.active_layer] == True and ob.get('lires')]
         if self.scene.vi_display_sel_only == False:
             self.obd = self.obreslist
@@ -221,6 +223,8 @@ class linumdisplay():
     def draw(self, context):
         self.u = 0
         self.scene = context.scene
+        self.fontmult = 1 if context.space_data.region_3d.is_perspective else 10
+        
         if not self.scene.get('viparams') or self.scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel'):
             self.scene.vi_display = 0
             return
@@ -228,11 +232,9 @@ class linumdisplay():
             self.disp_op.report({'INFO'},"Outside result frame range")
             return
         if self.scene.vi_display_rp != True \
-         or (bpy.context.active_object not in self.obreslist and self.scene.vi_display_sel_only == True)  \
-         or (bpy.context.active_object and bpy.context.active_object.mode == 'EDIT'):
+             or (bpy.context.active_object not in self.obreslist and self.scene.vi_display_sel_only == True)  \
+             or (bpy.context.active_object and bpy.context.active_object.mode == 'EDIT'):
              return
-        
-#        self.fn = self.scene.frame_current - self.scene['liparams']['fs']
         
         if (self.width, self.height) != viewdesc(context)[2:]:
             mid_x, mid_y, self.width, self.height = viewdesc(context)
@@ -252,23 +254,27 @@ class linumdisplay():
             self.u = 1
         
         if self.fn != self.scene.frame_current - self.scene['liparams']['fs']:
-#        if self.omws != [o.matrix_world for o in self.scene.objects]:
-#            self.omws = [o.matrix_world for o in self.scene.objects]
             self.fn = self.scene.frame_current - self.scene['liparams']['fs']
             self.u = 1
             
         if self.level != self.scene.vi_disp_3dlevel:
             self.level = self.scene.vi_disp_3dlevel
             self.u = 1
-  
-        if self.u:
+        
+        blf_props(self.scene, self.width, self.height)
+        if self.u:            
             self.update(context)
-        else:
-            blf_props(self.scene)
-            draw_index_distance(self.allpcs, self.allres, self.scene.vi_display_rp_fs, self.scene.vi_display_rp_fc, self.scene.vi_display_rp_fsh, self.alldepths)    
-
-#    obreslist = [ob for ob in scene.objects if ob.type == 'MESH'  and 'lightarray' not in ob.name and ob.hide == False and ob.layers[scene.active_layer] == True and ob.get('lires')]
-                            
+        else:  
+            
+            draw_index_distance(self.allpcs, self.allres, self.fontmult * self.scene.vi_display_rp_fs, self.scene.vi_display_rp_fc, self.scene.vi_display_rp_fsh, self.alldepths)    
+        
+        if self.scene.vi_display_rp_fs != self.fs:
+            self.fs = self.scene.vi_display_rp_fs
+#            context.area
+            bpy.context.user_preferences.system.window_draw_method = bpy.context.user_preferences.system.window_draw_method
+            
+#        blf_unprops()
+           
     def update(self, context):
         self.allpcs, self.alldepths, self.allres = [], [], []
         try:
@@ -287,8 +293,6 @@ class linumdisplay():
                     livires = geom.layers.float['res{}'.format(self.scene.frame_current)]
             
                     if bm.faces.layers.float.get('res{}'.format(self.scene.frame_current)):
-#                        bm.faces.ensure_lookup_table()
-#                        livires = bm.faces.layers.float['res{}'.format(self.scene.frame_current)]
                         if self.scene.vi_disp_3d:
                             extrude = geom.layers.int['extrude']                                
                             faces = [f for f in geom if f.select and f[extrude]]
@@ -296,7 +300,7 @@ class linumdisplay():
                             faces = [f for f in geom if f.select]
 
                         distances = [(self.view_location - f.calc_center_median_weighted() + self.scene.vi_display_rp_off * f.normal.normalized()).length for f in faces]
-                                    
+           
                         if self.scene.vi_display_vis_only:
                             fcos = [f.calc_center_median_weighted() + self.scene.vi_display_rp_off * f.normal.normalized() for f in faces]
                             direcs = [self.view_location - f for f in fcos]
@@ -306,10 +310,8 @@ class linumdisplay():
                         (faces, self.pcs, self.depths) = map(list, zip(*[[f, face2d[fi], distances[fi]] for fi, f in enumerate(faces) if face2d[fi] and 0 < face2d[fi][0] < self.width and 0 < face2d[fi][1] < self.height]))          
                         self.res = [f[livires] for f in faces]
                     
-                    elif bm.verts.layers.float.get('res{}'.format(self.scene.frame_current)):
-#                        bm.verts.ensure_lookup_table()
-#                        livires = bm.verts.layers.float['res{}'.format(self.scene.frame_current)]                         
-                        verts = [v for v in geom if not v.hide and v.select]
+                    elif bm.verts.layers.float.get('res{}'.format(self.scene.frame_current)):                        
+                        verts = [v for v in geom if not v.hide and v.select and (context.space_data.region_3d.view_location - self.view_location).dot(v.co + self.scene.vi_display_rp_off * v.normal.normalized() - self.view_location)/((context.space_data.region_3d.view_location-self.view_location).length * (v.co + self.scene.vi_display_rp_off * v.normal.normalized() - self.view_location).length) > 0]
                         distances = [(self.view_location - v.co + self.scene.vi_display_rp_off * v.normal.normalized()).length for v in verts]
                         
                         if self.scene.vi_display_vis_only:
@@ -322,80 +324,20 @@ class linumdisplay():
                         self.res = [v[livires] for v in verts]
                     
                     bm.free()
+                
                 except Exception as e:
                     self.pcs, self.depths, self.res = [], [], []
-                    print(e)
                     
                 self.allpcs += self.pcs
                 self.alldepths += self.depths
                 self.allres += self.res
             self.allpcs  = array(self.allpcs)
             self.alldepths = array(self.alldepths)
-            self.allres = array(self.allres)
-            draw_index_distance(self.allpcs, self.allres, self.scene.vi_display_rp_fs, self.scene.vi_display_rp_fc, self.scene.vi_display_rp_fsh, self.alldepths)    
-    
-                     
-                
-            blf.disable(0, 4)
-        except:
-            pass
+            self.allres = array(self.allres)            
+            draw_index_distance(self.allpcs, self.allres, self.fontmult * self.scene.vi_display_rp_fs, self.scene.vi_display_rp_fc, self.scene.vi_display_rp_fsh, self.alldepths)    
 
-#def li3D_legend(self, context, simnode):
-#    scene = context.scene
-#    fc = str(scene.frame_current)
-#    dplaces = retdp(scene.vi_leg_max, 1)
-#    
-#    if not scene.get('liparams'):
-#        scene.vi_display = 0
-#        return
-#
-#    try:
-#        if scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or not scene.vi_leg_display  or not any([o.lires for o in scene.objects]) or scene['liparams']['unit'] == 'Sky View':
-#            return
-#        else:
-#            mid_x, mid_y, width, height = viewdesc(context)
-#            bgl.glLineWidth(1)
-#            resvals = [format(scene.vi_leg_min + i*(scene.vi_leg_max - scene.vi_leg_min)/19, '.{}f'.format(dplaces)) for i in range(20)] if scene.vi_leg_scale == '0' else \
-#                        [format(scene.vi_leg_min + (1 -log10(i)/log10(20))*(scene.vi_leg_max - scene.vi_leg_min), '.{}f'.format(dplaces)) for i in range(1, 21)[::-1]]
-#            lenres = len(resvals[-1])
-#            font_id = 0
-#            drawpoly(20, height - 40, 70 + lenres*8, height - 520, 1, 1, 1, 0.9)
-#            drawloop(19, height - 40, 70 + lenres*8, height - 520)
-#            blf.enable(0, blf.SHADOW)
-#            blf.enable(0, blf.KERNING_DEFAULT)
-#            blf.shadow(0, 5, 0, 0, 0, 0.7)
-#            cols = retcols(scene)
-#            for i in range(20):
-#                rgba = cols[i]
-#                drawpoly(20, (i*20)+height - 440, 60, (i*20)+height - 460, *rgba)    
-#                blf.size(font_id, 20, 48)
-#                bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-#                blf.position(font_id, 65, (i*20)+height - 455, 0)
-#                blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])    
-#            
-#            blf.size(font_id, 20, 56)    
-#            drawfont(scene['liparams']['unit'], font_id, 0, height, 25, 57)
-#            bgl.glDisable(bgl.GL_BLEND)
-#            font_id = 0
-#            bgl.glColor4f(0.0, 0.0, 0.0, 0.8)
-#            blf.size(font_id, 20, 48)
-#            
-#            if context.active_object and context.active_object.get('lires'):
-#                drawfont("Ave: {}".format(format(context.active_object['oave'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 480)
-#                drawfont("Max: {}".format(format(context.active_object['omax'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 495)
-#                drawfont("Min: {}".format(format(context.active_object['omin'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 510)
-#            else:
-#                drawfont("Ave: {}".format(format(scene['liparams']['avres'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 480)
-#                drawfont("Max: {}".format(format(scene['liparams']['maxres'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 495)
-#                drawfont("Min: {}".format(format(scene['liparams']['minres'][fc], '.{}f'.format(dplaces))), font_id, 0, height, 22, 510)
-#            
-#            blf.disable(0, blf.KERNING_DEFAULT)
-#            blf.disable(0, blf.SHADOW)
-#            
-#    except Exception as e:
-#        print(e, 'Turning off legend display')
-#        scene.vi_leg_display = 0
-#        scene.update()
+        except Exception as e:
+            print('I am excepting', e)
 
 def en_air(self, context, temp, ws, wd, hu):
     scene = context.scene
@@ -1415,9 +1357,9 @@ def draw_legend(self, scene, unit):
 
     blf.shadow(font_id, 5, 0.8, 0.8, 0.8, 1)
     lh = ydiff/(levels + 1)
-#        cols = retcols(scene)
     blf.size(font_id, 12, int(250/fontscale))
     bgl.glDisable(bgl.GL_BLEND)
+    
     for i in range(levels):
         num = self.resvals[i]
         rgba = self.cols[i]
@@ -1594,45 +1536,4 @@ def draw_table(self):
     blf.disable(0, 4)
     bgl.glEnd()
     bgl.glFlush()
-    
-#def viwr_legend(self, context, simnode):
-#    scene = context.scene
-#    if scene.vi_leg_display != True or scene.vi_display == 0:
-#        return
-#    else:
-#        blf.enable(0, 4)
-#        blf.shadow(0, 3, 0, 0, 0, 0.5)
-#        resvals = ['{0:.0f} to {1:.0f}'.format(2*i, 2*(i+1)) for i in range(simnode['nbins'])]
-#        resvals[-1] = resvals[-1][:-int(len('{:.0f}'.format(simnode['maxres'])))] + u"\u221E"
-#        height, lenres, font_id = context.region.height, len(resvals[-1]) + 1 , 0
-#        hscale, newheight, newwidth = height/nh, height-50, 20     
-#        drawpoly(newwidth, newheight, newwidth + int(hscale*(45 + lenres*8)), int((newheight - hscale*(simnode['nbins']+3.5)*20)), 0.7, 1, 1, 1)
-#        drawloop(newwidth - 1, newheight, newwidth + int(hscale*(45 + lenres*8)), int((newheight - hscale*(simnode['nbins']+3.5)*20)))
-#        cm = matplotlib.cm.jet if simnode.wrtype in ('0', '1') else matplotlib.cm.hot
-#
-#        for i in range(simnode['nbins']):
-#            bgl.glColor4f(*cm(i * 1/(simnode['nbins']-1), 1))
-#            bgl.glBegin(bgl.GL_POLYGON)
-#            bgl.glVertex2i(newwidth, int(newheight - hscale*(simnode['nbins'] * 20 - (i*20) + 20)))
-#            bgl.glVertex2i(int(newwidth + hscale*40), int(newheight - hscale*(simnode['nbins'] * 20 - (i*20) + 20)))
-#            bgl.glVertex2i(int(newwidth + hscale*40), int(newheight - hscale*(simnode['nbins'] * 20 - (i*20))))
-#            bgl.glVertex2i(newwidth, int(newheight - hscale*(simnode['nbins'] * 20 - (i*20))))
-#            bgl.glEnd()
-#            blf.size(font_id, 20, int(height/14))
-#            bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-#            blf.position(font_id, int(newwidth + hscale*45), int(newheight - hscale*(simnode['nbins'] * 20 - i*20 + 15)), 0)
-#            blf.draw(font_id, "  "*(lenres - len(resvals[i]) ) + resvals[i])
-#
-#        blf.size(font_id, 20, int(hscale*64))
-#        cu = 'Speed (m/s)'
-#        drawfont(cu, font_id, 0, newheight, newwidth + 5 * hscale, 17 * hscale)
-#        bgl.glLineWidth(1)
-#        bgl.glDisable(bgl.GL_BLEND)
-#        font_id = 0
-#        bgl.glColor4f(0.0, 0.0, 0.0, 1)
-#        blf.size(font_id, 20, int(hscale*48))
-#        datasource = context.active_object if context.active_object and bpy.context.active_object.get('VIType') == 'Wind_Plane' else simnode                
-#        drawfont("Ave: {:.1f}".format(datasource['avres']), font_id, 0, newheight , newwidth + hscale * 2, int(hscale*(simnode['nbins']*20 + 35)))
-#        drawfont("Max: {:.1f}".format(datasource['maxres']), font_id, 0, newheight, newwidth + hscale * 2, int(hscale*(simnode['nbins']*20 + 50)))
-#        drawfont("Min: {:.1f}".format(datasource['minres']), font_id, 0, newheight, newwidth + hscale * 2, int(hscale*(simnode['nbins']*20 + 65)))
-#        blf.disable(0, 4)    
+     

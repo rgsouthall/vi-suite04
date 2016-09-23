@@ -551,7 +551,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
         self.inputs.new('ViLiC', 'Context in')
         self.outputs.new('ViR', 'Results out')
         nodecolour(self, 1)
-        self['maxres'], self['minres'], self['avres'], self['exportstate'] = {}, {}, {}, ''
+        self['maxres'], self['minres'], self['avres'], self['exportstate'], self['year'] = {}, {}, {}, '', 2015
         
     def draw_buttons(self, context, layout): 
         scene = context.scene
@@ -580,7 +580,8 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             pass
 
     def update(self):
-        socklink(self.outputs['Results out'], self['nodeid'].split('@')[1])
+        if self.outputs.get('Results out'):
+            socklink(self.outputs['Results out'], self['nodeid'].split('@')[1])
         self.run = 0
     
     def presim(self):

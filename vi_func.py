@@ -589,9 +589,9 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         self['tablemlxh{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
             ['Luxhours (Mlxh)', '{:.1f}'.format(self['omin']['illu{}'.format(frame)]), '{:.1f}'.format(self['oave']['illu{}'.format(frame)]), '{:.1f}'.format(self['omax']['illu{}'.format(frame)])]])
         self['tablefim2{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-            ['Full Irradiance (kWh)', '{:.1f}'.format(self['omin']['firradm2{}'.format(frame)]), '{:.1f}'.format(self['oave']['firradm2{}'.format(frame)]), '{:.1f}'.format(self['omax']['firradm2{}'.format(frame)])]])
+            ['Full Irradiance (kWh/m2)', '{:.1f}'.format(self['omin']['firradm2{}'.format(frame)]), '{:.1f}'.format(self['oave']['firradm2{}'.format(frame)]), '{:.1f}'.format(self['omax']['firradm2{}'.format(frame)])]])
         self['tablevim2{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-            ['Visual Irradiance (kWh)', '{:.1f}'.format(self['omin']['virradm2{}'.format(frame)]), '{:.1f}'.format(self['oave']['virradm2{}'.format(frame)]), '{:.1f}'.format(self['omax']['virradm2{}'.format(frame)])]])
+            ['Visual Irradiance (kWh/m2)', '{:.1f}'.format(self['omin']['virradm2{}'.format(frame)]), '{:.1f}'.format(self['oave']['virradm2{}'.format(frame)]), '{:.1f}'.format(self['omax']['virradm2{}'.format(frame)])]])
         self['tablefi{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
             ['Full Irradiance (kWh)', '{:.1f}'.format(self['omin']['firrad{}'.format(frame)]), '{:.1f}'.format(self['oave']['firrad{}'.format(frame)]), '{:.1f}'.format(self['omax']['firrad{}'.format(frame)])]])
         self['tablevi{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
@@ -608,6 +608,7 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         reslists.append([str(frame), 'Lighting', self.name, 'Illuminance', ' '.join([str(g[illures]) for g in geom if g[cindex] > 0])])
     bm.to_mesh(self.data)
     bm.free()
+    return reslists
                     
 def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):  
     reslists, scores, escores, metric, emetric, pfs, epfs = [], [], [], [], [], [[]], [[]]

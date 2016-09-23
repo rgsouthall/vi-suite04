@@ -88,8 +88,11 @@ class VIPreferences(AddonPreferences):
 
 @persistent
 def update_ntree(dummy):
-    for ng in bpy.data.node_groups:
-        [node.update() for node in ng.nodes if node.bl_label == 'VI Chart']
+    try:
+        for ng in bpy.data.node_groups:
+            [node.update() for node in ng.nodes if node.bl_label == 'VI Chart']
+    except:
+        pass
         
 @persistent
 def display_off(dummy):

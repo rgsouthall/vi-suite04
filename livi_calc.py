@@ -109,8 +109,11 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
                 reslists += bccout
                 
         elif context == 'CBDM' and subcontext == '0':
-            if o.lhcalcapply(scene, frames, rtcmds, simnode, curres, pfile) == 'CANCELLED':
+            lhout = o.lhcalcapply(scene, frames, rtcmds, simnode, curres, pfile)
+            if lhout  == 'CANCELLED':
                 return 'CANCELLED'
+            else:
+                reslists += lhout
         
         elif (context == 'CBDM' and subcontext in ('1', '2')) or (context == 'Compliance' and subcontext == '3'):
             udiout = o.udidacalcapply(scene, frames, rccmds, simnode, curres, pfile)

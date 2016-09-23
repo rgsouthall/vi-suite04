@@ -377,7 +377,12 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
     bl_undo = False
     nodeid = bpy.props.StringProperty()
 
+<<<<<<< HEAD
     def modal(self, context, event):        
+=======
+    def modal(self, context, event):
+        
+>>>>>>> cb251cebd9a101cfb3a77a788925f624e428a2f5
         if event.type == 'TIMER':
             if self.egrun.poll() is not None: # If finished
                 if self.frame > self.scene['liparams']['fe']:
@@ -400,7 +405,11 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
                     else:
                         rpictcmd = "rpict -w -e {5} -t 10 -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, self.rpictfile)
                     self.rprun = Popen(rpictcmd.split(), stdout = PIPE)                    
+<<<<<<< HEAD
                     self.egcmd = 'evalglare {} -c {}'.format(('-u 1 0 0', '')[sys.platform == 'win32'], os.path.join(self.scene['viparams']['newdir'], 'glare{}.hdr'.format(self.frame)))                    
+=======
+                    self.egcmd = 'evalglare -u 1 0 0 -c {}'.format(os.path.join(self.scene['viparams']['newdir'], 'glare{}.hdr'.format(self.frame)))                    
+>>>>>>> cb251cebd9a101cfb3a77a788925f624e428a2f5
                     self.egrun = Popen(self.egcmd.split(), stdin = self.rprun.stdout, stdout = PIPE)
                     return {'RUNNING_MODAL'}
 
@@ -442,7 +451,12 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
                 if self.percent:
                     if self.pfile.check(self.percent) == 'CANCELLED':                       
                         self.terminate()
+<<<<<<< HEAD
                         return {'FINISHED'}                
+=======
+                        return {'FINISHED'}
+                
+>>>>>>> cb251cebd9a101cfb3a77a788925f624e428a2f5
                 return {'PASS_THROUGH'}
         else:
             return {'PASS_THROUGH'}
@@ -495,7 +509,11 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
             self.pfile = progressfile(self.scene, datetime.datetime.now(), 100)
             self.kivyrun = progressbar(os.path.join(self.scene['viparams']['newdir'], 'viprogress'))
             self.rprun = Popen(rpictcmd.split(), stdout=PIPE, stderr = PIPE)
+<<<<<<< HEAD
             egcmd = "evalglare {} -c {}".format(('-u 1 0 0', '')[sys.platform == 'win32'], os.path.join(self.scene['viparams']['newdir'], 'glare{}.hdr'.format(self.frame)))
+=======
+            egcmd = "evalglare -u 1 0 0 -c {}".format(os.path.join(self.scene['viparams']['newdir'], 'glare{}.hdr'.format(self.frame)))
+>>>>>>> cb251cebd9a101cfb3a77a788925f624e428a2f5
             self.egrun = Popen(egcmd.split(), stdin = self.rprun.stdout, stdout=PIPE, stderr = PIPE)
             return {'RUNNING_MODAL'}
         else:

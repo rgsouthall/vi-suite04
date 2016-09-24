@@ -253,46 +253,8 @@ class VIMatPanel(bpy.types.Panel):
 #            except Exception as e:
 #                print('Compliance specification problem', e)
     
-            row = layout.row()
-            row.label('LiVi Radiance type:')
-            row.prop(cm, 'radmatmenu')
-            row = layout.row()
+            rmmenu(layout, cm)
 
-            for prop in cm.radmatdict[cm.radmatmenu]:
-                if prop:
-                     row.prop(cm, prop)
-                else:
-                    row = layout.row()
-                    
-            if cm.radmatmenu == '8':
-                row.operator("material.load_bsdf", text="Load BSDF")
-            if cm.get('bsdf'):
-                row.operator("material.del_bsdf", text="Delete BSDF")
-                row = layout.row()
-                row.operator("material.save_bsdf", text="Save BSDF")
-#                row.operator("material.vis_bsdf", text="Visualise BSDF")
-                
-#                newrow(layout, 'Direction:', cm, 'li_bsdf_direc')
-#                newrow(layout, 'Klems/Tensor:', cm, 'li_bsdf_tensor')
-#                if cm.li_bsdf_tensor != ' ':
-#                    newrow(layout, 'resolution:', cm, 'li_bsdf_res')
-#                    newrow(layout, 'Samples:', cm, 'li_bsdf_tsamp')
-#                else:
-#                    newrow(layout, 'Samples:', cm, 'li_bsdf_ksamp')
-#                newrow(layout, 'RC params:', cm, 'li_bsdf_rcparam')
-#                row = layout.row()
-##                col = row.column()
-#                
-#
-#                row.operator("material.gen_bsdf", text="Generate BSDF")
-#                if cm.get('bsdf'):
-##                    row = layout.row()
-##                    row.label('Delete BSDF')
-#                    row.operator("material.del_bsdf", text="Delete BSDF")
-
-            newrow(layout, 'Photon Port:', cm, 'pport')
-            row = layout.row()
-            row.label("-----------------------------------------")
             newrow(layout, "EnVi Construction Type:", cm, "envi_con_type")
             row = layout.row()
             if cm.envi_con_type not in ("Aperture", "Shading", "None"):
@@ -474,7 +436,10 @@ class VIMatPanel(bpy.types.Panel):
                             row.prop(cm, thicklist[l])
                             row.label(text = "default: {}mm".format(envi_mats.matdat[layername][7]))
         
-        elif cm.mattype == '3':
+        elif cm.mattype == '1':                    
+            rmmenu(layout, cm)
+        
+        elif cm.mattype == '2':
             fvsimnode = bpy.data.node_groups[scene['viparams']['fvsimnode'].split('@')[1]].nodes[scene['viparams']['fvsimnode'].split('@')[0]] if 'fvsimnode' in scene['viparams'] else 0
             newrow(layout, "Type:", cm, "flovi_bmb_type")
             if cm.flovi_bmb_type == '0':
@@ -628,3 +593,26 @@ class VIObPanel(bpy.types.Panel):
 #                    row.label('Delete BSDF')
                 row.operator("material.del_bsdf", text="Delete BSDF")
             newrow(layout, 'Proxy:', obj, 'bsdf_proxy')
+
+def rmmenu(layout, cm):
+    row = layout.row()
+    row.label('LiVi Radiance type:')
+    row.prop(cm, 'radmatmenu')
+    row = layout.row()
+
+    for prop in cm.radmatdict[cm.radmatmenu]:
+        if prop:
+             row.prop(cm, prop)
+        else:
+            row = layout.row()
+            
+    if cm.radmatmenu == '8':
+        row.operator("material.load_bsdf", text="Load BSDF")
+    if cm.get('bsdf'):
+        row.operator("material.del_bsdf", text="Delete BSDF")
+        row = layout.row()
+        row.operator("material.save_bsdf", text="Save BSDF")
+
+    newrow(layout, 'Photon Port:', cm, 'pport')
+    row = layout.row()
+    row.label("-----------------------------------------")

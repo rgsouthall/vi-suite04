@@ -80,37 +80,40 @@ def cmap(scene):
 def bmesh2mesh(scene, obmesh, o, frame, tmf):
     ftext = ''
     gradfile = ''
-    bm = obmesh.copy()
-    bm.verts.ensure_lookup_table()
-    mfaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu in ('0', '1', '2', '3') and not o.data.materials[face.material_index].pport]
-    ffaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu not in ('0', '1', '2', '3', '7', '8') or o.data.materials[face.material_index].pport]    
-    mmats = [mat for mat in o.data.materials if mat.radmatmenu in ('0', '1', '2', '3')]
-    otext = 'o {}\n'.format(o.name)
-    vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts])
+    try:
+        bm = obmesh.copy()
+        bm.verts.ensure_lookup_table()
+        mfaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu in ('0', '1', '2', '3') and not o.data.materials[face.material_index].pport]
+        ffaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu not in ('0', '1', '2', '3', '7', '8') or o.data.materials[face.material_index].pport]    
+        mmats = [mat for mat in o.data.materials if mat.radmatmenu in ('0', '1', '2', '3')]
+        otext = 'o {}\n'.format(o.name)
+        vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts])
     
-    if o.data.polygons[0].use_smooth:
-        vtext += ''.join(['vn {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.normal.normalized()) for v in bm.verts])
-
-    for mat in mmats:
-        matname = mat.name.replace(' ', '_')
-        if o.data.polygons[0].use_smooth:            
-            ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join('{0}//{0}'.format(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])            
-        else:
-            ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(str(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])
-            
-    if ffaces:
-        gradfile += radpoints(o, ffaces, 0)
-
-    bm.free()
-    if ftext:
+        if o.data.polygons[0].use_smooth:
+            vtext += ''.join(['vn {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.normal.normalized()) for v in bm.verts])
+    
+        for mat in mmats:
+            matname = mat.name.replace(' ', '_')
+            if o.data.polygons[0].use_smooth:            
+                ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join('{0}//{0}'.format(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])            
+            else:
+                ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(str(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])
+                
+        if ffaces:
+            gradfile += radpoints(o, ffaces, 0)
+    
+        bm.free()
         
-        mfile = os.path.join(scene['viparams']['newdir'], 'obj', '{}-{}.mesh'.format(o.name.replace(' ', '_'), frame))
-        with open(mfile, 'w') as mesh:
-            Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout = mesh, stdin = PIPE).communicate(input = (otext + vtext + ftext).encode('utf-8'))
-        gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(o.name.replace(" ", "_"), frame)))
-
-    vtext, ftext = '', ''
-    return gradfile
+        if ftext:        
+            mfile = os.path.join(scene['viparams']['newdir'], 'obj', '{}-{}.mesh'.format(o.name.replace(' ', '_'), frame))
+            with open(mfile, 'w') as mesh:
+                Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout = mesh, stdin = PIPE).communicate(input = (otext + vtext + ftext).encode('utf-8'))
+            gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(o.name.replace(" ", "_"), frame)))
+    
+        vtext, ftext = '', ''
+        return gradfile
+    except:
+        return gradfile
     
 def radmat(self, scene):
     radname = self.name.replace(" ", "_")         
@@ -693,7 +696,7 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             scores.append(c[4])  
 
         if simnode['coptions']['canalysis'] == '0':
-            if 'Fail' in [c for i, c in enumerate(list(zip(metric))[-1]) if scores[i] == '1'] or bpy.context.scene['liparams']['dfpass'][str(frame)] == 1:
+            if 'Fail' in [c for i, c in enumerate(list(zip(metric))[-1]) if scores[i] == '1'] or dfpass[str(frame)] == 1:
                 opf = 'FAIL'
             elif 'pass' not in [c for i, c in enumerate(list(zip(metric))[-1]) if scores[i] == '0.75'] and len([c for i, c in enumerate(list(zip(metric))[-1]) if scores[i] == '0.75']) > 0:
                 if 'pass' not in [c for i, c in enumerate(list(zip(metric))[-1]) if scores[i] == '0.5'] and len([c for i, c in enumerate(list(zip(metric))[-1]) if scores[i] == '0.5']) > 0:
@@ -763,7 +766,7 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                 crits.append(self['crit'])
                 escores.append(e[4])
                 
-            if 'fail' in [c for i, c in enumerate(list(zip(emetric))[-1]) if escores[i] == '1'] or bpy.context.scene['liparams']['dfpass'][str(frame)] == 1:
+            if 'fail' in [c for i, c in enumerate(list(zip(emetric))[-1]) if escores[i] == '1'] or dfpass[str(frame)] == 1:
                 epf = 'FAIL'
             elif 'pass' not in [c for i, c in enumerate(list(zip(emetric))[-1]) if escores[i] == '0.75'] and len([c for i, c in enumerate(list(zip(emetric))[-1]) if escores[i] == '0.75']) > 0:
                 if 'pass' not in [c for i, c in enumerate(list(zip(emetric))[-1]) if escores[i] == '0.5'] and len([c for i, c in enumerate(list(zip(emetric))[-1]) if escores[i] == '0.5']) > 0:
@@ -784,7 +787,7 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                 ['Space type: {}'.format(spacetype), '', '', ''], ['', '', '', ''], ['Standard requirements:', 'Target', 'Result', 'Pass/Fail']] + metric
     self['tablecomp{}'.format(frame)] = smetric if not self['ecrit'] else smetric + emetric
 
-    scene['liparams']['crits'], scene['liparams']['dfpass'] = crits, dfpass
+#    scene['liparams']['crits'], scene['liparams']['dfpass'] = crits, dfpass
     bm.to_mesh(self.data)
     bm.free()
     return pfs, epfs, reslists
@@ -1739,7 +1742,6 @@ def compass(loc, scale, wro, mat):
             vert.co[2] = 0
         bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + scale*1.13*(tmatrot*direc), rotation=tmatrot.to_euler())
         txt = bpy.context.active_object
-#        txt.scale, txt.data.body, txt.data.align, txt.location[2]  = (scale*0.075, scale*0.075, scale*0.075), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER', txt.location[2]
         txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*0.075, scale*0.075, scale*0.075), ('N', 'NW', 'W', 'SW', 'S', 'SE', 'E', 'NE')[i], 'CENTER', 'CENTER', txt.location[2]
         bpy.ops.object.convert(target='MESH')
         bpy.ops.object.material_slot_add()
@@ -1751,8 +1753,6 @@ def compass(loc, scale, wro, mat):
     for d in range(16):
         bpy.ops.object.text_add(view_align=False, enter_editmode=False, location=Vector(loc) + scale*1.04*(tmatrot*direc), rotation=tmatrot.to_euler())
         txt = bpy.context.active_object
-#        txt.scale, txt.data.body, txt.data.align, txt.location[2]  = (scale*0.05, scale*0.05, scale*0.05), (u'0\u00B0', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', u'270\u00B0', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', u'180\u00B0', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', u'90\u00B0', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')[d], 'CENTER', txt.location[2]       
-        # For Blender 2.78
         txt.scale, txt.data.body, txt.data.align_x, txt.data.align_y, txt.location[2]  = (scale*0.05, scale*0.05, scale*0.05), (u'0\u00B0', u'337.5\u00B0', u'315\u00B0', u'292.5\u00B0', u'270\u00B0', u'247.5\u00B0', u'225\u00B0', u'202.5\u00B0', u'180\u00B0', u'157.5\u00B0', u'135\u00B0', u'112.5\u00B0', u'90\u00B0', u'67.5\u00B0', u'45\u00B0', u'22.5\u00B0')[d], 'CENTER', 'CENTER', txt.location[2]
         bpy.ops.object.convert(target='MESH')
         bpy.ops.object.material_slot_add()
@@ -2052,13 +2052,13 @@ def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
     if len(distances):
         try:
             nres = [str(int(r)) for r in res]
-            fsdist = (6 * fontsize/distances).astype(int)
+            fsdist = (fontsize/distances).astype(int)
             xposis = posis[:,0]
             yposis = posis[:,1]
 #            [(blf.size(0, fontsize, fsdist[ri]), blf.position(0, xposis[ri] - int(0.5*blf.dimensions(0, nr)[0]), yposis[ri] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99), blf.draw(0, nr)) for ri, nr in enumerate(nres)]
             for ri, nr in enumerate(nres):
                 if distances[ri] > 1.25:
-                    blf.size(0, fontsize, fsdist[ri])
+                    blf.size(0, fsdist[ri], bpy.context.user_preferences.system.dpi)
                     blf.position(0, xposis[ri] - int(0.5*blf.dimensions(0, nr)[0]), yposis[ri] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99)
                     blf.draw(0, nr)
         except Exception as e:

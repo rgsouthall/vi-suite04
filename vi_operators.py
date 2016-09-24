@@ -381,7 +381,6 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
         if event.type == 'TIMER':
             if self.egrun.poll() is not None: # If finished
                 if self.frame > self.scene['liparams']['fe']:
-                    print([r for r in zip(*self.res)])
                     self.reslists += [['All', 'Frames', '', 'Frames', ' '.join([str(f) for f in range(self.scene['liparams']['fs'], self.scene['liparams']['fe'] + 1)])]] + [['All', 'Camera', self.cam.name, ('DGP', 'DGI', 'UGR', 'VCP', 'CGI', 'LV')[ri], ' '.join([str(res) for res in r])] for ri, r in enumerate(zip(*self.res))]
                     self.simnode['reslists'] = self.reslists
                     self.simnode['frames'] = [f for f in range(self.scene['liparams']['fs'], self.scene['liparams']['fe'] + 1)]

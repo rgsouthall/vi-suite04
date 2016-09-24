@@ -172,7 +172,7 @@ def spnumdisplay(disp_op, context, simnode):
             
             try:
                 (hs, posis) = map(list, zip(*[[p, p2ds[pi]] for pi, p in enumerate(pvals) if p2ds[pi] and 0 < p2ds[pi][0] < width and 0 < p2ds[pi][1] < height and not scene.ray_cast(pvecs[pi] - 0.05 * (pvecs[pi] - vl), vl - 0.95 * pvecs[pi])[0]]))
-                blf_props(scene)
+                blf_props(scene, width, height)
                 draw_index(posis, hs, scene.vi_display_rp_fs, scene.vi_display_rp_fc, scene.vi_display_rp_fsh)
             except Exception as E:
                 print('178', E)
@@ -192,7 +192,7 @@ def spnumdisplay(disp_op, context, simnode):
                         soltime = datetime.datetime.fromordinal(scene.solday)
                         soltime += datetime.timedelta(hours = scene.solhour)
                         sre = sobs[0].rotation_euler
-                        blf_props(scene)
+                        blf_props(scene, width, height)
                         draw_time(solpos, soltime.strftime('  %d %b %X') + ' alt: {:.1f} azi: {:.1f}'.format(90 - sre[0]*180/pi, (180, -180)[sre[2] < -pi] - sre[2]*180/pi), 
                                    scene.vi_display_rp_fs, scene.vi_display_rp_fc, scene.vi_display_rp_fsh)
                         
@@ -857,7 +857,8 @@ class basic_table(Base_Display):
 
         if self.cao and self.cao.get('table{}{}'.format(self.unitdict[context.scene['liparams']['unit']], context.scene.frame_current)):
             self.rcarray = array(self.cao['table{}{}'.format(self.unitdict[context.scene['liparams']['unit']], context.scene.frame_current)])
-
+        else:
+            self.rcarray = array([['Invalid object']])
     def drawopen(self, context):
         draw_table(self)
         
@@ -941,9 +942,10 @@ def wr_disp(self, context, simnode):
     self.table.draw(context, width, height)
     
 def basic_disp(self, context, simnode):
-    width, height = context.region.width, context.region.height
-    self.legend.draw(context, width, height)
-    self.table.draw(context, width, height)
+    if self._handle_basix_disp:
+        width, height = context.region.width, context.region.height
+        self.legend.draw(context, width, height)
+        self.table.draw(context, width, height)
     
 def comp_disp(self, context, simnode):
     width, height = context.region.width, context.region.height

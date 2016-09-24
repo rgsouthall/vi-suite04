@@ -587,7 +587,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
     def presim(self):
         self['coptions'] = self.inputs['Context in'].links[0].from_node['Options']
         self['goptions'] = self.inputs['Geometry in'].links[0].from_node['Options']
-        self['resdict'], self['allresdict'], self['radfiles'] = {}, {}, {}
+        self['radfiles'], self['reslists'] = {}, [[]]
         if self['coptions']['Context'] == 'Basic':
             self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rtracebasic], [n[int(self.simacc)+1] for n in self.rtracebasic]))
         else:
@@ -965,21 +965,23 @@ class ViResSock(bpy.types.NodeSocket):
     valid = ['Vi Results']
 
     def draw(self, context, layout, node, text):
-        typedict = {"Time": [], "Frames": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"), "Linkage":("linkmenu", "linkrmenu"), "External node":("enmenu", "enrmenu"), "Chimney":("chimmenu", "chimrmenu")}
+        typedict = {"Time": [], "Frames": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"), "Linkage":("linkmenu", "linkrmenu"), "External node":("enmenu", "enrmenu"), "Chimney":("chimmenu", "chimrmenu"), "Position":("posmenu", "posrmenu"), "Camera":("cammenu", "camrmenu")}
         row = layout.row()
-        if self.links:
+        if self.links and self.links[0].from_node.get('frames'):
             if len(self.links[0].from_node['frames']) > 1 and node.parametricmenu == '0': 
                 row.prop(self, "framemenu", text = text)
                 row.prop(self, "rtypemenu")
             else:
                 row.prop(self, "rtypemenu", text = text)
 
-        for rtype in typedict[self.rtypemenu]:
-            row.prop(self, rtype)
-        if self.node.timemenu in ('1', '2') and self.rtypemenu !='Time' and node.parametricmenu == '0':
-            row.prop(self, "statmenu")
-        if self.rtypemenu != 'Time':
-            row.prop(self, 'multfactor')
+            for rtype in typedict[self.rtypemenu]:
+                row.prop(self, rtype)
+            if self.node.timemenu in ('1', '2') and self.rtypemenu !='Time' and node.parametricmenu == '0':
+                row.prop(self, "statmenu")
+            if self.rtypemenu != 'Time':
+                row.prop(self, 'multfactor')
+        else:
+            row.label('No results')
 
     def draw_color(self, context, node):
         return (0.0, 1.0, 0.0, 0.75)
@@ -1095,7 +1097,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 bl_label = 'X-axis'
                                 
                 if innode['reslists']:
-                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, multfactor) = retrmenus(innode, self)
+                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, posmenu, posrmenu, cammenu, camrmenu, multfactor) = retrmenus(innode, self)
                     
         bpy.utils.register_class(ViEnRXIn)
 
@@ -1115,7 +1117,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     '''Energy geometry out socket'''
                     bl_idname = 'ViEnRY1In'
                     bl_label = 'Y-axis 1'
-                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, multfactor) = retrmenus(innode, self)
+                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, posmenu, posrmenu, cammenu, camrmenu, multfactor) = retrmenus(innode, self)
 
                 self.inputs['Y-axis 2'].hide = False
             bpy.utils.register_class(ViEnRY1In)
@@ -1137,7 +1139,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     bl_idname = 'ViEnRY2In'
                     bl_label = 'Y-axis 2'
 
-                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, multfactor) = retrmenus(innode, self)
+                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, posmenu, posrmenu, cammenu, camrmenu, multfactor) = retrmenus(innode, self)
 
                 self.inputs['Y-axis 3'].hide = False
 
@@ -1157,7 +1159,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     bl_idname = 'ViEnRY3In'
                     bl_label = 'Y-axis 3'
 
-                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, multfactor) = retrmenus(innode, self)
+                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, posmenu, posrmenu, cammenu, camrmenu, multfactor) = retrmenus(innode, self)
 
             bpy.utils.register_class(ViEnRY3In)
 

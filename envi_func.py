@@ -282,8 +282,17 @@ def retrmenus(innode, node):
     ctype = [(metric, metric, "Plot " + metric) for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Climate' and zrl[0][m] == frame]
     ztypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Zone' and zrl[0][m] == frame]))
     ztype = [(metric, metric, "Plot " + metric) for metric in ztypes]
-    zrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Zone' and zrl[0][m] == frame]))
-    zrtype = [(metric, metric, "Plot " + metric) for metric in zrtypes]
+#    zrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Zone' and zrl[0][m] == frame]))
+    ptypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Position' and zrl[0][m] == frame]))
+    ptype = [(metric, metric, "Plot " + metric) for metric in ptypes]
+    prtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Position' and zrl[0][m] == frame]))
+    prtype = [(metric, metric, "Plot " + metric) for metric in prtypes]
+    camtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Camera' and zrl[0][m] == frame]))
+    camtype = [(metric, metric, "Plot " + metric) for metric in camtypes]
+    camrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Camera' and zrl[0][m] == frame]))
+    camrtype = [(metric, metric, "Plot " + metric) for metric in camrtypes]
+    print(camtype, camrtypes)
+#    zrtype = [(metric, metric, "Plot " + metric) for metric in zrtypes]
     
 #    for zone in ztypes:
 #        zrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Zone' and zrl[2][m] == zone and zrl[0][m] == frame]))
@@ -321,9 +330,13 @@ def retrmenus(innode, node):
     enrmenu = bpy.props.EnumProperty(items=enrtype, name="", description="External node result", default = enrtype[0][0]) if entype else ''
     chimmenu = bpy.props.EnumProperty(items=chimtype, name="", description="External node result", default = chimtype[0][0]) if chimtype else ''
     chimrmenu = bpy.props.EnumProperty(items=chimrtype, name="", description="External node result", default = chimrtype[0][0]) if chimtype else ''
+    posmenu =  bpy.props.EnumProperty(items=ptype, name="", description="Position result", default = ptype[0][0]) if ptype else ''
+    posrmenu = bpy.props.EnumProperty(items=prtype, name="", description="Position result", default = prtype[0][0]) if ptypes else ''
+    cammenu =  bpy.props.EnumProperty(items=camtype, name="", description="Camera result", default = camtype[0][0]) if camtype else ''
+    camrmenu = bpy.props.EnumProperty(items=camrtype, name="", description="Camera result", default = camrtype[0][0]) if camtypes else ''
     multfactor = bpy.props.FloatProperty(name = "", description = "Result multiplication factor", min = 0.0001, max = 10000, default = 1)
     
-    return (valid, fmenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, multfactor)
+    return (valid, fmenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, posmenu, posrmenu, cammenu, camrmenu, multfactor)
 
 def processh(lines):
     envdict = {'Site Outdoor Air Drybulb Temperature [C] !Hourly': "Temperature (degC)",
@@ -533,6 +546,10 @@ def retmenu(dnode, axis, mtype):
         return [dnode.inputs[axis].enmenu, dnode.inputs[axis].enrmenu]
     elif mtype == 'Chimney':
         return [dnode.inputs[axis].chimmenu, dnode.inputs[axis].chimrmenu]
+    elif mtype == 'Position':
+        return [dnode.inputs[axis].posmenu, dnode.inputs[axis].posrmenu]   
+    elif mtype == 'Camera':
+        return [dnode.inputs[axis].cammenu, dnode.inputs[axis].camrmenu]    
     elif mtype == 'Frames':
         return ['', 'Frames']
         
@@ -547,3 +564,7 @@ def retdata(dnode, axis, mtype, resdict, frame):
         return resdict[frame][mtype][dnode.inputs[axis].enmenu][dnode.inputs[axis].enrmenu]
     elif mtype == 'Chimney':
         return resdict[frame][mtype][dnode.inputs[axis].chimmenu][dnode.inputs[axis].chimrmenu]
+    elif mtype == 'Position':
+        return resdict[frame][mtype][dnode.inputs[axis].posmenu][dnode.inputs[axis].posrmenu]
+    elif mtype == 'Camera':
+        return resdict[frame][mtype][dnode.inputs[axis].cammenu][dnode.inputs[axis].camrmenu]

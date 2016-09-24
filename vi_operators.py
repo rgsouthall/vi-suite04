@@ -377,17 +377,15 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
     bl_undo = False
     nodeid = bpy.props.StringProperty()
 
-<<<<<<< HEAD
-    def modal(self, context, event):        
-=======
     def modal(self, context, event):
-        
->>>>>>> cb251cebd9a101cfb3a77a788925f624e428a2f5
         if event.type == 'TIMER':
             if self.egrun.poll() is not None: # If finished
                 if self.frame > self.scene['liparams']['fe']:
-                    self.terminate()
-                    return {'FINISHED'}
+                    print([r for r in zip(*self.res)])
+                    self.reslists += [['All', 'Frames', '', 'Frames', ' '.join([str(f) for f in range(self.scene['liparams']['fs'], self.scene['liparams']['fe'] + 1)])]] + [['All', 'Camera', self.cam.name, ('DGP', 'DGI', 'UGR', 'VCP', 'CGI', 'LV')[ri], ' '.join([str(res) for res in r])] for ri, r in enumerate(zip(*self.res))]
+                    self.simnode['reslists'] = self.reslists
+                    self.simnode['frames'] = [f for f in range(self.scene['liparams']['fs'], self.scene['liparams']['fe'] + 1)]
+                    return {self.terminate()}
                 elif self.frame > self.frameold:
                     self.percent = (self.frame - self.scene['liparams']['fs']) * 100
                     self.frameold = self.frame
@@ -405,11 +403,7 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
                     else:
                         rpictcmd = "rpict -w -e {5} -t 10 -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, self.rpictfile)
                     self.rprun = Popen(rpictcmd.split(), stdout = PIPE)                    
-<<<<<<< HEAD
                     self.egcmd = 'evalglare {} -c {}'.format(('-u 1 0 0', '')[sys.platform == 'win32'], os.path.join(self.scene['viparams']['newdir'], 'glare{}.hdr'.format(self.frame)))                    
-=======
-                    self.egcmd = 'evalglare -u 1 0 0 -c {}'.format(os.path.join(self.scene['viparams']['newdir'], 'glare{}.hdr'.format(self.frame)))                    
->>>>>>> cb251cebd9a101cfb3a77a788925f624e428a2f5
                     self.egrun = Popen(self.egcmd.split(), stdin = self.rprun.stdout, stdout = PIPE)
                     return {'RUNNING_MODAL'}
 
@@ -417,9 +411,13 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
                     datetime.datetime(2014, 1, 1, int(self.simnode['coptions']['shour']), int(60*(self.simnode['coptions']['shour'] - int(self.simnode['coptions']['shour'])))) + datetime.timedelta(self.simnode['coptions']['sdoy'] - 1) + datetime.timedelta(hours = int(self.simnode['coptions']['interval']*(self.frame-self.scene['liparams']['fs'])), seconds = int(60*(self.simnode['coptions']['interval']*(self.frame-self.scene['liparams']['fs']) - int(self.simnode['coptions']['interval']*(self.frame-self.scene['liparams']['fs'])))))
                 with open(self.scene['viparams']['filebase']+".glare", "w") as glaretf:
                     for line in self.egrun.stdout:
-                        if line.decode().split(",")[0] == 'dgp':
+                        if line.decode().split(",")[0] == 'dgp':                            
                             glaretext = line.decode().replace(',', ' ').replace("#INF", "").split(' ')
-                            glaretf.write("{0:0>2d}/{1:0>2d} {2:0>2d}:{3:0>2d}\ndgp: {4:.2f}\ndgi: {5:.2f}\nugr: {6:.2f}\nvcp: {7:.2f}\ncgi: {8:.2f}\nLv: {9:.0f}\n".format(time.day, time.month, time.hour, time.minute, *[float(x) for x in glaretext[6:12]]))
+                            res = [float(x) for x in glaretext[6:12]]
+                            glaretf.write("{0:0>2d}/{1:0>2d} {2:0>2d}:{3:0>2d}\ndgp: {4:.2f}\ndgi: {5:.2f}\nugr: {6:.2f}\nvcp: {7:.2f}\ncgi: {8:.2f}\nLv: {9:.0f}\n".format(time.day, time.month, time.hour, time.minute, *res))
+                            self.res.append(res)
+                            self.reslists += [[str(self.frame), 'Camera', self.cam.name, 'DGP', '{0[0]}'.format(res)], [str(self.frame), 'Camera', self.cam.name, 'DGI', '{0[1]}'.format(res)], [str(self.frame), 'Camera', self.cam.name, 'UGR', '{0[2]}'.format(res)], [str(self.frame), 'Camera', self.cam.name, 'VCP', '{0[3]}'.format(res)], [str(self.frame), 'Camera', self.cam.name, 'CGI', '{[4]}'.format(res)], [str(self.frame), 'Camera', self.cam.name, 'LV', '{[5]}'.format(res)]]
+                
                 pcondcmd = "pcond -u 300 {0}.hdr".format(os.path.join(self.scene['viparams']['newdir'], 'glare'+str(self.frame)))
                 with open('{}.temphdr'.format(os.path.join(self.scene['viparams']['newdir'], 'glare'+str(self.frame))), 'w') as temphdr:
                     Popen(pcondcmd.split(), stdout = temphdr).communicate()
@@ -449,14 +447,9 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
                             break
      
                 if self.percent:
-                    if self.pfile.check(self.percent) == 'CANCELLED':                       
-                        self.terminate()
-<<<<<<< HEAD
-                        return {'FINISHED'}                
-=======
-                        return {'FINISHED'}
+                    if self.pfile.check(self.percent) == 'CANCELLED':                                    
+                        return {self.terminate()}
                 
->>>>>>> cb251cebd9a101cfb3a77a788925f624e428a2f5
                 return {'PASS_THROUGH'}
         else:
             return {'PASS_THROUGH'}
@@ -467,6 +460,7 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
         self.egrun.kill()
         self.rprun.kill()        
         self.simnode.postsim()
+        return 'FINISHED'
 
     def execute(self, context):
         wm = context.window_manager
@@ -476,6 +470,8 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
         self.cam = self.scene.camera
         if self.cam:
             self.percent = 0
+            self.reslists = []
+            self.res = []
             self.frames = self.scene['liparams']['fe'] - self.scene['liparams']['fs'] + 1
             self.rpictfile = os.path.join(self.scene['viparams']['newdir'], 'rpictprogress')
             self.simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
@@ -509,11 +505,7 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
             self.pfile = progressfile(self.scene, datetime.datetime.now(), 100)
             self.kivyrun = progressbar(os.path.join(self.scene['viparams']['newdir'], 'viprogress'))
             self.rprun = Popen(rpictcmd.split(), stdout=PIPE, stderr = PIPE)
-<<<<<<< HEAD
             egcmd = "evalglare {} -c {}".format(('-u 1 0 0', '')[sys.platform == 'win32'], os.path.join(self.scene['viparams']['newdir'], 'glare{}.hdr'.format(self.frame)))
-=======
-            egcmd = "evalglare -u 1 0 0 -c {}".format(os.path.join(self.scene['viparams']['newdir'], 'glare{}.hdr'.format(self.frame)))
->>>>>>> cb251cebd9a101cfb3a77a788925f624e428a2f5
             self.egrun = Popen(egcmd.split(), stdin = self.rprun.stdout, stdout=PIPE, stderr = PIPE)
             return {'RUNNING_MODAL'}
         else:
@@ -728,7 +720,7 @@ class NODE_OT_CSVExport(bpy.types.Operator, io_utils.ExportHelper):
             resstring += ''.join(['{},'.format(m) for m in ml]) + '\n'
 
         resstring += '\n'
-        print(resstring)
+
         with open(self.filepath, 'w') as csvfile:
             csvfile.write(resstring)
         return {'FINISHED'}
@@ -2297,7 +2289,7 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
                     self.tablecomp.hl = (1, 1, 1, 1)
                     redraw = 1
                 
-            if context.scene['liparams']['unit'] in ('ASE (hrs)', 'sDA (%)', 'DA (%)', 'UDI-f (%)', 'UDI-e (%)', 'UDI-l (%)', 'UDI-a (%)', 'Max lux', 'Min lux', 'Ave lux', 'kWh', 'kWh/m2'):
+            if context.scene['liparams']['unit'] in ('ASE (hrs)', 'sDA (%)', 'DA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-l (%)', 'UDI-a (%)', 'Max lux', 'Min lux', 'Ave lux', 'kWh', 'kWh/m2'):
                 if self.frame != context.scene.frame_current:
                     self.dhscatter.update(context)
                     self.frame = context.scene.frame_current

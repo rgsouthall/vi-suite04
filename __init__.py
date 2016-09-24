@@ -89,10 +89,10 @@ class VIPreferences(AddonPreferences):
 @persistent
 def update_ntree(dummy):
     try:
-        for ng in bpy.data.node_groups:
+        for ng in [ng for ng in bpy.data.node_groups if ng.bl_idname == 'ViN']:
             [node.update() for node in ng.nodes if node.bl_label == 'VI Chart']
-    except:
-        pass
+    except Exception as e:
+        print('Chart node update failure:', e)
         
 @persistent
 def display_off(dummy):
@@ -622,7 +622,7 @@ def register():
     nodeitems_utils.register_node_categories("Vi Nodes", vinode_categories)
     nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)
     
-    if not update_ntree in bpy.app.handlers.load_post:
+    if update_ntree not in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(update_ntree)
         
     if display_off not in bpy.app.handlers.load_post:
@@ -635,6 +635,7 @@ def unregister():
     if update_ntree in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.remove(update_ntree)
 
-
+    if display_off in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(display_off)
 
 

@@ -883,9 +883,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             sdaareares = (sdabool.T*sdaareas).T            
             sdares = sdabool.sum(axis = 1)*100/hours
             aseres = asebool.sum(axis = 1)*1.0
-                        
-            
-            
+                                    
             for gi, gp in enumerate(chunk):
                 if scene['viparams']['visimcontext'] != 'LiVi Compliance':
                     gp[resda] = dares[gi]                

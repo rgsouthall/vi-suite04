@@ -2130,10 +2130,8 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(lnd.draw, (context, ), 'WINDOW', 'POST_PIXEL')
         self.legend = ss_legend([80, context.region.height - 40], context.region.width, context.region.height, 'legend.png', 150, 600)
         self.dhscatter = ss_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
-#        self.table = wr_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 150)       
         self.legend.update(context)
         self.dhscatter.update(context)
-#        self.table.update(context)
         self._handle_ss_disp = bpy.types.SpaceView3D.draw_handler_add(ss_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
@@ -2147,16 +2145,16 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
     bl_undo = False
 
     def modal(self, context, event):   
-        redraw = 0        
-        if context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':
-            
-            if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'lipanel' or not [o.lires for o in bpy.data.objects]:
-                bpy.types.SpaceView3D.draw_handler_remove(self._handle_disp, 'WINDOW')
-                bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
-                context.scene['viparams']['vidisp'] = 'li'
-                context.area.tag_redraw()
-                return {'CANCELLED'}
-            
+        redraw = 0 
+        if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'lipanel' or not any([o.lires for o in bpy.data.objects]):
+            context.scene.vi_display = 0
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle_disp, 'WINDOW')
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
+            context.scene['viparams']['vidisp'] = 'li'
+            context.area.tag_redraw()
+            return {'CANCELLED'}
+
+        if context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':            
             mx, my = event.mouse_region_x, event.mouse_region_y 
             
             if any((context.scene.vi_leg_col != self.legend.col, context.scene.vi_leg_scale != self.legend.scale, self.legend.maxres != context.scene.vi_leg_max, self.legend.minres != context.scene.vi_leg_min)):               

@@ -158,7 +158,7 @@ def li_display(simnode):
 
 def spnumdisplay(disp_op, context, simnode):
     scene = context.scene
-#    leg = 0 if simnode.bl_label == 'VI Sun Path' else 1
+
     if bpy.data.objects.get('SPathMesh'):
         spob = bpy.data.objects['SPathMesh'] 
         ob_mat = spob.matrix_world
@@ -169,14 +169,14 @@ def spnumdisplay(disp_op, context, simnode):
             pvecs = [ob_mat * mathutils.Vector(p[:]) for p in spob['numpos'].values()]
             pvals = [int(p.split('-')[1]) for p in spob['numpos'].keys()]
             p2ds = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, p) for p in pvecs]
-            
-            try:
-                (hs, posis) = map(list, zip(*[[p, p2ds[pi]] for pi, p in enumerate(pvals) if p2ds[pi] and 0 < p2ds[pi][0] < width and 0 < p2ds[pi][1] < height and not scene.ray_cast(pvecs[pi] - 0.05 * (pvecs[pi] - vl), vl - 0.95 * pvecs[pi])[0]]))
+            vispoints = [pi for pi, p in enumerate(pvals) if p2ds[pi] and 0 < p2ds[pi][0] < width and 0 < p2ds[pi][1] < height and scene.ray_cast(vl, pvecs[pi] - vl, (pvecs[pi] - vl).length)[4] == spob]
+
+            if vispoints:
+                hs = [pvals[pi] for pi in vispoints]
+                posis = [p2ds[pi] for pi in vispoints]
                 blf_props(scene, width, height)
                 draw_index(posis, hs, scene.vi_display_rp_fs, scene.vi_display_rp_fc, scene.vi_display_rp_fsh)
-            except Exception as E:
-                print('178', E)
-            blf.disable(0, 4)
+                blf.disable(0, 4)
 
         if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects]:
             sobs = [ob for ob in bpy.data.objects if ob.get('VIType') == 'Sun']
@@ -188,7 +188,6 @@ def spnumdisplay(disp_op, context, simnode):
                         blf.enable(0, 4)
                         blf.shadow(0, 5, *scene.vi_display_rp_fsh)
                         bgl.glColor4f(*scene.vi_display_rp_fc)
-#                        blf.size(0, scene.vi_display_rp_fs, 72)
                         soltime = datetime.datetime.fromordinal(scene.solday)
                         soltime += datetime.timedelta(hours = scene.solhour)
                         sre = sobs[0].rotation_euler

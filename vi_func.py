@@ -19,7 +19,7 @@
 import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex, bpy_extras, gpu
 from collections import OrderedDict
 from subprocess import Popen, PIPE, STDOUT
-from numpy import arange, array, digitize, amax, amin, average, zeros, inner, outer, transpose, nan, set_printoptions, choose, clip
+from numpy import arange, array, digitize, amax, amin, average, zeros, inner, outer, transpose, nan, set_printoptions, choose, clip, where
 set_printoptions(threshold=nan)
 from numpy import sum as nsum
 from numpy import max as nmax
@@ -708,15 +708,15 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             pfs[f].append(opf)
         
         elif simnode['coptions']['canalysis'] == '1':
-            
-            if self.data.materials[self['compmat']].crspacemenu == '0': # Kitchen Space
-                for met in metric:
+            for met in metric:
+                if self.data.materials[self['compmat']].crspacemenu == '0': # Kitchen Space
+                
                     if met[0] == 'Average DF':
                         pfs[f].append((1, met[-1]))
                     else:
                         pfs[f].append((2, met[-1]))
-            else: # Living Space
-                pfs[f].append((0, met[-1]))
+                else: # Living Space
+                    pfs[f].append((0, met[-1]))
                         
         elif simnode['coptions']['canalysis'] == '2':
             pfs[f] = [m[-1] for m in metric]
@@ -787,7 +787,6 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                 ['Space type: {}'.format(spacetype), '', '', ''], ['', '', '', ''], ['Standard requirements:', 'Target', 'Result', 'Pass/Fail']] + metric
     self['tablecomp{}'.format(frame)] = smetric if not self['ecrit'] else smetric + emetric
 
-#    scene['liparams']['crits'], scene['liparams']['dfpass'] = crits, dfpass
     bm.to_mesh(self.data)
     bm.free()
     return pfs, epfs, reslists
@@ -872,15 +871,20 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                 udihi = udihbool.sum(axis = 1)*100/hours
                 kwh = 0.001 * nsum(finalwatt, axis = 1)
                 kwhm2 = 0.001 * nsum(finalwattm2, axis = 1)
+            
+            if scene['viparams']['visimcontext'] == 'LiVi Compliance' and simnode['coptions']['buildtype'] == '1':
+                svres = self.retsv(scene, frame, rtframe, chunk, rt)
+                sdaareas = where([sv > 0 for sv in svres], chareas, 0)
+            else:
+                sdaareas = chareas
             sdabool = choose(finalillu >= luxmin, [0, 1])
             asebool = choose(finalillu >= luxmax, [0, 1])
             aseareares = (asebool.T*chareas).T
-            sdaareares = (sdabool.T*chareas).T            
+            sdaareares = (sdabool.T*sdaareas).T            
             sdares = sdabool.sum(axis = 1)*100/hours
             aseres = asebool.sum(axis = 1)*1.0
                         
-            if scene['viparams']['visimcontext'] == 'LiVi Compliance' and simnode['coptions']['buildtype'] == '1':
-                svres = self.retsv(scene, frame, rtframe, chunk, rt)
+            
             
             for gi, gp in enumerate(chunk):
                 if scene['viparams']['visimcontext'] != 'LiVi Compliance':
@@ -912,8 +916,8 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                     totfinalwatt = nsum(finalwatt, axis = 0)#nsum(inner(sensarray, vecvals), axis = 0)
                     totfinalwattm2 = average(finalwattm2, axis = 0)
                 else:
-                    totsdaarea = nsum(100 * sdaareares/totarea, axis = 0)
-                    totasearea = nsum(100 * aseareares/totarea, axis = 0)
+                    totsdaarea = nsum(sdaareares, axis = 0)
+                    totasearea = nsum(aseareares, axis = 0)
             else:
                 if scene['viparams']['visimcontext'] != 'LiVi Compliance':
                     nappend(totfinalillu, finalillu)
@@ -963,11 +967,11 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             self['livires']['dhilluave{}'.format(frame)] = average(totfinalillu, axis = 0).flatten().reshape(dno, hno).transpose()
             self['livires']['dhillumin{}'.format(frame)] = amin(totfinalillu, axis = 0).reshape(dno, hno).transpose()
             self['livires']['dhillumax{}'.format(frame)] = amax(totfinalillu, axis = 0).reshape(dno, hno).transpose()
-            self['livires']['daarea{}'.format(frame)] = (totdaarea*100/totarea).reshape(dno, hno).transpose()
-            self['livires']['udiaarea{}'.format(frame)] = (totudiaarea*100/totarea).reshape(dno, hno).transpose()
-            self['livires']['udisarea{}'.format(frame)] = (totudisarea*100/totarea).reshape(dno, hno).transpose()
-            self['livires']['udilarea{}'.format(frame)] = (totudilarea*100/totarea).reshape(dno, hno).transpose()
-            self['livires']['udiharea{}'.format(frame)] = (totudiharea*100/totarea).reshape(dno, hno).transpose() 
+            self['livires']['daarea{}'.format(frame)] = totdaarea.reshape(dno, hno).transpose()
+            self['livires']['udiaarea{}'.format(frame)] = totudiaarea.reshape(dno, hno).transpose()
+            self['livires']['udisarea{}'.format(frame)] = totudisarea.reshape(dno, hno).transpose()
+            self['livires']['udilarea{}'.format(frame)] = totudilarea.reshape(dno, hno).transpose()
+            self['livires']['udiharea{}'.format(frame)] = totudiharea.reshape(dno, hno).transpose() 
             
             self['tableudil{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
                 ['UDI-l (% area)', '{:.1f}'.format(self['omin']['udilow{}'.format(frame)]), '{:.1f}'.format(self['oave']['udilow{}'.format(frame)]), '{:.1f}'.format(self['omax']['udilow{}'.format(frame)])]])
@@ -1006,22 +1010,25 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
         else:
             sdares = [gp[ressda] for gp in geom]
             aseres = [gp[resase] for gp in geom]
+            if scene['viparams']['visimcontext'] == 'LiVi Compliance' and simnode['coptions']['buildtype'] == '1':
+                overallsdaarea = sum([g.calc_area() for g in geom if g[rt] and g[ressv]]) if self['cpoint'] == '0' else sum([vertarea(bm, g) for g in geom if g[rt] and g[ressv]]) 
+            else:
+                overallsdaarea = totarea
             self['omax']['sda{}'.format(frame)] = max(sdares)
             self['omin']['sda{}'.format(frame)] = min(sdares)
             self['oave']['sda{}'.format(frame)] = sum(sdares)/reslen
             self['omax']['ase{}'.format(frame)] = max(aseres)
             self['omin']['ase{}'.format(frame)] = min(aseres)
             self['oave']['ase{}'.format(frame)] = sum(aseres)/reslen
-            self['livires']['asearea{}'.format(frame)] = (totasearea*100/totarea).reshape(dno, hno).transpose()
-            self['livires']['sdaarea{}'.format(frame)] = (totsdaarea*100/totarea).reshape(dno, hno).transpose()
-            
+            self['livires']['asearea{}'.format(frame)] = (100 * totasearea/totarea).reshape(dno, hno).transpose()
+            self['livires']['sdaarea{}'.format(frame)] = (100 * totsdaarea/overallsdaarea).reshape(dno, hno).transpose()
             self['tablesda{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
                 ['sDA (% hours)', '{:.1f}'.format(self['omin']['sda{}'.format(frame)]), '{:.1f}'.format(self['oave']['sda{}'.format(frame)]), '{:.1f}'.format(self['omax']['sda{}'.format(frame)])]])
             self['tablease{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
                 ['ASE (hrs)', '{:.1f}'.format(self['omin']['ase{}'.format(frame)]), '{:.1f}'.format(self['oave']['ase{}'.format(frame)]), '{:.1f}'.format(self['omax']['ase{}'.format(frame)])]])
-            reslists.append([str(frame), 'Zone', self.name, 'Annual Sunlight Exposure (hours)', ' '.join([str(p) for p in totasearea])])
-            reslists.append([str(frame), 'Zone', self.name, 'Spatial Daylight Autonomy (%)', ' '.join([str(p) for p in totsdaarea])])
-         
+            reslists.append([str(frame), 'Zone', self.name, 'Annual Sunlight Exposure (% area)', ' '.join([str(p) for p in 100 * totasearea/totarea])])
+            reslists.append([str(frame), 'Zone', self.name, 'Spatial Daylight Autonomy (% area)', ' '.join([str(p) for p in 100 * totsdaarea/overallsdaarea])])
+            
         metric, scores, pf = [], [], ('Fail', 'Pass')
 
         if scene['viparams']['visimcontext'] == 'LiVi Compliance':
@@ -1137,12 +1144,12 @@ def retcrits(simnode, matname):
             spacetype = 'Retail/Office/Public' 
             
     elif simnode['coptions']['canalysis'] == '3':
-        if mat.lespacemenu == '0':
-            spacetype = 'Office/Education/Commercial'
+        spacetype = ('Office/Education/Commercial', 'Healthcare')[int(simnode['coptions']['buildtype'])]
+        if simnode['coptions']['buildtype'] == '0':
             crit = [['Percent', 55, 'SDA', 300, '2'], ['Percent', 75, 'SDA', 300, '1']]
         else:
             crit = [['Percent', 75, 'SDA', 300, '1'], ['Percent', 90, 'SDA', 300, '1']]
-            spacetype = 'Healthcare'
+#            spacetype = 'Healthcare'
         crit.append(['Percent', 10, 'ASE', 1000, '1', 250])
                    
     return [[c[0], str(c[1]), c[2], str(c[3]), c[4]] for c in crit[:]], [[c[0], str(c[1]), c[2], str(c[3]), c[4]] for c in ecrit[:]], spacetype
@@ -1883,19 +1890,7 @@ def drawloop(x1, y1, x2, y2):
 def drawfont(text, fi, lencrit, height, x1, y1):
     blf.position(fi, x1, height - y1 - lencrit*26, 0)
     blf.draw(fi, text)
-    
-#def rethours(sdoy, edoy, shour, ehour, valid):
-#    validhours = [(0, 1)[sdoy * 24 <= h <= edoy * 24 and shour <= h%24 <= ehour] for h in range(8760)]
-##    print(validhours)
-#    if valid == 'invalid':
-#        return [h for h in range(8760) if h < sdoy * 24 or h > edoy * 24 or h%24 < shour or h%24 > ehour]
-#    if valid == 'valid':
-#        return validhours
-#    if valid == 'dh':
-#        st = datetime.datetime(2015, 1, 1, 1)
-##        return [((datetime.timedelta(hours = t)).days + 1, (st + datetime.timedelta(hours = t)).hour) for t in range(8760) if validhours[t]]
-#        return ([d for d in range(sdoy, edoy + 1)], [h for h in range(shour, ehour + 1)])
-    
+        
 def mtx2vals(mtxlines, fwd, node, times):    
     for m, mtxline in enumerate(mtxlines):
         if 'NROWS' in mtxline:
@@ -1905,34 +1900,21 @@ def mtx2vals(mtxlines, fwd, node, times):
         elif mtxline == '\n':
             startline = m + 1
             break
-#    times = [datetime.datetime.strptime(time, "%d/%m/%y %H:%M:%S") for time in node['coptions']['times']]
-#    print(times)
+
     sdoy = (times[0] - datetime.datetime(2015, 1, 1)).days
-    shour = times[0].hour + 1
+    shour = times[0].hour
     edoy = (times[-1] - datetime.datetime(2015, 1, 1)).days + 1
-    ehour = times[-1].hour + 1
-#    print(sdoy, shour, edoy, ehour)
-#    mtxlines = [line for line in mtxlines[startline:] if line and line != '\n']
-#    print(mtxlines)
-            
-  #  sdoy, edoy, shour, ehour = node['coptions']['sdoy'] - 1, node['coptions']['edoy'], node['coptions']['cbdm_sh'] - 1, node['coptions']['cbdm_eh'] - 1 
-#    validhours = rethours(sdoy, edoy, shour, ehour, 'valid')
-#    print(rethours(sdoy, edoy, shour, ehour, 'dh'))
+    ehour = times[-1].hour
     tothours = len(times)
     hours = [t.hour for t in times]
-    
-    invalidhours = [h for h in range(8760) if h < sdoy * 24 or h > edoy * 24 or h%24 < shour or h%24 > ehour] 
-    print(len(invalidhours), shour, ehour)
+    invalidhours = [h for h in range(8760) if h < sdoy * 24 or h > edoy  * 24 or h%24 < shour or h%24 > ehour] 
     mtxlarray = array([0.333 * sum([float(lv) for lv in fval.split(" ")]) for fval in mtxlines[startline:] if fval != '\n'], dtype=float)
     mtxshapearray = mtxlarray.reshape(patches, 8760)
     mtxshapearray = ndelete(mtxshapearray, invalidhours, 1)
-#    print(mtxshapearray.shape, tothours, hours)
     vals = nsum(mtxshapearray, axis = 1)
     vvarray = transpose(mtxshapearray)
     vvlist = vvarray.tolist()
-    print(len(vvlist), tothours)
     vecvals = [[hours[x], (fwd+int(hours[x]/24))%7, *vvlist[x]] for x in range(tothours)]
-#    print(vecvals)
     return(vecvals, vals)
 
 def bres(scene, o):

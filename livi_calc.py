@@ -39,8 +39,6 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
     
     for f, frame in enumerate(frames):
         if context == 'Basic' or (context == 'CBDM' and subcontext == '0') or (context == 'Compliance' and int(subcontext) < 3):
-#        if context == 'Basic' or (context == 'Compliance' and int(subcontext) < 3):
-
             if os.path.isfile("{}-{}.af".format(scene['viparams']['filebase'], frame)):
                 os.remove("{}-{}.af".format(scene['viparams']['filebase'], frame))
             if simnode.pmap:
@@ -96,8 +94,9 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
     pfile = progressfile(scene, datetime.datetime.now(), calcsteps)
     kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'))
     reslists = []
+    obs = [scene.objects[on] for on in scene['liparams']['livic']]
 
-    for oi, o in enumerate([scene.objects[on] for on in scene['liparams']['livic']]):
+    for oi, o in enumerate(obs):
         curres = sum(tpoints[:oi])
         selobj(scene, o)
         o['omax'], o['omin'], o['oave'], totsensearea, totsdaarea, totasearea  = {}, {}, {}, 0, 0, 0
@@ -143,6 +142,8 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
                 simnode['tablecomp{}'.format(frame)] = [['Standard: BREEAM HEA1'], 
                         ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])])], [''], ['Standard credits: ' + cred], 
                          ['Exemplary credits: '+ ecred]]
+                for o in obs:
+                    o['tablecomp{}'.format(frame)] += [['', '', '', ''], ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])]), 'Standard credits: ' + cred, 'Exemplary credits: '+ ecred, '']]
             
             elif simnode['coptions']['canalysis'] == '1':
                 cfshcred = 0
@@ -150,22 +151,28 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
                     for stype in [0, 1, 2]:
                         if all([p[1] == 'Pass' for p in pf if p[0] == stype]) and [p for p in pf if p[0] == stype]:
                             cfshcred += 1
-                    simnode['tablecomp{}'.format(frame)] = [['Standard: CfSH'], 
-                            ['Build type: Residential'], [''], ['Standard credits: {}'.format(cfshcred)]]
+                simnode['tablecomp{}'.format(frame)] = [['Standard: CfSH'], 
+                        ['Build type: Residential'], [''], ['Standard credits: {}'.format(cfshcred)]]
+                for o in obs:
+                    o['tablecomp{}'.format(frame)] += [['', '', '', ''], ['Build type: Residential', 'Standard credits: {}'.format(cfshcred), '', '']]
             
             elif simnode['coptions']['canalysis'] == '2':
                 gscred = max(len(p) for p in pfs[f]) - max([sum([(0, 1)[p == 'Fail'] for p in pf]) for pf in pfs[f]])
                 simnode['tablecomp{}'.format(frame)] = [['Standard: Green Star'], 
                             ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])])], [''], ['Standard credits: {}'.format(gscred)]]
-
+                for o in obs:
+                    o['tablecomp{}'.format(frame)] += [['', '', '', ''], ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']]), 'Standard credits: {}'.format(gscred), '', '']]
+            
             elif simnode['coptions']['canalysis'] == '3':
                 cred = 0
                 for z in list(zip(pfs[f], epfs[f])):
                     if all([pf == 'Pass' for pf in z[:-1]]):
                         cred += int(z[-1])
-                    simnode['tablecomp{}'.format(frame)] = [['Standard: LEEDv4'], 
-                            ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])])], [''], ['Credits: {}'.format(cred)]]
-                
+                simnode['tablecomp{}'.format(frame)] = [['Standard: LEEDv4'], 
+                        ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])])], [''], ['Credits: {}'.format(cred)]]
+                for o in obs:
+                    o['tablecomp{}'.format(frame)] += [['', '', '', ''], ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])]), 'Credits: {}'.format(cred), '', '']]
+            
     if kivyrun.poll() is None:
         kivyrun.kill()
         

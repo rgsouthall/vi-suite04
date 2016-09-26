@@ -114,10 +114,10 @@ def select_nodetree(dummy):
             space.node_tree = envings[0]
         
 def getViEditorSpaces():
-    return [area.spaces.active for area in bpy.context.screen.areas if area.type == "NODE_EDITOR" and area.spaces.active.tree_type == "ViN" and not area.spaces.active.edit_tree]
+    return [area.spaces.active for area in bpy.context.screen.areas if area and area.type == "NODE_EDITOR" and area.spaces.active.tree_type == "ViN" and not area.spaces.active.edit_tree]
     
 def getEnViEditorSpaces():
-    return [area.spaces.active for area in bpy.context.screen.areas if area.type == "NODE_EDITOR" and area.spaces.active.tree_type == "EnViN" and not area.spaces.active.edit_tree]
+    return [area.spaces.active for area in bpy.context.screen.areas if area and area.type == "NODE_EDITOR" and area.spaces.active.tree_type == "EnViN" and not area.spaces.active.edit_tree]
 
 bpy.app.handlers.scene_update_post.append(select_nodetree)
             
@@ -238,12 +238,12 @@ def legupdate(self, context):
                 livires = bm.verts.layers.float['res{}'.format(frame)] 
                 ovals = array([sum([vert[livires] for vert in f.verts])/len(f.verts) for f in bm.faces])
             
-            try:
+            if scene.vi_leg_max > scene.vi_leg_min:
                 vals = ovals - scene.vi_leg_min
                 vals = vals/(scene.vi_leg_max - scene.vi_leg_min)
-            except Exception as e:
-                print('there is an error in results retrieval ' + e)
-                vals = array([0 for f in bm.faces])
+            else:
+                print('All result values are the same')
+                vals = array([scene.vi_leg_max for f in bm.faces])
                         
             nmatis = digitize(vals, bins)
 

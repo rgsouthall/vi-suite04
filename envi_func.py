@@ -291,7 +291,7 @@ def retrmenus(innode, node):
     camtype = [(metric, metric, "Plot " + metric) for metric in camtypes]
     camrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Camera' and zrl[0][m] == frame]))
     camrtype = [(metric, metric, "Plot " + metric) for metric in camrtypes]
-    print(camtype, camrtypes)
+
 #    zrtype = [(metric, metric, "Plot " + metric) for metric in zrtypes]
     
 #    for zone in ztypes:

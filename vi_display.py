@@ -727,6 +727,7 @@ class cbdm_scatter(Base_Display):
         self.cao = context.active_object
         self.unit = context.scene['liparams']['unit']
         self.frame = context.scene.frame_current
+        print(self.unitdict[context.scene['liparams']['unit']])
 
         if self.cao and self.cao.get('livires') and self.cao['livires'].get('{}{}'.format(self.unitdict[context.scene['liparams']['unit']], context.scene.frame_current)):
             zdata = array(self.cao['livires']['{}{}'.format(self.unitdict[context.scene['liparams']['unit']], context.scene.frame_current)])
@@ -936,10 +937,11 @@ class en_table(Base_Display):
         draw_table(self)
             
 def wr_disp(self, context, simnode):
-    width, height = context.region.width, context.region.height
-    self.legend.draw(context, width, height)
-    self.dhscatter.draw(context, width, height)
-    self.table.draw(context, width, height)
+    if self._handle_wr_disp:
+        width, height = context.region.width, context.region.height
+        self.legend.draw(context, width, height)
+        self.dhscatter.draw(context, width, height)
+        self.table.draw(context, width, height)
     
 def basic_disp(self, context, simnode):
     if self._handle_disp:
@@ -948,37 +950,38 @@ def basic_disp(self, context, simnode):
         self.table.draw(context, width, height)
     
 def comp_disp(self, context, simnode):
-    width, height = context.region.width, context.region.height
-    self.legend.draw(context, width, height)
-    self.table.draw(context, width, height)
-    self.tablecomp.draw(context, width, height)
+    if self._handle_disp:
+        width, height = context.region.width, context.region.height
+        self.legend.draw(context, width, height)
+        self.table.draw(context, width, height)
+        self.tablecomp.draw(context, width, height)
     
     if context.scene['liparams']['unit'] in ('ASE (hrs)', 'sDA (%)'):
         self.dhscatter.draw(context, width, height)
 
 def cbdm_disp(self, context, simnode):
-    width, height = context.region.width, context.region.height
-    self.legend.draw(context, width, height)
-    self.table.draw(context, width, height)
-
-    if context.scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux', 'Ave lux', 'Min lux', 'kWh', 'kWh/m2'):
-        self.dhscatter.draw(context, width, height)
+    if self._handle_disp:
+        width, height = context.region.width, context.region.height
+        self.legend.draw(context, width, height)
+        self.table.draw(context, width, height)
+    
+        if context.scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux', 'Ave lux', 'Min lux', 'kWh', 'kWh/m2'):
+            self.dhscatter.draw(context, width, height)
         
 def en_disp(self, context, simnode):
     try:
         if self._handle_en_disp:
             width, height = context.region.width, context.region.height
-        #    self.legend.draw(context, width, height)
             self.dhscatter.draw(context, width, height)
             self.table.draw(context, width, height)
     except:
         pass
 
 def en_pdisp(self, context, simnode):
-    width, height = context.region.width, context.region.height
-#    self.legend.draw(context, width, height)
-    self.barchart.draw(context, width, height)
-    self.table.draw(context, width, height)
+    if self._handle_en_pdisp:
+        width, height = context.region.width, context.region.height
+        self.barchart.draw(context, width, height)
+        self.table.draw(context, width, height)
     
 class ss_legend(Base_Display):
     def __init__(self, pos, width, height, iname, xdiff, ydiff):

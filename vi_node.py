@@ -863,7 +863,7 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
 
     def presim(self, context):
         innode = self.inputs['Context in'].links[0].from_node
-        self['frames'] = range(context.scene['enparams']['fs'], context.scene['enparams']['fe'])
+        self['frames'] = range(context.scene['enparams']['fs'], context.scene['enparams']['fe'] + 1)
         self['year'] = innode['year']
         self.dsdoy = innode.sdoy # (locnode.startmonthnode.sdoy
         self.dedoy = innode.edoy
@@ -966,6 +966,7 @@ class ViResSock(bpy.types.NodeSocket):
     def draw(self, context, layout, node, text):
         typedict = {"Time": [], "Frames": [], "Climate": ['climmenu'], "Zone": ("zonemenu", "zonermenu"), "Linkage":("linkmenu", "linkrmenu"), "External node":("enmenu", "enrmenu"), "Chimney":("chimmenu", "chimrmenu"), "Position":("posmenu", "posrmenu"), "Camera":("cammenu", "camrmenu")}
         row = layout.row()
+
         if self.links and self.links[0].from_node.get('frames'):
             if len(self.links[0].from_node['frames']) > 1 and node.parametricmenu == '0': 
                 row.prop(self, "framemenu", text = text)
@@ -2206,6 +2207,7 @@ class EnViInf(bpy.types.Node, EnViNodes):
     envi_inftype = bpy.props.EnumProperty(items = [("0", "None", "No infiltration"), ("1", 'Flow/Zone', "Absolute flow rate in m{}/s".format(u'\u00b3')), ("2", "Flow/Area", 'Flow in m{}/s per m{} floor area'.format(u'\u00b3', u'\u00b2')),
                                  ("3", "Flow/ExteriorArea", 'Flow in m{}/s per m{} external surface area'.format(u'\u00b3', u'\u00b2')), ("4", "Flow/ExteriorWallArea", 'Flow in m{}/s per m{} external wall surface area'.format(u'\u00b3', u'\u00b2')),
                                  ("5", "ACH", "ACH flow rate")], name = "", description = "The type of zone infiltration specification", default = "0")
+    unit = {'0':'', '1': '(m{}/s)'.format(u'\u00b3'), '2': '(m{}/s.m{})'.format(u'\u00b3', u'\u00b2'), '3': '(m{}/s per m{})'.format(u'\u00b3', u'\u00b2'), '4': '(m{}/s per m{})'.format(u'\u00b3', u'\u00b2'), "5": "(ACH)"}
     envi_inflevel = bpy.props.FloatProperty(name = "", description = "Level of Infiltration", min = 0, max = 500, default = 0.001)
 
     def init(self, context):
@@ -2216,7 +2218,7 @@ class EnViInf(bpy.types.Node, EnViNodes):
     def draw_buttons(self, context, layout):
         newrow(layout, 'Type:', self, "envi_inftype")
         if self.envi_inftype != '0':
-            newrow(layout, 'Level:', self, "envi_inflevel")
+            newrow(layout, 'Level {}:'.format(self.unit[self.envi_inftype]), self, "envi_inflevel")
 
     def update(self):
         for sock in self.outputs:
@@ -2650,7 +2652,7 @@ class EnViSSFlowNode(bpy.types.Node, EnViNodes):
                 remlink(self, self.inputs['VASchedule'].links)
 
         self.inputs['TSPSchedule'].hide = False if self.linkmenu in ('SO', 'DO', 'HO') and self.controls == 'Temperature' else True
-        (self.inputs['VASchedule'].hide, self.inputs['Actuator'].hide) = (False, False) if self.linkmenu in ('SO', 'DO', 'HO') else (True, True)
+        self.inputs['VASchedule'].hide = False if self.linkmenu in ('SO', 'DO', 'HO') else True
         self.legal()
 
     linktype = [("SO", "Simple Opening", "Simple opening element"),("DO", "Detailed Opening", "Detailed opening element"),

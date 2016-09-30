@@ -34,21 +34,25 @@ except:
 from . import livi_export
 from .vi_func import cmap, skframe, selobj, retvpvloc, viewdesc, drawloop, drawpoly, draw_index, drawfont, blf_props, blf_unprops
 from .vi_func import retdp, objmode, drawcircle, drawtri, setscenelivivals, draw_time, retcols, draw_index_distance
-from .envi_func import retenvires, retenresdict
+from .envi_func import retenvires, retenresdict, recalculate_text
 
 nh = 768
-enunitdict = {'Heating (W)': 'Watts (W)', 'Cooling (W)': 'Watts (W)', 'CO2 (ppm)': 'PPM', 'Solar gain (W)': 'Watts (W)', 'Temperature (degC)': u'Temperature (\u00B0C)', 'PMV': 'PMV', 'PPD (%)': 'PPD (%)', 'Air heating (W)': 'W', 'Air cooling (W)': 'W', 'HR heating (W)': 'W', 'HR balance (W)': 'W', 'Occupancy': 'Persons'}
+enunitdict = {'Heating (W)': 'Watts (W)', 'Cooling (W)': 'Watts (W)', 'CO2 (ppm)': 'PPM', 'Solar gain (W)': 'Watts (W)', 'Temperature (degC)': u'Temperature (\u00B0C)', 'PMV': 'PMV', 'PPD (%)': '%', 'Air heating (W)': 'W', 
+              'Air cooling (W)': 'W', 'HR heating (W)': 'W', 'Heat balance (W)': 'W', 'Occupancy': 'Persons', 'Humidity (%)': '(%)', 'Infiltration (m3/s)': 'm3/s', 'Infiltration (ACH)': 'ACH'}
 entitledict = {'Heating (W)': 'Heating Consumption', 'Cooling (W)': 'Cooling Consumption', 'CO2 (ppm)': r'CO$_2$ Concentration', 'Solar gain (W)': 'Solar Gain', 'Temperature (degC)': 'Temperature', 'PMV': 'Predicted Mean Vote', 
-               'PPD (%)': 'Predicted Percentage of Dissatisfied', 'Air heating (W)': 'Air Heating', 'Air cooling (W)': 'Air Cooling', 'HR heating (W)': 'Heat recovery', 'Heat balance (W)': 'Heat Balance', 'Occupancy': 'Occupancy'}
+               'PPD (%)': 'Predicted Percentage of Dissatisfied', 'Air heating (W)': 'Air Heating', 'Air cooling (W)': 'Air Cooling', 'HR heating (W)': 'Heat recovery', 'Heat balance (W)': 'Heat Balance', 'Occupancy': 'Occupancy',
+                'Humidity (%)': 'Humidity', 'Infiltration (m3/s)': 'Infiltration', 'Infiltration (ACH)': 'Infiltration'}
 
 #envaldict = {'Heating (W)': 'Watts (W)', 'Cooling (W)': 'Watts (W)', 'CO2 (ppm)': 'PPM', 'Solar gain (W)': 'Watts (W)', 'Temperature (degC)': (scene.en_temp_min, scene.en_temp_max)}
 
-def envals(self, scene, data):
+def envals(unit, scene, data):
     envaldict = {'Heating (W)': (scene.en_heat_min, scene.en_heat_max), 'Cooling (W)': (scene.en_cool_min, scene.en_cool_max), 'CO2 (ppm)': (scene.en_co2_min, scene.en_co2_max), 
     'Solar gain (W)': (scene.en_shg_min, scene.en_shg_max), 'Temperature (degC)': (scene.en_temp_min, scene.en_temp_max), 'PMV': (scene.en_pmv_min, scene.en_pmv_max), 'PPD (%)': (scene.en_ppd_min, scene.en_ppd_max),
-    'Air heating (W)': (scene.en_aheat_min, scene.en_aheat_max), 'Air cooling (W)': (scene.en_acool_min, scene.en_acool_max), 'HR heating (W)': (scene.en_hrheat_min, scene.en_hrheat_max)}
-    if self.unit in envaldict:
-        return envaldict[self.unit]
+    'Air heating (W)': (scene.en_aheat_min, scene.en_aheat_max), 'Air cooling (W)': (scene.en_acool_min, scene.en_acool_max), 'HR heating (W)': (scene.en_hrheat_min, scene.en_hrheat_max), 
+    'Heat balance (W)': (scene.en_heatb_min, scene.en_heatb_max),  'Occupancy': (scene.en_occ_min, scene.en_occ_max),'Humidity (%)': (scene.en_hum_min, scene.en_hum_max),'Infiltration (ACH)': (scene.en_iach_min, scene.en_iach_max),
+    'Infiltration (m3/s)': (scene.en_im3s_min, scene.en_im3s_max)}
+    if unit in envaldict:
+        return envaldict[unit]
     else:
         return (nmin(data), nmax(data))
 
@@ -207,7 +211,7 @@ class linumdisplay():
         self.level = self.scene.vi_disp_3dlevel
         self.disp_op = disp_op
         self.fs = self.scene.vi_display_rp_fs
-        self.fontmult = 1 if context.space_data.region_3d.is_perspective else 10
+        self.fontmult = 5 if context.space_data.region_3d.is_perspective else 20
         self.obreslist = [ob for ob in self.scene.objects if ob.type == 'MESH'  and 'lightarray' not in ob.name and ob.hide == False and ob.layers[self.scene.active_layer] == True and ob.get('lires')]
         if self.scene.vi_display_sel_only == False:
             self.obd = self.obreslist
@@ -610,7 +614,8 @@ class Base_Display():
         self.press = 0
         self.move = 0
         self.expand = 0
-        self.image = bpy.data.images.load(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'images', iname))
+        bpy.data.images.load(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'images', iname))
+        self.image = iname
         self.hl = [1, 1, 1, 1]
         self.cao = None
         self.xdiff, self.ydiff = xdiff, ydiff
@@ -726,7 +731,6 @@ class cbdm_scatter(Base_Display):
         self.cao = context.active_object
         self.unit = context.scene['liparams']['unit']
         self.frame = context.scene.frame_current
-        print(self.unitdict[context.scene['liparams']['unit']])
 
         if self.cao and self.cao.get('livires') and self.cao['livires'].get('{}{}'.format(self.unitdict[context.scene['liparams']['unit']], context.scene.frame_current)):
             zdata = array(self.cao['livires']['{}{}'.format(self.unitdict[context.scene['liparams']['unit']], context.scene.frame_current)])
@@ -750,21 +754,20 @@ class en_scatter(Base_Display):
         self.cao = context.active_object
         scene = context.scene
         self.resstring = retenvires(scene)
-        self.maxmins = (scene.en_co2_min, scene.en_co2_max, scene.en_temp_min, scene.en_temp_max, scene.en_hum_max, scene.en_hum_min, 
-                        scene.en_shg_max, scene.en_shg_min, scene.en_pmv_max, scene.en_pmv_min, scene.en_ppd_max, scene.en_ppd_min)
         self.unit = scene.en_disp_unit if scene.en_disp_unit else 0
         self.col = scene.vi_leg_col
-        self.gimage = bpy.data.images['stats.png']
+        self.minmax = [0, 100]
+        self.gimage = 'scatter.png'
 
         try:
             if self.unit:
                 zdata, hours, days = array(self.cao[self.resstring][self.unit]).reshape(len(self.cao['days']), 24).T, self.cao['hours'], self.cao['days']        
                 title = self.cao.name
-                (valmin, valmax) = envals(self, scene, zdata)    
+                self.minmax = envals(self.unit, scene, zdata)    
                 cbtitle = enunitdict[self.unit]
                 self.plt = plt
                 self.plt.rcParams['font.family']='Noto Sans'
-                draw_dhscatter(self, scene, days, hours, zdata, '{} {}'.format(title, entitledict[self.unit]), 'Days', 'Hours', cbtitle, valmin, valmax)  
+                draw_dhscatter(self, scene, days, hours, zdata, '{} {}'.format(title, entitledict[self.unit]), 'Days', 'Hours', cbtitle, self.minmax[0], self.minmax[1])  
                 save_plot(self, scene, 'scatter.png')
 
         except Exception as e:  
@@ -781,9 +784,17 @@ class en_barchart(Base_Display):
         Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
         
     def quickupdate(self, scene):
-        self.rangedict = {'Max temp (C)': (scene.en_maxtemp_min, scene.en_maxtemp_max), 'Ave temp (C)': (scene.en_avetemp_min, scene.en_avetemp_max),
-                          'Min temp (C)': (scene.en_mintemp_min, scene.en_mintemp_max), 'Max heating (W)': (scene.en_maxheat_min, scene.en_maxheat_max),
-                          'Ave heating (C)': (scene.en_aveheat_min, scene.en_aveheat_max), 'Min heating (C)': (scene.en_minheat_min, scene.en_minheat_max)}
+        pass
+#        self.rangedict = {'Max temp (C)': (scene.en_maxtemp_min, scene.en_maxtemp_max), 'Ave temp (C)': (scene.en_avetemp_min, scene.en_avetemp_max),
+#                            'Min temp (C)': (scene.en_mintemp_min, scene.en_mintemp_max), 'Max heating (W)': (scene.en_maxheat_min, scene.en_maxheat_max),
+#                            'Ave heating (W)': (scene.en_aveheat_min, scene.en_aveheat_max), 'Min heating (W)': (scene.en_minheat_min, scene.en_minheat_max),
+#                            'Total heating (kWh/m2)': (scene.en_tothkwhm2_min, scene.en_tothkwhm2_max), 'Total heating (kWh)': (scene.en_tothkwh_min, scene.en_tothkwh_max),
+#                            'Max cooling (W)': (scene.en_maxcool_min, scene.en_maxcool_max), 'Min cooling (W)': (scene.en_mincool_min, scene.en_mincool_max),
+#                            'Ave cooling (W)': (scene.en_avecool_min, scene.en_avecool_max), 'Total cooling (kWh/m2)': (scene.en_totckwhm2_min, scene.en_totckwhm2_max),
+#                            'Total cooling (kWh)': (scene.en_totckwh_min, scene.en_totckwh_max), 'Max SHG (W)': (scene.en_maxshg_min, scene.en_maxshg_max),
+#                            'Ave SHG (W)': (scene.en_aveshg_min, scene.en_aveshg_max), 'Min SHG (W)': (scene.en_minshg_min, scene.en_minshg_max),
+#                            'Total SHG (kWh)':  (scene.en_totshgkwh_min, scene.en_totshgkwh_max), 'Total SHG (kWh/m2)':  (scene.en_totshgkwhm2_min, scene.en_totshgkwhm2_max)}
+
     
     def update(self, context):
         scene = context.scene
@@ -794,12 +805,12 @@ class en_barchart(Base_Display):
         self.col = scene.vi_leg_col
         self.plt = plt
         if self.cao and self.cao.get(self.resstring) and self.cao[self.resstring].get(self.unit):
-
             x = arange(resnode['AStart'], resnode['AEnd'] + 1)
             y = array(self.cao[self.resstring][self.unit])
-            self.minmax = self.rangedict[self.unit] if self.unit in self.rangedict else (0, 30)
+#            self.minmax = self.rangedict[self.unit] if self.unit in self.rangedict else (0, 30)
+            self.minmax = (scene.bar_min, scene.bar_max)
             title = self.cao.name
-            draw_barchart(self, scene, x, y, title, 'Frame', 'Max. Temp', self.minmax[0], self.minmax[1])  
+            draw_barchart(self, scene, x, y, title, 'Frame', self.unit, self.minmax[0], self.minmax[1])  
             save_plot(self, scene, 'barchart.png')
         
     def drawopen(self, context):
@@ -817,7 +828,7 @@ class ss_scatter(Base_Display):
         self.cao = context.active_object
         self.frame = context.scene.frame_current
         self.col = context.scene.vi_leg_col        
-        self.gimage = bpy.data.images['stats.png']
+        self.gimage = 'stats.png'
 
         if self.cao and self.cao.get('dhres{}'.format(context.scene.frame_current)): 
             self.plt = plt
@@ -889,7 +900,7 @@ class en_table(Base_Display):
     def update(self, context):
         scene = context.scene
         self.cao = context.active_object
-        rcarray = [['', 'Minimum', 'Average', 'Maximum', '% time under lower threshold', '% time over upper threshold']]
+        rcarray = [['', 'Minimum', 'Average', 'Maximum']] if scene.en_disp_type == '1' else [['', 'Minimum', 'Average', 'Maximum', '% time under lower threshold', '% time over upper threshold']]
         resstring = retenvires(scene)
 
         if self.cao and self.cao.get(resstring): 
@@ -897,36 +908,40 @@ class en_table(Base_Display):
             for res in sorted(resdict.keys()):
                 resarray = array(resdict[res])
                 self.unit = res
-                (minv, maxv) = envals(self, scene, resarray)
-                rcarray.append([res, '{:.1f}'.format(nmin(resarray)), '{:.1f}'.format(nsum(resarray)/resarray.size), '{:.1f}'.format(nmax(resarray)), '{:.1f}'.format(100 * nsum(resarray < minv)/resarray.size), '{:.1f}'.format(100 * nsum(resarray > maxv)/resarray.size)])
-
+                (minv, maxv) = envals(self.unit, scene, resarray)
+                if scene.en_disp_type == '1':
+                    rcarray.append([res, '{:.1f}'.format(nmin(resarray)), '{:.1f}'.format(nsum(resarray)/resarray.size), '{:.1f}'.format(nmax(resarray))])
+                else:
+                    rcarray.append([res, '{:.1f}'.format(nmin(resarray)), '{:.1f}'.format(nsum(resarray)/resarray.size), '{:.1f}'.format(nmax(resarray)), '{:.1f}'.format(100 * nsum(resarray < minv)/resarray.size), '{:.1f}'.format(100 * nsum(resarray > maxv)/resarray.size)])
+                
             if 'Heating (W)' in resdict or 'Cooling (W)' in resdict or 'Air heating (W)' in resdict or 'Air cooling (W)' in resdict or 'HR heating (W)' in resdict:
                 rcarray.append(['', '', '', '', '', ''])
+                rcarray.append(['', 'kWh', 'kWh/m2', '', '', ''])
                 if 'Heating (W)' in resdict:
                     hkwh = nsum(array(resdict['Heating (W)'])) * 0.001
-                    rcarray.append(['Total heating (kWh)', '{:.1f}'.format(hkwh), '', '', 'Total heating (kWh/m2)', '{:.1f}'.format(hkwh/self.cao['floorarea'])])
+                    rcarray.append(['Total heating', '{:.1f}'.format(hkwh), '{:.1f}'.format(hkwh/self.cao['floorarea']), '', '', ''])
 
                 if 'Cooling (W)' in resdict:
                     ckwh = nsum(array(resdict['Cooling (W)'])) * 0.001
-                    rcarray.append(['Total cooling (kWh)', '{:.1f}'.format(ckwh), '', '', 'Total cooling (kWh/m2)', '{:.1f}'.format(ckwh/self.cao['floorarea'])])
+                    rcarray.append(['Total cooling', '{:.1f}'.format(ckwh), '{:.1f}'.format(ckwh/self.cao['floorarea']), '', '', ''])
                 
                 if 'Heating (W)' in resdict and 'Cooling (W)' in resdict:
-                    rcarray.append(['Total conditioning (kWh)', '{:.1f}'.format(hkwh + ckwh), '', '', 'Total conditioning (kWh/m2)', '{:.1f}'.format((hkwh + ckwh)/self.cao['floorarea'])])
+                    rcarray.append(['Total conditioning', '{:.1f}'.format(hkwh + ckwh), '{:.1f}'.format((hkwh + ckwh)/self.cao['floorarea']), '', '', ''])
 
                 if 'Air heating (W)' in resdict:
                     ahkwh = nsum(array(resdict['Air heating (W)'])) * 0.001
-                    rcarray.append(['Total air heating (kWh)', '{:.1f}'.format(ahkwh), '', '', 'Total air heating (kWh/m2)', '{:.1f}'.format(ahkwh/self.cao['floorarea'])])
+                    rcarray.append(['Total air heating', '{:.1f}'.format(ahkwh), '{:.1f}'.format(ahkwh/self.cao['floorarea']), '', '', ''])
 
                 if 'Air cooling (W)' in resdict:
                     ackwh = nsum(array(resdict['Air cooling (W)'])) * 0.001
-                    rcarray.append(['Total air cooling (kWh)', '{:.1f}'.format(ackwh), '', '', 'Total air cooling (kWh/m2)', '{:.1f}'.format(ackwh/self.cao['floorarea'])])
+                    rcarray.append(['Total air cooling', '{:.1f}'.format(ackwh), '{:.1f}'.format(ackwh/self.cao['floorarea']), '', '', ''])
                 
                 if 'Air heating (W)' in resdict and 'Air cooling (W)' in resdict:
-                    rcarray.append(['Total air conditioning (kWh)', '{:.1f}'.format(ahkwh + ackwh), '', '', 'Total air conditioning (kWh/m2)', '{:.1f}'.format((ahkwh + ackwh)/self.cao['floorarea'])])
+                    rcarray.append(['Total air conditioning', '{:.1f}'.format(ahkwh + ackwh), '{:.1f}'.format((ahkwh + ackwh)/self.cao['floorarea']), '', '', ''])
                 
                 if 'HR heating (W)' in resdict:
                     hrkwh = nsum(array(resdict['HR heating (W)'])) * 0.001
-                    rcarray.append(['Total heat recovery (kWh)', '{:.1f}'.format(hrkwh), '', '', 'Total heat recovery (kWh/m2)', '{:.1f}'.format(hrkwh/self.cao['floorarea'])])
+                    rcarray.append(['Total heat recovery', '{:.1f}'.format(hrkwh), '{:.1f}'.format(hrkwh/self.cao['floorarea']), '', '', ''])
 
             self.rcarray = array(rcarray) 
         else:
@@ -977,10 +992,13 @@ def en_disp(self, context, simnode):
         pass
 
 def en_pdisp(self, context, simnode):
-    if self._handle_en_pdisp:
-        width, height = context.region.width, context.region.height
-        self.barchart.draw(context, width, height)
-        self.table.draw(context, width, height)
+    try:
+        if self._handle_en_pdisp:
+            width, height = context.region.width, context.region.height
+            self.barchart.draw(context, width, height)
+            self.table.draw(context, width, height)
+    except:
+        pass
     
 class ss_legend(Base_Display):
     def __init__(self, pos, width, height, iname, xdiff, ydiff):
@@ -1262,31 +1280,31 @@ def lipanel():
 #        blf.position(font_id, 270, height - 87 - lencrit*26, 0)
 #        blf.draw(font_id, '{} of {}'.format(leedcred, ('2', '3')[simnode['coptions']['buildtype'] == '0']))
         
-    bgl.glEnable(bgl.GL_BLEND)
-    bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
-    bgl.glLineWidth(1)
-    sw = 8
-
-    aolen, ailen, jnlen = len(scene.li_assorg), len(scene.li_assind), len(scene.li_jobno)
-    drawpoly(100, 50, 500 + aolen*sw + ailen*sw + jnlen*sw, 25, 0.7, 1, 1, 1)
-    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-    drawloop(100, 50, 260 + aolen*sw, 25)
-    drawloop(260 + aolen*sw, 50, 400 + aolen*sw + ailen*sw, 25)
-    drawloop(400 + aolen*sw + ailen*sw, 50, 500 + aolen*sw + ailen*sw + jnlen*sw, 25)
-    blf.size(font_id, 20, 44)
-    blf.position(font_id, 110, 32, 0)
-    blf.draw(font_id, 'Assessing Organisation:')
-    blf.position(font_id, 250, 32, 0)
-    blf.draw(font_id, scene.li_assorg)
-    blf.position(font_id, 270 + aolen*sw, 32, 0)
-    blf.draw(font_id, 'Assessing Individual:')
-    blf.position(font_id, 395 + aolen*sw, 32, 0)
-    blf.draw(font_id, scene.li_assind)
-    blf.position(font_id, 410 + aolen*sw + ailen*sw, 32, 0)
-    blf.draw(font_id, 'Job Number:')
-    blf.position(font_id, 490 + aolen*sw + ailen*sw, 32, 0)
-    blf.draw(font_id, scene.li_jobno)
-    blf.disable(0, blf.KERNING_DEFAULT)
+#    bgl.glEnable(bgl.GL_BLEND)
+#    bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
+#    bgl.glLineWidth(1)
+#    sw = 8
+#
+#    aolen, ailen, jnlen = len(scene.li_assorg), len(scene.li_assind), len(scene.li_jobno)
+#    drawpoly(100, 50, 500 + aolen*sw + ailen*sw + jnlen*sw, 25, 0.7, 1, 1, 1)
+#    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
+#    drawloop(100, 50, 260 + aolen*sw, 25)
+#    drawloop(260 + aolen*sw, 50, 400 + aolen*sw + ailen*sw, 25)
+#    drawloop(400 + aolen*sw + ailen*sw, 50, 500 + aolen*sw + ailen*sw + jnlen*sw, 25)
+#    blf.size(font_id, 20, 44)
+#    blf.position(font_id, 110, 32, 0)
+#    blf.draw(font_id, 'Assessing Organisation:')
+#    blf.position(font_id, 250, 32, 0)
+#    blf.draw(font_id, scene.li_assorg)
+#    blf.position(font_id, 270 + aolen*sw, 32, 0)
+#    blf.draw(font_id, 'Assessing Individual:')
+#    blf.position(font_id, 395 + aolen*sw, 32, 0)
+#    blf.draw(font_id, scene.li_assind)
+#    blf.position(font_id, 410 + aolen*sw + ailen*sw, 32, 0)
+#    blf.draw(font_id, 'Job Number:')
+#    blf.position(font_id, 490 + aolen*sw + ailen*sw, 32, 0)
+#    blf.draw(font_id, scene.li_jobno)
+#    blf.disable(0, blf.KERNING_DEFAULT)
 
 def rendview(i):
     for scrn in bpy.data.screens:
@@ -1303,8 +1321,8 @@ def draw_icon(self):
     drawpoly(self.spos[0], self.spos[1], self.epos[0], self.epos[1], *self.hl)        
     drawloop(self.spos[0], self.spos[1], self.epos[0], self.epos[1])
     bgl.glEnable(bgl.GL_BLEND)
-    self.image.gl_load(bgl.GL_NEAREST, bgl.GL_NEAREST)
-    bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.image.bindcode[0])
+    bpy.data.images[self.image].gl_load(bgl.GL_NEAREST, bgl.GL_NEAREST)
+    bgl.glBindTexture(bgl.GL_TEXTURE_2D, bpy.data.images[self.image].bindcode[0])
     bgl.glTexParameteri(bgl.GL_TEXTURE_2D,
                             bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
     bgl.glTexParameteri(bgl.GL_TEXTURE_2D,
@@ -1408,6 +1426,7 @@ def draw_barchart(self, scene, x, y, tit, xlab, ylab, ymin, ymax):
     self.plt.xlabel(xlab, size = 18)
     self.plt.ylabel(ylab, size = 18)
     cols = [(yval - ymin)/(ymax - ymin) for yval in y]
+#    print(x, y)
     self.plt.bar(x, y, align='center', color = [mcm.get_cmap(self.col)(i) for i in cols])
 #    self.plt.axis([min(x),max(x),min(y),max(y)], size = 19)
     self.plt.tight_layout(rect=[0, 0, 1 + ((len(x)/len(y)) - 1) * 0.005, 1])
@@ -1417,12 +1436,13 @@ def save_plot(self, scene, filename):
     self.plt.savefig(fileloc, pad_inches = 0.1)
     
     if filename not in [i.name for i in bpy.data.images]:
-        self.gimage = bpy.data.images.load(fileloc)
+        self.gimage = filename
+        bpy.data.images.load(fileloc)
     else:
+        self.gimage = filename
         bpy.data.images[filename].reload()
-        self.gimage = bpy.data.images[filename]
-
-    self.gimage.user_clear()
+        
+    bpy.data.images[self.gimage].user_clear()
 
 def show_plot(self):
     self.plt.show()
@@ -1438,13 +1458,12 @@ def draw_image(self, topgap):
         self.lspos = [self.spos[0], self.lspos[1]]
         self.lepos = [self.lepos[0], self.spos[1]]
 
-    self.gimage.reload()
+    bpy.data.images[self.gimage].reload()
     drawpoly(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1], 1, 1, 1, 1)        
     drawloop(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1])
-    
     bgl.glEnable(bgl.GL_BLEND)
-    self.gimage.gl_load(bgl.GL_NEAREST, bgl.GL_NEAREST)
-    bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.gimage.bindcode[0])
+    bpy.data.images[self.gimage].gl_load(bgl.GL_NEAREST, bgl.GL_NEAREST)
+    bgl.glBindTexture(bgl.GL_TEXTURE_2D, bpy.data.images[self.gimage].bindcode[0])
     bgl.glTexParameteri(bgl.GL_TEXTURE_2D,
                             bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
     bgl.glTexParameteri(bgl.GL_TEXTURE_2D,
@@ -1540,4 +1559,43 @@ def draw_table(self):
     blf.disable(0, 4)
     bgl.glEnd()
     bgl.glFlush()
+    
+def setcols(self, context):
+    scene = context.scene
+    bpy.app.handlers.frame_change_pre.clear()
+    fc = scene.frame_current
+    rdict = {'envi_temp': 'Temp', 'envi_hum': 'Hum', 'envi_heat': 'Heat', 'envi_cool': 'Cool', 'envi_co2': 'CO2', 'envi_pmv': 'PMV', 'envi_ppd': 'PPD', 'envi_aheat': 'AHeat', 
+    'envi_acool': 'ACool', 'envi_hrheat': 'HRheat', 'envi_shg': 'SHG'}
+    mmdict = {'envi_temp': (scene.en_temp_max, scene.en_temp_min), 'envi_hum': (scene.en_hum_max, scene.en_hum_min), 'envi_heat': (scene.en_heat_max, scene.en_heat_min), 
+    'envi_cool': (scene.en_cool_max, scene.en_cool_min), 'envi_co2': (scene.en_co2_max, scene.en_co2_min), 'envi_ppd': (scene.en_ppd_max, scene.en_ppd_min),
+    'envi_pmv': (scene.en_pmv_max, scene.en_pmv_min), 'envi_aheat': (scene.en_aheat_max, scene.en_aheat_min), 'envi_acool': (scene.en_acool_max, scene.en_acool_min),
+    'envi_hrheat': (scene.en_hrheat_max, scene.en_hrheat_min), 'envi_shg': (scene.en_shg_max, scene.en_shg_min)}
+    resstring = retenvires(scene)
+    cmap = mcm.get_cmap(scene.vi_leg_col)
+    
+    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] in ('envi_temp', 'envi_hum', 'envi_heat', 'envi_cool', 'envi_co2', 'envi_pmv', 'envi_ppd', 'envi_aheat', 'envi_acool', 'envi_hrheat', 'envi_shg') and o.get(resstring)]:
+        if (o['max'], o['min']) != mmdict[o['VIType']] or o['cmap'] != scene.vi_leg_col:
+#            (rmax, rmin) = mmdict[o['VIType']]    
+            (o['max'], o['min']) = mmdict[o['VIType']]  
+            o['cmap'] = scene.vi_leg_col
+            rdiff = o['max'] - o['min']
+            mat = o.material_slots[0].material
+            mfcs = mat.animation_data.action.fcurves
+            dclist = []
+    
+            for mfc in mfcs:
+                if mfc.data_path == 'diffuse_color':
+                    dclist.append(mfc)
+    
+            frames = range(scene.frame_start, scene.frame_end + 1)
+
+            for frame in frames:
+                col = cmap((o[resstring][rdict[o['VIType']]][frame] - o['min'])/(rdiff))
+                dclist[0].keyframe_points[frame].co = frame, col[0]
+                dclist[1].keyframe_points[frame].co = frame, col[1]
+                dclist[2].keyframe_points[frame].co = frame, col[2]
+
+    scene.frame_set(fc)
+    if recalculate_text not in bpy.app.handlers.frame_change_pre:
+        bpy.app.handlers.frame_change_pre.append(recalculate_text) 
      

@@ -38,7 +38,7 @@ except Exception as e:
 
 from .livi_export import radgexport, spfc, createoconv, createradfile, genbsdf
 from .livi_calc  import li_calc
-from .vi_display import li_display, linumdisplay, spnumdisplay, en_air, en_panel, en_temp_panel, wr_legend, wr_disp, wr_scatter, wr_table, ss_disp, ss_legend, basic_legend, basic_table, basic_disp, ss_scatter, en_disp, en_pdisp, en_scatter, en_table, en_barchart, comp_table, comp_disp, leed_scatter, cbdm_disp, cbdm_scatter#, en_barchart, li3D_legend
+from .vi_display import li_display, linumdisplay, spnumdisplay, en_air, en_panel, en_temp_panel, wr_legend, wr_disp, wr_scatter, wr_table, ss_disp, ss_legend, basic_legend, basic_table, basic_disp, ss_scatter, en_disp, en_pdisp, en_scatter, en_table, en_barchart, comp_table, comp_disp, leed_scatter, cbdm_disp, cbdm_scatter, envals#, en_barchart, li3D_legend
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum
@@ -511,67 +511,67 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
             self.report({'ERROR'}, "There is no camera in the scene. Create one for glare analysis")
             return {'FINISHED'}
 
-class VIEW3D_OT_LiDisplay(bpy.types.Operator):
-    bl_idname = "view3d.lidisplay"
-    bl_label = "LiVi display"
-    bl_description = "Display the results on the sensor surfaces"
-    bl_register = True
-    bl_undo = False
-    _handle = None
-    disp =  bpy.props.IntProperty(default = 1)
-
-    def modal(self, context, event):
-        scene = context.scene
-        if context.region:
-            height = context.region.height
-            if event.mouse_region_x in range(100) and event.mouse_region_y in range(height - 100, height):
-                if event.type == 'WHEELUPMOUSE':
-                    scene.vi_leg_max += scene.vi_leg_max * 0.05
-                    return {'RUNNING_MODAL'}
-                elif event.type == 'WHEELDOWNMOUSE':
-                    scene.vi_leg_max -= (scene.vi_leg_max - scene.vi_leg_min) * 0.05
-                    return {'RUNNING_MODAL'}
-            elif event.mouse_region_x in range(100) and event.mouse_region_y in range(height - 520, height - 420):
-                if event.type == 'WHEELUPMOUSE':
-                    scene.vi_leg_min += (scene.vi_leg_max - scene.vi_leg_min) * 0.05
-                    return {'RUNNING_MODAL'}
-                elif event.type == 'WHEELDOWNMOUSE':
-                    scene.vi_leg_min -= scene.vi_leg_min * 0.05
-                    return {'RUNNING_MODAL'}
-
-        if scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel') or not scene.vi_display or self.disp != scene['liparams']['disp_count']:              
-            bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
-            bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
-            if scene['liparams']['type'] == 'LiVi Compliance':
-                try:
-                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_comp, 'WINDOW')
-                except:
-                    pass
-                scene.li_compliance = 0
-
-            if scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel') or not scene.vi_display: 
-                 scene['viparams']['vidisp'] = scene['viparams']['vidisp'][0:2]
-                 [scene.objects.unlink(o) for o in scene.objects if o.lires]
-
-            return {'CANCELLED'}
-        return {'PASS_THROUGH'}
-
-    def execute(self, context):
-        dispdict = {'LiVi Compliance': 'lcpanel', 'LiVi Basic': 'lipanel', 'LiVi CBDM': 'lipanel', 'Shadow': 'sspanel'}
-        scene = context.scene
-        scene['liparams']['disp_count'] = scene['liparams']['disp_count'] + 1 if scene['liparams']['disp_count'] < 10 else 0 
-        self.disp = scene['liparams']['disp_count']
-        clearscene(scene, self)
-        self.simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
-        scene['viparams']['vidisp'] = dispdict[scene['viparams']['visimcontext']]
-        li_display(self.simnode)
-        scene.vi_disp_wire, scene.vi_display = 1, 1
-        self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
-        self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(li3D_legend, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
-        context.window_manager.modal_handler_add(self)
-        if scene['viparams']['visimcontext'] == 'LiVi Compliance':
-            self._handle_comp = bpy.types.SpaceView3D.draw_handler_add(li_compliance, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
-        return {'RUNNING_MODAL'}
+#class VIEW3D_OT_LiDisplay(bpy.types.Operator):
+#    bl_idname = "view3d.lidisplay"
+#    bl_label = "LiVi display"
+#    bl_description = "Display the results on the sensor surfaces"
+#    bl_register = True
+#    bl_undo = False
+#    _handle = None
+#    disp =  bpy.props.IntProperty(default = 1)
+#
+#    def modal(self, context, event):
+#        scene = context.scene
+#        if context.region:
+#            height = context.region.height
+#            if event.mouse_region_x in range(100) and event.mouse_region_y in range(height - 100, height):
+#                if event.type == 'WHEELUPMOUSE':
+#                    scene.vi_leg_max += scene.vi_leg_max * 0.05
+#                    return {'RUNNING_MODAL'}
+#                elif event.type == 'WHEELDOWNMOUSE':
+#                    scene.vi_leg_max -= (scene.vi_leg_max - scene.vi_leg_min) * 0.05
+#                    return {'RUNNING_MODAL'}
+#            elif event.mouse_region_x in range(100) and event.mouse_region_y in range(height - 520, height - 420):
+#                if event.type == 'WHEELUPMOUSE':
+#                    scene.vi_leg_min += (scene.vi_leg_max - scene.vi_leg_min) * 0.05
+#                    return {'RUNNING_MODAL'}
+#                elif event.type == 'WHEELDOWNMOUSE':
+#                    scene.vi_leg_min -= scene.vi_leg_min * 0.05
+#                    return {'RUNNING_MODAL'}
+#
+#        if scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel') or not scene.vi_display or self.disp != scene['liparams']['disp_count']:              
+#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
+#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
+#            if scene['liparams']['type'] == 'LiVi Compliance':
+#                try:
+#                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_comp, 'WINDOW')
+#                except:
+#                    pass
+#                scene.li_compliance = 0
+#
+#            if scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel') or not scene.vi_display: 
+#                 scene['viparams']['vidisp'] = scene['viparams']['vidisp'][0:2]
+#                 [scene.objects.unlink(o) for o in scene.objects if o.lires]
+#
+#            return {'CANCELLED'}
+#        return {'PASS_THROUGH'}
+#
+#    def execute(self, context):
+#        dispdict = {'LiVi Compliance': 'lcpanel', 'LiVi Basic': 'lipanel', 'LiVi CBDM': 'lipanel', 'Shadow': 'sspanel'}
+#        scene = context.scene
+#        scene['liparams']['disp_count'] = scene['liparams']['disp_count'] + 1 if scene['liparams']['disp_count'] < 10 else 0 
+#        self.disp = scene['liparams']['disp_count']
+#        clearscene(scene, self)
+#        self.simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
+#        scene['viparams']['vidisp'] = dispdict[scene['viparams']['visimcontext']]
+#        li_display(self.simnode)
+#        scene.vi_disp_wire, scene.vi_display = 1, 1
+#        self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
+#        self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(li3D_legend, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
+#        context.window_manager.modal_handler_add(self)
+#        if scene['viparams']['visimcontext'] == 'LiVi Compliance':
+#            self._handle_comp = bpy.types.SpaceView3D.draw_handler_add(li_compliance, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
+#        return {'RUNNING_MODAL'}
 
 class IES_Select(bpy.types.Operator, io_utils.ImportHelper):
     bl_idname = "livi.ies_select"
@@ -933,7 +933,7 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
     bl_label = "EnVi display"
     bl_description = "Display the EnVi results"
     bl_options = {'REGISTER'}
-#    bl_undo = False
+#    bl_undo = True
     _handle = None
     disp =  bpy.props.IntProperty(default = 1)
 
@@ -949,7 +949,7 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                 except:
                     pass
                 
-                for o in [o for o in scene.objects if o.get('VIType') and o['VIType'] in ('envi_temp', 'envi_hum', 'envi_heat', 'envi_cool', 'envi_co2', 'envi_shg', 'envi_ppd', 'envi_pmv', 'envi_aheat', 'envi_acool')]:
+                for o in [o for o in scene.objects if o.get('VIType') and o['VIType'] in ('envi_temp', 'envi_hum', 'envi_heat', 'envi_cool', 'envi_co2', 'envi_shg', 'envi_ppd', 'envi_pmv', 'envi_aheat', 'envi_acool', 'envi_hrheat')]:
                     for oc in o.children:                        
                         [scene.objects.unlink(oc) for oc in o.children]
                         bpy.data.objects.remove(oc)                    
@@ -959,10 +959,12 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                 context.area.tag_redraw()
                 return {'CANCELLED'}
 
-            mx, my = event.mouse_region_x, event.mouse_region_y 
+            mx, my, redraw = event.mouse_region_x, event.mouse_region_y, 0
             
             if self.dhscatter.spos[0] < mx < self.dhscatter.epos[0] and self.dhscatter.spos[1] < my < self.dhscatter.epos[1]:
-                self.dhscatter.hl = (0, 1, 1, 1)  
+                if self.dhscatter.hl != (0, 1, 1, 1):  
+                    self.dhscatter.hl = (0, 1, 1, 1)
+                    redraw = 1  
                 if event.type == 'LEFTMOUSE':
                     if event.value == 'PRESS':
                         self.dhscatter.press = 1
@@ -977,7 +979,7 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                         return {'RUNNING_MODAL'}
                 
                 elif event.type == 'ESC':
-                    bpy.data.images.remove(self.dhscatter.gimage)
+                    bpy.data.images.remove(bpy.data.images[self.dhscatter.gimage])
                     self.dhscatter.plt.close()
                     bpy.types.SpaceView3D.draw_handler_remove(self._handle_en_disp, 'WINDOW')
                     context.area.tag_redraw()
@@ -992,13 +994,16 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                 if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.dhscatter.expand and self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff:
                     self.dhscatter.show_plot()
                     context.area.tag_redraw()
-                    return {'RUNNING_MODAL'}
-                   
-            else:
+                    return {'RUNNING_MODAL'}    
+                    
+            elif self.dhscatter.hl != (1, 1, 1, 1):
                 self.dhscatter.hl = (1, 1, 1, 1)
+                redraw = 1
                 
-            if self.table.spos[0] < mx < self.table.epos[0] and self.table.spos[1] < my < self.table.epos[1]:
-                self.table.hl = (0, 1, 1, 1)  
+            if self.table.spos[0] < mx < self.table.epos[0] and self.table.spos[1] < my < self.table.epos[1]: 
+                if self.table.hl != (0, 1, 1, 1):  
+                    self.table.hl = (0, 1, 1, 1)
+                    redraw = 1
                 if event.type == 'LEFTMOUSE':
                     if event.value == 'PRESS':
                         self.table.press = 1
@@ -1022,8 +1027,10 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                 elif self.table.press and event.type == 'MOUSEMOVE':
                      self.table.move = 1
                      self.table.press = 0
-            else:
+            
+            elif self.table.hl != (1, 1, 1, 1):
                 self.table.hl = (1, 1, 1, 1)
+                redraw = 1
                 
             if abs(self.dhscatter.lepos[0] - mx) < 20 and abs(self.dhscatter.lspos[1] - my) < 20 and self.dhscatter.expand:
                 self.dhscatter.hl = (0, 1, 1, 1) 
@@ -1046,29 +1053,35 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
             if event.type == 'MOUSEMOVE':                
                 if self.dhscatter.move:
                     self.dhscatter.pos = [mx, my]
+                    redraw = 1
                 if self.dhscatter.resize:
                     self.dhscatter.lepos[0], self.dhscatter.lspos[1] = mx, my
+                    redraw = 1
                 if self.table.move:
                     self.table.pos = [mx, my]
+                    redraw = 1
                 if self.table.resize:
                     self.table.lepos[0], self.table.lspos[1] = mx, my
+                    redraw = 1
     
             if self.dhscatter.unit != scene.en_disp_unit or self.dhscatter.cao != context.active_object or \
                 self.dhscatter.col != scene.vi_leg_col or self.dhscatter.resstring != retenvires(scene) or \
-                self.dhscatter.maxmins != (scene.en_co2_min, scene.en_co2_max, scene.en_temp_min, scene.en_temp_max, 
-                                           scene.en_hum_max, scene.en_hum_min, scene.en_shg_max, scene.en_shg_min, scene.en_pmv_max, scene.en_pmv_min, scene.en_ppd_max, scene.en_ppd_min):
+                self.dhscatter.minmax != envals(scene.en_disp_unit, scene, [0, 100]):
                 self.dhscatter.update(context)
                 self.table.update(context)
-
-            context.area.tag_redraw()
+            
+            if redraw:
+                context.area.tag_redraw()
+                
             return {'PASS_THROUGH'}
         else:
             return {'PASS_THROUGH'}
 
     def execute(self, context):
-#        self.tp = en_temp_panel()
+        self.i = 0
         scene = context.scene
         scene.en_frame = scene.frame_current
+#        (resnode, restree) = scene['viparams']['resnode'].split('@')
         resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
         zrl = list(zip(*resnode['reslists']))
         eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in zrl[2]}
@@ -1108,10 +1121,9 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                 elif metric == 'Humidity (%)' and zrl[1][mi] == 'Climate':
                     hu = [float(d) for d in zrl[4][mi].split()[24 * resnode['Start']:24 * resnode['End'] + 1]]
             
-            self._handle_air = bpy.types.SpaceView3D.draw_handler_add(en_air, (self, context, temp, ws, wd, hu), 'WINDOW', 'POST_PIXEL')
-        
+            self._handle_air = bpy.types.SpaceView3D.draw_handler_add(en_air, (self, context, temp, ws, wd, hu), 'WINDOW', 'POST_PIXEL')        
         zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone'  and zrl[0][zri] != 'All'])
-
+        
         if scene.reszt_disp and 'Temperature (degC)' in zmetrics:
             envizres(scene, eresobs, resnode, 'Temp')
         if scene.reszsg_disp and  'Solar gain (W)' in zmetrics:
@@ -1128,7 +1140,7 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
             envizres(scene, eresobs, resnode, 'PMV')
         if scene.reszppd_disp and 'PPD (%)' in zmetrics:
             envizres(scene, eresobs, resnode, 'PPD')
-        if scene.reszppd_disp and 'HR heating (W)' in zmetrics:
+        if scene.reshrhw_disp and 'HR heating (W)' in zmetrics:
             envizres(scene, eresobs, resnode, 'HRheat')
         if scene.reszof_disp:
             envilres(scene, resnode)
@@ -1138,19 +1150,15 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
         scene.frame_set(scene.frame_start)
         bpy.app.handlers.frame_change_pre.clear()
         bpy.app.handlers.frame_change_pre.append(recalculate_text)
-
-#        self._handle_enpanel = bpy.types.SpaceView3D.draw_handler_add(en_panel, (self, context, resnode), 'WINDOW', 'POST_PIXEL')
-
         self.dhscatter = en_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
         self.dhscatter.update(context)
         self.table = en_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 150)
         self.table.update(context)           
-#            self.barchart = en_barchart([160, context.region.height - 40], context.region.width, context.region.height, 'bar.png', 600, 400)
-#            self.barchart.update(context)
         self._handle_en_disp = bpy.types.SpaceView3D.draw_handler_add(en_disp, (self, context, resnode), 'WINDOW', 'POST_PIXEL')
         scene['viparams']['vidisp'] = 'enpanel'
         scene.vi_display = True
         context.window_manager.modal_handler_add(self)
+#        scene.update()
         return {'RUNNING_MODAL'}
 
 class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
@@ -1163,6 +1171,7 @@ class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
     disp =  bpy.props.IntProperty(default = 1)
     
     def modal(self, context, event):
+        redraw = 0
         scene = context.scene
         if context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':   
             self.barchart.quickupdate(scene)
@@ -1182,7 +1191,9 @@ class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
             mx, my = event.mouse_region_x, event.mouse_region_y 
             
             if self.barchart.spos[0] < mx < self.barchart.epos[0] and self.barchart.spos[1] < my < self.barchart.epos[1]:
-                self.barchart.hl = (0, 1, 1, 1)  
+                if self.barchart.hl != (0, 1, 1, 1):
+                    self.barchart.hl = (0, 1, 1, 1) 
+                    redraw = 1
                 if event.type == 'LEFTMOUSE':
                     if event.value == 'PRESS':
                         self.barchart.press = 1
@@ -1209,24 +1220,35 @@ class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
         
             elif self.barchart.lspos[0] < mx < self.barchart.lepos[0] and self.barchart.lspos[1] < my < self.barchart.lepos[1] and abs(self.barchart.lepos[0] - mx) > 20 and abs(self.barchart.lspos[1] - my) > 20:
                 if self.barchart.expand: 
-                    self.barchart.hl = (1, 1, 1, 1)
+                    if self.barchart.hl != (0, 1, 1, 1):
+                        self.barchart.hl = (0, 1, 1, 1)
+                        redraw = 1
                     if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.barchart.expand and self.barchart.lspos[0] < mx < self.barchart.lepos[0] and self.barchart.lspos[1] < my < self.barchart.lspos[1] + 0.9 * self.barchart.ydiff:
                         self.barchart.show_plot()
-                
-    #                elif self.barchart.lspos[0] < mx < self.barchart.lepos[0] and self.barchart.lspos[1] + 0.9 * self.barchart.ydiff < my < self.barchart.epos[1]:                    
-    #                    for butrange in self.barchart.buttons:
-    #                        if self.barchart.buttons[butrange][0] - 10 < mx < self.barchart.buttons[butrange][0] + 10 and self.barchart.buttons[butrange][1] - 0.015 * self.barchart.ydiff < my < self.barchart.buttons[butrange][1] + 0.015 * self.barchart.ydiff:
-    #                            if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
-    #                                self.barchart.type_select = 0 if self.barchart.type_select else 1
-    #                                self.barchart.update(context)
                         context.area.tag_redraw()
                         return {'RUNNING_MODAL'}
+                        
+            elif abs(self.barchart.lepos[0] - mx) < 20 and abs(self.barchart.lspos[1] - my) < 20 and self.barchart.expand:
+                if self.barchart.hl != (0, 1, 1, 1):
+                    self.barchart.hl = (0, 1, 1, 1) 
+                    redraw = 1
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.barchart.resize = 1
+                    if self.barchart.resize and event.value == 'RELEASE':
+                        self.barchart.resize = 0
+                    return {'RUNNING_MODAL'}
                    
             else:
-                self.barchart.hl = (1, 1, 1, 1)
+                if self.barchart.hl != (1, 1, 1, 1):
+                    self.barchart.hl = (1, 1, 1, 1)
+                    redraw = 1
                 
             if self.table.spos[0] < mx < self.table.epos[0] and self.table.spos[1] < my < self.table.epos[1]:
-                self.table.hl = (0, 1, 1, 1)  
+                if self.table.hl != (0, 1, 1, 1):
+                    self.table.hl = (0, 1, 1, 1)  
+                    redraw = 1
+                    
                 if event.type == 'LEFTMOUSE':
                     if event.value == 'PRESS':
                         self.table.press = 1
@@ -1250,41 +1272,43 @@ class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
                 elif self.table.press and event.type == 'MOUSEMOVE':
                      self.table.move = 1
                      self.table.press = 0
-                
-            if abs(self.barchart.lepos[0] - mx) < 20 and abs(self.barchart.lspos[1] - my) < 20 and self.barchart.expand:
-                self.barchart.hl = (0, 1, 1, 1) 
-                if event.type == 'LEFTMOUSE':
-                    if event.value == 'PRESS':
-                        self.barchart.resize = 1
-                    if self.barchart.resize and event.value == 'RELEASE':
-                        self.barchart.resize = 0
-                    return {'RUNNING_MODAL'}
 
-            if abs(self.table.lepos[0] - mx) < 20 and abs(self.table.lspos[1] - my) < 20 and self.table.expand:
-                self.table.hl = (0, 1, 1, 1) 
+            elif abs(self.table.lepos[0] - mx) < 20 and abs(self.table.lspos[1] - my) < 20 and self.table.expand:
+                if self.table.hl != (0, 1, 1, 1):
+                    self.table.hl = (0, 1, 1, 1)
+                    redraw = 1
                 if event.type == 'LEFTMOUSE':
                     if event.value == 'PRESS':
                         self.table.resize = 1
                     if self.table.resize and event.value == 'RELEASE':
                         self.table.resize = 0
                     return {'RUNNING_MODAL'}
+            else:
+                if self.table.hl != (1, 1, 1, 1):
+                    self.table.hl = (1, 1, 1, 1)
+                    redraw = 1
     
             if event.type == 'MOUSEMOVE':                
                 if self.barchart.move:
                     self.barchart.pos = [mx, my]
+                    redraw = 1
                 if self.barchart.resize:
                     self.barchart.lepos[0], self.barchart.lspos[1] = mx, my
+                    redraw = 1
                 if self.table.move:
                     self.table.pos = [mx, my]
+                    redraw = 1
                 if self.table.resize:
                     self.table.lepos[0], self.table.lspos[1] = mx, my
-
+                    redraw = 1
             if self.barchart.unit != scene.en_disp_punit or self.barchart.cao != context.active_object or \
-                self.barchart.resstring != retenvires(scene) or self.barchart.col != scene.vi_leg_col or self.barchart.minmax != self.barchart.rangedict[scene.en_disp_punit]:
+                self.barchart.resstring != retenvires(scene) or self.barchart.col != scene.vi_leg_col or self.barchart.minmax != (scene.bar_min, scene.bar_max):
                 self.barchart.update(context)
                 self.table.update(context)
-
-            context.area.tag_redraw()
+                print('update')
+                redraw = 1
+            if redraw:
+                context.area.tag_redraw()
             return {'PASS_THROUGH'}
         else:
             return {'PASS_THROUGH'}

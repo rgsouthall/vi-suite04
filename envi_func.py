@@ -8,7 +8,7 @@ def retenresdict(scene):
            'CO2': ('CO2 (ppm)', scene.en_co2_max, scene.en_co2_min, 'ppm'), 'Heat': ('Heating (W)', scene.en_heat_max, scene.en_heat_min, 'W'), 'Cool': ('Cooling (W)', scene.en_cool_max, scene.en_cool_min, 'W'),
             'PMV': ('PMV', scene.en_pmv_max, scene.en_pmv_min, 'PMV'), 'PPD': ('PPD (%)', scene.en_ppd_max, scene.en_ppd_min, 'PPD'), 'SHG': ('Solar gain (W)', scene.en_ppd_max, scene.en_ppd_min, 'SHG'),
             'MaxHeat': ('Max heating (W)', scene.en_maxheat_max, scene.en_maxheat_min, 'W'), 'MaxTemp': ('Max temp (C)', scene.en_maxtemp_max, scene.en_maxtemp_min, u"\u00b0C"),
-            'HRheat': ('HR heating (W)', scene.en_hrheat_max, scene.en_hrheat_min, 'W')}
+            'HRheat': ('HR heating (W)', scene.en_hrheat_max, scene.en_hrheat_min, 'hrW')}
 
 def resnameunits():
     rnu = {'0': ("Air", "Ambient air metrics"),'1': ("Wind Speed", "Ambient Wind Speed (m/s)"), '2': ("Wind Direction", "Ambient Wind Direction (degrees from North)"),
@@ -48,7 +48,8 @@ def enresprops(disp):
                  0, "restchg{}".format(disp), "restcv{}".format(disp), 0, "restcm{}".format(disp))}
 
 def recalculate_text(scene):   
-    resdict = {'Temp': ('envi_temp', u'\u00b0C'), 'Hum': ('envi_hum', '%'), 'CO2': ('envi_co2', 'ppm'), 'Heat': ('envi_heat', 'hW'), 'Cool': ('envi_cool', 'cW'), 'PPD': ('envi_ppd', 'PPD'), 'PMV': ('envi_pmv', 'PMV'), 'SHG': ('envi_shg', 'SHG'),
+    resdict = {'Temp': ('envi_temp', u'\u00b0C'), 'Hum': ('envi_hum', '%'), 'CO2': ('envi_co2', 'ppm'), 'Heat': ('envi_heat', 'hW'), 'Cool': ('envi_cool', 'cW'), 
+               'PPD': ('envi_ppd', 'PPD'), 'PMV': ('envi_pmv', 'PMV'), 'SHG': ('envi_shg', 'SHG'), 'HRheat': ('envi_hrheat', 'hrW'),
                'MaxTemp': ('envi_maxtemp', u'Max\u00b0C'), 'MaxHeat': ('envi_maxheat', 'MaxW')}
     resstring = retenvires(scene)
 
@@ -56,7 +57,7 @@ def recalculate_text(scene):
         for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] == resdict[res][0] and o.children]:
             txt = o.children[0]             
             sf = scene.frame_current if scene.frame_current <= scene.frame_end else scene.frame_end
-            txt.data.body = ("{:.1f}", "{:.0f}")[res in ('MaxHeat', 'Heat', 'Cool', 'SHG', 'CO2')].format(o[resstring][res][sf]) + resdict[res][1]
+            txt.data.body = ("{:.1f}", "{:.0f}")[res in ('MaxHeat', 'Heat', 'Cool', 'SHG', 'CO2', 'HRheat')].format(o[resstring][res][sf]) + resdict[res][1]
 
 def retenvires(scene):
     if scene.en_disp_type == '0':
@@ -200,6 +201,7 @@ def envizres(scene, eresobs, resnode, restype):
     
         ores.animation_data_clear()
         ores.animation_data_create()
+        ores['max'], ores['min'], ores['cmap'] = maxval, minval, scene.vi_leg_col
         ores.animation_data.action = bpy.data.actions.new(name="EnVi Zone")
         oresz = ores.animation_data.action.fcurves.new(data_path="scale", index = 2)
         oresz.keyframe_points.add(len(sv))
@@ -353,10 +355,10 @@ def processh(lines):
                 'Zone Ideal Loads Heat Recovery Sensible Heating Rate [W] !Hourly': 'HR heating (W)',
                 'Zone Ideal Loads Supply Air Sensible Cooling Rate [W] !Hourly': 'Air cooling (W)',
                 'Zone Windows Total Transmitted Solar Radiation Rate [W] !Hourly': 'Solar gain (W)',
-                'Zone Infiltration Current Density Volume Flow Rate [m3/s] !Hourly': 'Infiltration (m'+u'\u00b3'+')',
+                'Zone Infiltration Current Density Volume Flow Rate [m3/s] !Hourly': 'Infiltration (m3/s)',
                 'Zone Infiltration Air Change Rate [ach] !Hourly': 'Infiltration (ACH)',
-                'Zone Mean Air Temperature [C] ! Hourly': 'Mean Temperature ({})'.format(u'\u00b0'),
-                'Zone Mean Radiant Temperature [C] !Hourly' :'Mean Radiant ({})'.format(u'\u00b0'), 
+                'Zone Mean Air Temperature [C] ! Hourly': 'Mean Temperature (degC)',
+                'Zone Mean Radiant Temperature [C] !Hourly' :'Mean Radiant (degC)', 
                 'Zone Thermal Comfort Fanger Model PPD [%] !Hourly' :'PPD (%)',
                 'Zone Thermal Comfort Fanger Model PMV [] !Hourly' :'PMV',               
                 'AFN Node CO2 Concentration [ppm] !Hourly': 'CO2 (ppm)',
@@ -414,6 +416,7 @@ def processf(pro_op, scene, node):
     for frame in frames:
         node['envires{}'.format(frame)] = {}
         resfileloc = os.path.join(scene['viparams']['newdir'], '{}{}out.eso'.format(pro_op.resname, frame)) if node.bl_label == 'EnVi Simulation' else node.resfilename
+        
         with open(resfileloc, 'r') as resfile:
             lines = resfile.readlines()
             hdict, lstart = processh(lines)          
@@ -434,11 +437,15 @@ def processf(pro_op, scene, node):
         zonerls = [zonerl for zonerl in rls if zonerl[1] == 'Zone' and zonerl[0] == str(frame)]
         zzonerls = list(zip(*zonerls))
 
-        for resname in set(zzonerls[3]):
-            hczres = [zres[4].split() for zres in zonerls if zres[0] == str(frame) and zres[3] == resname]
-            node['envires{}'.format(frame)][resname] = nsum(array([array([float(zr) for zr in hc]) for hc in hczres]), axis = 0)
-        node['hours'] = arange(1, 25, dtype = float)
-        node['days'] = arange(node.dsdoy, node.dedoy + 1, dtype = float)    
+        try:
+            for resname in set(zzonerls[3]):
+                hczres = [zres[4].split() for zres in zonerls if zres[0] == str(frame) and zres[3] == resname]
+                node['envires{}'.format(frame)][resname] = nsum(array([array([float(zr) for zr in hc]) for hc in hczres]), axis = 0)
+            node['hours'] = arange(1, 25, dtype = float)
+            node['days'] = arange(node.dsdoy, node.dedoy + 1, dtype = float) 
+        except:
+            pro_op.report({'ERROR'}, "There are no results to plot. Make sure you g=have slected valid metrics to calculate and try re-exporting/simulating")
+        
         for o in bpy.context.scene.objects:
             if 'EN_' + o.name.upper() in zrls[2]:
                 envires = {}
@@ -513,10 +520,11 @@ def processf(pro_op, scene, node):
                 areslists.append(['All', 'Zone', zn, 'Total SHG (kWh/m2)', ' '.join([str(sum(t[1])*0.001/[o for o in bpy.data.objects if o.name.upper() == zn][0]['floorarea']) for t in shgs if t[0] == zn])])
         
         for o in bpy.context.scene.objects:
+            o['envires'] = {}
             for arl in areslists:
                 if arl[1] == 'Zone' and 'EN_' + o.name.upper() == arl[2]:
-                    if not o.get('envires'):
-                        o['envires'] = {}
+#                    if not o.get('envires'):
+                        
                     o['envires'][arl[3]] = [float(val) for val in arl[4].split()]
                         
         node['envires'] = {'Invalid object': []}
@@ -568,3 +576,4 @@ def retdata(dnode, axis, mtype, resdict, frame):
         return resdict[frame][mtype][dnode.inputs[axis].posmenu][dnode.inputs[axis].posrmenu]
     elif mtype == 'Camera':
         return resdict[frame][mtype][dnode.inputs[axis].cammenu][dnode.inputs[axis].camrmenu]
+        

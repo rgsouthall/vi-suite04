@@ -298,6 +298,17 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     
                 elif schedtype == 'TSPSchedule' and zn.inputs[schedtype].links:
                     en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite(zn.zone+'_tspsched', 'Temperature'))
+                    
+        ssafnodes = [enode for enode in enng.nodes if enode.bl_idname == 'EnViSSFlow']
+
+        for zn in ssafnodes:
+            for schedtype in ('VASchedule', 'TSPSchedule'):
+                if schedtype == 'VASchedule' and zn.inputs[schedtype].links:
+                    en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite(zn.inputs[schedtype].links[0].from_node.name, 'Fraction'))
+    
+                elif schedtype == 'TSPSchedule' and zn.inputs[schedtype].links:
+                    en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite(zn.inputs[schedtype].links[0].from_node.name, 'Temperature'))
+                
     
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: THERMOSTSTATS ===========\n\n")
         for zn in zonenodes:

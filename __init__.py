@@ -41,7 +41,8 @@ else:
     from .envi_mat import envi_materials, envi_constructions, envi_layero, envi_layer1, envi_layer2, envi_layer3, envi_layer4, envi_layerotype, envi_layer1type, envi_layer2type, envi_layer3type, envi_layer4type, envi_con_list
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, fvmat, radmat, radbsdf, retsv, cmap
     from .vi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, lividisplay, setscenelivivals
-    from .envi_func import enunits, enpunits, enparametric, retenvires, resnameunits, aresnameunits, recalculate_text
+    from .envi_func import enunits, enpunits, enparametric, retenvires, resnameunits, aresnameunits
+    from .vi_display import setcols
     from .vi_operators import *
     from .vi_ui import *
 
@@ -101,6 +102,16 @@ def display_off(dummy):
         ifdict = {'sspanel': 'ss', 'lipanel': 'li', 'enpanel': 'en'}
         if bpy.context.scene['viparams']['vidisp'] in ifdict:
             bpy.context.scene['viparams']['vidisp'] = ifdict[bpy.context.scene['viparams']['vidisp']]
+
+@persistent
+def mesh_index(dummy):
+    cao = bpy.context.active_object
+
+    if cao and cao.layers[1] and cao.mode == 'EDIT':
+        if not bpy.app.debug:
+            bpy.app.debug = True
+    elif bpy.app.debug:
+        bpy.app.debug = False
             
 @persistent
 def select_nodetree(dummy): 
@@ -120,6 +131,7 @@ def getEnViEditorSpaces():
     return [area.spaces.active for area in bpy.context.screen.areas if area and area.type == "NODE_EDITOR" and area.spaces.active.tree_type == "EnViN" and not area.spaces.active.edit_tree]
 
 bpy.app.handlers.scene_update_post.append(select_nodetree)
+bpy.app.handlers.scene_update_post.append(mesh_index)
             
 epversion = "8-5-0"
 addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -263,45 +275,7 @@ def liviresupdate(self, context):
         o.lividisplay(context.scene)  
     eupdate(self, context)
       
-def setcols(self, context):
-    scene = context.scene
-    bpy.app.handlers.frame_change_pre.clear()
-    fc = scene.frame_current
-    rdict = {'envi_temp': 'Temp', 'envi_hum': 'Hum', 'envi_heat': 'Heat', 'envi_cool': 'Cool', 'envi_co2': 'CO2', 'envi_pmv': 'PMV', 'envi_ppd': 'PPD', 'envi_aheat': 'AHeat', 'envi_acool': 'ACool'}
-    mmdict = {'envi_temp': (scene.en_temp_max, scene.en_temp_min), 'envi_hum': (scene.en_hum_max, scene.en_hum_min), 'envi_heat': (scene.en_heat_max, scene.en_heat_min), 
-    'envi_cool': (scene.en_cool_max, scene.en_cool_min), 'envi_co2': (scene.en_co2_max, scene.en_co2_min), 'envi_ppd': (scene.en_ppd_max, scene.en_ppd_min),
-    'envi_pmv': (scene.en_pmv_max, scene.en_pmv_min), 'envi_aheat': (scene.en_aheat_max, scene.en_aheat_min), 'envi_acool': (scene.en_acool_max, scene.en_acool_min)}
-    resstring = retenvires(scene)
-    
-    for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] in ('envi_temp', 'envi_hum', 'envi_heat', 'envi_cool', 'envi_co2', 'envi_pmv', 'envi_ppd', 'envi_aheat', 'envi_acool') and o.get(resstring)]:
-
-        (rmax, rmin) = mmdict[o['VIType']]        
-        mat = o.material_slots[0].material
-        mfcs = mat.animation_data.action.fcurves
-        dclist = []
-
-        for mfc in mfcs:
-            if mfc.data_path == 'diffuse_color':
-                dclist.append(mfc)
-
-        frames = range(scene.frame_start, scene.frame_end + 1)
-
-        for frame in frames:
-            if o[resstring][rdict[o['VIType']]][frame] < rmin:
-                col = (0, 0, 1) 
-            elif o[resstring][rdict[o['VIType']]][frame] > rmax:
-                col = (1, 0, 0)
-            else:
-                col = colorsys.hsv_to_rgb(0.667 * (rmax - o[resstring][rdict[o['VIType']]][frame])/(rmax - rmin), 1, 1)
-            
-            dclist[0].keyframe_points[frame].co = frame, col[0]
-            dclist[1].keyframe_points[frame].co = frame, col[1]
-            dclist[2].keyframe_points[frame].co = frame, col[2]
-
-
-    scene.frame_set(fc)
-    if recalculate_text not in bpy.app.handlers.frame_change_pre:
-        bpy.app.handlers.frame_change_pre.append(recalculate_text)    
+   
            
 def register():
     bpy.utils.register_module(__name__)
@@ -543,18 +517,26 @@ def register():
     Scene.en_hrheat_min = bpy.props.FloatProperty(name = "Min", description = "Heat recovery minimum", default = 0, update=setcols)
     Scene.en_aheat_max = bpy.props.FloatProperty(name = "Max", description = "Air heating maximum", default = 1000, update=setcols)
     Scene.en_aheat_min = bpy.props.FloatProperty(name = "Min", description = "Air heating minimum", default = 0, update=setcols)
+    Scene.en_heatb_max = bpy.props.FloatProperty(name = "Max", description = "Heat balance maximum", default = 1000, update=setcols)
+    Scene.en_heatb_min = bpy.props.FloatProperty(name = "Min", description = "Heat balance minimum", default = 0, update=setcols)
     Scene.en_cool_max = bpy.props.FloatProperty(name = "Max", description = "Cooling maximum", default = 1000, update=setcols)
     Scene.en_cool_min = bpy.props.FloatProperty(name = "Min", description = "Cooling minimum", default = 0, update=setcols)
     Scene.en_acool_max = bpy.props.FloatProperty(name = "Max", description = "Air cooling maximum", default = 1000, update=setcols)
     Scene.en_acool_min = bpy.props.FloatProperty(name = "Min", description = "Air cooling minimum", default = 0, update=setcols)
     Scene.en_co2_max = bpy.props.FloatProperty(name = "Max", description = "CO2 maximum", default = 10000, update=setcols)
     Scene.en_co2_min = bpy.props.FloatProperty(name = "Min", description = "CO2 minimum", default = 0, update=setcols)
-    Scene.en_shg_max = bpy.props.FloatProperty(name = "Max", description = "Solar heat gain maximum", default = 10000, update=setcols)
-    Scene.en_shg_min = bpy.props.FloatProperty(name = "Min", description = "Solar heat gain minimum", default = 0, update=setcols)
+    Scene.en_shg_max = bpy.props.FloatProperty(name = "Max", description = "Solar heat gain maximum", min = 0, default = 10000, update=setcols)
+    Scene.en_shg_min = bpy.props.FloatProperty(name = "Min", description = "Solar heat gain minimum", min = 0, default = 0, update=setcols)
     Scene.en_ppd_max = bpy.props.FloatProperty(name = "Max", description = "PPD maximum", default = 100, max = 100, min = 1, update=setcols)
     Scene.en_ppd_min = bpy.props.FloatProperty(name = "Min", description = "PPD minimum", default = 0, max = 90, min = 0, update=setcols)
     Scene.en_pmv_max = bpy.props.FloatProperty(name = "Max", description = "PMV maximum", default = 3, max = 10, min = -9, update=setcols)
     Scene.en_pmv_min = bpy.props.FloatProperty(name = "Min", description = "PMV minimum", default = -3, max = 9, min = -10, update=setcols)
+    Scene.en_occ_max = bpy.props.FloatProperty(name = "Max", description = "Occupancy maximum", default = 3, min = 1, update=setcols)
+    Scene.en_occ_min = bpy.props.FloatProperty(name = "Min", description = "Occupancy minimum", default = 0, min = 0, update=setcols)
+    Scene.en_iach_max = bpy.props.FloatProperty(name = "Max", description = "Infiltration (ACH)  maximum", default = 2, min = 0.1, update=setcols)
+    Scene.en_iach_min = bpy.props.FloatProperty(name = "Min", description = "Infiltration (ACH) minimum", default = 0, min = 0, update=setcols)
+    Scene.en_im3s_max = bpy.props.FloatProperty(name = "Max", description = "Infiltration (m3/s)  maximum", default = 0.05, min = 0.01, update=setcols)
+    Scene.en_im3s_min = bpy.props.FloatProperty(name = "Min", description = "Infiltration (m3/s) minimum", default = 0, min = 0, update=setcols)
     Scene.en_maxheat_max = bpy.props.FloatProperty(name = "Max", description = "Maximum heating maximum", default = 1000, max = 10000, min = 0, update=setcols)
     Scene.en_maxheat_min = bpy.props.FloatProperty(name = "Min", description = "Maximum heating minimum", default = 0, max = 10000, min = 0, update=setcols)
     Scene.en_aveheat_max = bpy.props.FloatProperty(name = "Max", description = "Average heating maximum", default = 500, max = 10000, min = 0, update=setcols)
@@ -573,6 +555,26 @@ def register():
     Scene.en_avetemp_min = bpy.props.FloatProperty(name = "Min", description = "Average temperature minimum", default = 20, max = 30, min = 5, update=setcols)
     Scene.en_mintemp_max = bpy.props.FloatProperty(name = "Max", description = "Minimum temperature maximum", default = 15, max = 30, min = 0, update=setcols)
     Scene.en_mintemp_min = bpy.props.FloatProperty(name = "Min", description = "Minimum temperature minimum", default = 5, max = 30, min = 0, update=setcols)
+    Scene.en_tothkwhm2_max = bpy.props.FloatProperty(name = "Max", description = "Total heating per m2 floor area maximum", default = 100, min = 1, update=setcols)
+    Scene.en_tothkwhm2_min = bpy.props.FloatProperty(name = "Min", description = "Total heating per m2 floor area minimum", default = 5, min = 0, update=setcols)
+    Scene.en_tothkwh_max = bpy.props.FloatProperty(name = "Max", description = "Total heating maximum", default = 100, min = 1, update=setcols)
+    Scene.en_tothkwh_min = bpy.props.FloatProperty(name = "Min", description = "Total heating minimum", default = 5, min = 0, update=setcols)
+    Scene.en_totckwhm2_max = bpy.props.FloatProperty(name = "Max", description = "Total cooling per m2 floor area maximum", default = 100, min = 1, update=setcols)
+    Scene.en_totckwhm2_min = bpy.props.FloatProperty(name = "Min", description = "Total cooling per m2 floor area minimum", default = 5, min = 0, update=setcols)
+    Scene.en_totckwh_max = bpy.props.FloatProperty(name = "Max", description = "Total cooling maximum", default = 100, min = 1, update=setcols)
+    Scene.en_totckwh_min = bpy.props.FloatProperty(name = "Min", description = "Total cooling minimum", default = 5, min = 0, update=setcols)
+    Scene.en_maxshg_max = bpy.props.FloatProperty(name = "Max", description = "Maximum solar heat gain maximum", default = 1000, min = 1, update=setcols)
+    Scene.en_maxshg_min = bpy.props.FloatProperty(name = "Min", description = "Maximum solar heat gain minimum", default = 0, min = 0, update=setcols)
+    Scene.en_aveshg_max = bpy.props.FloatProperty(name = "Max", description = "Average solar heat gain maximum", default = 500, min = 1, update=setcols)
+    Scene.en_aveshg_min = bpy.props.FloatProperty(name = "Min", description = "Average solar heat gain minimum", default = 0, min = 0, update=setcols)
+    Scene.en_minshg_max = bpy.props.FloatProperty(name = "Max", description = "Minimum solar heat gain maximum", default = 100, min = 1, update=setcols)
+    Scene.en_minshg_min = bpy.props.FloatProperty(name = "Min", description = "Minimum solar heat gain minimum", default = 0, min = 0, update=setcols)
+    Scene.en_totshgkwhm2_max = bpy.props.FloatProperty(name = "Max", description = "Total solar heat gain per m2 floor area maximum", default = 100, min = 1, update=setcols)
+    Scene.en_totshgkwhm2_min = bpy.props.FloatProperty(name = "Min", description = "Total solar heat gain per m2 floor area minimum", default = 5, min = 0, update=setcols)
+    Scene.en_totshgkwh_max = bpy.props.FloatProperty(name = "Max", description = "Total solar heat gain maximum", default = 100, min = 1, update=setcols)
+    Scene.en_totshgkwh_min = bpy.props.FloatProperty(name = "Min", description = "Total solar heat gain minimum", default = 5, min = 0, update=setcols)
+    Scene.bar_min = bpy.props.FloatProperty(name = "Min", description = "Bar graph minimum", default = 0, update=setcols)
+    Scene.bar_max = bpy.props.FloatProperty(name = "Max", description = "Bar graph maximum", default = 100, update=setcols)
     Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 48, 24)
     Scene.vi_display_rp_fc = fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     Scene.vi_display_rp_sh = bprop("", "Toggle for font shadow display",  False)
@@ -609,14 +611,6 @@ def register():
      Scene.resazlmaxf_disp, Scene.resazlminf_disp, Scene.resazlavef_disp,
      Scene.resazmaxshg_disp, Scene.resazminshg_disp, Scene.resazaveshg_disp,
      Scene.resaztshg_disp, Scene.resaztshgm_disp)  = aresnameunits() 
-#        rnu = {'0': (u"Max temp (\u2103)", "Maximum zone temperature"), '1': (u"Min temp (\u2103)", "Minimum zone temperature"), '2': (u"Ave temp (\u2103)", "Average zone temperature"), 
-#                '3': ("Max heating (W)", "Max Zone heating"), '4': ("Min heating (W)", "Min Zone heating"), '5': ("Ave heating (W)", "Ave Zone heating"), 
-#                '6': ("Total heating (kWh)", "Total zone heating"), '7': (u"Total heating (kWh/m\u00b2)", "Total zone heating per floor area"),
-#                '8': ("Max cooling (W)", "Max Zone cooling"), '9': ("Min cooling (W)", "Min Zone cooling"), '10': ("Ave cooling (W)", "Ave Zone colling"), 
-#                '11': ("Total cooling (kWh)", "Total zone cooling"), '12': (u"Total cooling (kWh/m\u00b2)", "Total zone cooling per floor area"), 
-#                '13': (u"Max CO\u2082 (ppm)", u"Maximum zone CO\u2082 level"), '14': (u"Ave CO\u2082 (ppm)", u"Average zone CO\u2082 level"), '15': (u"Min CO\u2082 (ppm)", u"Minimum zone CO\u2082 level"),
-#                '16': (u"Max flow in (m\u00b3/s)", u"Maximum linkage flow level"), '17': (u"Min flow in (m\u00b3/s)", u"Minimum linkage flow level"), '18': (u"Ave flow in (m\u00b3/s)", u"Average linkage flow level")}
-
     Scene.envi_flink = bprop("", "Associate flow results with the nearest object", False)
 
     nodeitems_utils.register_node_categories("Vi Nodes", vinode_categories)
@@ -627,6 +621,9 @@ def register():
         
     if display_off not in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(display_off)
+    
+#    if mesh_index not in bpy.app.handlers.load_post:
+#        bpy.app.handlers.load_post.append(mesh_index)
 
 def unregister():
     bpy.utils.unregister_module(__name__)
@@ -638,4 +635,5 @@ def unregister():
     if display_off in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.remove(display_off)
 
-
+#    if mesh_index in bpy.app.handlers.load_post:
+#        bpy.app.handlers.load_post.remove(mesh_index)

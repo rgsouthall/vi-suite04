@@ -148,7 +148,6 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     except Exception as e:
         chart_op.report({'ERROR'}, '{} Invalid data for this component'.format(e))
         
-
     def plot_graph(*args):
         args[0][0].plot()
         args[0][0].show()

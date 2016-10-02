@@ -76,17 +76,6 @@ class VIPreferences(AddonPreferences):
         row.label(text="EnergyPlus weather directory:")   
         row.prop(self, 'epweath')
 
-#class OBJECT_OT_vi_prefs(Operator):
-#    """Display example preferences"""
-#    bl_idname = "object.vi_prefs"
-#    bl_label = "VI Preferences"
-#    bl_options = {'REGISTER', 'UNDO'}
-#
-#    def execute(self, context):
-#        print(__name__)
-#        self.vi_prefs = context.user_preferences.addons[__name__].preferences
-#        return {'FINISHED'} 
-
 @persistent
 def update_ntree(dummy):
     try:

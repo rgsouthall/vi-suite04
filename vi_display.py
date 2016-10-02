@@ -168,20 +168,19 @@ def spnumdisplay(disp_op, context, simnode):
         ob_mat = spob.matrix_world
         mid_x, mid_y, width, height = viewdesc(context)
         vl = retvpvloc(context)
-                
+        blf_props(scene, width, height)
+        
         if scene.hourdisp:
             pvecs = [ob_mat * mathutils.Vector(p[:]) for p in spob['numpos'].values()]
             pvals = [int(p.split('-')[1]) for p in spob['numpos'].keys()]
             p2ds = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, p) for p in pvecs]
             vispoints = [pi for pi, p in enumerate(pvals) if p2ds[pi] and 0 < p2ds[pi][0] < width and 0 < p2ds[pi][1] < height and scene.ray_cast(vl, pvecs[pi] - vl, (pvecs[pi] - vl).length)[4] == spob]
-
+            
             if vispoints:
                 hs = [pvals[pi] for pi in vispoints]
-                posis = [p2ds[pi] for pi in vispoints]
-                blf_props(scene, width, height)
+                posis = [p2ds[pi] for pi in vispoints]                
                 draw_index(posis, hs, scene.vi_display_rp_fs, scene.vi_display_rp_fc, scene.vi_display_rp_fsh)
-                blf.disable(0, 4)
-
+                
         if [ob.get('VIType') == 'Sun' for ob in bpy.data.objects]:
             sobs = [ob for ob in bpy.data.objects if ob.get('VIType') == 'Sun']
             if sobs and scene.timedisp:
@@ -189,9 +188,6 @@ def spnumdisplay(disp_op, context, simnode):
                 solpos = view3d_utils.location_3d_to_region_2d(context.region, context.region_data, sunloc)
                 try:
                     if 0 < solpos[0] < width and 0 < solpos[1] < height and not scene.ray_cast(sobs[0].location + 0.05 * (vl - sunloc), vl- sunloc)[0]:
-                        blf.enable(0, 4)
-                        blf.shadow(0, 5, *scene.vi_display_rp_fsh)
-                        bgl.glColor4f(*scene.vi_display_rp_fc)
                         soltime = datetime.datetime.fromordinal(scene.solday)
                         soltime += datetime.timedelta(hours = scene.solhour)
                         sre = sobs[0].rotation_euler
@@ -201,6 +197,7 @@ def spnumdisplay(disp_op, context, simnode):
                         
                 except:
                     pass
+        blf.disable(0, 4)
     else:
         return
 
@@ -800,7 +797,7 @@ class en_barchart(Base_Display):
         scene = context.scene
         resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
         self.cao = context.active_object
-        self.unit = scene.en_disp_punit if scene.en_disp_punit else resnode[self.resstring].keys()[0] 
+        self.unit = scene.en_disp_punit if scene.en_disp_punit else '' #resnode[self.resstring].keys()[0] 
         self.resstring = retenvires(scene)
         self.col = scene.vi_leg_col
         self.plt = plt
@@ -812,6 +809,8 @@ class en_barchart(Base_Display):
             title = self.cao.name
             draw_barchart(self, scene, x, y, title, 'Frame', self.unit, self.minmax[0], self.minmax[1])  
             save_plot(self, scene, 'barchart.png')
+        else:
+            self.gimage = 'stats.png'
         
     def drawopen(self, context):
         draw_image(self, 0)

@@ -455,8 +455,9 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
             
     def terminate(self):
         nodecolour(self.simnode, 0)
-        self.kivyrun.kill()                            
-        self.egrun.kill()
+        self.kivyrun.kill()  
+        if not self.egrun.poll():                          
+            self.egrun.kill()
         self.rprun.kill()        
         self.simnode.postsim()
         return 'FINISHED'
@@ -1305,7 +1306,6 @@ class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
                 self.barchart.resstring != retenvires(scene) or self.barchart.col != scene.vi_leg_col or self.barchart.minmax != (scene.bar_min, scene.bar_max):
                 self.barchart.update(context)
                 self.table.update(context)
-                print('update')
                 redraw = 1
             if redraw:
                 context.area.tag_redraw()
@@ -1829,7 +1829,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
             if self.legend.cao != context.active_object:
                 self.legend.update(context)
             
-            if self.dhscatter.cao != context.active_object or self.dhscatter.unit != context.scene.wind_type:
+            if self.dhscatter.cao != context.active_object or self.dhscatter.unit != context.scene.wind_type or context.scene.vi_leg_col != self.dhscatter.col:
                 self.dhscatter.update(context)
                 
             if self.table.cao != context.active_object:
@@ -1843,7 +1843,7 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
         context.scene['viparams']['vidisp'] = 'wrpanel'
         simnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]
         self.legend = wr_legend([80, context.region.height - 40], context.region.width, context.region.height, 'legend.png', 150, 350)
-        self.dhscatter = wr_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
+        self.dhscatter = wr_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'scat.png', 600, 400)
         self.table = wr_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 150)       
         self.legend.update(context)
         self.dhscatter.update(context)

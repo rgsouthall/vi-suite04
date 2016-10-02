@@ -32,7 +32,7 @@ class Vi3DPanel(bpy.types.Panel):
                 for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "solday"), ("Time of day:", "solhour"), ("Display hours:", "hourdisp"), ("Display time:", "timedisp")):
                     newrow(layout, i[0], scene, i[1])
                 if scene.hourdisp or scene.timedisp:
-                    for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_fsh")):
+                    for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh")):
                         newrow(layout, i[0], scene, i[1])
 
 #            elif scene['viparams']['vidisp'] in ('ss', 'sspanel'):
@@ -185,20 +185,20 @@ class Vi3DPanel(bpy.types.Panel):
                     
                     if len(set(zrl[0])) > 1:
                         newrow(layout, 'Parametric frame:', resnode, '["AStart"]')
-                        envimenudict = {'Temperature (degC)': ('en_temp_min', 'en_temp_max'), 'Humidity (%)' : ('en_hum_min', 'en_hum_max'), 'Heating (W)': ('en_heat_min', 'en_heat_max'),
-                                    'Cooling (W)': ('en_cool_min', 'en_cool_max'), 'Solar gain (W)': ('en_shg_min', 'en_shg_max'), 'CO2 (ppm)': ('en_co2_min', 'en_co2_max'),
-                                    'PMV': ('en_pmv_min', 'en_pmv_max'), 'PPD (%)': ('en_ppd_min', 'en_ppd_max'), 'Air heating (W)': ('en_aheat_min', 'en_aheat_max'), 
-                                    'Air cooling (W)': ('en_acool_min', 'en_acool_max'), 'HR heating (W)': ('en_hrheat_min', 'en_hrheat_max'), 'Heat balance (W)': ('en_heatb_min', 'en_heatb_max'),
-                                    'Occupancy': ('en_occ_min', 'en_occ_max'), 'Infiltration (ACH)': ('en_iach_min', 'en_iach_max'), 'Infiltration (m3/s)': ('en_im3s_min', 'en_im3s_max')}
+                    envimenudict = {'Temperature (degC)': ('en_temp_min', 'en_temp_max'), 'Humidity (%)' : ('en_hum_min', 'en_hum_max'), 'Heating (W)': ('en_heat_min', 'en_heat_max'),
+                                'Cooling (W)': ('en_cool_min', 'en_cool_max'), 'Solar gain (W)': ('en_shg_min', 'en_shg_max'), 'CO2 (ppm)': ('en_co2_min', 'en_co2_max'),
+                                'PMV': ('en_pmv_min', 'en_pmv_max'), 'PPD (%)': ('en_ppd_min', 'en_ppd_max'), 'Air heating (W)': ('en_aheat_min', 'en_aheat_max'), 
+                                'Air cooling (W)': ('en_acool_min', 'en_acool_max'), 'HR heating (W)': ('en_hrheat_min', 'en_hrheat_max'), 'Heat balance (W)': ('en_heatb_min', 'en_heatb_max'),
+                                'Occupancy': ('en_occ_min', 'en_occ_max'), 'Infiltration (ACH)': ('en_iach_min', 'en_iach_max'), 'Infiltration (m3/s)': ('en_im3s_min', 'en_im3s_max')}
                                     
                 elif scene.en_disp_type == '1':
                     newrow(layout, 'Display unit:', scene, 'en_disp_punit')  
                     newrow(layout, 'Legend colour:', scene, "vi_leg_col")
-                    envimenudict = {'Max temp (C)': ('en_maxtemp_min', 'en_maxtemp_max'), 'Ave temp (C)': ('en_avetemp_min', 'en_avetemp_max'), 'Min temp (C)': ('en_mintemp_min', 'en_mintemp_max'),
-                                    'Max heating (W)': ('en_maxheat_min', 'en_maxheat_max'), 'Ave heating (W)': ('en_aveheat_min', 'en_aveheat_max'), 'Min heating (W)': ('en_minheat_min', 'en_minheat_max'),
-                                    'Total heating (kWh/m2)': ('en_tothkwhm2_min', 'en_tothkwhm2_max'), 'Total heating (kWh)': ('en_tothkwh_min', 'en_tothkwh_max'), 'Total cooling (kWh/m2)': ('en_totckwhm2_min', 'en_totckwhm2_max'), 
-                                    'Total cooling (kWh)': ('en_totckwh_min', 'en_totckwh_max'), 'Max SHG (W)': ('en_maxshg_min', 'en_maxshg_max'), 'Ave SHG (W)': ('en_aveshg_min', 'en_aveshg_max'), 
-                                    'Min SHG (W)': ('en_minshg_min', 'en_minshg_max'), 'Total SHG (kWh)': ('en_totshgkwh_min', 'en_totshgkwh_max'), 'Total SHG (kWh/m2)': ('en_totshgkwhm2_min', 'en_totshgkwhm2_max')}
+#                    envimenudict = {'Max temp (C)': ('en_maxtemp_min', 'en_maxtemp_max'), 'Ave temp (C)': ('en_avetemp_min', 'en_avetemp_max'), 'Min temp (C)': ('en_mintemp_min', 'en_mintemp_max'),
+#                                    'Max heating (W)': ('en_maxheat_min', 'en_maxheat_max'), 'Ave heating (W)': ('en_aveheat_min', 'en_aveheat_max'), 'Min heating (W)': ('en_minheat_min', 'en_minheat_max'),
+#                                    'Total heating (kWh/m2)': ('en_tothkwhm2_min', 'en_tothkwhm2_max'), 'Total heating (kWh)': ('en_tothkwh_min', 'en_tothkwh_max'), 'Total cooling (kWh/m2)': ('en_totckwhm2_min', 'en_totckwhm2_max'), 
+#                                    'Total cooling (kWh)': ('en_totckwh_min', 'en_totckwh_max'), 'Max SHG (W)': ('en_maxshg_min', 'en_maxshg_max'), 'Ave SHG (W)': ('en_aveshg_min', 'en_aveshg_max'), 
+#                                    'Min SHG (W)': ('en_minshg_min', 'en_minshg_max'), 'Total SHG (kWh)': ('en_totshgkwh_min', 'en_totshgkwh_max'), 'Total SHG (kWh/m2)': ('en_totshgkwhm2_min', 'en_totshgkwhm2_max')}
                     envimenudict = {'Bar chart range:': ('bar_min', 'bar_max')}
                 
                 for envirt in envimenudict:

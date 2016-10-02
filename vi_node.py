@@ -2442,10 +2442,16 @@ class EnViZone(bpy.types.Node, EnViNodes):
         for s, sock in enumerate(bsocklist):
             self.outputs[sock].uvalue = '{:.4f}'.format(buvals[s])    
             self.inputs[sock].uvalue = '{:.4f}'.format(buvals[s]) 
+            
+    def tspsupdate(self, context):
+        if self.control != 'Temperature' and self.inputs['TSPSchedule'].links:
+            remlink(self, self.inputs['TSPSchedule'].links)
+        self.inputs['TSPSchedule'].hide = False if self.control == 'Temperature' else True
+        self.update()
                 
     zone = bpy.props.StringProperty(name = '', update = zupdate)
     controltype = [("NoVent", "None", "No ventilation control"), ("Constant", "Constant", "From vent availability schedule"), ("Temperature", "Temperature", "Temperature control")]
-    control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='NoVent')
+    control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='NoVent', update=tspsupdate)
     zonevolume = bpy.props.FloatProperty(name = '')
     mvof = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 1)
     lowerlim = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 100)
@@ -2470,9 +2476,8 @@ class EnViZone(bpy.types.Node, EnViNodes):
             if sock.bl_idname == 'EnViBoundSocket':
                 uvsocklink(sock, self['nodeid'].split('@')[1])
         [bi, si, ssi, bo, so , sso] = [1, 1, 1, 1, 1, 1]
-        if self.control != 'Temperature' and self.inputs['TSPSchedule'].links:
-            remlink(self, self.inputs['TSPSchedule'].links)
-        self.inputs['TSPSchedule'].hide = False if self.control == 'Temperature' else True
+        
+        
         try:
             for inp in [inp for inp in self.inputs if inp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
                 self.outputs[inp.name].hide = True if inp.links and self.outputs[inp.name].bl_idname == inp.bl_idname else False
@@ -2884,8 +2889,8 @@ class EnViSFlowNode(bpy.types.Node, EnViNodes):
 
     def draw_buttons(self, context, layout):
         layout.prop(self, 'linkmenu')
-        layoutdict = {'Crack':(('Coefficient', 'amfc'), ('Exponent', 'amfe')), 'ELA':(('ELA', '["ela"]'), ('DC', 'dcof'), ('PA diff', 'rpd'), ('FE', 'amfe')),
-        'EF':(('Off FC', 'amfc'), ('Off FE', 'amfe'), ('Efficiency', 'fe'), ('PA rise', 'pr'), ('Max flow', 'mf'))}
+        layoutdict = {'Crack':(('Coefficient', 'amfc'), ('Exponent', 'amfe')), 'ELA':(('ELA (m^2)', '["ela"]'), ('DC', 'dcof'), ('PA diff (Pa)', 'rpd'), ('FE', 'amfe')),
+        'EF':(('Off FC', 'amfc'), ('Off FE', 'amfe'), ('Efficiency', 'fe'), ('PA rise (Pa)', 'pr'), ('Max flow', 'mf'))}
         for vals in layoutdict[self.linkmenu]:
             newrow(layout, '{}:'.format(vals[0]), self, vals[1])
 

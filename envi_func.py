@@ -248,7 +248,7 @@ def enunits(self, context):
     try: #context.active_object and context.active_object.children[0].get('envires{}'.format(context.scene.frame_current)):
 #        resnode = bpy.data.node_groups[context.scene['viparams']['resnode'].split('@')[1]].nodes[context.scene['viparams']['resnode'].split('@')[0]]
         resstring = retenvires(context.scene)
-        return [(k, k, 'Display {}'.format(k)) for k in context.active_object[resstring].keys()]
+        return [(k, k, 'Display {}'.format(k)) for k in sorted(context.active_object[resstring].keys())]
     except:
 #        return [(k, k, 'Display {}'.format(k)) for k in resnode[resstring].keys()]
         return [('', '', '')]

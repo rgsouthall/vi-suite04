@@ -2032,7 +2032,7 @@ def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
     if len(distances):
         try:
             nres = [str(int(r)) for r in res]
-            fsdist = (fontsize/distances).astype(int)
+            fsdist = (10 * fontsize/distances).astype(int)
             xposis = posis[:,0]
             yposis = posis[:,1]
 #            [(blf.size(0, fontsize, fsdist[ri]), blf.position(0, xposis[ri] - int(0.5*blf.dimensions(0, nr)[0]), yposis[ri] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99), blf.draw(0, nr)) for ri, nr in enumerate(nres)]

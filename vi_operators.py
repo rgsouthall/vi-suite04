@@ -1175,7 +1175,6 @@ class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
         redraw = 0
         scene = context.scene
         if context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':   
-            self.barchart.quickupdate(scene)
             if scene.vi_display == 0 or scene['viparams']['vidisp'] != 'enpanel':
                 scene['viparams']['vidisp'] = 'en'
                 bpy.types.SpaceView3D.draw_handler_remove(self._handle_en_pdisp, 'WINDOW')
@@ -1307,8 +1306,6 @@ class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
                 if self.table.hl != (1, 1, 1, 1):
                     self.table.hl = (1, 1, 1, 1)
                     redraw = 1
-    
-            
             
             if self.barchart.unit != scene.en_disp_punit or self.barchart.cao != context.active_object or \
                 self.barchart.resstring != retenvires(scene) or self.barchart.col != scene.vi_leg_col or self.barchart.minmax != (scene.bar_min, scene.bar_max):
@@ -1324,13 +1321,11 @@ class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
             return {'PASS_THROUGH'}
     
     def execute(self, context):
-#        self.tp = en_temp_panel()
         scene = context.scene
         scene.en_frame = scene.frame_current
         resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
         zrl = list(zip(*resnode['reslists']))
         eresobs = {o.name: o.name.upper() for o in bpy.data.objects if o.name.upper() in zrl[2]}
-#        resstart, resend = 24 * (resnode['Start'] - 1), 24 * (resnode['End']) - 1
         scene.frame_start, scene.frame_end = scene['enparams']['fs'], scene['enparams']['fe']                
         zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone' and zrl[0][zri] == 'All'])
 
@@ -1358,12 +1353,10 @@ class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
         scene.vi_display = True
         context.window_manager.modal_handler_add(self)
         self.barchart = en_barchart([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
-        self.barchart.quickupdate(scene)
         self.barchart.update(context)
         self.table = en_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 150)
         self.table.update(context)
         self._handle_en_pdisp = bpy.types.SpaceView3D.draw_handler_add(en_pdisp, (self, context, resnode), 'WINDOW', 'POST_PIXEL')
-
         return {'RUNNING_MODAL'}
 
 class NODE_OT_Chart(bpy.types.Operator, io_utils.ExportHelper):
@@ -1445,8 +1438,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         else: 
             bpy.ops.object.lamp_add(type = "SUN")
             sun = context.active_object
-        
-        
+                
         sun.data.shadow_soft_size = 0.01            
         sun['VIType'] = 'Sun'
         
@@ -1747,13 +1739,6 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
                     self.dhscatter.hl = (1, 1, 1, 1)
                     if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.dhscatter.expand and self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff:
                         self.dhscatter.show_plot()
-                
-#                    elif self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff < my < self.dhscatter.epos[1]:                    
-#                        for butrange in self.dhscatter.buttons:
-#                            if self.dhscatter.buttons[butrange][0] - 10 < mx < self.dhscatter.buttons[butrange][0] + 10 and self.dhscatter.buttons[butrange][1] - 0.015 * self.dhscatter.ydiff < my < self.dhscatter.buttons[butrange][1] + 0.015 * self.dhscatter.ydiff:
-#                                if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
-#                                    self.dhscatter.type_select = 0 if self.dhscatter.type_select else 1
-#                                    self.dhscatter.update(context)
                     context.area.tag_redraw()
                     return {'RUNNING_MODAL'}
                    

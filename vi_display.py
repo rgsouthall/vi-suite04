@@ -264,8 +264,7 @@ class linumdisplay():
         blf_props(self.scene, self.width, self.height)
         if self.u:            
             self.update(context)
-        else:  
-            
+        else:              
             draw_index_distance(self.allpcs, self.allres, self.fontmult * self.scene.vi_display_rp_fs, self.scene.vi_display_rp_fc, self.scene.vi_display_rp_fsh, self.alldepths)    
         
         if self.scene.vi_display_rp_fs != self.fs:
@@ -801,11 +800,12 @@ class en_barchart(Base_Display):
         self.resstring = retenvires(scene)
         self.col = scene.vi_leg_col
         self.plt = plt
+        self.minmax = (scene.bar_min, scene.bar_max)
         if self.cao and self.cao.get(self.resstring) and self.cao[self.resstring].get(self.unit):
             x = arange(resnode['AStart'], resnode['AEnd'] + 1)
             y = array(self.cao[self.resstring][self.unit])
 #            self.minmax = self.rangedict[self.unit] if self.unit in self.rangedict else (0, 30)
-            self.minmax = (scene.bar_min, scene.bar_max)
+            
             title = self.cao.name
             draw_barchart(self, scene, x, y, title, 'Frame', self.unit, self.minmax[0], self.minmax[1])  
             save_plot(self, scene, 'barchart.png')

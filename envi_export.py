@@ -197,17 +197,15 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         wfrparams = ['Name', 'Surface Type', 'Construction Name', 'Zone Name', 'Outside Boundary Condition', 'Outside Boundary Condition Object', 'Sun Exposure', 'Wind Exposure', 'View Factor to Ground', 'Number of Vertices']
     
         for obj in [obj for obj in bpy.data.objects if obj.layers[1] and obj.type == 'MESH' and obj.vi_type == '1']:
+            me = obj.to_mesh(scene, True, 'PREVIEW')
             bm = bmesh.new()
-            bm.from_mesh(obj.data)
+            bm.from_mesh(me)
             bm.transform(obj.matrix_world)
-            if bm.verts.layers.shape:
-                skb = bm.verts.layers.shape[0]
-                skk = bm.verts.layers.shape[-1]                
-                sko = obj.data.shape_keys.key_blocks[skk.name]
+            bpy.data.meshes.remove(me)
 
             for face in bm.faces:
                 mat = obj.data.materials[face.material_index]
-                vcos = [v[skb] + (v[skk] - v[skb]) * sko.value for v in face.verts] if bm.verts.layers.shape else [v.co for v in face.verts]
+                vcos = [v.co for v in face.verts]
                 (obc, obco, se, we) = boundpoly(obj, mat, face, enng)
                 if mat.envi_con_type in ('Wall', "Floor", "Roof", "Ceiling") and mat.envi_con_makeup != "2":
                     params = list(wfrparams) + ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]                     

@@ -1,6 +1,6 @@
-import bpy
+import bpy, datetime
 from collections import OrderedDict
-from .vi_func import newrow
+from .vi_func import newrow, newrow2
 
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import retdates
@@ -34,14 +34,6 @@ class Vi3DPanel(bpy.types.Panel):
                 if scene.hourdisp or scene.timedisp:
                     for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh")):
                         newrow(layout, i[0], scene, i[1])
-
-#            elif scene['viparams']['vidisp'] in ('ss', 'sspanel'):
-#                row = layout.row()
-#                row.prop(scene, "vi_disp_3d")                 
-#                row = layout.row()
-#                row.operator("view3d.ssdisplay", text="Shadow Display 2")
-#
-                
                 
             elif scene['viparams']['vidisp'] in ('ss', 'li', 'lc'):
                 row = layout.row()
@@ -55,7 +47,7 @@ class Vi3DPanel(bpy.types.Panel):
             elif scene['viparams']['vidisp'] in ('sspanel', 'lipanel', 'lcpanel') and [o for o in bpy.data.objects if o.lires] and scene.vi_display:
                 row = layout.row()
                 row.prop(view, "show_only_render")
-#                newrow(layout, 'Legend', scene, "vi_leg_display")
+
                 if not scene.ss_disp_panel:
                     if scene['viparams']['visimcontext'] == 'LiVi CBDM':
                         if scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Min lux', 'Max lux', 'Ave lux'):
@@ -64,17 +56,16 @@ class Vi3DPanel(bpy.types.Panel):
                             newrow(layout, 'Result type:', scene, "li_disp_exp")
                         elif scene['liparams']['unit'] in ('kWh', 'kWh/m2'):
                             newrow(layout, 'Result type:', scene, "li_disp_irrad")
-#                        elif 'SDA' in scene['liparams']['unit'] or 'ASE' in scene['liparams']['unit']:
-#                            newrow(layout, 'sDA/ASE:', scene, "li_disp_sda")
+
                     elif scene['viparams']['visimcontext'] == 'LiVi Compliance': 
                         if scene['liparams']['unit'] in ('sDA (%)', 'ASE (hrs)'):
                             newrow(layout, 'Metric:', scene, 'li_disp_sda')
-#                            newrow(layout, 'Metric:', scene, 'li_disp_leed_scatter')
+
                         else:
                             newrow(layout, 'Metric:', scene, 'li_disp_sv')
                     elif scene['viparams']['visimcontext'] == 'LiVi Basic':
                         newrow(layout, 'Metric:', scene, 'li_disp_basic')
-#                    if scene.vi_leg_display:
+                        
                     newrow(layout, 'Legend max:', scene, "vi_leg_max")
                     newrow(layout, 'Legend min:', scene, "vi_leg_min")
                     newrow(layout, 'Legend scale:', scene, "vi_leg_scale")
@@ -101,44 +92,29 @@ class Vi3DPanel(bpy.types.Panel):
                     row = layout.row()
                     row.label(text="{:-<60}".format(""))
  
-#                if scene['viparams']['visimcontext'] == 'LiVi Compliance':
-#                    propdict = OrderedDict([("Compliance Panel", "li_compliance"), ("Asessment organisation:", "li_assorg"), ("Assesment individiual:", "li_assind"), ("Job number:", "li_jobno"), ("Project name:", "li_projname")])
-#                    for prop in propdict.items():
-#                        newrow(layout, prop[0], scene, prop[1])
-            
-            elif scene['viparams']['vidisp'] in ('en', 'enpanel'):                
+            elif scene['viparams']['vidisp'] in ('en', 'enpanel'):   
                 resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
                 rl = resnode['reslists']
                 zrl = list(zip(*rl))
 
                 if scene.en_disp_type == '1':
-                    # Below is for viewport visualisation of the parametric EnVi results
-                    zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone' and zrl[0][zri] == 'All'])
-                    lmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Linkage' and zrl[0][zri] == 'All'])
-                    zresdict = {"Max temp (C)": "resazmaxt_disp", 'Min temp (C)': 'resazmint_disp', 'Ave temp (C)': 'resazavet_disp', 
-                    'Max heating (W)': 'resazmaxhw_disp', 'Min heating (W)': 'resazminhw_disp', 'Ave heating (W)': 'resazavehw_disp', 
-                    'Total heating (kWh)': 'resazth_disp', 'Total heating (kWh/m2)': 'resazthm_disp', 
-                    'Max cooling (W)': 'resazmaxcw_disp', 'Min cooling (W)': 'resazmincw_disp', 'Ave cooling (W)': 'resazavecw_disp', 
-                    'Total cooling (kWh)': 'resaztc_disp', 'Total cooling (kWh/m2)': 'resaztcm_disp',
-                    'Max CO2 (ppm)': 'resazmaxco_disp', 'Ave CO2 (ppm)': 'resazaveco_disp', 'Min CO2 (ppm)': 'resazminco_disp',
-                    'Max SHG (W)': 'resazmaxshg_disp', 'Ave SHG (W)': 'resazaveshg_disp', 'Min SHG (W)': 'resazminshg_disp',
-                    'Total SHG (kWh)': 'resaztshg_disp', 'Total SHG (kWh/m2)': 'resazaveco_disp'}
                     zresdict = {}
+                    lmetrics = []
                     vresdict = {"Max Flow in": "resazlmaxf_disp", "Min Flow in": "resazlminf_disp", "Ave Flow in": "resazlavef_disp"}                    
                 else:                    
-                    zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone' and zrl[0][zri] == str(resnode["AStart"])])
                     lmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Linkage' and zrl[0][zri] == str(resnode["AStart"])])
                     zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp', 
                                 'CO2 (ppm)': 'reszco_disp', 'PMV': 'reszpmv_disp', 'PPD (%)': 'reszppd_disp', 'Solar gain (W)': 'reszsg_disp', 
                                 'Air heating (W)': 'reszahw_disp', 'Air cooling (W)': 'reszacw_disp', 'HR heating (W)': 'reshrhw_disp'}
                     vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}             
                 
-                if scene['viparams']['vidisp'] == 'en':  
+                if scene['viparams']['vidisp'] == 'en': 
                     newrow(layout, 'Static/Parametric', scene, 'en_disp_type')
                     if scene.en_disp_type == '1':
                         row = layout.row()               
                         row.prop(resnode, '["AStart"]')
                         row.prop(resnode, '["AEnd"]')
+
                     else:  
                         if len(set(zrl[0])) > 1:
                             newrow(layout, 'Frame:', resnode, '["AStart"]')
@@ -190,19 +166,13 @@ class Vi3DPanel(bpy.types.Panel):
                                 'PMV': ('en_pmv_min', 'en_pmv_max'), 'PPD (%)': ('en_ppd_min', 'en_ppd_max'), 'Air heating (W)': ('en_aheat_min', 'en_aheat_max'), 
                                 'Air cooling (W)': ('en_acool_min', 'en_acool_max'), 'HR heating (W)': ('en_hrheat_min', 'en_hrheat_max'), 'Heat balance (W)': ('en_heatb_min', 'en_heatb_max'),
                                 'Occupancy': ('en_occ_min', 'en_occ_max'), 'Infiltration (ACH)': ('en_iach_min', 'en_iach_max'), 'Infiltration (m3/s)': ('en_im3s_min', 'en_im3s_max')}
-                                    
+               
                 elif scene.en_disp_type == '1':
                     newrow(layout, 'Display unit:', scene, 'en_disp_punit')  
                     newrow(layout, 'Legend colour:', scene, "vi_leg_col")
-#                    envimenudict = {'Max temp (C)': ('en_maxtemp_min', 'en_maxtemp_max'), 'Ave temp (C)': ('en_avetemp_min', 'en_avetemp_max'), 'Min temp (C)': ('en_mintemp_min', 'en_mintemp_max'),
-#                                    'Max heating (W)': ('en_maxheat_min', 'en_maxheat_max'), 'Ave heating (W)': ('en_aveheat_min', 'en_aveheat_max'), 'Min heating (W)': ('en_minheat_min', 'en_minheat_max'),
-#                                    'Total heating (kWh/m2)': ('en_tothkwhm2_min', 'en_tothkwhm2_max'), 'Total heating (kWh)': ('en_tothkwh_min', 'en_tothkwh_max'), 'Total cooling (kWh/m2)': ('en_totckwhm2_min', 'en_totckwhm2_max'), 
-#                                    'Total cooling (kWh)': ('en_totckwh_min', 'en_totckwh_max'), 'Max SHG (W)': ('en_maxshg_min', 'en_maxshg_max'), 'Ave SHG (W)': ('en_aveshg_min', 'en_aveshg_max'), 
-#                                    'Min SHG (W)': ('en_minshg_min', 'en_minshg_max'), 'Total SHG (kWh)': ('en_totshgkwh_min', 'en_totshgkwh_max'), 'Total SHG (kWh/m2)': ('en_totshgkwhm2_min', 'en_totshgkwhm2_max')}
                     envimenudict = {'Bar chart range:': ('bar_min', 'bar_max')}
-                
+
                 for envirt in envimenudict:
-#                    if envirt in zmetrics:
                     row = layout.row()
                     row.label(envirt)
                     row.prop(scene, envimenudict[envirt][0])

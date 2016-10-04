@@ -1361,6 +1361,10 @@ def newrow(layout, s1, root, s2):
     row = layout.row()
     row.label(s1)
     row.prop(root, s2)
+    
+def newrow2(row, s1, root, s2):
+    row.label(s1)
+    row.prop(root, s2)
 
 def retobj(name, fr, node, scene):
     if node.animmenu == "Geometry":

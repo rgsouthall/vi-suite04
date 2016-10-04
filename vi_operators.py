@@ -937,6 +937,11 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
 #    bl_undo = True
     _handle = None
     disp =  bpy.props.IntProperty(default = 1)
+    
+    @classmethod
+    def poll(cls, context):
+        return context.area.type   == 'VIEW_3D' and \
+               context.region.type == 'WINDOW'
 
     def modal(self, context, event):
         scene = context.scene
@@ -1171,10 +1176,16 @@ class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
     _handle = None
     disp =  bpy.props.IntProperty(default = 1)
     
+    @classmethod
+    def poll(cls, context):
+        return context.area.type  == 'VIEW_3D' and \
+               context.region.type == 'WINDOW'
+    
     def modal(self, context, event):
         redraw = 0
         scene = context.scene
-        if context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':   
+
+        if event.type != 'INBETWEEN_MOUSEMOVE':   
             if scene.vi_display == 0 or scene['viparams']['vidisp'] != 'enpanel':
                 scene['viparams']['vidisp'] = 'en'
                 bpy.types.SpaceView3D.draw_handler_remove(self._handle_en_pdisp, 'WINDOW')
@@ -1216,11 +1227,6 @@ class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
                 elif self.barchart.press and event.type == 'MOUSEMOVE':
                      self.barchart.move = 1
                      self.barchart.press = 0
-                     
-                if event.type == 'MOUSEMOVE':                
-                    if self.barchart.move:
-                        self.barchart.pos = [mx, my]
-                        redraw = 1
         
             elif self.barchart.lspos[0] < mx < self.barchart.lepos[0] and self.barchart.lspos[1] < my < self.barchart.lepos[1] and abs(self.barchart.lepos[0] - mx) > 20 and abs(self.barchart.lspos[1] - my) > 20:
                 if self.barchart.expand: 
@@ -1242,12 +1248,7 @@ class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
                     if self.barchart.resize and event.value == 'RELEASE':
                         self.barchart.resize = 0
                     return {'RUNNING_MODAL'}
-                    
-                if event.type == 'MOUSEMOVE':                
-                    if self.barchart.resize:
-                        self.barchart.lepos[0], self.barchart.lspos[1] = mx, my
-                        redraw = 1
-                   
+                                       
             else:
                 if self.barchart.hl != (1, 1, 1, 1):
                     self.barchart.hl = (1, 1, 1, 1)
@@ -1281,11 +1282,6 @@ class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
                 elif self.table.press and event.type == 'MOUSEMOVE':
                      self.table.move = 1
                      self.table.press = 0
-                     
-                if event.type == 'MOUSEMOVE':                
-                    if self.table.move:
-                        self.table.pos = [mx, my]
-                        redraw = 1
 
             elif abs(self.table.lepos[0] - mx) < 20 and abs(self.table.lspos[1] - my) < 20 and self.table.expand:
                 if self.table.hl != (0, 1, 1, 1):
@@ -1294,17 +1290,31 @@ class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
                 if event.type == 'LEFTMOUSE':
                     if event.value == 'PRESS':
                         self.table.resize = 1
+                        return {'RUNNING_MODAL'}
                     if self.table.resize and event.value == 'RELEASE':
                         self.table.resize = 0
-                    return {'RUNNING_MODAL'}
-                    
-                if event.type == 'MOUSEMOVE':                
-                    if self.table.resize:
-                        self.table.lepos[0], self.table.lspos[1] = mx, my
-                        redraw = 1
+                        return {'RUNNING_MODAL'}
+                                    
             else:
                 if self.table.hl != (1, 1, 1, 1):
                     self.table.hl = (1, 1, 1, 1)
+                    redraw = 1
+                    
+            if event.type == 'MOUSEMOVE':                
+                if self.barchart.move:
+                    self.barchart.pos = [mx, my]
+                    redraw = 1
+                           
+                if self.barchart.resize:
+                    self.barchart.lepos[0], self.barchart.lspos[1] = mx, my
+                    redraw = 1
+               
+                if self.table.move:
+                    self.table.pos = [mx, my]
+                    redraw = 1
+               
+                if self.table.resize:
+                    self.table.lepos[0], self.table.lspos[1] = mx, my
                     redraw = 1
             
             if self.barchart.unit != scene.en_disp_punit or self.barchart.cao != context.active_object or \
@@ -1319,6 +1329,7 @@ class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
             return {'PASS_THROUGH'}
         else:
             return {'PASS_THROUGH'}
+            
     
     def execute(self, context):
         scene = context.scene

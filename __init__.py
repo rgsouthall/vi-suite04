@@ -77,13 +77,19 @@ class VIPreferences(AddonPreferences):
         row.prop(self, 'epweath')
 
 @persistent
-def update_ntree(dummy):
+def update_chart_node(dummy):
     try:
         for ng in [ng for ng in bpy.data.node_groups if ng.bl_idname == 'ViN']:
             [node.update() for node in ng.nodes if node.bl_label == 'VI Chart']
     except Exception as e:
         print('Chart node update failure:', e)
-        
+
+@persistent        
+def update_dir(dummy):
+    if bpy.context.scene.get('viparams'):
+        fp = bpy.data.filepath
+        bpy.context.scene['viparams']['newdir'] = os.path.join(os.path.dirname(fp), os.path.splitext(os.path.basename(fp))[0])
+               
 @persistent
 def display_off(dummy):
     if bpy.context.scene.get('viparams'):
@@ -605,24 +611,30 @@ def register():
     nodeitems_utils.register_node_categories("Vi Nodes", vinode_categories)
     nodeitems_utils.register_node_categories("EnVi Nodes", envinode_categories)
     
-    if update_ntree not in bpy.app.handlers.load_post:
-        bpy.app.handlers.load_post.append(update_ntree)
+    if update_chart_node not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(update_chart_node)
         
     if display_off not in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(display_off)
     
-#    if mesh_index not in bpy.app.handlers.load_post:
-#        bpy.app.handlers.load_post.append(mesh_index)
+    if mesh_index not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(mesh_index)
+        
+    if update_dir not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(update_dir)
 
 def unregister():
     bpy.utils.unregister_module(__name__)
     nodeitems_utils.unregister_node_categories("Vi Nodes")
     nodeitems_utils.unregister_node_categories("EnVi Nodes")
-    if update_ntree in bpy.app.handlers.load_post:
-        bpy.app.handlers.load_post.remove(update_ntree)
+    if update_chart_node in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(update_chart_node)
 
     if display_off in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.remove(display_off)
 
-#    if mesh_index in bpy.app.handlers.load_post:
-#        bpy.app.handlers.load_post.remove(mesh_index)
+    if mesh_index in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(mesh_index)
+        
+    if update_dir in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(update_dir)

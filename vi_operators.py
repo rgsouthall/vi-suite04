@@ -2154,7 +2154,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         scene.vi_display = 1
         scene['viparams']['vidisp'] = 'sspanel'
         self.simnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]
-        li_display(self.simnode)
+        li_display(self, self.simnode)
         scene.vi_disp_wire, scene.vi_display = 1, 1
         lnd = linumdisplay(self, context, self.simnode)
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(lnd.draw, (context, ), 'WINDOW', 'POST_PIXEL')
@@ -2454,7 +2454,8 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
         scene['viparams']['vidisp'] = 'lipanel'
         self.simnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]
         self.frame = context.scene.frame_current
-        li_display(self.simnode)
+        if li_display(self, self.simnode) == 'CANCELLED':
+            return {'CANCELLED'}
         scene.vi_disp_wire, scene.vi_display = 1, 1
         lnd = linumdisplay(self, context, self.simnode)
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(lnd.draw, (context, ), 'WINDOW', 'POST_PIXEL')

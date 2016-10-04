@@ -59,7 +59,7 @@ def envals(unit, scene, data):
 def ss_display():
     pass
 
-def li_display(simnode):
+def li_display(disp_op, simnode):
     scene, obreslist, obcalclist = bpy.context.scene, [], []
     setscenelivivals(scene)
     try:
@@ -115,7 +115,8 @@ def li_display(simnode):
         selobj(scene, o)
         bpy.ops.object.duplicate() 
         if not bpy.context.active_object:
-            bpy.ops.view3d.localview()
+            disp_op.report({'ERROR'},"No display object. If in local view switch to global view and rexport the geometry")
+            return 'CANCELLED'
         ores = bpy.context.active_object
         ores.name, ores.show_wire, ores.draw_type = o.name+"res", 1, 'SOLID'
         while ores.material_slots:
@@ -1444,7 +1445,10 @@ def save_plot(self, scene, filename):
     bpy.data.images[self.gimage].user_clear()
 
 def show_plot(self):
-    self.plt.show()
+    try:
+        self.plt.show()
+    except:
+        pass
         
 def draw_image(self, topgap):
     draw_icon(self)

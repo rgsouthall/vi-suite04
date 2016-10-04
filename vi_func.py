@@ -226,7 +226,9 @@ def cbdmhdr(node, scene):
         vwcmd = "vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0"
         rcontribcmd = "rcontrib -bn 146 -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o {} -m sky_glow {}-whitesky.oct".format(scene['viparams']['nproc'], os.path.join(scene['viparams']['newdir'], 'p%d.hdr'), os.path.join(scene['viparams']['newdir'], scene['viparams']['filename']))
         vwrun = Popen(vwcmd.split(), stdout = PIPE)
-        Popen(rcontribcmd.split(), stdin = vwrun.stdout).wait()
+        rcrun = Popen(rcontribcmd.split(), stderr = PIPE, stdin = vwrun.stdout)
+        for line in rcrun.stderr:
+            print(line)
     
         for j in range(146):
             with open(os.path.join(scene['viparams']['newdir'], "ps{}.hdr".format(j)), 'w') as psfile:

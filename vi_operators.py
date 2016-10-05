@@ -456,6 +456,7 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
     def terminate(self):
         nodecolour(self.simnode, 0)
         self.kivyrun.kill()  
+        print(self.egrun.poll())
         if not self.egrun.poll():                          
             self.egrun.kill()
         self.rprun.kill()        

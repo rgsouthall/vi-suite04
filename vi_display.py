@@ -215,8 +215,9 @@ class linumdisplay():
         self.fn = self.scene.frame_current - self.scene['liparams']['fs']
         self.level = self.scene.vi_disp_3dlevel
         self.disp_op = disp_op
+        self.scene.vi_display_rp = 0
         self.fs = self.scene.vi_display_rp_fs
-        self.fontmult = 5 if context.space_data.region_3d.is_perspective else 20
+        self.fontmult = 1
         self.obreslist = [ob for ob in self.scene.objects if ob.type == 'MESH'  and 'lightarray' not in ob.name and ob.hide == False and ob.layers[self.scene.active_layer] == True and ob.get('lires')]
         if self.scene.vi_display_sel_only == False:
             self.obd = self.obreslist
@@ -231,7 +232,7 @@ class linumdisplay():
     def draw(self, context):
         self.u = 0
         self.scene = context.scene
-        self.fontmult = 1 if context.space_data.region_3d.is_perspective else 100
+        self.fontmult = 2 if context.space_data.region_3d.is_perspective else 500
         
         if not self.scene.get('viparams') or self.scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel'):
             self.scene.vi_display = 0

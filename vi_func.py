@@ -167,7 +167,6 @@ def rtpoints(self, bm, offset, frame):
         self['cverts'], self['lisenseareas'][frame] = gp.index, [vertarea(bm, gp) for gp in gpoints]    
     
     for g, gp in enumerate(gpoints):
-        print(gp.normal)
         gp[rt] = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f} {1[0]:.4f} {1[1]:.4f} {1[2]:.4f}'.format([gpcos[g][i] + offset * gp.normal.normalized()[i] for i in range(3)], gp.normal[:]).encode('utf-8')
         gp[cindex] = g + 1
         
@@ -2043,7 +2042,7 @@ def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
     if len(distances):
         try:
             nres = [str(int(r)) for r in res]
-            fsdist = (10 * fontsize/distances).astype(int)
+            fsdist = (fontsize/distances).astype(int)
             xposis = posis[:,0]
             yposis = posis[:,1]
 #            [(blf.size(0, fontsize, fsdist[ri]), blf.position(0, xposis[ri] - int(0.5*blf.dimensions(0, nr)[0]), yposis[ri] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99), blf.draw(0, nr)) for ri, nr in enumerate(nres)]

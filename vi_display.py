@@ -278,10 +278,8 @@ class linumdisplay():
         
         if self.scene.vi_display_rp_fs != self.fs:
             self.fs = self.scene.vi_display_rp_fs
-#            context.area
             bpy.context.user_preferences.system.window_draw_method = bpy.context.user_preferences.system.window_draw_method
-            
-#        blf_unprops()
+
            
     def update(self, context):
         self.allpcs, self.alldepths, self.allres = [], [], []

@@ -103,6 +103,7 @@ class Vi3DPanel(bpy.types.Panel):
                     vresdict = {"Max Flow in": "resazlmaxf_disp", "Min Flow in": "resazlminf_disp", "Ave Flow in": "resazlavef_disp"}                    
                 else:                    
                     lmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Linkage' and zrl[0][zri] == str(resnode["AStart"])])
+                    zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone' and zrl[0][zri] == str(resnode["AStart"])])
                     zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp', 
                                 'CO2 (ppm)': 'reszco_disp', 'PMV': 'reszpmv_disp', 'PPD (%)': 'reszppd_disp', 'Solar gain (W)': 'reszsg_disp', 
                                 'Air heating (W)': 'reszahw_disp', 'Air cooling (W)': 'reszacw_disp', 'HR heating (W)': 'reshrhw_disp'}
@@ -128,14 +129,14 @@ class Vi3DPanel(bpy.types.Panel):
                         row.prop(scene, 'resaa_disp')
                         row.prop(scene, 'resas_disp')
                 
-                    for ri, rname in enumerate(zresdict):
+                    for ri, rzname in enumerate(zmetrics):
                         if ri == 0:                    
                             row = layout.row()
                             row.label(text = 'Zone')                    
                         if not ri%2:
                             row = layout.row()  
-                        if rname in zresdict:
-                            row.prop(scene, zresdict[rname])
+                        if rzname in zresdict:
+                            row.prop(scene, zresdict[rzname])
                     
                     for ri, rname in enumerate(lmetrics):
                         if ri == 0:                    
@@ -173,10 +174,11 @@ class Vi3DPanel(bpy.types.Panel):
                     envimenudict = {'Bar chart range:': ('bar_min', 'bar_max')}
 
                 for envirt in envimenudict:
-                    row = layout.row()
-                    row.label(envirt)
-                    row.prop(scene, envimenudict[envirt][0])
-                    row.prop(scene, envimenudict[envirt][1])                                  
+                    if envirt in zmetrics:
+                        row = layout.row()
+                        row.label(envirt)
+                        row.prop(scene, envimenudict[envirt][0])
+                        row.prop(scene, envimenudict[envirt][1])                                  
             if scene.vi_display:            
                 newrow(layout, 'Display active', scene, 'vi_display')
 

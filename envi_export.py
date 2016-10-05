@@ -456,8 +456,9 @@ def pregeo(op):
 
     for obj in enviobjs:
         for k in obj.keys():
-            del obj[k]
-#        reversefaces = []
+            if k != 'vi_type':
+                del obj[k]
+
         omats = [om for om in obj.data.materials]
         if obj.envi_type in ('0', '2') and not omats:
             op.report({'ERROR'}, 'Object {} is specified as a thermal zone but has no materials'.format(obj.name))

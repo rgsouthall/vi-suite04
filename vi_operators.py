@@ -311,7 +311,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
                 if 'view up parallel to view direction' in line.decode():
                     self.report({'ERROR'}, "Camera cannot point directly upwards")
                     return {'CANCELLED'}
-                elif 'X11' in line.decode():
+                elif 'x11' in line.decode():
                     self.report({'ERROR'}, "No X11 display server found. You may need to install XQuartz")
                     return {'CANCELLED'}
             return {'FINISHED'}

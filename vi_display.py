@@ -619,7 +619,8 @@ class Base_Display():
         self.press = 0
         self.move = 0
         self.expand = 0
-        bpy.data.images.load(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'images', iname))
+        if iname not in bpy.data.images:
+            bpy.data.images.load(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'images', iname))
         self.image = iname
         self.hl = [1, 1, 1, 1]
         self.cao = None

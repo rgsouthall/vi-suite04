@@ -455,6 +455,8 @@ def pregeo(op):
     [enng.nodes.remove(node) for node in enng.nodes if hasattr(node, 'zone') and node.bl_idname == 'EnViTC' and scene.objects[node.zone[3:]].envi_type != '2']            
 
     for obj in enviobjs:
+        for k in obj.keys():
+            del obj[k]
 #        reversefaces = []
         omats = [om for om in obj.data.materials]
         if obj.envi_type in ('0', '2') and not omats:

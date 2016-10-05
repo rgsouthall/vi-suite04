@@ -167,6 +167,7 @@ def rtpoints(self, bm, offset, frame):
         self['cverts'], self['lisenseareas'][frame] = gp.index, [vertarea(bm, gp) for gp in gpoints]    
     
     for g, gp in enumerate(gpoints):
+        print(gp.normal)
         gp[rt] = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f} {1[0]:.4f} {1[1]:.4f} {1[2]:.4f}'.format([gpcos[g][i] + offset * gp.normal.normalized()[i] for i in range(3)], gp.normal[:]).encode('utf-8')
         gp[cindex] = g + 1
         
@@ -221,7 +222,7 @@ def cbdmhdr(node, scene):
     skyentry = hdrsky(targethdr)
 
     if node.sourcemenu != '1' or node.cbanalysismenu == '2':
-        vecvals, vals = mtx2vals(open(node['mtxfile'], 'r').readlines(), datetime.datetime(2010, 1, 1).weekday(), node, node.times)
+        vecvals, vals = mtx2vals(open(node['mtxfile'], 'r').readlines(), datetime.datetime(2015, 1, 1).weekday(), node, node.times)
         pcombfiles = ''.join(["{} ".format(os.path.join(scene['viparams']['newdir'], 'ps{}.hdr'.format(i))) for i in range(146)])
         vwcmd = "vwrays -ff -x 600 -y 600 -vta -vp 0 0 0 -vd 0 1 0 -vu 0 0 1 -vh 360 -vv 360 -vo 0 -va 0 -vs 0 -vl 0"
         rcontribcmd = "rcontrib -bn 146 -fo -ab 0 -ad 1 -n {} -ffc -x 600 -y 600 -ld- -V+ -f tregenza.cal -b tbin -o {} -m sky_glow {}-whitesky.oct".format(scene['viparams']['nproc'], os.path.join(scene['viparams']['newdir'], 'p%d.hdr'), os.path.join(scene['viparams']['newdir'], scene['viparams']['filename']))
@@ -468,7 +469,10 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 1]
         illubinvals = [self['omin']['illu{}'.format(frame)] + (self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)])/20 * (i + 0.05) for i in range(20)]
         bins = array([0.05 * i for i in range(1, 20)])
-        vals = [(gp[illures] - self['omin']['illu{}'.format(frame)])/(self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)]) for gp in geom]         
+        if self['omax']['illu{}'.format(frame)] > self['omin']['illu{}'.format(frame)]:
+            vals = [(gp[illures] - self['omin']['illu{}'.format(frame)])/(self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)]) for gp in geom]         
+        else:
+            vals = [1 for gp in geom]
         ais = digitize(vals, bins)
         rgeom = [g for g in geom if g[cindex] > 0]
         rareas = [gp.calc_area() for gp in geom] if self['cpoint'] == '0' else [vertarea(bm, gp) for gp in geom]
@@ -538,7 +542,7 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                 bm.free()
                 return {'CANCELLED'}
         
-        ovirradm2 = array([g[virradres] for g in geom])
+        ovirradm2 = array([g[virradres] for g in gps])
         ovirrad = ovirradm2 * areas
         ofirradm2 = ovirradm2 * 1.64 
         ofirrad = ofirradm2 * areas
@@ -975,7 +979,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             
             self['tableudil{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
                 ['UDI-l (% area)', '{:.1f}'.format(self['omin']['udilow{}'.format(frame)]), '{:.1f}'.format(self['oave']['udilow{}'.format(frame)]), '{:.1f}'.format(self['omax']['udilow{}'.format(frame)])]])
-            self['tableudie{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+            self['tableudis{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
                 ['UDI-s (% area)', '{:.1f}'.format(self['omin']['udisup{}'.format(frame)]), '{:.1f}'.format(self['oave']['udisup{}'.format(frame)]), '{:.1f}'.format(self['omax']['udisup{}'.format(frame)])]])
             self['tableudia{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
                 ['UDI-a (% area)', '{:.1f}'.format(self['omin']['udiauto{}'.format(frame)]), '{:.1f}'.format(self['oave']['udiauto{}'.format(frame)]), '{:.1f}'.format(self['omax']['udiauto{}'.format(frame)])]])
@@ -1904,7 +1908,7 @@ def mtx2vals(mtxlines, fwd, node, times):
         elif mtxline == '\n':
             startline = m + 1
             break
-
+#    print(times)
     sdoy = (times[0] - datetime.datetime(2015, 1, 1)).days
     shour = times[0].hour
     edoy = (times[-1] - datetime.datetime(2015, 1, 1)).days + 1
@@ -1966,7 +1970,8 @@ def retobjs(otypes):
     elif otypes == 'envig':
         return([o for o in validobs if o.type == 'MESH' and o.hide == False and o.layers[0] == True])
     elif otypes == 'ssc':
-        return [o for o in validobs if o.type == 'MESH' and o.lires == 0 and o.hide == False and o.layers[scene.active_layer] == True and any([m.mattype == '1' for m in o.data.materials])]
+        
+        return [o for o in validobs if o.type == 'MESH' and o.lires == 0 and o.hide == False and o.layers[scene.active_layer] == True and o.data.materials and any([o.data.materials[poly.material_index].mattype == '1' for poly in o.data.polygons])]
 
 def radmesh(scene, obs, export_op):
     for o in obs:

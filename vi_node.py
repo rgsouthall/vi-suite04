@@ -70,25 +70,25 @@ class ViLoc(bpy.types.Node, ViNodes):
             self.outputs['Location out']['valid'] = ['Location']
         socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])
         self['reslists'] = reslists
-        
-    def update_weather(self, context):
-        entries = []
-        vi_prefs = bpy.context.user_preferences.addons['vi-suite04'].preferences
 
-        if vi_prefs and os.path.isdir(vi_prefs.epweath):
-            epwpath = vi_prefs.epweath
-        else:
-            epwpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))+'/EPFiles/Weather/'
-        
-        for wfile in glob.glob(epwpath+"/*.epw"):
-            with open(wfile, 'r') as wf:
-                for wfl in wf.readlines():
-                    if wfl.split(',')[0].upper() == 'LOCATION':
-                        entries.append((wfile, wfl.split(',')[1], 'Weather Location'))
-                        break
-        return entries
+    entries = []
+    vi_prefs = bpy.context.user_preferences.addons['vi-suite04'].preferences
+
+    if vi_prefs and os.path.isdir(vi_prefs.epweath):
+        epwpath = vi_prefs.epweath
+    else:
+        epwpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))+'/EPFiles/Weather/'
+    
+    for wfile in glob.glob(epwpath+"/*.epw"):
+        with open(wfile, 'r') as wf:
+            for wfl in wf.readlines():
+                if wfl.split(',')[0].upper() == 'LOCATION':
+                    entries.append((wfile, wfl.split(',')[1], 'Weather Location'))
+                    break
+                
+    entries = [('None', 'None', 'None')] if not entries else entries
    
-    weather = bpy.props.EnumProperty(name = 'Weather file', items=update_weather, update=updatelatlong)
+    weather = bpy.props.EnumProperty(name = 'Weather file', items=entries, update=updatelatlong)
     loc = bpy.props.EnumProperty(items = [("0", "Manual", "Manual location"), ("1", "EPW ", "Get location from EPW file")], name = "", description = "Location", default = "0", update = updatelatlong)
     maxws = bpy.props.FloatProperty(name="", description="Max wind speed", min=0, max=90, default=0)
     minws = bpy.props.FloatProperty(name="", description="Min wind speed", min=0, max=90, default=0)
@@ -373,33 +373,37 @@ class LiViNode(bpy.types.Node, ViNodes):
             if int(self.skymenu) > 2 or (int(self.skymenu) < 3 and self.inputs['Location in'].links):
                 row = layout.row()
                 row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
-        elif self.contextmenu == 'Compliance':
+        elif self.contextmenu == 'Compliance' and self['coptions']['canalysis'] != '3':
             row = layout.row()
             row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
-        elif (self.contextmenu == 'CBDM' and self.sourcemenu == '1') or \
-            (self.contextmenu == 'CBDM' and self.sourcemenu == '0' and self.inputs['Location in'].links and self.inputs['Location in'].links[0].from_node.loc == '1'):
+        elif (self.contextmenu == 'CBDM' and self.cbanalysismenu == '0' and self.sourcemenu2 == '1') or \
+            (self.contextmenu == 'CBDM' and self.cbanalysismenu != '0' and self.sourcemenu == '1'):         
             row = layout.row()
-            row.operator("node.liexport", text = "Export").nodeid = self['nodeid']            
-    
+            row.operator("node.liexport", text = "Export").nodeid = self['nodeid']   
+        elif self.inputs['Location in'].links and self.inputs['Location in'].links[0].from_node.loc == '1' and self.inputs['Location in'].links[0].from_node.weather != 'None':
+            row = layout.row()
+            row.operator("node.liexport", text = "Export").nodeid = self['nodeid'] 
+
     def update(self):
         socklink(self.outputs['Context out'], self['nodeid'].split('@')[1])
         if self.inputs.get('Location in'):
             self.nodeupdate(bpy.context) 
     
     def preexport(self):
-        (interval, shour, ehour) = (1, self.cbdm_start_hour, self.cbdm_end_hour) if self.contextmenu == 'CBDM' or (self.contextmenu == 'Compliance' and self.canalysismenu =='3') else (round(self.interval, 3), self.shour, self.ehour)        
+        (interval, shour, ehour) = (1, self.cbdm_start_hour - 1, self.cbdm_end_hour - 1) if self.contextmenu == 'CBDM' or (self.contextmenu == 'Compliance' and self.canalysismenu =='3') else (round(self.interval, 3), self.shour, self.ehour)        
         starttime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days = self.sdoy - 1) + datetime.timedelta(hours = shour)
+
         if self.contextmenu == 'CBDM' or (self.contextmenu == 'Basic' and self.animated):            
-            endtime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days = self.edoy - 1)  + datetime.timedelta(hours = ehour + 1)
+            endtime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days = self.edoy - 1)  + datetime.timedelta(hours = ehour)
         elif self.contextmenu == 'Compliance' and self.canalysismenu == '3':
             starttime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(hours = shour)
-            endtime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days = 364)  + datetime.timedelta(hours = ehour + 1)
+            endtime = datetime.datetime(2015, 1, 1, 0) + datetime.timedelta(days = 364)  + datetime.timedelta(hours = ehour)
         else:
             endtime = starttime
 
         times = [starttime]
         time = starttime
-        while time <= endtime:
+        while time < endtime:
             time += datetime.timedelta(hours = interval)
             if (self.contextmenu == 'Compliance' and self.canalysismenu == '3') or self.contextmenu == 'CBDM':
                 if shour <= time.hour <= ehour:

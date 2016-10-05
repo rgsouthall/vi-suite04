@@ -128,13 +128,9 @@ def getEnViEditorSpaces():
 bpy.app.handlers.scene_update_post.append(select_nodetree)
 bpy.app.handlers.scene_update_post.append(mesh_index)
             
-epversion = "8-5-0"
+epversion = "8-6-0"
 addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 matpath, epwpath, envi_mats, envi_cons, conlayers  = addonpath+'/EPFiles/Materials/Materials.data', addonpath+'/EPFiles/Weather/', envi_materials(), envi_constructions(), 5
-
-#rplatbdict = {'linux': ('/usr/share/radiance/bin', '/usr/local/radiance/bin'), 'win32': (r"C:\Program Files (x86)\Radiance\bin", r"C:\Program Files\Radiance\bin"), 'darwin': ['/usr/local/radiance/bin']}
-#rplatldict = {'linux': ('/usr/share/radiance/lib', '/usr/local/radiance/lib'), 'win32': (r"C:\Program Files (x86)\Radiance\lib", r"C:\Program Files\Radiance\lib"), 'darwin': ['/usr/local/radiance/lib']}
-#eplatbdict = {'linux': ('/usr/local/EnergyPlus-{}'.format(epversion)), 'win32': 'C:\EnergyPlusV{}'.format(epversion), 'darwin': '/Applications/EnergyPlus-{}'.format(epversion)}
 evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
 vi_prefs = bpy.context.user_preferences.addons[__name__].preferences
 radldir = vi_prefs.radlib if vi_prefs and os.path.isdir(vi_prefs.radlib) else os.path.join('{}'.format(addonpath), 'Radfiles', 'lib')
@@ -142,27 +138,11 @@ radbdir = vi_prefs.radbin if vi_prefs and os.path.isdir(vi_prefs.radbin) else os
 epdir = vi_prefs.epbin if vi_prefs and os.path.isdir(vi_prefs.epbin) else os.path.join('{}'.format(addonpath), 'EPFiles', 'bin')
 
 if not os.environ.get('RAYPATH') or radldir not in os.environ['RAYPATH'] or radbdir not in os.environ['PATH']:
-#    vi_prefs = bpy.context.user_preferences.addons[__name__].preferences
-#    radldir = [vi_prefs.radlib] if vi_prefs and os.path.isdir(vi_prefs.radlib) else [d for d in rplatldict[str(sys.platform)] if os.path.isdir(d)]
-#    radbdir = [vi_prefs.radbin] if vi_prefs and os.path.isdir(vi_prefs.radbin) else [d for d in rplatbdict[str(sys.platform)] if os.path.isdir(d)]
     if vi_prefs and os.path.isdir(vi_prefs.radlib):
         os.environ["RAYPATH"] = '{0}{1}{2}'.format(radldir, evsep[str(sys.platform)], os.path.join(addonpath, 'Radfiles', 'lib'))
     else:
         os.environ["RAYPATH"] = radldir
-        
-#    
-#    if vi_prefs and os.path.isdir(vi_prefs.epbin):
-#        epdir = vi_prefs.epbin
-#    else:
-#        epdir = eplatbdict[str(sys.platform)] if os.path.isdir(eplatbdict[str(sys.platform)]) else os.path.join('{}'.format(addonpath), 'EPFiles', 'bin')
-#    if os.path.isfile(os.path.join(epdir, 'Energy+.idd')) and epdir != os.path.join('{}'.format(addonpath), 'EPFiles'):
-#        shutil.copyfile(os.path.join(epdir, 'Energy+.idd'), os.path.join('{}'.format(addonpath), 'EPFiles', 'Energy+.idd'))            
-#    if not radldir:
-#        radldir = [os.path.join('{}'.format(addonpath), 'Radfiles', 'lib')]
-#    if not radbdir:
-#        radbdir = [os.path.join('{}'.format(addonpath), 'Radfiles', 'bin')]
-        
-#    os.environ["RAYPATH"] = '{0}{1}{2}'.format(radldir[0], evsep[str(sys.platform)], os.path.join(addonpath, 'Radfiles', 'lib'))        
+       
     os.environ["PATH"] = os.environ["PATH"] + "{0}{1}{0}{2}".format(evsep[str(sys.platform)], radbdir, epdir)    
     
 def colupdate(self, context):
@@ -179,6 +159,7 @@ def eupdate(self, context):
     scene = context.scene
     maxo, mino = scene.vi_leg_max, scene.vi_leg_min
     odiff = scene.vi_leg_max - scene.vi_leg_min
+
     if context.active_object.mode == 'EDIT':
         return
     if odiff:      

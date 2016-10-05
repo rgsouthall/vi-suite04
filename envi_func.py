@@ -262,9 +262,9 @@ def enpunits(self, context):
 #        return [(k, k, 'Display {}'.format(k)) for k in resnode[resstring].keys()]
         return []
 
-def enparametric(self, context):
-    resnode = bpy.data.node_groups[context.scene['viparams']['resnode'].split('@')[1]].nodes[context.scene['viparams']['resnode'].split('@')[0]]
+def enparametric(self, context): 
     try:
+        resnode = bpy.data.node_groups[context.scene['viparams']['resnode'].split('@')[1]].nodes[context.scene['viparams']['resnode'].split('@')[0]]
         rl = resnode['reslists']
         zrl = list(zip(*rl))
         if len(set(zrl[0])) > 1:

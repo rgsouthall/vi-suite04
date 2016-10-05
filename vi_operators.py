@@ -1916,6 +1916,8 @@ class NODE_OT_Shadow(bpy.types.Operator):
         kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'))
         
         for oi, o in enumerate([scene.objects[on] for on in scene['liparams']['shadc']]):
+            for k in o.keys():
+                del o[k]
             o['omin'], o['omax'], o['oave'] = {}, {}, {}
             o['days'] = arange(simnode.sdoy, simnode.edoy + 1, dtype = float)
             o['hours'] = arange(simnode.starthour, simnode.endhour + 1, 1/simnode.interval, dtype = float)
@@ -1938,32 +1940,35 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     gpoints = [f for f in geom if o.data.materials[f.material_index].mattype == '1']
                 if simnode.cpoint == '1':
                     gpoints = [v for v in geom if any([o.data.materials[f.material_index].mattype == '1' for f in v.link_faces])]
-                posis = [gp.calc_center_bounds() + gp.normal.normalized() * simnode.offset for gp in gpoints] if simnode.cpoint == '0' else [gp.co + gp.normal.normalized() * simnode.offset for gp in gpoints]
-                allpoints = numpy.zeros((len(gpoints), len(direcs)))
-                
-                for chunk in chunks(gpoints, int(scene['viparams']['nproc']) * 200):
-                    for gp in chunk:
-                        if frame == frange[0]:
-                            gp[cindex] = g + 1                      
-                        pointres = array([(0, 1)[shadtree.ray_cast(posis[g], direc)[3] == None and direc[2] > 0] for direc in direcs])
-                        allpoints[g] = pointres#numpy.average(pointres.reshape(len(pointres)/simnode.interval, simnode.interval), axis = 1)
-                        gp[shadres] = 100 * (numpy.sum(pointres)/len(valdirecs))
-                        g += 1
-                    curres += len(chunk)
-                    if pfile.check(curres) == 'CANCELLED':
-                        return {'CANCELLED'}
+                    
+                if gpoints:
+                    posis = [gp.calc_center_bounds() + gp.normal.normalized() * simnode.offset for gp in gpoints] if simnode.cpoint == '0' else [gp.co + gp.normal.normalized() * simnode.offset for gp in gpoints]
+                    allpoints = numpy.zeros((len(gpoints), len(direcs)))
+                    
+                    for chunk in chunks(gpoints, int(scene['viparams']['nproc']) * 200):
+                        for gp in chunk:
+                            if frame == frange[0]:
+                                gp[cindex] = g + 1                      
+                            pointres = array([(0, 1)[shadtree.ray_cast(posis[g], direc)[3] == None and direc[2] > 0] for direc in direcs])
+                            allpoints[g] = pointres#numpy.average(pointres.reshape(len(pointres)/simnode.interval, simnode.interval), axis = 1)
+                            gp[shadres] = 100 * (numpy.sum(pointres)/len(valdirecs))
+                            g += 1
+                        curres += len(chunk)
+                        if pfile.check(curres) == 'CANCELLED':
+                            return {'CANCELLED'}
+    
+                    ap = numpy.average(allpoints, axis=0)                
+                    shadres = [gp[shadres] for gp in gpoints]
 
-                ap = numpy.average(allpoints, axis=0)
-                o['dhres{}'.format(frame)] = array(100 * ap).reshape(len(o['days']), len(o['hours'])).T
-                shadres = [gp[shadres] for gp in gpoints]
-                o['omin']['res{}'.format(frame)], o['omax']['res{}'.format(frame)], o['oave']['res{}'.format(frame)] = min(shadres), max(shadres), sum(shadres)/len(shadres)
-                reslists.append([str(frame), 'Zone', o.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
-                reslists.append([str(frame), 'Zone', o.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
-                reslists.append([str(frame), 'Zone', o.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
-                reslists.append([str(frame), 'Zone', o.name, 'Sunlit %', ' '.join(['{:.3f}'.format(sr) for sr in shadres])])
-                avres.append(o['oave']['res{}'.format(frame)])
-                minres.append(o['omin']['res{}'.format(frame)])
-                maxres.append(o['omax']['res{}'.format(frame)])
+                    o['dhres{}'.format(frame)] = array(100 * ap).reshape(len(o['days']), len(o['hours'])).T
+                    o['omin']['res{}'.format(frame)], o['omax']['res{}'.format(frame)], o['oave']['res{}'.format(frame)] = min(shadres), max(shadres), sum(shadres)/len(shadres)
+                    reslists.append([str(frame), 'Zone', o.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
+                    reslists.append([str(frame), 'Zone', o.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
+                    reslists.append([str(frame), 'Zone', o.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
+                    reslists.append([str(frame), 'Zone', o.name, 'Sunlit %', ' '.join(['{:.3f}'.format(sr) for sr in shadres])])
+                    avres.append(o['oave']['res{}'.format(frame)])
+                    minres.append(o['omin']['res{}'.format(frame)])
+                    maxres.append(o['omax']['res{}'.format(frame)])
 
             reslists.append(['All', 'Frames', '', 'Frames', ' '.join(['{}'.format(f) for f in frange])])
             reslists.append(['All', 'Zone', o.name, 'Minimum', ' '.join(['{:.3f}'.format(mr) for mr in minres])])
@@ -2012,7 +2017,9 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
             # Legend routine 
             
             if self.legend.spos[0] < mx < self.legend.epos[0] and self.legend.spos[1] < my < self.legend.epos[1]:
-                self.legend.hl = (0, 1, 1, 1)  
+                if self.legend.hl != (0, 1, 1, 1):  
+                    self.legend.hl = (0, 1, 1, 1) 
+                    redraw = 1
                 if event.type == 'LEFTMOUSE':
                     if event.value == 'PRESS':
                         self.legend.press = 1
@@ -2045,7 +2052,9 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
                     return {'RUNNING_MODAL'}
                     
             else:
-                self.legend.hl = (1, 1, 1, 1)
+                if self.legend.hl != (1, 1, 1, 1):
+                    self.legend.hl = (1, 1, 1, 1)
+                    redraw = 1
             
             # Scatter routine
                 
@@ -2234,6 +2243,7 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
             elif self.legend.hl != (1, 1, 1, 1):
                 self.legend.hl = (1, 1, 1, 1)
                 redraw = 1
+
             # Table routine
             
             if self.frame != context.scene.frame_current or self.table.unit != context.scene['liparams']['unit'] or self.table.cao != context.active_object:
@@ -2317,9 +2327,8 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
                     redraw = 1
                 
             if context.scene['liparams']['unit'] in ('ASE (hrs)', 'sDA (%)', 'DA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-e (%)', 'UDI-a (%)', 'Max lux', 'Min lux', 'Ave lux', 'kWh', 'kWh/m2'):
-                if self.frame != context.scene.frame_current:
+                if self.dhscatter.frame != context.scene.frame_current:
                     self.dhscatter.update(context)
-                    self.frame = context.scene.frame_current
                     redraw = 1
                 if self.dhscatter.unit != context.scene['liparams']['unit']:
                     self.dhscatter.update(context)
@@ -2403,7 +2412,7 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
                         self.tablecomp.resize = 0
                     return {'RUNNING_MODAL'}
 
-            elif context.scene['liparams']['unit'] in ('ASE (hrs)', 'sDA (%)', 'DA (%)', 'UDI-f (%)', 'UDI-e (%)', 'UDI-l (%)', 'UDI-a (%)', 'Max lux', 'Min lux', 'Ave lux', 'kWh', 'kWh/m2') and abs(self.dhscatter.lepos[0] - mx) < 20 and abs(self.dhscatter.lspos[1] - my) < 20:
+            elif context.scene['liparams']['unit'] in ('ASE (hrs)', 'sDA (%)', 'DA (%)', 'UDI-s (%)', 'UDI-e (%)', 'UDI-f (%)', 'UDI-a (%)', 'Max lux', 'Min lux', 'Ave lux', 'kWh', 'kWh/m2') and abs(self.dhscatter.lepos[0] - mx) < 20 and abs(self.dhscatter.lspos[1] - my) < 20:
                 self.dhscatter.hl = (0, 1, 1, 1) 
                 if event.type == 'LEFTMOUSE':
                     if event.value == 'PRESS':

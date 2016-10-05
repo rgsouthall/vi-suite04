@@ -89,10 +89,10 @@ def li_display(disp_op, simnode):
     
     for i, o in enumerate([scene.objects[oname] for oname in scene['liparams']['{}c'.format(mtype)]]):        
         bm = bmesh.new()
-        bm.from_mesh(o.data)  
+        bm.from_mesh(o.data) 
         bm.transform(o.matrix_world)
-#        bm.normal_update() 
-        
+        bm.normal_update()
+                 
         if scene['liparams']['cp'] == '0':  
             cindex = bm.faces.layers.int['cindex']
             for f in [f for f in bm.faces if f[cindex] < 1]:
@@ -114,14 +114,21 @@ def li_display(disp_op, simnode):
         
         selobj(scene, o)
         bpy.ops.object.duplicate() 
+        
         if not bpy.context.active_object:
-            disp_op.report({'ERROR'},"No display object. If in local view switch to global view and rexport the geometry")
+            disp_op.report({'ERROR'},"No display object. If in local view switch to global view and/or re-export the geometry")
             return 'CANCELLED'
+            
         ores = bpy.context.active_object
         ores.name, ores.show_wire, ores.draw_type = o.name+"res", 1, 'SOLID'
+        
         while ores.material_slots:
             bpy.ops.object.material_slot_remove()
-
+        
+        while ores.data.shape_keys:
+            bpy.context.object.active_shape_key_index = 0
+            bpy.ops.object.shape_key_remove(all=True)
+            
         cv = ores.cycles_visibility
         cv.diffuse, cv.glossy, cv.transmission, cv.scatter, cv.shadow = 0, 0, 0, 0, 0        
         obreslist.append(ores)
@@ -142,7 +149,7 @@ def li_display(disp_op, simnode):
             for face in bmesh.ops.extrude_discrete_faces(bm, faces = bm.faces)['faces']:
                 face.select = True
                 face[extrude] = 1
-                        
+                
         bm.transform(o.matrix_world.inverted())
         bm.to_mesh(ores.data)
         bm.free()
@@ -288,6 +295,7 @@ class linumdisplay():
                     bm.from_mesh(tempmesh)
                     bpy.data.meshes.remove(tempmesh)
                     bm.transform(omw)
+                    bm.normal_update()
                     geom = bm.faces if bm.faces.layers.float.get('res{}'.format(self.scene.frame_current)) else bm.verts
                     geom.ensure_lookup_table()
                     livires = geom.layers.float['res{}'.format(self.scene.frame_current)]

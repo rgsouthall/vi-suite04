@@ -457,7 +457,7 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
         nodecolour(self.simnode, 0)
         self.kivyrun.kill()  
         print(self.egrun.poll())
-        if not self.egrun.poll():                          
+        if self.egrun.poll() == None:                          
             self.egrun.kill()
         self.rprun.kill()        
         self.simnode.postsim()

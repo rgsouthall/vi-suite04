@@ -279,7 +279,6 @@ class linumdisplay():
         if self.scene.vi_display_rp_fs != self.fs:
             self.fs = self.scene.vi_display_rp_fs
             bpy.context.user_preferences.system.window_draw_method = bpy.context.user_preferences.system.window_draw_method
-
            
     def update(self, context):
         self.allpcs, self.alldepths, self.allres = [], [], []
@@ -1425,18 +1424,12 @@ def draw_dhscatter(self, scene, x, y, z, tit, xlab, ylab, zlab, valmin, valmax):
 
 def draw_barchart(self, scene, x, y, tit, xlab, ylab, ymin, ymax):
     self.plt.close()
-#    self.col = scene.vi_leg_col
-#    x = [x[0] - 0.5] + [xval + 0.5 for xval in x] 
-#    y = [y[0] - 0.5] + [yval + 0.5 for yval in y]
-    self.plt.figure(figsize=(6 + len(x)/len(y), 6))
-    
+    self.plt.figure(figsize=(6 + len(x)/len(y), 6))    
     self.plt.title(tit, size = 18).set_position([.5, 1.025])
     self.plt.xlabel(xlab, size = 18)
     self.plt.ylabel(ylab, size = 18)
     cols = [(yval - ymin)/(ymax - ymin) for yval in y]
-#    print(x, y)
     self.plt.bar(x, y, align='center', color = [mcm.get_cmap(self.col)(i) for i in cols])
-#    self.plt.axis([min(x),max(x),min(y),max(y)], size = 19)
     self.plt.tight_layout(rect=[0, 0, 1 + ((len(x)/len(y)) - 1) * 0.005, 1])
     
 def save_plot(self, scene, filename):

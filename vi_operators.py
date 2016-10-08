@@ -230,6 +230,7 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
     bl_register = True
     bl_undo = False
     nodeid = bpy.props.StringProperty()
+#    expcontextdict = {'Basic': 'LiVi Basic', 'Complaince': 'LiVi Compliance', '2': 'LiVi CBDM'}
 
     def invoke(self, context, event):
         scene = context.scene
@@ -237,7 +238,8 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
             return {'CANCELLED'}
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         scene['viparams']['vidisp'] = ''
-        scene['viparams']['viexpcontext'] = 'LiVi Context'
+        scene['viparams']['viexpcontext'] = 'LiVi {}'.format(node.contextmenu)
+        scene['viparams']['connode'] = self.nodeid
               
         if bpy.data.filepath:
             objmode()

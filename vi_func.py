@@ -386,8 +386,8 @@ if __name__ == '__main__':\n\
     return Popen([bpy.app.binary_path_python, file+".py"])
     
 def retsv(self, scene, frame, rtframe, chunk, rt):
-    svcmd = "rcontrib -w -n {} {} -m sky_glow {}-{}.oct ".format(scene['viparams']['nproc'], '-ab 1 -ad 16384 -lw 2e-6 ', scene['viparams']['filebase'], frame)    
-    rtrun = Popen(svcmd.split(), stdin = PIPE, stdout=PIPE, stderr=STDOUT, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))                 
+    svcmd = "rcontrib -w -I -n {} {} -m sky_glow {}-{}.oct ".format(scene['viparams']['nproc'], '-ab 1 -ad 8192 -aa 0 -ar 512 -as 1024 -lw 0.0002 ', scene['viparams']['filebase'], frame)    
+    rtrun = Popen(svcmd.split(), stdin = PIPE, stdout=PIPE, stderr=STDOUT, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))                
     reslines = nsum(array([[float(rv) for rv in r.split('\t')[:3]] for r in rtrun[0].splitlines()[10:]]), axis = 1)
     reslines[reslines > 0] = 1
     return reslines
@@ -623,6 +623,7 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             illu = virrad * 179
             df = illu * 0.01
             sv = self.retsv(scene, frame, rtframe, chunk, rt)
+            print(sv)
             for gi, gp in enumerate(chunk):
                 gp[dfres] = df[gi]
                 gp[svres] = sv[gi]
@@ -686,7 +687,7 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                     comps[str(frame)].append((0, 1)[dfpassarea > float(c[1])*oarea/100])
                     comps[str(frame)].append(100*dfpassarea/oarea)
                     dftotarea += oarea
-                    metric.append(['% area with Point DF above {}'.format(c[3]), c[1], '{:.1f}'.format(comps[str(frame)][-1]), pf[comps[str(frame)][-2]]])                    
+                    metric.append(['% area with Point DF > {}'.format(c[3]), c[1], '{:.1f}'.format(comps[str(frame)][-1]), pf[comps[str(frame)][-2]]])                    
                 elif c[2] == 'Skyview': 
                     passarea = sum([area for p, area in enumerate(oareas) if ressv[p] > 0])
                     comps[str(frame)].append((0, 1)[passarea >= float(c[1])*oarea/100])
@@ -697,7 +698,7 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                     passareapc = 100 * sum([area for p, area in enumerate(oareas) if resdf[p] > float(c[3])])/oarea
                     comps[str(frame)].append((0, 1)[sum([area * resdf[p] for p, area in enumerate(oareas)])/oarea > float(c[3])])
                     comps[str(frame)].append(sum([area * resdf[p] for p, area in enumerate(oareas)])/oarea)
-                    metric.append(['% area with DF above {}'.format(c[3]), c[1], '{:.1f}'.format(passareapc), pf[passareapc >= float(c[1])]])
+                    metric.append(['% area with DF > {}'.format(c[3]), c[1], '{:.1f}'.format(passareapc), pf[passareapc >= float(c[1])]])
             scores.append(c[4])  
 
         if simnode['coptions']['canalysis'] == '0':
@@ -737,7 +738,7 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                         ecomps[str(frame)].append((0, 1)[sum(resdf)/reslen > float(e[3])])
                         ecomps[str(frame)].append(sum(resdf)/reslen)
                         edftotarea += oarea
-                        emetric.append(['% area with DF > {}'.format(c[3]), e[3], '{:.1f}'.format(ecomps[str(frame)][-1]), pf[ecomps[str(frame)][-2]]])
+                        emetric.append(['% area with DF > {}'.format(e[3]), e[1], '{:.1f}'.format(ecomps[str(frame)][-1]), pf[ecomps[str(frame)][-2]]])
                         
                     if e[2] == 'PDF':
                         edfpass[str(frame)] = 1
@@ -745,7 +746,7 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                         ecomps[str(frame)].append((0, 1)[dfpassarea > float(e[1])*oarea/100])
                         ecomps[str(frame)].append(100*edfpassarea/oarea)
                         edftotarea += oarea
-                        emetric.append(['% area with Point DF above {}'.format(e[3]), e[1], '{:.1f}'.format(ecomps[str(frame)][-1]), pf[ecomps[str(frame)][-2]]])
+                        emetric.append(['% area with Point DF > {}'.format(e[3]), e[1], '{:.1f}'.format(ecomps[str(frame)][-1]), pf[ecomps[str(frame)][-2]]])
         
                     elif e[2] == 'Skyview':
                         passarea = sum([area for p, area in enumerate(oareas) if ressv[p] > 0])

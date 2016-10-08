@@ -373,7 +373,7 @@ class LiViNode(bpy.types.Node, ViNodes):
             if int(self.skymenu) > 2 or (int(self.skymenu) < 3 and self.inputs['Location in'].links):
                 row = layout.row()
                 row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
-        elif self.contextmenu == 'Compliance' and self['coptions']['canalysis'] != '3':
+        elif self.contextmenu == 'Compliance' and self.canalysismenu != '3':
             row = layout.row()
             row.operator("node.liexport", text = "Export").nodeid = self['nodeid']
         elif (self.contextmenu == 'CBDM' and self.cbanalysismenu == '0' and self.sourcemenu2 == '1') or \
@@ -2056,10 +2056,13 @@ class AFNCon(bpy.types.Node, EnViNodes):
         self.legal()
 
     def legal(self):
-        bpy.data.node_groups[self['nodeid'].split('@')[1]]['enviparams']['wpca'] = 1 if self.wpctype == 'Input' and self.inputs['WPC Array'].is_linked else 0
-        nodecolour(self, self.wpctype == 'Input' and not self.inputs['WPC Array'].is_linked)
-        for node in [node for node in bpy.data.node_groups[self['nodeid'].split('@')[1]].nodes if node.bl_idname in ('EnViSFlow', 'EnViSSFlow')]:
-            node.legal()
+        try:
+            bpy.data.node_groups[self['nodeid'].split('@')[1]]['enviparams']['wpca'] = 1 if self.wpctype == 'Input' and self.inputs['WPC Array'].is_linked else 0
+            nodecolour(self, self.wpctype == 'Input' and not self.inputs['WPC Array'].is_linked)
+            for node in [node for node in bpy.data.node_groups[self['nodeid'].split('@')[1]].nodes if node.bl_idname in ('EnViSFlow', 'EnViSSFlow')]:
+                node.legal()
+        except:
+            pass
 
 class EnViWPCA(bpy.types.Node, EnViNodes):
     '''Node describing Wind Pressure Coefficient array'''

@@ -380,28 +380,27 @@ class VIMatPanel(bpy.types.Panel):
                             row.label(text = "default: {}mm".format(envi_mats.matdat[layername][7]))
         
         elif cm.mattype == '1':  
-            if scene.get('viparams') and scene['viparams'].get('visimcontext') and scene['viparams']['visimcontext'] == 'LiVi Compliance':
-                simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
-                coptions = simnode.inputs['Context in'].links[0].from_node['Options']
+            if scene.get('viparams') and scene['viparams'].get('viexpcontext') and scene['viparams']['viexpcontext'] == 'LiVi Compliance':
+                connode = bpy.data.node_groups[scene['viparams']['connode'].split('@')[1]].nodes[scene['viparams']['connode'].split('@')[0]]
+                coptions = connode['Options']
 
-                if cm.mattype == '1':
-                    if coptions['canalysis'] == '0':
-                        if coptions['bambuild'] == '2':
-                            newrow(layout, "Space type:", cm, 'hspacemenu')
-                        elif coptions['bambuild'] == '3':
-                            newrow(layout, "Space type:", cm, 'brspacemenu')
-                            if cm.brspacemenu == '2':
-                                row = layout.row()
-                                row.prop(cm, 'gl_roof')
-                        elif coptions['bambuild'] == '4':
-                            newrow(layout, "Space type:", cm, 'respacemenu')
-                    elif coptions['canalysis'] == '1':
-                        newrow(layout, "Space type:", cm, 'crspacemenu')
-                    elif coptions['canalysis'] == '2':
-                        if coptions['bambuild'] == '2':
-                            newrow(layout, "Space type:", cm, 'hspacemenu')
-                        if coptions['bambuild'] == '3':
-                            newrow(layout, "Space type:", cm, 'brspacemenu')
+                if coptions['canalysis'] == '0':
+                    if coptions['bambuild'] == '2':
+                        newrow(layout, "Space type:", cm, 'hspacemenu')
+                    elif coptions['bambuild'] == '3':
+                        newrow(layout, "Space type:", cm, 'brspacemenu')
+                        if cm.brspacemenu == '2':
+                            row = layout.row()
+                            row.prop(cm, 'gl_roof')
+                    elif coptions['bambuild'] == '4':
+                        newrow(layout, "Space type:", cm, 'respacemenu')
+                elif coptions['canalysis'] == '1':
+                    newrow(layout, "Space type:", cm, 'crspacemenu')
+                elif coptions['canalysis'] == '2':
+                    if coptions['bambuild'] == '2':
+                        newrow(layout, "Space type:", cm, 'hspacemenu')
+                    if coptions['bambuild'] == '3':
+                        newrow(layout, "Space type:", cm, 'brspacemenu')
 #                    elif coptions['canalysis'] == '3':
 #                        newrow(layout, "Space type:", cm, 'lespacemenu')                   
             rmmenu(layout, cm)

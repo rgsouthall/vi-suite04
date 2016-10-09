@@ -623,7 +623,7 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             illu = virrad * 179
             df = illu * 0.01
             sv = self.retsv(scene, frame, rtframe, chunk, rt)
-            print(sv)
+
             for gi, gp in enumerate(chunk):
                 gp[dfres] = df[gi]
                 gp[svres] = sv[gi]

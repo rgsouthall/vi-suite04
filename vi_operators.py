@@ -16,10 +16,10 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, datetime, mathutils, os, bmesh, shutil, sys
+import bpy, datetime, mathutils, os, bmesh, shutil, sys, gc
 from os import rename
 import numpy
-from numpy import arange, histogram, array, int16
+from numpy import arange, histogram, array, int8
 import bpy_extras.io_utils as io_utils
 from subprocess import Popen, PIPE, call
 from collections import OrderedDict
@@ -1913,7 +1913,8 @@ class NODE_OT_Shadow(bpy.types.Operator):
         times = [time + interval*t for t in range(int((endtime - time)/interval) + simnode.interval) if simnode.starthour - 1 <= (time + interval*t).hour <= simnode.endhour  - 1]
         sps = [solarPosition(t.timetuple().tm_yday, t.hour+t.minute/60, scene.latitude, scene.longitude)[2:] for t in times]
         direcs = [mathutils.Vector((-sin(sp[1]), -cos(sp[1]), tan(sp[0]))) for sp in sps]# if sp[0] > 0]   
-        valdirecs = [mathutils.Vector((-sin(sp[1]), -cos(sp[1]), tan(sp[0]))) for sp in sps if sp[0] > 0]        
+        valdirecs = [mathutils.Vector((-sin(sp[1]), -cos(sp[1]), tan(sp[0]))) for sp in sps if sp[0] > 0]  
+        lvaldirecs = len(valdirecs)
         calcsteps = len(frange) * sum(len([f for f in o.data.polygons if o.data.materials[f.material_index].mattype == '1']) for o in [scene.objects[on] for on in scene['liparams']['shadc']])
         curres, reslists = 0, []
         pfile = progressfile(scene, datetime.datetime.now(), calcsteps)
@@ -1947,16 +1948,17 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     
                 if gpoints:
                     posis = [gp.calc_center_bounds() + gp.normal.normalized() * simnode.offset for gp in gpoints] if simnode.cpoint == '0' else [gp.co + gp.normal.normalized() * simnode.offset for gp in gpoints]
-                    allpoints = numpy.zeros((len(gpoints), len(direcs)))
-                    
+                    allpoints = numpy.zeros((len(gpoints), len(direcs)), dtype=int8)
+
                     for chunk in chunks(gpoints, int(scene['viparams']['nproc']) * 200):
                         for gp in chunk:
                             if frame == frange[0]:
                                 gp[cindex] = g + 1                      
-                            pointres = array([(0, 1)[shadtree.ray_cast(posis[g], direc)[3] == None and direc[2] > 0] for direc in direcs])
-                            allpoints[g] = pointres#numpy.average(pointres.reshape(len(pointres)/simnode.interval, simnode.interval), axis = 1)
-                            gp[shadres] = 100 * (numpy.sum(pointres)/len(valdirecs))
+                            pointres = array([(0, 1)[shadtree.ray_cast(posis[g], direc)[3] == None and direc[2] > 0] for direc in direcs], dtype = int8)
+                            numpy.putmask(allpoints[g], pointres > 0, pointres)
+                            gp[shadres] = 100 * (numpy.sum(pointres)/lvaldirecs)
                             g += 1
+
                         curres += len(chunk)
                         if pfile.check(curres) == 'CANCELLED':
                             return {'CANCELLED'}

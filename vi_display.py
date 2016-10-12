@@ -971,11 +971,14 @@ def basic_disp(self, context, simnode):
         self.table.draw(context, width, height)
     
 def comp_disp(self, context, simnode):
-    if self._handle_disp:
-        width, height = context.region.width, context.region.height
-        self.legend.draw(context, width, height)
-        self.table.draw(context, width, height)
-        self.tablecomp.draw(context, width, height)
+    try:
+        if self._handle_disp:
+            width, height = context.region.width, context.region.height
+            self.legend.draw(context, width, height)
+            self.table.draw(context, width, height)
+            self.tablecomp.draw(context, width, height)
+    except:
+        pass
     
     if context.scene['liparams']['unit'] in ('ASE (hrs)', 'sDA (%)'):
         self.dhscatter.draw(context, width, height)

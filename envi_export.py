@@ -467,7 +467,8 @@ def pregeo(op):
         elif obj.envi_type in ('0', '2'):                        
             ezdict = {'0': 'EnViZone', '2': 'EnViTC'}            
             dcdict = {'Wall':(1,1,1), 'Partition':(1,1,0.0), 'Window':(0,1,1), 'Roof':(0,1,0), 'Ceiling':(1, 1, 0), 'Floor':(0.44,0.185,0.07), 'Shading':(1, 0, 0)}
-            obj["floorarea"] = sum([facearea(obj, face) for face in obj.data.polygons if omats[face.material_index] and omats[face.material_index].envi_con_type =='Floor'])
+            ofa = sum([facearea(obj, face) for face in obj.data.polygons if omats[face.material_index] and omats[face.material_index].envi_con_type =='Floor'])
+            obj["floorarea"] = ofa if ofa else 0.001
     
             for mats in omats:
                 if 'en_'+mats.name not in [mat.name for mat in bpy.data.materials]:

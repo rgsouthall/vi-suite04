@@ -1928,7 +1928,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             o['hours'] = arange(simnode.starthour, simnode.endhour + 1, 1/simnode.interval, dtype = float)
             bm = bmesh.new()
             bm.from_mesh(o.data)
-            clearlayers(bm, 'f')
+            clearlayers(bm, 'a')
             bm.transform(o.matrix_world)
             geom = bm.faces if simnode.cpoint == '0' else bm.verts
             geom.layers.int.new('cindex')
@@ -1955,7 +1955,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
                             if frame == frange[0]:
                                 gp[cindex] = g + 1                      
                             pointres = array([(0, 1)[shadtree.ray_cast(posis[g], direc)[3] == None and direc[2] > 0] for direc in direcs], dtype = int8)
-                            numpy.putmask(allpoints[g], pointres > 0, pointres)
+                            numpy.putmask(allpoints[g], pointres == 1, pointres)
                             gp[shadres] = 100 * (numpy.sum(pointres)/lvaldirecs)
                             g += 1
 

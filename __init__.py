@@ -19,7 +19,7 @@
 bl_info = {
     "name": "VI-Suite v04",
     "author": "Ryan Southall",
-    "version": (0, 4, 0),
+    "version": (0, 4, 1),
     "blender": (2, 7, 8),
     "api":"",
     "location": "Node Editor & 3D View > Properties Panel",
@@ -41,12 +41,12 @@ else:
     from .envi_mat import envi_materials, envi_constructions, envi_layero, envi_layer1, envi_layer2, envi_layer3, envi_layer4, envi_layerotype, envi_layer1type, envi_layer2type, envi_layer3type, envi_layer4type, envi_con_list
     from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, fvmat, radmat, radbsdf, retsv, cmap
     from .vi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, lividisplay, setscenelivivals
-    from .envi_func import enunits, enpunits, enparametric, retenvires, resnameunits, aresnameunits
+    from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
     from .vi_display import setcols
     from .vi_operators import *
     from .vi_ui import *
 
-import sys, os, inspect, bpy, nodeitems_utils, bmesh, shutil, colorsys, math, datetime, mathutils
+import sys, os, inspect, bpy, nodeitems_utils, bmesh, math, mathutils
 from bpy.app.handlers import persistent
 from numpy import array, digitize, logspace, vectorize, multiply
 from numpy import log10 as nlog10

@@ -51,6 +51,7 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
                 amentry, pportentry, cpentry, cpfileentry = retpmap(simnode, frame, scene)
                 pmcmd = ('mkpmap -e {1}.pmapmom -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, scene['viparams']['filebase'], frame, simnode.pmapgno, cpentry, amentry))                   
                 pmrun = Popen(pmcmd.split(), stderr = PIPE, stdout = PIPE)
+
                 while pmrun.poll() is None:
                     with open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'r') as pfile:
                         if 'CANCELLED' in pfile.read():
@@ -64,25 +65,11 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
                             calc_op.report({'ERROR'}, errdict[line])
                             return
                     
-#                for line in pmrun.stdout: 
-#                    print(line)
-#                for line in pmrun.stderr: 
-#                    print(line)
-#                    if line.decode() in errdict:
-#                        calc_op.report({'ERROR'}, errdict[line.decode()])
-#                        return
-                
-
                 rtcmds.append("rtrace -n {0} -w {1} -ap {2}-{3}.gpm 50 {4} -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame, cpfileentry)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
             else:
-#                if context == 'Compliance':
-#                    rtcmds.append("rcontrib -w -n {} {} -m sky_glow -I+ -V+ {}-{}.oct ".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame))    
-#
-#                else:
                 rtcmds.append("rtrace -n {0} -w {1} -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
         else:
             rccmds.append("rcontrib -w  -h -I -fo -bn 146 {} -n {} -f tregenza.cal -b tbin -m sky_glow {}-{}.oct".format(simnode['radparams'], scene['viparams']['nproc'], scene['viparams']['filebase'], frame))
-#            rccmds.append("rcontrib -w  -h -I- -fo -bn 146 {} -n {} -f tregenza.cal -b tbin -m env_glow {}-{}.oct".format(simnode['radparams'], scene['viparams']['nproc'], scene['viparams']['filebase'], frame))
 
     try:
         tpoints = [bpy.data.objects[lc]['rtpnum'] for lc in scene['liparams']['livic']]
@@ -99,7 +86,7 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
     for oi, o in enumerate(obs):
         curres = sum(tpoints[:oi])
         selobj(scene, o)
-        o['omax'], o['omin'], o['oave'], totsensearea, totsdaarea, totasearea  = {}, {}, {}, 0, 0, 0
+        o['omax'], o['omin'], o['oave']  = {}, {}, {}
         if context == 'Basic':
             bccout = o.basiccalcapply(scene, frames, rtcmds, simnode, curres, pfile)
             if bccout == 'CANCELLED':
@@ -130,13 +117,14 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
             else:
                 reslists += compout[2]
                 pfs.append(compout[0])
-                epfs.append(compout[1])
-                
+                epfs.append(compout[1])      
+    
     for f, frame in enumerate(frames):
         if context == 'Compliance':
-            tpf = 'FAIL' if 'FAIL' in pfs[f] or 'FAIL*' in pfs[f] else 'PASS'
+            tpf = 'FAIL' if ['FAIL'] in list(zip(*pfs))[f] or ['FAIL*'] in list(zip(*pfs))[f] else 'PASS'
+
             if simnode['coptions']['canalysis'] == '0': 
-                tpf = 'EXEMPLARY' if tpf == 'PASS' and ('FAIL' not in epfs[f] and 'FAIL*' not in epfs[f]) else tpf
+                tpf = 'EXEMPLARY' if tpf == 'PASS' and (['FAIL'] not in list(zip(*epfs))[f] and ['FAIL*'] not in list(zip(*epfs))[f]) else tpf
                 cred = '0' if tpf == 'FAIL' else ('1', '2', '2', '1', '1', '1')[int(simnode['coptions']['buildtype'])]
                 ecred = '1' if tpf == 'EXEMPLARY' else '0'
                 simnode['tablecomp{}'.format(frame)] = [['Standard: BREEAM HEA1'], 
@@ -161,7 +149,7 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
                 simnode['tablecomp{}'.format(frame)] = [['Standard: Green Star'], 
                             ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])])], [''], ['Standard credits: {}'.format(gscred)]]
                 for o in obs:
-                    o['tablecomp{}'.format(frame)] += [['', '', '', ''], ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']]), 'Standard credits: {}'.format(gscred), '', '']]
+                    o['tablecomp{}'.format(frame)] += [['', '', '', ''], ['Build type: {}'.format(builddict[simnode['coptions']['canalysis']][int(simnode['coptions']['buildtype'])]), 'Standard credits: {}'.format(gscred), '', '']]
             
             elif simnode['coptions']['canalysis'] == '3':
                 cred = 0

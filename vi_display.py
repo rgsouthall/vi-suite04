@@ -19,8 +19,8 @@
 #from __future__ import unicode_literals
 import bpy, blf, colorsys, bgl, mathutils, bmesh, datetime, os, inspect
 from bpy_extras import view3d_utils
-from math import pi, sin, cos, atan2, log10, ceil
-from numpy import array, where, arange
+from math import pi, sin, cos, atan2, log10
+from numpy import array, arange
 from numpy import sum as nsum
 from numpy import min as nmin
 from numpy import max as nmax
@@ -32,9 +32,9 @@ except:
     mp = 0
 
 from . import livi_export
-from .vi_func import cmap, skframe, selobj, retvpvloc, viewdesc, drawloop, drawpoly, draw_index, drawfont, blf_props, blf_unprops
+from .vi_func import cmap, skframe, selobj, retvpvloc, viewdesc, drawloop, drawpoly, draw_index, blf_props
 from .vi_func import retdp, objmode, drawcircle, drawtri, setscenelivivals, draw_time, retcols, draw_index_distance
-from .envi_func import retenvires, retenresdict, recalculate_text
+from .envi_func import retenvires, recalculate_text
 
 nh = 768
 enunitdict = {'Heating (W)': 'Watts (W)', 'Cooling (W)': 'Watts (W)', 'CO2 (ppm)': 'PPM', 'Solar gain (W)': 'Watts (W)', 'Temperature (degC)': u'Temperature (\u00B0C)', 'PMV': 'PMV', 'PPD (%)': '%', 'Air heating (W)': 'W', 
@@ -133,9 +133,9 @@ def li_display(disp_op, simnode):
         cv.diffuse, cv.glossy, cv.transmission, cv.scatter, cv.shadow = 0, 0, 0, 0, 0        
         obreslist.append(ores)
         ores['omax'], ores['omin'], ores['oave'], ores['lires']  = o['omax'], o['omin'], o['oave'], 1 
-        if scene['viparams']['visimcontext'] == 'LiVi Compliance':
-            for c in ('compmat', 'comps', 'crit', 'ecrit', 'ecomps'):
-                ores[c] = o[c]
+#        if scene['viparams']['visimcontext'] == 'LiVi Compliance':
+#            for c in ('compmat', 'comps', 'crit', 'ecrit', 'ecomps'):
+#                ores[c] = o[c]
         selobj(scene, ores)
         
         for matname in ['{}#{}'.format('vi-suite', i) for i in range(20)]:
@@ -618,7 +618,7 @@ class Base_Display():
         self.move = 0
         self.expand = 0
         if iname not in bpy.data.images:
-            bpy.data.images.load(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'images', iname))
+            bpy.data.images.load(os.path.join(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))), 'Images', iname))
         self.image = iname
         self.hl = [1, 1, 1, 1]
         self.cao = None
@@ -890,10 +890,13 @@ class comp_table(Base_Display):
         self.unit = context.scene['liparams']['unit']
         self.cao = context.active_object
         resnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]
-        if self.cao and self.cao.get('tablecomp{}'.format(context.scene.frame_current)):
-            self.rcarray = array((self.cao['tablecomp{}'.format(context.scene.frame_current)]))  
-        else:
-            self.rcarray = array((resnode['tablecomp{}'.format(context.scene.frame_current)]))
+        try:
+            if self.cao and self.cao.get('tablecomp{}'.format(context.scene.frame_current)):
+                self.rcarray = array((self.cao['tablecomp{}'.format(context.scene.frame_current)]))  
+            else:
+                self.rcarray = array((resnode['tablecomp{}'.format(context.scene.frame_current)]))
+        except:
+            pass
         
     def drawopen(self, context):
         draw_table(self)
@@ -1436,7 +1439,7 @@ def draw_barchart(self, scene, x, y, tit, xlab, ylab, ymin, ymax):
     self.plt.tight_layout(rect=[0, 0, 1 + ((len(x)/len(y)) - 1) * 0.005, 1])
     
 def save_plot(self, scene, filename):
-    fileloc = os.path.join(scene['viparams']['newdir'], 'images', filename)
+    fileloc = os.path.join(scene['viparams']['newdir'], 'Images', filename)
     self.plt.savefig(fileloc, pad_inches = 0.1)
     
     if filename not in [i.name for i in bpy.data.images]:

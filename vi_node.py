@@ -72,7 +72,7 @@ class ViLoc(bpy.types.Node, ViNodes):
         self['reslists'] = reslists
 
     entries = []
-    vi_prefs = bpy.context.user_preferences.addons['vi-suite04'].preferences
+    vi_prefs = bpy.context.user_preferences.addons['vi-suite'].preferences
 
     if vi_prefs and os.path.isdir(vi_prefs.epweath):
         epwpath = vi_prefs.epweath

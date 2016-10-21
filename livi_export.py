@@ -88,9 +88,11 @@ def radgexport(export_op, node, **kwargs):
         lradfile = "# Lights \n\n"
         for o in lightlist:
             iesname = os.path.splitext(os.path.basename(o.ies_name))[0]
+
             if os.path.isfile(o.ies_name):
-                iescmd = "ies2rad -t default -m {0} -c {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} -p {2} -d{3} -o {4}-{5} {6}".format(o.ies_strength, o.ies_colour, scene['liparams']['lightfilebase'], o.ies_unit, iesname, frame, o.ies_name)
-                subprocess.call(iescmd.split())
+                iescmd = "ies2rad -t default -m {0} -c {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} -p {2} -d{3} -o {4}-{5} '{6}'".format(o.ies_strength, o.ies_colour, scene['liparams']['lightfilebase'], o.ies_unit, iesname, frame, o.ies_name)
+                subprocess.call(shlex.split(iescmd))
+
                 if o.type == 'LAMP':
                     if o.parent:
                         o = o.parent

@@ -595,12 +595,13 @@ class IES_Select(bpy.types.Operator, io_utils.ImportHelper):
 
     def execute(self, context):
         lamp = bpy.context.active_object
-        if " " not in self.filepath:
-            lamp['ies_name'] = self.filepath
-            return {'FINISHED'}
-        else:
-            self.report({'ERROR'}, "There is a space either in the IES filename or directory location. Rename or move the file.")
-            return {'CANCELLED'}
+#        if " " not in self.filepath:
+        lamp['ies_name'] = self.filepath
+        return {'FINISHED'}
+#        else:
+#            self.report({'ERROR'}, "There is a space either in the IES filename or directory location. Rename or move the file.")
+#            lamp['ies_name'] = self.filepath
+#            return {'CANCELLED'}
 
     def invoke(self,context,event):
         context.window_manager.fileselect_add(self)
@@ -2253,8 +2254,7 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
             # Table routine
             
             if self.frame != context.scene.frame_current or self.table.unit != context.scene['liparams']['unit'] or self.table.cao != context.active_object:
-                self.table.update(context)
-                self.frame = context.scene.frame_current
+                self.table.update(context)                
                 redraw = 1
             
             if self.table.spos[0] < mx < self.table.epos[0] and self.table.spos[1] < my < self.table.epos[1]:
@@ -2291,7 +2291,6 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
             if context.scene['viparams']['visimcontext'] == 'LiVi Compliance':
                 if self.frame != context.scene.frame_current:
                     self.tablecomp.update(context)
-                    self.frame = context.scene.frame_current
                     redraw = 1
                 if self.tablecomp.unit != context.scene['liparams']['unit']:
                     self.tablecomp.update(context)
@@ -2460,6 +2459,7 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
                                 
             if redraw:
                 context.area.tag_redraw()
+                self.frame = context.scene.frame_current
         return {'PASS_THROUGH'}
 
     def invoke(self, context, event):

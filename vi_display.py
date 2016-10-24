@@ -866,7 +866,7 @@ class basic_table(Base_Display):
         Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
         self.fontdpi = int(0.15 * ydiff)
         self.unitdict = {'Lux': 'illu', 'DF (%)': 'df', u'W/m\u00b2 (v)': 'vi', u'W/m\u00b2 (f)': 'fi', 'Sky View': 'sv', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase',
-                         'Mlxh': 'mlxh', u'kWh/m\u00b2 (f)': 'fi', u'kWh/m\u00b2 (v)': 'vi', 'DA (%)': 'da', 'UDI-f (%)': 'udil', 'UDI-s (%)': 'udis', 
+                         'Mlxh': 'mlxh','kWh (f)': 'fi', u'kWh/m\u00b2 (f)': 'fim2', 'kWh (v)': 'vi', u'kWh/m\u00b2 (v)': 'vim2', 'DA (%)': 'da', 'UDI-f (%)': 'udil', 'UDI-s (%)': 'udis', 
                          'UDI-a (%)': 'udia', 'UDI-e (%)': 'udie', 'Max lux': 'illu', 'Ave lux': 'illu', 'Min lux': 'illu', 'kWh': 'kwh', 'kWh/m2': 'kwhm2'}
         
     def update(self, context):

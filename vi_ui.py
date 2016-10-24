@@ -52,7 +52,7 @@ class Vi3DPanel(bpy.types.Panel):
                     if scene['viparams']['visimcontext'] == 'LiVi CBDM':
                         if scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Min lux', 'Max lux', 'Ave lux'):
                             newrow(layout, 'Result type:', scene, "li_disp_da")
-                        elif scene['liparams']['unit'] in ('Mlxh', u'kWh/m\u00b2 (f)', u'kWh/m\u00b2 (v)'):
+                        elif scene['liparams']['unit'] in ('Mlxh', u'kWh/m\u00b2 (f)', u'kWh/m\u00b2 (v)', 'kWh (f)', 'kWh (v)'):
                             newrow(layout, 'Result type:', scene, "li_disp_exp")
                         elif scene['liparams']['unit'] in ('kWh', 'kWh/m2'):
                             newrow(layout, 'Result type:', scene, "li_disp_irrad")
@@ -578,7 +578,7 @@ def rmmenu(layout, cm):
         row.operator("material.del_bsdf", text="Delete BSDF")
         row = layout.row()
         row.operator("material.save_bsdf", text="Save BSDF")
-
-    newrow(layout, 'Photon Port:', cm, 'pport')
+    if cm.radmatmenu in ('1', '2', '3', '7'):
+        newrow(layout, 'Photon Port:', cm, 'pport')
     row = layout.row()
     row.label("-----------------------------------------")

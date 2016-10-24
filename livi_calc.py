@@ -47,9 +47,10 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
                 errdict = {'fatal - too many prepasses, no global photons stored\n': "Too many prepasses have ocurred. Make sure light sources can see your geometry",
                 'fatal - too many prepasses, no global photons stored, no caustic photons stored\n': "Too many prepasses have ocurred. Turn off caustic photons and encompass the scene",
                'fatal - zero flux from light sources\n': "No light flux, make sure there is a light source and that photon port normals point inwards",
-               'fatal - no light sources\n': "No light sources. Photon mapping does not work with HDR skies"}
+               'fatal - no light sources\n': "No light sources. Photon mapping does not work with HDR skies",
+               'fatal - no valid photon ports found\n': 'Re-export the geometry'}
                 amentry, pportentry, cpentry, cpfileentry = retpmap(simnode, frame, scene)
-                pmcmd = ('mkpmap -e {1}.pmapmom -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, scene['viparams']['filebase'], frame, simnode.pmapgno, cpentry, amentry))                   
+                pmcmd = ('mkpmap -e {1}.pmapmon -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, scene['viparams']['filebase'], frame, simnode.pmapgno, cpentry, amentry))                   
                 pmrun = Popen(pmcmd.split(), stderr = PIPE, stdout = PIPE)
 
                 while pmrun.poll() is None:

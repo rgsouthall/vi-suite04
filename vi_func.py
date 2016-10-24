@@ -19,11 +19,12 @@
 import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex, bpy_extras
 #from collections import OrderedDict
 from subprocess import Popen, PIPE, STDOUT
-from numpy import int8, float32, array, digitize, amax, amin, average, zeros, inner, transpose, nan, set_printoptions, choose, clip, where
+from numpy import int8, float32, float64, array, digitize, amax, amin, average, zeros, inner, transpose, nan, set_printoptions, choose, clip, where
 set_printoptions(threshold=nan)
 from numpy import sum as nsum
 from numpy import max as nmax
 from numpy import min as nmin
+from numpy import mean as nmean
 from numpy import delete as ndelete
 from numpy import append as nappend
 from math import sin, cos, asin, acos, pi, tan, ceil, log10
@@ -49,7 +50,7 @@ except Exception as e:
 
 dtdf = datetime.date.fromordinal
 unitdict = {'Lux': 'illu', u'W/m\u00b2 (f)': 'firrad', u'W/m\u00b2 (v)': 'virrad', 'DF (%)': 'df', 'DA (%)': 'da', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi',
-            'Sky View': 'sv', 'Mlxh': 'illu', u'kWh/m\u00b2 (f)': 'firrad', u'kWh/m\u00b2 (v)': 'virrad', '% Sunlit': 'res', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase', 'kW': 'watts', 'Max lux': 'illu', 
+            'Sky View': 'sv', 'Mlxh': 'illu', 'kWh (f)': 'firrad', 'kWh (v)': 'virrad', u'kWh/m\u00b2 (f)': 'firradm2', u'kWh/m\u00b2 (v)': 'virradm2', '% Sunlit': 'res', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase', 'kW': 'watts', 'Max lux': 'illu', 
             'Ave lux': 'illu', 'Min lux': 'illu', 'kWh': 'kW', 'kWh/m2': 'kW/m2'}
 
 coldict = {'0': 'rainbow', '1': 'gray', '2': 'hot', '3': 'CMRmap', '4': 'jet', '5': 'plasma'}
@@ -262,7 +263,7 @@ def retpmap(node, frame, scene):
 def setscenelivivals(scene):
     scene['liparams']['maxres'], scene['liparams']['minres'], scene['liparams']['avres'] = {}, {}, {}
     cbdmunits = ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux' , 'Ave lux', 'Min lux')
-    expunits = ('Mlxh', "kWh/m"+ u'\u00b2 (f)', "kWh/m"+ u'\u00b2 (v)', "kWh (f)", "kWh (v)")
+    expunits = ('Mlxh', "kWh (f)", "kWh (v)",  u'kWh/m\u00b2 (f)', u'kWh/m\u00b2 (v)', )
     irradunits = ('kWh', 'kWh/m2')
 
     if scene['viparams']['visimcontext'] == 'LiVi Basic':
@@ -404,7 +405,6 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
     self['omax'], self['omin'], self['oave'], self['livires'] = {}, {}, {}, {}
     clearlayers(bm, 'f')
     geom = bm.verts if self['cpoint'] == '1' else bm.faces
-    reslen = len(geom)
     cindex = geom.layers.int['cindex']
     totarea = sum([gp.calc_area() for gp in geom if gp[cindex] > 0]) if self['cpoint'] == '0' else sum([vertarea(bm, gp) for gp in geom])
     
@@ -431,7 +431,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         for chunk in chunks([g for g in geom if g[rt]], int(scene['viparams']['nproc']) * 500):
             rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
             xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()]).astype(float32)
-            virrad = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1)
+            virrad = nsum(xyzirrad * array([0.26, 0.67, 0.065], dtype = float32), axis = 1)
             firrad = virrad * 1.64
             illu = virrad * 179
             df = illu * 0.01
@@ -447,19 +447,20 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                 bm.free()
                 return {'CANCELLED'}
 
-        ovirrad = array([g[virradres] for g in geom]).astype(float32)
-        self['omax']['virrad{}'.format(frame)] = max(ovirrad)
-        self['omax']['illu{}'.format(frame)] =  max(ovirrad * 179)
-        self['omax']['df{}'.format(frame)] =  max(ovirrad * 1.79)
-        self['omax']['firrad{}'.format(frame)] =  max(ovirrad * 1.64)
-        self['omin']['virrad{}'.format(frame)] = min(ovirrad)
-        self['omin']['illu{}'.format(frame)] = min(ovirrad * 179)
-        self['omin']['df{}'.format(frame)] = min(ovirrad * 1.79)
-        self['omin']['firrad{}'.format(frame)] = min(ovirrad * 1.64)
-        self['oave']['virrad{}'.format(frame)] = sum(ovirrad)/reslen
-        self['oave']['illu{}'.format(frame)] = sum(ovirrad * 179)/reslen
-        self['oave']['df{}'.format(frame)] = sum(ovirrad * 1.79)/reslen 
-        self['oave']['firrad{}'.format(frame)] = 1.64 * sum(ovirrad)/reslen
+        ovirrad = array([g[virradres] for g in geom], dtype = float32)
+        maxovirrad, minovirrad, aveovirrad = nmax(ovirrad).astype(float64), nmin(ovirrad).astype(float64), nmean(ovirrad).astype(float64)
+        self['omax']['virrad{}'.format(frame)] = maxovirrad
+        self['omax']['illu{}'.format(frame)] =  maxovirrad * 179.0
+        self['omax']['df{}'.format(frame)] =  maxovirrad * 1.79
+        self['omax']['firrad{}'.format(frame)] =  maxovirrad * 1.64
+        self['omin']['virrad{}'.format(frame)] = minovirrad
+        self['omin']['illu{}'.format(frame)] = minovirrad * 179
+        self['omin']['df{}'.format(frame)] = minovirrad * 1.79
+        self['omin']['firrad{}'.format(frame)] = minovirrad * 1.64
+        self['oave']['virrad{}'.format(frame)] = aveovirrad
+        self['oave']['illu{}'.format(frame)] = aveovirrad * 179
+        self['oave']['df{}'.format(frame)] = aveovirrad * 1.79
+        self['oave']['firrad{}'.format(frame)] = aveovirrad
         tableheaders = [["", 'Minimum', 'Average', 'Maximum']]
         self['tableillu{}'.format(frame)] = array(tableheaders + [['Illuminance (lux)', '{:.1f}'.format(self['omin']['illu{}'.format(frame)]), '{:.1f}'.format(self['oave']['illu{}'.format(frame)]), '{:.1f}'.format(self['omax']['illu{}'.format(frame)])]])
         self['tabledf{}'.format(frame)] = array(tableheaders + [['DF (%)', '{:.1f}'.format(self['omin']['df{}'.format(frame)]), '{:.1f}'.format(self['oave']['df{}'.format(frame)]), '{:.1f}'.format(self['omax']['df{}'.format(frame)])]])
@@ -502,14 +503,17 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
     self['omax'], self['omin'], self['oave'] = {}, {}, {}
     clearlayers(bm, 'f')
     geom = bm.verts if self['cpoint'] == '1' else bm.faces
-    reslen = len(geom)
     cindex = geom.layers.int['cindex']
     
     for f, frame in enumerate(frames): 
+        geom.layers.float.new('firradm2{}'.format(frame))
+        geom.layers.float.new('virradm2{}'.format(frame))
         geom.layers.float.new('firrad{}'.format(frame))
         geom.layers.float.new('virrad{}'.format(frame))
         geom.layers.float.new('illu{}'.format(frame))
         geom.layers.float.new('res{}'.format(frame))
+        firradm2res = geom.layers.float['firradm2{}'.format(frame)]
+        virradm2res = geom.layers.float['virradm2{}'.format(frame)]
         firradres = geom.layers.float['firrad{}'.format(frame)]
         virradres = geom.layers.float['virrad{}'.format(frame)]
         illures = geom.layers.float['illu{}'.format(frame)]
@@ -522,16 +526,21 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         
         rt = geom.layers.string['rt{}'.format(rtframe)]
         gps = [g for g in geom if g[rt]]
-        areas = array([g.calc_area() for g in gps] if self['cpoint'] == '0' else [vertarea(bm, g) for g in gps])
+        areas = array([g.calc_area() for g in gps] if self['cpoint'] == '0' else [vertarea(bm, g) for g in gps], dtype = float32)
 
         for chunk in chunks(gps, int(scene['viparams']['nproc']) * 200):
+            careas = array([c.calc_area() if self['cpoint'] == '0' else vertarea(bm, c) for c in chunk], dtype = float32)
             rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
             xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()]).astype(float32)
-            virrad = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1) * 1e-3
-            firrad = virrad * 1.64
-            illu = virrad * 179e-3
+            virradm2 = nsum(xyzirrad * array([0.26, 0.67, 0.065], dtype = float32), axis = 1) * 1e-3
+            virrad = virradm2 * careas
+            firradm2 = virradm2 * 1.64
+            firrad = firradm2 * careas
+            illu = virradm2 * 179e-3
 
             for gi, gp in enumerate(chunk):
+                gp[firradm2res] = firradm2[gi]
+                gp[virradm2res] = virradm2[gi]
                 gp[firradres] = firrad[gi]
                 gp[virradres] = virrad[gi]
                 gp[illures] = illu[gi]
@@ -540,27 +549,30 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             if pfile.check(curres) == 'CANCELLED':
                 bm.free()
                 return {'CANCELLED'}
-        
-        ovirradm2 = array([g[virradres] for g in gps])
-        ovirrad = ovirradm2 * areas
-        ofirradm2 = ovirradm2 * 1.64 
-        ofirrad = ofirradm2 * areas
-        oillu = ovirradm2 * 178e-3
-        self['omax']['firrad{}'.format(frame)] = max(ofirrad)
-        self['omin']['firrad{}'.format(frame)] = min(ofirrad)
-        self['oave']['firrad{}'.format(frame)] = nsum(ofirrad)/reslen
-        self['omax']['firradm2{}'.format(frame)] = max(ofirradm2)
-        self['omin']['firradm2{}'.format(frame)] = min(ofirradm2)
-        self['oave']['firradm2{}'.format(frame)] = nsum(ofirradm2)/reslen
-        self['omax']['virrad{}'.format(frame)] = max(ovirrad)
-        self['omin']['virrad{}'.format(frame)] = min(ovirrad)
-        self['oave']['virrad{}'.format(frame)] = nsum(ovirrad)/reslen
-        self['omax']['virradm2{}'.format(frame)] = max(ovirradm2)
-        self['omin']['virradm2{}'.format(frame)] = min(ovirradm2)
-        self['oave']['virradm2{}'.format(frame)] = nsum(ovirradm2)/reslen
-        self['omax']['illu{}'.format(frame)] = max(oillu)
-        self['omin']['illu{}'.format(frame)] = min(oillu)
-        self['oave']['illu{}'.format(frame)] = nsum(oillu)/reslen
+                
+        ovirradm2 = array([g[virradm2res] for g in gps]).astype(float32)
+        ovirrad = array([g[virradres] for g in gps]).astype(float32)
+        maxovirradm2 = nmax(ovirradm2).astype(float64)
+        maxovirrad = nmax(ovirrad).astype(float64)
+        minovirradm2 = nmin(ovirradm2).astype(float64)
+        minovirrad = nmin(ovirrad).astype(float64)
+        aveovirradm2 = nmean(ovirradm2).astype(float64)
+        aveovirrad = nmean(ovirrad).astype(float64)
+        self['omax']['firrad{}'.format(frame)] = maxovirrad * 1.64
+        self['omin']['firrad{}'.format(frame)] = minovirrad * 1.64
+        self['oave']['firrad{}'.format(frame)] = aveovirrad * 1.64
+        self['omax']['firradm2{}'.format(frame)] = maxovirradm2  * 1.64
+        self['omin']['firradm2{}'.format(frame)] = minovirradm2  * 1.64
+        self['oave']['firradm2{}'.format(frame)] = aveovirradm2  * 1.64
+        self['omax']['virrad{}'.format(frame)] = maxovirrad
+        self['omin']['virrad{}'.format(frame)] = minovirrad
+        self['oave']['virrad{}'.format(frame)] = aveovirrad
+        self['omax']['virradm2{}'.format(frame)] = maxovirradm2
+        self['omin']['virradm2{}'.format(frame)] = minovirradm2
+        self['oave']['virradm2{}'.format(frame)] = aveovirradm2
+        self['omax']['illu{}'.format(frame)] = maxovirradm2 * 178e-3
+        self['omin']['illu{}'.format(frame)] = minovirradm2 * 178e-3
+        self['oave']['illu{}'.format(frame)] = aveovirradm2 * 178e-3
         self['tablemlxh{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
             ['Luxhours (Mlxh)', '{:.1f}'.format(self['omin']['illu{}'.format(frame)]), '{:.1f}'.format(self['oave']['illu{}'.format(frame)]), '{:.1f}'.format(self['omax']['illu{}'.format(frame)])]])
         self['tablefim2{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
@@ -635,15 +647,16 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
                 bm.free()
                 return {'CANCELLED'}
 
-        resdf = [gp[dfres] for gp in geom if gp[cindex] > 0]
-        ressv = [gp[svres] for gp in geom if gp[cindex] > 0]
-        resillu = [gp[res] for gp in geom if gp[cindex] > 0]
-        self['omax']['df{}'.format(frame)] = max(resdf)
-        self['omin']['df{}'.format(frame)] = min(resdf)
-        self['oave']['df{}'.format(frame)] = sum(resdf)/reslen
+        resillu = array([gp[res] for gp in geom if gp[cindex] > 0], dtype = float32)
+        resdf = array([gp[dfres] for gp in geom if gp[cindex] > 0], dtype = float32)
+        ressv = array([gp[svres] for gp in geom if gp[cindex] > 0], dtype = int8)
+        
+        self['omax']['df{}'.format(frame)] = nmax(resdf).astype(float64)
+        self['omin']['df{}'.format(frame)] = nmin(resdf).astype(float64)
+        self['oave']['df{}'.format(frame)] = nmean(resdf).astype(float64)
         self['omax']['sv{}'.format(frame)] =  1.0
         self['omin']['sv{}'.format(frame)] = 0.0
-        self['oave']['sv{}'.format(frame)] = sum(ressv)/reslen
+        self['oave']['sv{}'.format(frame)] = nmean(ressv)
         self['tabledf{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
             ['DF (%)', '{:.1f}'.format(self['omin']['df{}'.format(frame)]), '{:.1f}'.format(self['oave']['df{}'.format(frame)]), '{:.1f}'.format(self['omax']['df{}'.format(frame)])]])
         self['tablesv{}'.format(frame)] = array([['', '% area with', '% area without'], ['Sky View', '{:.1f}'.format(100 * nsum(ressv)/len(ressv)), '{:.1f}'.format(100 - 100 * nsum(ressv)/(len(ressv)))]])

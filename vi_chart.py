@@ -144,7 +144,7 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
         plt.ylabel(ylabel)
         plt.legend()
         plt.grid(True)
-        plt.show(block = str(sys.platform) not in ('win32', 'darwin'))
+        plt.show(block = str(sys.platform) != 'win32')
     except Exception as e:
         chart_op.report({'ERROR'}, '{} Invalid data for this component'.format(e))
         

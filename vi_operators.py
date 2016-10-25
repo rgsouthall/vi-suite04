@@ -316,6 +316,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
             rvurun = Popen(rvucmd.split(), stdout = PIPE, stderr = PIPE)
 
             for line in rvurun.stderr:
+                print(line)
                 if 'view up parallel to view direction' in line.decode():
                     self.report({'ERROR'}, "Camera cannot point directly upwards")
                     return {'CANCELLED'}
@@ -522,68 +523,6 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
         else:
             self.report({'ERROR'}, "There is no camera in the scene. Create one for glare analysis")
             return {'FINISHED'}
-
-#class VIEW3D_OT_LiDisplay(bpy.types.Operator):
-#    bl_idname = "view3d.lidisplay"
-#    bl_label = "LiVi display"
-#    bl_description = "Display the results on the sensor surfaces"
-#    bl_register = True
-#    bl_undo = False
-#    _handle = None
-#    disp =  bpy.props.IntProperty(default = 1)
-#
-#    def modal(self, context, event):
-#        scene = context.scene
-#        if context.region:
-#            height = context.region.height
-#            if event.mouse_region_x in range(100) and event.mouse_region_y in range(height - 100, height):
-#                if event.type == 'WHEELUPMOUSE':
-#                    scene.vi_leg_max += scene.vi_leg_max * 0.05
-#                    return {'RUNNING_MODAL'}
-#                elif event.type == 'WHEELDOWNMOUSE':
-#                    scene.vi_leg_max -= (scene.vi_leg_max - scene.vi_leg_min) * 0.05
-#                    return {'RUNNING_MODAL'}
-#            elif event.mouse_region_x in range(100) and event.mouse_region_y in range(height - 520, height - 420):
-#                if event.type == 'WHEELUPMOUSE':
-#                    scene.vi_leg_min += (scene.vi_leg_max - scene.vi_leg_min) * 0.05
-#                    return {'RUNNING_MODAL'}
-#                elif event.type == 'WHEELDOWNMOUSE':
-#                    scene.vi_leg_min -= scene.vi_leg_min * 0.05
-#                    return {'RUNNING_MODAL'}
-#
-#        if scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel') or not scene.vi_display or self.disp != scene['liparams']['disp_count']:              
-#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_leg, 'WINDOW')
-#            bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
-#            if scene['liparams']['type'] == 'LiVi Compliance':
-#                try:
-#                    bpy.types.SpaceView3D.draw_handler_remove(self._handle_comp, 'WINDOW')
-#                except:
-#                    pass
-#                scene.li_compliance = 0
-#
-#            if scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel') or not scene.vi_display: 
-#                 scene['viparams']['vidisp'] = scene['viparams']['vidisp'][0:2]
-#                 [scene.objects.unlink(o) for o in scene.objects if o.lires]
-#
-#            return {'CANCELLED'}
-#        return {'PASS_THROUGH'}
-#
-#    def execute(self, context):
-#        dispdict = {'LiVi Compliance': 'lcpanel', 'LiVi Basic': 'lipanel', 'LiVi CBDM': 'lipanel', 'Shadow': 'sspanel'}
-#        scene = context.scene
-#        scene['liparams']['disp_count'] = scene['liparams']['disp_count'] + 1 if scene['liparams']['disp_count'] < 10 else 0 
-#        self.disp = scene['liparams']['disp_count']
-#        clearscene(scene, self)
-#        self.simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
-#        scene['viparams']['vidisp'] = dispdict[scene['viparams']['visimcontext']]
-#        li_display(self.simnode)
-#        scene.vi_disp_wire, scene.vi_display = 1, 1
-#        self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(linumdisplay, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
-#        self._handle_leg = bpy.types.SpaceView3D.draw_handler_add(li3D_legend, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
-#        context.window_manager.modal_handler_add(self)
-#        if scene['viparams']['visimcontext'] == 'LiVi Compliance':
-#            self._handle_comp = bpy.types.SpaceView3D.draw_handler_add(li_compliance, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
-#        return {'RUNNING_MODAL'}
 
 class IES_Select(bpy.types.Operator, io_utils.ImportHelper):
     bl_idname = "livi.ies_select"

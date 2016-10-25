@@ -631,6 +631,8 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         
         for chunk in chunks([g for g in geom if g[rt]], int(scene['viparams']['nproc']) * 50):
             rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
+#            for line in rtrun.stderr:
+#                print(line)
             xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()]).astype(float32)
             virrad = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1)
             illu = virrad * 179

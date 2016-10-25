@@ -133,9 +133,9 @@ addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe
 matpath, epwpath, envi_mats, envi_cons, conlayers  = addonpath+'/EPFiles/Materials/Materials.data', addonpath+'/EPFiles/Weather/', envi_materials(), envi_constructions(), 5
 evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
 vi_prefs = bpy.context.user_preferences.addons[__name__].preferences
-radldir = vi_prefs.radlib if vi_prefs and os.path.isdir(vi_prefs.radlib) else os.path.join('{}'.format(addonpath), 'Radfiles', 'lib')
-radbdir = vi_prefs.radbin if vi_prefs and os.path.isdir(vi_prefs.radbin) else os.path.join('{}'.format(addonpath), 'Radfiles', 'bin') 
-epdir = vi_prefs.epbin if vi_prefs and os.path.isdir(vi_prefs.epbin) else os.path.join('{}'.format(addonpath), 'EPFiles', 'bin')
+radldir = bpy.path.abspath(vi_prefs.radlib) if vi_prefs and os.path.isdir(bpy.path.abspath(vi_prefs.radlib)) else os.path.join('{}'.format(addonpath), 'Radfiles', 'lib')
+radbdir = bpy.path.abspath(vi_prefs.radbin) if vi_prefs and os.path.isdir(bpy.path.abspath(vi_prefs.radbin)) else os.path.join('{}'.format(addonpath), 'Radfiles', 'bin') 
+epdir = bpy.path.abspath(vi_prefs.epbin) if vi_prefs and os.path.isdir(bpy.path.abspath(vi_prefs.epbin)) else os.path.join('{}'.format(addonpath), 'EPFiles', 'bin')
 os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], os.path.dirname(bpy.app.binary_path))
 
 if not os.environ.get('RAYPATH') or radldir not in os.environ['RAYPATH'] or radbdir not in os.environ['PATH']  or epdir not in os.environ['PATH']:
@@ -168,7 +168,6 @@ def eupdate(self, context):
             for o in [obj for obj in bpy.data.objects if obj.lires == 1 and obj.data.shape_keys and str(frame) in [sk.name for sk in obj.data.shape_keys.key_blocks]]:  
                 bm = bmesh.new()
                 bm.from_mesh(o.data)  
-         #       bm.normal_update()
                 bm.transform(o.matrix_world)            
                 skb = bm.verts.layers.shape['Basis']
                 skf = bm.verts.layers.shape[str(frame)]

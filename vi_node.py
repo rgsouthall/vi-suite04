@@ -45,7 +45,7 @@ class ViLoc(bpy.types.Node, ViNodes):
 
     def updatelatlong(self, context):
         context.space_data.edit_tree == ''
-#        bpy.types.NodeTree.get_from_context(context)
+#        print(bpy.types.NodeTree.get_from_context(context))
         scene = context.scene
         (scene.latitude, scene.longitude) = epwlatilongi(context.scene, self) if self.loc == '1' and self.weather else (scene.latitude, scene.longitude)
         nodecolour(self, self.ready())
@@ -57,8 +57,10 @@ class ViLoc(bpy.types.Node, ViNodes):
                 epwcolumns = list(zip(*[epwline.split(',') for epwline in epwlines]))
                 self['year'] = int(epwcolumns[0][0])
                 times = ('Month', 'Day', 'Hour', 'DOS')
-                for t, time in enumerate([' '.join(epwcolumns[c]) for c in range(1,4)] + [' '.join(['{}'.format(int(d/24) + 1) for d in range(len(epwlines))])]):
-                    reslists.append(['0', 'Time', '', times[t], time])
+                
+                for t, ti in enumerate([' '.join(epwcolumns[c]) for c in range(1,4)] + [' '.join(['{}'.format(int(d/24) + 1) for d in range(len(epwlines))])]):
+                    reslists.append(['0', 'Time', '', times[t], ti])
+                    
                 for c in {"Temperature ("+ u'\u00b0'+"C)": 6, 'Humidity (%)': 8, "Direct Solar (W/m"+u'\u00b2'+")": 14, "Diffuse Solar (W/m"+u'\u00b2'+")": 15,
                           'Wind Direction (deg)': 20, 'Wind Speed (m/s)': 21}.items():
                     reslists.append(['0', 'Climate', '', c[0], ' '.join([cdata for cdata in list(epwcolumns[c[1]])])])
@@ -68,27 +70,31 @@ class ViLoc(bpy.types.Node, ViNodes):
         else:
             self.outputs['Location out']['epwtext'] = ''
             self.outputs['Location out']['valid'] = ['Location']
+
         socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])
         self['reslists'] = reslists
-
-    entries = []
-    vi_prefs = bpy.context.user_preferences.addons['vi-suite'].preferences if bpy.context.user_preferences.addons.get('vi-suite') else ''
-
-    if vi_prefs and os.path.isdir(vi_prefs.epweath):
-        epwpath = vi_prefs.epweath
-    else:
-        epwpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))+'/EPFiles/Weather/'
+        self['llupdate'] = 1
+        entries = []
+        addonfolder = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
+        vi_prefs = bpy.context.user_preferences.addons['{}'.format(addonfolder)].preferences
     
-    for wfile in glob.glob(epwpath+"/*.epw"):
-        with open(wfile, 'r') as wf:
-            for wfl in wf.readlines():
-                if wfl.split(',')[0].upper() == 'LOCATION':
-                    entries.append((wfile, wfl.split(',')[1], 'Weather Location'))
-                    break
+        if vi_prefs and os.path.isdir(bpy.path.abspath(vi_prefs.epweath)):
+            epwpath = bpy.path.abspath(vi_prefs.epweath)
+        else:
+            epwpath = os.path.dirname(os.path.abspath(__file__)) + '/EPFiles/Weather/'
+
+        for wfile in glob.glob(epwpath+"/*.epw"):
+            with open(wfile, 'r') as wf:
+                for wfl in wf.readlines():
+                    if wfl.split(',')[0].upper() == 'LOCATION':
+                        entries.append((wfile, wfl.split(',')[1], 'Weather Location'))
+                        break
+        self['entries'] = entries if entries else [('None', 'None', 'None')]
                 
-    entries = [('None', 'None', 'None')] if not entries else entries
-   
-    weather = bpy.props.EnumProperty(name = 'Weather file', items=entries, update=updatelatlong)
+    def retentries(self, context):
+        return [tuple(e) for e in self['entries']]
+                  
+    weather = bpy.props.EnumProperty(name = 'Weather file', items=retentries, update=updatelatlong)
     loc = bpy.props.EnumProperty(items = [("0", "Manual", "Manual location"), ("1", "EPW ", "Get location from EPW file")], name = "", description = "Location", default = "0", update = updatelatlong)
     maxws = bpy.props.FloatProperty(name="", description="Max wind speed", min=0, max=90, default=0)
     minws = bpy.props.FloatProperty(name="", description="Min wind speed", min=0, max=90, default=0)
@@ -101,6 +107,8 @@ class ViLoc(bpy.types.Node, ViNodes):
         bpy.data.node_groups[nodeid(self).split('@')[1]].use_fake_user = True
         self.outputs.new('ViLoc', 'Location out')
         self['year'] = 2015
+        self['llupdate'] = 0
+        self['entries'] = [('None', 'None', 'None')] 
 
     def update(self):
         socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])

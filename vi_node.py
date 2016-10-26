@@ -47,7 +47,6 @@ class ViLoc(bpy.types.Node, ViNodes):
         context.space_data.edit_tree == ''
 #        print(bpy.types.NodeTree.get_from_context(context))
         scene = context.scene
-        (scene.latitude, scene.longitude) = epwlatilongi(context.scene, self) if self.loc == '1' and self.weather else (scene.latitude, scene.longitude)
         nodecolour(self, self.ready())
         reslists = []
 
@@ -92,6 +91,7 @@ class ViLoc(bpy.types.Node, ViNodes):
 
         socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])
         self['reslists'] = reslists
+        (scene.latitude, scene.longitude) = epwlatilongi(context.scene, self) if self.loc == '1' and self.weather != 'None' else (scene.latitude, scene.longitude)
 
         for node in [l.to_node for l in self.outputs['Location out'].links]:
             node.update()

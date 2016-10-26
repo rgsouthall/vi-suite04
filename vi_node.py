@@ -50,46 +50,51 @@ class ViLoc(bpy.types.Node, ViNodes):
         (scene.latitude, scene.longitude) = epwlatilongi(context.scene, self) if self.loc == '1' and self.weather else (scene.latitude, scene.longitude)
         nodecolour(self, self.ready())
         reslists = []
-        if self.loc == '1' and self.weather:            
-            with open(self.weather, 'r') as epwfile:                
-                self['frames'] = ['0']
-                epwlines = epwfile.readlines()[8:]
-                epwcolumns = list(zip(*[epwline.split(',') for epwline in epwlines]))
-                self['year'] = int(epwcolumns[0][0])
-                times = ('Month', 'Day', 'Hour', 'DOS')
-                
-                for t, ti in enumerate([' '.join(epwcolumns[c]) for c in range(1,4)] + [' '.join(['{}'.format(int(d/24) + 1) for d in range(len(epwlines))])]):
-                    reslists.append(['0', 'Time', '', times[t], ti])
-                    
-                for c in {"Temperature ("+ u'\u00b0'+"C)": 6, 'Humidity (%)': 8, "Direct Solar (W/m"+u'\u00b2'+")": 14, "Diffuse Solar (W/m"+u'\u00b2'+")": 15,
-                          'Wind Direction (deg)': 20, 'Wind Speed (m/s)': 21}.items():
-                    reslists.append(['0', 'Climate', '', c[0], ' '.join([cdata for cdata in list(epwcolumns[c[1]])])])
 
-                self.outputs['Location out']['epwtext'] = epwfile.read()
-            self.outputs['Location out']['valid'] = ['Location', 'Vi Results']
-        else:
-            self.outputs['Location out']['epwtext'] = ''
-            self.outputs['Location out']['valid'] = ['Location']
+        if self.loc == '1':
+            entries = []
+            addonfolder = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
+            vi_prefs = bpy.context.user_preferences.addons['{}'.format(addonfolder)].preferences
+        
+            if vi_prefs and os.path.isdir(bpy.path.abspath(vi_prefs.epweath)):
+                epwpath = bpy.path.abspath(vi_prefs.epweath)
+            else:
+                epwpath = os.path.dirname(os.path.abspath(__file__)) + '/EPFiles/Weather/'
+    
+            for wfile in glob.glob(epwpath+"/*.epw"):
+                with open(wfile, 'r') as wf:
+                    for wfl in wf.readlines():
+                        if wfl.split(',')[0].upper() == 'LOCATION':
+                            entries.append((wfile, '{} - {}'.format(wfl.split(',')[3], wfl.split(',')[1]), 'Weather Location'))
+                            break
+            self['entries'] = entries if entries else [('None', 'None', 'None')]
+            
+            if self.weather:            
+                with open(self.weather, 'r') as epwfile:                
+                    self['frames'] = ['0']
+                    epwlines = epwfile.readlines()[8:]
+                    epwcolumns = list(zip(*[epwline.split(',') for epwline in epwlines]))
+                    self['year'] = 2015 if len(epwlines) == 8760 else 2016
+                    times = ('Month', 'Day', 'Hour', 'DOS')
+                    
+                    for t, ti in enumerate([' '.join(epwcolumns[c]) for c in range(1,4)] + [' '.join(['{}'.format(int(d/24) + 1) for d in range(len(epwlines))])]):
+                        reslists.append(['0', 'Time', '', times[t], ti])
+                        
+                    for c in {"Temperature ("+ u'\u00b0'+"C)": 6, 'Humidity (%)': 8, "Direct Solar (W/m"+u'\u00b2'+")": 14, "Diffuse Solar (W/m"+u'\u00b2'+")": 15,
+                              'Wind Direction (deg)': 20, 'Wind Speed (m/s)': 21}.items():
+                        reslists.append(['0', 'Climate', '', c[0], ' '.join([cdata for cdata in list(epwcolumns[c[1]])])])
+    
+                    self.outputs['Location out']['epwtext'] = epwfile.read()
+                    self.outputs['Location out']['valid'] = ['Location', 'Vi Results']
+            else:
+                self.outputs['Location out']['epwtext'] = ''
+                self.outputs['Location out']['valid'] = ['Location']
 
         socklink(self.outputs['Location out'], self['nodeid'].split('@')[1])
         self['reslists'] = reslists
-        self['llupdate'] = 1
-        entries = []
-        addonfolder = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
-        vi_prefs = bpy.context.user_preferences.addons['{}'.format(addonfolder)].preferences
-    
-        if vi_prefs and os.path.isdir(bpy.path.abspath(vi_prefs.epweath)):
-            epwpath = bpy.path.abspath(vi_prefs.epweath)
-        else:
-            epwpath = os.path.dirname(os.path.abspath(__file__)) + '/EPFiles/Weather/'
 
-        for wfile in glob.glob(epwpath+"/*.epw"):
-            with open(wfile, 'r') as wf:
-                for wfl in wf.readlines():
-                    if wfl.split(',')[0].upper() == 'LOCATION':
-                        entries.append((wfile, wfl.split(',')[1], 'Weather Location'))
-                        break
-        self['entries'] = entries if entries else [('None', 'None', 'None')]
+        for node in [l.to_node for l in self.outputs['Location out'].links]:
+            node.update()
                 
     def retentries(self, context):
         return [tuple(e) for e in self['entries']]
@@ -107,7 +112,6 @@ class ViLoc(bpy.types.Node, ViNodes):
         bpy.data.node_groups[nodeid(self).split('@')[1]].use_fake_user = True
         self.outputs.new('ViLoc', 'Location out')
         self['year'] = 2015
-        self['llupdate'] = 0
         self['entries'] = [('None', 'None', 'None')] 
 
     def update(self):
@@ -693,7 +697,8 @@ class ViSSNode(bpy.types.Node, ViNodes):
         self['exportstate'] = [str(x) for x in (self.animmenu, self.sdoy, self.edoy, self.starthour, self.endhour, self.interval, self.cpoint, self.offset)]
     
     def update(self):
-        socklink(self.outputs['Results out'], self['nodeid'].split('@')[1])
+        if self.outputs.get('Results out'):
+            socklink(self.outputs['Results out'], self['nodeid'].split('@')[1])
         
 class ViWRNode(bpy.types.Node, ViNodes):
     '''Node describing a VI-Suite wind rose generator'''
@@ -826,8 +831,9 @@ class ViExEnNode(bpy.types.Node, ViNodes):
             row.operator("node.enexport", text = 'Export').nodeid = self['nodeid']
 
     def update(self):
-        socklink(self.outputs['Context out'], self['nodeid'].split('@')[1])
-        self['year'] = self.inputs['Location in'].links[0].from_node['year'] if self.inputs['Location in'].links else 2015
+        if self.inputs.get('Location in') and self.outputs.get('Context out'):
+            socklink(self.outputs['Context out'], self['nodeid'].split('@')[1])
+            self['year'] = self.inputs['Location in'].links[0].from_node['year'] if self.inputs['Location in'].links else 2015
     
     def preexport(self, scene):
         (self.fs, self.fe) = (self.fs, self.fe) if self.animated else (scene.frame_current, scene.frame_current)
@@ -1052,38 +1058,39 @@ class ViEnRNode(bpy.types.Node, ViNodes):
     def draw_buttons(self, context, layout):
         if self.inputs['X-axis'].links:
             innode = self.inputs['X-axis'].links[0].from_node
-            newrow(layout, 'Animated:', self, 'parametricmenu')
-            if self.parametricmenu == '0':                
-                (sdate, edate) = retdates(self['Start'], self['End'], innode['year']) 
-                label = "Start/End Day: {}/{} {}/{}".format(sdate.day, sdate.month, edate.day, edate.month)
-            else:
-                row = layout.row()
-                label = "Frame"
- 
-            row = layout.row()    
-            row.label(label)
-            row.prop(self, '["Start"]')
-            row.prop(self, '["End"]')
-                
-            if self.parametricmenu == '0':
-                row = layout.row()
-                row.prop(self, "charttype")
-                row.prop(self, "timemenu")
-
-            if self.inputs['Y-axis 1'].links and 'NodeSocketUndefined' not in [sock.bl_idname for sock in self.inputs if sock.links]:
-                layout.operator("node.chart", text = 'Create plot').nodeid = self['nodeid']
-                row = layout.row()
-                row.label("------------------")
+            if innode.get('reslists'):
+                newrow(layout, 'Animated:', self, 'parametricmenu')
+                if self.parametricmenu == '0':                
+                    (sdate, edate) = retdates(self['Start'], self['End'], innode['year']) 
+                    label = "Start/End Day: {}/{} {}/{}".format(sdate.day, sdate.month, edate.day, edate.month)
+                else:
+                    row = layout.row()
+                    label = "Frame"
+     
+                row = layout.row()    
+                row.label(label)
+                row.prop(self, '["Start"]')
+                row.prop(self, '["End"]')
+                    
+                if self.parametricmenu == '0':
+                    row = layout.row()
+                    row.prop(self, "charttype")
+                    row.prop(self, "timemenu")
+    
+                if self.inputs['Y-axis 1'].links and 'NodeSocketUndefined' not in [sock.bl_idname for sock in self.inputs if sock.links]:
+                    layout.operator("node.chart", text = 'Create plot').nodeid = self['nodeid']
+                    row = layout.row()
+                    row.label("------------------")
 
     def update(self):
         try:
-            if not self.inputs['X-axis'].links:
+            if not self.inputs['X-axis'].links or not self.inputs['X-axis'].links[0].from_node['reslists']:
                 class ViEnRXIn(ViResUSock):
                     '''Energy geometry out socket'''
                     bl_idname = 'ViEnRXIn'
-                    bl_label = 'X-axis'
-    
+                    bl_label = 'X-axis'    
                     valid = ['Vi Results']
+                    
             else:
                 innode = self.inputs['X-axis'].links[0].from_node
                 rl = innode['reslists']
@@ -1110,13 +1117,13 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                     bl_idname = 'ViEnRXIn'
                     bl_label = 'X-axis'
                                     
-                    if innode['reslists']:
-                        (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, posmenu, posrmenu, cammenu, camrmenu, multfactor) = retrmenus(innode, self)
+#                    if innode['reslists']:
+                    (valid, framemenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, posmenu, posrmenu, cammenu, camrmenu, multfactor) = retrmenus(innode, self)
                         
             bpy.utils.register_class(ViEnRXIn)
     
             if self.inputs.get('Y-axis 1'):
-                if not self.inputs['Y-axis 1'].links:
+                if not self.inputs['Y-axis 1'].links or not self.inputs['Y-axis 1'].links[0].from_node['reslists']:
                     class ViEnRY1In(ViResUSock):
                         '''Energy geometry out socket'''
                         bl_idname = 'ViEnRY1In'
@@ -1137,7 +1144,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 bpy.utils.register_class(ViEnRY1In)
     
             if self.inputs.get('Y-axis 2'):
-                if not self.inputs['Y-axis 2'].links:
+                if not self.inputs['Y-axis 2'].links or not self.inputs['Y-axis 2'].links[0].from_node['reslists']:
                     class ViEnRY2In(ViResUSock):
                         '''Energy geometry out socket'''
                         bl_idname = 'ViEnRY2In'
@@ -1160,7 +1167,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 bpy.utils.register_class(ViEnRY2In)
     
             if self.inputs.get('Y-axis 3'):
-                if not self.inputs['Y-axis 3'].links:
+                if not self.inputs['Y-axis 3'].links or not self.inputs['Y-axis 3'].links[0].from_node['reslists']:
                     class ViEnRY3In(ViResUSock):
                         '''Energy geometry out socket'''
                         bl_idname = 'ViEnRY3In'

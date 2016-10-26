@@ -1107,7 +1107,7 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
         scene.frame_set(scene.frame_start)
         bpy.app.handlers.frame_change_pre.clear()
         bpy.app.handlers.frame_change_pre.append(recalculate_text)
-        self.dhscatter = en_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
+        self.dhscatter = en_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'scat.png', 600, 400)
         self.dhscatter.update(context)
         self.table = en_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 150)
         self.table.update(context)           
@@ -2121,7 +2121,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         lnd = linumdisplay(self, context, self.simnode)
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(lnd.draw, (context, ), 'WINDOW', 'POST_PIXEL')
         self.legend = ss_legend([80, context.region.height - 40], context.region.width, context.region.height, 'legend.png', 150, 600)
-        self.dhscatter = ss_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
+        self.dhscatter = ss_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'scat.png', 600, 400)
         self.legend.update(context)
         self.dhscatter.update(context)
         self._handle_ss_disp = bpy.types.SpaceView3D.draw_handler_add(ss_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
@@ -2430,7 +2430,7 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
             self.tablecomp = comp_table([300, context.region.height - 40], context.region.width, context.region.height, 'compliance.png', 600, 200)
             self.tablecomp.update(context)
             if self.simnode['coptions']['canalysis'] == '3':
-                self.dhscatter = leed_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
+                self.dhscatter = leed_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'scat.png', 600, 400)
                 self.dhscatter.update(context)        
             self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(comp_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
 
@@ -2443,7 +2443,7 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
 #            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(comp_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
         elif scene['viparams']['visimcontext'] == 'LiVi CBDM':
             if self.simnode['coptions']['cbanalysis'] != '0':
-                self.dhscatter = cbdm_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'stats.png', 600, 400)
+                self.dhscatter = cbdm_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'scat.png', 600, 400)
                 self.dhscatter.update(context)
             self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(cbdm_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)

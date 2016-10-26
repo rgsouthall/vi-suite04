@@ -1344,13 +1344,13 @@ def draw_icon(self):
     bgl.glColor4f(1, 1, 1, 1)
     bgl.glBegin(bgl.GL_QUADS)
     bgl.glTexCoord2i(0, 0)
-    bgl.glVertex2f(self.spos[0] + 5, self.spos[1] + 5)
+    bgl.glVertex2f(self.spos[0] + 1, self.spos[1] + 1)
     bgl.glTexCoord2i(1, 0)
-    bgl.glVertex2f(self.epos[0] - 5, self.spos[1] + 5)
+    bgl.glVertex2f(self.epos[0] - 1, self.spos[1] + 1)
     bgl.glTexCoord2i(1, 1)
-    bgl.glVertex2f(self.epos[0] - 5, self.epos[1] - 5)
+    bgl.glVertex2f(self.epos[0] - 1, self.epos[1] - 1)
     bgl.glTexCoord2i(0, 1)
-    bgl.glVertex2f(self.spos[0] + 5, self.epos[1] - 5)
+    bgl.glVertex2f(self.spos[0] + 1, self.epos[1] - 1)
     bgl.glEnd()
     bgl.glDisable(bgl.GL_TEXTURE_2D)
     bgl.glDisable(bgl.GL_BLEND)
@@ -1439,7 +1439,7 @@ def draw_barchart(self, scene, x, y, tit, xlab, ylab, ymin, ymax):
     self.plt.tight_layout(rect=[0, 0, 1 + ((len(x)/len(y)) - 1) * 0.005, 1])
     
 def save_plot(self, scene, filename):
-    fileloc = os.path.join(scene['viparams']['newdir'], 'Images', filename)
+    fileloc = os.path.join(scene['viparams']['newdir'], 'images', filename)
     self.plt.savefig(fileloc, pad_inches = 0.1)
     
     if filename not in [i.name for i in bpy.data.images]:

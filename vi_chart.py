@@ -117,7 +117,8 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     y1d = [ry1[4].split()[si:ei + 1] for ry1 in rly1 if ry1[0] == framey1 and ry1[1] == dnode.inputs['Y-axis 1'].rtypemenu and ry1[2] == menusy1[0] and ry1[3] == menusy1[1]][0]
     y1data = timedata([dnode.inputs['Y-axis 1'].multfactor * float(y) for y in y1d], dnode.timemenu, dnode.inputs['Y-axis 1'].statmenu, mdata, ddata, sdata, dnode, Sdate, Edate)
     ylabel = label(dnode, menusy1[1], 'Y-axis 1', variant)
-    line, = plt.plot(xdata, y1data, color=colors[0], ls = linestyles[0], linewidth = 1, label = llabel(dnode, menusy1[1], 'Y-axis 1', variant))    
+    drange = checkdata(chart_op, xdata, y1data)        
+    line, = plt.plot(xdata[:drange], y1data[:drange], color=colors[0], ls = linestyles[0], linewidth = 1, label = llabel(dnode, menusy1[1], 'Y-axis 1', variant))    
            
     if dnode.inputs['Y-axis 2'].links:
         rny2 = dnode.inputs['Y-axis 2'].links[0].from_node
@@ -127,7 +128,8 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
         menusy2 = retmenu(dnode, 'Y-axis 2', dnode.inputs['Y-axis 2'].rtypemenu)
         y2d = [ry2[4].split()[si:ei + 1] for ry2 in rly2 if ry2[0] == framey2 and ry2[1] == dnode.inputs['Y-axis 2'].rtypemenu and ry2[2] == menusy2[0] and ry2[3] == menusy2[1]][0]
         y2data = timedata([float(y) for y in y2d], dnode.timemenu, dnode.inputs['Y-axis 2'].statmenu, mdata, ddata, sdata, dnode, Sdate, Edate)
-        line, = plt.plot(xdata, y2data, color=colors[1], ls = linestyles[1], linewidth = 1, label = llabel(dnode, menusy2[1], 'Y-axis 2', variant))    
+        drange = checkdata(chart_op, xdata, y2data) 
+        line, = plt.plot(xdata[:drange], y2data[:drange], color=colors[1], ls = linestyles[1], linewidth = 1, label = llabel(dnode, menusy2[1], 'Y-axis 2', variant))    
  
     if dnode.inputs['Y-axis 3'].links:
         rny3 = dnode.inputs['Y-axis 3'].links[0].from_node
@@ -137,8 +139,9 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
         menusy3 = retmenu(dnode, 'Y-axis 3', dnode.inputs['Y-axis 3'].rtypemenu)
         y3d = [ry3[4].split()[si:ei + 1] for ry3 in rly3 if ry3[0] == framey3 and ry3[1] == dnode.inputs['Y-axis 3'].rtypemenu and ry3[2] == menusy3[0] and ry3[3] == menusy3[1]][0]
         y3data = timedata([float(y) for y in y3d], dnode.timemenu, dnode.inputs['Y-axis 3'].statmenu, mdata, ddata, sdata, dnode, Sdate, Edate)
-        line, = plt.plot(xdata, y3data, color=colors[2], ls = linestyles[2], linewidth = 1, label=llabel(dnode, menusy3[1], 'Y-axis 3', variant))    
-
+        drange = checkdata(chart_op, xdata, y3data) 
+        line, = plt.plot(xdata[:drange], y3data[:drange], color=colors[2], ls = linestyles[2], linewidth = 1, label=llabel(dnode, menusy3[1], 'Y-axis 3', variant))    
+    
     try:
         plt.xlabel(xlabel)    
         plt.ylabel(ylabel)
@@ -151,3 +154,11 @@ def chart_disp(chart_op, plt, dnode, rnodes, Sdate, Edate):
     def plot_graph(*args):
         args[0][0].plot()
         args[0][0].show()
+
+def checkdata(chart_op, x, y):
+    if len(x) != len(y):
+        chart_op.report({'WARNING'}, 'X ({} points) and Y ({} points) data are not the same length'.format(len(x), len(y)))
+        drange = min(len(x), len(y))
+    else:
+        drange = len(x)
+    return drange

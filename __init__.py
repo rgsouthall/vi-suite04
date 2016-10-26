@@ -48,10 +48,10 @@ else:
 
 import sys, os, inspect, bpy, nodeitems_utils, bmesh, math, mathutils
 from bpy.app.handlers import persistent
-from numpy import array, digitize, logspace, vectorize, multiply
+from numpy import array, digitize, logspace, multiply
 from numpy import log10 as nlog10
-from bpy.props import StringProperty, EnumProperty, IntProperty
-from bpy.types import Operator, AddonPreferences
+from bpy.props import StringProperty, EnumProperty
+from bpy.types import AddonPreferences
 
 class VIPreferences(AddonPreferences):
     bl_idname = __name__

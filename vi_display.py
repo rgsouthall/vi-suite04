@@ -114,6 +114,8 @@ def li_display(disp_op, simnode):
         
         selobj(scene, o)
         bpy.ops.object.duplicate() 
+        for face in bm.faces:
+            face.select = True 
         
         if not bpy.context.active_object:
             disp_op.report({'ERROR'},"No display object. If in local view switch to global view and/or re-export the geometry")

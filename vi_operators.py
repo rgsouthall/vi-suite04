@@ -834,9 +834,11 @@ class NODE_OT_EnSim(bpy.types.Operator):
                 efilename = "{}{}out.err".format(self.resname, self.frame)
                 if efilename not in [im.name for im in bpy.data.texts]:
                     bpy.data.texts.load(os.path.join(scene['viparams']['newdir'], efilename))
-                    if '** Severe  **' in bpy.data.texts[efilename]:
-                        self.report({'ERROR'}, "Fatal error reported in the {} file. Check the file in Blender's text editor".format(efilename))
-                        return {'CANCELLED'}
+                else:
+                    bpy.data.texts[efilename].filepath = os.path.join(scene['viparams']['newdir'], efilename)
+                if '** Severe  **' in bpy.data.texts[efilename]:
+                    self.report({'ERROR'}, "Fatal error reported in the {} file. Check the file in Blender's text editor".format(efilename))
+                    return {'CANCELLED'}
 
                 if 'EnergyPlus Terminated--Error(s) Detected' in self.esimrun.stderr.read().decode() or not [f for f in nfns if f.split(".")[1] == "eso"] or self.simnode.run == 0:
                     errtext = "There is no results file. Check you have selected results outputs and that there are no errors in the .err file in the Blender text editor." if not [f for f in nfns if f.split(".")[1] == "eso"] else "There was an error in the input IDF file. Check the *.err file in Blender's text editor."

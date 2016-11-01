@@ -2215,9 +2215,9 @@ class EnViEq(bpy.types.Node, EnViNodes):
         edict = {'0': '', '1':'EquipmentLevel', '2': 'Watts/Area', '3': 'Watts/Person'}
         elist = ['', '', '']
         elist[int(self.envi_equiptype) - 1] = self.envi_equipmax
-        params = ('Name', 'Zone Name', 'SCHEDULE Name', 'Design Level calculation method', 'Design Level (W)', 'Power per Zone Floor Area (Watts/m2)', 'Power per Person (Watts/person)', \
+        params = ('Name', 'Fuel type', 'Zone Name', 'SCHEDULE Name', 'Design Level calculation method', 'Design Level (W)', 'Power per Zone Floor Area (Watts/m2)', 'Power per Person (Watts/person)', \
         'Fraction Latent', 'Fraction Radiant', 'Fraction Lost')
-        paramvs = [zn + "_equip", zn, zn + "_eqsched", edict[self.envi_equiptype]] + elist + ['0', '0', '0']
+        paramvs = [zn + "_equip", 'Electricity', zn, zn + "_eqsched", edict[self.envi_equiptype]] + elist + ['0', '0', '0']
         return epentry('OtherEquipment', params, paramvs)
 
 class EnViInf(bpy.types.Node, EnViNodes):
@@ -2787,8 +2787,8 @@ class EnViSSFlowNode(bpy.types.Node, EnViNodes):
 
     def epwrite(self, exp_op, enng):
         surfentry, en, snames = '', '', []
-        tspsname =  self.inputs['TSPSchedule'].links[0].from_node.name if self.inputs['TSPSchedule'].is_linked and self.linkmenu in ('SO', 'DO', 'HO') and self.controls == 'Temperature' else ''
-        vasname = self.inputs['VASchedule'].links[0].from_node.name if self.inputs['VASchedule'].is_linked and self.linkmenu in ('SO', 'DO', 'HO') else ''
+        tspsname = '{}_tspsched'.format(self.name) if self.inputs['TSPSchedule'].is_linked and self.linkmenu in ('SO', 'DO', 'HO') and self.controls == 'Temperature' else ''
+        vasname = '{}_vasched'.format(self.name) if self.inputs['VASchedule'].is_linked and self.linkmenu in ('SO', 'DO', 'HO') else ''
         for sock in (self.inputs[:] + self.outputs[:]):
             for link in sock.links:
                 othernode = (link.from_node, link.to_node)[sock.is_output]
@@ -2926,12 +2926,12 @@ class EnViSFlowNode(bpy.types.Node, EnViNodes):
 
         if self.linkmenu == 'ELA':
             cfparams = ('Name', 'Effective Leakage Area (m2)', 'Discharge Coefficient (dimensionless)', 'Reference Pressure Difference (Pa)', 'Air Mass Flow Exponent (dimensionless)')
-            cfparamvs = ('{}_{}'.format(self.name, self.linkmenu), self['ela'], self.dcof, self.rpd, self.amfe)
+            cfparamvs = ('{}_{}'.format(self.name, self.linkmenu), '{:.5f}'.format(self['ela']), self.dcof, self.rpd, '{:.5f}'.format(self.amfe))
 
         elif self.linkmenu == 'Crack':
             crname = 'ReferenceCrackConditions' if enng['enviparams']['crref'] == 1 else ''
             cfparams = ('Name', 'Air Mass Flow Coefficient at Reference Conditions (kg/s)', 'Air Mass Flow Exponent (dimensionless)', 'Reference Crack Conditions')
-            cfparamvs = ('{}_{}'.format(self.name, self.linkmenu), self.amfc, self.amfe, crname)
+            cfparamvs = ('{}_{}'.format(self.name, self.linkmenu), '{:.5f}'.format(self.amfc), '{:.5f}'.format(self.amfe), crname)
 
         elif self.linkmenu == 'EF':
             cfparams = ('Name', 'Air Mass Flow Coefficient When the Zone Exhaust Fan is Off at Reference Conditions (kg/s)', 'Air Mass Flow Exponent When the Zone Exhaust Fan is Off (dimensionless)')
@@ -2955,7 +2955,7 @@ class EnViSFlowNode(bpy.types.Node, EnViNodes):
                     zn = othernode.zone
                     snames.append(zn+'_'+sn)
                     params = ('Surface Name', 'Leakage Component Name', 'External Node Name', 'Window/Door Opening Factor, or Crack Factor (dimensionless)')
-                    paramvs = (snames[-1], '{}_{}'.format(self.name, self.linkmenu), en, self.of)
+                    paramvs = (snames[-1], '{}_{}'.format(self.name, self.linkmenu), en, '{:.5f}'.format(self.of))
                     surfentry += epentry('AirflowNetwork:MultiZone:Surface', params, paramvs)
 
         self['sname'] = snames

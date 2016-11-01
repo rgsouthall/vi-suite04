@@ -302,10 +302,10 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         for zn in ssafnodes:
             for schedtype in ('VASchedule', 'TSPSchedule'):
                 if schedtype == 'VASchedule' and zn.inputs[schedtype].links:
-                    en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite(zn.inputs[schedtype].links[0].from_node.name, 'Fraction'))
+                    en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite('{}_vasched'.format(zn.name), 'Fraction'))
     
                 elif schedtype == 'TSPSchedule' and zn.inputs[schedtype].links:
-                    en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite(zn.inputs[schedtype].links[0].from_node.name, 'Temperature'))
+                    en_idf.write(zn.inputs[schedtype].links[0].from_node.epwrite('{}_tspsched'.format(zn.name), 'Temperature'))
                 
     
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: THERMOSTSTATS ===========\n\n")
@@ -456,7 +456,7 @@ def pregeo(op):
 
     for obj in enviobjs:
         for k in obj.keys():
-            if k != 'vi_type':
+            if k not in ('envi_type', 'vi_type', 'envi_oca', 'envi_ica'):
                 del obj[k]
 
         omats = [om for om in obj.data.materials]
@@ -501,33 +501,14 @@ def pregeo(op):
                     poly.select = True 
                     
             selmesh('delf')
-#            selmesh('mc')
-#            selmesh('mp')
-#            bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='BOUNDS')
-#            en_obj.select = False  
-#            bpy.ops.object.editmode_toggle()
-#            bm = bmesh.from_edit_mesh(en_obj.data)
-
-
-
             bm = bmesh.new()
             bm.from_mesh(en_obj.data)
-#            bm.transform(en_obj.matrix_world)
-#            bm.faces.ensure_lookup_table()
-#            bmesh.ops.delete(bm, geom = [face for face in bm.faces if face.calc_area() < 0.001 or en_obj.data.materials[face.material_index].envi_con_type == 'None' or (en_obj.data.materials[face.material_index].envi_con_makeup == '1' and \
-#                en_obj.data.materials[face.material_index].envi_layero == '0')], context = 1)
             bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.001)
             
             if all([e.is_manifold for e in bm.edges]):
                 bmesh.ops.recalc_face_normals(bm, faces = bm.faces)
             else:  
-                reversefaces = [face for face in bm.faces if en_obj.data.materials[face.material_index].envi_con_type in ('Wall', 'Window', 'Floor', 'Roof', 'Door') and (face.calc_center_bounds()).dot(face.normal) < 0]
-#                for face in bm.faces:
-#                    mat = en_obj.data.materials[face.material_index]
-#                    if mat.envi_con_type in ('Wall', 'Window', 'Floor', 'Roof', 'Door'):
-#                        if (face.calc_center_bounds()).dot(face.normal) < 0:
-#                            reversefaces.append(face)
-                            
+                reversefaces = [face for face in bm.faces if en_obj.data.materials[face.material_index].envi_con_type in ('Wall', 'Window', 'Floor', 'Roof', 'Door') and (face.calc_center_bounds()).dot(face.normal) < 0]                            
                 bmesh.ops.reverse_faces(bm, faces = reversefaces)
             bmesh.ops.split_edges(bm, edges = bm.edges)
             bmesh.ops.dissolve_limit(bm, angle_limit = 0.01, verts = bm.verts)
@@ -535,19 +516,10 @@ def pregeo(op):
             regfaces = [face for face in bm.faces if not any((obj.data.materials[face.material_index].envi_boundary, obj.data.materials[face.material_index].envi_afsurface))]
             bmesh.ops.connect_verts_nonplanar(bm, angle_limit = 0.01, faces = regfaces)
             bmesh.ops.connect_verts_concave(bm, faces = regfaces)
-            
-            bmesh.ops.triangulate(bm, faces = [face for face in bm.faces if obj.data.materials[face.material_index].envi_con_type in ('Window', 'Door') and ['{:.5f}'.format(fl.calc_angle()) for fl in face.loops] != ['1.57080'] * 4])
-#            bm.faces.index_update()                
-#            bmesh.ops.triangulate(bm, faces = [face for face in bm.faces if en_obj.data.materials[face.material_index].envi_con_type == 'Shading'])
-#            bm.transform(en_obj.matrix_world)
-#            en_obj["volume"] = bm.calc_volume()
-#            bm.transform(en_obj.matrix_world.inverted())
+            bmesh.ops.triangulate(bm, faces = [face for face in bm.faces if obj.data.materials[face.material_index].envi_con_type in ('Window', 'Door') and ['{:.4f}'.format(fl.calc_angle()) for fl in face.loops] != ['1.5708'] * 4])
             bm.to_mesh(en_obj.data)  
-#            bmesh.update_edit_mesh(en_obj.data, True)
-#            bpy.ops.object.editmode_toggle()
-#            bmesh.ops.bmesh_to_mesh(bm, mesh = en_obj.data, object = en_obj)
             bm.free()
-#            en_obj.parent = obj
+
             obj['children'] = en_obj.name
             linklist = []        
             for link in enng.links:
@@ -586,6 +558,7 @@ def pregeo(op):
             bpy.ops.object.duplicate()
             en_obj = scene.objects.active  
             en_obj.name = 'en_' + obj.name
+            selmesh('rd')
             selmesh('mc')
             selmesh('mp')
             
@@ -603,8 +576,7 @@ def pregeo(op):
             en_obj.material_slots[0].material = shadmat
             en_obj.material_slots[0].material.diffuse_color = (1, 0, 0)
             en_obj.layers[1], en_obj.layers[0] = True, False
-#            selmesh('delf')
-            
+           
 
 def writeafn(exp_op, en_idf, enng):
     if [enode for enode in enng.nodes if enode.bl_idname == 'AFNCon'] and not [enode for enode in enng.nodes if enode.bl_idname == 'EnViZone']:

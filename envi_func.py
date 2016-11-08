@@ -22,7 +22,7 @@ def resnameunits():
                 '23': ("Fabric HB (W)", "Fabric convective heat balance"), '24': ("Air Heating", "Zone air heating"), '25': ("Air Cooling", "Zone air cooling"),
                 '26': ("HR Heating", "Heat recovery heating (W)"), '27': ("Volume flow", "Thermal chimney volume flow rate (m3/2)"), '28': ("Mass flow", "Thermal chmimney mass flow rate (kg/s"),
                 '29': ("Out temp.", "Thermal chimney outlet temperature (C)"), '30': ("Heat loss", "Thermal chimney heat loss (W)"), '31': ("Heat gain", "Thermal chimney heat gain (W)"),
-                '32': ("Volume", "Thermal chimnwey volume (m3)"), '33': ("Mass", "Thermal chimney mass (kg)")}
+                '32': ("Volume", "Thermal chimnwey volume (m3)"), '33': ("Mass", "Thermal chimney mass (kg)"), '34': ('delta P', 'Linkage Pressure Differential (Pa)')}
 
     return [bpy.props.BoolProperty(name = rnu[str(rnum)][0], description = rnu[str(rnum)][1], default = False) for rnum in range(len(rnu))]
 
@@ -43,7 +43,7 @@ def enresprops(disp):
                   "ressah{}".format(disp), "reshrhw{}".format(disp), 0, "ressac{}".format(disp), "reswsg{}".format(disp), 0, "resfhb{}".format(disp)),
             '1': (0, "rescpp{}".format(disp), "rescpm{}".format(disp), 0, 'resmrt{}'.format(disp), 'resocc{}'.format(disp)), 
             '2': (0, "resim{}".format(disp), "resiach{}".format(disp), 0, "resco2{}".format(disp), "resihl{}".format(disp)), 
-            '3': (0, "resl12ms{}".format(disp), "reslof{}".format(disp)), 
+            '3': (0, "resl12ms{}".format(disp), "reslof{}".format(disp), 0, "resldp{}".format(disp)), 
             '4':(0, "restcvf{}".format(disp), "restcmf{}".format(disp), 0, "restcot{}".format(disp), "restchl{}".format(disp),
                  0, "restchg{}".format(disp), "restcv{}".format(disp), 0, "restcm{}".format(disp))}
 
@@ -336,7 +336,7 @@ def retrmenus(innode, node):
     posrmenu = bpy.props.EnumProperty(items=prtype, name="", description="Position result", default = prtype[0][0]) if ptypes else ''
     cammenu =  bpy.props.EnumProperty(items=camtype, name="", description="Camera result", default = camtype[0][0]) if camtype else ''
     camrmenu = bpy.props.EnumProperty(items=camrtype, name="", description="Camera result", default = camrtype[0][0]) if camtypes else ''
-    multfactor = bpy.props.FloatProperty(name = "", description = "Result multiplication factor", min = 0.0001, max = 10000, default = 1)
+    multfactor = bpy.props.FloatProperty(name = "", description = "Result multiplication factor", min = -10000, max = 10000, default = 1)
     
     return (valid, fmenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, posmenu, posrmenu, cammenu, camrmenu, multfactor)
 
@@ -376,7 +376,8 @@ def processh(lines):
     enresdict = {'AFN Node CO2 Concentration [ppm] !Hourly': 'CO2'}
     lresdict = {'AFN Linkage Node 1 to Node 2 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow out',
                 'AFN Linkage Node 2 to Node 1 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow in',
-                'AFN Surface Venting Window or Door Opening Factor [] !Hourly': 'Opening Factor'}
+                'AFN Surface Venting Window or Door Opening Factor [] !Hourly': 'Opening Factor',
+                'AFN Linkage Node 1 to Node 2 Pressure Difference [Pa] !Hourly': 'delta P (Pa)'}
     hdict = {}
     
     for l, line in enumerate(lines):

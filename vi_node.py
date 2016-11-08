@@ -789,7 +789,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
                                    name="", description="Specify the EnVi results category", default="0", update = nodeupdate)
 
     (resaam, resaws, resawd, resah, resasm, restt, resh, restwh, restwc, reswsg, rescpp, rescpm, resvls, resvmh, resim, resiach, resco2, resihl, resl12ms,
-     reslof, resmrt, resocc, resh, resfhb, ressah, ressac, reshrhw, restcvf, restcmf, restcot, restchl, restchg, restcv, restcm) = resnameunits()
+     reslof, resmrt, resocc, resh, resfhb, ressah, ressac, reshrhw, restcvf, restcmf, restcot, restchl, restchg, restcv, restcm, resldp) = resnameunits()
      
     def init(self, context):
         self['nodeid'] = nodeid(self)
@@ -1025,16 +1025,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
         self.update()
 
     def pmitems(self, context):
-        try:
-            innode = self.inputs['X-axis'].links[0].from_node
-            rl = innode['reslists']
-            zrl = list(zip(*rl))
-            if len(set(zrl[0])) > 1:
-                return [("0", "Static", "Static results"), ("1", "Parametric", "Parametric results")]
-            else:
-                return [("0", "Static", "Static results")]
-        except:
-            return [("0", "Static", "Static results")]
+        return [tuple(p) for p in self['pmitems']]
 
     ctypes = [("0", "Line/Scatter", "Line/Scatter Plot")]
     charttype = bpy.props.EnumProperty(items = ctypes, name = "Chart Type", default = "0")
@@ -1053,6 +1044,7 @@ class ViEnRNode(bpy.types.Node, ViNodes):
         self.inputs.new("ViEnRY3In", "Y-axis 3")
         self.inputs["Y-axis 3"].hide = True
         self['Start'], self['End'] = 1, 365
+        self['pmitems'] = [("0", "Static", "Static results")]
         self.update()
 
     def draw_buttons(self, context, layout):
@@ -1095,6 +1087,14 @@ class ViEnRNode(bpy.types.Node, ViNodes):
                 innode = self.inputs['X-axis'].links[0].from_node
                 rl = innode['reslists']
                 zrl = list(zip(*rl))
+                try:
+                    if len(set(zrl[0])) > 1:
+                        self['pmitems'] = [("0", "Static", "Static results"), ("1", "Parametric", "Parametric results")]
+                    else:
+                        self['pmitems'] = [("0", "Static", "Static results")]
+                except:
+                    self['pmitems'] = [("0", "Static", "Static results")]
+                
                 time.sleep(0.1)
     
                 if self.parametricmenu == '1' and len(set(zrl[0])) > 1:
@@ -2745,7 +2745,7 @@ class EnViSSFlowNode(bpy.types.Node, EnViNodes):
                             ('Start height OF1', 'sfof1'), ('OF2', 'of2'), ('DC2', 'dcof2'), ('Width OF2', 'wfof2'), ('Height OF2', 'hfof2'), ('Start height OF2', 'sfof2')),
                             'OF3': (('OF3', 'of3'), ('DC3', 'dcof3'), ('Width OF3', 'wfof3'), ('Height OF3', 'hfof3'), ('Start height OF3', 'sfof3')),
                             'OF4': (('OF4', 'of4'), ('DC4', 'dcof4'), ('Width OF4', 'wfof4'), ('Height OF4', 'hfof4'), ('Start height OF4', 'sfof4')),
-                            'HO': (('Closed FC', 'amfcc'), ('Closed FE', 'amfec'), ('Slope', 'spa'), ('DC', 'dcof')), 'Crack': (('Coefficient', 'amfc'), ('Exponent', 'amfe')),
+                            'HO': (('Closed FC', 'amfcc'), ('Closed FE', 'amfec'), ('Slope', 'spa'), ('DC', 'dcof')), 'Crack': (('Coefficient', 'amfc'), ('Exponent', 'amfe'), ('Factor', 'of1')),
                             'ELA': (('ELA', '["ela"]'), ('DC', 'dcof'), ('PA diff', 'rpd'), ('FE', 'fe'))}
 
     def update(self):
@@ -2911,7 +2911,7 @@ class EnViSFlowNode(bpy.types.Node, EnViNodes):
 
     def draw_buttons(self, context, layout):
         layout.prop(self, 'linkmenu')
-        layoutdict = {'Crack':(('Coefficient', 'amfc'), ('Exponent', 'amfe')), 'ELA':(('ELA (m^2)', '["ela"]'), ('DC', 'dcof'), ('PA diff (Pa)', 'rpd'), ('FE', 'amfe')),
+        layoutdict = {'Crack':(('Coefficient', 'amfc'), ('Exponent', 'amfe'), ('Factor', 'of')), 'ELA':(('ELA (m^2)', '["ela"]'), ('DC', 'dcof'), ('PA diff (Pa)', 'rpd'), ('FE', 'amfe')),
         'EF':(('Off FC', 'amfc'), ('Off FE', 'amfe'), ('Efficiency', 'fe'), ('PA rise (Pa)', 'pr'), ('Max flow', 'mf'))}
         for vals in layoutdict[self.linkmenu]:
             newrow(layout, '{}:'.format(vals[0]), self, vals[1])

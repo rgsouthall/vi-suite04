@@ -130,7 +130,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                                     em.pcmmat_write(en_idf, '{}-{}'.format(lmat, matcount.count(lmat.upper())), [mtctc, mtempemps])
                                     mat['pcm'] = 1                                
                             else:
-                                em.amat_write(en_idf, '{}-{}'.format(mat, matcount.count(lmat.upper())), [em.matdat[lmat][2]])
+                                em.amat_write(en_idf, '{}-{}'.format(lmat, matcount.count(lmat.upper())), [em.matdat[lmat][2]])
     
                         elif mat.envi_con_type == "Window":                        
                             if not l % 2:
@@ -398,9 +398,11 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
             for cnode in [cnode for cnode in enng.nodes if cnode.bl_idname == 'EnViSFlow']:
                 for sno in cnode['sname']:
                     en_idf.write("Output:Variable,{0},AFN Linkage Node 1 to Node 2 Volume Flow Rate,hourly;\nOutput:Variable,{0},AFN Linkage Node 2 to Node 1 Volume Flow Rate,hourly;\n".format(sno))
+                    en_idf.write("Output:Variable,{0},AFN Linkage Node 1 to Node 2 Pressure Difference,hourly;\n".format(sno))
             for snode in [snode for snode in enng.nodes if snode.bl_idname == 'EnViSSFlow']:
                 for sno in snode['sname']:
                     en_idf.write("Output:Variable,{0},AFN Linkage Node 1 to Node 2 Volume Flow Rate,hourly;\nOutput:Variable,{0},AFN Linkage Node 2 to Node 1 Volume Flow Rate,hourly;\n".format(sno))
+                    en_idf.write("Output:Variable,{0},AFN Linkage Node 1 to Node 2 Pressure Difference,hourly;\n".format(sno))
         if node.reslof == True:
             for snode in [snode for snode in enng.nodes if snode.bl_idname == 'EnViSSFlow']:
                 if snode.linkmenu in ('SO', 'DO', 'HO'):

@@ -93,29 +93,33 @@ class Vi3DPanel(bpy.types.Panel):
                     row.label(text="{:-<60}".format(""))
  
             elif scene['viparams']['vidisp'] in ('en', 'enpanel'):   
+                print('1', datetime.datetime.now())
+                sedt = scene.en_disp_type
                 resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
-                rl = resnode['reslists']
-                zrl = list(zip(*rl))
-
-                if scene.en_disp_type == '1':
+                print('1a', datetime.datetime.now())
+                if sedt == '1':
                     zresdict = {}
                     lmetrics = []
-                    vresdict = {"Max Flow in": "resazlmaxf_disp", "Min Flow in": "resazlminf_disp", "Ave Flow in": "resazlavef_disp"}                    
-                else:                    
+                    vresdict = {"Max Flow in": "resazlmaxf_disp", "Min Flow in": "resazlminf_disp", "Ave Flow in": "resazlavef_disp"} 
+                    print('1b', datetime.datetime.now())
+                else:    
+                    rl = resnode['reslists']
+                    zrl = list(zip(*rl))
                     lmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Linkage' and zrl[0][zri] == str(resnode["AStart"])])
                     zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone' and zrl[0][zri] == str(resnode["AStart"])])
                     zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp', 
                                 'CO2 (ppm)': 'reszco_disp', 'PMV': 'reszpmv_disp', 'PPD (%)': 'reszppd_disp', 'Solar gain (W)': 'reszsg_disp', 
                                 'Air heating (W)': 'reszahw_disp', 'Air cooling (W)': 'reszacw_disp', 'HR heating (W)': 'reshrhw_disp'}
-                    vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}             
+                    vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}  
+                    print('1c', datetime.datetime.now())
                 
                 if scene['viparams']['vidisp'] == 'en': 
                     newrow(layout, 'Static/Parametric', scene, 'en_disp_type')
-                    if scene.en_disp_type == '1':
+                    if sedt == '1':
                         row = layout.row()               
                         row.prop(resnode, '["AStart"]')
                         row.prop(resnode, '["AEnd"]')
-
+                        print('1d', datetime.datetime.now())
                     else:  
                         if len(set(zrl[0])) > 1:
                             newrow(layout, 'Frame:', resnode, '["AStart"]')
@@ -129,34 +133,38 @@ class Vi3DPanel(bpy.types.Panel):
                         row.prop(scene, 'resaa_disp')
                         row.prop(scene, 'resas_disp')
                 
-                    for ri, rzname in enumerate(zmetrics):
-                        if ri == 0:                    
-                            row = layout.row()
-                            row.label(text = 'Zone')                    
-                        if not ri%2:
-                            row = layout.row()  
-                        if rzname in zresdict:
-                            row.prop(scene, zresdict[rzname])
-                    
-                    for ri, rname in enumerate(lmetrics):
-                        if ri == 0:                    
-                            row = layout.row()
-                            row.label(text = 'Ventilation')                    
-                        if not ri%2:
-                            row = layout.row()                            
-                        if rname in vresdict:
-                            row.prop(scene, vresdict[rname])  
-                    if lmetrics:    
-                        newrow(layout, 'Link to object', scene, 'envi_flink')  
-                    
-                    row = layout.row() 
-                    if scene.en_disp_type == '0':
+                        for ri, rzname in enumerate(zmetrics):
+                            if ri == 0:                    
+                                row = layout.row()
+                                row.label(text = 'Zone')                    
+                            if not ri%2:
+                                row = layout.row()  
+                            if rzname in zresdict:
+                                row.prop(scene, zresdict[rzname])
+                        
+                        for ri, rname in enumerate(lmetrics):
+                            if ri == 0:                    
+                                row = layout.row()
+                                row.label(text = 'Ventilation')                    
+                            if not ri%2:
+                                row = layout.row()                            
+                            if rname in vresdict:
+                                row.prop(scene, vresdict[rname])  
+                        if lmetrics:    
+                            newrow(layout, 'Link to object', scene, 'envi_flink')  
+                        
+                        row = layout.row() 
+                        
+                    if sedt == '0':
                         row.operator("view3d.endisplay", text="EnVi Display")
-                    elif scene.en_disp_type == '1':
+                    elif sedt == '1':
+                        print('1e', datetime.datetime.now())
                         row.operator("view3d.enpdisplay", text="EnVi Display")
+                        print('1f', datetime.datetime.now())
+                print('2', datetime.datetime.now())
                         
             if scene['viparams']['vidisp'] == 'enpanel':                                
-                if scene.en_disp_type == '0':
+                if sedt == '0':
                     newrow(layout, 'Display unit:', scene, 'en_disp_unit')  
                     newrow(layout, 'Bar colour:', scene, "vi_leg_col")
                     
@@ -168,17 +176,19 @@ class Vi3DPanel(bpy.types.Panel):
                                 'Air cooling (W)': ('en_acool_min', 'en_acool_max'), 'HR heating (W)': ('en_hrheat_min', 'en_hrheat_max'), 'Heat balance (W)': ('en_heatb_min', 'en_heatb_max'),
                                 'Occupancy': ('en_occ_min', 'en_occ_max'), 'Infiltration (ACH)': ('en_iach_min', 'en_iach_max'), 'Infiltration (m3/s)': ('en_im3s_min', 'en_im3s_max')}
                
-                elif scene.en_disp_type == '1':
+                    for envirt in envimenudict:
+                        if envirt in zmetrics:
+                            row = layout.row()
+                            row.label(envirt)
+                            row.prop(scene, envimenudict[envirt][0])
+                            row.prop(scene, envimenudict[envirt][1])
+                
+                elif sedt == '1':
                     newrow(layout, 'Display unit:', scene, 'en_disp_punit')  
                     newrow(layout, 'Legend colour:', scene, "vi_leg_col")
                     envimenudict = {'Bar chart range:': ('bar_min', 'bar_max')}
 
-                for envirt in envimenudict:
-                    if envirt in zmetrics:
-                        row = layout.row()
-                        row.label(envirt)
-                        row.prop(scene, envimenudict[envirt][0])
-                        row.prop(scene, envimenudict[envirt][1])                                  
+                                                  
             if scene.vi_display:            
                 newrow(layout, 'Display active', scene, 'vi_display')
 

@@ -26,6 +26,7 @@ from collections import OrderedDict
 from datetime import datetime as dt
 from math import cos, sin, pi, ceil, tan
 from time import sleep
+from multiprocessing import Pool
 
 try:
     import matplotlib.pyplot as plt
@@ -777,8 +778,9 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
         node.preexport(scene)
         
         for frame in range(node.fs, node.fe + 1):
+            scene.frame_set(frame)
             shutil.copyfile(locnode.weather, os.path.join(scene['viparams']['newdir'], "in{}.epw".format(frame)))
-
+        scene.frame_set(node.fs)
         shutil.copyfile(os.path.join(os.path.dirname(os.path.abspath(os.path.realpath( __file__ ))), "EPFiles", "Energy+.idd"), os.path.join(scene['viparams']['newdir'], "Energy+.idd"))
 
         if bpy.context.active_object and not bpy.context.active_object.hide:
@@ -1884,25 +1886,29 @@ class NODE_OT_Shadow(bpy.types.Operator):
             cindex = geom.layers.int['cindex']
             [geom.layers.float.new('res{}'.format(fi)) for fi in frange]
             avres, minres, maxres, g = [], [], [], 0
-            
+            if simnode.cpoint == '0':
+                gpoints = [f for f in geom if o.data.materials[f.material_index].mattype == '1']
+            elif simnode.cpoint == '1':
+                gpoints = [v for v in geom if any([o.data.materials[f.material_index].mattype == '1' for f in v.link_faces])]
+
+            for g, gp in enumerate(gpoints):
+                gp[cindex] = g + 1
+
             for frame in frange: 
                 g = 0                
                 scene.frame_set(frame)
                 shadtree = rettree(scene, shadobs, ('', '2')[simnode.signore])
                 shadres = geom.layers.float['res{}'.format(frame)]
-                if simnode.cpoint == '0':
-                    gpoints = [f for f in geom if o.data.materials[f.material_index].mattype == '1']
-                if simnode.cpoint == '1':
-                    gpoints = [v for v in geom if any([o.data.materials[f.material_index].mattype == '1' for f in v.link_faces])]
-                    
+                                    
                 if gpoints:
                     posis = [gp.calc_center_bounds() + gp.normal.normalized() * simnode.offset for gp in gpoints] if simnode.cpoint == '0' else [gp.co + gp.normal.normalized() * simnode.offset for gp in gpoints]
                     allpoints = numpy.zeros((len(gpoints), len(direcs)), dtype=int8)
 
                     for chunk in chunks(gpoints, int(scene['viparams']['nproc']) * 200):
                         for gp in chunk:
-                            if frame == frange[0]:
-                                gp[cindex] = g + 1                      
+#                           Attempy to multi-process but Pool does does not with class instances
+#                            p = Pool(4) 
+#                            pointres = array(p.starmap(shadtree.ray_cast, [(posis[g], direc) for direc in direcs]), dtype = int8)
                             pointres = array([(0, 1)[shadtree.ray_cast(posis[g], direc)[3] == None and direc[2] > 0] for direc in direcs], dtype = int8)
                             numpy.putmask(allpoints[g], pointres == 1, pointres)
                             gp[shadres] = 100 * (numpy.sum(pointres)/lvaldirecs)

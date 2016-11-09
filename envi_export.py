@@ -220,13 +220,13 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                     en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))    
                     obound = ('win-', 'door-')[mat.envi_con_type == 'Door']+obco if obco else obco
                     params = ['Name', 'Surface Type', 'Construction Name', 'Building Surface Name', 'Outside Boundary Condition Object', 'View Factor to Ground', 'Shading Control Name', 'Frame and Divider Name', 'Multiplier', 'Number of Vertices'] + \
-                    ["X,Y,Z ==> Vertex {} (m)".format(v) for v in face.verts]
+                    ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]
                     paramvs = [('win-', 'door-')[mat.envi_con_type == 'Door']+'{}_{}'.format(obj.name, face.index), mat.envi_con_type, mat.name, '{}_{}'.format(obj.name, face.index), obound, 'autocalculate', '', '', '1', len(face.verts)] + \
                     ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format((xav+(vco[0]-xav)*0.95, yav+(vco[1]-yav)*0.95, zav+(vco[2]-zav)*0.95)) for vco in vcos]
                     en_idf.write(epentry('FenestrationSurface:Detailed', params, paramvs))
     
                 elif mat.envi_con_type == 'Shading' or obj.envi_type == '1':
-                    params = ['Name', 'Transmittance Schedule Name', 'Number of Vertices'] + ['X,Y,Z ==> Vertex {} (m)'.format(v) for v in range(len(face.verts))]
+                    params = ['Name', 'Transmittance Schedule Name', 'Number of Vertices'] + ['X,Y,Z ==> Vertex {} (m)'.format(v.index) for v in face.verts]
                     paramvs = ['{}_{}'.format(obj.name, face.index), '', len(face.verts)] + ['{0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}'.format(vco) for vco in vcos]
                     en_idf.write(epentry('Shading:Building:Detailed', params, paramvs))
             bm.free()

@@ -79,8 +79,8 @@ def cmap(scene):
             bpy.data.materials[matname].diffuse_color = cols[i][0:3]
         
 def bmesh2mesh(scene, obmesh, o, frame, tmf):
-    ftext = ''
-    gradfile = ''
+    ftext, gradfile, vtext = '', '', ''
+
     try:
         bm = obmesh.copy()
         bm.verts.ensure_lookup_table()
@@ -93,26 +93,28 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
         if o.data.polygons[0].use_smooth:
             vtext += ''.join(['vn {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.normal.normalized()) for v in bm.verts])
     
-        for mat in mmats:
-            matname = mat.name.replace(' ', '_')
-            if o.data.polygons[0].use_smooth:            
-                ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join('{0}//{0}'.format(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])            
-            else:
-                ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(str(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])
+        if mfaces:
+            for mat in mmats:
+                matname = mat.name.replace(' ', '_')
+                if o.data.polygons[0].use_smooth:            
+                    ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join('{0}//{0}'.format(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])            
+                else:
+                    ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(str(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])
                 
         if ffaces:
             gradfile += radpoints(o, ffaces, 0)
     
-        bm.free()
-        
-        if ftext:        
+        if ftext:   
             mfile = os.path.join(scene['viparams']['newdir'], 'obj', '{}-{}.mesh'.format(o.name.replace(' ', '_'), frame))
             with open(mfile, 'w') as mesh:
-                Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout = mesh, stdin = PIPE).communicate(input = (otext + vtext + ftext).encode('utf-8'))
-            gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(o.name.replace(" ", "_"), frame)))
-    
-        vtext, ftext = '', ''
+                o2mrun = Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout = mesh, stdin = PIPE, stderr = PIPE).communicate(input = (otext + vtext + ftext).encode('utf-8'))
+                if 'fatal' in o2mrun[1].decode():
+                    gradfile += radpoints(o, mfaces, 0)
+                else:
+                    gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(o.name.replace(" ", "_"), frame)))
+        bm.free()
         return gradfile
+    
     except:
         return gradfile
     

@@ -93,15 +93,14 @@ class Vi3DPanel(bpy.types.Panel):
                     row.label(text="{:-<60}".format(""))
  
             elif scene['viparams']['vidisp'] in ('en', 'enpanel'):   
-                print('1', datetime.datetime.now())
                 sedt = scene.en_disp_type
                 resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
-                print('1a', datetime.datetime.now())
+
                 if sedt == '1':
                     zresdict = {}
                     lmetrics = []
                     vresdict = {"Max Flow in": "resazlmaxf_disp", "Min Flow in": "resazlminf_disp", "Ave Flow in": "resazlavef_disp"} 
-                    print('1b', datetime.datetime.now())
+
                 else:    
                     rl = resnode['reslists']
                     zrl = list(zip(*rl))
@@ -111,7 +110,6 @@ class Vi3DPanel(bpy.types.Panel):
                                 'CO2 (ppm)': 'reszco_disp', 'PMV': 'reszpmv_disp', 'PPD (%)': 'reszppd_disp', 'Solar gain (W)': 'reszsg_disp', 
                                 'Air heating (W)': 'reszahw_disp', 'Air cooling (W)': 'reszacw_disp', 'HR heating (W)': 'reshrhw_disp'}
                     vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}  
-                    print('1c', datetime.datetime.now())
                 
                 if scene['viparams']['vidisp'] == 'en': 
                     newrow(layout, 'Static/Parametric', scene, 'en_disp_type')
@@ -119,7 +117,7 @@ class Vi3DPanel(bpy.types.Panel):
                         row = layout.row()               
                         row.prop(resnode, '["AStart"]')
                         row.prop(resnode, '["AEnd"]')
-                        print('1d', datetime.datetime.now())
+
                     else:  
                         if len(set(zrl[0])) > 1:
                             newrow(layout, 'Frame:', resnode, '["AStart"]')
@@ -158,10 +156,7 @@ class Vi3DPanel(bpy.types.Panel):
                     if sedt == '0':
                         row.operator("view3d.endisplay", text="EnVi Display")
                     elif sedt == '1':
-                        print('1e', datetime.datetime.now())
                         row.operator("view3d.enpdisplay", text="EnVi Display")
-                        print('1f', datetime.datetime.now())
-                print('2', datetime.datetime.now())
                         
             if scene['viparams']['vidisp'] == 'enpanel':                                
                 if sedt == '0':
@@ -187,7 +182,6 @@ class Vi3DPanel(bpy.types.Panel):
                     newrow(layout, 'Display unit:', scene, 'en_disp_punit')  
                     newrow(layout, 'Legend colour:', scene, "vi_leg_col")
                     envimenudict = {'Bar chart range:': ('bar_min', 'bar_max')}
-
                                                   
             if scene.vi_display:            
                 newrow(layout, 'Display active', scene, 'vi_display')

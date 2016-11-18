@@ -485,13 +485,13 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
             self.percent = 0
             self.reslists = []
             self.res = []
-            self.frames = self.scene['liparams']['fe'] - self.scene['liparams']['fs'] + 1
             self.rpictfile = os.path.join(self.scene['viparams']['newdir'], 'rpictprogress')
             self.simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
             self.simnode.presim()
             nodecolour(self.simnode, 1)
             self.scene['liparams']['fs'] = min([c['fs'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
             self.scene['liparams']['fe'] = max([c['fe'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
+            self.frames = self.scene['liparams']['fe'] - self.scene['liparams']['fs'] + 1
             self.frame = self.scene['liparams']['fs']
             self.frameold = self.frame
             for frame in range(self.scene['liparams']['fs'], self.scene['liparams']['fe'] + 1):

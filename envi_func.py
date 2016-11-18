@@ -355,7 +355,7 @@ def processh(lines):
                 'Zone Ideal Loads Heat Recovery Sensible Heating Rate [W] !Hourly': 'HR heating (W)',
                 'Zone Ideal Loads Supply Air Sensible Cooling Rate [W] !Hourly': 'Air cooling (W)',
                 'Zone Windows Total Transmitted Solar Radiation Rate [W] !Hourly': 'Solar gain (W)',
-                'Zone Infiltration Current Density Volume Flow Rate [m3/s] !Hourly': 'Infiltration (m3/s)',
+                'AFN Zone Infiltration Volume [m3] !Hourly': 'Infiltration (m3/hr)',
                 'Zone Infiltration Air Change Rate [ach] !Hourly': 'Infiltration (ACH)',
                 'Zone Mean Air Temperature [C] ! Hourly': 'Mean Temperature (degC)',
                 'Zone Mean Radiant Temperature [C] !Hourly' :'Mean Radiant (degC)', 

@@ -1,6 +1,6 @@
-import bpy, mathutils, colorsys, os
+import bpy, mathutils, colorsys, os, gc, datetime
 from collections import OrderedDict
-from numpy import arange, array
+from numpy import arange, array, where
 from numpy import sum as nsum
 
 def retenresdict(scene):
@@ -356,9 +356,10 @@ def processh(lines):
                 'Zone Ideal Loads Supply Air Sensible Cooling Rate [W] !Hourly': 'Air cooling (W)',
                 'Zone Windows Total Transmitted Solar Radiation Rate [W] !Hourly': 'Solar gain (W)',
                 'AFN Zone Infiltration Volume [m3] !Hourly': 'Infiltration (m3/hr)',
+                'AFN Zone Infiltration Air Change Rate [ach] !Hourly': 'Infiltration (ACH)',
+                'Zone Infiltration Volume [m3] !Hourly': 'Infiltration (m3/hr)',
                 'Zone Infiltration Air Change Rate [ach] !Hourly': 'Infiltration (ACH)',
-                'Zone Mean Air Temperature [C] ! Hourly': 'Mean Temperature (degC)',
-                'Zone Mean Radiant Temperature [C] !Hourly' :'Mean Radiant (degC)', 
+                'Zone Mean Air Temperature [C] ! Hourly': 'Mean Temperature (degC)', 
                 'Zone Thermal Comfort Fanger Model PPD [%] !Hourly' :'PPD (%)',
                 'Zone Thermal Comfort Fanger Model PMV [] !Hourly' :'PMV',               
                 'AFN Node CO2 Concentration [ppm] !Hourly': 'CO2 (ppm)',
@@ -417,22 +418,22 @@ def processf(pro_op, scene, node):
     for frame in frames:
         node['envires{}'.format(frame)] = {}
         resfileloc = os.path.join(scene['viparams']['newdir'], '{}{}out.eso'.format(pro_op.resname, frame)) if node.bl_label == 'EnVi Simulation' else node.resfilename
-        
+
         with open(resfileloc, 'r') as resfile:
             lines = resfile.readlines()
-            hdict, lstart = processh(lines)          
-            bodylines = lines[lstart:-2]            
-            bdict = {li: ' '.join([line.strip('\n').split(',')[1] for line in bodylines if line.strip('\n').split(',')[0] == li]) for li in hdict}
-               
+            hdict, lstart = processh(lines)  
+            splitlines = [l.strip('\n').split(',') for l in lines[lstart:-2]]
+            bdict = {li: ' '.join([sl[1] for sl in splitlines if sl[0] == li]) for li in hdict}
+  
             for k in sorted(hdict.keys(), key=int):
                 if hdict[k] == ['Time']:
-                    reslists.append([str(frame), 'Time', '', 'Month', ' '.join([line.strip('\n').split(',')[2] for line in bodylines if line.strip('\n').split(',')[0] == k])])
-                    reslists.append([str(frame), 'Time', '', 'Day', ' '.join([line.strip('\n').split(',')[3] for line in bodylines if line.strip('\n').split(',')[0] == k])])                    
-                    reslists.append([str(frame), 'Time', '', 'Hour', ' '.join([line.strip('\n').split(',')[5] for line in bodylines if line.strip('\n').split(',')[0] == k])])
-                    reslists.append([str(frame), 'Time', '', 'DOS', ' '.join([line.strip('\n').split(',')[1] for line in bodylines if line.strip('\n').split(',')[0] == k])])
+                    reslists.append([str(frame), 'Time', '', 'Month', ' '.join([sl[2] for sl in splitlines if sl[0] == k])])
+                    reslists.append([str(frame), 'Time', '', 'Day', ' '.join([sl[3] for sl in splitlines if sl[0] == k])])                    
+                    reslists.append([str(frame), 'Time', '', 'Hour', ' '.join([sl[5] for sl in splitlines if sl[0] == k])])
+                    reslists.append([str(frame), 'Time', '', 'DOS', ' '.join([sl[1] for sl in splitlines if sl[0] == k])])
                 else:
                     reslists.append([str(frame)] + hdict[k] + [bdict[k]])
-
+        
         rls = reslists
         zrls = list(zip(*rls))
         zonerls = [zonerl for zonerl in rls if zonerl[1] == 'Zone' and zonerl[0] == str(frame)]
@@ -457,6 +458,7 @@ def processf(pro_op, scene, node):
                     o['hours'] = arange(1, 25, dtype = float)
                     o['days'] = arange(node.dsdoy, node.dedoy + 1, dtype = float)
                 o['envires{}'.format((frame, '')[len(frames) == 1])] = envires
+        
                 
     if len(frames) > 1:  
         areslists = []

@@ -29,7 +29,6 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     for frame in range(scene['enparams']['fs'], scene['enparams']['fe'] + 1):
         scene.update()
         scene.frame_set(frame)
-#        en_epw = open(locnode.weather, "r")
         en_idf = open(os.path.join(scene['viparams']['newdir'], 'in{}.idf'.format(frame)), 'w')
         enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]
         badnodes = [node for node in enng.nodes if node.use_custom_color]
@@ -55,25 +54,10 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         params = ('Name', 'Begin Month', 'Begin Day', 'End Month', 'End Day', 'Day of Week for Start Day', 'Use Weather File Holidays and Special Days', 'Use Weather File Daylight Saving Period',\
         'Apply Weekend Holiday Rule', 'Use Weather File Rain Indicators', 'Use Weather File Snow Indicators', 'Number of Times Runperiod to be Repeated')
         paramvs = (node.loc, node.sdate.month, node.sdate.day, node.edate.month, node.edate.day, "UseWeatherFile", "Yes", "Yes", "No", "Yes", "Yes", "1")
-        en_idf.write(epentry('RunPeriod', params, paramvs))
-    
-#        for line in en_epw.readlines():
-#            if line.split(",")[0].upper() == "GROUND TEMPERATURES":
-#                gtline, gt = line.split(","), []
-#                for gtn in range(int(gtline[1])):
-#                    gt.append((gtline[2+gtn*16], [g.strip("\n") for g in gtline[6+gtn*16:18+gtn*16]]))
-#                    if float(gt[gtn][0]) > 0.0 and float(gt[gtn][0]) <= 1:
-#                        en_idf.write("Site:GroundTemperature:BuildingSurface, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {};\n".format(*gt[gtn][1][:]))
-#                    elif float(gt[gtn][0]) == 0.5:
-#                        en_idf.write("Site:GroundTemperature:Shallow, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {};\n".format(*gt[gtn][1][:]))
-#                    elif float(gt[gtn][0]) > 3.5:
-#                        en_idf.write("Site:GroundTemperature:Deep, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {};\n".format(*gt[gtn][1][:]))
-#                en_idf.write("\n")
-#                break
-#        en_epw.close()
-    
+        en_idf.write(epentry('RunPeriod', params, paramvs))    
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: MATERIAL & CONSTRUCTIONS ===========\n\n")
         matcount, matname, namelist = [], [], []
+
         if 'Window' in [mat.envi_con_type for mat in bpy.data.materials] or 'Door' in [mat.envi_con_type for mat in bpy.data.materials]:
             params = ('Name', 'Roughness', 'Thickness (m)', 'Conductivity (W/m-K)', 'Density (kg/m3)', 'Specific Heat (J/kg-K)', 'Thermal Absorptance', 'Solar Absorptance', 'Visible Absorptance', 'Name', 'Outside Layer')
             paramvs = ('Wood frame', 'Rough', '0.12', '0.1', '1400.00', '1000', '0.9', '0.6', '0.6', 'Frame', 'Wood frame')
@@ -376,8 +360,9 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                        "Output:Variable,*,Zone Air System Sensible Heating Rate,hourly;\n": node.restwh, "Output:Variable,*,Zone Air System Sensible Cooling Rate,hourly;\n": node.restwc,
                        "Output:Variable,*,Zone Ideal Loads Supply Air Sensible Heating Rate, hourly;\n": node.ressah, "Output:Variable,*,Zone Ideal Loads Heat Recovery Sensible Heating Rate, hourly;\n": node.reshrhw, 
                        "Output:Variable,*,Zone Ideal Loads Supply Air Sensible Cooling Rate,hourly;\n": node.ressac,
-                       "Output:Variable,*,Zone Thermal Comfort Fanger Model PMV,hourly;\n": node.rescpm, "Output:Variable,*,Zone Thermal Comfort Fanger Model PPD,hourly;\n": node.rescpp, "Output:Variable,*,AFN Zone Infiltration Volume, hourly;\n":node.resim,
-                       "Output:Variable,*,Zone Infiltration Air Change Rate, hourly;\n": node.resiach, "Output:Variable,*,Zone Windows Total Transmitted Solar Radiation Rate,hourly;\n": node.reswsg,
+                       "Output:Variable,*,Zone Thermal Comfort Fanger Model PMV,hourly;\n": node.rescpm, "Output:Variable,*,Zone Thermal Comfort Fanger Model PPD,hourly;\n": node.rescpp, "Output:Variable,*,AFN Zone Infiltration Volume, hourly;\n": node.resim and enng['enviparams']['afn'],
+                       "Output:Variable,*,AFN Zone Infiltration Air Change Rate, hourly;\n": node.resiach and enng['enviparams']['afn'], "Output:Variable,*,Zone Infiltration Current Density Volume [m3]": node.resim and not enng['enviparams']['afn'],
+                       "Output:Variable,*,Zone Infiltration Air Change Rate, hourly;\n": node.resiach and not enng['enviparams']['afn'], "Output:Variable,*,Zone Windows Total Transmitted Solar Radiation Rate,hourly;\n": node.reswsg,
                        "Output:Variable,*,AFN Node CO2 Concentration,hourly;\n": node.resco2 and enng['enviparams']['afn'], "Output:Variable,*,Zone Air CO2 Concentration,hourly;\n": node.resco2 and not enng['enviparams']['afn'],
                        "Output:Variable,*,Zone Mean Radiant Temperature,hourly;\n": node.resmrt, "Output:Variable,*,Zone People Occupant Count,hourly;\n": node.resocc,
                        "Output:Variable,*,Zone Air Relative Humidity,hourly;\n": node.resh, "Output:Variable,*,Zone Air Heat Balance Surface Convection Rate, hourly;\n": node.resfhb,
@@ -495,8 +480,7 @@ def pregeo(op):
                     sm.material.envi_export = True    
                 if sm.material.envi_con_type in dcdict:
                     sm.material.diffuse_color = dcdict[mct]
-            
-    
+                
             for poly in en_obj.data.polygons:
                 mat = en_obj.data.materials[poly.material_index]
                 if poly.area < 0.001 or mat.envi_con_type == 'None' or (en_obj.data.materials[poly.material_index].envi_con_makeup == '1' and en_obj.data.materials[poly.material_index].envi_layero == '0'):
@@ -535,6 +519,7 @@ def pregeo(op):
                 for node in enng.nodes:
                     if hasattr(node, 'zone') and node.zone == en_obj.name:
                         node.zupdate(bpy.context)
+                                        
             for node in enng.nodes:
                 if hasattr(node, 'emszone') and node.emszone == en_obj.name:
                     node.zupdate(bpy.context)
@@ -544,6 +529,10 @@ def pregeo(op):
                     enng.links.new(enng.nodes[ll[0]].outputs[ll[1]], enng.nodes[ll[2]].inputs[ll[3]])
                 except:
                     pass
+                
+            for node in enng.nodes:
+                if hasattr(node, 'zone') and node.zone == en_obj.name:
+                    node.uvsockupdate()
     
             if any([mat.envi_afsurface for mat in enomats]):
                 enng['enviparams']['afn'] = 1
@@ -579,7 +568,6 @@ def pregeo(op):
             en_obj.material_slots[0].material.diffuse_color = (1, 0, 0)
             en_obj.layers[1], en_obj.layers[0] = True, False
            
-
 def writeafn(exp_op, en_idf, enng):
     if [enode for enode in enng.nodes if enode.bl_idname == 'AFNCon'] and not [enode for enode in enng.nodes if enode.bl_idname == 'EnViZone']:
         [enng.nodes.remove(enode) for enode in enng.nodes if enode.bl_idname == 'AFNCon']

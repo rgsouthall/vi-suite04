@@ -225,12 +225,18 @@ def retuval(mat):
     resists, em, ec = [], envi_materials(), envi_constructions()
     thicks = [0.001 * tc for tc in (mat.envi_export_lo_thi, mat.envi_export_l1_thi, mat.envi_export_l2_thi, mat.envi_export_l3_thi, mat.envi_export_l4_thi)]
 
-    if mat.envi_con_makeup == '1':   
-        dtcs = [float(em.matdat[dmat][1]) for dmat in (mat.envi_material_lo, mat.envi_material_l1, mat.envi_material_l2, mat.envi_material_l3, mat.envi_material_l4)]
+    if mat.envi_con_makeup == '1': 
+        laymats = (mat.envi_material_lo, mat.envi_material_l1, mat.envi_material_l2, mat.envi_material_l3, mat.envi_material_l4)
+        lays = (mat.envi_layero, mat.envi_layer1, mat.envi_layer2, mat.envi_layer3, mat.envi_layer4)
         ctcs = (mat.envi_export_lo_tc, mat.envi_export_l1_tc, mat.envi_export_l2_tc, mat.envi_export_l3_tc, mat.envi_export_l4_tc)
-        for l, lay in enumerate((mat.envi_layero, mat.envi_layer1, mat.envi_layer2, mat.envi_layer3, mat.envi_layer4)):
+
+        for l, lay in enumerate(lays):
             if lay == '1':
-                resists.append(thicks[l]/dtcs[l])
+                if mat.envi_con_type != 'Window':
+                    dtc = em.matdat[laymats[l]][1]
+                else:
+                    dtc = em.matdat[laymats[l]][(4, 11)[l in (0, 2, 4)]]
+                resists.append(thicks[l]/float(dtc))
             if lay == '2':
                 resists.append(thicks[l]/ctcs[l])
         
@@ -238,4 +244,6 @@ def retuval(mat):
         pi = 4 if mat.envi_con_type == 'Window' else 1
         pstcs = [float(em.matdat[psmat][pi]) for psmat in ec.propdict[mat.envi_con_type][mat.envi_con_list]]
         resists = [thicks[t]/tc for t, tc in enumerate(pstcs)]
+
     return 1/sum(resists)
+    

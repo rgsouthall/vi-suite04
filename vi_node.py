@@ -2487,19 +2487,12 @@ class EnViZone(bpy.types.Node, EnViNodes):
         self.inputs.new('EnViEqSocket', 'Equipment')
         self.inputs.new('EnViInfSocket', 'Infiltration')
         self.inputs.new('EnViSchedSocket', 'TSPSchedule')
-#        self.inputs['TSPSchedule'].hide = True
         self.inputs.new('EnViSchedSocket', 'VASchedule')
 
     def update(self):
-#        if self.inputs.get('VASchedule'):
         sflowdict = {'EnViSFlowSocket': 'Envi surface flow', 'EnViSSFlowSocket': 'Envi sub-surface flow'}
-        for sock in self.outputs:
-            socklink(sock, self['nodeid'].split('@')[1])
-            if sock.bl_idname == 'EnViBoundSocket':
-                uvsocklink(sock, self['nodeid'].split('@')[1])
         [bi, si, ssi, bo, so , sso] = [1, 1, 1, 1, 1, 1]
-        
-        
+                
         try:
             for inp in [inp for inp in self.inputs if inp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
                 self.outputs[inp.name].hide = True if inp.links and self.outputs[inp.name].bl_idname == inp.bl_idname else False
@@ -2514,13 +2507,7 @@ class EnViZone(bpy.types.Node, EnViNodes):
                     if (not inp.hide and not inp.links) or (inp.links and inp.links[0].from_node.bl_label != sflowdict[inp.bl_idname]):
                         si = 0
                         if inp.links:
-                            remlink(self, [inp.links[0]])
-#                elif inp.bl_idname == 'EnViSSFlowSocket':
-#                    if (not inp.hide and not inp.links) or (inp.links and inp.links[0].from_node.bl_label != 'Envi sub-surface flow'):
-#                        ssi = 0
-#                        if inp.links:
-#                            remlink(self, [inp.links[0]])
-    
+                            remlink(self, [inp.links[0]])    
             
             for outp in [outp for outp in self.outputs if outp.bl_idname in ('EnViBoundSocket', 'EnViSFlowSocket', 'EnViSSFlowSocket')]:
                 if outp.bl_idname == 'EnViBoundSocket' and not outp.hide and not outp.links:
@@ -2530,16 +2517,19 @@ class EnViZone(bpy.types.Node, EnViNodes):
                         so = 0
                         if outp.links:
                             remlink(self, [outp.links[0]])
-#                elif outp.bl_idname == 'EnViSSFlowSocket':
-#                    if (not outp.hide and not outp.links) or (outp.links and outp.links[0].to_node.bl_label != 'Envi sub-surface flow'):
-#                        sso = 0
-#                        if outp.links:
-#                            remlink(self, [outp.links[0]])
 
+            
+                    
         except Exception as e:
             print("Don't panic")
         nodecolour(self, (self.control == 'Temperature' and not self.inputs['TSPSchedule'].is_linked) or not all((bi, si, ssi, bo, so, sso)))
-
+    
+    def uvsockupdate(self):
+        for sock in self.outputs:
+            socklink(sock, self['nodeid'].split('@')[1])
+            if sock.bl_idname == 'EnViBoundSocket':
+                uvsocklink(sock, self['nodeid'].split('@')[1])
+                
     def draw_buttons(self, context, layout):
         newrow(layout, 'Zone:', self, 'zone')
         yesno = (1, 1, self.control == 'Temperature', self.control == 'Temperature', self.control == 'Temperature')

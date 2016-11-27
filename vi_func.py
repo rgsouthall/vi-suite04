@@ -2294,8 +2294,6 @@ def uvsocklink(sock, ng):
                 bpy.data.node_groups[ng].links.remove(link)
     except:
         pass
-#        if sock.links:
-#            bpy.data.node_groups[ng].links.remove(sock.links[-1])
     
 def rettimes(ts, fs, us):
     tot = range(min(len(ts), len(fs), len(us)))

@@ -359,6 +359,8 @@ class CancelButton(Button):\n\
                 App.get_running_app().stop()\n\
         else:\n\
             return\n\
+    def on_open(self, widget, parent):\n\
+        self.focus = True\n\
 \n\
 class Calculating(App):\n\
     bl = BoxLayout(orientation='vertical')\n\

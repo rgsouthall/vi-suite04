@@ -1580,9 +1580,9 @@ class NODE_OT_WindRose(bpy.types.Operator):
         doys = list(range(simnode.sdoy, simnode.edoy + 1)) if simnode.edoy > simnode.sdoy else list(range(1, simnode.edoy + 1)) + list(range(simnode.sdoy, 366))
         awd = array([wd for di, wd in enumerate(cwd) if cdoys[di] in doys])
         aws = array([ws for di, ws in enumerate(cws) if cdoys[di] in doys])
-        validdata = numpy.where(awd > 0)
-        awd = awd[validdata]
-        aws = aws[validdata]
+        validdata = numpy.where(awd > 0) if max(cwd) == 360 else numpy.where(awd > -1)
+        vawd = awd[validdata]
+        vaws = aws[validdata]
         simnode['maxres'], simnode['minres'], simnode['avres'] = max(cws), min(cws), sum(cws)/len(cws)
         (fig, ax) = wr_axes()
         sbinvals = arange(0,int(ceil(max(cws))),2)
@@ -1593,11 +1593,11 @@ class NODE_OT_WindRose(bpy.types.Operator):
         dfreq = dfreq[:-1]
         
         if simnode.wrtype == '0':
-            ax.bar(awd, aws, bins=sbinvals, normed=True, opening=0.8, edgecolor='white', cmap=cm.get_cmap(scene.vi_leg_col))
+            ax.bar(vawd, vaws, bins=sbinvals, normed=True, opening=0.8, edgecolor='white', cmap=cm.get_cmap(scene.vi_leg_col))
         elif simnode.wrtype == '1':
-            ax.box(awd, aws, bins=sbinvals, normed=True, cmap=cm.get_cmap(scene.vi_leg_col))
+            ax.box(vawd, vaws, bins=sbinvals, normed=True, cmap=cm.get_cmap(scene.vi_leg_col))
         elif simnode.wrtype in ('2', '3', '4'):
-            ax.contourf(awd, aws, bins=sbinvals, normed=True, cmap=cm.get_cmap(scene.vi_leg_col))
+            ax.contourf(vawd, vaws, bins=sbinvals, normed=True, cmap=cm.get_cmap(scene.vi_leg_col))
 
         plt.savefig(scene['viparams']['newdir']+'/disp_wind.svg')
         (wro, scale) = wind_rose(simnode['maxres'], scene['viparams']['newdir']+'/disp_wind.svg', simnode.wrtype)
@@ -1607,8 +1607,8 @@ class NODE_OT_WindRose(bpy.types.Operator):
         
         plt.close()
         wro['table'] = array([["", 'Minimum', 'Average', 'Maximum'], ['Speed (m/s)', wro['minres'], '{:.1f}'.format(wro['avres']), wro['maxres']], ['Direction (\u00B0)', min(awd), '{:.1f}'.format(sum(awd)/len(awd)), max(awd)]])
-        wro['ws'] = array(aws).reshape(len(doys), 24).T
-        wro['wd'] = array(awd).reshape(len(doys), 24).T
+        wro['ws'] = aws.reshape(len(doys), 24).T
+        wro['wd'] = awd.reshape(len(doys), 24).T
         wro['days'] = array(doys, dtype = float)
         wro['hours'] = arange(1, 25, dtype = float)
         wro['maxfreq'] = 100*numpy.max(dfreq)/len(awd)

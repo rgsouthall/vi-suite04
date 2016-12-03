@@ -67,7 +67,7 @@ def li_display(disp_op, simnode):
     except:
         pass
     (rcol, mtype) =  ('hot', 'livi') if 'LiVi' in simnode.bl_label else ('grey', 'shad')
-    cmap(scene)
+    
 
     for geo in scene.objects:
         scene.objects.active = geo
@@ -135,10 +135,8 @@ def li_display(disp_op, simnode):
         cv.diffuse, cv.glossy, cv.transmission, cv.scatter, cv.shadow = 0, 0, 0, 0, 0        
         obreslist.append(ores)
         ores['omax'], ores['omin'], ores['oave'], ores['lires']  = o['omax'], o['omin'], o['oave'], 1 
-#        if scene['viparams']['visimcontext'] == 'LiVi Compliance':
-#            for c in ('compmat', 'comps', 'crit', 'ecrit', 'ecomps'):
-#                ores[c] = o[c]
         selobj(scene, ores)
+        cmap(scene)
         
         for matname in ['{}#{}'.format('vi-suite', i) for i in range(20)]:
             if bpy.data.materials[matname] not in ores.data.materials[:]:
@@ -155,7 +153,7 @@ def li_display(disp_op, simnode):
         bm.transform(o.matrix_world.inverted())
         bm.to_mesh(ores.data)
         bm.free()
-        bpy.ops.object.shade_flat()
+        bpy.ops.object.shade_flat()        
         ores.lividisplay(scene)
                 
         if scene.vi_disp_3d == 1 and ores.data.shape_keys == None:

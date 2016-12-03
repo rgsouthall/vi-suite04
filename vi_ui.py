@@ -15,8 +15,8 @@ class Vi3DPanel(bpy.types.Panel):
         
     def draw(self, context):
         scene = context.scene
-        if scene.get('viparams') and scene['viparams'].get('vidisp'):            
-            view = context.space_data
+
+        if scene.get('viparams') and scene['viparams'].get('vidisp'): 
             layout = self.layout
 
             if scene['viparams']['vidisp'] == 'wr' and 'Wind_Plane' in [o['VIType'] for o in bpy.data.objects if o.get('VIType')]:
@@ -46,7 +46,7 @@ class Vi3DPanel(bpy.types.Panel):
 
             elif scene['viparams']['vidisp'] in ('sspanel', 'lipanel', 'lcpanel') and [o for o in bpy.data.objects if o.lires] and scene.vi_display:
                 row = layout.row()
-                row.prop(view, "show_only_render")
+                row.prop(context.space_data, "show_only_render")
 
                 if not scene.ss_disp_panel:
                     if scene['viparams']['visimcontext'] == 'LiVi CBDM':
@@ -92,7 +92,8 @@ class Vi3DPanel(bpy.types.Panel):
                     row = layout.row()
                     row.label(text="{:-<60}".format(""))
  
-            elif scene['viparams']['vidisp'] in ('en', 'enpanel'):   
+            elif scene['viparams']['vidisp'] in ('en', 'enpanel'):
+                fs, fe = scene['enparams']['fs'], scene['enparams']['fe']
                 sedt = scene.en_disp_type
                 resnode = bpy.data.node_groups[scene['viparams']['resnode'].split('@')[1]].nodes[scene['viparams']['resnode'].split('@')[0]]
 
@@ -100,27 +101,23 @@ class Vi3DPanel(bpy.types.Panel):
                     zresdict = {}
                     lmetrics = []
                     vresdict = {"Max Flow in": "resazlmaxf_disp", "Min Flow in": "resazlminf_disp", "Ave Flow in": "resazlavef_disp"} 
-
-                else:    
-                    rl = resnode['reslists']
-                    zrl = list(zip(*rl))
-                    lmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Linkage' and zrl[0][zri] == str(resnode["AStart"])])
-                    zmetrics = set([zr for zri, zr in enumerate(zrl[3]) if zrl[1][zri] == 'Zone' and zrl[0][zri] == str(resnode["AStart"])])
+                else: 
+                    lmetrics, zmetrics = scene['enparams']['lmetrics'], scene['enparams']['zmetrics']
                     zresdict = {"Temperature (degC)": "reszt_disp", 'Humidity (%)': 'reszh_disp', 'Heating (W)': 'reszhw_disp', 'Cooling (W)': 'reszcw_disp', 
                                 'CO2 (ppm)': 'reszco_disp', 'PMV': 'reszpmv_disp', 'PPD (%)': 'reszppd_disp', 'Solar gain (W)': 'reszsg_disp', 
                                 'Air heating (W)': 'reszahw_disp', 'Air cooling (W)': 'reszacw_disp', 'HR heating (W)': 'reshrhw_disp'}
                     vresdict = {"Opening Factor": "reszof_disp", "Linkage Flow in": "reszlf_disp"}  
-                
+
                 if scene['viparams']['vidisp'] == 'en': 
                     newrow(layout, 'Static/Parametric', scene, 'en_disp_type')
                     if sedt == '1':
                         row = layout.row()               
                         row.prop(resnode, '["AStart"]')
                         row.prop(resnode, '["AEnd"]')
-
                     else:  
-                        if len(set(zrl[0])) > 1:
+                        if fe > fs:                        
                             newrow(layout, 'Frame:', resnode, '["AStart"]')
+
                         row = layout.row() 
                         row.label(text = 'Start/End day:')
                         row.prop(resnode, '["Start"]')
@@ -130,7 +127,7 @@ class Vi3DPanel(bpy.types.Panel):
                         row = layout.row() 
                         row.prop(scene, 'resaa_disp')
                         row.prop(scene, 'resas_disp')
-                
+                        
                         for ri, rzname in enumerate(zmetrics):
                             if ri == 0:                    
                                 row = layout.row()
@@ -152,7 +149,7 @@ class Vi3DPanel(bpy.types.Panel):
                             newrow(layout, 'Link to object', scene, 'envi_flink')  
                         
                         row = layout.row() 
-                        
+   
                     if sedt == '0':
                         row.operator("view3d.endisplay", text="EnVi Display")
                     elif sedt == '1':
@@ -162,9 +159,10 @@ class Vi3DPanel(bpy.types.Panel):
                 if sedt == '0':
                     newrow(layout, 'Display unit:', scene, 'en_disp_unit')  
                     newrow(layout, 'Bar colour:', scene, "vi_leg_col")
-                    
-                    if len(set(zrl[0])) > 1:
+
+                    if fe > fs:
                         newrow(layout, 'Parametric frame:', resnode, '["AStart"]')
+
                     envimenudict = {'Temperature (degC)': ('en_temp_min', 'en_temp_max'), 'Humidity (%)' : ('en_hum_min', 'en_hum_max'), 'Heating (W)': ('en_heat_min', 'en_heat_max'),
                                 'Cooling (W)': ('en_cool_min', 'en_cool_max'), 'Solar gain (W)': ('en_shg_min', 'en_shg_max'), 'CO2 (ppm)': ('en_co2_min', 'en_co2_max'),
                                 'PMV': ('en_pmv_min', 'en_pmv_max'), 'PPD (%)': ('en_ppd_min', 'en_ppd_max'), 'Air heating (W)': ('en_aheat_min', 'en_aheat_max'), 
@@ -181,7 +179,10 @@ class Vi3DPanel(bpy.types.Panel):
                 elif sedt == '1':
                     newrow(layout, 'Display unit:', scene, 'en_disp_punit')  
                     newrow(layout, 'Legend colour:', scene, "vi_leg_col")
-                    envimenudict = {'Bar chart range:': ('bar_min', 'bar_max')}
+                    row = layout.row()
+                    row.label('Bar chart range:')
+                    row.prop(scene, 'bar_min')
+                    row.prop(scene, 'bar_max')
                                                   
             if scene.vi_display:            
                 newrow(layout, 'Display active', scene, 'vi_display')
@@ -465,6 +466,7 @@ class VIMatPanel(bpy.types.Panel):
                     elif fvsimnode.turbulence == 'kOmega':
                         newrow(layout, "k type:", cm, "flovi_bmik_type")
                         newrow(layout, "Omega type:", cm, "flovi_bmio_type")
+            
             elif cm.flovi_bmb_type == '2':
                 newrow(layout, "Pressure sub-type:", cm, "flovi_bmop_type")
                 if cm.flovi_bmop_type == 'fixedValue':
@@ -484,30 +486,6 @@ class VIMatPanel(bpy.types.Panel):
                         newrow(layout, "k type:", cm, "flovi_bmok_type")
                         newrow(layout, "Omega type:", cm, "flovi_bmoo_type")
                 
-#class IESPanel(bpy.types.Panel):
-#    bl_label = "VI Object Properties"
-#    bl_space_type = "PROPERTIES"
-#    bl_region_type = "WINDOW"
-#    bl_context = "data"
-#    
-#    @classmethod
-#    def poll(cls, context):
-#        if context.lamp or context.mesh:
-#            return True
-#
-#    def draw(self, context):
-#        layout, lamp = self.layout, context.active_object
-#        if context.mesh: 
-#            newrow(layout, 'Light Array', lamp, 'lila')
-#        if (lamp.type == 'LAMP' and lamp.data.type != 'SUN') or lamp.lila: 
-#            row = layout.row()
-#            row.operator("livi.ies_select")
-#            row.prop(lamp, "ies_name")
-#            newrow(layout, 'IES Dimension:', lamp, "ies_unit")
-#            newrow(layout, 'IES Strength:', lamp, "ies_strength")
-#            row = layout.row()
-#            row.prop(lamp, "ies_colour")
-                
 class VIObPanel(bpy.types.Panel):
     bl_label = "VI-Suite Object Definition"
     bl_space_type = "PROPERTIES"
@@ -522,7 +500,7 @@ class VIObPanel(bpy.types.Panel):
     def draw(self, context):
         obj = context.active_object
         layout = self.layout
-#        if obj.type in ('LAMP', 'MESH'):
+
         if obj.type == 'MESH':
             row = layout.row()
             row.prop(obj, "vi_type")
@@ -553,14 +531,9 @@ class VIObPanel(bpy.types.Panel):
                 newrow(layout, 'Samples:', obj, 'li_bsdf_ksamp')
             newrow(layout, 'RC params:', obj, 'li_bsdf_rcparam')
             row = layout.row()
-#                col = row.column()
-            
-
             row.operator("material.gen_bsdf", text="Generate BSDF")
 
             if obj.get('bsdf'):
-#                    row = layout.row()
-#                    row.label('Delete BSDF')
                 row.operator("material.del_bsdf", text="Delete BSDF")
             newrow(layout, 'Proxy:', obj, 'bsdf_proxy')
 

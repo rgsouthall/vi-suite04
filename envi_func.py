@@ -434,8 +434,14 @@ def processf(pro_op, scene, node):
                 else:
                     reslists.append([str(frame)] + hdict[k] + [bdict[k]])
         
-        rls = reslists
-        zrls = list(zip(*rls))
+    rls = reslists
+    zrls = list(zip(*rls))
+    scene['enparams']['lmetrics'] = list(set([zr for zri, zr in enumerate(zrls[3]) if zrls[1][zri] == 'Linkage' and zrls[0][zri] == str(node["AStart"])]))
+    scene['enparams']['zmetrics'] = list(set([zr for zri, zr in enumerate(zrls[3]) if zrls[1][zri] == 'Zone' and zrls[0][zri] == str(node["AStart"])]))
+#    scene['AStart'], scene['AEnd'] = frames[0], frames[-1]
+#    scene["_RNA_UI"] = {"AStart": {"name": '', "min":frames[0], "max":frames[-1]}, "AEnd": {"min":frames[0], "max":frames[-1]}}
+
+    for frame in frames:
         zonerls = [zonerl for zonerl in rls if zonerl[1] == 'Zone' and zonerl[0] == str(frame)]
         zzonerls = list(zip(*zonerls))
 
@@ -458,8 +464,7 @@ def processf(pro_op, scene, node):
                     o['hours'] = arange(1, 25, dtype = float)
                     o['days'] = arange(node.dsdoy, node.dedoy + 1, dtype = float)
                 o['envires{}'.format((frame, '')[len(frames) == 1])] = envires
-        
-                
+                        
     if len(frames) > 1:  
         areslists = []
         areslists.append(['All', 'Frames', '', 'Frames', ' '.join([str(f) for f in frames])])
@@ -472,7 +477,6 @@ def processf(pro_op, scene, node):
         comfppds = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'PPD']
         comfpmvs = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'PMV']
         shgs = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Solar gain (W)']
-#        zns = set([zrls[2][zi] for zi, z in enumerate(zrls[1]) if z == 'Zone'])
 
         for zn in set([t[0] for t in temps]):
             if temps:

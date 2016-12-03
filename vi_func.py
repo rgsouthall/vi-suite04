@@ -75,8 +75,8 @@ def cmap(scene):
             bpy.data.materials[matname].specular_color = (0, 0, 0)
             bpy.data.materials[matname].use_shadeless = 0
         
-        if bpy.data.materials[matname].users:
-            bpy.data.materials[matname].diffuse_color = cols[i][0:3]
+#        if bpy.data.materials[matname].users:
+        bpy.data.materials[matname].diffuse_color = cols[i][0:3]
         
 def bmesh2mesh(scene, obmesh, o, frame, tmf):
     ftext, gradfile, vtext = '', '', ''

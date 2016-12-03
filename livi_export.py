@@ -150,10 +150,15 @@ def createradfile(scene, frame, export_op, simnode):
 
     simnode['radfiles'][str(frame)] = radtext
 
-def createoconv(scene, frame, export_op, simnode, **kwargs):
+def createoconv(scene, frame, sim_op, simnode, **kwargs):
     fbase = "{0}-{1}".format(scene['viparams']['filebase'], frame)
+    
     with open("{}.oct".format(fbase), "w") as octfile:
-        Popen("oconv -w -".split(), stdin = PIPE, stdout = octfile).communicate(input = simnode['radfiles'][str(frame)].encode('utf-8'))
+        err =  Popen("oconv -w -".split(), stdin = PIPE, stderr = PIPE, stdout = octfile).communicate(input = simnode['radfiles'][str(frame)].encode('utf-8'))[1]
+        
+        if err and 'fatal -' in err.decode():
+            sim_op.report({'ERROR'}, 'Oconv conversion failure: {}'.format(err))
+            return 'CANCELLED'
 
 def spfc(self):
     scene = bpy.context.scene

@@ -360,8 +360,8 @@ class NODE_OT_LiViCalc(bpy.types.Operator):
         simnode.sim(scene)
 
         for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
-            createradfile(scene, frame, self, simnode)
-            createoconv(scene, frame, self, simnode)
+            if createradfile(scene, frame, self, simnode) == 'CANCELLED' or createoconv(scene, frame, self, simnode) == 'CANCELLED':
+                return {'CANCELLED'}
         
         calcout = li_calc(self, simnode, livisimacc(simnode))
 
@@ -1030,7 +1030,7 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
                 self.dhscatter.minmax != envals(scene.en_disp_unit, scene, [0, 100]):
                 self.dhscatter.update(context)
                 self.table.update(context)
-            
+
             if redraw:
                 context.area.tag_redraw()
                 
@@ -1576,10 +1576,13 @@ class NODE_OT_WindRose(bpy.types.Operator):
         rl = locnode['reslists']
         cdoys = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Time' and r[2] == '' and r[3] == 'DOS'][0]]
         cwd = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == '' and r[3] == 'Wind Direction (deg)'][0]]
-        cws = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == '' and r[3] == 'Wind Speed (m/s)'][0]]
+        cws = [float(c) for c in [r[4].split() for r in rl if r[0] == '0' and r[1] == 'Climate' and r[2] == '' and r[3] == 'Wind Speed (m/s)'][0]]        
         doys = list(range(simnode.sdoy, simnode.edoy + 1)) if simnode.edoy > simnode.sdoy else list(range(1, simnode.edoy + 1)) + list(range(simnode.sdoy, 366))
-        awd = [wd for di, wd in enumerate(cwd) if cdoys[di] in doys]
-        aws = [ws for di, ws in enumerate(cws) if cdoys[di] in doys]
+        awd = array([wd for di, wd in enumerate(cwd) if cdoys[di] in doys])
+        aws = array([ws for di, ws in enumerate(cws) if cdoys[di] in doys])
+        validdata = numpy.where(awd > 0)
+        awd = awd[validdata]
+        aws = aws[validdata]
         simnode['maxres'], simnode['minres'], simnode['avres'] = max(cws), min(cws), sum(cws)/len(cws)
         (fig, ax) = wr_axes()
         sbinvals = arange(0,int(ceil(max(cws))),2)
@@ -1591,9 +1594,9 @@ class NODE_OT_WindRose(bpy.types.Operator):
         
         if simnode.wrtype == '0':
             ax.bar(awd, aws, bins=sbinvals, normed=True, opening=0.8, edgecolor='white', cmap=cm.get_cmap(scene.vi_leg_col))
-        if simnode.wrtype == '1':
+        elif simnode.wrtype == '1':
             ax.box(awd, aws, bins=sbinvals, normed=True, cmap=cm.get_cmap(scene.vi_leg_col))
-        if simnode.wrtype in ('2', '3', '4'):
+        elif simnode.wrtype in ('2', '3', '4'):
             ax.contourf(awd, aws, bins=sbinvals, normed=True, cmap=cm.get_cmap(scene.vi_leg_col))
 
         plt.savefig(scene['viparams']['newdir']+'/disp_wind.svg')
@@ -2052,13 +2055,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
                     self.dhscatter.hl = (0, 1, 1, 1)
                     if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.dhscatter.expand and self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] < my < self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff:
                         self.dhscatter.show_plot()
-                
-#                    elif self.dhscatter.lspos[0] < mx < self.dhscatter.lepos[0] and self.dhscatter.lspos[1] + 0.9 * self.dhscatter.ydiff < my < self.dhscatter.epos[1]:                    
-#                        for butrange in self.dhscatter.buttons:
-#                            if self.dhscatter.buttons[butrange][0] - 10 < mx < self.dhscatter.buttons[butrange][0] + 10 and self.dhscatter.buttons[butrange][1] - 0.015 * self.dhscatter.ydiff < my < self.dhscatter.buttons[butrange][1] + 0.015 * self.dhscatter.ydiff:
-#                                if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
-#                                    self.dhscatter.type_select = 0 if self.dhscatter.type_select else 1
-#                                    self.dhscatter.update(context)
+
                     context.area.tag_redraw()
                     return {'RUNNING_MODAL'}
                    
@@ -2066,6 +2063,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
                 if self.dhscatter.hl != (1, 1, 1, 1):
                     self.dhscatter.hl = (1, 1, 1, 1)
                     redraw = 1
+
             # Update routine
                 
             if self.dhscatter.frame != context.scene.frame_current or self.dhscatter.cao != context.active_object or self.dhscatter.col != context.scene.vi_leg_col:

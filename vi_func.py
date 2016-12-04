@@ -340,7 +340,8 @@ class progressfile():
             pfile.write('{} {}'.format(int(100 * curres/self.calcsteps), datetime.timedelta(seconds = dt.seconds)))
         
 def progressbar(file):
-    kivytext = "from kivy.app import App \n\
+    kivytext = "# -*- coding: "+sys.getfilesystemencoding()+" -*-\n\
+from kivy.app import App \n\
 from kivy.clock import Clock \n\
 from kivy.uix.progressbar import ProgressBar\n\
 from kivy.uix.boxlayout import BoxLayout\n\
@@ -433,7 +434,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         rt =  geom.layers.string['rt{}'.format(rtframe)]
             
         for chunk in chunks([g for g in geom if g[rt]], int(scene['viparams']['nproc']) * 500):
-            rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
+            rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode(sys.getfilesystemencoding()) for c in chunk]))   
             xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()]).astype(float32)
             virrad = nsum(xyzirrad * array([0.26, 0.67, 0.065], dtype = float32), axis = 1)
             firrad = virrad * 1.64

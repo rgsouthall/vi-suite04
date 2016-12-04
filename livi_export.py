@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, math, subprocess, datetime, bmesh, mathutils, shlex
+import bpy, os, math, subprocess, datetime, bmesh, mathutils, shlex, sys
 from math import sin, cos, pi
 from subprocess import PIPE, Popen
 from .vi_func import clearscene, solarPosition, retobjs, radpoints, clearlayers, bmesh2mesh
@@ -96,7 +96,7 @@ def radgexport(export_op, node, **kwargs):
                 if o.type == 'LAMP':
                     if o.parent:
                         o = o.parent
-                    lradfile += '!xform -rx {0[0]:.3f} -ry {0[1]:.3f} -rz {0[2]:.3f} -t {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} "{2}.rad"\n\n'.format([(180/pi)*o.rotation_euler[i] for i in range(3)], o.location, os.path.join(scene['liparams']['lightfilebase'], iesname+"-{}".format(frame)))
+                    lradfile += u'!xform -rx {0[0]:.3f} -ry {0[1]:.3f} -rz {0[2]:.3f} -t {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} "{2}.rad"\n\n'.format([(180/pi)*o.rotation_euler[i] for i in range(3)], o.location, os.path.join(scene['liparams']['lightfilebase'], iesname+"-{}".format(frame)))
                 elif o.type == 'MESH':
                     for face in o.data.polygons:
                         lradfile += '!xform -rx {0[0]:.3f} -ry {0[1]:.3f} -rz {0[2]:.3f} -t {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} "{2}"{3}'.format([(180/pi)*o.rotation_euler[i] for i in range(3)], o.matrix_world * face.center, os.path.join(scene['liparams']['lightfilebase'], iesname+"-{}.rad".format(frame)), ('\n', '\n\n')[face == o.data.polygons[-1]])
@@ -152,12 +152,13 @@ def createradfile(scene, frame, export_op, simnode):
 
 def createoconv(scene, frame, sim_op, simnode, **kwargs):
     fbase = "{0}-{1}".format(scene['viparams']['filebase'], frame)
-    
-    with open("{}.oct".format(fbase), "w") as octfile:
-        err =  Popen("oconv -w -".split(), stdin = PIPE, stderr = PIPE, stdout = octfile).communicate(input = simnode['radfiles'][str(frame)].encode('utf-8'))[1]
+    with open("{}test.rad".format(fbase), 'w') as testfile:
+        testfile.write(simnode['radfiles'][str(frame)])
+    with open("{}.oct".format(fbase), "wb") as octfile:
+        err =  Popen("oconv -w -".split(), stdin = PIPE, stderr = PIPE, stdout = octfile).communicate(input = simnode['radfiles'][str(frame)].encode(sys.getfilesystemencoding()))[1]
         
         if err and 'fatal -' in err.decode():
-            sim_op.report({'ERROR'}, 'Oconv conversion failure: {}'.format(err))
+            sim_op.report({'ERROR'}, 'Oconv conversion failure: {}'.format(err.decode()))
             return 'CANCELLED'
 
 def spfc(self):

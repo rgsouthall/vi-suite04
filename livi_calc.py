@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, datetime
+import bpy, os, datetime, shlex, sys
 from subprocess import Popen, PIPE
 from time import sleep
 from . import livi_export
@@ -50,8 +50,12 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
                'fatal - no light sources\n': "No light sources. Photon mapping does not work with HDR skies",
                'fatal - no valid photon ports found\n': 'Re-export the geometry'}
                 amentry, pportentry, cpentry, cpfileentry = retpmap(simnode, frame, scene)
-                pmcmd = ('mkpmap -e {1}.pmapmon -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, scene['viparams']['filebase'], frame, simnode.pmapgno, cpentry, amentry))                   
-                pmrun = Popen(pmcmd.split(), stderr = PIPE, stdout = PIPE)
+                pmcmd = ("mkpmap -e '{1}.pmapmon' -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct".format(pportentry, scene['viparams']['filebase'], frame, simnode.pmapgno, cpentry, amentry))                   
+                pmrun = Popen(shlex.split(pmcmd), stderr = PIPE, stdout = PIPE, shell = True)
+                for line in pmrun.stderr:
+                    if 'fatal -' in line.decode():
+                        calc_op.report({'ERROR'}, 'Error in pmap creation: {}'.format(line))
+                        return 'CANCELLED'
 
                 while pmrun.poll() is None:
                     with open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'r') as pfile:

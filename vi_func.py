@@ -19,7 +19,7 @@
 import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex, bpy_extras
 #from collections import OrderedDict
 from subprocess import Popen, PIPE, STDOUT
-from numpy import int8, float32, float64, array, digitize, amax, amin, average, zeros, inner, transpose, nan, set_printoptions, choose, clip, where
+from numpy import int8, float32, float64, array, digitize, amax, amin, average, zeros, inner, transpose, nan, set_printoptions, choose, clip, where, frombuffer
 set_printoptions(threshold=nan)
 from numpy import sum as nsum
 from numpy import max as nmax
@@ -212,7 +212,7 @@ def cbdmmtx(self, scene, locnode, export_op):
             Popen(gdmcmd.split(), stdout = mtxfile, stderr=STDOUT).communicate()
         with open("{}-whitesky.oct".format(scene['viparams']['filebase']), 'w') as wsfile:
             oconvcmd = "oconv -w -"
-            Popen(shlex.split(oconvcmd), stdin = PIPE, stdout = wsfile).communicate(input = self['whitesky'].encode('utf-8'))
+            Popen(shlex.split(oconvcmd), stdin = PIPE, stdout = wsfile).communicate(input = self['whitesky'].encode(sys.getfilesystemencoding()))
         return "{}.mtx".format(os.path.join(scene['viparams']['newdir'], self['epwbase'][0]))
     else:
         export_op.report({'ERROR'}, "Not a valid EPW file")
@@ -245,7 +245,7 @@ def cbdmhdr(node, scene):
     
         if node.hdr:
             with open('{}.oct'.format(os.path.join(scene['viparams']['newdir'], node['epwbase'][0])), 'w') as hdroct:
-                Popen(shlex.split("oconv -w - "), stdin = PIPE, stdout=hdroct, stderr=STDOUT).communicate(input = skyentry.encode('utf-8'))
+                Popen(shlex.split("oconv -w - "), stdin = PIPE, stdout=hdroct, stderr=STDOUT).communicate(input = skyentry.encode(sys.filesystemencoding()))
             cntrun = Popen('cnt 750 1500'.split(), stdout = PIPE)
             rcalcrun = Popen('rcalc -f {} -e XD=1500;YD=750;inXD=0.000666;inYD=0.001333'.format(os.path.join(scene.vipath, 'Radfiles', 'lib', 'latlong.cal')).split(), stdin = cntrun.stdout, stdout = PIPE)
             with open(latlonghdr, 'w') as panohdr:
@@ -434,7 +434,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         rt =  geom.layers.string['rt{}'.format(rtframe)]
             
         for chunk in chunks([g for g in geom if g[rt]], int(scene['viparams']['nproc']) * 500):
-            rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode(sys.getfilesystemencoding()) for c in chunk]))   
+            rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
             xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()]).astype(float32)
             virrad = nsum(xyzirrad * array([0.26, 0.67, 0.065], dtype = float32), axis = 1)
             firrad = virrad * 1.64

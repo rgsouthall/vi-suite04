@@ -1286,8 +1286,7 @@ class VIEW3D_OT_EnPDisplay(bpy.types.Operator):
             return {'PASS_THROUGH'}
         else:
             return {'PASS_THROUGH'}
-            
-    
+                
     def execute(self, context):
         scene = context.scene
         scene.en_frame = scene.frame_current

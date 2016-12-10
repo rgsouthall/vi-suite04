@@ -835,7 +835,7 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
 
     bm.to_mesh(self.data)
     bm.free()
-    return pfs, epfs, reslists
+    return (pfs, epfs, reslists)
     
 def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     self['livires'] = {}

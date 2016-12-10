@@ -465,7 +465,8 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
             
     def terminate(self):
         nodecolour(self.simnode, 0)
-        self.kivyrun.kill()  
+        self.kivyrun.kill() 
+        self.simnode.run = 0
 
         if self.egrun.poll() == None:                          
             self.egrun.kill()
@@ -488,6 +489,7 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
             self.rpictfile = os.path.join(self.scene['viparams']['newdir'], 'rpictprogress')
             self.simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
             self.simnode.presim()
+            self.simnode.run = 1
             nodecolour(self.simnode, 1)
             self.scene['liparams']['fs'] = min([c['fs'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
             self.scene['liparams']['fe'] = max([c['fe'] for c in (self.simnode['goptions'], self.simnode['coptions'])])

@@ -28,7 +28,7 @@ def radfexport(scene, export_op, connode, geonode, frames):
 
 def li_calc(calc_op, simnode, simacc, **kwargs): 
     scene = bpy.context.scene
-    pfs, epfs = [], []
+    pfs, epfs, curres = [], [], 0
     context = simnode['coptions']['Context']
     subcontext = simnode['coptions']['Type']
     scene['liparams']['maxres'], scene['liparams']['minres'], scene['liparams']['avres'] = {}, {}, {}
@@ -44,31 +44,46 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
             if simnode.pmap:
                 pmappfile = open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'w')
                 pmappfile.close()
+                pfile = progressfile(scene, datetime.datetime.now(), 100)
+                kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'))
                 errdict = {'fatal - too many prepasses, no global photons stored\n': "Too many prepasses have ocurred. Make sure light sources can see your geometry",
                 'fatal - too many prepasses, no global photons stored, no caustic photons stored\n': "Too many prepasses have ocurred. Turn off caustic photons and encompass the scene",
                'fatal - zero flux from light sources\n': "No light flux, make sure there is a light source and that photon port normals point inwards",
                'fatal - no light sources\n': "No light sources. Photon mapping does not work with HDR skies",
                'fatal - no valid photon ports found\n': 'Re-export the geometry'}
                 amentry, pportentry, cpentry, cpfileentry = retpmap(simnode, frame, scene)
-                pmcmd = ("mkpmap -e '{1}.pmapmon' -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct".format(pportentry, scene['viparams']['filebase'], frame, simnode.pmapgno, cpentry, amentry))                   
-                pmrun = Popen(shlex.split(pmcmd), stderr = PIPE, stdout = PIPE, shell = True)
-                for line in pmrun.stderr:
-                    if 'fatal -' in line.decode():
-                        calc_op.report({'ERROR'}, 'Error in pmap creation: {}'.format(line))
-                        return 'CANCELLED'
-
-                while pmrun.poll() is None:
-                    with open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'r') as pfile:
-                        if 'CANCELLED' in pfile.read():
-                            pmrun.kill()
+                open('{}.pmapmon'.format(scene['viparams']['filebase']), 'w')
+                pmcmd = 'mkpmap -t 10 -e {1}.pmapmon -fo+ -bv+ -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, scene['viparams']['filebase'], frame, simnode.pmapgno, cpentry, amentry)
+                pmrun = Popen(pmcmd.split(), stderr = PIPE, stdout = PIPE)
+                
+                while pmrun.poll() is None:   
+                    sleep(10)
+                    with open('{}.pmapmon'.format(scene['viparams']['filebase']), 'r') as vip:
+                        for line in vip.readlines()[::-1]:
+                            if '%' in line:
+                                curres = float(line.split()[6][:-2])/len(frames)
+                                break
+                    if curres:                                
+                        if pfile.check(curres) == 'CANCELLED': 
+                            pmrun.kill()                                   
                             return 'CANCELLED'
-                        sleep(1)
+                
+                if kivyrun.poll() is None:
+                    kivyrun.kill()
                         
                 with open('{}.pmapmon'.format(scene['viparams']['filebase']), 'r') as pmapfile:
-                    for line in pmapfile.readlines():
-                        if line in errdict:
-                            calc_op.report({'ERROR'}, errdict[line])
-                            return
+                    pmlines = pmapfile.readlines()
+                    if pmlines:
+                        for line in pmlines:
+                            if line in errdict:
+                                calc_op.report({'ERROR'}, errdict[line])
+                                return 'CANCELLED'
+                            if 'fatal - ' in line:
+                                calc_op.report({'ERROR'}, line)
+                                return 'CANCELLED'
+                    else:
+                        calc_op.report({'ERROR'}, 'There is a problem with pmap generation. Check there are no non-ascii characters in the project directory file path')
+                        return 'CANCELLED'
                     
                 rtcmds.append("rtrace -n {0} -w {1} -ap {2}-{3}.gpm 50 {4} -faa -h -ov -I {2}-{3}.oct".format(scene['viparams']['nproc'], simnode['radparams'], scene['viparams']['filebase'], frame, cpfileentry)) #+" | tee "+lexport.newdir+lexport.fold+self.simlistn[int(lexport.metric)]+"-"+str(frame)+".res"
             else:

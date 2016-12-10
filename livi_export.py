@@ -46,7 +46,7 @@ def radgexport(export_op, node, **kwargs):
             o['rtpoints'] = {}
             o['lisenseareas'] = {}
         
-    
+    print(datetime.datetime.now())
     for frame in frames:
         scene.frame_set(frame)
         mradfile =  "# Materials \n\n" + "".join([m.radmat(scene) for m in mats])
@@ -67,6 +67,7 @@ def radgexport(export_op, node, **kwargs):
             bm.transform(o.matrix_world)
             bm.normal_update() 
             gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename)
+#            gradfile = ' '.join((gradfile, bmesh2mesh(scene, bm, o, frame, tempmatfilename)))
                         
             if o in caloblist:
                 geom = (bm.faces, bm.verts)[int(node.cpoint)]
@@ -75,14 +76,12 @@ def radgexport(export_op, node, **kwargs):
                     geom.layers.int.new('cindex')
                     o['cpoint'] = node.cpoint
                 geom.layers.string.new('rt{}'.format(frame))
-                    
-                if o in caloblist: 
-                    o.rtpoints(bm, node.offset, str(frame))
-                    bm.transform(o.matrix_world.inverted())
-                    bm.to_mesh(o.data)
+                o.rtpoints(bm, node.offset, str(frame))
+                bm.transform(o.matrix_world.inverted())
+                bm.to_mesh(o.data)
                         
             bm.free()
-            
+        print(datetime.datetime.now())        
     # Lights export routine
 
         lradfile = "# Lights \n\n"
@@ -152,11 +151,9 @@ def createradfile(scene, frame, export_op, simnode):
 
 def createoconv(scene, frame, sim_op, simnode, **kwargs):
     fbase = "{0}-{1}".format(scene['viparams']['filebase'], frame)
-    with open("{}test.rad".format(fbase), 'w') as testfile:
-        testfile.write(simnode['radfiles'][str(frame)])
+
     with open("{}.oct".format(fbase), "wb") as octfile:
         err =  Popen("oconv -w -".split(), stdin = PIPE, stderr = PIPE, stdout = octfile).communicate(input = simnode['radfiles'][str(frame)].encode(sys.getfilesystemencoding()))[1]
-        
         if err and 'fatal -' in err.decode():
             sim_op.report({'ERROR'}, 'Oconv conversion failure: {}'.format(err.decode()))
             return 'CANCELLED'

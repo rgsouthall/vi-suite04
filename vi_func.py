@@ -19,7 +19,7 @@
 import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex, bpy_extras
 #from collections import OrderedDict
 from subprocess import Popen, PIPE, STDOUT
-from numpy import int8, float32, float64, array, digitize, amax, amin, average, zeros, inner, transpose, nan, set_printoptions, choose, clip, where, frombuffer
+from numpy import int8, in1d, float32, float64, array, digitize, amax, amin, average, zeros, inner, transpose, nan, set_printoptions, choose, clip, where
 set_printoptions(threshold=nan)
 from numpy import sum as nsum
 from numpy import max as nmax
@@ -83,9 +83,17 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
 
     try:
         bm = obmesh.copy()
-        bm.verts.ensure_lookup_table()
-        mfaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu in ('0', '1', '2', '3') and not o.data.materials[face.material_index].pport]
-        ffaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu not in ('0', '1', '2', '3', '7', '8') or o.data.materials[face.material_index].pport]    
+#        bm.verts.ensure_lookup_table()
+#        bm.faces.ensure_lookup_table()
+        mrms = array([m.radmatmenu for m in o.data.materials])
+        mpps = array([not m.pport for m in o.data.materials])        
+        mnpps = where(mpps, 0, 1)        
+        mmrms = in1d(mrms, array(('0', '1', '2', '3')))        
+        fmrms = in1d(mrms, array(('0', '1', '2', '3', '7', '8')), invert = True)
+        mfaces = [f for f in bm.faces if (mmrms * mpps)[f.material_index]]
+        ffaces = [f for f in bm.faces if (fmrms + mnpps)[f.material_index]]        
+#        mfaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu in ('0', '1', '2', '3') and not o.data.materials[face.material_index].pport]
+#        ffaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu not in ('0', '1', '2', '3', '7', '8') or o.data.materials[face.material_index].pport]    
         mmats = [mat for mat in o.data.materials if mat.radmatmenu in ('0', '1', '2', '3')]
         otext = 'o {}\n'.format(o.name)
         vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts])
@@ -115,7 +123,8 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
         bm.free()
         return gradfile
     
-    except:
+    except Exception as e:
+        print(e)
         return gradfile
     
 def radmat(self, scene):
@@ -1296,13 +1305,17 @@ def fvmat(self, mn, bound):
         
             
 def radpoints(o, faces, sks):
-    fentries = ['']*len(faces)   
+    fentries = ['']*len(faces) 
+    mns = [m.name.replace(" ", "_") for m in o.data.materials]
+    mrms = [m.radmatmenu for m in o.data.materials]
+    on = o.name.replace(" ", "_")
     if sks:
         (skv0, skv1, skl0, skl1) = sks
     for f, face in enumerate(faces):
-        fmat = o.data.materials[face.material_index]
-        mname = '{}_{}_{}'.format(fmat.name.replace(" ", "_"), o.name.replace(" ", "_"), face.index) if fmat.radmatmenu == '8' else fmat.name.replace(" ", "_")
-        fentry = "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(mname, o.name.replace(" ", "_"), face.index, 3*len(face.verts))
+        fmi = face.material_index
+#        fmat = o.data.materials[face.material_index]
+        mname = '{}_{}_{}'.format(mns[fmi], on, face.index) if mrms[fmi] == '8' else mns[fmi]
+        fentry = "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(mname, on, face.index, 3*len(face.verts))
         if sks:
             ventries = ''.join([" {0[0]:.4f} {0[1]:.4f} {0[2]:.4f}\n".format((o.matrix_world*mathutils.Vector((v[skl0][0]+(v[skl1][0]-v[skl0][0])*skv1, v[skl0][1]+(v[skl1][1]-v[skl0][1])*skv1, v[skl0][2]+(v[skl1][2]-v[skl0][2])*skv1)))) for v in face.verts])
         else:
@@ -1311,12 +1324,18 @@ def radpoints(o, faces, sks):
     return ''.join(fentries)
                        
 def viparams(op, scene):
-    if not bpy.data.filepath:
+    bdfp = bpy.data.filepath
+    if not bdfp:
         op.report({'ERROR'},"The Blender file has not been saved. Save the Blender file before exporting")
         return 'Save file'
-    if " "  in bpy.data.filepath:
+    if " "  in bdfp:
         op.report({'ERROR'},"The directory path or Blender filename has a space in it. Please save again without any spaces in the file name or the directory path")
         return 'Rename file'
+
+    isascii = lambda s: len(s) == len(s.encode())
+    if not isascii(bdfp):
+        op.report({'WARNING'},"The directory path or Blender filename has non-ascii characters in it. Photon mapping may not work")
+    
     fd, fn = os.path.dirname(bpy.data.filepath), os.path.splitext(os.path.basename(bpy.data.filepath))[0]
     if not os.path.isdir(os.path.join(fd, fn)):
         os.makedirs(os.path.join(fd, fn))

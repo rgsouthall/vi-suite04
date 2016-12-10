@@ -584,13 +584,14 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             row.prop(self, self['simdict'][cinnode['Options']['Context']])
             if (self.simacc == '3' and cinnode['Options']['Context'] == 'Basic') or (self.csimacc == '0' and cinnode['Options']['Context'] in ('Compliance', 'CBDM')):
                newrow(layout, "Radiance parameters:", self, 'cusacc')
-            if cinnode['Options']['Preview']:
-                row = layout.row()
-                row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']
-            if cinnode['Options']['Context'] == 'Basic' and cinnode['Options']['Type'] == '1':
-                row.operator("node.liviglare", text = 'Calculate').nodeid = self['nodeid']
-            elif [o.name for o in scene.objects if o.name in scene['liparams']['livic']]:
-                row.operator("node.livicalc", text = 'Calculate').nodeid = self['nodeid']
+            if not self.run:
+                if cinnode['Options']['Preview']:
+                    row = layout.row()
+                    row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']
+                if cinnode['Options']['Context'] == 'Basic' and cinnode['Options']['Type'] == '1':
+                    row.operator("node.liviglare", text = 'Calculate').nodeid = self['nodeid']
+                elif [o.name for o in scene.objects if o.name in scene['liparams']['livic']]:
+                    row.operator("node.livicalc", text = 'Calculate').nodeid = self['nodeid']
         except Exception as e:
             pass
 

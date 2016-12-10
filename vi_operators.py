@@ -1397,7 +1397,9 @@ class NODE_OT_SunPath(bpy.types.Operator):
             bpy.data.materials.new(mat)
             bpy.data.materials[mat].diffuse_color = matdict[mat]
             bpy.data.materials[mat].use_shadeless = 1
-
+            if mat == 'PathDash':
+                bpy.data.materials[mat].alpha = 0
+                
         if suns:
             sun = suns[0]
             [scene.objects.unlink(sun) for sun in suns[1:]]

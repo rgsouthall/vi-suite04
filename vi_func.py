@@ -116,6 +116,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
             mfile = os.path.join(scene['viparams']['newdir'], 'obj', '{}-{}.mesh'.format(o.name.replace(' ', '_'), frame))
             with open(mfile, 'w') as mesh:
                 o2mrun = Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout = mesh, stdin = PIPE, stderr = PIPE).communicate(input = (otext + vtext + ftext).encode('utf-8'))
+                print(o2mrun[1].decode())
                 if 'fatal' in o2mrun[1].decode():
                     gradfile += radpoints(o, mfaces, 0)
                 else:

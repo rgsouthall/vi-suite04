@@ -638,6 +638,202 @@ class Base_Display():
     def drawclosed(self):
         draw_icon(self)       
 
+class bsdf2():
+    def __init__(self, context, width, height):
+        self.plt = plt
+        self.pos = [0.1 * width, 0.9 * height] 
+        self.spos = [int(self.pos[0] - 0.025 * width), int(self.pos[1] - 0.025 * height)]
+        self.epos = [int(self.pos[0] + 0.025 * width), int(self.pos[1] + 0.025 * height)]
+        self.xdiff, self.ydiff = 801, 401
+        self.gspos = [self.spos[0], self.spos[1] - self.ydiff]
+        self.gepos = [self.spos[0] + self.xdiff, self.spos[1]]
+        self.gpos = (self.pos[0] + 0.2 * width, self.pos[1] - 0.2 * height)
+        self.image = bpy.data.images.load(os.path.join(sys.path[0], 'images/bsdf.png'))       
+        self.image.user_clear()
+        self.bsdfloc = os.path.join(context.scene['viparams']['newdir'], 'images', 'bsdfplot.png') 
+
+        if 'bsdfplot.png' not in [i.name for i in bpy.data.images]:
+            self.gimage = bpy.data.images.load(self.bsdfloc)
+        else:
+            bpy.data.images['bsdfplot.png'].reload()
+            self.gimage = bpy.data.images['bsdfplot.png']
+
+        self.hl = (1, 1, 1, 1)
+        self.col = coldict[context.scene.vi_leg_col]
+        self.patch_select = 0
+        self.type_select = 0
+        self.patch_hl = 0
+        self.scale_select = 'Log'
+        self.resize = 0
+        self.buttons = {}
+        self.leg_max, self.leg_min = context.scene.bsdf_leg_max, context.scene.bsdf_leg_min 
+        self.num_disp = 0
+#        self.vicon = context.scene['viparams']['visimcontext']
+#        self.unit = context.scene.li_disp_da
+        self.mat = context.object.active_material
+        self.update()
+#        self.plot(context.scene)
+#        self.save(context.scene)
+        self.drawclosed(context, width, height)
+        self.expand = 0
+
+    def update(self):
+        bsdf = minidom.parseString(self.mat['bsdf']['xml'])
+        coltype = [path.firstChild.data for path in bsdf.getElementsByTagName('ColumnAngleBasis')]
+        rowtype = [path.firstChild.data for path in bsdf.getElementsByTagName('RowAngleBasis')]
+        self.radtype = [path.firstChild.data for path in bsdf.getElementsByTagName('Wavelength')]
+        self.rad_select = self.radtype[0]
+        self.dattype = [path.firstChild.data for path in bsdf.getElementsByTagName('WavelengthDataDirection')]
+        self.type_select = self.dattype[0].split()[0]
+        self.dir_select = self.dattype[0].split()[1]
+        lthetas = [path.firstChild.data for path in bsdf.getElementsByTagName('LowerTheta')]
+        self.uthetas = [float(path.firstChild.data) for path in bsdf.getElementsByTagName('UpperTheta')]
+        self.phis = [int(path.firstChild.data) for path in bsdf.getElementsByTagName('nPhis')]
+        self.scatdat = [array([float(nv) for nv in path.firstChild.data.strip('\t').strip('\n').strip(',').split(' ') if nv]) for path in bsdf.getElementsByTagName('ScatteringData')]
+            
+    def draw(self, context, width, height):  
+        if self.pos[1] > height:
+            self.pos[1] = height
+        self.spos = (int(self.pos[0] - (width * 0.025)), int(self.pos[1] - (height * 0.025)))
+        self.epos = (int(self.pos[0] + (width * 0.025)), int(self.pos[1] + (height * 0.025)))
+        if self.expand == 0:
+            self.drawclosed(context, width, height)
+        if self.expand == 1:
+            self.drawopen(context, width, height)
+            
+    def drawclosed(self, context, width, height):
+        font_id = 0
+        blf.enable(0, 4)
+        blf.enable(0, 8)
+        blf.shadow(font_id, 5, 0.5, 0.5, 0.5, 1)
+        blf.size(font_id, 56, int(height * 0.05))
+        drawpoly(self.spos[0], self.spos[1], self.epos[0], self.epos[1], *self.hl)        
+        drawloop(self.spos[0], self.spos[1], self.epos[0], self.epos[1])
+        bgl.glEnable(bgl.GL_BLEND)
+        self.image.gl_load(bgl.GL_NEAREST, bgl.GL_NEAREST)
+        bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.image.bindcode[0])
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D,
+                                bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D,
+                                bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+        bgl.glEnable(bgl.GL_TEXTURE_2D)
+        bgl.glColor4f(1, 1, 1, 1)
+        bgl.glBegin(bgl.GL_QUADS)
+        bgl.glTexCoord2i(0, 0)
+        bgl.glVertex2f(self.spos[0] + 5, self.spos[1] + 5)
+        bgl.glTexCoord2i(1, 0)
+        bgl.glVertex2f(self.epos[0] - 5, self.spos[1] + 5)
+        bgl.glTexCoord2i(1, 1)
+        bgl.glVertex2f(self.epos[0] - 5, self.epos[1] - 5)
+        bgl.glTexCoord2i(0, 1)
+        bgl.glVertex2f(self.spos[0] + 5, self.epos[1] - 5)
+        bgl.glEnd()
+        bgl.glDisable(bgl.GL_TEXTURE_2D)
+        bgl.glDisable(bgl.GL_BLEND)
+        bgl.glFlush()
+        
+    def drawopen(self, context, width, height):
+        bgl.glEnable(bgl.GL_BLEND)
+        bgl.glEnable(bgl.GL_DEPTH_TEST)
+        self.drawclosed(context, width, height)
+        self.gimage.reload()
+        self.xdiff = self.gepos[0] - self.gspos[0]
+        self.ydiff = self.gepos[1] - self.gspos[1]
+        
+        if not self.resize:
+            self.gspos = [self.spos[0], self.spos[1] - self.ydiff]
+            self.gepos = [self.spos[0] + self.xdiff, self.spos[1]]            
+        else:
+            self.gspos = [self.spos[0], self.gspos[1]]
+            self.gepos = [self.gepos[0], self.spos[1]]
+
+        self.centre = (self.gspos[0] + 0.225 * self.xdiff, self.gspos[1] + 0.425 * self.ydiff)
+        drawpoly(self.gspos[0], self.gspos[1], self.gepos[0], self.gepos[1], 1, 1, 1, 1)        
+        drawloop(self.gspos[0], self.gspos[1], self.gepos[0], self.gepos[1])
+        self.pw, self.ph = 0.175 * self.xdiff, 0.35 * self.ydiff
+        self.radii = array([0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1, 1.125])
+        cent = [self.gspos[0] + 0.02 * self.xdiff, self.gepos[1] - 0.03 * self.ydiff]
+        buttons = {}
+        drawcircle(self.centre, self.radii[-1] + 0.01, 360, 1, (0.95, 0.95, 0.95, 1), self.pw, self.ph, 0.04, 2)
+        
+        for rt in set(self.radtype):                
+            drawsquare(cent, 0.02 * self.xdiff, 0.03 * self.ydiff, 0)
+            if self.rad_select == rt:
+                drawsquare(cent, 0.015 * self.xdiff, 0.02 * self.ydiff, (0.5, 0.5, 0.5, 1))
+            blf.position(0, cent[0] + 0.015 * self.xdiff, cent[1] - 0.015 * self.ydiff, 0)
+            blf.size(0, 56, int(0.025 * self.xdiff))
+            blf.draw(0, rt)
+            buttons[rt] = cent[:]
+            cent[0] += 0.15 * self.xdiff                 
+
+        cent[1] = cent[1] - 0.05 * self.ydiff
+        cent[0] = self.gspos[0] + 0.02 * self.xdiff
+
+        for dt in set([dt.split()[1] for dt in self.dattype]):
+            drawsquare(cent, 0.02 * self.xdiff, 0.03 * self.ydiff, 0) 
+            if self.dir_select == dt:
+                drawsquare(cent, 0.015 * self.xdiff, 0.02 * self.ydiff, (0.5, 0.5, 0.5, 1))
+            blf.position(0, cent[0] + 0.015 * self.xdiff, cent[1] - 0.015 * self.ydiff, 0)
+            blf.size(0, 56, int(0.025 * self.xdiff))
+            blf.draw(0, dt)
+            buttons[dt] = cent[:]
+            cent[0] += 0.15 * self.xdiff
+            
+        cent[1] -= 0.05 * self.ydiff
+        cent[0] = self.gspos[0] + 0.02 * self.xdiff
+
+        for dt in set([dt.split()[0] for dt in self.dattype]):
+            drawsquare(cent, 0.02 * self.xdiff, 0.03 * self.ydiff, 0) 
+            if self.type_select == dt:
+                drawsquare(cent, 0.015 * self.xdiff, 0.02 * self.ydiff, (0.5, 0.5, 0.5, 1))
+            blf.position(0, cent[0] + 0.015 * self.xdiff, cent[1] - 0.015 * self.ydiff, 0)
+            blf.size(0, 56, int(0.025 * self.xdiff))
+            blf.draw(0, dt)
+            buttons[dt] = cent[:]
+            cent[0] += 0.15 * self.xdiff
+        cent = [self.gspos[0] + 0.55 * self.xdiff, self.gspos[1] + 0.04 * self.ydiff]
+        
+        for pt in ('Log', 'Linear'):            
+            drawsquare(cent, 0.02 * self.xdiff, 0.03 * self.ydiff, 0) 
+            if self.scale_select == pt:
+                drawsquare(cent, 0.015 * self.xdiff, 0.02 * self.ydiff, (0.5, 0.5, 0.5, 1))
+            blf.position(0, cent[0] + 0.015 * self.xdiff, cent[1] - 0.015 * self.ydiff, 0.01)
+            blf.size(0, 56, int(0.025 * self.xdiff))
+            blf.draw(0, pt)
+            buttons[pt] = cent[:]
+            cent[0] += 0.25 * self.xdiff
+        
+        for rdi, raddat in enumerate(['{0[0]} {0[1]}'.format(z) for z in zip(self.radtype, self.dattype)]):
+            if raddat == '{} {} {}'.format(self.rad_select, self.type_select, self.dir_select):
+                self.scat_select = rdi
+                break 
+        self.buttons = buttons
+        selectdat = self.scatdat[self.scat_select].reshape(145, 145)# if self.scale_select == 'Linear' else nlog10((self.scatdat[self.scat_select] + 1).reshape(145, 145)) 
+        sa = repeat(kfsa, self.phis)
+        act = repeat(kfact, self.phis)
+        patchdat = selectdat[self.patch_select] * act * sa * 100
+        patch = 0
+        centre2 = (self.centre[0] + 0.5 * self.xdiff, self.centre[1])
+        cmap = mcm.get_cmap(self.col)
+        
+        for phii, phi in enumerate(self.phis):
+            for w in range(phi):
+                if self.patch_select == patch:
+                    z, lw, col = 0.06, 5, (1, 0, 0, 1) 
+                elif self.patch_hl == patch:
+                    z, lw, col = 0.06, 5, (1, 1, 0, 1)
+                else:
+                    z, lw, col = 0.05, 1, 0
+    
+#                for centre in (self.centre, centre2)
+                if phi == 1:
+                    drawcircle(self.centre, self.radii[phii], 360, 0, col, self.pw, self.ph, z, lw)
+                elif phi > 1:
+                    drawwedge(self.centre, (int(360*w/phi) - int(180/phi) - 90, int(360*(w + 1)/phi) - int(180/phi) - 90), (self.radii[phii] - 0.125, self.radii[phii]), col, self.pw, self.ph)
+                    drawcolwedge(centre2, (int(360*w/phi) - int(180/phi) - 90, int(360*(w + 1)/phi) - int(180/phi) - 90), (self.radii[phii] - 0.125, self.radii[phii]), cmap(patchdat[patch]/max(patchdat)), self.pw, self.ph)
+                    
+                patch += 1
+                
 class wr_legend(Base_Display):
     def __init__(self, pos, width, height, iname, xdiff, ydiff):
         Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)

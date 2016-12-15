@@ -19,7 +19,7 @@
 import bpy, os, math, subprocess, datetime, bmesh, mathutils, shlex, sys
 from math import sin, cos, pi
 from subprocess import PIPE, Popen
-from .vi_func import clearscene, solarPosition, retobjs, radpoints, clearlayers, bmesh2mesh
+from .vi_func import clearscene, solarPosition, retobjs, radpoints, clearlayers, bmesh2mesh, viparams
 
 def radgexport(export_op, node, **kwargs):
     scene = bpy.context.scene
@@ -37,16 +37,12 @@ def radgexport(export_op, node, **kwargs):
         if not node.animated:
             o.animation_data_clear()
             o.data.animation_data_clear()
-#        if o.get('rtpoints'):
-#            del o['rtpoints']
-#            del o['lisenseareas']
         for k in o.keys():
             del o[k]
         if o in caloblist:
             o['rtpoints'] = {}
             o['lisenseareas'] = {}
         
-    print(datetime.datetime.now())
     for frame in frames:
         scene.frame_set(frame)
         mradfile =  "# Materials \n\n" + "".join([m.radmat(scene) for m in mats])
@@ -81,7 +77,7 @@ def radgexport(export_op, node, **kwargs):
                 bm.to_mesh(o.data)
                         
             bm.free()
-        print(datetime.datetime.now())        
+      
     # Lights export routine
 
         lradfile = "# Lights \n\n"
@@ -212,6 +208,8 @@ def cyfc1(self):
                 print(e, 'Something wrong with changing the material attribute name')    
         
 def genbsdf(scene, export_op, o): 
+    if viparams(export_op, scene):
+        return
     bsdfmats = [mat for mat in o.data.materials if mat.radmatmenu == '8']
     if bsdfmats:
         mat = bsdfmats[0]

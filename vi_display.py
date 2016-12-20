@@ -17,23 +17,27 @@
 # ##### END GPL LICENSE BLOCK #####
  # -*- coding: utf-8 -*-
 #from __future__ import unicode_literals
-import bpy, blf, colorsys, bgl, mathutils, bmesh, datetime, os, inspect
+import bpy, blf, colorsys, bgl, mathutils, bmesh, datetime, os, inspect, math
 from bpy_extras import view3d_utils
+from xml.dom import minidom
 from math import pi, sin, cos, atan2, log10
-from numpy import array, arange
+from numpy import array, arange, repeat
 from numpy import sum as nsum
 from numpy import min as nmin
 from numpy import max as nmax
 try:
     import matplotlib.pyplot as plt
-    import matplotlib.cm as mcm    
+    import matplotlib.cm as mcm  
+    import matplotlib.colors as mcolors
+    from matplotlib.patches import Rectangle
+    from matplotlib.collections import PatchCollection
     mp = 1
 except:
     mp = 0
 
 from . import livi_export
-from .vi_func import cmap, skframe, selobj, retvpvloc, viewdesc, drawloop, drawpoly, draw_index, blf_props
-from .vi_func import retdp, objmode, drawcircle, drawtri, setscenelivivals, draw_time, retcols, draw_index_distance
+from .vi_func import cmap, skframe, selobj, retvpvloc, viewdesc, drawloop, drawpoly, draw_index, blf_props, drawsquare
+from .vi_func import retdp, objmode, drawcircle, drawbsdfcircle, drawwedge, drawtri, setscenelivivals, draw_time, retcols, draw_index_distance
 from .envi_func import retenvires, recalculate_text
 
 nh = 768
@@ -42,7 +46,8 @@ enunitdict = {'Heating (W)': 'Watts (W)', 'Cooling (W)': 'Watts (W)', 'CO2 (ppm)
 entitledict = {'Heating (W)': 'Heating Consumption', 'Cooling (W)': 'Cooling Consumption', 'CO2 (ppm)': r'CO$_2$ Concentration', 'Solar gain (W)': 'Solar Gain', 'Temperature (degC)': 'Temperature', 'PMV': 'Predicted Mean Vote', 
                'PPD (%)': 'Predicted Percentage of Dissatisfied', 'Air heating (W)': 'Air Heating', 'Air cooling (W)': 'Air Cooling', 'HR heating (W)': 'Heat recovery', 'Heat balance (W)': 'Heat Balance', 'Occupancy': 'Occupancy',
                 'Humidity (%)': 'Humidity', 'Infiltration (m3/hr)': 'Infiltration', 'Infiltration (ACH)': 'Infiltration'}
-
+kfsa = array([0.02391, 0.02377, 0.02341, 0.02738, 0.02933, 0.03496, 0.04787, 0.05180, 0.13552])
+kfact = array([0.9981, 0.9811, 0.9361, 0.8627, 0.7631, 0.6403, 0.4981, 0.3407, 0.1294])
 #envaldict = {'Heating (W)': 'Watts (W)', 'Cooling (W)': 'Watts (W)', 'CO2 (ppm)': 'PPM', 'Solar gain (W)': 'Watts (W)', 'Temperature (degC)': (scene.en_temp_min, scene.en_temp_max)}
 
 def envals(unit, scene, data):
@@ -638,202 +643,6 @@ class Base_Display():
     def drawclosed(self):
         draw_icon(self)       
 
-class bsdf2():
-    def __init__(self, context, width, height):
-        self.plt = plt
-        self.pos = [0.1 * width, 0.9 * height] 
-        self.spos = [int(self.pos[0] - 0.025 * width), int(self.pos[1] - 0.025 * height)]
-        self.epos = [int(self.pos[0] + 0.025 * width), int(self.pos[1] + 0.025 * height)]
-        self.xdiff, self.ydiff = 801, 401
-        self.gspos = [self.spos[0], self.spos[1] - self.ydiff]
-        self.gepos = [self.spos[0] + self.xdiff, self.spos[1]]
-        self.gpos = (self.pos[0] + 0.2 * width, self.pos[1] - 0.2 * height)
-        self.image = bpy.data.images.load(os.path.join(sys.path[0], 'images/bsdf.png'))       
-        self.image.user_clear()
-        self.bsdfloc = os.path.join(context.scene['viparams']['newdir'], 'images', 'bsdfplot.png') 
-
-        if 'bsdfplot.png' not in [i.name for i in bpy.data.images]:
-            self.gimage = bpy.data.images.load(self.bsdfloc)
-        else:
-            bpy.data.images['bsdfplot.png'].reload()
-            self.gimage = bpy.data.images['bsdfplot.png']
-
-        self.hl = (1, 1, 1, 1)
-        self.col = coldict[context.scene.vi_leg_col]
-        self.patch_select = 0
-        self.type_select = 0
-        self.patch_hl = 0
-        self.scale_select = 'Log'
-        self.resize = 0
-        self.buttons = {}
-        self.leg_max, self.leg_min = context.scene.bsdf_leg_max, context.scene.bsdf_leg_min 
-        self.num_disp = 0
-#        self.vicon = context.scene['viparams']['visimcontext']
-#        self.unit = context.scene.li_disp_da
-        self.mat = context.object.active_material
-        self.update()
-#        self.plot(context.scene)
-#        self.save(context.scene)
-        self.drawclosed(context, width, height)
-        self.expand = 0
-
-    def update(self):
-        bsdf = minidom.parseString(self.mat['bsdf']['xml'])
-        coltype = [path.firstChild.data for path in bsdf.getElementsByTagName('ColumnAngleBasis')]
-        rowtype = [path.firstChild.data for path in bsdf.getElementsByTagName('RowAngleBasis')]
-        self.radtype = [path.firstChild.data for path in bsdf.getElementsByTagName('Wavelength')]
-        self.rad_select = self.radtype[0]
-        self.dattype = [path.firstChild.data for path in bsdf.getElementsByTagName('WavelengthDataDirection')]
-        self.type_select = self.dattype[0].split()[0]
-        self.dir_select = self.dattype[0].split()[1]
-        lthetas = [path.firstChild.data for path in bsdf.getElementsByTagName('LowerTheta')]
-        self.uthetas = [float(path.firstChild.data) for path in bsdf.getElementsByTagName('UpperTheta')]
-        self.phis = [int(path.firstChild.data) for path in bsdf.getElementsByTagName('nPhis')]
-        self.scatdat = [array([float(nv) for nv in path.firstChild.data.strip('\t').strip('\n').strip(',').split(' ') if nv]) for path in bsdf.getElementsByTagName('ScatteringData')]
-            
-    def draw(self, context, width, height):  
-        if self.pos[1] > height:
-            self.pos[1] = height
-        self.spos = (int(self.pos[0] - (width * 0.025)), int(self.pos[1] - (height * 0.025)))
-        self.epos = (int(self.pos[0] + (width * 0.025)), int(self.pos[1] + (height * 0.025)))
-        if self.expand == 0:
-            self.drawclosed(context, width, height)
-        if self.expand == 1:
-            self.drawopen(context, width, height)
-            
-    def drawclosed(self, context, width, height):
-        font_id = 0
-        blf.enable(0, 4)
-        blf.enable(0, 8)
-        blf.shadow(font_id, 5, 0.5, 0.5, 0.5, 1)
-        blf.size(font_id, 56, int(height * 0.05))
-        drawpoly(self.spos[0], self.spos[1], self.epos[0], self.epos[1], *self.hl)        
-        drawloop(self.spos[0], self.spos[1], self.epos[0], self.epos[1])
-        bgl.glEnable(bgl.GL_BLEND)
-        self.image.gl_load(bgl.GL_NEAREST, bgl.GL_NEAREST)
-        bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.image.bindcode[0])
-        bgl.glTexParameteri(bgl.GL_TEXTURE_2D,
-                                bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
-        bgl.glTexParameteri(bgl.GL_TEXTURE_2D,
-                                bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
-        bgl.glEnable(bgl.GL_TEXTURE_2D)
-        bgl.glColor4f(1, 1, 1, 1)
-        bgl.glBegin(bgl.GL_QUADS)
-        bgl.glTexCoord2i(0, 0)
-        bgl.glVertex2f(self.spos[0] + 5, self.spos[1] + 5)
-        bgl.glTexCoord2i(1, 0)
-        bgl.glVertex2f(self.epos[0] - 5, self.spos[1] + 5)
-        bgl.glTexCoord2i(1, 1)
-        bgl.glVertex2f(self.epos[0] - 5, self.epos[1] - 5)
-        bgl.glTexCoord2i(0, 1)
-        bgl.glVertex2f(self.spos[0] + 5, self.epos[1] - 5)
-        bgl.glEnd()
-        bgl.glDisable(bgl.GL_TEXTURE_2D)
-        bgl.glDisable(bgl.GL_BLEND)
-        bgl.glFlush()
-        
-    def drawopen(self, context, width, height):
-        bgl.glEnable(bgl.GL_BLEND)
-        bgl.glEnable(bgl.GL_DEPTH_TEST)
-        self.drawclosed(context, width, height)
-        self.gimage.reload()
-        self.xdiff = self.gepos[0] - self.gspos[0]
-        self.ydiff = self.gepos[1] - self.gspos[1]
-        
-        if not self.resize:
-            self.gspos = [self.spos[0], self.spos[1] - self.ydiff]
-            self.gepos = [self.spos[0] + self.xdiff, self.spos[1]]            
-        else:
-            self.gspos = [self.spos[0], self.gspos[1]]
-            self.gepos = [self.gepos[0], self.spos[1]]
-
-        self.centre = (self.gspos[0] + 0.225 * self.xdiff, self.gspos[1] + 0.425 * self.ydiff)
-        drawpoly(self.gspos[0], self.gspos[1], self.gepos[0], self.gepos[1], 1, 1, 1, 1)        
-        drawloop(self.gspos[0], self.gspos[1], self.gepos[0], self.gepos[1])
-        self.pw, self.ph = 0.175 * self.xdiff, 0.35 * self.ydiff
-        self.radii = array([0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1, 1.125])
-        cent = [self.gspos[0] + 0.02 * self.xdiff, self.gepos[1] - 0.03 * self.ydiff]
-        buttons = {}
-        drawcircle(self.centre, self.radii[-1] + 0.01, 360, 1, (0.95, 0.95, 0.95, 1), self.pw, self.ph, 0.04, 2)
-        
-        for rt in set(self.radtype):                
-            drawsquare(cent, 0.02 * self.xdiff, 0.03 * self.ydiff, 0)
-            if self.rad_select == rt:
-                drawsquare(cent, 0.015 * self.xdiff, 0.02 * self.ydiff, (0.5, 0.5, 0.5, 1))
-            blf.position(0, cent[0] + 0.015 * self.xdiff, cent[1] - 0.015 * self.ydiff, 0)
-            blf.size(0, 56, int(0.025 * self.xdiff))
-            blf.draw(0, rt)
-            buttons[rt] = cent[:]
-            cent[0] += 0.15 * self.xdiff                 
-
-        cent[1] = cent[1] - 0.05 * self.ydiff
-        cent[0] = self.gspos[0] + 0.02 * self.xdiff
-
-        for dt in set([dt.split()[1] for dt in self.dattype]):
-            drawsquare(cent, 0.02 * self.xdiff, 0.03 * self.ydiff, 0) 
-            if self.dir_select == dt:
-                drawsquare(cent, 0.015 * self.xdiff, 0.02 * self.ydiff, (0.5, 0.5, 0.5, 1))
-            blf.position(0, cent[0] + 0.015 * self.xdiff, cent[1] - 0.015 * self.ydiff, 0)
-            blf.size(0, 56, int(0.025 * self.xdiff))
-            blf.draw(0, dt)
-            buttons[dt] = cent[:]
-            cent[0] += 0.15 * self.xdiff
-            
-        cent[1] -= 0.05 * self.ydiff
-        cent[0] = self.gspos[0] + 0.02 * self.xdiff
-
-        for dt in set([dt.split()[0] for dt in self.dattype]):
-            drawsquare(cent, 0.02 * self.xdiff, 0.03 * self.ydiff, 0) 
-            if self.type_select == dt:
-                drawsquare(cent, 0.015 * self.xdiff, 0.02 * self.ydiff, (0.5, 0.5, 0.5, 1))
-            blf.position(0, cent[0] + 0.015 * self.xdiff, cent[1] - 0.015 * self.ydiff, 0)
-            blf.size(0, 56, int(0.025 * self.xdiff))
-            blf.draw(0, dt)
-            buttons[dt] = cent[:]
-            cent[0] += 0.15 * self.xdiff
-        cent = [self.gspos[0] + 0.55 * self.xdiff, self.gspos[1] + 0.04 * self.ydiff]
-        
-        for pt in ('Log', 'Linear'):            
-            drawsquare(cent, 0.02 * self.xdiff, 0.03 * self.ydiff, 0) 
-            if self.scale_select == pt:
-                drawsquare(cent, 0.015 * self.xdiff, 0.02 * self.ydiff, (0.5, 0.5, 0.5, 1))
-            blf.position(0, cent[0] + 0.015 * self.xdiff, cent[1] - 0.015 * self.ydiff, 0.01)
-            blf.size(0, 56, int(0.025 * self.xdiff))
-            blf.draw(0, pt)
-            buttons[pt] = cent[:]
-            cent[0] += 0.25 * self.xdiff
-        
-        for rdi, raddat in enumerate(['{0[0]} {0[1]}'.format(z) for z in zip(self.radtype, self.dattype)]):
-            if raddat == '{} {} {}'.format(self.rad_select, self.type_select, self.dir_select):
-                self.scat_select = rdi
-                break 
-        self.buttons = buttons
-        selectdat = self.scatdat[self.scat_select].reshape(145, 145)# if self.scale_select == 'Linear' else nlog10((self.scatdat[self.scat_select] + 1).reshape(145, 145)) 
-        sa = repeat(kfsa, self.phis)
-        act = repeat(kfact, self.phis)
-        patchdat = selectdat[self.patch_select] * act * sa * 100
-        patch = 0
-        centre2 = (self.centre[0] + 0.5 * self.xdiff, self.centre[1])
-        cmap = mcm.get_cmap(self.col)
-        
-        for phii, phi in enumerate(self.phis):
-            for w in range(phi):
-                if self.patch_select == patch:
-                    z, lw, col = 0.06, 5, (1, 0, 0, 1) 
-                elif self.patch_hl == patch:
-                    z, lw, col = 0.06, 5, (1, 1, 0, 1)
-                else:
-                    z, lw, col = 0.05, 1, 0
-    
-#                for centre in (self.centre, centre2)
-                if phi == 1:
-                    drawcircle(self.centre, self.radii[phii], 360, 0, col, self.pw, self.ph, z, lw)
-                elif phi > 1:
-                    drawwedge(self.centre, (int(360*w/phi) - int(180/phi) - 90, int(360*(w + 1)/phi) - int(180/phi) - 90), (self.radii[phii] - 0.125, self.radii[phii]), col, self.pw, self.ph)
-                    drawcolwedge(centre2, (int(360*w/phi) - int(180/phi) - 90, int(360*(w + 1)/phi) - int(180/phi) - 90), (self.radii[phii] - 0.125, self.radii[phii]), cmap(patchdat[patch]/max(patchdat)), self.pw, self.ph)
-                    
-                patch += 1
-                
 class wr_legend(Base_Display):
     def __init__(self, pos, width, height, iname, xdiff, ydiff):
         Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
@@ -971,7 +780,7 @@ class en_scatter(Base_Display):
                 save_plot(self, scene, 'scatter.png')
 
         except Exception as e:  
-            print('e', e)
+            print('en_scatter', e)
         
     def drawopen(self, context):
         draw_image(self, 0)
@@ -985,16 +794,6 @@ class en_barchart(Base_Display):
         
     def quickupdate(self, scene):
         pass
-#        self.rangedict = {'Max temp (C)': (scene.en_maxtemp_min, scene.en_maxtemp_max), 'Ave temp (C)': (scene.en_avetemp_min, scene.en_avetemp_max),
-#                            'Min temp (C)': (scene.en_mintemp_min, scene.en_mintemp_max), 'Max heating (W)': (scene.en_maxheat_min, scene.en_maxheat_max),
-#                            'Ave heating (W)': (scene.en_aveheat_min, scene.en_aveheat_max), 'Min heating (W)': (scene.en_minheat_min, scene.en_minheat_max),
-#                            'Total heating (kWh/m2)': (scene.en_tothkwhm2_min, scene.en_tothkwhm2_max), 'Total heating (kWh)': (scene.en_tothkwh_min, scene.en_tothkwh_max),
-#                            'Max cooling (W)': (scene.en_maxcool_min, scene.en_maxcool_max), 'Min cooling (W)': (scene.en_mincool_min, scene.en_mincool_max),
-#                            'Ave cooling (W)': (scene.en_avecool_min, scene.en_avecool_max), 'Total cooling (kWh/m2)': (scene.en_totckwhm2_min, scene.en_totckwhm2_max),
-#                            'Total cooling (kWh)': (scene.en_totckwh_min, scene.en_totckwh_max), 'Max SHG (W)': (scene.en_maxshg_min, scene.en_maxshg_max),
-#                            'Ave SHG (W)': (scene.en_aveshg_min, scene.en_aveshg_max), 'Min SHG (W)': (scene.en_minshg_min, scene.en_minshg_max),
-#                            'Total SHG (kWh)':  (scene.en_totshgkwh_min, scene.en_totshgkwh_max), 'Total SHG (kWh/m2)':  (scene.en_totshgkwhm2_min, scene.en_totshgkwhm2_max)}
-
     
     def update(self, context):
         scene = context.scene
@@ -1008,8 +807,6 @@ class en_barchart(Base_Display):
         if self.cao and self.cao.get(self.resstring) and self.cao[self.resstring].get(self.unit):
             x = arange(resnode['AStart'], resnode['AEnd'] + 1)
             y = array(self.cao[self.resstring][self.unit])
-#            self.minmax = self.rangedict[self.unit] if self.unit in self.rangedict else (0, 30)
-            
             title = self.cao.name
             draw_barchart(self, scene, x, y, title, 'Frame', self.unit, self.minmax[0], self.minmax[1])  
             save_plot(self, scene, 'barchart.png')
@@ -1168,7 +965,15 @@ def basic_disp(self, context, simnode):
         width, height = context.region.width, context.region.height
         self.legend.draw(context, width, height)
         self.table.draw(context, width, height)
-    
+
+def bsdf_disp(self, context):
+    try:
+        if self._handle_bsdf_disp:
+            width, height = context.region.width, context.region.height
+            self.bsdf.draw(context, width, height)  
+    except:
+        pass
+
 def comp_disp(self, context, simnode):
     try:
         if self._handle_disp:
@@ -1268,253 +1073,197 @@ def ss_disp(self, context, simnode):
 
 def lipanel():
     pass
-            
-#def li_compliance(self, context, simnode):
-#    height, scene, swidth, ewidth = context.region.height, context.scene, 120, 920
-#    if not scene.get('li_compliance') or scene.frame_current not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1) or scene['viparams']['vidisp'] != 'lcpanel':
-#        return
-#    if simnode['coptions']['canalysis'] == '0':
-#        buildtype = ('School', 'Higher Education', 'Healthcare', 'Residential', 'Retail', 'Office & Other')[int(simnode['coptions']['buildtype'])]
-#    elif simnode['coptions']['canalysis'] == '1':
-#        buildtype = 'Residential'
-#        cfshpfsdict = {'totkit': 0, 'kitdf': 0, 'kitsv': 0, 'totliv': 0, 'livdf': 0, 'livsv': 0}
-#    if simnode['coptions']['canalysis'] == '3':
-#        buildtype = ('School/Office/Commercial', 'Healthcare')[int(simnode['coptions']['buildtype'])]
-#        
-#    blf.enable(0, blf.KERNING_DEFAULT)
-#    blf.shadow(0, 3, 0, 0, 0, 0.5)
-#    drawpoly(swidth, height - 40, ewidth, height - 65, 0.7, 1, 1, 1)
-#    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-#    bgl.glLineWidth(1)
-#    horpos, widths = (swidth, 337, 653, ewidth), (swidth, 480, 620, 770, ewidth)
-#
-#    for p in range(3):
-#        drawloop(horpos[p], height - 40, horpos[p+1], height - 65)
-#
-#    font_id = 0
-#    blf.size(font_id, 20, 54)
-#    drawfont('Standard: '+('BREEAM HEA1', 'CfSH', 'Green Star', 'LEED EQ8.1')[int(simnode['coptions']['Type'])], font_id, 0, height, 130, 58)
-#    drawfont('Project Name: '+scene.li_projname, font_id, 0, height, 663, 58)
-#    blf.size(font_id, 20, 40)
-#    os = [o for o in bpy.data.objects if o.get('lires')]
-#    
-#    def space_compliance(os):
-#        frame, buildspace, pfs, epfs, lencrit = scene.frame_current, '', [], [], 0
-#        for o in os:
-#            mat = bpy.data.materials[o['compmat']]
-#            o['cr4'] = [('fail', 'pass')[int(com)] for com in o['comps'][str(frame)][:][::2]]
-#            o['cr6'] = [cri[4] for cri in o['crit']]
-#            if 'fail' in [c for i, c in enumerate(o['cr4']) if o['cr6'][i] == '1'] or bpy.context.scene['liparams']['dfpass'][str(frame)] == 1:
-#                pf = 'FAIL'
-#            elif 'pass' not in [c for i, c in enumerate(o['cr4']) if o['cr6'][i] == '0.75'] and len([c for i, c in enumerate(o['cr4']) if o['cr6'][i] == '0.75']) > 0:
-#                if 'pass' not in [c for i, c in enumerate(o['cr4']) if o['cr6'][i] == '0.5'] and len([c for i, c in enumerate(o['cr4']) if o['cr6'][i] == '0.5']) > 0:
-#                    pf = 'FAIL'
-#                else:
-#                    pf = 'PASS'
-#            else:
-#                pf = 'PASS'
-#            pfs.append(pf)
-#
-#            if simnode['coptions']['canalysis'] == '1':
-#                cfshpfsdict[('totkit', 'totliv')[mat.crspacemenu == '1']] += 1
-#                if o['cr4'][0] == 'pass':
-#                    cfshpfsdict[('kitdf', 'livdf')[mat.crspacemenu == '1']] += 1
-#                if o['cr4'][1] == 'pass':
-#                    cfshpfsdict[('kitsv', 'livsv')[mat.crspacemenu == '1']] += 1
-#
-#            if simnode['coptions']['canalysis'] == '0':
-#                ecrit = o['ecrit']
-#                o['ecr4'] = [('fail', 'pass')[int(com)] for com in o['ecomps'][str(frame)][:][::2]]
-#                o['ecr6'] = [ecri[4] for ecri in ecrit]
-#                if 'fail' in [c for i, c in enumerate(o['ecr4']) if o['ecr6'][i] == '1'] or bpy.context.scene['liparams']['dfpass'][str(frame)] == 1:
-#                    epf = 'FAIL'
-#                elif 'pass' not in [c for i, c in enumerate(o['ecr4']) if o['ecr6'][i] == '0.75'] and len([c for i, c in enumerate(o['ecr4']) if o['ecr6'][i] == '0.75']) > 0:
-#                    if 'pass' not in [c for i, c in enumerate(o['ecr4']) if o['ecr6'][i] == '0.5'] and len([c for i, c in enumerate(o['ecr4']) if o['ecr6'][i] == '0.5']) > 0:
-#                        epf = 'FAIL'
-#                    else:
-#                        epf = 'EXEMPLARY'
-#                else:
-#                    epf = 'EXEMPLARY'
-#                epfs.append(epf)
-#
-#        if bpy.context.active_object in os:
-#            o = bpy.context.active_object
-#            lencrit = 1 + len(o['crit'])
-#            drawpoly(swidth, height - 70, ewidth, height - 70  - (lencrit)*25, 0.7, 1, 1, 1)
-#            drawloop(swidth, height - 70, ewidth, height - 70  - (lencrit)*25)
-#            mat = bpy.data.materials[o['compmat']]
-#            if simnode['coptions']['canalysis'] == '0':
-#                buildspace = ('', '', (' - Public/Staff', ' - Patient')[int(mat.hspacemenu)], (' - Kitchen', ' - Living/Dining/Study', ' - Communal')[int(mat.brspacemenu)], (' - Sales', ' - Office')[int(mat.respacemenu)], '')[int(simnode['coptions']['buildtype'])]
-#            elif simnode['coptions']['canalysis'] == '1':
-#                buildspace = (' - Kitchen', ' - Living/Dining/Study')[int(mat.crspacemenu)]
-#
-#            titles = ('Zone Metric', 'Target', 'Achieved', 'PASS/FAIL')
-#            tables = [[] for c in range(lencrit -1)]
-#            etables = [[] for e in range(len(o['ecrit']))]
-#            
-#            for c, cr in enumerate(o['crit']):
-#                if cr[0] == 'Percent':
-#                    if cr[2] == 'Skyview':
-#                        tables[c] = ('Percentage area with Skyview (%)', cr[1], '{:.2f}'.format(o['comps'][str(frame)][:][c*2 + 1]), o['cr4'][c].upper())
-#                    elif cr[2] == 'DF':  
-#                        tables[c] = ('Average Daylight Factor (%)', cr[3], '{:.2f}'.format(o['comps'][str(frame)][:][c*2 + 1]), o['cr4'][c].upper())
-#                    elif cr[2] == 'PDF':    
-#                        tables[c] = ('Area with point Daylight Factor above {}'.format(cr[3]), cr[1], '{:.2f}'.format(o['comps'][str(frame)][:][c*2 + 1]), o['cr4'][c].upper())
-#                    elif cr[2] == 'SDA':    
-#                        tables[c] = ('% area achieving sDA300/50%', cr[1], '{:.2f}'.format(o['comps'][str(frame)][:][c*2 + 1]), o['cr4'][c].upper())
-#                    elif cr[2] == 'ASE':    
-#                        tables[c] = ('% area achieving ASE1000,250'.format(cr[3]), cr[1], '{:.2f}'.format(o['comps'][str(frame)][:][c*2 + 1]), o['cr4'][c].upper())
-#   
-#                elif cr[0] == 'Ratio':
-#                    tables[c] = ('Uniformity ratio', cr[3], '{:.2f}'.format(o['comps'][str(frame)][:][c*2 + 1]), o['cr4'][c].upper())
-#                elif cr[0] == 'Min':
-#                    tables[c] = ('Minimum {} (%)'.format('Point Daylight Factor'), cr[3], '{:.2f}'.format(o['comps'][str(frame)][:][c*2 + 1]), o['cr4'][c].upper())
-#                elif cr[0] == 'Average':
-#                    tables[c] = ('Average {} (%)'.format('Daylight Factor'), cr[3], '{:.2f}'.format(o['comps'][str(frame)][:][c*2 + 1]), o['cr4'][c].upper())
-#
-#            if simnode['coptions']['canalysis'] == '0':
-#                for e, ecr in enumerate(ecrit):
-#                    if ecr[0] == 'Percent':
-#                        if ecr[2] == 'skyview':
-#                            etables[e] = ('Percentage area with Skyview (%)', ecr[1], '{:.2f}'.format(o['ecomps'][str(frame)][:][e*2 + 1]), o['ecr4'][e].upper())
-#                        elif ecr[2] == 'DF':  
-#                            etables[e] = ('Average Daylight Factor (%)', ecr[3], '{:.2f}'.format(o['ecomps'][str(frame)][:][e*2 + 1]), o['ecr4'][e].upper())
-#                        elif ecr[2] == 'PDF':    
-#                            etables[e] = ('Area with point Daylight Factor above {}'.format(ecr[3]), ecr[1], '{:.2f}'.format(o['ecomps'][str(frame)][:][e*2 + 1]), o['ecr4'][e].upper())
-#                    elif ecr[0] == 'Min':
-#                        etables[e] = ('Minimum {} (%)'.format('Point Daylight Factor'), ecr[3], '{:.2f}'.format(o['ecomps'][str(frame)][:][e*2 + 1]), o['ecr4'][e].upper())
-#
-#            for j in range(4):
-#                drawloop(widths[j], height - 70, widths[j+1], height - 95)
-#
-#            bgl.glEnable(bgl.GL_LINE_STIPPLE)
-#            for t, tab in enumerate(tables):
-#                for j in range(4):
-#                    drawloop(widths[j], height - 95 - t*25, widths[j+1], height - 120 - t*25)
-#                    if tab[j] == 'FAIL':
-#                        bgl.glColor4f(1.0, 0.0, 0.0, 1.0)
-#                    elif tab[j] == 'PASS':
-#                        bgl.glColor4f(0.0, 0.7, 0.0, 1.0)
-#                    blf.size(font_id, 20, 44)
-#                    drawfont(tab[j], 0, 0, height, widths[j]+(25, 50)[j != 0]+(0, 10)[j in (1, 3)], 113 + t*25)
-#                    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-#                    if t == 0:
-#                        blf.size(font_id, 20, 48)
-#                        drawfont(titles[j], 0, 0, height, widths[j]+(25, 50)[j != 0]+(0, 10)[j in (1, 3)], 88)
-#            bgl.glDisable(bgl.GL_LINE_STIPPLE)
-#        else:
-#            etables = []
-#            lencrit = 0
-#        
-#        tpf = 'FAIL' if 'FAIL' in pfs or 'FAIL*' in pfs else 'PASS'
-#        if simnode['coptions']['canalysis'] == '0': 
-#            tpf = 'EXEMPLARY' if tpf == 'PASS' and ('FAIL' not in epfs and 'FAIL*' not in epfs) else tpf
-#            erows = len(etables) if  tpf == 'EXEMPLARY' else 0
-#            lencrit = lencrit + erows if bpy.context.active_object in os else 0
-#
-#        return(tpf, lencrit, buildspace, etables)
-#
-#    
-#    build_compliance, lencrit, bs, etables = space_compliance(os)
-#
-#    if build_compliance == 'EXEMPLARY':
-#        for t, tab in enumerate(etables):
-#            if t == 0:
-#                drawpoly(swidth, height - 70 - (lencrit * 25), ewidth, height - 70 - ((lencrit - len(etables)) * 25), 0.7, 1, 1, 1)
-#                drawloop(swidth, height - 70 - (lencrit * 25), ewidth, height - 70 - ((lencrit - len(etables)) * 25))
-#            for j in range(4):
-#                bgl.glEnable(bgl.GL_LINE_STIPPLE)
-#                drawloop(widths[j], height - 95 - (lencrit - len(etables) + t - 1) * 25, widths[j+1], height - 120 - (lencrit - len(etables) + t - 1) * 25)
-#                if tab[j] == 'FAIL':
-#                    bgl.glColor4f(1.0, 0.0, 0.0, 1.0)
-#                elif tab[j] == 'PASS':
-#                    bgl.glColor4f(0.0, 1.0, 0.0, 1.0)
-#                blf.size(font_id, 20, 44)
-#                blf.position(font_id, widths[j]+(25, 50)[j != 0]+(0, 10)[j in (1, 3)], height - 113 - (lencrit - len(etables) + t - 1) * 25, 0)
-#                blf.draw(font_id, tab[j])
-#                bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-#                bgl.glDisable(bgl.GL_LINE_STIPPLE)
-#
-#    blf.position(font_id, 347, height - 58, 0)
-#    blf.size(font_id, 20, 54)
-#    blf.draw(font_id, 'Buildtype: '+buildtype+bs)
-#
-#    blf.size(font_id, 20, 52)
-#    blf.position(font_id, 130, height - 87 - lencrit*26, 0)
-#    if simnode['coptions']['canalysis'] == '0':
-#        drawpoly(swidth, height - 70 - lencrit*26, 525, height - 95 - lencrit*26, 0.7, 1, 1, 1)
-#        drawloop(swidth, height - 70 - lencrit*26, 370, height - 95 - lencrit*26)
-#        drawloop(swidth, height - 70 - lencrit*26, 370, height - 95 - lencrit*26)
-#        drawloop(370, height - 70 - lencrit*26, 525, height - 95 - lencrit*26)
-#        blf.draw(font_id, 'Building Compliance:')
-#        drawfont(build_compliance, 0, lencrit, height, swidth + 150, 87)
-#        drawfont('Credits achieved:', 0, lencrit, height, 380, 87)
-#        blf.position(font_id, 500, height - 87 - lencrit*26, 0)
-#        if build_compliance == 'PASS':
-#           blf.draw(font_id,  ('1', '2', '2', '1', '1', '1')[int(simnode['coptions']['buildtype'])])
-#        elif build_compliance == 'EXEMPLARY':
-#            blf.draw(font_id,  ('2', '3', '3', '2', '2', '2')[int(simnode['coptions']['buildtype'])])
-#        else:
-#            blf.draw(font_id, '0')
-#
-#    elif simnode['coptions']['canalysis'] == '1':
-#        drawpoly(swidth, height - 70 - lencrit*26, 320, height - 95 - lencrit*26, 0.7, 1, 1, 1)
-#        drawloop(swidth, height - 70 - lencrit*26, 320, height - 95 - lencrit*26)
-#        drawfont('Credits achieved:', 0, lencrit, height, swidth + 10, 87)
-#        cfshcred = 0
-#        if cfshpfsdict['kitdf'] == cfshpfsdict['totkit'] and cfshpfsdict['totkit'] != 0:
-#            cfshcred += 1
-#        if cfshpfsdict['livdf'] == cfshpfsdict['totliv'] and cfshpfsdict['totliv'] != 0:
-#            cfshcred += 1
-#        if (cfshpfsdict['kitsv'] == cfshpfsdict['totkit'] and  cfshpfsdict['totkit'] != 0) or (cfshpfsdict['livsv'] == cfshpfsdict['totliv'] and cfshpfsdict['totliv'] != 0):
-#            cfshcred += 1
-#        blf.position(font_id, 270, height - 87 - lencrit*26, 0)
-#        blf.draw(font_id, '{} of {}'.format(cfshcred, '3' if 0 not in (cfshpfsdict['totkit'], cfshpfsdict['totliv']) else '2'))
-#
-#    elif simnode['coptions']['canalysis'] == '3':
-#        drawpoly(swidth, height - 70 - lencrit*26, 320, height - 95 - lencrit*26, 0.7, 1, 1, 1)
-#        drawloop(swidth, height - 70 - lencrit*26, 320, height - 95 - lencrit*26)
-#        drawfont('Credits achieved:', 0, lencrit, height, swidth + 10, 87)
-#        totarea = sum([o['oarea'] for o in os])
-#        totsdaarea = sum([o['sdapassarea'] for o in os])
-#        totasearea = sum([o['asepassarea'] for o in os])
-#        leedcred = 0
-#        if simnode['coptions']['buildtype'] == '0':
-#            if totsdaarea/totarea > 0.55:
-#                leedcred += 2
-#            if totsdaarea/totarea > 0.75:
-#                leedcred += 1
-#        if totasearea/totarea > 0.1:
-#            leedcred = 0
-#        blf.position(font_id, 270, height - 87 - lencrit*26, 0)
-#        blf.draw(font_id, '{} of {}'.format(leedcred, ('2', '3')[simnode['coptions']['buildtype'] == '0']))
-        
-#    bgl.glEnable(bgl.GL_BLEND)
-#    bgl.glColor4f(1.0, 1.0, 1.0, 0.8)
-#    bgl.glLineWidth(1)
-#    sw = 8
-#
-#    aolen, ailen, jnlen = len(scene.li_assorg), len(scene.li_assind), len(scene.li_jobno)
-#    drawpoly(100, 50, 500 + aolen*sw + ailen*sw + jnlen*sw, 25, 0.7, 1, 1, 1)
-#    bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
-#    drawloop(100, 50, 260 + aolen*sw, 25)
-#    drawloop(260 + aolen*sw, 50, 400 + aolen*sw + ailen*sw, 25)
-#    drawloop(400 + aolen*sw + ailen*sw, 50, 500 + aolen*sw + ailen*sw + jnlen*sw, 25)
-#    blf.size(font_id, 20, 44)
-#    blf.position(font_id, 110, 32, 0)
-#    blf.draw(font_id, 'Assessing Organisation:')
-#    blf.position(font_id, 250, 32, 0)
-#    blf.draw(font_id, scene.li_assorg)
-#    blf.position(font_id, 270 + aolen*sw, 32, 0)
-#    blf.draw(font_id, 'Assessing Individual:')
-#    blf.position(font_id, 395 + aolen*sw, 32, 0)
-#    blf.draw(font_id, scene.li_assind)
-#    blf.position(font_id, 410 + aolen*sw + ailen*sw, 32, 0)
-#    blf.draw(font_id, 'Job Number:')
-#    blf.position(font_id, 490 + aolen*sw + ailen*sw, 32, 0)
-#    blf.draw(font_id, scene.li_jobno)
-#    blf.disable(0, blf.KERNING_DEFAULT)
 
+class bsdf(Base_Display):
+    def __init__(self, pos, width, height, iname, xdiff, ydiff):
+        Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
+        self.plt = plt
+        self.pw, self.ph = 0.175 * xdiff, 0.35 * ydiff
+        self.radii = array([0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1, 1.125])
+        self.patch_select = 0
+        self.type_select = 0
+        self.patch_hl = 0
+        self.scale_select = 'Log'
+        self.buttons = {}
+        self.num_disp = 0
+        self.leg_max, self.leg_min = 100, 0
+        
+    def drawopen(self, context):
+        bgl.glEnable(bgl.GL_BLEND)
+        self.drawclosed()
+        self.gimage.reload()
+        self.xdiff = self.lepos[0] - self.lspos[0]
+        self.ydiff = self.lepos[1] - self.lspos[1]
+        
+        if not self.resize:
+            self.lspos = [self.spos[0], self.spos[1] - self.ydiff]
+            self.lepos = [self.spos[0] + self.xdiff, self.spos[1]]            
+        else:
+            self.lspos = [self.spos[0], self.lspos[1]]
+            self.lepos = [self.lepos[0], self.spos[1]]
+
+        self.centre = (self.lspos[0] + 0.225 * self.xdiff, self.lspos[1] + 0.425 * self.ydiff)
+        drawpoly(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1], 1, 1, 1, 1)        
+        drawloop(self.lspos[0], self.lspos[1], self.lepos[0], self.lepos[1])
+        self.pw, self.ph = 0.175 * self.xdiff, 0.35 * self.ydiff
+        cent = [self.lspos[0] + 0.02 * self.xdiff, self.lepos[1] - 0.03 * self.ydiff]
+        buttons = {}
+        drawbsdfcircle(self.centre, self.radii[-1] + 0.01, 360, 1, (0.95, 0.95, 0.95, 1), self.pw, self.ph, 0.04, 2)
+        
+        for rt in set(self.radtype):                
+            drawsquare(cent, 0.02 * self.xdiff, 0.03 * self.ydiff, 0)
+            if self.rad_select == rt:
+                drawsquare(cent, 0.015 * self.xdiff, 0.02 * self.ydiff, (0.5, 0.5, 0.5, 1))
+            blf.position(0, cent[0] + 0.015 * self.xdiff, cent[1] - 0.015 * self.ydiff, 0)
+            blf.size(0, 56, int(0.025 * self.xdiff))
+            blf.draw(0, rt)
+            buttons[rt] = cent[:]
+            cent[0] += 0.15 * self.xdiff                 
+
+        cent[1] = cent[1] - 0.05 * self.ydiff
+        cent[0] = self.lspos[0] + 0.02 * self.xdiff
+
+        for dt in set([dt.split()[1] for dt in self.dattype]):
+            drawsquare(cent, 0.02 * self.xdiff, 0.03 * self.ydiff, 0) 
+            if self.dir_select == dt:
+                drawsquare(cent, 0.015 * self.xdiff, 0.02 * self.ydiff, (0.5, 0.5, 0.5, 1))
+            blf.position(0, cent[0] + 0.015 * self.xdiff, cent[1] - 0.015 * self.ydiff, 0)
+            blf.size(0, 56, int(0.025 * self.xdiff))
+            blf.draw(0, dt)
+            buttons[dt] = cent[:]
+            cent[0] += 0.15 * self.xdiff
+            
+        cent[1] -= 0.05 * self.ydiff
+        cent[0] = self.lspos[0] + 0.02 * self.xdiff
+
+        for dt in set([dt.split()[0] for dt in self.dattype]):
+            drawsquare(cent, 0.02 * self.xdiff, 0.03 * self.ydiff, 0) 
+            if self.type_select == dt:
+                drawsquare(cent, 0.015 * self.xdiff, 0.02 * self.ydiff, (0.5, 0.5, 0.5, 1))
+            blf.position(0, cent[0] + 0.015 * self.xdiff, cent[1] - 0.015 * self.ydiff, 0)
+            blf.size(0, 56, int(0.025 * self.xdiff))
+            blf.draw(0, dt)
+            buttons[dt] = cent[:]
+            cent[0] += 0.15 * self.xdiff
+        cent = [self.lspos[0] + 0.55 * self.xdiff, self.lspos[1] + 0.04 * self.ydiff]            
+        self.buttons = buttons
+        patch = 0
+        
+        for phii, phi in enumerate(self.phis):
+            for w in range(phi):
+                if self.patch_select == patch:
+                    z, lw, col = 0.06, 5, (1, 0, 0, 1) 
+                elif self.patch_hl == patch:
+                    z, lw, col = 0.06, 5, (1, 1, 0, 1)
+                else:
+                    z, lw, col = 0.05, 1, 0
+    
+                if phi == 1:
+                    drawbsdfcircle(self.centre, self.radii[phii], 360, 0, col, self.pw, self.ph, z, lw)
+                elif phi > 1:
+                    drawwedge(self.centre, (int(360*w/phi) - int(180/phi) - 90, int(360*(w + 1)/phi) - int(180/phi) - 90), (self.radii[phii] - 0.125, self.radii[phii]), col, self.pw, self.ph)
+                    
+                patch += 1
+        
+        self.gimage.gl_load(bgl.GL_NEAREST, bgl.GL_NEAREST)
+        bgl.glBindTexture(bgl.GL_TEXTURE_2D, self.gimage.bindcode[0])
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MAG_FILTER, bgl.GL_LINEAR)
+        bgl.glTexParameteri(bgl.GL_TEXTURE_2D, bgl.GL_TEXTURE_MIN_FILTER, bgl.GL_LINEAR)
+        bgl.glEnable(bgl.GL_TEXTURE_2D)
+        bgl.glColor4f(1, 1, 1, 1)
+        bgl.glBegin(bgl.GL_QUADS)
+        bgl.glTexCoord2i(0, 0)
+        bgl.glVertex2f(self.lspos[0] + 0.45 * self.xdiff, self.lspos[1] + 5)
+        bgl.glTexCoord2i(1, 0)
+        bgl.glVertex2f(self.lepos[0] - 5, self.lspos[1] + 5)
+        bgl.glTexCoord2i(1, 1)
+        bgl.glVertex2f(self.lepos[0] - 5, self.lepos[1] - 5)
+        bgl.glTexCoord2i(0, 1)
+        bgl.glVertex2f(self.lspos[0] + 0.45 * self.xdiff, self.lepos[1] - 5)
+        bgl.glLineWidth(2)
+        bgl.glEnd()
+        bgl.glDisable(bgl.GL_TEXTURE_2D)
+        bgl.glDisable(bgl.GL_BLEND)
+        bgl.glFlush()
+        
+    def update(self, context):
+        self.mat = context.object.active_material
+        
+        bsdf = minidom.parseString(self.mat['bsdf']['xml'])
+#        coltype = [path.firstChild.data for path in bsdf.getElementsByTagName('ColumnAngleBasis')]
+#        rowtype = [path.firstChild.data for path in bsdf.getElementsByTagName('RowAngleBasis')]
+        self.radtype = [path.firstChild.data for path in bsdf.getElementsByTagName('Wavelength')]
+        self.rad_select = self.radtype[0]
+        self.dattype = [path.firstChild.data for path in bsdf.getElementsByTagName('WavelengthDataDirection')]
+        self.type_select = self.dattype[0].split()[0]
+        self.dir_select = self.dattype[0].split()[1]
+#        lthetas = [path.firstChild.data for path in bsdf.getElementsByTagName('LowerTheta')]
+        self.uthetas = [float(path.firstChild.data) for path in bsdf.getElementsByTagName('UpperTheta')]
+        self.phis = [int(path.firstChild.data) for path in bsdf.getElementsByTagName('nPhis')]
+        self.scatdat = [array([float(nv) for nv in path.firstChild.data.strip('\t').strip('\n').strip(',').split(' ') if nv]) for path in bsdf.getElementsByTagName('ScatteringData')]
+        self.plot(context)    
+        
+    def plot(self, context):
+        scene = context.scene
+#        
+        self.col = context.scene.vi_leg_col
+        self.centre = (self.lspos[0] + 0.225 * self.xdiff, self.lspos[1] + 0.425 * self.ydiff)
+        self.plt.clf()
+        self.plt.close()
+        self.fig = self.plt.figure(figsize=(7.5, 7.5), dpi = 100)
+        ax = self.plt.subplot(111, projection = 'polar')
+        ax.bar(0, 0)
+        self.plt.title('{} {} {}'.format(self.dir_select, self.rad_select, self.type_select), size = 19, y = 1.025)
+        ax.axis([0, 2 * math.pi, 0, 1])
+        ax.spines['polar'].set_visible(False)
+        ax.xaxis.set_ticks([])
+        ax.yaxis.set_ticks([])
+        
+        for rdi, raddat in enumerate(['{0[0]} {0[1]}'.format(z) for z in zip(self.radtype, self.dattype)]):
+            if raddat == '{} {} {}'.format(self.rad_select, self.type_select, self.dir_select):
+                self.scat_select = rdi
+                break 
+
+        selectdat = self.scatdat[self.scat_select].reshape(145, 145)# if self.scale_select == 'Linear' else nlog10((self.scatdat[self.scat_select] + 1).reshape(145, 145)) 
+        widths = [0] + [self.uthetas[w]/90 for w in range(9)]
+        patches, p = [], 0
+        sa = repeat(kfsa, self.phis)
+        act = repeat(kfact, self.phis)
+        patchdat = selectdat[self.patch_select] * act * sa * 100
+        bg = self.plt.Rectangle((0, 0), 2 * math.pi, 1, color=mcm.get_cmap(scene.vi_leg_col)((0, 0.01)[scene.vi_leg_scale == '1']), zorder = 0)      
+
+        for ring in range(1, 10):
+            angdiv = math.pi/self.phis[ring - 1]
+            anglerange = range(self.phis[ring - 1], 0, -1)# if self.type_select == 'Transmission' else range(self.phis[ring - 1])
+            ri = widths[ring] - widths[ring-1]
+
+            for wedge in anglerange:
+                phi1, phi2 = wedge * 2 * angdiv - angdiv, (wedge + 1) * 2 * angdiv - angdiv
+                patches.append(Rectangle((phi1, widths[ring - 1]), phi2 - phi1, ri)) 
+                if self.num_disp:
+                    y = 0 if ring == 1 else 0.5 * (widths[ring] + widths[ring-1])
+                    self.plt.text(0.5 * (phi1 + phi2), y, ('{:.1f}', '{:.0f}')[patchdat[p] >= 10].format(patchdat[p]), ha="center", va = 'center', family='sans-serif', size=10)
+                p += 1
+                
+        pc = PatchCollection(patches, norm=mcolors.LogNorm(vmin=self.leg_min + 0.01, vmax = self.leg_max), cmap=self.col) if scene.vi_leg_scale == '1' else PatchCollection(patches, cmap=self.col)        
+        pc.set_linewidth(repeat(array([0, 0.5]), array([1, 144])))
+        pc.set_array(patchdat)
+        
+        ax.add_collection(pc)
+        ax.add_artist(bg)
+        self.plt.colorbar(pc, fraction=0.04, pad=0.02, format = '%3g').set_label(label='Percentage of incoming flux (%)', size=18)
+        pc.set_clim(vmin=self.leg_min + 0.01, vmax= self.leg_max)
+        self.plt.tight_layout()
+        self.save(scene)
+                        
+    def save(self, scene):
+        self.plt.savefig(os.path.join(scene['viparams']['newdir'], 'images', 'bsdfplot.png'), bbox_inches='tight')
+        if 'bsdfplot.png' not in [i.name for i in bpy.data.images]:
+            self.gimage = bpy.data.images.load(os.path.join(scene['viparams']['newdir'], 'images', 'bsdfplot.png'))
+        else:
+            bpy.data.images['bsdfplot.png'].reload()
+            self.gimage = bpy.data.images['bsdfplot.png']
+   
 def rendview(i):
     for scrn in bpy.data.screens:
         if scrn.name == 'Default':
@@ -1804,4 +1553,4 @@ def setcols(self, context):
     scene.frame_set(fc)
     if recalculate_text not in bpy.app.handlers.frame_change_pre:
         bpy.app.handlers.frame_change_pre.append(recalculate_text) 
-     
+

@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, datetime, mathutils, os, bmesh, shutil, sys, gc
+import bpy, datetime, mathutils, os, bmesh, shutil, sys, gc, math
 from os import rename
 import numpy
 from numpy import arange, histogram, array, int8
@@ -39,12 +39,12 @@ except Exception as e:
 
 from .livi_export import radgexport, spfc, createoconv, createradfile, genbsdf
 from .livi_calc  import li_calc
-from .vi_display import li_display, linumdisplay, spnumdisplay, en_air, en_panel, en_temp_panel, wr_legend, wr_disp, wr_scatter, wr_table, ss_disp, ss_legend, basic_legend, basic_table, basic_disp, ss_scatter, en_disp, en_pdisp, en_scatter, en_table, en_barchart, comp_table, comp_disp, leed_scatter, cbdm_disp, cbdm_scatter, envals#, en_barchart, li3D_legend
+from .vi_display import li_display, linumdisplay, spnumdisplay, en_air, en_panel, en_temp_panel, wr_legend, wr_disp, wr_scatter, wr_table, ss_disp, ss_legend, basic_legend, basic_table, basic_disp, ss_scatter, en_disp, en_pdisp, en_scatter, en_table, en_barchart, comp_table, comp_disp, leed_scatter, cbdm_disp, cbdm_scatter, envals, bsdf, bsdf_disp#, en_barchart, li3D_legend
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum
 from .vi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, sunposenvi, clearlayers
-from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, chunks
+from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, chunks, xy2radial
 from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
 from .vi_chart import chart_disp
 #from .vi_gen import vigen
@@ -72,8 +72,8 @@ class NODE_OT_LiGExport(bpy.types.Operator):
         node.postexport(scene)
         return {'FINISHED'}
         
-class MATERIAL_GenBSDF(bpy.types.Operator):
-    bl_idname = "material.gen_bsdf"
+class OBJECT_GenBSDF(bpy.types.Operator):
+    bl_idname = "object.gen_bsdf"
     bl_label = "Gen BSDF"
     bl_description = "Generate a BSDF for the current selected object"
     bl_register = True
@@ -143,7 +143,142 @@ class MATERIAL_SaveBSDF(bpy.types.Operator):
     def invoke(self,context,event):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
+        
+class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
+    bl_idname = "view3d.bsdf_display"
+    bl_label = "BSDF display"
+    bl_description = "Display BSDF"
+    bl_register = True
+    bl_undo = False
+        
+    def modal(self, context, event):
+        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':  
+            if context.scene['viparams']['vidisp'] != 'bsdf_panel':
+                self.remove(context)
+                return {'CANCELLED'}
+#        if context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW': 
+            mx, my = event.mouse_region_x, event.mouse_region_y
+            if self.bsdf.spos[0] < mx < self.bsdf.epos[0] and self.bsdf.spos[1] < my < self.bsdf.epos[1]:
+                self.bsdf.hl = (0, 1, 1, 1)  
+                
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.bsdfpress = 1
+                        self.bsdfmove = 0
+                        return {'RUNNING_MODAL'}
+                    elif event.value == 'RELEASE':
+                        if not self.bsdfmove:
+                            self.bsdf.expand = 0 if self.bsdf.expand else 1
+                        self.bsdfpress = 0
+                        self.bsdfmove = 0
+                        context.area.tag_redraw()
+                        return {'RUNNING_MODAL'}
+                        
+                elif event.type == 'ESC':
+                    self.remove(context)
+                    return {'CANCELLED'}                   
+                elif self.bsdfpress and event.type == 'MOUSEMOVE':
+                     self.bsdfmove = 1
+                     self.bsdfpress = 0
+                            
+            elif abs(self.bsdf.lepos[0] - mx) < 10 and abs(self.bsdf.lspos[1] - my) < 10:
+                self.bsdf.hl = (0, 1, 1, 1) 
+                if event.type == 'LEFTMOUSE':
+                    if event.value == 'PRESS':
+                        self.bsdf.resize = 1
+                    if self.bsdf.resize and event.value == 'RELEASE':
+                        self.bsdf.resize = 0
+                    return {'RUNNING_MODAL'}  
+            
+            elif all((self.bsdf.expand, self.bsdf.lspos[0] + 0.45 * self.bsdf.xdiff < mx < self.bsdf.lspos[0] + 0.8 * self.bsdf.xdiff, self.bsdf.lspos[1] + 0.06 * self.bsdf.ydiff < my < self.bsdf.lepos[1] - 5)):
+                if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+                    self.bsdf.plt.show()
+            
+            else:
+                for butrange in self.bsdf.buttons:
+                    if self.bsdf.buttons[butrange][0] - 0.0075 * self.bsdf.xdiff < mx < self.bsdf.buttons[butrange][0] + 0.0075 * self.bsdf.xdiff and self.bsdf.buttons[butrange][1] - 0.01 * self.bsdf.ydiff < my < self.bsdf.buttons[butrange][1] + 0.01 * self.bsdf.ydiff:
+                        if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.bsdf.expand:
+                            if butrange in ('Front', 'Back'):
+                                self.bsdf.dir_select = butrange
+                            elif butrange in ('Visible', 'Solar', 'Discrete'):
+                                self.bsdf.rad_select = butrange
+                            elif butrange in ('Transmission', 'Reflection'):
+                                self.bsdf.type_select = butrange
+                            self.bsdf.plot(context)
+                            self.bsdf.save(context.scene)
 
+                self.bsdf.hl = (1, 1, 1, 1)
+                                
+            if event.type == 'MOUSEMOVE':                
+                if self.bsdfmove:
+                    self.bsdf.pos = [mx, my]
+                if self.bsdf.resize:
+                    self.bsdf.lepos[0], self.bsdf.lspos[1] = mx, my
+            
+            if self.bsdf.expand and self.bsdf.lspos[0] < mx < self.bsdf.lepos[0] and self.bsdf.lspos[1] < my < self.bsdf.lepos[1]:
+                theta, phi = xy2radial(self.bsdf.centre, (mx, my), self.bsdf.pw, self.bsdf.ph)
+                phi = math.atan2(-my + self.bsdf.centre[1], mx - self.bsdf.centre[0]) + math.pi
+
+                if theta < self.bsdf.radii[-1]:
+                    for ri, r in enumerate(self.bsdf.radii):
+                        if theta < r:
+                            break
+
+                    upperangles = [p * 2 * math.pi/self.bsdf.phis[ri] + math.pi/self.bsdf.phis[ri]  for p in range(int(self.bsdf.phis[ri]))]
+                    uai = 0
+
+                    if ri > 0:
+                        for uai, ua in enumerate(upperangles): 
+                            if phi > upperangles[-1]:
+                                uai = 0
+                                break
+                            if phi < ua:
+                                break
+
+                    self.bsdf.patch_hl = sum(self.bsdf.phis[0:ri]) + uai
+                    if event.type in ('LEFTMOUSE', 'RIGHTMOUSE')  and event.value == 'PRESS':                        
+                        self.bsdf.num_disp = 1 if event.type == 'RIGHTMOUSE' else 0    
+                        self.bsdf.patch_select = sum(self.bsdf.phis[0:ri]) + uai
+                        self.bsdf.plot(context)
+                        self.bsdf.save(context.scene)
+                else:
+                    self.bsdf.patch_hl = None
+                    
+            if self.bsdf.expand and any((self.bsdf.leg_max != context.scene.vi_bsdfleg_max, self.bsdf.leg_min != context.scene.vi_bsdfleg_min, self.bsdf.col != context.scene.vi_leg_col, self.bsdf.scale_select != context.scene.vi_leg_scale)):
+                self.bsdf.col = context.scene.vi_leg_col
+                self.bsdf.leg_max = context.scene.vi_bsdfleg_max
+                self.bsdf.leg_min = context.scene.vi_bsdfleg_min
+                self.bsdf.scale_select = context.scene.vi_leg_scale
+                self.bsdf.plot(context)
+                self.bsdf.save(context.scene)
+            
+            context.area.tag_redraw()
+        
+        return {'PASS_THROUGH'}
+                
+    def invoke(self, context, event):
+        cao = context.active_object
+        if cao and cao.active_material.get('bsdf') and cao.active_material['bsdf']['xml']:
+            width, height = context.region.width, context.region.height
+            self.bsdf = bsdf([160, height - 40], width, height, 'bsdf.png', 700, 400)
+            self.bsdf.update(context)
+            self.bsdfpress, self.bsdfmove, self.bsdfresize = 0, 0, 0
+            self._handle_bsdf_disp = bpy.types.SpaceView3D.draw_handler_add(bsdf_disp, (self, context), 'WINDOW', 'POST_PIXEL')
+            context.window_manager.modal_handler_add(self)
+            context.scene['viparams']['vidisp'] = 'bsdf_panel'
+            context.area.tag_redraw()            
+            return {'RUNNING_MODAL'}
+        else:
+            self.report({'ERROR'},"Selected material contains no BSDF information")
+            return {'CANCELLED'}
+            
+    def remove(self, context):
+        self.bsdf.plt.close()
+        bpy.types.SpaceView3D.draw_handler_remove(self._handle_bsdf_disp, 'WINDOW')
+        context.scene['viparams']['vidisp'] = 'bsdf'
+        bpy.data.images.remove(self.bsdf.gimage)
+        context.area.tag_redraw()
+        
 class NODE_OT_FileSelect(bpy.types.Operator, io_utils.ImportHelper):
     bl_idname = "node.fileselect"
     bl_label = "Select file"

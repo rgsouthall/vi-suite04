@@ -246,12 +246,10 @@ def genbsdf(scene, export_op, o):
     gradfile = radpoints(o, [face for face in bm.faces if o.data.materials and face.material_index < len(o.data.materials) and o.data.materials[face.material_index].radmatmenu != '8'], 0)
     bm.free()  
     bsdfsamp = o.li_bsdf_ksamp if o.li_bsdf_tensor == ' ' else 2**(int(o.li_bsdf_res) * 2) * int(o.li_bsdf_tsamp) 
-#    bsdfxml = os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(mat.name))
     gbcmd = "genBSDF +geom meter -r '{}' {} {} -c {} {} -n {}".format(o.li_bsdf_rcparam,  o.li_bsdf_tensor, (o.li_bsdf_res, ' ')[o.li_bsdf_tensor == ' '], bsdfsamp, o.li_bsdf_direc, scene['viparams']['nproc'])
-#    with open(bsdfxml, 'w') as bsdfwrite:        
     mat['bsdf']['xml'] = Popen(shlex.split(gbcmd), stdin = PIPE, stdout = PIPE).communicate(input = (mradfile+gradfile).encode('utf-8'))[0].decode()
-#    mat['bsdf']['xml'] = bsdfxml
-    mat['bsdf']['proxy_depth'] = -minz
+    mat['bsdf']['proxy_depth'] = -minz if o.bsdf_proxy else 0
+    scene['viparams']['vidisp'] = 'bsdf'
     
 
     

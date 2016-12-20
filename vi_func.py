@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex, bpy_extras
+import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex, bpy_extras, math
 #from collections import OrderedDict
 from subprocess import Popen, PIPE, STDOUT
 from numpy import int8, in1d, float32, float64, array, digitize, amax, amin, average, zeros, inner, transpose, nan, set_printoptions, choose, clip, where
@@ -89,7 +89,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
         mpps = array([not m.pport for m in o.data.materials])        
         mnpps = where(mpps, 0, 1)        
         mmrms = in1d(mrms, array(('0', '1', '2', '3')))        
-        fmrms = in1d(mrms, array(('0', '1', '2', '3', '7', '8')), invert = True)
+        fmrms = in1d(mrms, array(('0', '1', '2', '3', '7')), invert = True)
         mfaces = [f for f in bm.faces if (mmrms * mpps)[f.material_index]]
         ffaces = [f for f in bm.faces if (fmrms + mnpps)[f.material_index]]        
 #        mfaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu in ('0', '1', '2', '3') and not o.data.materials[face.material_index].pport]
@@ -114,11 +114,12 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
     
         if ftext:   
             mfile = os.path.join(scene['viparams']['newdir'], 'obj', '{}-{}.mesh'.format(o.name.replace(' ', '_'), frame))
+
             with open(mfile, 'w') as mesh:
                 Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout = mesh, stdin = PIPE, stderr = PIPE).communicate(input = (otext + vtext + ftext).encode('utf-8'))
             
             if os.path.getsize(mfile):
-                gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(os.path.join(scene['liparams']['objfilebase'], '{}-{}.mesh'.format(o.name.replace(" ", "_"), frame)))
+                gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(mfile)
             else:
                 gradfile += radpoints(o, mfaces, 0)
 
@@ -143,7 +144,10 @@ def radmat(self, scene):
             '7': '1 void\n0\n0\n', '8': '1 void\n0\n0\n', '9': '1 void\n0\n0\n'}[self.radmatmenu] + '\n'
 
     if self.radmatmenu == '8' and self.get('bsdf') and self['bsdf'].get('xml'):
-        radentry = ''
+        bsdfxml = os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(radname))
+        with open(bsdfxml, 'w') as bsdffile:
+            bsdffile.write(self['bsdf']['xml'])
+        radentry = 'void BSDF {0}\n6 {1:.4f} {2} 0 0 1 .\n0\n0\n\n'.format(radname, self['bsdf']['proxy_depth'], bsdfxml)
 
     if self.radmatmenu == '9':
         if self.name in [t.name for t in bpy.data.texts]:
@@ -647,8 +651,6 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         
         for chunk in chunks([g for g in geom if g[rt]], int(scene['viparams']['nproc']) * 50):
             rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
-#            for line in rtrun.stderr:
-#                print(line)
             xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()]).astype(float32)
             virrad = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1)
             illu = virrad * 179
@@ -1309,14 +1311,15 @@ def fvmat(self, mn, bound):
 def radpoints(o, faces, sks):
     fentries = ['']*len(faces) 
     mns = [m.name.replace(" ", "_") for m in o.data.materials]
-    mrms = [m.radmatmenu for m in o.data.materials]
+#    mrms = [m.radmatmenu for m in o.data.materials]
     on = o.name.replace(" ", "_")
     if sks:
         (skv0, skv1, skl0, skl1) = sks
     for f, face in enumerate(faces):
         fmi = face.material_index
 #        fmat = o.data.materials[face.material_index]
-        mname = '{}_{}_{}'.format(mns[fmi], on, face.index) if mrms[fmi] == '8' else mns[fmi]
+#        mname = '{}_{}_{}'.format(mns[fmi], on, face.index) if mrms[fmi] == '8' else mns[fmi]
+        mname = mns[fmi]
         fentry = "# Polygon \n{} polygon poly_{}_{}\n0\n0\n{}\n".format(mname, on, face.index, 3*len(face.verts))
         if sks:
             ventries = ''.join([" {0[0]:.4f} {0[1]:.4f} {0[2]:.4f}\n".format((o.matrix_world*mathutils.Vector((v[skl0][0]+(v[skl1][0]-v[skl0][0])*skv1, v[skl0][1]+(v[skl1][1]-v[skl0][1])*skv1, v[skl0][2]+(v[skl1][2]-v[skl0][2])*skv1)))) for v in face.verts])
@@ -1938,6 +1941,48 @@ def drawcircle(center, radius, resolution, fill, a, r, g, b):
         bgl.glVertex2f(v.x, v.y)
     bgl.glEnd()
 
+def drawbsdfcircle(centre, radius, resolution, fill, col, w, h, z, lw): 
+    bgl.glEnable(bgl.GL_BLEND)
+    bgl.glEnable(bgl.GL_LINE_SMOOTH)
+    bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA)
+    bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_NICEST)
+    bgl.glLineWidth(lw)
+    if not fill:
+        if col:
+            bgl.glColor4f(*col)
+            
+        bgl.glBegin(bgl.GL_LINE_LOOP)
+    else:
+        bgl.glColor4f(*col)
+        bgl.glLineWidth(2.5)
+        bgl.glBegin(bgl.GL_POLYGON)
+    for p in range(0, resolution):
+        bgl.glVertex3f(centre[0] + radius * math.sin(math.pi * p/180) * w, centre[1] + radius * math.cos(math.pi * p/180) * h, z)
+
+    bgl.glEnd()
+    bgl.glDisable(bgl.GL_BLEND)
+    
+def drawwedge(c, phis, rs, col, w, h):
+    bgl.glEnable(bgl.GL_BLEND)
+    bgl.glEnable(bgl.GL_LINE_SMOOTH)    
+    bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA);
+    bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_FASTEST)
+    (z, lw, col) = (0.1, 5, col) if col else (0.05, 1.5, [0, 0, 0, 0.25])
+    bgl.glColor4f(*col)
+    bgl.glLineWidth(lw)
+    bgl.glBegin(bgl.GL_LINE_LOOP)
+    for p in range(phis[0], phis[1] + 1):
+        bgl.glVertex3f(*radial2xy(c, rs[0], p, w, h), z)
+    for p in range(phis[1], phis[0] - 1, -1):
+        bgl.glVertex3f(*radial2xy(c, rs[1], p, w, h), z)
+    bgl.glLineWidth(1)
+    
+    bgl.glEnd()
+    bgl.glDisable(bgl.GL_BLEND)
+
+def radial2xy(c, theta, phi, w, h):
+    return c[0] + theta * sin(math.pi * phi/180) * w, c[1] + theta * math.cos(math.pi * phi/180) * h
+    
 def drawloop(x1, y1, x2, y2):
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
     bgl.glBegin(bgl.GL_LINE_LOOP)
@@ -1947,10 +1992,50 @@ def drawloop(x1, y1, x2, y2):
     bgl.glVertex2i(x1, y1)
     bgl.glEnd()
 
+def drawsquare(c, w, h, col):
+#    bgl.glEnable(bgl.GL_BLEND)
+#    bgl.glEnable(bgl.GL_DEPTH_TEST)
+#    bgl.glEnable(bgl.GL_LINE_SMOOTH)
+    vxs = (c[0] + 0.5 * w, c[0] + 0.5 * w, c[0] - 0.5 * w, c[0] - 0.5 * w)
+    vys = (c[1] - 0.5 * h, c[1] + 0.5 * h, c[1] + 0.5 * h, c[1] - 0.5 * h)
+#    bgl.glEnable(bgl.GL_DEPTH_TEST)
+    if col:
+        bgl.glColor4f(*col)
+#        bgl.glLineWidth(5)
+        z = 0.1
+        bgl.glBegin(bgl.GL_POLYGON)
+    else:        
+        z = 0.05
+        bgl.glLineWidth(1)
+        bgl.glColor4f(0, 0, 0, 1)
+        bgl.glBegin(bgl.GL_LINE_LOOP)
+    for v in range(4):
+        bgl.glVertex3f(vxs[v], vys[v], z)
+    bgl.glLineWidth(1)
+    bgl.glColor4f(0, 0, 0, 1)
+#    bgl.glDisable(bgl.GL_DEPTH_TEST)
+    bgl.glEnd()
+    
+#    bgl.glDisable(bgl.GL_TEXTURE_2D)
+#    bgl.glDisable(bgl.GL_BLEND)
+#    bgl.glFlush()
+
 def drawfont(text, fi, lencrit, height, x1, y1):
     blf.position(fi, x1, height - y1 - lencrit*26, 0)
     blf.draw(fi, text)
-        
+
+def xy2radial(c, pos, w, h):
+    dx, dy = pos[0] - c[0], pos[1] - c[1]
+    hypo = (((dx/w)**2 + (dy/h)**2)**0.5)
+    at = math.atan((dy/h)/(dx/w))
+    if dx == 0:
+        azi = 0 if dy >= 0 else math.pi
+    elif dx > 0:
+        azi = math.pi * 0.5 - at
+    elif dx < 0:
+        azi = math.pi * 1.5 - at   
+    return hypo, azi        
+
 def mtx2vals(mtxlines, fwd, node, times):    
     for m, mtxline in enumerate(mtxlines):
         if 'NROWS' in mtxline:
@@ -1960,7 +2045,7 @@ def mtx2vals(mtxlines, fwd, node, times):
         elif mtxline == '\n':
             startline = m + 1
             break
-#    print(times)
+
     sdoy = (times[0] - datetime.datetime(2015, 1, 1)).days
     shour = times[0].hour
     edoy = (times[-1] - datetime.datetime(2015, 1, 1)).days + 1

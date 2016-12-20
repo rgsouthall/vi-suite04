@@ -92,12 +92,12 @@ def update_dir(dummy):
                
 @persistent
 def display_off(dummy):
-    if bpy.context.scene.get('viparams'):
-        bpy.context.scene.vi_display = 0
-        ifdict = {'sspanel': 'ss', 'lipanel': 'li', 'enpanel': 'en'}
+    if bpy.context.scene.get('viparams') and bpy.context.scene['viparams'].get('vidisp'):
+        
+        ifdict = {'sspanel': 'ss', 'lipanel': 'li', 'enpanel': 'en', 'bsdf_panel': 'bsdf'}
         if bpy.context.scene['viparams']['vidisp'] in ifdict:
             bpy.context.scene['viparams']['vidisp'] = ifdict[bpy.context.scene['viparams']['vidisp']]
-
+        bpy.context.scene.vi_display = 0
 @persistent
 def mesh_index(dummy):
     try:
@@ -489,6 +489,11 @@ def register():
     Scene.vi_leg_scale = EnumProperty(items = [('0', 'Linear', 'Linear scale'), ('1', 'Log', 'Logarithmic scale')], name = "", description = "Legend scale", default = '0', update=legupdate)    
     Scene.vi_leg_col = EnumProperty(items = [('rainbow', 'Rainbow', 'Rainbow colour scale'), ('gray', 'Grey', 'Grey colour scale'), ('hot', 'Hot', 'Hot colour scale'),
                                              ('CMRmap', 'CMR', 'CMR colour scale'), ('jet', 'Jet', 'Jet colour scale'), ('plasma', 'Plasma', 'Plasma colour scale'), ('hsv', 'HSV', 'HSV colour scale')], name = "", description = "Legend scale", default = 'rainbow', update=colupdate)
+    Scene.vi_bsdfleg_max = bpy.props.FloatProperty(name = "", description = "Legend maximum", min = 0, max = 1000000, default = 100)
+    Scene.vi_bsdfleg_min = bpy.props.FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0)
+
+#    Scene.vi_lbsdf_direc = EnumProperty(items = bsdfdirec, name = "", description = "Legend scale")
+    
     Scene.en_disp = EnumProperty(items = [('0', 'Cylinder', 'Cylinder display'), ('1', 'Box', 'Box display')], name = "", description = "Shape of EnVi result object", default = '0')    
     Scene.en_disp_unit = EnumProperty(items = enunits, name = "", description = "Type of EnVi metric display")  
     Scene.en_disp_punit = EnumProperty(items = enpunits, name = "", description = "Type of EnVi metric display")
@@ -574,10 +579,10 @@ def register():
     Scene.li_disp_sda = EnumProperty(items = [("0", "sDA (%)", "Display spatial Daylight Autonomy"), ("1", "ASE (hrs)", "Display the Annual Solar Exposure")], name = "", description = "Compliance data type", default = "0", update = liviresupdate)
     Scene.li_disp_wr = EnumProperty(items = [("0", "Wind Speed", "Wind speed (m/s)"),("1", "Wind Direction", "Wind direction (deg from North)")], name = "", description = "Compliance data type", default = "0", update = liviresupdate)
  #   Scene.li_disp_lh = EnumProperty(items = [("0", "Mluxhours", "Display mega luxhours"), ("1", "Visible Irradiance", "Display visible irradiance"), ("1", "Full Irradiance", "Display full irradiance")], name = "", description = "Exposure data type", default = "0", update = liviresupdate)
-    Scene.li_projname = sprop("", "Name of the building project", 1024, '')
-    Scene.li_assorg = sprop("", "Name of the assessing organisation", 1024, '')
-    Scene.li_assind = sprop("", "Name of the assessing individual", 1024, '')
-    Scene.li_jobno = sprop("", "Project job number", 1024, '')
+#    Scene.li_projname = sprop("", "Name of the building project", 1024, '')
+#    Scene.li_assorg = sprop("", "Name of the assessing organisation", 1024, '')
+#    Scene.li_assind = sprop("", "Name of the assessing individual", 1024, '')
+#    Scene.li_jobno = sprop("", "Project job number", 1024, '')
     Scene.li_disp_basic = EnumProperty(items = [("0", "Illuminance", "Display Illuminance values"), ("1", "Visible Irradiance", "Display Irradiance values"), ("2", "Full Irradiance", "Display Irradiance values"), ("3", "DF", "Display Daylight factor values")], name = "", description = "Basic metric selection", default = "0", update = liviresupdate)
     Scene.li_disp_da = EnumProperty(items = [("0", "DA", "Daylight Autonomy"), ("1", "sDA", "Spatial Daylight Autonomy"), ("2", "UDILow", "Spatial Daylight Autonomy"), ("3", "UDISup", "Spatial Daylight Autonomy"), 
                                              ("4", "UDIAuto", "Spatial Daylight Autonomy"), ("5", "UDIHigh", "Spatial Daylight Autonomy"), ("6", "ASE", "Annual sunlight exposure"), ("7", "Max lux", "Maximum lux level"), 

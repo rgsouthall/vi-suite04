@@ -15,6 +15,7 @@ class Vi3DPanel(bpy.types.Panel):
         
     def draw(self, context):
         scene = context.scene
+        cao = context.active_object
 
         if scene.get('viparams') and scene['viparams'].get('vidisp'): 
             layout = self.layout
@@ -75,7 +76,7 @@ class Vi3DPanel(bpy.types.Panel):
                         newrow(layout, 'Scatter max:', scene, "vi_scatter_max")
                         newrow(layout, 'Scatter min:', scene, "vi_scatter_min")
                 
-                if context.active_object and context.active_object.type == 'MESH':
+                if cao and cao.type == 'MESH':
                     newrow(layout, 'Draw wire:', scene, 'vi_disp_wire')                    
                 
                 if int(context.scene.vi_disp_3d) == 1:
@@ -183,10 +184,21 @@ class Vi3DPanel(bpy.types.Panel):
                     row.label('Bar chart range:')
                     row.prop(scene, 'bar_min')
                     row.prop(scene, 'bar_max')
-                                                  
+
+            if cao and cao.active_material and cao.active_material.get('bsdf'):
+                if scene['viparams']['vidisp'] != 'bsdf_panel':
+                    row = layout.row()
+                    row.operator("view3d.bsdf_display", text="BSDF Display") 
+                else:
+                    newrow(layout, 'BSDF max:', scene, "vi_bsdfleg_max")
+                    newrow(layout, 'BSDF min:', scene, "vi_bsdfleg_min")
+                    newrow(layout, 'BSDF scale:', scene, "vi_leg_scale")
+                    newrow(layout, 'BSDF colour:', scene, "vi_leg_col")
+                                
             if scene.vi_display:            
                 newrow(layout, 'Display active', scene, 'vi_display')
-
+        
+            
 class VIMatPanel(bpy.types.Panel):
     bl_label = "VI-Suite Material"
     bl_space_type = "PROPERTIES"
@@ -530,12 +542,14 @@ class VIObPanel(bpy.types.Panel):
             else:
                 newrow(layout, 'Samples:', obj, 'li_bsdf_ksamp')
             newrow(layout, 'RC params:', obj, 'li_bsdf_rcparam')
-            row = layout.row()
-            row.operator("material.gen_bsdf", text="Generate BSDF")
-
-            if obj.get('bsdf'):
-                row.operator("material.del_bsdf", text="Delete BSDF")
-            newrow(layout, 'Proxy:', obj, 'bsdf_proxy')
+            
+            if any([obj.data.materials[i].radmatmenu == '8' for i in [f.material_index for f in obj.data.polygons]]):
+                row = layout.row()
+                row.operator("object.gen_bsdf", text="Generate BSDF")
+    
+    #            if obj.get('bsdf'):
+    #                row.operator("material.del_bsdf", text="Delete BSDF")
+                newrow(layout, 'Proxy:', obj, 'bsdf_proxy')
 
 def rmmenu(layout, cm):
     row = layout.row()

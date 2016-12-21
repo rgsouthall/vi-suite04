@@ -99,10 +99,13 @@ class MATERIAL_LoadBSDF(bpy.types.Operator, io_utils.ImportHelper):
 
     def execute(self, context):
         context.material['bsdf'] = {}
-        context.material['bsdf']['xml'] = self.filepath
         if " " in self.filepath:
             self.report({'ERROR'}, "There is a space either in the filename or its directory location. Remove this space and retry opening the file.")
-        return {'FINISHED'}
+            return {'CANCELLED'}
+        else:
+            with open(self.filepath, 'r') as bsdffile:
+                context.material['bsdf']['xml'] = bsdffile.read()
+            return {'FINISHED'}
 
     def invoke(self,context,event):
         context.window_manager.fileselect_add(self)
@@ -260,7 +263,7 @@ class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
         cao = context.active_object
         if cao and cao.active_material.get('bsdf') and cao.active_material['bsdf']['xml']:
             width, height = context.region.width, context.region.height
-            self.bsdf = bsdf([160, height - 40], width, height, 'bsdf.png', 700, 400)
+            self.bsdf = bsdf([160, height - 40], width, height, 'bsdf.png', 750, 400)
             self.bsdf.update(context)
             self.bsdfpress, self.bsdfmove, self.bsdfresize = 0, 0, 0
             self._handle_bsdf_disp = bpy.types.SpaceView3D.draw_handler_add(bsdf_disp, (self, context), 'WINDOW', 'POST_PIXEL')
@@ -406,11 +409,13 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
             self.report({'ERROR'}, "Current frame is not within the exported frame range")
             return {'CANCELLED'}
     
-        createradfile(scene, frame, self, simnode)
-        createoconv(scene, frame, self, simnode)
+        
         cam = scene.camera
         
         if cam:
+            curres = 0
+            createradfile(scene, frame, self, simnode)
+            createoconv(scene, frame, self, simnode)
             cang = '180 -vth ' if simnode['coptions']['Context'] == 'Basic' and simnode['coptions']['Type'] == '1' else cam.data.angle*180/pi
             vv = 180 if simnode['coptions']['Context'] == 'Basic' and simnode['coptions']['Type'] == '1' else cang * scene.render.resolution_y/scene.render.resolution_x
             vd = (0.001, 0, -1*cam.matrix_world[2][2]) if (round(-1*cam.matrix_world[0][2], 3), round(-1*cam.matrix_world[1][2], 3)) == (0.0, 0.0) else [-1*cam.matrix_world[i][2] for i in range(3)]
@@ -427,13 +432,18 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
                 open('{}.pmapmon'.format(scene['viparams']['filebase']), 'w')
                 pmcmd = 'mkpmap -t 20 -e {1}.pmapmon -fo+ -bv+ -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, scene['viparams']['filebase'], frame, simnode.pmapgno, cpentry, amentry)
                 pmrun = Popen(pmcmd.split(), stderr = PIPE, stdout = PIPE)
-                sleep(1)
 
                 while pmrun.poll() is None:   
-                    sleep(5)
-                    if self.pfile.check(50) == 'CANCELLED': 
-                        pmrun.kill()                                   
-                        return {'CANCELLED'}
+                    sleep(10)
+                    with open('{}.pmapmon'.format(scene['viparams']['filebase']), 'r') as vip:
+                        for line in vip.readlines()[::-1]:
+                            if '%' in line:
+                                curres = float(line.split()[6][:-2])
+                                break
+                    if curres:                                
+                        if self.pfile.check(curres) == 'CANCELLED': 
+                            pmrun.kill()                                   
+                            return 'CANCELLED'
                 
                 if self.kivyrun.poll() is None:
                     self.kivyrun.kill()

@@ -564,6 +564,8 @@ def rmmenu(layout, cm):
             row = layout.row()
             
     if cm.radmatmenu == '8':
+        newrow(layout, 'Proxy depth:', cm, 'li_bsdf_proxy_depth')
+        row = layout.row()
         row.operator("material.load_bsdf", text="Load BSDF")
     if cm.get('bsdf'):
         row.operator("material.del_bsdf", text="Delete BSDF")

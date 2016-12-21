@@ -123,11 +123,17 @@ def select_nodetree(dummy):
             space.node_tree = envings[0]
         
 def getViEditorSpaces():
-    return [area.spaces.active for area in bpy.context.screen.areas if bpy.context.screen and area and area.type == "NODE_EDITOR" and area.spaces.active.tree_type == "ViN" and not area.spaces.active.edit_tree]
-    
+    if bpy.context.screen:
+        return [area.spaces.active for area in bpy.context.screen.areas if area and area.type == "NODE_EDITOR" and area.spaces.active.tree_type == "ViN" and not area.spaces.active.edit_tree]
+    else:
+        return []
+        
 def getEnViEditorSpaces():
-    return [area.spaces.active for area in bpy.context.screen.areas if bpy.context.screen and area and area.type == "NODE_EDITOR" and area.spaces.active.tree_type == "EnViN" and not area.spaces.active.edit_tree]
-
+    if bpy.context.screen:
+        return [area.spaces.active for area in bpy.context.screen.areas if area and area.type == "NODE_EDITOR" and area.spaces.active.tree_type == "EnViN" and not area.spaces.active.edit_tree]
+    else:
+        return []
+        
 bpy.app.handlers.scene_update_post.append(select_nodetree)
 bpy.app.handlers.scene_update_post.append(mesh_index)
             
@@ -315,7 +321,7 @@ def register():
                 ('3', 'Translucent', 'Translucent Radiance material'), ('4', 'Mirror', 'Mirror Radiance material'), ('5', 'Light', 'Emission Radiance material'),
                 ('6', 'Metal', 'Metal Radiance material'), ('7', 'Anti-matter', 'Antimatter Radiance material'), ('8', 'BSDF', 'BSDF Radiance material'), ('9', 'Custom', 'Custom Radiance material')]
     Material.radmatmenu = eprop(radtypes, "", "Type of Radiance material", '0')
-    Material.radcolour = fvprop(3, "Material Colour",'Material Colour', [1.0, 1.0, 1.0], 'COLOR', 0, 1)
+    Material.radcolour = fvprop(3, "Material Colour",'Material Colour', [0.8, 0.8, 0.8], 'COLOR', 0, 1)
     Material.radrough = fprop("Roughness", "Material roughness", 0, 1, 0.1)
     Material.radspec = fprop("Specularity", "Material specularity", 0, 1, 0.1)
     Material.radtrans = fprop("Transmission", "Material transmissivity", 0, 1, 0.1)
@@ -463,6 +469,7 @@ def register():
     Material.li_bsdf_tsamp = bpy.props.IntProperty(name = '', description = 'BSDF resolution', min = 1, max = 20, default = 4)
     Material.li_bsdf_ksamp = bpy.props.IntProperty(name = '', description = 'BSDF resolution', min = 1, default = 2000)
     Material.li_bsdf_rcparam = sprop("", "rcontrib parameters", 1024, "")
+    Material.li_bsdf_proxy_depth = fprop("", "Depth of proxy geometry", -10, 10, 0)
 #    Material.flovi_bmionut = fprop("Value", "nuTilda value", -1000, 1000, 0.0)
 #    Material.flovi_bmionut_y = fprop("Y", "Value in the Y-direction", -1000, 1000, 0.0)
 #    Material.flovi_bmionut_z = fprop("Z", "Value in the Z-direction", -1000, 1000, 0.0)   

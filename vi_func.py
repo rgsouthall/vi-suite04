@@ -145,9 +145,10 @@ def radmat(self, scene):
 
     if self.radmatmenu == '8' and self.get('bsdf') and self['bsdf'].get('xml'):
         bsdfxml = os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(radname))
+        
         with open(bsdfxml, 'w') as bsdffile:
             bsdffile.write(self['bsdf']['xml'])
-        radentry = 'void BSDF {0}\n6 {1:.4f} {2} 0 0 1 .\n0\n0\n\n'.format(radname, self['bsdf']['proxy_depth'], bsdfxml)
+        radentry = 'void BSDF {0}\n6 {1:.4f} {2} 0 0 1 .\n0\n0\n\n'.format(radname, self.li_bsdf_proxy_depth, bsdfxml)
 
     if self.radmatmenu == '9':
         if self.name in [t.name for t in bpy.data.texts]:

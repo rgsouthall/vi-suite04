@@ -549,10 +549,10 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
                         pmcmd = ('mkpmap -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, self.scene['viparams']['filebase'], self.frame, self.simnode.pmapgno, cpentry, amentry))                   
                         pmrun = Popen(pmcmd.split(), stderr = PIPE)
                         for line in pmrun.stderr: 
-                            print(line)
+                            print('pmrun', line)#        draw_image(self, self.ydiff * 0.1)
                             if line.decode() in self.errdict:
                                 self.report({'ERROR'}, self.errdict[line.decode()])
-                                return 
+                                return {'CANCELLED'}
                         rpictcmd = "rpict -w -e {7} -t 10 -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]:.3f} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} -ap {5} 50 {6} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, '{}-{}.gpm'.format(self.scene['viparams']['filebase'], self.frame), cpfileentry, self.rpictfile)
                     else:
                         rpictcmd = "rpict -w -e {5} -t 10 -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, self.rpictfile)
@@ -625,9 +625,6 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
         self.cam = self.scene.camera
         
         if self.cam:
-            wm = context.window_manager
-            self._timer = wm.event_timer_add(10, context.window)
-            wm.modal_handler_add(self)
             self.percent = 0
             self.reslists = []
             self.res = []
@@ -656,17 +653,20 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
                     print(line)
                     if line.decode() in self.errdict:
                         self.report({'ERROR'}, self.errdict[line.decode()])
-                        return 
+                        return {'FINISHED'}
                 rpictcmd = "rpict -w -e {7} -t 1 -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]:.3f} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} -ap {5} 50 {6} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, '{}-{}.gpm'.format(self.scene['viparams']['filebase'], self.frame), cpfileentry, self.rpictfile)
             else:
                 rpictcmd = "rpict -w -vth -vh 180 -e {5} -t 1 -vv 180 -x 800 -y 800 -vd {0[0][2]:.3f} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, self.rpictfile)
-
+            print(rpictcmd)
             self.starttime = datetime.datetime.now()
             self.pfile = progressfile(self.scene, datetime.datetime.now(), 100)
             self.kivyrun = progressbar(os.path.join(self.scene['viparams']['newdir'], 'viprogress'))
             self.rprun = Popen(rpictcmd.split(), stdout=PIPE, stderr = PIPE)
             egcmd = "evalglare {} -c {}".format(('-u 1 0 0', '')[sys.platform == 'win32'], os.path.join(self.scene['viparams']['newdir'], 'glare{}.hdr'.format(self.frame)))
             self.egrun = Popen(egcmd.split(), stdin = self.rprun.stdout, stdout=PIPE, stderr = PIPE)
+            wm = context.window_manager
+            self._timer = wm.event_timer_add(10, context.window)
+            wm.modal_handler_add(self)
             return {'RUNNING_MODAL'}
         else:
             self.report({'ERROR'}, "There is no camera in the scene. Create one for glare analysis")

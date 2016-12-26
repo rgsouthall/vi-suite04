@@ -573,5 +573,7 @@ def rmmenu(layout, cm):
         row.operator("material.save_bsdf", text="Save BSDF")
     if cm.radmatmenu in ('1', '2', '3', '7'):
         newrow(layout, 'Photon Port:', cm, 'pport')
+    if cm.radmatmenu in ('0', '1', '2', '3', '6'):
+        newrow(layout, 'Textured:', cm, 'radtex')
     row = layout.row()
     row.label("-----------------------------------------")

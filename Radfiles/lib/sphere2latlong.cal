@@ -11,7 +11,7 @@ v position on the Latlong image is defined by arcsin of the z direction vectors 
 u position is the azimuth angle calculated as a modulo of the atan2 derived azimuth
 }
 
-sb_u = 2 - mod(atan2(DDx, DDy) + 0.5*PI, 2 * PI)/(PI);
+sb_u = 2 - mod(atan2(DDx, DDy) + A1, 2 * PI)/(PI);
 sb_v = 0.5 + asin(DDz)/PI;
 
 DDy = Py*norm;

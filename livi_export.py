@@ -150,8 +150,9 @@ def createoconv(scene, frame, sim_op, simnode, **kwargs):
 
     with open("{}.oct".format(fbase), "wb") as octfile:
         err =  Popen("oconv -w -".split(), stdin = PIPE, stderr = PIPE, stdout = octfile).communicate(input = simnode['radfiles'][str(frame)].encode(sys.getfilesystemencoding()))[1]
+        print(err.decode())
         if err and 'fatal -' in err.decode():
-            sim_op.report({'ERROR'}, 'Oconv conversion failure: {}'.format(err.decode()))
+            sim_op.report({'ERROR'}, 'Oconv conversion failure: {}'.format(err))
             return 'CANCELLED'
 
 def spfc(self):

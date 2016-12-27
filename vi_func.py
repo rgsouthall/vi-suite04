@@ -163,7 +163,7 @@ def radmat(self, scene):
             scene.render.image_settings.file_format = off
             (w, h) = teximage.size
             ar = ('*{}'.format(w/h), '') if w >= h else ('', '*{}'.format(h/w))
-            radtex = 'void colorpict {}_tex\n7 red green blue {} . Lu{} Lv{}\n0\n0\n\n'.format(self.name, '{}'.format(teximageloc), ar[0], ar[1])
+            radtex = 'void colorpict {}_tex\n7 red green blue {} . Lu{} Lv{}\n0\n0\n\n'.format(radname, '{}'.format(teximageloc), ar[0], ar[1])
             mod = '{}_tex'.format(radname)
         except Exception as e:
             print(e)
@@ -2738,8 +2738,9 @@ def sunposenvi(scene, sun, dirsol, difsol, mdata, ddata, hdata):
     values = list(zip(sizevals, beamvals, skyvals))
     sunapply(scene, sun, values, solposs, frames)
 
-def hdrsky(hdrfile):
-    return("# Sky material\nvoid colorpict hdr_env\n7 red green blue '{}' angmap.cal sb_u sb_v\n0\n0\n\nhdr_env glow env_glow\n0\n0\n4 1 1 1 0\n\nenv_glow bubble sky\n0\n0\n4 0 0 0 5000\n\n".format(hdrfile))
+def hdrsky(hdrfile, hdrmap):
+    hdrfn = {'0': 'sphere2latlong', '1': 'sphere2angmap'}[hdrmap]
+    return("# Sky material\nvoid colorpict hdr_env\n7 red green blue '{}' {}.cal sb_u sb_v\n0\n0\n\nhdr_env glow env_glow\n0\n0\n4 1 1 1 0\n\nenv_glow bubble sky\n0\n0\n4 0 0 0 5000\n\n".format(hdrfile, hdrfn))
        
 def sunposlivi(scene, skynode, frames, sun, stime):
     sun.data.shadow_method, sun.data.shadow_ray_samples, sun.data.sky.use_sky = 'RAY_SHADOW', 8, 1

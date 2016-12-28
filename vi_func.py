@@ -2136,7 +2136,7 @@ def frameindex(scene, anim):
 
 def retobjs(otypes):
     scene = bpy.context.scene
-    validobs = [o for o in scene.objects if o.hide == False and o.layers[scene.active_layer] == True]
+    validobs = [o for o in scene.objects if not o.hide and o.is_visible()]
     if otypes == 'livig':
         return([o for o in validobs if o.type == 'MESH' and o.data.materials and not (o.parent and os.path.isfile(o.ies_name)) and not o.vi_type == '4' \
         and o.lires == 0 and o.get('VIType') not in ('SPathMesh', 'SunMesh', 'Wind_Plane', 'SkyMesh')])
@@ -2147,14 +2147,13 @@ def retobjs(otypes):
     elif otypes == 'livil':
         return([o for o in validobs if (o.type == 'LAMP' or o.vi_type == '4') and o.hide == False and o.layers[scene.active_layer] == True])
     elif otypes == 'livic':
-        return([o for o in validobs if o.type == 'MESH' and li_calcob(o, 'livi') and o.lires == 0 and o.hide == False and o.layers[scene.active_layer] == True])
+        return([o for o in validobs if o.type == 'MESH' and li_calcob(o, 'livi') and o.lires == 0 and o.hide == False])
     elif otypes == 'livir':
-        return([o for o in validobs if o.type == 'MESH' and True in [m.livi_sense for m in o.data.materials] and o.licalc and o.layers[scene.active_layer] == True])
+        return([o for o in validobs if o.type == 'MESH' and True in [m.livi_sense for m in o.data.materials] and o.licalc])
     elif otypes == 'envig':
-        return([o for o in validobs if o.type == 'MESH' and o.hide == False and o.layers[0] == True])
-    elif otypes == 'ssc':
-        
-        return [o for o in validobs if o.type == 'MESH' and o.lires == 0 and o.hide == False and o.layers[scene.active_layer] == True and o.data.materials and any([o.data.materials[poly.material_index].mattype == '1' for poly in o.data.polygons])]
+        return([o for o in scene.objects if o.type == 'MESH' and o.hide == False and not o.layers[1]])
+    elif otypes == 'ssc':        
+        return [o for o in validobs if o.type == 'MESH' and o.lires == 0 and o.hide == False and o.data.materials and any([o.data.materials[poly.material_index].mattype == '1' for poly in o.data.polygons])]
 
 def radmesh(scene, obs, export_op):
     for o in obs:

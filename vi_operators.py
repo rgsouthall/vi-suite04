@@ -426,7 +426,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
                 errdict = {'fatal - too many prepasses, no global photons stored\n': "Too many prepasses have ocurred. Make sure light sources can see your geometry",
                 'fatal - too many prepasses, no global photons stored, no caustic photons stored\n': "Too many prepasses have ocurred. Turn off caustic photons and encompass the scene",
                'fatal - zero flux from light sources\n': "No light flux, make sure there is a light source and that photon port normals point inwards",
-               'fatal - no light sources\n': "No light sources. Photon mapping does not work with HDR skies",
+               'fatal - no light sources in distribPhotons\n': "No light sources. Photon mapping does not work with HDR skies",
                'fatal - no valid photon ports found\n': 'Re-export the geometry'}
                 amentry, pportentry, cpentry, cpfileentry = retpmap(simnode, frame, scene)
                 open('{}.pmapmon'.format(scene['viparams']['filebase']), 'w')

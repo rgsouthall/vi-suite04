@@ -145,6 +145,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
                 gradfile += radpoints(o, mfaces, 0)
 
         bm.free()
+            
         return gradfile
     
     except Exception as e:

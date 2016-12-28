@@ -56,6 +56,12 @@ def radgexport(export_op, node, **kwargs):
         gradfile = "# Geometry \n\n"
 
         for o in eolist:
+            if o.particle_systems:
+                particles = o.particle_systems[0].particles
+                dobs = o.particle_systems[0].settings.dupli_group.objects
+                for dob in dobs:
+                    print(dob.name)
+            
             bm = bmesh.new()
             tempmesh = o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW')
             bm.from_mesh(tempmesh)

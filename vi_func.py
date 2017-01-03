@@ -269,7 +269,7 @@ def cbdmmtx(self, scene, locnode, export_op):
 def cbdmhdr(node, scene):
     targethdr = os.path.join(scene['viparams']['newdir'], node['epwbase'][0]+"{}.hdr".format(('l', 'w')[node['watts']]))
     latlonghdr = os.path.join(scene['viparams']['newdir'], node['epwbase'][0]+"{}p.hdr".format(('l', 'w')[node['watts']]))
-    skyentry = hdrsky(targethdr)
+    skyentry = hdrsky(targethdr, node.hdrmap, node.hdrangle, node.hdrradius)
 
     if node.sourcemenu != '1' or node.cbanalysismenu == '2':
         vecvals, vals = mtx2vals(open(node['mtxfile'], 'r').readlines(), datetime.datetime(2015, 1, 1).weekday(), node, node.times)
@@ -2727,10 +2727,10 @@ def sunposenvi(scene, sun, dirsol, difsol, mdata, ddata, hdata):
     values = list(zip(sizevals, beamvals, skyvals))
     sunapply(scene, sun, values, solposs, frames)
 
-def hdrsky(hdrfile, hdrmap, hdrangle):
+def hdrsky(hdrfile, hdrmap, hdrangle, hdrradius):
     hdrangle = '1 {:.3f}'.format(hdrangle * math.pi/180) if hdrangle else '1 0'
     hdrfn = {'0': 'sphere2latlong', '1': 'sphere2angmap'}[hdrmap]
-    return("# Sky material\nvoid colorpict hdr_env\n7 red green blue '{}' {}.cal sb_u sb_v\n0\n{}\n\nhdr_env glow env_glow\n0\n0\n4 1 1 1 0\n\nenv_glow bubble sky\n0\n0\n4 0 0 0 5000\n\n".format(hdrfile, hdrfn, hdrangle))
+    return("# Sky material\nvoid colorpict hdr_env\n7 red green blue '{}' {}.cal sb_u sb_v\n0\n{}\n\nhdr_env glow env_glow\n0\n0\n4 1 1 1 0\n\nenv_glow bubble sky\n0\n0\n4 0 0 0 {}\n\n".format(hdrfile, hdrfn, hdrangle, hdrradius))
        
 def sunposlivi(scene, skynode, frames, sun, stime):
     sun.data.shadow_method, sun.data.shadow_ray_samples, sun.data.sky.use_sky = 'RAY_SHADOW', 8, 1

@@ -468,6 +468,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
                 elif 'x11' in line.decode():
                     self.report({'ERROR'}, "No X11 display server found. You may need to install XQuartz")
                     return {'CANCELLED'}
+                
             return {'FINISHED'}
         else:
             self.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")

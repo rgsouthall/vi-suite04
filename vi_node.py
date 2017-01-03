@@ -269,6 +269,7 @@ class LiViNode(bpy.types.Node, ViNodes):
     hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="", update = nodeupdate)
     hdrmap = bpy.props.EnumProperty(items=[("0", "Polar", "Polar ot LatLong HDR mapping"),("1", "Angular", "Light probe or angular mapping")], name="", description="Type of HDR panorama mapping", default="0", update = nodeupdate)
     hdrangle = bpy.props.FloatProperty(name="", description="HDR rotation (deg)", min=0, max=360, default=0, update = nodeupdate)
+    hdrradius = bpy.props.FloatProperty(name="", description="HDR radius (m)", min=0, max=5000, default=1000, update = nodeupdate)
     mtxname = bpy.props.StringProperty(name="", description="Name of the calculated vector sky file", default="", update = nodeupdate)
     weekdays = bpy.props.BoolProperty(name = '', default = False, update = nodeupdate)
     cbdm_start_hour =  bpy.props.IntProperty(name = '', default = 8, min = 1, max = 24, update = nodeupdate)
@@ -316,12 +317,9 @@ class LiViNode(bpy.types.Node, ViNodes):
                 row.operator('node.hdrselect', text = 'HDR select').nodeid = self['nodeid']
                 row = layout.row()
                 row.prop(self, 'hdrname')
-                row = layout.row()
-                row.label("HDR format:")
-                row.prop(self, 'hdrmap')
-                row = layout.row()
-                row.label("HDR rotation:")
-                row.prop(self, 'hdrangle')
+                newrow(layout, "HDR format:", self, 'hdrmap')
+                newrow(layout, "HDR rotation:", self, 'hdrangle')
+                newrow(layout, "HDR radius:", self, 'hdrradius')
             elif self.skymenu == '5':
                 row = layout.row()
                 row.label("Radiance file:")
@@ -467,7 +465,7 @@ class LiViNode(bpy.types.Node, ViNodes):
             elif self['skynum'] == 4:
                 if self.hdrname not in bpy.data.images:
                     bpy.data.images.load(self.hdrname)
-                self['Text'][str(scene.frame_current)] = hdrsky(self.hdrname, self.hdrmap, self.hdrangle)
+                self['Text'][str(scene.frame_current)] = hdrsky(self.hdrname, self.hdrmap, self.hdrangle, self.hdrradius)
             
             elif self['skynum'] == 5:
                 shutil.copyfile(self.radname, "{}-0.sky".format(scene['viparams']['filebase']))

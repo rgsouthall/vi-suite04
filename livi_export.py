@@ -160,6 +160,9 @@ def createoconv(scene, frame, sim_op, simnode, **kwargs):
         if err and 'fatal -' in err.decode():
             sim_op.report({'ERROR'}, 'Oconv conversion failure: {}'.format(err))
             return 'CANCELLED'
+        elif err and 'set overflow' in err.decode():
+            sim_op.report({'ERROR'}, 'Ratio of largest to smallest geometry is too large. Clean up mesh geometry or decrease the radius of any HDR panorama')
+            return 'CANCELLED'
 
 def spfc(self):
     scene = bpy.context.scene

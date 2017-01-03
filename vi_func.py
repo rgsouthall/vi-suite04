@@ -103,14 +103,11 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
             if mfaces:
                 for mat in mmats:
                     matname = mat.name.replace(' ', '_')
-#                    if o.data.polygons[0].use_smooth:            
-                    ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join((' ', '{0}/{0}')[f.smooth].format(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])            
-#                    else:
-#                        ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(str(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])
+                    ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}', '{0}//{0}')[f.smooth].format(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])            
         else:            
             uv_layer = bm.loops.layers.uv.values()[0]
             bm.faces.ensure_lookup_table()
-            vtext += ''.join([''.join(['vt {0[0]} {0[1]}\n'.format(loop[uv_layer].uv) for loop in face.loops]) for face in mfaces])
+            vtext += ''.join([''.join(['vt {0[0]} {0[1]}\n'.format(loop[uv_layer].uv) for loop in face.loops]) for face in bm.faces])
             
             li = 1
             for face in bm.faces:
@@ -121,14 +118,10 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
             if mfaces:
                 for mat in mmats:
                     matname = mat.name.replace(' ', '_')
-#                    if not o.data.polygons[0].use_smooth:            
-                    ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{}/{}'.format(loop.vert.index + 1, loop.index), '{0}/{1}/{0}'.format(loop.vert.index + 1, loop.index))[f.smooth]  for loop in f.loops)) for f in mfaces if o.data.materials[f.material_index] == mat])
-#                    else:
-#                        ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join('{0}/{1}/{0}'.format(loop.vert.index + 1, loop.index) for loop in f.loops)) for f in mfaces if o.data.materials[f.material_index] == mat])
-        
-#            face.loops.index_update()
-        with open('/home/ryan/test.obj', 'w') as ofile:
-            ofile.write(otext+vtext+ftext)                
+                    ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}/{1}'.format(loop.vert.index + 1, loop.index), '{0}/{1}/{0}'.format(loop.vert.index + 1, loop.index))[f.smooth]  for loop in f.loops)) for f in mfaces if o.data.materials[f.material_index] == mat])
+
+#        with open('/home/ryan/{}test.obj'.format(o.name), 'w') as ofile:
+#            ofile.write(otext+vtext+ftext)                
         if ffaces:
             gradfile += radpoints(o, ffaces, 0)
     
@@ -136,9 +129,8 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
             mfile = os.path.join(scene['viparams']['newdir'], 'obj', '{}-{}.mesh'.format(o.name.replace(' ', '_'), frame))
 
             with open(mfile, 'w') as mesh:
-                o2mrun = Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout = mesh, stdin = PIPE, stderr = PIPE).communicate(input = (otext + vtext + ftext).encode('utf-8'))
-#                for line in o2mrun[1]:
-                print(o2mrun[1])
+                Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout = mesh, stdin = PIPE, stderr = PIPE).communicate(input = (otext + vtext + ftext).encode('utf-8'))
+#                print(o2mrun[1])
             if os.path.getsize(mfile):
                 gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(mfile)
             else:
@@ -154,6 +146,8 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
     
 def radmat(self, scene):
     radname = self.name.replace(" ", "_")
+    radtex = ''
+    mod = 'void' 
     if self.radmatmenu in ('0', '1', '2', '3', '6') and self.radtex:
         try:
             teximage = self.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node.inputs['Color'].links[0].from_node.image
@@ -167,13 +161,8 @@ def radmat(self, scene):
             radtex = 'void colorpict {}_tex\n7 red green blue {} . Lu{} Lv{}\n0\n0\n\n'.format(radname, '{}'.format(teximageloc), ar[0], ar[1])
             mod = '{}_tex'.format(radname)
         except Exception as e:
-            print(e)
-            radtex = ''
-            mod = 'void' 
-    else:
-        radtex = ''
-        mod = 'void' 
-        
+            print('Problem with texture export {}'.format(e))
+         
     radentry = '# ' + ('plastic', 'glass', 'dielectric', 'translucent', 'mirror', 'light', 'metal', 'antimatter', 'bsdf', 'custom')[int(self.radmatmenu)] + ' material\n' + \
             '{} {} {}\n'.format(mod, ('plastic', 'glass', 'dielectric', 'trans', 'mirror', 'light', 'metal', 'antimatter', 'bsdf', 'custom')[int(self.radmatmenu)], radname) + \
            {'0': '0\n0\n5 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} {1:.3f} {2:.3f}\n'.format(self.radcolour, self.radspec, self.radrough), 

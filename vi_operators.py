@@ -261,7 +261,7 @@ class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
                 
     def invoke(self, context, event):
         cao = context.active_object
-        if cao and cao.active_material.get('bsdf') and cao.active_material['bsdf']['xml']:
+        if cao and cao.active_material.get('bsdf') and cao.active_material['bsdf']['xml'] and context.scene['liparams']['bsdf'] == ' ':
             width, height = context.region.width, context.region.height
             self.bsdf = bsdf([160, height - 40], width, height, 'bsdf.png', 750, 400)
             self.bsdf.update(context)
@@ -272,7 +272,7 @@ class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
             context.area.tag_redraw()            
             return {'RUNNING_MODAL'}
         else:
-            self.report({'ERROR'},"Selected material contains no BSDF information")
+            self.report({'ERROR'},"Selected material contains no BSDF information or contains the wrong BSDF type (only Klems is supported)")
             return {'CANCELLED'}
             
     def remove(self, context):
@@ -408,8 +408,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
         if frame not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
             self.report({'ERROR'}, "Current frame is not within the exported frame range")
             return {'CANCELLED'}
-    
-        
+            
         cam = scene.camera
         
         if cam:
@@ -657,7 +656,7 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
                 rpictcmd = "rpict -w -e {7} -t 1 -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]:.3f} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} -ap {5} 50 {6} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, '{}-{}.gpm'.format(self.scene['viparams']['filebase'], self.frame), cpfileentry, self.rpictfile)
             else:
                 rpictcmd = "rpict -w -vth -vh 180 -e {5} -t 1 -vv 180 -x 800 -y 800 -vd {0[0][2]:.3f} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, self.rpictfile)
-            print(rpictcmd)
+
             self.starttime = datetime.datetime.now()
             self.pfile = progressfile(self.scene, datetime.datetime.now(), 100)
             self.kivyrun = progressbar(os.path.join(self.scene['viparams']['newdir'], 'viprogress'))

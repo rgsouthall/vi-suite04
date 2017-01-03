@@ -257,6 +257,7 @@ def genbsdf(scene, export_op, o):
     mat['bsdf']['xml'] = Popen(shlex.split(gbcmd), stdin = PIPE, stdout = PIPE).communicate(input = (mradfile+gradfile).encode('utf-8'))[0].decode()
     mat['bsdf']['proxy_depth'] = -minz if o.bsdf_proxy else 0
     scene['viparams']['vidisp'] = 'bsdf'
+    scene['liparams']['bsdf'] = o.li_bsdf_tensor
     
 
     

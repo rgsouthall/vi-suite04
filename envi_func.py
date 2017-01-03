@@ -469,6 +469,7 @@ def processf(pro_op, scene, node):
         areslists = []
         areslists.append(['All', 'Frames', '', 'Frames', ' '.join([str(f) for f in frames])])
         temps = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Temperature (degC)']
+        hums = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Humidity (%)']
         heats = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Heating (W)']
         cools = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Cooling (W)']
         aheats = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Air Heating (W)']
@@ -478,11 +479,15 @@ def processf(pro_op, scene, node):
         comfpmvs = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'PMV']
         shgs = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Solar gain (W)']
 
-        for zn in set([t[0] for t in temps]):
+        for zn in set(zrls[2]):
             if temps:
                 areslists.append(['All', 'Zone', zn, 'Max temp (C)', ' '.join([str(max(t[1])) for t in temps if t[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Min temp (C)', ' '.join([str(min(t[1])) for t in temps if t[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Ave temp (C)', ' '.join([str(sum(t[1])/len(t[1])) for t in temps if t[0] == zn])])
+            if hums:
+                areslists.append(['All', 'Zone', zn, 'Max humidity (C)', ' '.join([str(max(h[1])) for h in hums if h[0] == zn])])
+                areslists.append(['All', 'Zone', zn, 'Min humidity (C)', ' '.join([str(min(h[1])) for h in hums if h[0] == zn])])
+                areslists.append(['All', 'Zone', zn, 'Ave humidity (C)', ' '.join([str(sum(h[1])/len(h[1])) for h in hums if h[0] == zn])])
             if heats:
                 areslists.append(['All', 'Zone', zn, 'Max heating (W)', ' '.join([str(max(h[1])) for h in heats if h[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Min heating (W)', ' '.join([str(min(h[1])) for h in heats if h[0] == zn])])

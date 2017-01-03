@@ -542,7 +542,25 @@ class LiViNode(bpy.types.Node, ViNodes):
                    self.animated, self.skymenu, self.shour, self.sdoy, self.startmonth, self.endmonth, self.damin, self.dasupp, self.dalux, self.daauto,
                    self.ehour, self.edoy, self.interval, self.hdr, self.hdrname, self.skyname, self.resname, self.turb, self.mtxname, self.cbdm_start_hour,
                    self.cbdm_end_hour, self.bambuildmenu)]
-                           
+
+class ViLiINode(bpy.types.Node, ViNodes):
+    '''Node describing a LiVi rpict simulation'''
+    bl_idname = 'ViLiINode'
+    bl_label = 'LiVi Image'
+    bl_icon = 'LAMP'
+
+    preview = bpy.props.BoolProperty(name = '', default = True)
+
+    def init(self, context):
+        self['nodeid'] = nodeid(self)
+        self.inputs.new('ViLiG', 'Geometry in')
+        self.inputs.new('ViLiC', 'Context in')
+        
+    def draw_buttons(self, context, layout):
+        newrow(layout, 'Preview:', self, 'preview')
+        row = layout.row()
+        row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']                           
+    
 class ViLiSNode(bpy.types.Node, ViNodes):
     '''Node describing a LiVi simulation'''
     bl_idname = 'ViLiSNode'

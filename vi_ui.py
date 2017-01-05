@@ -18,7 +18,7 @@ class Vi3DPanel(bpy.types.Panel):
         cao = context.active_object
         layout = self.layout
 
-        if scene.get('viparams') and cao and cao.active_material and cao.active_material.get('bsdf') and cao.active_material['bsdf']['type'] == '':
+        if scene.get('viparams') and cao and cao.active_material and cao.active_material.get('bsdf') and cao.active_material['bsdf']['type'] == ' ':
             if scene['viparams']['vidisp'] != 'bsdf_panel':
                 row = layout.row()
                 row.operator("view3d.bsdf_display", text="BSDF Display") 

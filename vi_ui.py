@@ -16,10 +16,19 @@ class Vi3DPanel(bpy.types.Panel):
     def draw(self, context):
         scene = context.scene
         cao = context.active_object
+        layout = self.layout
+
+        if scene.get('viparams') and cao and cao.active_material and cao.active_material.get('bsdf') and cao.active_material['bsdf']['type'] == '':
+            if scene['viparams']['vidisp'] != 'bsdf_panel':
+                row = layout.row()
+                row.operator("view3d.bsdf_display", text="BSDF Display") 
+            else:
+                newrow(layout, 'BSDF max:', scene, "vi_bsdfleg_max")
+                newrow(layout, 'BSDF min:', scene, "vi_bsdfleg_min")
+                newrow(layout, 'BSDF scale:', scene, "vi_leg_scale")
+                newrow(layout, 'BSDF colour:', scene, "vi_leg_col")
 
         if scene.get('viparams') and scene['viparams'].get('vidisp'): 
-            layout = self.layout
-
             if scene['viparams']['vidisp'] == 'wr' and 'Wind_Plane' in [o['VIType'] for o in bpy.data.objects if o.get('VIType')]:
                 row = layout.row()
                 row.operator('view3d.wrdisplay', text = 'Wind Metrics')#('INVOKE_DEFAULT'')
@@ -185,15 +194,7 @@ class Vi3DPanel(bpy.types.Panel):
                     row.prop(scene, 'bar_min')
                     row.prop(scene, 'bar_max')
 
-            if cao and cao.active_material and cao.active_material.get('bsdf'):
-                if scene['viparams']['vidisp'] != 'bsdf_panel':
-                    row = layout.row()
-                    row.operator("view3d.bsdf_display", text="BSDF Display") 
-                else:
-                    newrow(layout, 'BSDF max:', scene, "vi_bsdfleg_max")
-                    newrow(layout, 'BSDF min:', scene, "vi_bsdfleg_min")
-                    newrow(layout, 'BSDF scale:', scene, "vi_leg_scale")
-                    newrow(layout, 'BSDF colour:', scene, "vi_leg_col")
+            
                                 
             if scene.vi_display:            
                 newrow(layout, 'Display active', scene, 'vi_display')
@@ -549,7 +550,7 @@ class VIObPanel(bpy.types.Panel):
     
     #            if obj.get('bsdf'):
     #                row.operator("material.del_bsdf", text="Delete BSDF")
-                newrow(layout, 'Proxy:', obj, 'bsdf_proxy')
+#                newrow(layout, 'Proxy:', obj, 'bsdf_proxy')
 
 def rmmenu(layout, cm):
     row = layout.row()

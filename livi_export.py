@@ -226,41 +226,50 @@ def genbsdf(scene, export_op, o):
         mat['bsdf'] = {} 
     else:
         export_op.report({'ERROR'}, '{} does not have a BSDF material attached'.format(o.name))
-
+    
+    tm = o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW')
     bm = bmesh.new()    
-    bm.from_mesh(o.data) 
+    bm.from_mesh(tm) 
+    bpy.data.meshes.remove(tm)
     bm.transform(o.matrix_world)
     bm.normal_update()
     bsdffaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu == '8']    
     
     if bsdffaces:
         fvec = bsdffaces[0].normal
-        mat['bsdf']['normal'] = '{0[0]} {0[1]} {0[2]}'.format(fvec)
+        mat['bsdf']['normal'] = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f}'.format(fvec)
     else:
         export_op.report({'ERROR'}, '{} does not have a BSDF material associated with any faces'.format(o.name))
         return
     
     zvec, xvec = mathutils.Vector((0, 0, 1)), mathutils.Vector((1, 0, 0))
-    svec = fvec * mathutils.Matrix.Rotation(1.5 * math.pi, 4, zvec)
+#    svec = fvec * mathutils.Matrix.Rotation(1.5 * math.pi, 4, zvec)
+    svec = mathutils.Vector.cross(fvec, zvec)
+#    print(svec)
     bm.faces.ensure_lookup_table()
-    bsdfrotz = mathutils.Matrix.Rotation(mathutils.Vector.angle(fvec, zvec), 4, mathutils.Vector.cross(fvec, zvec))
+    bsdfrotz = mathutils.Matrix.Rotation(mathutils.Vector.angle(fvec, zvec), 4, svec)
     bm.transform(bsdfrotz)
-    bsdfrotx = mathutils.Matrix.Rotation(mathutils.Vector.angle(svec, xvec), 4, mathutils.Vector.cross(svec, xvec))
+#    print(bsdfrotz.to_euler('XYZ'))
+    bsdfrotx = mathutils.Matrix.Rotation(math.pi + mathutils.Vector.angle_signed(mathutils.Vector(xvec[:2]), mathutils.Vector(svec[:2])), 4, zvec)#mathutils.Vector.cross(svec, xvec))
+#    print(bsdfrotx.to_euler('XYZ'))
     bm.transform(bsdfrotx)
     vposis = list(zip(*[v.co[:] for v in bm.verts]))
     (maxx, maxy, maxz) = [max(p) for p in vposis]
     (minx, miny, minz) = [min(p) for p in vposis]
     bsdftrans = mathutils.Matrix.Translation(mathutils.Vector((-(maxx + minx)/2, -(maxy + miny)/2, -maxz)))
     bm.transform(bsdftrans)
+#    onewm = bpy.data.meshes.new("BSDF_copy")
+#    onew = bpy.data.objects.new("BSDF_copy", onewm)
+#    bm.to_mesh(onewm)
+#    bpy.context.scene.objects.link(onew)
     mradfile = ''.join([m.radmat(scene) for m in o.data.materials if m.radmatmenu != '8'])                  
     gradfile = radpoints(o, [face for face in bm.faces if o.data.materials and face.material_index < len(o.data.materials) and o.data.materials[face.material_index].radmatmenu != '8'], 0)
     bm.free()  
     bsdfsamp = o.li_bsdf_ksamp if o.li_bsdf_tensor == ' ' else 2**(int(o.li_bsdf_res) * 2) * int(o.li_bsdf_tsamp) 
     gbcmd = "genBSDF +geom meter -r '{}' {} {} -c {} {} -n {}".format(o.li_bsdf_rcparam,  o.li_bsdf_tensor, (o.li_bsdf_res, ' ')[o.li_bsdf_tensor == ' '], bsdfsamp, o.li_bsdf_direc, scene['viparams']['nproc'])
     mat['bsdf']['xml'] = Popen(shlex.split(gbcmd), stdin = PIPE, stdout = PIPE).communicate(input = (mradfile+gradfile).encode('utf-8'))[0].decode()
-    mat['bsdf']['proxy_depth'] = -minz if o.bsdf_proxy else 0
+#    mat['bsdf']['proxy_depth'] = -minz if o.bsdf_proxy else 0
     scene['viparams']['vidisp'] = 'bsdf'
-    scene['liparams']['bsdf'] = o.li_bsdf_tensor
-    
-
-    
+    mat['bsdf']['type'] = o.li_bsdf_tensor
+#    scene['liparams']['bsdf'] = o.li_bsdf_tensor
+        

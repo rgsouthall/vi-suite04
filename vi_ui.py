@@ -193,9 +193,7 @@ class Vi3DPanel(bpy.types.Panel):
                     row.label('Bar chart range:')
                     row.prop(scene, 'bar_min')
                     row.prop(scene, 'bar_max')
-
-            
-                                
+                                            
             if scene.vi_display:            
                 newrow(layout, 'Display active', scene, 'vi_display')
         
@@ -568,6 +566,8 @@ def rmmenu(layout, cm):
         newrow(layout, 'Proxy depth:', cm, 'li_bsdf_proxy_depth')
         row = layout.row()
         row.operator("material.load_bsdf", text="Load BSDF")
+    elif cm.radmatmenu == '9':
+        layout.prop_search(cm, 'radfile', bpy.data, 'texts', text='File', icon='TEXT')
     if cm.get('bsdf'):
         row.operator("material.del_bsdf", text="Delete BSDF")
         row = layout.row()
@@ -576,5 +576,10 @@ def rmmenu(layout, cm):
         newrow(layout, 'Photon Port:', cm, 'pport')
     if cm.radmatmenu in ('0', '1', '2', '3', '6'):
         newrow(layout, 'Textured:', cm, 'radtex')
+        if cm.radtex:
+            newrow(layout, 'Normal map:', cm, 'radnorm')
+            if cm.radnorm:
+                newrow(layout, 'Strength:', cm, 'ns')
+                newrow(layout, 'Up vector:', cm, 'nu')
     row = layout.row()
     row.label("-----------------------------------------")

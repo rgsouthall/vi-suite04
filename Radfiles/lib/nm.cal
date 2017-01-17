@@ -1,0 +1,12 @@
+{ddx(dx,dy)=sin(asin(Nx)+asin(dx))-Nx; 
+ddy(dx,dy)=sin(asin(Ny)+asin(dy))-Ny; 
+ddz(dx,dy)=sin(asin(Nz)+asin(dy))-Nz + sin(asin(Nz)+asin(dy))-Nz;}
+{dd(dx(dx,dy) = dx;
+ddy(dx,dy) = -dy;
+ddz(dx,dy)= 0;}
+Sx = A3*Nz - A4*Ny; 
+Sy = A2*Nz - A4*Nx;
+Sz = A2*Ny - A3*Nx;
+ddx(dx, dy) = A1*(Sx*dx-A2*dy);
+ddy(dx, dy) = A1*(Sy*dx-A3*dy);
+ddz(dx, dy) = A1*(Sz*dx+A4*dy);

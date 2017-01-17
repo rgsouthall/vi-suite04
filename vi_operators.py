@@ -215,6 +215,8 @@ class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
             if event.type == 'MOUSEMOVE':                
                 if self.bsdfmove:
                     self.bsdf.pos = [mx, my]
+                    context.area.tag_redraw()
+                    return {'RUNNING_MODAL'}
                 if self.bsdf.resize:
                     self.bsdf.lepos[0], self.bsdf.lspos[1] = mx, my
             
@@ -244,6 +246,9 @@ class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
                         self.bsdf.patch_select = sum(self.bsdf.phis[0:ri]) + uai
                         self.bsdf.plot(context)
                         self.bsdf.save(context.scene)
+                        context.area.tag_redraw()
+                        return {'RUNNING_MODAL'}
+                        
                 else:
                     self.bsdf.patch_hl = None
                     
@@ -456,7 +461,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
                 rvucmd = "rvu -w -ap {8} 50 {9} -n {0} -vv {1:.3f} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), cpfileentry)
                 
             else:
-                rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current)
+                rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)))
 
             rvurun = Popen(rvucmd.split(), stdout = PIPE, stderr = PIPE)
 
@@ -468,12 +473,178 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
                 elif 'x11' in line.decode():
                     self.report({'ERROR'}, "No X11 display server found. You may need to install XQuartz")
                     return {'CANCELLED'}
+                elif 'source center' in line.decode():
+                    self.report({'ERROR'}, "A light source has concave faces. Use mesh - cleanup - split concave faces")
+                    return {'CANCELLED'}
                 
             return {'FINISHED'}
         else:
             self.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
             return {'CANCELLED'}
 
+class NODE_OT_RadImage(bpy.types.Operator):
+    bl_idname = "node.radimage"
+    bl_label = "LiVi Image"
+    bl_description = "Generate an image with Rpict"
+    bl_register = True
+    bl_undo = False
+    nodeid = bpy.props.StringProperty()
+
+    def modal(self, context, event):
+        if event.type == 'TIMER':
+            if self.rprun.poll() is not None: # If finished
+                for line in self.rprun.stderr:
+                    print(line)
+                    if 'view up parallel to view direction' in line.decode():
+                        self.report({'ERROR'}, "Camera cannot point directly upwards")
+                        return {'CANCELLED'}
+                    elif 'x11' in line.decode():
+                        self.report({'ERROR'}, "No X11 display server found. You may need to install XQuartz")
+                        return {'CANCELLED'}
+                    elif 'source center' in line.decode():
+                        self.report({'ERROR'}, "A light source has concave faces. Use mesh - cleanup - split concave faces")
+                        return {'CANCELLED'}
+                
+                if self.frame > self.scene['liparams']['fe']:
+                    self.simnode['frames'] = [f for f in range(self.scene['liparams']['fs'], self.scene['liparams']['fe'] + 1)]
+                    return {self.terminate()}
+                            
+                elif self.frame > self.frameold:
+                    self.percent = (self.frame - self.scene['liparams']['fs']) * 100
+                    self.frameold = self.frame
+                    os.remove(self.rpictfile)
+                    if self.simnode.pmap:
+                        amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, self.frame, self.scene)
+                        pmcmd = ('mkpmap -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, self.scene['viparams']['filebase'], self.frame, self.simnode.pmapgno, cpentry, amentry))                   
+                        pmrun = Popen(pmcmd.split(), stderr = PIPE)
+                        for line in pmrun.stderr: 
+                            print('Photon map error: {}'.format(line))#        draw_image(self, self.ydiff * 0.1)
+                            if line.decode() in self.errdict:
+                                self.report({'ERROR'}, self.errdict[line.decode()])
+                                return {'CANCELLED'}
+                        rpictcmd = "rpict -w -e {7} -t 10 -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]:.3f} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} -ap {5} 50 {6} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, '{}-{}.gpm'.format(self.scene['viparams']['filebase'], self.frame), cpfileentry, self.rpictfile)
+                    else:
+                        rpictcmd = "rpict -w -e {5} -t 10 -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, self.rpictfile)
+                    self.rprun = Popen(rpictcmd.split(), stdout = PIPE)                    
+                    return {'RUNNING_MODAL'}  
+                self.frame += 1
+                return {'RUNNING_MODAL'}
+            else:
+                with open(self.rpictfile, 'r') as rpictfile:
+                    for line in rpictfile.readlines()[::-1]:
+                        if '%' in line:
+                            for lineentry in line.split():
+                                if '%' in lineentry:
+                                    self.percent = (float(lineentry.strip('%')) + (self.frame - self.scene['liparams']['fs']) * 100)/self.frames
+                            break
+     
+                if self.percent:
+                    if self.pfile.check(self.percent) == 'CANCELLED':                                    
+                        return {self.terminate()}
+                
+                return {'PASS_THROUGH'}
+        else:
+            return {'PASS_THROUGH'}
+            
+    def terminate(self):
+        nodecolour(self.simnode, 0)
+        self.kivyrun.kill() 
+        self.simnode.run = 0
+
+        if self.rprun.poll() == None:                          
+            self.rprun.kill()
+       
+        self.simnode.postsim()
+        return 'FINISHED'
+
+    def execute(self, context):        
+        self.scene = bpy.context.scene
+        self.cam = self.scene.camera
+        
+        if self.cam:
+            self.percent = 0
+            self.reslists = []
+            self.res = []
+            self.rpictfile = os.path.join(self.scene['viparams']['newdir'], 'rpictprogress')
+            self.simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+            self.simnode.presim()
+            self.simnode.run = 1
+            nodecolour(self.simnode, 1)
+            self.scene['liparams']['fs'] = min([c['fs'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
+            self.scene['liparams']['fe'] = max([c['fe'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
+            self.frames = self.scene['liparams']['fe'] - self.scene['liparams']['fs'] + 1
+            self.frame = self.scene['liparams']['fs']
+            self.frameold = self.frame
+            cang = self.cam.data.angle*180/pi
+      
+            vv = cang * self.simnode.y/self.simnode.x
+            vd = (0.001, 0, -1*self.cam.matrix_world[2][2]) if (round(-1*self.cam.matrix_world[0][2], 3), round(-1*self.cam.matrix_world[1][2], 3)) == (0.0, 0.0) else [-1*self.cam.matrix_world[i][2] for i in range(3)]
+
+            for frame in range(self.scene['liparams']['fs'], self.scene['liparams']['fe'] + 1):
+                createradfile(self.scene, frame, self, self.simnode)
+                createoconv(self.scene, frame, self, self.simnode)
+            if self.simnode.pmap:
+                self.errdict = {'fatal - too many prepasses, no global photons stored\n': "Too many prepasses have ocurred. Make sure light sources can see your geometry",
+                'fatal - too many prepasses, no global photons stored, no caustic photons stored\n': "Too many prepasses have ocurred. Turn off caustic photons and encompass the scene",
+               'fatal - zero flux from light sources\n': "No light flux, make sure there is a light source and that photon port normals point inwards",
+               'fatal - no light sources\n': "No light sources. Photon mapping does not work with HDR skies"}
+                amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, self.frame, self.scene)
+                pmcmd = ('mkpmap -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, self.scene['viparams']['filebase'], self.frame, self.simnode.pmapgno, cpentry, amentry))                   
+                pmrun = Popen(pmcmd.split(), stderr = PIPE)
+                for line in pmrun.stderr: 
+                    print('Photon map error: {}'.format(line))
+                    if line.decode() in self.errdict:
+                        self.report({'ERROR'}, self.errdict[line.decode()])
+                        return {'FINISHED'}
+                rpictcmd = "rpict -w -e {7} -t 1 -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]:.3f} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} -ap {5} 50 {6} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, '{}-{}.gpm'.format(self.scene['viparams']['filebase'], self.frame), cpfileentry, self.rpictfile)
+            else:
+                rpictcmd = "rpict -t 5 -e {12} -x {9} -y {10} {11} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct > {8}".format('', vv, cang, vd, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.scene.frame_current, self.simnode.hdrname, self.simnode.x, self.simnode.y, ('', '-i')[self.simnode.illu], self.rpictfile)
+            print('rpict command: {}'.format(rpictcmd))
+            self.starttime = datetime.datetime.now()
+            self.pfile = progressfile(self.scene, datetime.datetime.now(), 100)
+            self.kivyrun = progressbar(os.path.join(self.scene['viparams']['newdir'], 'viprogress'))
+            self.rprun = Popen(rpictcmd, stdout=PIPE, stderr = PIPE, shell = True)
+            wm = context.window_manager
+            self._timer = wm.event_timer_add(5, context.window)
+            wm.modal_handler_add(self)
+            return {'RUNNING_MODAL'}
+        else:
+            self.report({'ERROR'}, "There is no camera in the scene. Create one for glare analysis")
+            return {'FINISHED'}
+
+class NODE_OT_LiFC(bpy.types.Operator):            
+    bl_idname = "node.livifc"
+    bl_label = "LiVi False Colour Image"
+    bl_description = "False colour an image with falsecolor"
+    bl_register = True
+    bl_undo = False
+    nodeid = bpy.props.StringProperty()
+
+    def execute(self, context):
+        fcnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]] 
+        imnode = fcnode.inputs['Image'].links[0].from_node  
+        if not os.path.isfile(imnode.hdrname):
+            self.report({'ERROR'}, "The original image file is not valid")
+            return {'CANCELLED'} 
+        lmax = '-s {}'.format(fcnode.lmax) if fcnode.lmax else '-s a'
+        scaling = '' if fcnode.nscale == '0' else '-log {}'.format(fcnode.decades) 
+        mult = '-m {}'.format(fcnode.unitmult[fcnode.unit]) 
+        legend = '-l {} -lw {} -lh {} {} {} {}'.format(fcnode.unitdict[fcnode.unit], fcnode.lw, fcnode.lh, lmax, scaling, mult) if fcnode.legend else ''
+        bands = '-cb' if fcnode.bands else ''
+        contour = '-cl {}'.format(bands) if fcnode.contour else ''
+        poverlay = '-ip' if fcnode.contour and fcnode.overlay else '-i'
+        fccmd = 'falsecolor {} {} -pal {} {} {}'.format(poverlay, imnode.hdrname, fcnode.coldict[fcnode.colour], legend, contour, fcnode.hdrname)
+        with open(fcnode.hdrname, 'w') as fcfile:
+            Popen(fccmd.split(), stdout=fcfile, stderr = PIPE).wait()  
+        if 'fc.hdr' not in bpy.data.images:
+            im = bpy.data.images.load(fcnode.hdrname)
+            im.name = 'fc.hdr'
+        else:
+            bpy.data.images['fc.hdr'].reload()
+            bpy.data.images['fc.hdr'].name = 'fc.hdr'
+                                       
+        return {'FINISHED'}
+        
 class NODE_OT_LiViCalc(bpy.types.Operator):
     bl_idname = "node.livicalc"
     bl_label = "LiVi simulation"

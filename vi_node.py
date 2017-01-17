@@ -558,7 +558,122 @@ class ViLiINode(bpy.types.Node, ViNodes):
         newrow(layout, 'Preview:', self, 'preview')
         row = layout.row()
         row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']                           
+
+class ViLiINode(bpy.types.Node, ViNodes):
+    '''Node describing a LiVi image generation'''
+    bl_idname = 'ViLiINode'
+    bl_label = 'LiVi Image'
+    bl_icon = 'LAMP'
     
+    def nodeupdate(self, context):
+        self.outputs['Image'].hide = False if self.hdrname and os.path.isfile(self.hdrname) else True
+        self.running = 0
+    
+    cusacc = bpy.props.StringProperty(
+            name="", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
+    simacc = bpy.props.EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),("3", "Custom", "Edit Radiance parameters"), ],
+            name="", description="Simulation accuracy", default="0", update = nodeupdate)
+    rpictparams = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0.5, 0.15, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.0000002), ("-lr", 3, 3, 4))
+    pmap = bpy.props.BoolProperty(name = '', default = False)
+    x = bpy.props.IntProperty(name = '', min = 1, max = 10000, default = 2000)
+    y = bpy.props.IntProperty(name = '', min = 1, max = 10000, default = 1000)
+    hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="", update = nodeupdate)
+    run = bpy.props.BoolProperty(name = '', default = False) 
+    illu = bpy.props.BoolProperty(name = '', default = True)
+    
+    def init(self, context):
+        self['nodeid'] = nodeid(self)
+        self.inputs.new('ViLiG', 'Geometry in')
+        self.inputs.new('ViLiC', 'Context in')
+        self.outputs.new('ViLiI', 'Image')
+        self.outputs['Image'].hide = True
+        
+    def draw_buttons(self, context, layout):
+#        cinnode = self.inputs['Context in'].links[0].from_node
+        newrow(layout, 'Accuracy:', self, 'simacc')
+        if self.simacc == '3':
+            newrow(layout, "Radiance parameters:", self, 'cusacc')
+        row = layout.row()
+        row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']  
+        newrow(layout, 'X resolution:', self, 'x')
+        newrow(layout, 'Y resolution:', self, 'y')
+        newrow(layout, 'Illuminance:', self, 'illu')
+        row = layout.row()
+        row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
+        row = layout.row()
+        row.prop(self, 'hdrname')
+        row = layout.row()
+        if not self.run:
+            row.operator("node.radimage", text = 'Image').nodeid = self['nodeid']
+
+    def presim(self):
+        self['coptions'] = self.inputs['Context in'].links[0].from_node['Options']
+        self['goptions'] = self.inputs['Geometry in'].links[0].from_node['Options']
+        self['radfiles'], self['reslists'] = {}, [[]]
+        self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rpictparams], [n[int(self.simacc)+1] for n in self.rpictparams]))
+    
+    def sim(self, scene):
+        self['frames'] = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
+        
+    def postsim(self):
+#        self['exportstate'] = [str(x) for x in (self.cusacc, self.simacc, self.csimacc, self.pmap, self.pmapcno, self.pmapgno)]
+        nodecolour(self, 0)   
+
+class ViLiFCNode(bpy.types.Node, ViNodes):
+    '''Node describing a LiVi false colour image generation'''
+    bl_idname = 'ViLiFCNode'
+    bl_label = 'LiVi False Colour Image'
+    bl_icon = 'LAMP'  
+
+    def nodeupdate(self, context):
+        pass
+
+    hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="", update = nodeupdate)    
+    colour = bpy.props.EnumProperty(items=[("0", "Default", "Default color mapping"), ("1", "Spectral", "Spectral color mapping"), ("2", "Thermal", "Thermal colour mapping"), ("3", "PM3D", "PM3D colour mapping"), ("4", "Eco", "Eco color mapping")],
+            name="", description="Simulation accuracy", default="0", update = nodeupdate)             
+    lmax = bpy.props.IntProperty(name = '', min = 0, max = 10000, default = 1000)
+    unit = bpy.props.EnumProperty(items=[("0", "Lux", "Spectral color mapping"),("1", "Candelas", "Thermal colour mapping"), ("2", "DF", "PM3D colour mapping"), ("3", "Irradiance(v)", "PM3D colour mapping")],
+            name="", description="Unit", default="0", update = nodeupdate)
+    nscale = bpy.props.EnumProperty(items=[("0", "Linear", "Linear mapping"),("1", "Log", "Logarithmic mapping")],
+            name="", description="Scale", default="0", update = nodeupdate)
+    decades = bpy.props.IntProperty(name = '', min = 1, max = 5, default = 2)
+    unitdict = {'0': 'Lux', '1': 'cd/m2', '2': 'DF', '3': 'W/m2'}
+    unitmult = {'0': 179, '1': 179, '2': 1.79, '3': 1}
+    legend  = bpy.props.BoolProperty(name = '', default = True)
+    lw = bpy.props.IntProperty(name = '', min = 1, max = 1000, default = 100)
+    lh = bpy.props.IntProperty(name = '', min = 1, max = 1000, default = 200)
+    contour  = bpy.props.BoolProperty(name = '', default = False)
+    overlay  = bpy.props.BoolProperty(name = '', default = False)
+    bands  = bpy.props.BoolProperty(name = '', default = False)
+    coldict = {'0': 'def', '1': 'spec', '2': 'hot', '3': 'pm3d', '4': 'eco'}
+
+    def init(self, context):
+        self['nodeid'] = nodeid(self)
+        self.inputs.new('ViLiI', 'Image')
+        
+    def draw_buttons(self, context, layout):
+        newrow(layout, 'Unit:', self, 'unit')
+        newrow(layout, 'Colour:', self, 'colour')
+        newrow(layout, 'Legend:', self, 'legend')
+        if self.legend:
+            newrow(layout, 'Scale:', self, 'nscale')
+            if self.nscale == '1':
+                newrow(layout, 'Decades:', self, 'decades')
+            newrow(layout, 'Legend max:', self, 'lmax')
+            newrow(layout, 'Legend width:', self, 'lw')
+            newrow(layout, 'Legend height:', self, 'lh')
+        newrow(layout, 'Contour:', self, 'contour')
+        if self.contour:
+           newrow(layout, 'Overlay:', self, 'overlay') 
+           newrow(layout, 'Bands:', self, 'bands') 
+        row = layout.row()
+        row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
+        row = layout.row()
+        row.prop(self, 'hdrname')
+        if self.hdrname and os.path.isfile(self.hdrname) and self.inputs['Image'].links:
+            row = layout.row()
+            row.operator("node.livifc", text = 'Process').nodeid = self['nodeid']
+            
 class ViLiSNode(bpy.types.Node, ViNodes):
     '''Node describing a LiVi simulation'''
     bl_idname = 'ViLiSNode'
@@ -612,7 +727,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
                 if cinnode['Options']['Preview']:
                     row = layout.row()
                     row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']
-                if cinnode['Options']['Context'] == 'Basic' and cinnode['Options']['Type'] == '1':
+                if cinnode['Options']['Context'] == 'Basic' and cinnode['Options']['Type'] == '1' and not self.run:
                     row.operator("node.liviglare", text = 'Calculate').nodeid = self['nodeid']
                 elif [o.name for o in scene.objects if o.name in scene['liparams']['livic']]:
                     row.operator("node.livicalc", text = 'Calculate').nodeid = self['nodeid']
@@ -1798,7 +1913,7 @@ vinodecat = [NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode
 vigennodecat = [NodeItem("ViGenNode", label="VI-Suite Generative"), NodeItem("ViTarNode", label="VI-Suite Target")]
 
 vidisnodecat = [NodeItem("ViChNode", label="VI-Suite Chart")]
-vioutnodecat = [NodeItem("ViCSV", label="VI-Suite CSV"), NodeItem("ViText", label="VI-Suite Text")]
+vioutnodecat = [NodeItem("ViCSV", label="VI-Suite CSV"), NodeItem("ViText", label="VI-Suite Text"), NodeItem("ViLiINode", label="LiVi Image"), NodeItem("ViLiFCNode", label="LiVi FC Image")]
 viinnodecat = [NodeItem("ViLoc", label="VI Location"), NodeItem("ViEnInNode", label="EnergyPlus input file"), NodeItem("ViEnRFNode", label="EnergyPlus result file"), 
                NodeItem("ViASCImport", label="Import ESRI Grid file")]
 

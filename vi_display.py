@@ -94,9 +94,12 @@ def li_display(disp_op, simnode):
     
     for i, o in enumerate([scene.objects[oname] for oname in scene['liparams']['{}c'.format(mtype)]]):        
         bm = bmesh.new()
-        bm.from_mesh(o.data) 
-        bm.transform(o.matrix_world)
-        bm.normal_update()
+        tempmesh = o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW')
+        bm.from_mesh(tempmesh)
+        bpy.data.meshes.remove(tempmesh) 
+#        bm.normal_update()
+#        bm.transform(o.matrix_world)
+#        
                  
         if scene['liparams']['cp'] == '0':  
             cindex = bm.faces.layers.int['cindex']
@@ -115,6 +118,7 @@ def li_display(disp_op, simnode):
             bm.verts.layers.shape.remove(bm.verts.layers.shape[-1])
         
         for v in bm.verts:
+            print(nsum([f.normal for f in v.link_faces], axis = 0))
             v.co += mathutils.Vector((nsum([f.normal for f in v.link_faces], axis = 0))).normalized()  * simnode['goptions']['offset']
         
         selobj(scene, o)
@@ -155,7 +159,7 @@ def li_display(disp_op, simnode):
                 face.select = True
                 face[extrude] = 1
                 
-        bm.transform(o.matrix_world.inverted())
+#        bm.transform(o.matrix_world.inverted())
         bm.to_mesh(ores.data)
         bm.free()
         bpy.ops.object.shade_flat()        
@@ -948,10 +952,13 @@ def wr_disp(self, context, simnode):
         self.table.draw(context, width, height)
     
 def basic_disp(self, context, simnode):
-    if self._handle_disp:
-        width, height = context.region.width, context.region.height
-        self.legend.draw(context, width, height)
-        self.table.draw(context, width, height)
+    try:
+        if self._handle_disp:
+            width, height = context.region.width, context.region.height
+            self.legend.draw(context, width, height)
+            self.table.draw(context, width, height)
+    except:
+        pass
 
 def bsdf_disp(self, context):
     try:

@@ -88,13 +88,13 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
         mrms = array([m.radmatmenu for m in o.data.materials])
         mpps = array([not m.pport for m in o.data.materials])        
         mnpps = where(mpps, 0, 1)        
-        mmrms = in1d(mrms, array(('0', '1', '2', '3', '6')))        
-        fmrms = in1d(mrms, array(('0', '1', '2', '3', '6', '7')), invert = True)
+        mmrms = in1d(mrms, array(('0', '1', '2', '3', '6', '9')))        
+        fmrms = in1d(mrms, array(('0', '1', '2', '3', '6', '7', '9')), invert = True)
         mfaces = [f for f in bm.faces if (mmrms * mpps)[f.material_index]]
         ffaces = [f for f in bm.faces if (fmrms + mnpps)[f.material_index]]        
 #        mfaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu in ('0', '1', '2', '3') and not o.data.materials[face.material_index].pport]
 #        ffaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu not in ('0', '1', '2', '3', '7', '8') or o.data.materials[face.material_index].pport]    
-        mmats = [mat for mat in o.data.materials if mat.radmatmenu in ('0', '1', '2', '3', '6')]
+        mmats = [mat for mat in o.data.materials if mat.radmatmenu in ('0', '1', '2', '3', '6', '9')]
         otext = 'o {}\n'.format(o.name)
         vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts])
         if o.data.polygons[0].use_smooth:
@@ -158,8 +158,25 @@ def radmat(self, scene):
             scene.render.image_settings.file_format = off
             (w, h) = teximage.size
             ar = ('*{}'.format(w/h), '') if w >= h else ('', '*{}'.format(h/w))
-            radtex = 'void colorpict {}_tex\n7 red green blue {} . Lu{} Lv{}\n0\n0\n\n'.format(radname, '{}'.format(teximageloc), ar[0], ar[1])
+            radtex = 'void colorpict {}_tex\n7 red green blue {} . frac(Lu){} frac(Lv){}\n0\n0\n\n'.format(radname, '{}'.format(teximageloc), ar[0], ar[1])
             mod = '{}_tex'.format(radname)
+            try:
+                if self.radnorm:             
+                    normimage = self.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node.inputs['Normal'].links[0].from_node.inputs['Color'].links[0].from_node.image
+                    header = '2\n0 1 {}\n0 1 {}\n'.format(normimage.size[1], normimage.size[0])
+                    p = array(normimage.pixels[:])
+                    totpix = normimage.size[0] * normimage.size[1]
+                    xdat = (-1 + 2 * p.reshape(totpix, int(len(p)/totpix))[:,0]).reshape(normimage.size[0], normimage.size[1])                   
+                    ydat = (-1 + 2 * p.reshape(totpix, int(len(p)/totpix))[:,1]).reshape(normimage.size[0], normimage.size[1])
+
+                    with open(os.path.join(scene['liparams']['texfilebase'],'{}.ddx'.format(radname)), 'w') as xfile:
+                        xfile.write(header + '\n'.join([' '.join(map(str, xd)) for xd in xdat]))
+                    with open(os.path.join(scene['liparams']['texfilebase'],'{}.ddy'.format(radname)), 'w') as yfile:
+                        yfile.write(header + '\n'.join([' '.join(map(str, xd)) for xd in ydat]))
+                    radtex += "{0}_tex texdata {0}_norm\n9 ddx ddy ddz {1}.ddx {1}.ddy {1}.ddy nm.cal frac(Lv){2} frac(Lu){3}\n0\n4 {4} {5[0]} {5[1]} {5[2]}\n\n".format(radname, os.path.join(scene['viparams']['newdir'], 'textures', radname), ar[0], ar[1], self.ns, self.nu)
+                    mod = '{}_norm'.format(radname)
+            except Exception as e:
+                print('Problem with normal export {}'.format(e))
         except Exception as e:
             print('Problem with texture export {}'.format(e))
          
@@ -181,10 +198,9 @@ def radmat(self, scene):
             bsdffile.write(self['bsdf']['xml'])
         radentry = 'void BSDF {0}\n6 {1:.4f} {2} 0 0 1 .\n0\n0\n\n'.format(radname, self.li_bsdf_proxy_depth, bsdfxml)
         
-    if self.radmatmenu == '9':
-        if self.name in [t.name for t in bpy.data.texts]:
-            radentry = bpy.data.texts[self.name].as_string()+'\n\n'
-            
+    elif self.radmatmenu == '9':
+        radentry = bpy.data.texts[self.radfile].as_string()+'\n\n' if self.radfile in [t.name for t in bpy.data.texts] else '# dummy material\nvoid plastic {}\n0\n0\n5 0.8 0.8 0.8 0.1 0.1\n\n'.format(radname)
+                        
     self['radentry'] = radtex + radentry
     return(radtex + radentry)
     

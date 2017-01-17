@@ -318,6 +318,10 @@ def register():
     Material.radmatdict = {'0': ['radcolour', 0, 'radrough', 'radspec'], '1': ['radcolour'], '2': ['radcolour', 0, 'radior'], '3': ['radcolour', 0, 'radspec', 'radrough', 0, 'radtrans',  'radtranspec'], '4': ['radcolour'], '5': ['radcolour', 0, 'radintensity'], '6': ['radcolour', 0, 'radrough', 'radspec'], '7': [], '8': [], '9': []}
     Material.pport = bprop("", "Flag to signify whether the material represents a Photon Port", False)
     Material.radtex = bprop("", "Flag to signify whether the material has a texture associated with it", False)
+    Material.radnorm = bprop("", "Flag to signify whether the material has a normal map associated with it", False)
+    Material.ns = fprop("", "Strength of normal effect", 0, 5, 1)
+    Material.nu = fvprop(3, '', 'Image up vector', [1, 0, 0], 'VELOCITY', -1, 1)
+
     radtypes = [('0', 'Plastic', 'Plastic Radiance material'), ('1', 'Glass', 'Glass Radiance material'), ('2', 'Dielectric', 'Dialectric Radiance material'),
                 ('3', 'Translucent', 'Translucent Radiance material'), ('4', 'Mirror', 'Mirror Radiance material'), ('5', 'Light', 'Emission Radiance material'),
                 ('6', 'Metal', 'Metal Radiance material'), ('7', 'Anti-matter', 'Antimatter Radiance material'), ('8', 'BSDF', 'BSDF Radiance material'), ('9', 'Custom', 'Custom Radiance material')]
@@ -328,7 +332,8 @@ def register():
     Material.radtrans = fprop("Transmission", "Material transmissivity", 0, 1, 0.1)
     Material.radtranspec  = fprop("Trans spec", "Material specular transmission", 0, 1, 0.1)
     Material.radior  = fprop("IOR", "Material index of refractionn", 0, 5, 1.5)
-    Material.radintensity = fprop("Intensity", u"Material radiance (W/sr/m\u00b2)", 0, 100, 1)    
+    Material.radintensity = fprop("Intensity", u"Material radiance (W/sr/m\u00b2)", 0, 100, 1)   
+    Material.radfile = sprop("", "Radiance file material decription", 1024, "")
     Material.vi_shadow = bprop("VI Shadow", "Flag to signify whether the material represents a VI Shadow sensing surface", False)
     Material.livi_sense = bprop("LiVi Sensor", "Flag to signify whether the material represents a LiVi sensing surface", False)
     Material.livi_compliance = bprop("LiVi Compliance Surface", "Flag to siginify whether the material represents a LiVi compliance surface", False)
@@ -576,7 +581,7 @@ def register():
     Scene.en_totshgkwh_min = bpy.props.FloatProperty(name = "Min", description = "Total solar heat gain minimum", default = 5, min = 0, update=setcols)
     Scene.bar_min = bpy.props.FloatProperty(name = "Min", description = "Bar graph minimum", default = 0, update=setcols)
     Scene.bar_max = bpy.props.FloatProperty(name = "Max", description = "Bar graph maximum", default = 100, update=setcols)
-    Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 48, 24)
+    Scene.vi_display_rp_fs = iprop("", "Point result font size", 4, 120, 24)
     Scene.vi_display_rp_fc = fvprop(4, "", "Font colour", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)
     Scene.vi_display_rp_sh = bprop("", "Toggle for font shadow display",  False)
     Scene.vi_display_rp_fsh = fvprop(4, "", "Font shadow", [0.0, 0.0, 0.0, 1.0], 'COLOR', 0, 1)

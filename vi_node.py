@@ -541,23 +541,23 @@ class LiViNode(bpy.types.Node, ViNodes):
                    self.ehour, self.edoy, self.interval, self.hdr, self.hdrname, self.skyname, self.resname, self.turb, self.mtxname, self.cbdm_start_hour,
                    self.cbdm_end_hour, self.bambuildmenu)]
 
-class ViLiINode(bpy.types.Node, ViNodes):
-    '''Node describing a LiVi rpict simulation'''
-    bl_idname = 'ViLiINode'
-    bl_label = 'LiVi Image'
-    bl_icon = 'LAMP'
-
-    preview = bpy.props.BoolProperty(name = '', default = True)
-
-    def init(self, context):
-        self['nodeid'] = nodeid(self)
-        self.inputs.new('ViLiG', 'Geometry in')
-        self.inputs.new('ViLiC', 'Context in')
-        
-    def draw_buttons(self, context, layout):
-        newrow(layout, 'Preview:', self, 'preview')
-        row = layout.row()
-        row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']                           
+#class ViLiINode(bpy.types.Node, ViNodes):
+#    '''Node describing a LiVi rpict simulation'''
+#    bl_idname = 'ViLiINode'
+#    bl_label = 'LiVi Image'
+#    bl_icon = 'LAMP'
+#
+#    preview = bpy.props.BoolProperty(name = '', default = True)
+#
+#    def init(self, context):
+#        self['nodeid'] = nodeid(self)
+#        self.inputs.new('ViLiG', 'Geometry in')
+#        self.inputs.new('ViLiC', 'Context in')
+#        
+#    def draw_buttons(self, context, layout):
+#        newrow(layout, 'Preview:', self, 'preview')
+#        row = layout.row()
+#        row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']                           
 
 class ViLiINode(bpy.types.Node, ViNodes):
     '''Node describing a LiVi image generation'''
@@ -616,6 +616,7 @@ class ViLiINode(bpy.types.Node, ViNodes):
         self['frames'] = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
         
     def postsim(self):
+        self.run = 0
 #        self['exportstate'] = [str(x) for x in (self.cusacc, self.simacc, self.csimacc, self.pmap, self.pmapcno, self.pmapgno)]
         nodecolour(self, 0)   
 

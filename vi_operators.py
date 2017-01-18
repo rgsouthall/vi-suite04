@@ -399,16 +399,42 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
     bl_register = True
     bl_undo = False
     nodeid = bpy.props.StringProperty()
+    
+    def modal(self, context, event):
+        if event.type == 'TIMER':
+            if self.rvurun.poll() is not None: # If finished
+                for line in self.rvurun.stderr:
+                    print(line)
+                    if 'view up parallel to view direction' in line.decode():
+                        self.report({'ERROR'}, "Camera cannot point directly upwards")
+                        self.simnode.run = 0
+                        return {'CANCELLED'}
+                    elif 'x11' in line.decode():
+                        self.report({'ERROR'}, "No X11 display server found. You may need to install XQuartz")
+                        self.simnode.run = 0
+                        return {'CANCELLED'}
+                    elif 'source center' in line.decode():
+                        self.report({'ERROR'}, "A light source has concave faces. Use mesh - cleanup - split concave faces")
+                        self.simnode.run = 0
+                        return {'CANCELLED'}
+                    else:
+                        self.simnode.run = 0
+                        return {'FINISHED'}
+            else:           
+                return {'PASS_THROUGH'}
+        else:
+            return {'PASS_THROUGH'}
+        
 
     def invoke(self, context, event):
         scene = context.scene
         if viparams(self, scene):
             return {'CANCELLED'}
         objmode()
-        simnode, frame = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]], scene.frame_current
-        simnode.presim()
-        scene['liparams']['fs'] = min([c['fs'] for c in (simnode['goptions'], simnode['coptions'])])
-        scene['liparams']['fe'] = max([c['fe'] for c in (simnode['goptions'], simnode['coptions'])])
+        self.simnode, frame = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]], scene.frame_current
+        self.simnode.presim()
+        scene['liparams']['fs'] = min([c['fs'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
+        scene['liparams']['fe'] = max([c['fe'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
 
         if frame not in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
             self.report({'ERROR'}, "Current frame is not within the exported frame range")
@@ -418,13 +444,13 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
         
         if cam:
             curres = 0
-            createradfile(scene, frame, self, simnode)
-            createoconv(scene, frame, self, simnode)
-            cang = '180 -vth ' if simnode['coptions']['Context'] == 'Basic' and simnode['coptions']['Type'] == '1' else cam.data.angle*180/pi
-            vv = 180 if simnode['coptions']['Context'] == 'Basic' and simnode['coptions']['Type'] == '1' else cang * scene.render.resolution_y/scene.render.resolution_x
+            createradfile(scene, frame, self, self.simnode)
+            createoconv(scene, frame, self, self.simnode)
+            cang = '180 -vth ' if self.simnode['coptions']['Context'] == 'Basic' and self.simnode['coptions']['Type'] == '1' else cam.data.angle*180/pi
+            vv = 180 if self.simnode['coptions']['Context'] == 'Basic' and self.simnode['coptions']['Type'] == '1' else cang * scene.render.resolution_y/scene.render.resolution_x
             vd = (0.001, 0, -1*cam.matrix_world[2][2]) if (round(-1*cam.matrix_world[0][2], 3), round(-1*cam.matrix_world[1][2], 3)) == (0.0, 0.0) else [-1*cam.matrix_world[i][2] for i in range(3)]
 
-            if simnode.pmap:
+            if self.simnode.pmap:
                 self.pfile = progressfile(scene, datetime.datetime.now(), 100)
                 self.kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'))
                 errdict = {'fatal - too many prepasses, no global photons stored\n': "Too many prepasses have ocurred. Make sure light sources can see your geometry",
@@ -432,9 +458,9 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
                'fatal - zero flux from light sources\n': "No light flux, make sure there is a light source and that photon port normals point inwards",
                'fatal - no light sources in distribPhotons\n': "No light sources. Photon mapping does not work with HDR skies",
                'fatal - no valid photon ports found\n': 'Re-export the geometry'}
-                amentry, pportentry, cpentry, cpfileentry = retpmap(simnode, frame, scene)
+                amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, frame, scene)
                 open('{}.pmapmon'.format(scene['viparams']['filebase']), 'w')
-                pmcmd = 'mkpmap -t 20 -e {1}.pmapmon -fo+ -bv+ -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, scene['viparams']['filebase'], frame, simnode.pmapgno, cpentry, amentry)
+                pmcmd = 'mkpmap -w -t 20 -e {1}.pmapmon -fo+ -bv+ -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, scene['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry)
                 pmrun = Popen(pmcmd.split(), stderr = PIPE, stdout = PIPE)
 
                 while pmrun.poll() is None:   
@@ -458,26 +484,31 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
                             self.report({'ERROR'}, errdict[line])
                             return {'CANCELLED'}
                                         
-                rvucmd = "rvu -w -ap {8} 50 {9} -n {0} -vv {1:.3f} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), cpfileentry)
+                rvucmd = "rvu -w -ap {8} 50 {9} -n {0} -vv {1:.3f} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, self.simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), cpfileentry)
                 
             else:
-                rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)))
+                rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, self.simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)))
 
-            rvurun = Popen(rvucmd.split(), stdout = PIPE, stderr = PIPE)
+            self.rvurun = Popen(rvucmd.split(), stdout = PIPE, stderr = PIPE)
+            self.simnode.run = 1
+            wm = context.window_manager
+            self._timer = wm.event_timer_add(5, context.window)
+            wm.modal_handler_add(self)
+            return {'RUNNING_MODAL'}
 
-            for line in rvurun.stderr:
-                print(line)
-                if 'view up parallel to view direction' in line.decode():
-                    self.report({'ERROR'}, "Camera cannot point directly upwards")
-                    return {'CANCELLED'}
-                elif 'x11' in line.decode():
-                    self.report({'ERROR'}, "No X11 display server found. You may need to install XQuartz")
-                    return {'CANCELLED'}
-                elif 'source center' in line.decode():
-                    self.report({'ERROR'}, "A light source has concave faces. Use mesh - cleanup - split concave faces")
-                    return {'CANCELLED'}
-                
-            return {'FINISHED'}
+#            for line in rvurun.stderr:
+#                print(line)
+#                if 'view up parallel to view direction' in line.decode():
+#                    self.report({'ERROR'}, "Camera cannot point directly upwards")
+#                    return {'CANCELLED'}
+#                elif 'x11' in line.decode():
+#                    self.report({'ERROR'}, "No X11 display server found. You may need to install XQuartz")
+#                    return {'CANCELLED'}
+#                elif 'source center' in line.decode():
+#                    self.report({'ERROR'}, "A light source has concave faces. Use mesh - cleanup - split concave faces")
+#                    return {'CANCELLED'}
+#                
+#            return {'FINISHED'}
         else:
             self.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
             return {'CANCELLED'}

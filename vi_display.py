@@ -118,7 +118,6 @@ def li_display(disp_op, simnode):
             bm.verts.layers.shape.remove(bm.verts.layers.shape[-1])
         
         for v in bm.verts:
-            print(nsum([f.normal for f in v.link_faces], axis = 0))
             v.co += mathutils.Vector((nsum([f.normal for f in v.link_faces], axis = 0))).normalized()  * simnode['goptions']['offset']
         
         selobj(scene, o)
@@ -945,11 +944,14 @@ class en_table(Base_Display):
         draw_table(self)
             
 def wr_disp(self, context, simnode):
-    if self._handle_wr_disp:
-        width, height = context.region.width, context.region.height
-        self.legend.draw(context, width, height)
-        self.dhscatter.draw(context, width, height)
-        self.table.draw(context, width, height)
+    try:
+        if self._handle_wr_disp:
+            width, height = context.region.width, context.region.height
+            self.legend.draw(context, width, height)
+            self.dhscatter.draw(context, width, height)
+            self.table.draw(context, width, height)
+    except:
+        pass
     
 def basic_disp(self, context, simnode):
     try:

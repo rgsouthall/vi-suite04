@@ -97,7 +97,10 @@ class ViLoc(bpy.types.Node, ViNodes):
             node.update()
                 
     def retentries(self, context):
-        return [tuple(e) for e in self['entries']]
+        try:
+            return [tuple(e) for e in self['entries']]
+        except:
+            return [('None', 'None','None' )]
                   
     weather = bpy.props.EnumProperty(name = 'Weather file', items=retentries, update=updatelatlong)
     loc = bpy.props.EnumProperty(items = [("0", "Manual", "Manual location"), ("1", "EPW ", "Get location from EPW file")], name = "", description = "Location", default = "0", update = updatelatlong)
@@ -877,6 +880,9 @@ class ViWRNode(bpy.types.Node, ViNodes):
     def export(self):
         nodecolour(self, 0)
         self['exportstate'] = [str(x) for x in (self.wrtype, self.sdoy, self.edoy)]
+        
+    def update(self):
+        pass
 
 class ViGExEnNode(bpy.types.Node, ViNodes):
     '''Node describing an EnVi Geometry Export'''

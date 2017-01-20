@@ -2372,7 +2372,7 @@ def set_legend(ax):
 def wr_axes():
     fig = plt.figure(figsize=(8, 8), dpi=150, facecolor='w', edgecolor='w')
     rect = [0.1, 0.1, 0.8, 0.8]
-    ax = WindroseAxes(fig, rect, axisbg='w')
+    ax = WindroseAxes(fig, rect, facecolor='w')
     fig.add_axes(ax)
     return(fig, ax)
 

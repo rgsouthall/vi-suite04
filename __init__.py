@@ -505,6 +505,9 @@ def register():
                                              ('CMRmap', 'CMR', 'CMR colour scale'), ('jet', 'Jet', 'Jet colour scale'), ('plasma', 'Plasma', 'Plasma colour scale'), ('hsv', 'HSV', 'HSV colour scale'), ('viridis', 'Viridis', 'Viridis colour scale')], name = "", description = "Legend scale", default = 'rainbow', update=colupdate)
     Scene.vi_bsdfleg_max = bpy.props.FloatProperty(name = "", description = "Legend maximum", min = 0, max = 1000000, default = 100)
     Scene.vi_bsdfleg_min = bpy.props.FloatProperty(name = "", description = "Legend minimum", min = 0, max = 1000000, default = 0)
+    Scene.gridifyup = fvprop(3, '', 'Grid up vector', [1, 0, 0], 'VELOCITY', -1, 1)
+    Scene.gridifyus = fprop("", "Up direction size", 0.01, 10, 0.6)
+    Scene.gridifyas = fprop("", "Side direction size", 0.01, 10, 0.6)
 
 #    Scene.vi_lbsdf_direc = EnumProperty(items = bsdfdirec, name = "", description = "Legend scale")
     

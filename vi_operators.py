@@ -2973,7 +2973,7 @@ class Gridify(bpy.types.Operator):
             context.area.tag_redraw()
             return {'CANCELLED'}
 
-        elif event.type == 'RET':
+        elif event.ctrl and event.type == 'RET':
             return {'FINISHED'}
             
         else:
@@ -2982,16 +2982,20 @@ class Gridify(bpy.types.Operator):
     def invoke(self, context, event):
         scene = context.scene
         self.o = bpy.context.active_object
-        self.bm = bmesh.new()
-        tm = self.o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW')
-        self.bm.from_mesh(tm)
-        bpy.data.meshes.remove(tm)
-        self.ft = 1
-        self.upv = mathutils.Vector([x for x in scene.gridifyup])
-        self.us = scene.gridifyus
-        self.acs = scene.gridifyas
-        context.window_manager.modal_handler_add(self)
-        return {'RUNNING_MODAL'}
+        if self.o.data.materials:
+            self.bm = bmesh.new()
+            tm = self.o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW')
+            self.bm.from_mesh(tm)
+            bpy.data.meshes.remove(tm)
+            self.ft = 1
+            self.upv = mathutils.Vector([x for x in scene.gridifyup])
+            self.us = scene.gridifyus
+            self.acs = scene.gridifyas
+            context.window_manager.modal_handler_add(self)
+            return {'RUNNING_MODAL'}
+        else:
+            self.report({'ERROR'}, "No materials associated with object")
+            return {'CANCELLED'}
  
 
 #class VIEW3D_OT_SPTime(bpy.types.Operator):

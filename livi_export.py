@@ -68,9 +68,8 @@ def radgexport(export_op, node, **kwargs):
             bm.transform(o.matrix_world)
             bm.normal_update() 
             bpy.data.meshes.remove(tempmesh)
-#            bm.normal_update() 
+
             gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename)
-#            gradfile = ' '.join((gradfile, bmesh2mesh(scene, bm, o, frame, tempmatfilename)))
                         
             if o in caloblist:
                 geom = (bm.faces, bm.verts)[int(node.cpoint)]
@@ -101,6 +100,7 @@ def radgexport(export_op, node, **kwargs):
                     if o.parent:
                         o = o.parent
                     lradfile += u'!xform -rx {0[0]:.3f} -ry {0[1]:.3f} -rz {0[2]:.3f} -t {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} "{2}.rad"\n\n'.format([(180/pi)*o.rotation_euler[i] for i in range(3)], o.location, os.path.join(scene['liparams']['lightfilebase'], iesname+"-{}".format(frame)))
+
                 elif o.type == 'MESH':
                     tm = o.to_mesh(scene = bpy.context.scene, apply_modifiers = True, settings = 'PREVIEW')
                     bm = bmesh.new()
@@ -258,13 +258,10 @@ def genbsdf(scene, export_op, o):
     zvec, xvec = mathutils.Vector((0, 0, 1)), mathutils.Vector((1, 0, 0))
 #    svec = fvec * mathutils.Matrix.Rotation(1.5 * math.pi, 4, zvec)
     svec = mathutils.Vector.cross(fvec, zvec)
-#    print(svec)
     bm.faces.ensure_lookup_table()
     bsdfrotz = mathutils.Matrix.Rotation(mathutils.Vector.angle(fvec, zvec), 4, svec)
     bm.transform(bsdfrotz)
-#    print(bsdfrotz.to_euler('XYZ'))
     bsdfrotx = mathutils.Matrix.Rotation(math.pi + mathutils.Vector.angle_signed(mathutils.Vector(xvec[:2]), mathutils.Vector(svec[:2])), 4, zvec)#mathutils.Vector.cross(svec, xvec))
-#    print(bsdfrotx.to_euler('XYZ'))
     bm.transform(bsdfrotx)
     vposis = list(zip(*[v.co[:] for v in bm.verts]))
     (maxx, maxy, maxz) = [max(p) for p in vposis]
@@ -284,5 +281,4 @@ def genbsdf(scene, export_op, o):
 #    mat['bsdf']['proxy_depth'] = -minz if o.bsdf_proxy else 0
     scene['viparams']['vidisp'] = 'bsdf'
     mat['bsdf']['type'] = o.li_bsdf_tensor
-#    scene['liparams']['bsdf'] = o.li_bsdf_tensor
         

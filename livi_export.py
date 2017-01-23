@@ -89,6 +89,8 @@ def radgexport(export_op, node, **kwargs):
 
         lradfile = "# Lights \n\n"
         for o in lightlist:
+            if ' ' in o.ies_name:
+                export_op.report({'ERROR'}, 'There is a space in the {} IES file name - rename it'.format(o.name))
             iesname = os.path.splitext(os.path.basename(o.ies_name))[0]
 
             if os.path.isfile(o.ies_name):
@@ -100,8 +102,18 @@ def radgexport(export_op, node, **kwargs):
                         o = o.parent
                     lradfile += u'!xform -rx {0[0]:.3f} -ry {0[1]:.3f} -rz {0[2]:.3f} -t {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} "{2}.rad"\n\n'.format([(180/pi)*o.rotation_euler[i] for i in range(3)], o.location, os.path.join(scene['liparams']['lightfilebase'], iesname+"-{}".format(frame)))
                 elif o.type == 'MESH':
-                    for face in o.data.polygons:
-                        lradfile += u'!xform -rx {0[0]:.3f} -ry {0[1]:.3f} -rz {0[2]:.3f} -t {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} "{2}"{3}'.format(o.matrix_world.to_quaternion() * mathutils.Vector((0, 0, -1)), o.matrix_world * face.center, os.path.join(scene['liparams']['lightfilebase'], iesname+"-{}.rad".format(frame)), ('\n', '\n\n')[face == o.data.polygons[-1]])
+                    tm = o.to_mesh(scene = bpy.context.scene, apply_modifiers = True, settings = 'PREVIEW')
+                    bm = bmesh.new()
+                    bm.from_mesh(tm)
+                    bpy.data.meshes.remove(tm)
+                    bm.transform(o.matrix_world)
+                    bm.normal_update()
+                    bm.faces.ensure_lookup_table()
+                    for f in bm.faces: 
+                        lrot = mathutils.Vector.rotation_difference(mathutils.Vector((0, 0, -1)), f.normal).to_euler('XYZ')
+                        lradfile += u'!xform -rx {0[0]:.3f} -ry {0[1]:.3f} -rz {0[2]:.3f} -t {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} "{2}"{3}'.format([math.degrees(lr) for lr in lrot], f.calc_center_bounds(), os.path.join(scene['liparams']['lightfilebase'], iesname+"-{}.rad".format(frame)), ('\n', '\n\n')[f == bm.faces[-1]])
+                    bm.free()
+
             elif iesname:
                 export_op.report({'ERROR'}, 'The IES file associated with {} cannot be found'.format(o.name))
 

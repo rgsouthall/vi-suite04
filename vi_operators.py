@@ -2920,6 +2920,80 @@ class NODE_OT_FVSolve(bpy.types.Operator):
         simnode.export()
         return {'FINISHED'}
 
+class Gridify(bpy.types.Operator):
+    ''''''
+    bl_idname = "view3d.gridify"
+    bl_label = "Gridify"
+     
+    def modal(self, context, event):
+        scene = context.scene
+        if self.upv != scene.gridifyup or self.us != scene.gridifyus or self.acs != context.scene.gridifyas or self.ft:
+            self.bmnew = self.bm.copy()
+            self.bmnew.transform(self.o.matrix_world)
+            self.ft = 0
+            self.upv = mathutils.Vector([x for x in context.scene.gridifyup])
+            self.us = context.scene.gridifyus
+            self.acs = context.scene.gridifyas
+            self.bmnew.faces.ensure_lookup_table()
+            self.bmnew.verts.ensure_lookup_table()
+            norm = context.scene.gridifyup.normalized()
+            norm2 = context.scene.gridifyup.normalized()
+            vs = self.bmnew.verts[:]
+            es = self.bmnew.edges[:]
+            fs = [f for f in self.bmnew.faces[:] if self.o.data.materials[f.material_index] and self.o.data.materials[f.material_index].mattype == '1']
+            gs = vs + es + fs 
+            eul = mathutils.Euler(math.radians(-90) * fs[0].normal, 'XYZ')
+            norm2.rotate(eul)         
+            vertdots = [mathutils.Vector.dot(norm, vert.co) for vert in self.bmnew.verts]
+            vertdots2 = [mathutils.Vector.dot(norm2, vert.co) for vert in self.bmnew.verts]
+            svpos = self.bmnew.verts[vertdots.index(min(vertdots))].co
+            svpos2 = self.bmnew.verts[vertdots2.index(min(vertdots2))].co
+            res1, res2, ngs1, ngs2, gs1, gs2 = 1, 1, context.scene.gridifyus, context.scene.gridifyas, context.scene.gridifyus, context.scene.gridifyas
+              
+            while res1:
+                res = bmesh.ops.bisect_plane(self.bmnew, geom = gs, dist = 0.001, plane_co = svpos + ngs1 * norm, plane_no = norm, use_snap_center = 0, clear_outer = 0, clear_inner = 0)
+                res1 = res['geom_cut']
+                gs = self.bmnew.verts[:] + self.bmnew.edges[:] + [v for v in res['geom'] if isinstance(v, bmesh.types.BMFace)]
+                ngs1 += gs1
+        
+            while res2:
+                res = bmesh.ops.bisect_plane(self.bmnew, geom = gs, dist = 0.001, plane_co = svpos2 + ngs2 * norm2, plane_no = norm2, use_snap_center = 0, clear_outer = 0, clear_inner = 0)
+                res2 = res['geom_cut']
+                gs = self.bmnew.verts[:] + self.bmnew.edges[:] + [v for v in res['geom'] if isinstance(v, bmesh.types.BMFace)]
+                ngs2 += gs2
+             
+            self.bmnew.transform(self.o.matrix_world.inverted())
+            self.bmnew.to_mesh(self.o.data)
+            self.bmnew.free()
+            context.area.tag_redraw()
+            return {'RUNNING_MODAL'}
+
+        elif event.type == 'ESC':  
+            self.bm.to_mesh(self.o.data)
+            context.area.tag_redraw()
+            return {'CANCELLED'}
+
+        elif event.type == 'RET':
+            return {'FINISHED'}
+            
+        else:
+            return {'PASS_THROUGH'}
+     
+    def invoke(self, context, event):
+        scene = context.scene
+        self.o = bpy.context.active_object
+        self.bm = bmesh.new()
+        tm = self.o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW')
+        self.bm.from_mesh(tm)
+        bpy.data.meshes.remove(tm)
+        self.ft = 1
+        self.upv = mathutils.Vector([x for x in scene.gridifyup])
+        self.us = scene.gridifyus
+        self.acs = scene.gridifyas
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+ 
+
 #class VIEW3D_OT_SPTime(bpy.types.Operator):
 #    '''Display results legend and stats in the 3D View'''
 #    bl_idname = "view3d.sptimeisplay"

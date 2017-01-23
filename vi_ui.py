@@ -584,3 +584,23 @@ def rmmenu(layout, cm):
                 newrow(layout, 'Green direction:', cm, 'gup')
     row = layout.row()
     row.label("-----------------------------------------")
+    
+class MESH_Gridify_Panel(bpy.types.Panel):
+     bl_label = "Gridify Panel"
+     bl_space_type = "VIEW_3D"
+     bl_region_type = "TOOLS"
+     bl_context = "objectmode"
+     bl_category = "VI-Suite"
+ 
+     def draw(self, context):         
+         scene = context.scene
+         layout = self.layout
+         row = layout.row()
+         row.label("Up vector:")
+         row.prop(scene, "gridifyup")
+         row = layout.row()
+         row.prop(scene, "gridifyus")
+         row = layout.row()
+         row.prop(scene, "gridifyas")
+         row = layout.row()
+         row.operator("view3d.gridify", text="Grid the object")

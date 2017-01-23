@@ -266,7 +266,7 @@ class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
                 
     def invoke(self, context, event):
         cao = context.active_object
-        if cao and cao.active_material.get('bsdf') and cao.active_material['bsdf']['xml'] and context.scene['liparams']['bsdf'] == ' ':
+        if cao and cao.active_material.get('bsdf') and cao.active_material['bsdf']['xml'] and cao.active_material['bsdf']['type'] == ' ':
             width, height = context.region.width, context.region.height
             self.bsdf = bsdf([160, height - 40], width, height, 'bsdf.png', 750, 400)
             self.bsdf.update(context)
@@ -420,6 +420,8 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
                     else:
                         self.simnode.run = 0
                         return {'FINISHED'}
+                self.simnode.run = 0
+                return {'FINISHED'}
             else:           
                 return {'PASS_THROUGH'}
         else:
@@ -460,7 +462,8 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
                'fatal - no valid photon ports found\n': 'Re-export the geometry'}
                 amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, frame, scene)
                 open('{}.pmapmon'.format(scene['viparams']['filebase']), 'w')
-                pmcmd = 'mkpmap -w -t 20 -e {1}.pmapmon -fo+ -bv+ -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, scene['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry)
+                pmcmd = 'mkpmap -t 20 -e {1}.pmapmon -fo+ -bv+ -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, scene['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry)
+                print(pmcmd)
                 pmrun = Popen(pmcmd.split(), stderr = PIPE, stdout = PIPE)
 
                 while pmrun.poll() is None:   

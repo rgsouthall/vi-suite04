@@ -581,5 +581,6 @@ def rmmenu(layout, cm):
             if cm.radnorm:
                 newrow(layout, 'Strength:', cm, 'ns')
                 newrow(layout, 'Up vector:', cm, 'nu')
+                newrow(layout, 'Green direction:', cm, 'gup')
     row = layout.row()
     row.label("-----------------------------------------")

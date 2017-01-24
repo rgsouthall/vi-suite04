@@ -1,6 +1,6 @@
 Sx = A3*Nz - A4*Ny; 
-Sy = A4*Nx - A2*Nz;
-Sz = A3*Nx - A2*Ny;
+Sy = A2*Nz - A4*Nx;
+Sz = A2*Ny - A3*Nx;
 ddx(dx, dy) = A1*(Sx*dx+A2*dy);
 ddy(dx, dy) = A1*(Sy*dx+A3*dy);
 ddz(dx, dy) = A1*(Sz*dx+A4*dy);

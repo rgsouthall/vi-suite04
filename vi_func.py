@@ -167,7 +167,7 @@ def radmat(self, scene):
                     p = array(normimage.pixels[:])
                     totpix = normimage.size[0] * normimage.size[1]
                     xdat = (-1 + 2 * p.reshape(totpix, int(len(p)/totpix))[:,0]).reshape(normimage.size[0], normimage.size[1])                   
-                    ydat = (-1 + 2 * p.reshape(totpix, int(len(p)/totpix))[:,1]).reshape(normimage.size[0], normimage.size[1]) if self.gup == '1' else (1 - 2 * p.reshape(totpix, int(len(p)/totpix))[:,1]).reshape(normimage.size[0], normimage.size[1])
+                    ydat = (-1 + 2 * p.reshape(totpix, int(len(p)/totpix))[:,1]).reshape(normimage.size[0], normimage.size[1]) if self.gup == '0' else (1 - 2 * p.reshape(totpix, int(len(p)/totpix))[:,1]).reshape(normimage.size[0], normimage.size[1])
 
                     with open(os.path.join(scene['liparams']['texfilebase'],'{}.ddx'.format(radname)), 'w') as xfile:
                         xfile.write(header + '\n'.join([' '.join(map(str, xd)) for xd in xdat]))

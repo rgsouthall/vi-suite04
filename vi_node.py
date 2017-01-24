@@ -1406,6 +1406,20 @@ class ViLiCSock(bpy.types.NodeSocket):
 
     def draw_color(self, context, node):
         return (1.0, 1.0, 0.0, 0.75)
+    
+class ViLiISock(bpy.types.NodeSocket):
+    '''Lighting context in socket'''
+    bl_idname = 'ViLiI'
+    bl_label = 'Image'
+
+    valid = ['image']
+    link_limit = 1
+
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+
+    def draw_color(self, context, node):
+        return (0.5, 1.0, 0.0, 0.75)
         
 class ViGen(bpy.types.NodeSocket):
     '''VI Generative geometry socket'''

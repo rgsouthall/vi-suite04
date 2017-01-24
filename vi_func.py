@@ -175,6 +175,7 @@ def radmat(self, scene):
                         yfile.write(header + '\n'.join([' '.join(map(str, xd)) for xd in ydat]))
                     radtex += "{0}_tex texdata {0}_norm\n9 ddx ddy ddz {1}.ddx {1}.ddy {1}.ddy nm.cal frac(Lv){2} frac(Lu){3}\n0\n4 {4} {5[0]} {5[1]} {5[2]}\n\n".format(radname, os.path.join(scene['viparams']['newdir'], 'textures', radname), ar[0], ar[1], self.ns, self.nu)
                     mod = '{}_norm'.format(radname)
+                    
             except Exception as e:
                 print('Problem with normal export {}'.format(e))
         except Exception as e:
@@ -400,8 +401,11 @@ class progressfile():
                 return 'CANCELLED'
                 
         with open(os.path.join(self.scene['viparams']['newdir'], 'viprogress'), 'w') as pfile:
-            dt = (datetime.datetime.now() - self.starttime) * (self.calcsteps - curres)/curres
-            pfile.write('{} {}'.format(int(100 * curres/self.calcsteps), datetime.timedelta(seconds = dt.seconds)))
+            if curres:
+                dt = (datetime.datetime.now() - self.starttime) * (self.calcsteps - curres)/curres
+                pfile.write('{} {}'.format(int(100 * curres/self.calcsteps), datetime.timedelta(seconds = dt.seconds)))
+            else:
+                pfile.write('0 Initialising')
         
 def progressbar(file):
     kivytext = "# -*- coding: "+sys.getfilesystemencoding()+" -*-\n\

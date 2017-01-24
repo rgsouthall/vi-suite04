@@ -445,7 +445,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
         cam = scene.camera
         
         if cam:
-            curres = 0
+            curres = 0.1
             createradfile(scene, frame, self, self.simnode)
             createoconv(scene, frame, self, self.simnode)
             cang = '180 -vth ' if self.simnode['coptions']['Context'] == 'Basic' and self.simnode['coptions']['Type'] == '1' else cam.data.angle*180/pi
@@ -473,10 +473,10 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
                             if '%' in line:
                                 curres = float(line.split()[6][:-2])
                                 break
-                    if curres:                                
-                        if self.pfile.check(curres) == 'CANCELLED': 
-                            pmrun.kill()                                   
-                            return 'CANCELLED'
+                                
+                    if self.pfile.check(curres) == 'CANCELLED': 
+                        pmrun.kill()                                   
+                        return {'CANCELLED'}
                 
                 if self.kivyrun.poll() is None:
                     self.kivyrun.kill()
@@ -487,7 +487,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
                             self.report({'ERROR'}, errdict[line])
                             return {'CANCELLED'}
                                         
-                rvucmd = "rvu -w -ap {8} 50 {9} -n {0} -vv {1:.3f} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, self.simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), cpfileentry)
+                rvucmd = "rvu -w -ap {8} 50 {9} -n {0} -vv {1:.3f} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {10[0]:.3f} {10[1]:.3f} {10[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, self.simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), cpfileentry, cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)))
                 
             else:
                 rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, self.simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)))

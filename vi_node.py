@@ -569,30 +569,29 @@ class ViLiINode(bpy.types.Node, ViNodes):
     bl_icon = 'LAMP'
     
     def nodeupdate(self, context):
-        self.outputs['Image'].hide = False if self.hdrname and os.path.isfile(self.hdrname) else True
-        self.running = 0
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.cusacc, self.simacc, self.pmap, self.x, self.y, self.run, self.illu)])
     
     cusacc = bpy.props.StringProperty(
             name="", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
     simacc = bpy.props.EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),("3", "Custom", "Edit Radiance parameters"), ],
             name="", description="Simulation accuracy", default="0", update = nodeupdate)
     rpictparams = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0.5, 0.15, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.0000002), ("-lr", 3, 3, 4))
-    pmap = bpy.props.BoolProperty(name = '', default = False)
-    x = bpy.props.IntProperty(name = '', min = 1, max = 10000, default = 2000)
-    y = bpy.props.IntProperty(name = '', min = 1, max = 10000, default = 1000)
+    pmap = bpy.props.BoolProperty(name = '', default = False, update = nodeupdate)
+    x = bpy.props.IntProperty(name = '', min = 1, max = 10000, default = 2000, update = nodeupdate)
+    y = bpy.props.IntProperty(name = '', min = 1, max = 10000, default = 1000, update = nodeupdate)
     hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="", update = nodeupdate)
-    run = bpy.props.BoolProperty(name = '', default = False) 
-    illu = bpy.props.BoolProperty(name = '', default = True)
+    run = bpy.props.BoolProperty(name = '', default = False, update = nodeupdate) 
+    illu = bpy.props.BoolProperty(name = '', default = True, update = nodeupdate)
     
     def init(self, context):
+        self['exportstate'] = ''
         self['nodeid'] = nodeid(self)
         self.inputs.new('ViLiG', 'Geometry in')
         self.inputs.new('ViLiC', 'Context in')
         self.outputs.new('ViLiI', 'Image')
-        self.outputs['Image'].hide = True
+        
         
     def draw_buttons(self, context, layout):
-#        cinnode = self.inputs['Context in'].links[0].from_node
         newrow(layout, 'Accuracy:', self, 'simacc')
         if self.simacc == '3':
             newrow(layout, "Radiance parameters:", self, 'cusacc')
@@ -620,7 +619,7 @@ class ViLiINode(bpy.types.Node, ViNodes):
         
     def postsim(self):
         self.run = 0
-#        self['exportstate'] = [str(x) for x in (self.cusacc, self.simacc, self.csimacc, self.pmap, self.pmapcno, self.pmapgno)]
+        self['exportstate'] = [str(x) for x in (self.cusacc, self.simacc, self.pmap, self.x, self.y, self.run, self.illu)]
         nodecolour(self, 0)   
 
 class ViLiFCNode(bpy.types.Node, ViNodes):
@@ -630,28 +629,30 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
     bl_icon = 'LAMP'  
 
     def nodeupdate(self, context):
-        pass
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.hdrname, self.colour, self.lmax, self.unit, self.nscale, self.decades, 
+                   self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands)])
 
     hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="", update = nodeupdate)    
     colour = bpy.props.EnumProperty(items=[("0", "Default", "Default color mapping"), ("1", "Spectral", "Spectral color mapping"), ("2", "Thermal", "Thermal colour mapping"), ("3", "PM3D", "PM3D colour mapping"), ("4", "Eco", "Eco color mapping")],
             name="", description="Simulation accuracy", default="0", update = nodeupdate)             
-    lmax = bpy.props.IntProperty(name = '', min = 0, max = 10000, default = 1000)
+    lmax = bpy.props.IntProperty(name = '', min = 0, max = 10000, default = 1000, update = nodeupdate)
     unit = bpy.props.EnumProperty(items=[("0", "Lux", "Spectral color mapping"),("1", "Candelas", "Thermal colour mapping"), ("2", "DF", "PM3D colour mapping"), ("3", "Irradiance(v)", "PM3D colour mapping")],
             name="", description="Unit", default="0", update = nodeupdate)
     nscale = bpy.props.EnumProperty(items=[("0", "Linear", "Linear mapping"),("1", "Log", "Logarithmic mapping")],
             name="", description="Scale", default="0", update = nodeupdate)
-    decades = bpy.props.IntProperty(name = '', min = 1, max = 5, default = 2)
+    decades = bpy.props.IntProperty(name = '', min = 1, max = 5, default = 2, update = nodeupdate)
     unitdict = {'0': 'Lux', '1': 'cd/m2', '2': 'DF', '3': 'W/m2'}
     unitmult = {'0': 179, '1': 179, '2': 1.79, '3': 1}
-    legend  = bpy.props.BoolProperty(name = '', default = True)
-    lw = bpy.props.IntProperty(name = '', min = 1, max = 1000, default = 100)
-    lh = bpy.props.IntProperty(name = '', min = 1, max = 1000, default = 200)
-    contour  = bpy.props.BoolProperty(name = '', default = False)
-    overlay  = bpy.props.BoolProperty(name = '', default = False)
-    bands  = bpy.props.BoolProperty(name = '', default = False)
+    legend  = bpy.props.BoolProperty(name = '', default = True, update = nodeupdate)
+    lw = bpy.props.IntProperty(name = '', min = 1, max = 1000, default = 100, update = nodeupdate)
+    lh = bpy.props.IntProperty(name = '', min = 1, max = 1000, default = 200, update = nodeupdate)
+    contour  = bpy.props.BoolProperty(name = '', default = False, update = nodeupdate)
+    overlay  = bpy.props.BoolProperty(name = '', default = False, update = nodeupdate)
+    bands  = bpy.props.BoolProperty(name = '', default = False, update = nodeupdate)
     coldict = {'0': 'def', '1': 'spec', '2': 'hot', '3': 'pm3d', '4': 'eco'}
 
     def init(self, context):
+        self['exportstate'] = ''
         self['nodeid'] = nodeid(self)
         self.inputs.new('ViLiI', 'Image')
         
@@ -674,9 +675,13 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
         row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
         row = layout.row()
         row.prop(self, 'hdrname')
-        if self.hdrname and os.path.isfile(self.hdrname) and self.inputs['Image'].links:
+        if self.inputs['Image'].links and self.inputs['Image'].links[0].from_node.hdrname and os.path.isfile(self.inputs['Image'].links[0].from_node.hdrname):
             row = layout.row()
             row.operator("node.livifc", text = 'Process').nodeid = self['nodeid']
+            
+    def postsim(self):
+        self['exportstate'] = [str(x) for x in (self.hdrname, self.colour, self.lmax, self.unit, self.nscale, self.decades, 
+                   self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands)]
             
 class ViLiSNode(bpy.types.Node, ViNodes):
     '''Node describing a LiVi simulation'''

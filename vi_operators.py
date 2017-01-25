@@ -556,9 +556,9 @@ class NODE_OT_RadImage(bpy.types.Operator):
                             if line.decode() in self.errdict:
                                 self.report({'ERROR'}, self.errdict[line.decode()])
                                 return {'CANCELLED'}
-                        rpictcmd = "rpict -w -e {7} -t 10 -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]:.3f} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} -ap {5} 50 {6} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, '{}-{}.gpm'.format(self.scene['viparams']['filebase'], self.frame), cpfileentry, self.rpictfile)
+                        rpictcmd = "rpict -w -e {7} -t 10 -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]:.3f} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} -vu {8[0]} {8[1]} {8[2]} {2} -ap {5} 50 {6} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, '{}-{}.gpm'.format(self.scene['viparams']['filebase'], self.frame), cpfileentry, self.rpictfile, self.cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)))
                     else:
-                        rpictcmd = "rpict -w -e {5} -t 10 -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, self.rpictfile)
+                        rpictcmd = "rpict -w -e {5} -t 10 -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} -vu {6[0]} {6[1]} {6[2]} {2} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, self.rpictfile, self.cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)))
                     self.rprun = Popen(rpictcmd.split(), stdout = PIPE)                    
                     return {'RUNNING_MODAL'}  
                 self.frame += 1
@@ -656,7 +656,9 @@ class NODE_OT_LiFC(bpy.types.Operator):
 
     def execute(self, context):
         fcnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]] 
-        imnode = fcnode.inputs['Image'].links[0].from_node  
+#        if fcnode.inputs['Image'].links:
+        imnode = fcnode.inputs['Image'].links[0].from_node 
+                              
         if not os.path.isfile(imnode.hdrname):
             self.report({'ERROR'}, "The original image file is not valid")
             return {'CANCELLED'} 

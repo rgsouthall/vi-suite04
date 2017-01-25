@@ -595,12 +595,8 @@ class MESH_Gridify_Panel(bpy.types.Panel):
      def draw(self, context):         
          scene = context.scene
          layout = self.layout
-         row = layout.row()
-         row.label("Up vector:")
-         row.prop(scene, "gridifyup")
-         row = layout.row()
-         row.prop(scene, "gridifyus")
-         row = layout.row()
-         row.prop(scene, "gridifyas")
+         newrow(layout, 'Up vector:', scene, 'gridifyup')
+         newrow(layout, 'Up size:', scene, 'gridifyus')
+         newrow(layout, 'Across size:', scene, 'gridifyas')
          row = layout.row()
          row.operator("view3d.gridify", text="Grid the object")

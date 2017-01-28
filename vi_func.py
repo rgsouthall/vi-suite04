@@ -458,6 +458,11 @@ if __name__ == '__main__':\n\
     with open(file+".py", 'w') as kivyfile:
         kivyfile.write(kivytext)
     return Popen([bpy.app.binary_path_python, file+".py"])
+
+def logentry(text):
+    log = bpy.data.texts.new('vi-suite-log') if 'vi-suite-log' not in bpy.data.texts else bpy.data.texts['vi-suite-log']
+    log.write('')
+    log.write('{}'.format(text))
     
 def retsv(self, scene, frame, rtframe, chunk, rt):
     svcmd = "rcontrib -w -I -n {} {} -m sky_glow {}-{}.oct ".format(scene['viparams']['nproc'], '-ab 1 -ad 8192 -aa 0 -ar 512 -as 1024 -lw 0.0002 ', scene['viparams']['filebase'], frame)    

@@ -1,7 +1,16 @@
+{
+Normal map conversion
+
+Nabs(i) = select(i, abs(Nx), abs(Ny), abs(Nz));
+S(i) = select(i, Sx, Sy, Sz);
+Ux = cross(1, S, N);
+Uy = cross(2, S, N);
+Uz = cross(3, S, N);}
+
 A(i): select(i, A2, A3, A4);
 Sx = cross(1, A, N);
 Sy = cross(2, A, N);
 Sz = cross(3, A, N);
-ddx(dx, dy) = A1*(Sx*dx+A2*dy);
-ddy(dx, dy) = A1*(-Sy*dx+A3*dy);
-ddz(dx, dy) = A1*(Sz*dx+A4*dy);
+ddx(dx, dy) = if(Rdot,1,-1)*A1*(Sx*dx+A2*dy);
+ddy(dx, dy) = A1*(Sy*dx+A3*dy);
+ddz(dx, dy) = if(Rdot,1,-1)*A1*(Sz*dx+A4*dy);

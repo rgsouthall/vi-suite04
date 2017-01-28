@@ -577,6 +577,8 @@ class ViLiINode(bpy.types.Node, ViNodes):
             name="", description="Simulation accuracy", default="0", update = nodeupdate)
     rpictparams = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0.5, 0.15, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.0000002), ("-lr", 3, 3, 4))
     pmap = bpy.props.BoolProperty(name = '', default = False, update = nodeupdate)
+    pmapgno = bpy.props.IntProperty(name = '', default = 50000)
+    pmapcno = bpy.props.IntProperty(name = '', default = 0)
     x = bpy.props.IntProperty(name = '', min = 1, max = 10000, default = 2000, update = nodeupdate)
     y = bpy.props.IntProperty(name = '', min = 1, max = 10000, default = 1000, update = nodeupdate)
     hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="", update = nodeupdate)
@@ -600,6 +602,10 @@ class ViLiINode(bpy.types.Node, ViNodes):
         newrow(layout, 'X resolution:', self, 'x')
         newrow(layout, 'Y resolution:', self, 'y')
         newrow(layout, 'Illuminance:', self, 'illu')
+        newrow(layout, 'Photon map:', self, 'pmap')
+        if self.pmap:
+           newrow(layout, 'Global photons:', self, 'pmapgno')
+           newrow(layout, 'Caustic photons:', self, 'pmapcno')
         row = layout.row()
         row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
         row = layout.row()
@@ -727,9 +733,9 @@ class ViLiSNode(bpy.types.Node, ViNodes):
                newrow(layout, 'Global photons:', self, 'pmapgno')
                newrow(layout, 'Caustic photons:', self, 'pmapcno')
             row = layout.row()
-            row.label("Accuracy:")
-            
+            row.label("Accuracy:")            
             row.prop(self, self['simdict'][cinnode['Options']['Context']])
+            
             if (self.simacc == '3' and cinnode['Options']['Context'] == 'Basic') or (self.csimacc == '0' and cinnode['Options']['Context'] in ('Compliance', 'CBDM')):
                newrow(layout, "Radiance parameters:", self, 'cusacc')
             if not self.run:

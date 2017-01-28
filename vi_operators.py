@@ -44,7 +44,7 @@ from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum
 from .vi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, sunposenvi, clearlayers
-from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, chunks, xy2radial
+from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, chunks, xy2radial, logentry
 from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
 from .vi_chart import chart_disp
 #from .vi_gen import vigen
@@ -404,7 +404,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
         if event.type == 'TIMER':
             if self.rvurun.poll() is not None: # If finished
                 for line in self.rvurun.stderr:
-                    print(line)
+                    logentry(line)
                     if 'view up parallel to view direction' in line.decode():
                         self.report({'ERROR'}, "Camera cannot point directly upwards")
                         self.simnode.run = 0
@@ -484,6 +484,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
                 with open('{}.pmapmon'.format(scene['viparams']['filebase']), 'r') as pmapfile:
                     for line in pmapfile.readlines():
                         if line in errdict:
+                            logentry(line)
                             self.report({'ERROR'}, errdict[line])
                             return {'CANCELLED'}
                                         
@@ -528,7 +529,7 @@ class NODE_OT_RadImage(bpy.types.Operator):
         if event.type == 'TIMER':
             if self.rprun.poll() is not None: # If finished
                 for line in self.rprun.stderr:
-                    print(line)
+                    logentry(line)
                     if 'view up parallel to view direction' in line.decode():
                         self.report({'ERROR'}, "Camera cannot point directly upwards")
                         return {'CANCELLED'}
@@ -552,8 +553,10 @@ class NODE_OT_RadImage(bpy.types.Operator):
                         pmcmd = ('mkpmap -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, self.scene['viparams']['filebase'], self.frame, self.simnode.pmapgno, cpentry, amentry))                   
                         pmrun = Popen(pmcmd.split(), stderr = PIPE)
                         for line in pmrun.stderr: 
-                            print('Photon map error: {}'.format(line))#        draw_image(self, self.ydiff * 0.1)
+                            logentry('Photon map error: {}'.format(line.decode))#        draw_image(self, self.ydiff * 0.1)
+                            
                             if line.decode() in self.errdict:
+                                
                                 self.report({'ERROR'}, self.errdict[line.decode()])
                                 return {'CANCELLED'}
                         rpictcmd = "rpict -w -e {7} -t 10 -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]:.3f} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} -vu {8[0]} {8[1]} {8[2]} {2} -ap {5} 50 {6} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, '{}-{}.gpm'.format(self.scene['viparams']['filebase'], self.frame), cpfileentry, self.rpictfile, self.cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)))
@@ -621,18 +624,49 @@ class NODE_OT_RadImage(bpy.types.Operator):
                 self.errdict = {'fatal - too many prepasses, no global photons stored\n': "Too many prepasses have ocurred. Make sure light sources can see your geometry",
                 'fatal - too many prepasses, no global photons stored, no caustic photons stored\n': "Too many prepasses have ocurred. Turn off caustic photons and encompass the scene",
                'fatal - zero flux from light sources\n': "No light flux, make sure there is a light source and that photon port normals point inwards",
-               'fatal - no light sources\n': "No light sources. Photon mapping does not work with HDR skies"}
+               'fatal - no light sources\n': "No light sources. Photon mapping does not work with HDR skies",
+               'fatal - failed photon distribution\n': "failed photon distribution"}
                 amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, self.frame, self.scene)
                 pmcmd = ('mkpmap -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, self.scene['viparams']['filebase'], self.frame, self.simnode.pmapgno, cpentry, amentry))                   
                 pmrun = Popen(pmcmd.split(), stderr = PIPE)
                 for line in pmrun.stderr: 
-                    print('Photon map error: {}'.format(line))
+                    logentry('Photon map message: {}'.format(line.decode()))
                     if line.decode() in self.errdict:
                         self.report({'ERROR'}, self.errdict[line.decode()])
-                        return {'FINISHED'}
-                rpictcmd = "rpict -w -e {7} -t 1 -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]:.3f} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} -ap {5} 50 {6} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, '{}-{}.gpm'.format(self.scene['viparams']['filebase'], self.frame), cpfileentry, self.rpictfile)
+                        self.simnode.postsim()
+                        return {'CANCELLED'}
+
+                rpictcmd = "rpict -t 5 -e {14} -x {9} -y {10} {11} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {15[0]:.3f} {15[1]:.3f} {15[2]:.3f} {5} -ap {12} 50 {13} {5} {6}-{7}.oct > {8}".format('', 
+                                          vv, 
+                                          cang, 
+                                          vd, 
+                                          self.cam.location, 
+                                          self.simnode['radparams'], 
+                                          self.scene['viparams']['filebase'], 
+                                            self.frame, 
+                                            self.simnode.hdrname, 
+                                            self.simnode.x, 
+                                            self.simnode.y, 
+                                            ('', '-i')[self.simnode.illu], 
+                                            '{}-{}.gpm'.format(self.scene['viparams']['filebase'], self.frame), 
+                                             cpfileentry, 
+                                             self.rpictfile, 
+                                             self.cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)))
             else:
-                rpictcmd = "rpict -t 5 -e {12} -x {9} -y {10} {11} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} {5} {6}-{7}.oct > {8}".format('', vv, cang, vd, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.scene.frame_current, self.simnode.hdrname, self.simnode.x, self.simnode.y, ('', '-i')[self.simnode.illu], self.rpictfile)
+                rpictcmd = "rpict -t 5 -e {12} -x {9} -y {10} {11} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f}  -vu {13[0]:.3f} {13[1]:.3f} {13[2]:.3f} {5} {6}-{7}.oct > {8}".format('', 
+                                          vv, 
+                                          cang, 
+                                          vd, 
+                                          self.cam.location, 
+                                          self.simnode['radparams'], 
+                                            self.scene['viparams']['filebase'], 
+                                            self.scene.frame_current, 
+                                            self.simnode.hdrname, 
+                                            self.simnode.x, 
+                                            self.simnode.y, 
+                                            ('', '-i')[self.simnode.illu], 
+                                            self.rpictfile, 
+                                            self.cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)))
             print('rpict command: {}'.format(rpictcmd))
             self.starttime = datetime.datetime.now()
             self.pfile = progressfile(self.scene, datetime.datetime.now(), 100)
@@ -857,7 +891,7 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
                 pmcmd = ('mkpmap -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, self.scene['viparams']['filebase'], self.frame, self.simnode.pmapgno, cpentry, amentry))                   
                 pmrun = Popen(pmcmd.split(), stderr = PIPE)
                 for line in pmrun.stderr: 
-                    print(line)
+                    logentry(line)
                     if line.decode() in self.errdict:
                         self.report({'ERROR'}, self.errdict[line.decode()])
                         return {'FINISHED'}

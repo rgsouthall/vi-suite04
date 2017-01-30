@@ -667,7 +667,7 @@ class NODE_OT_RadImage(bpy.types.Operator):
                                             ('', '-i')[self.simnode.illu], 
                                             self.rpictfile, 
                                             self.cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)))
-            print('rpict command: {}'.format(rpictcmd))
+            logentry('rpict command: {}'.format(rpictcmd))
             self.starttime = datetime.datetime.now()
             self.pfile = progressfile(self.scene, datetime.datetime.now(), 100)
             self.kivyrun = progressbar(os.path.join(self.scene['viparams']['newdir'], 'viprogress'))

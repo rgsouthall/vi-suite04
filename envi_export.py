@@ -490,6 +490,7 @@ def pregeo(op):
             bm = bmesh.new()
             bm.from_mesh(en_obj.data)
             bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.001)
+            bmesh.ops.delete(bm, geom = [e for e in bm.edges if not e.link_faces] + [v for v in bm.verts if not v.link_faces])
             
             if all([e.is_manifold for e in bm.edges]):
                 bmesh.ops.recalc_face_normals(bm, faces = bm.faces)

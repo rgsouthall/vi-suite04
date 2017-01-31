@@ -1,11 +1,6 @@
 {
 Normal map conversion
-
-Nabs(i) = select(i, abs(Nx), abs(Ny), abs(Nz));
-S(i) = select(i, Sx, Sy, Sz);
-Ux = cross(1, S, N);
-Uy = cross(2, S, N);
-Uz = cross(3, S, N);}
+}
 
 A(i): select(i, A2, A3, A4);
 Sx = cross(1, A, N);

@@ -485,12 +485,21 @@ def pregeo(op):
                 mat = en_obj.data.materials[poly.material_index]
                 if poly.area < 0.001 or mat.envi_con_type == 'None' or (en_obj.data.materials[poly.material_index].envi_con_makeup == '1' and en_obj.data.materials[poly.material_index].envi_layero == '0'):
                     poly.select = True 
-                    
-            selmesh('delf')
+
+            selmesh('delf')  
+            for edge in en_obj.data.edges:
+                if edge.is_loose:
+                    edge.select = True
+                    for vi in edge.vertices:
+                        en_obj.data.vertices[vi].select = True          
+            selmesh('delv')
+#            selmesh('dele')        
+            
             bm = bmesh.new()
             bm.from_mesh(en_obj.data)
             bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.001)
             bmesh.ops.delete(bm, geom = [e for e in bm.edges if not e.link_faces] + [v for v in bm.verts if not v.link_faces])
+            print([e for e in bm.edges if not e.link_faces] + [v for v in bm.verts if not v.link_faces])
             
             if all([e.is_manifold for e in bm.edges]):
                 bmesh.ops.recalc_face_normals(bm, faces = bm.faces)

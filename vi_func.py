@@ -2217,6 +2217,10 @@ def selmesh(sel):
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.mesh.remove_doubles()
         bpy.ops.mesh.select_all(action='DESELECT')
+    elif sel =='dele':
+        bpy.ops.mesh.delete(type = 'EDGE')
+    elif sel =='delv':
+        bpy.ops.mesh.delete(type = 'VERT')
     elif sel == 'mc':
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.mesh.vert_connect_concave()

@@ -856,10 +856,11 @@ class basic_table(Base_Display):
         self.unit = context.scene['liparams']['unit']
         self.cao = context.active_object
 
-        if self.cao and self.cao.get('table{}{}'.format(self.unitdict[context.scene['liparams']['unit']], context.scene.frame_current)):
+        try:
             self.rcarray = array(self.cao['table{}{}'.format(self.unitdict[context.scene['liparams']['unit']], context.scene.frame_current)])
-        else:
+        except:
             self.rcarray = array([['Invalid object']])
+            
     def drawopen(self, context):
         draw_table(self)
         
@@ -873,6 +874,7 @@ class comp_table(Base_Display):
         self.unit = context.scene['liparams']['unit']
         self.cao = context.active_object
         resnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]
+        
         try:
             if self.cao and self.cao.get('tablecomp{}'.format(context.scene.frame_current)):
                 self.rcarray = array((self.cao['tablecomp{}'.format(context.scene.frame_current)]))  

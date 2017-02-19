@@ -912,8 +912,8 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
     if self.get('wattres'):
         del self['wattres']
         
-    illuarray = array((47.4, 120, 11.6))
-    vwattarray = array((0.265, 0.67, 0.065))
+    illuarray = array((47.4, 120, 11.6)).astype(float32)
+    vwattarray = array((0.265, 0.67, 0.065)).astype(float32)
     fwattarray = vwattarray * 1.64
     times = [datetime.datetime.strptime(time, "%d/%m/%y %H:%M:%S") for time in simnode['coptions']['times']]                          
     vecvals, vals = mtx2vals(open(simnode.inputs['Context in'].links[0].from_node['Options']['mtxfile'], 'r').readlines(), datetime.datetime(2010, 1, 1).weekday(), simnode, times)
@@ -956,8 +956,8 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             chareas = array([c.calc_area() for c in chunk]) if self['cpoint'] == '0' else array([vertarea(bm, c) for c in chunk]).astype(float32)
             sensarray = nsum(resarray*illuarray, axis = 2).astype(float32)
             wsensearray  = nsum(resarray*fwattarray, axis = 2).astype(float32)
-            finalillu = inner(sensarray, vecvals).astype(float32)
-
+            finalillu = inner(sensarray, vecvals).astype(float64)
+            
             if scene['viparams']['visimcontext'] != 'LiVi Compliance':            
                 finalwattm2 = inner(wsensearray, vecvals).astype(float32)
                 wsensearraym2 = (wsensearray.T * chareas).T.astype(float32)
@@ -1038,7 +1038,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                 else:
                     totsdaarea += nsum(sdaareares, axis = 0)
                     totasearea += nsum(aseareares, axis = 0)
-                            
+              
             curres += len(chunk)
             if pfile.check(curres) == 'CANCELLED':
                 bm.free()
@@ -1067,9 +1067,9 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             self['omax']['da{}'.format(frame)] = max(dares)
             self['omin']['da{}'.format(frame)] = min(dares)
             self['oave']['da{}'.format(frame)] = sum(dares)/reslen
-            self['omax']['illu{}'.format(frame)] = nmax(totfinalillu)
-            self['omin']['illu{}'.format(frame)] = nmin(totfinalillu)
-            self['oave']['illu{}'.format(frame)] = nsum(totfinalillu)/reslen
+            self['omax']['illu{}'.format(frame)] = amax(totfinalillu)
+            self['omin']['illu{}'.format(frame)] = amin(totfinalillu)
+            self['oave']['illu{}'.format(frame)] = nmean(totfinalillu)/reslen
             self['livires']['dhilluave{}'.format(frame)] = average(totfinalillu, axis = 0).flatten().reshape(dno, hno).transpose()
             self['livires']['dhillumin{}'.format(frame)] = amin(totfinalillu, axis = 0).reshape(dno, hno).transpose()
             self['livires']['dhillumax{}'.format(frame)] = amax(totfinalillu, axis = 0).reshape(dno, hno).transpose()
@@ -1085,8 +1085,8 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                 ['UDI-s (% area)', '{:.1f}'.format(self['omin']['udisup{}'.format(frame)]), '{:.1f}'.format(self['oave']['udisup{}'.format(frame)]), '{:.1f}'.format(self['omax']['udisup{}'.format(frame)])]])
             self['tableudia{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
                 ['UDI-a (% area)', '{:.1f}'.format(self['omin']['udiauto{}'.format(frame)]), '{:.1f}'.format(self['oave']['udiauto{}'.format(frame)]), '{:.1f}'.format(self['omax']['udiauto{}'.format(frame)])]])
-            self['tableudih{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
-                ['UDI-h (% area)', '{:.1f}'.format(self['omin']['udihi{}'.format(frame)]), '{:.1f}'.format(self['oave']['udihi{}'.format(frame)]), '{:.1f}'.format(self['omax']['udihi{}'.format(frame)])]])
+            self['tableudie{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
+                ['UDI-e (% area)', '{:.1f}'.format(self['omin']['udihi{}'.format(frame)]), '{:.1f}'.format(self['oave']['udihi{}'.format(frame)]), '{:.1f}'.format(self['omax']['udihi{}'.format(frame)])]])
             self['tableillu{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
                 ['Illuminance (lux)', '{:.1f}'.format(self['omin']['illu{}'.format(frame)]), '{:.1f}'.format(self['oave']['illu{}'.format(frame)]), '{:.1f}'.format(self['omax']['illu{}'.format(frame)])]])
             self['tableda{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 

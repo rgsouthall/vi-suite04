@@ -3000,12 +3000,15 @@ class Gridify(bpy.types.Operator):
              
             self.bmnew.transform(self.o.matrix_world.inverted())
             self.bmnew.to_mesh(self.o.data)
+#            bmesh.update_edit_mesh(self.o.data)
+            self.o.data.update()
             self.bmnew.free()
             context.area.tag_redraw()
             return {'RUNNING_MODAL'}
 
         elif event.type == 'ESC':  
             self.bm.to_mesh(self.o.data)
+#            bmesh.update_edit_mesh(self.o.data, tessface=False, destructive=True)
             context.area.tag_redraw()
             return {'CANCELLED'}
 
@@ -3022,6 +3025,7 @@ class Gridify(bpy.types.Operator):
             self.bm = bmesh.new()
             tm = self.o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW')
             self.bm.from_mesh(tm)
+#            self.bm = bmesh.from_edit_mesh(self.o.data)
             bpy.data.meshes.remove(tm)
             self.ft = 1
             self.upv = mathutils.Vector([x for x in scene.gridifyup])

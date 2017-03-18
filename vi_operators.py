@@ -548,6 +548,7 @@ class NODE_OT_RadImage(bpy.types.Operator):
                     self.percent = (self.frame - self.scene['liparams']['fs']) * 100
                     self.frameold = self.frame
                     os.remove(self.rpictfile)
+                    
                     if self.simnode.pmap:
                         amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, self.frame, self.scene)
                         pmcmd = ('mkpmap -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, self.scene['viparams']['filebase'], self.frame, self.simnode.pmapgno, cpentry, amentry))                   

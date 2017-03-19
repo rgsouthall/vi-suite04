@@ -705,12 +705,15 @@ class NODE_OT_LiFC(bpy.types.Operator):
         contour = '-cl {}'.format(bands) if fcnode.contour else ''
         poverlay = '-ip' if fcnode.contour and fcnode.overlay else '-i'
         fccmd = 'falsecolor {} {} -pal {} {} {}'.format(poverlay, imnode.hdrname, fcnode.coldict[fcnode.colour], legend, contour, fcnode.hdrname)
+
         with open(fcnode.hdrname, 'w') as fcfile:
             Popen(fccmd.split(), stdout=fcfile, stderr = PIPE).wait()  
+
         if 'fc.hdr' not in bpy.data.images:
             im = bpy.data.images.load(fcnode.hdrname)
             im.name = 'fc.hdr'
         else:
+            bpy.data.images['fc.hdr'].filepath = fcnode.hdrname
             bpy.data.images['fc.hdr'].reload()
             bpy.data.images['fc.hdr'].name = 'fc.hdr'
                                        

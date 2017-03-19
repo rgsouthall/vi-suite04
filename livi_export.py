@@ -19,7 +19,7 @@
 import bpy, os, math, subprocess, datetime, bmesh, mathutils, shlex, sys
 from math import sin, cos, pi
 from subprocess import PIPE, Popen
-from .vi_func import clearscene, solarPosition, retobjs, radpoints, clearlayers, bmesh2mesh, viparams
+from .vi_func import clearscene, solarPosition, retobjs, radpoints, clearlayers, bmesh2mesh, viparams, ct2RGB
 
 def radgexport(export_op, node, **kwargs):
     scene = bpy.context.scene
@@ -93,7 +93,7 @@ def radgexport(export_op, node, **kwargs):
             iesname = os.path.splitext(os.path.basename(o.ies_name))[0]
 
             if os.path.isfile(o.ies_name):
-                iescmd = "ies2rad -t default -m {0} -c {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} -p '{2}' -d{3} -o {4}-{5} '{6}'".format(o.ies_strength, o.ies_colour, scene['liparams']['lightfilebase'], o.ies_unit, iesname, frame, o.ies_name)
+                iescmd = "ies2rad -t default -m {0} -c {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} -p '{2}' -d{3} -o {4}-{5} '{6}'".format(o.ies_strength, (o.ies_rgb, ct2RGB(o.ies_ct))[o.ies_colmenu == '1'], scene['liparams']['lightfilebase'], o.ies_unit, iesname, frame, o.ies_name)
                 subprocess.call(shlex.split(iescmd))
 
                 if o.type == 'LAMP':

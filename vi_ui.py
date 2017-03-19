@@ -529,8 +529,11 @@ class VIObPanel(bpy.types.Panel):
             row.prop(obj, "ies_name")
             newrow(layout, 'IES Dimension:', obj, "ies_unit")
             newrow(layout, 'IES Strength:', obj, "ies_strength")
-            row = layout.row()
-            row.prop(obj, "ies_colour")
+            newrow(layout, 'IES Colour:', obj, "ies_colmenu")
+            if obj.ies_colmenu == '0':
+                newrow(layout, 'IES RGB:', obj, "ies_rgb")
+            else:
+                newrow(layout, 'IES Temperature:', obj, "ies_ct")
 
         elif obj.vi_type == '5':                
             newrow(layout, 'Direction:', obj, 'li_bsdf_direc')

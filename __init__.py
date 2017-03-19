@@ -285,7 +285,9 @@ def register():
     Object.ies_name = sprop("", "IES File", 1024, "")
     Object.ies_strength = fprop("", "Strength of IES lamp", 0, 1, 1)
     Object.ies_unit = eprop([("m", "Meters", ""), ("c", "Centimeters", ""), ("f", "Feet", ""), ("i", "Inches", "")], "", "Specify the IES file measurement unit", "m")
-    Object.ies_colour = fvprop(3, "IES Colour",'IES Colour', [1.0, 1.0, 1.0], 'COLOR', 0, 1)
+    Object.ies_colmenu = eprop([("0", "RGB", ""), ("1", "Temperature", "")], "", "Specify the IES colour type", "0")
+    Object.ies_rgb = fvprop(3, "",'IES Colour', [1.0, 1.0, 1.0], 'COLOR', 0, 1)
+    Object.ies_ct = iprop("", "Colour temperature in Kelven", 0, 12000, 4700)
     (Object.licalc, Object.lires, Object.limerr, Object.manip, Object.bsdf_proxy) = [bprop("", "", False)] * 5
     Object.compcalcapply = compcalcapply    
     Object.basiccalcapply = basiccalcapply 

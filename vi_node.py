@@ -269,7 +269,7 @@ class LiViNode(bpy.types.Node, ViNodes):
     sourcetype2 = [('0', "EPW", "EnergyPlus weather file"), ('1', "VEC", "Generated vector file")]
     sourcemenu = bpy.props.EnumProperty(name="", description="Source type", items=sourcetype, default = '0', update = nodeupdate)
     sourcemenu2 = bpy.props.EnumProperty(name="", description="Source type", items=sourcetype2, default = '0', update = nodeupdate)
-    hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="vi-suite.hdr", update = nodeupdate)
+    hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="vi-suite.hdr", subtype="FILE_PATH", update = nodeupdate)
     hdrmap = bpy.props.EnumProperty(items=[("0", "Polar", "Polar ot LatLong HDR mapping"),("1", "Angular", "Light probe or angular mapping")], name="", description="Type of HDR panorama mapping", default="0", update = nodeupdate)
     hdrangle = bpy.props.FloatProperty(name="", description="HDR rotation (deg)", min=0, max=360, default=0, update = nodeupdate)
     hdrradius = bpy.props.FloatProperty(name="", description="HDR radius (m)", min=0, max=5000, default=1000, update = nodeupdate)
@@ -294,6 +294,7 @@ class LiViNode(bpy.types.Node, ViNodes):
         self.outputs.new('ViLiC', 'Context out')
         self.inputs.new('ViLoc', 'Location in')
         nodecolour(self, 1)
+        self.hdrname = os.path.join(context.scene['newdir'], 'vi-suite.hdr')
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Context:', self, 'contextmenu')
@@ -581,7 +582,7 @@ class ViLiINode(bpy.types.Node, ViNodes):
     pmapcno = bpy.props.IntProperty(name = '', default = 0)
     x = bpy.props.IntProperty(name = '', min = 1, max = 10000, default = 2000, update = nodeupdate)
     y = bpy.props.IntProperty(name = '', min = 1, max = 10000, default = 1000, update = nodeupdate)
-    hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="vi-suite.hdr", update = nodeupdate)
+    hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="", subtype="FILE_PATH", update = nodeupdate)
     run = bpy.props.BoolProperty(name = '', default = False, update = nodeupdate) 
     illu = bpy.props.BoolProperty(name = '', default = True, update = nodeupdate)
     
@@ -591,7 +592,6 @@ class ViLiINode(bpy.types.Node, ViNodes):
         self.inputs.new('ViLiG', 'Geometry in')
         self.inputs.new('ViLiC', 'Context in')
         self.outputs.new('ViLiI', 'Image')
-        
         
     def draw_buttons(self, context, layout):
         newrow(layout, 'Accuracy:', self, 'simacc')
@@ -606,12 +606,12 @@ class ViLiINode(bpy.types.Node, ViNodes):
         if self.pmap:
            newrow(layout, 'Global photons:', self, 'pmapgno')
            newrow(layout, 'Caustic photons:', self, 'pmapcno')
-        row = layout.row()
-        row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
+#        row = layout.row()
+#        row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
         row = layout.row()
         row.prop(self, 'hdrname')
         row = layout.row()
-        if not self.run:
+        if not self.run and all([sock.links for sock in self.inputs]):
             row.operator("node.radimage", text = 'Image').nodeid = self['nodeid']
 
     def presim(self):
@@ -638,7 +638,7 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.hdrname, self.colour, self.lmax, self.unit, self.nscale, self.decades, 
                    self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands)])
 
-    hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="vi-suite.hdr", update = nodeupdate)    
+    hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="vi-suite.hdr", subtype="FILE_PATH", update = nodeupdate)    
     colour = bpy.props.EnumProperty(items=[("0", "Default", "Default color mapping"), ("1", "Spectral", "Spectral color mapping"), ("2", "Thermal", "Thermal colour mapping"), ("3", "PM3D", "PM3D colour mapping"), ("4", "Eco", "Eco color mapping")],
             name="", description="Simulation accuracy", default="0", update = nodeupdate)             
     lmax = bpy.props.IntProperty(name = '', min = 0, max = 10000, default = 1000, update = nodeupdate)
@@ -661,7 +661,8 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
         self['exportstate'] = ''
         self['nodeid'] = nodeid(self)
         self.inputs.new('ViLiI', 'Image')
-        
+        self.hdrname = os.path.join(context.scene['newdir'], 'fc.hdr')
+                
     def draw_buttons(self, context, layout):
         newrow(layout, 'Unit:', self, 'unit')
         newrow(layout, 'Colour:', self, 'colour')
@@ -677,8 +678,8 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
         if self.contour:
            newrow(layout, 'Overlay:', self, 'overlay') 
            newrow(layout, 'Bands:', self, 'bands') 
-        row = layout.row()
-        row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
+#        row = layout.row()
+#        row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
         row = layout.row()
         row.prop(self, 'hdrname')
         if self.inputs['Image'].links and self.inputs['Image'].links[0].from_node.hdrname and os.path.isfile(self.inputs['Image'].links[0].from_node.hdrname):

@@ -594,26 +594,29 @@ class ViLiINode(bpy.types.Node, ViNodes):
         self.outputs.new('ViLiI', 'Image')
         
     def draw_buttons(self, context, layout):
-        newrow(layout, 'Accuracy:', self, 'simacc')
-        if self.simacc == '3':
-            newrow(layout, "Radiance parameters:", self, 'cusacc')
-        row = layout.row()
-        row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']  
-        newrow(layout, 'X resolution:', self, 'x')
-        newrow(layout, 'Y resolution:', self, 'y')
-        newrow(layout, 'Illuminance:', self, 'illu')
-        newrow(layout, 'Photon map:', self, 'pmap')
-        if self.pmap:
-           newrow(layout, 'Global photons:', self, 'pmapgno')
-           newrow(layout, 'Caustic photons:', self, 'pmapcno')
-#        row = layout.row()
-#        row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
-        row = layout.row()
-        row.prop(self, 'hdrname')
-        row = layout.row()
         if not self.run and all([sock.links for sock in self.inputs]):
+            newrow(layout, 'Accuracy:', self, 'simacc')
+            if self.simacc == '3':
+                newrow(layout, "Radiance parameters:", self, 'cusacc')
+            row = layout.row()
+            row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']  
+            newrow(layout, 'X resolution:', self, 'x')
+            newrow(layout, 'Y resolution:', self, 'y')
+            newrow(layout, 'Illuminance:', self, 'illu')
+            newrow(layout, 'Photon map:', self, 'pmap')
+            if self.pmap:
+               newrow(layout, 'Global photons:', self, 'pmapgno')
+               newrow(layout, 'Caustic photons:', self, 'pmapcno')
+    #        row = layout.row()
+    #        row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
+            row = layout.row()
+            row.prop(self, 'hdrname')
+            row = layout.row()
             row.operator("node.radimage", text = 'Image').nodeid = self['nodeid']
-
+        
+    def update(self):
+        self.run = 0
+        
     def presim(self):
         self['coptions'] = self.inputs['Context in'].links[0].from_node['Options']
         self['goptions'] = self.inputs['Geometry in'].links[0].from_node['Options']
@@ -661,28 +664,28 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
         self['exportstate'] = ''
         self['nodeid'] = nodeid(self)
         self.inputs.new('ViLiI', 'Image')
-        self.hdrname = os.path.join(context.scene['newdir'], 'fc.hdr')
+        self.hdrname = ''
                 
     def draw_buttons(self, context, layout):
-        newrow(layout, 'Unit:', self, 'unit')
-        newrow(layout, 'Colour:', self, 'colour')
-        newrow(layout, 'Legend:', self, 'legend')
-        if self.legend:
-            newrow(layout, 'Scale:', self, 'nscale')
-            if self.nscale == '1':
-                newrow(layout, 'Decades:', self, 'decades')
-            newrow(layout, 'Legend max:', self, 'lmax')
-            newrow(layout, 'Legend width:', self, 'lw')
-            newrow(layout, 'Legend height:', self, 'lh')
-        newrow(layout, 'Contour:', self, 'contour')
-        if self.contour:
-           newrow(layout, 'Overlay:', self, 'overlay') 
-           newrow(layout, 'Bands:', self, 'bands') 
-#        row = layout.row()
-#        row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
-        row = layout.row()
-        row.prop(self, 'hdrname')
-        if self.inputs['Image'].links and self.inputs['Image'].links[0].from_node.hdrname and os.path.isfile(self.inputs['Image'].links[0].from_node.hdrname):
+        if self.hdrname and self.inputs['Image'].links and self.inputs['Image'].links[0].from_node.hdrname and os.path.isfile(self.inputs['Image'].links[0].from_node.hdrname):
+            newrow(layout, 'Unit:', self, 'unit')
+            newrow(layout, 'Colour:', self, 'colour')
+            newrow(layout, 'Legend:', self, 'legend')
+            if self.legend:
+                newrow(layout, 'Scale:', self, 'nscale')
+                if self.nscale == '1':
+                    newrow(layout, 'Decades:', self, 'decades')
+                newrow(layout, 'Legend max:', self, 'lmax')
+                newrow(layout, 'Legend width:', self, 'lw')
+                newrow(layout, 'Legend height:', self, 'lh')
+            newrow(layout, 'Contour:', self, 'contour')
+            if self.contour:
+               newrow(layout, 'Overlay:', self, 'overlay') 
+               newrow(layout, 'Bands:', self, 'bands') 
+    #        row = layout.row()
+    #        row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
+            row = layout.row()
+            row.prop(self, 'hdrname')
             row = layout.row()
             row.operator("node.livifc", text = 'Process').nodeid = self['nodeid']
             

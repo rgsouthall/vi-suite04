@@ -568,13 +568,14 @@ class NODE_OT_RadImage(bpy.types.Operator):
                 self.frame += 1
                 return {'RUNNING_MODAL'}
             else:
-                with open(self.rpictfile, 'r') as rpictfile:
-                    for line in rpictfile.readlines()[::-1]:
-                        if '%' in line:
-                            for lineentry in line.split():
-                                if '%' in lineentry:
-                                    self.percent = (float(lineentry.strip('%')) + (self.frame - self.scene['liparams']['fs']) * 100)/self.frames
-                            break
+                if os.path.isfile(self.rpictfile):
+                    with open(self.rpictfile, 'r') as rpictfile:
+                        for line in rpictfile.readlines()[::-1]:
+                            if '%' in line:
+                                for lineentry in line.split():
+                                    if '%' in lineentry:
+                                        self.percent = (float(lineentry.strip('%')) + (self.frame - self.scene['liparams']['fs']) * 100)/self.frames
+                                break
      
                 if self.percent:
                     if self.pfile.check(self.percent) == 'CANCELLED':                                    
@@ -645,7 +646,7 @@ class NODE_OT_RadImage(bpy.types.Operator):
                                           self.simnode['radparams'], 
                                           self.scene['viparams']['filebase'], 
                                             self.frame, 
-                                            self.simnode.hdrname, 
+                                            bpy.path.abspath(self.simnode.hdrname), 
                                             self.simnode.x, 
                                             self.simnode.y, 
                                             ('', '-i')[self.simnode.illu], 
@@ -662,7 +663,7 @@ class NODE_OT_RadImage(bpy.types.Operator):
                                           self.simnode['radparams'], 
                                             self.scene['viparams']['filebase'], 
                                             self.scene.frame_current, 
-                                            self.simnode.hdrname, 
+                                            bpy.path.abspath(self.simnode.hdrname), 
                                             self.simnode.x, 
                                             self.simnode.y, 
                                             ('', '-i')[self.simnode.illu], 

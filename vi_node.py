@@ -667,7 +667,7 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
         self.hdrname = ''
                 
     def draw_buttons(self, context, layout):
-        if self.hdrname and self.inputs['Image'].links and self.inputs['Image'].links[0].from_node.hdrname and os.path.isfile(self.inputs['Image'].links[0].from_node.hdrname):
+        if self.inputs['Image'].links and self.inputs['Image'].links[0].from_node.hdrname and os.path.isfile(self.inputs['Image'].links[0].from_node.hdrname):
             newrow(layout, 'Unit:', self, 'unit')
             newrow(layout, 'Colour:', self, 'colour')
             newrow(layout, 'Legend:', self, 'legend')
@@ -686,8 +686,9 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
     #        row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
             row = layout.row()
             row.prop(self, 'hdrname')
-            row = layout.row()
-            row.operator("node.livifc", text = 'Process').nodeid = self['nodeid']
+            if self.hdrname:
+                row = layout.row()
+                row.operator("node.livifc", text = 'Process').nodeid = self['nodeid']
             
     def postsim(self):
         self['exportstate'] = [str(x) for x in (self.hdrname, self.colour, self.lmax, self.unit, self.nscale, self.decades, 

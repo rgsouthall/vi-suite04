@@ -251,7 +251,7 @@ class LiViNode(bpy.types.Node, ViNodes):
     edoy = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=365, default=1, update = nodeupdate)
     interval = bpy.props.FloatProperty(name="", description="Site Latitude", min=1/60, max=24, default=1, update = nodeupdate)
     hdr = bpy.props.BoolProperty(name="", description="Export HDR panoramas", default=False, update = nodeupdate)
-    skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="", update = nodeupdate)
+    skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="", subtype="FILE_PATH", update = nodeupdate)
     resname = bpy.props.StringProperty()
     turb = bpy.props.FloatProperty(name="", description="Sky Turbidity", min=1.0, max=5.0, default=2.75, update = nodeupdate)
     canalysistype = [('0', "BREEAM", "BREEAM HEA1 calculation"), ('1', "CfSH", "Code for Sustainable Homes calculation"), ('2', "Green Star", "Green Star Calculation"), ('3', "LEED", "LEED v4 Daylight calculation")]
@@ -273,7 +273,7 @@ class LiViNode(bpy.types.Node, ViNodes):
     hdrmap = bpy.props.EnumProperty(items=[("0", "Polar", "Polar ot LatLong HDR mapping"),("1", "Angular", "Light probe or angular mapping")], name="", description="Type of HDR panorama mapping", default="0", update = nodeupdate)
     hdrangle = bpy.props.FloatProperty(name="", description="HDR rotation (deg)", min=0, max=360, default=0, update = nodeupdate)
     hdrradius = bpy.props.FloatProperty(name="", description="HDR radius (m)", min=0, max=5000, default=1000, update = nodeupdate)
-    mtxname = bpy.props.StringProperty(name="", description="Name of the calculated vector sky file", default="", update = nodeupdate)
+    mtxname = bpy.props.StringProperty(name="", description="Name of the calculated vector sky file", default="", subtype="FILE_PATH", update = nodeupdate)
     weekdays = bpy.props.BoolProperty(name = '', default = False, update = nodeupdate)
     cbdm_start_hour =  bpy.props.IntProperty(name = '', default = 8, min = 1, max = 24, update = nodeupdate)
     cbdm_end_hour =  bpy.props.IntProperty(name = '', default = 20, min = 1, max = 24, update = nodeupdate)
@@ -294,7 +294,9 @@ class LiViNode(bpy.types.Node, ViNodes):
         self.outputs.new('ViLiC', 'Context out')
         self.inputs.new('ViLoc', 'Location in')
         nodecolour(self, 1)
-        self.hdrname = os.path.join(context.scene['newdir'], 'vi-suite.hdr')
+        self.hdrname = ''
+        self.skyname = ''
+        self.mtxname = ''
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Context:', self, 'contextmenu')
@@ -592,8 +594,11 @@ class ViLiINode(bpy.types.Node, ViNodes):
         self.inputs.new('ViLiG', 'Geometry in')
         self.inputs.new('ViLiC', 'Context in')
         self.outputs.new('ViLiI', 'Image')
+        self.hdrname = '//image.hdr'
         
     def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.prop(self, 'hdrname')
         if not self.run and all([sock.links for sock in self.inputs]):
             newrow(layout, 'Accuracy:', self, 'simacc')
             if self.simacc == '3':
@@ -609,8 +614,7 @@ class ViLiINode(bpy.types.Node, ViNodes):
                newrow(layout, 'Caustic photons:', self, 'pmapcno')
     #        row = layout.row()
     #        row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
-            row = layout.row()
-            row.prop(self, 'hdrname')
+            
             row = layout.row()
             row.operator("node.radimage", text = 'Image').nodeid = self['nodeid']
         
@@ -664,10 +668,10 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
         self['exportstate'] = ''
         self['nodeid'] = nodeid(self)
         self.inputs.new('ViLiI', 'Image')
-        self.hdrname = ''
+        self.hdrname = '//fc.hdr'
                 
     def draw_buttons(self, context, layout):
-        if self.inputs['Image'].links and self.inputs['Image'].links[0].from_node.hdrname and os.path.isfile(self.inputs['Image'].links[0].from_node.hdrname):
+        if self.inputs['Image'].links and self.inputs['Image'].links[0].from_node.hdrname and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node.hdrname)):
             newrow(layout, 'Unit:', self, 'unit')
             newrow(layout, 'Colour:', self, 'colour')
             newrow(layout, 'Legend:', self, 'legend')

@@ -675,7 +675,7 @@ class NODE_OT_RadImage(bpy.types.Operator):
             self.kivyrun = progressbar(os.path.join(self.scene['viparams']['newdir'], 'viprogress'))
             self.rprun = Popen(rpictcmd, stdout=PIPE, stderr = PIPE, shell = True)
             wm = context.window_manager
-            self._timer = wm.event_timer_add(5, context.window)
+            self._timer = wm.event_timer_add(10, context.window)
             wm.modal_handler_add(self)
             return {'RUNNING_MODAL'}
         else:
@@ -695,9 +695,9 @@ class NODE_OT_LiFC(bpy.types.Operator):
 #        if fcnode.inputs['Image'].links:
         imnode = fcnode.inputs['Image'].links[0].from_node 
                               
-        if not os.path.isfile(imnode.hdrname):
-            self.report({'ERROR'}, "The original image file is not valid")
-            return {'CANCELLED'} 
+#        if not os.path.isfile(bpy.path.abspath(imnode.hdrname)):
+#            self.report({'ERROR'}, "The original image file is not valid")
+#            return {'CANCELLED'} 
         lmax = '-s {}'.format(fcnode.lmax) if fcnode.lmax else '-s a'
         scaling = '' if fcnode.nscale == '0' else '-log {}'.format(fcnode.decades) 
         mult = '-m {}'.format(fcnode.unitmult[fcnode.unit]) 
@@ -705,9 +705,10 @@ class NODE_OT_LiFC(bpy.types.Operator):
         bands = '-cb' if fcnode.bands else ''
         contour = '-cl {}'.format(bands) if fcnode.contour else ''
         poverlay = '-ip' if fcnode.contour and fcnode.overlay else '-i'
-        fccmd = 'falsecolor {} {} -pal {} {} {}'.format(poverlay, imnode.hdrname, fcnode.coldict[fcnode.colour], legend, contour, fcnode.hdrname)
-
-        with open(fcnode.hdrname, 'w') as fcfile:
+        fccmd = 'falsecolor {} {} -pal {} {} {}'.format(poverlay, bpy.path.abspath(imnode.hdrname), fcnode.coldict[fcnode.colour], legend, contour)
+        logentry(fccmd)
+        
+        with open(bpy.path.abspath(fcnode.hdrname), 'w') as fcfile:
             Popen(fccmd.split(), stdout=fcfile, stderr = PIPE).wait()  
 
         if 'fc.hdr' not in bpy.data.images:

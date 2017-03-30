@@ -697,6 +697,7 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
     def postsim(self):
         self['exportstate'] = [str(x) for x in (self.hdrname, self.colour, self.lmax, self.unit, self.nscale, self.decades, 
                    self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands)]
+        nodecolour(self, 0)
             
 class ViLiSNode(bpy.types.Node, ViNodes):
     '''Node describing a LiVi simulation'''

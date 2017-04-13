@@ -19,7 +19,7 @@
 import bpy, datetime, mathutils, os, bmesh, shutil, sys, gc, math
 from os import rename
 import numpy
-from numpy import arange, histogram, array, int8
+from numpy import arange, histogram, array, int8, float16
 import bpy_extras.io_utils as io_utils
 from subprocess import Popen, PIPE, call
 from collections import OrderedDict
@@ -1781,20 +1781,28 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 bpy.data.materials[mat].alpha = 0
                 
         if suns:
-            sun = suns[0]
             [scene.objects.unlink(sun) for sun in suns[1:]]
-            sun.animation_data_clear()
+            suns = [ob for ob in context.scene.objects if ob.type == 'LAMP' and ob.data.type == 'SUN']            
+            [sun.animation_data_clear() for sun in suns]
         else: 
             bpy.ops.object.lamp_add(type = "SUN")
-            sun = context.active_object
-                
-        sun.data.shadow_soft_size = 0.01            
-        sun['VIType'] = 'Sun'
+            suns = [context.active_object]
+
+        [scene.objects.unlink(sunmesh) for sunmesh in context.scene.objects if sunmesh.get('VIType') == "SunMesh"] 
         
         if scene.render.engine == 'CYCLES' and scene.world.get('node_tree') and 'Sky Texture' in [no.bl_label for no in scene.world.node_tree.nodes]:
-            scene.world.node_tree.animation_data_clear()
-
-        sun['solhour'], sun['solday'] = scene.solhour, scene.solday
+            scene.world.node_tree.animation_data_clear()    
+        
+        
+        
+        if bpy.context.active_object and not bpy.context.active_object.hide:
+            if bpy.context.active_object.type == 'MESH':
+                bpy.ops.object.mode_set(mode = 'OBJECT')
+        
+        for ob in context.scene.objects:
+            if ob.get('VIType') == "SPathMesh":                
+                context.scene.objects.unlink(ob)
+                ob.name = 'oldspathmesh'
 
         if "SkyMesh" not in [ob.get('VIType') for ob in context.scene.objects]:
             bpy.data.materials.new('SkyMesh')
@@ -1807,33 +1815,32 @@ class NODE_OT_SunPath(bpy.types.Operator):
             smesh.hide = True
         else:
             smesh =  [ob for ob in context.scene.objects if ob.get('VIType') and ob['VIType'] == "SkyMesh"][0]
-
-        if "SunMesh" not in [ob.get('VIType') for ob in context.scene.objects]:
-            bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=12, size=1)
-            sunob = context.active_object
-            sunob.location, sunob.cycles_visibility.shadow, sunob.name, sunob['VIType'] = (0, 0, 0), 0, "SunMesh", "SunMesh"
-        else:
-            sunob = [ob for ob in context.scene.objects if ob.get('VIType') == "SunMesh"][0]
-
-        if len(sunob.material_slots) == 0:
-             bpy.ops.object.material_slot_add()
-             sunob.material_slots[0].material = bpy.data.materials['Sun']
-        
-        if bpy.context.active_object and not bpy.context.active_object.hide:
-            if bpy.context.active_object.type == 'MESH':
-                bpy.ops.object.mode_set(mode = 'OBJECT')
-        
-        for ob in context.scene.objects:
-            if ob.get('VIType') == "SPathMesh":                
-                context.scene.objects.unlink(ob)
-                ob.name = 'oldspathmesh'
-
+            
         bpy.ops.object.add(type = "MESH")
         spathob = context.active_object
         spathob.location, spathob.name,  spathob['VIType'], spathmesh = (0, 0, 0), "SPathMesh", "SPathMesh", spathob.data
-        sun.parent = spathob
-        sunob.parent = sun
         smesh.parent = spathob
+        
+        for s, sun in enumerate(suns):
+            sun.data.shadow_soft_size = 0.01            
+            sun['VIType'] = 'Sun'
+            sun['solhour'], sun['solday'] = scene.solhour, scene.solday
+            sun.name = sun.data.name ='Sun{}'.format(s)
+            
+            
+#            if "SunMesh" not in [ob.get('VIType') for ob in context.scene.objects] :
+            bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=12, size=1)
+            sunob = context.active_object
+            sunob.location, sunob.cycles_visibility.shadow, sunob.name, sunob['VIType'] = (0, 0, 0), 0, "SunMesh{}".format(s), "SunMesh"
+#            else:
+#                sunob = [ob for ob in context.scene.objects if ob.get('VIType') == "SunMesh"][0]
+    
+            if len(sunob.material_slots) == 0:
+                 bpy.ops.object.material_slot_add()
+                 sunob.material_slots[0].material = bpy.data.materials['Sun']
+            sun.parent = spathob
+            sunob.parent = sun
+        
         bm = bmesh.new()
         bm.from_mesh(spathmesh)
 
@@ -1867,7 +1874,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         
         bm.to_mesh(spathmesh)
         bm.free()
-
+        selobj(scene, spathob)
         bpy.ops.object.convert(target='CURVE')
         spathob.data.bevel_depth, spathob.data.bevel_resolution = 0.15, 6
         bpy.context.object.data.fill_mode = 'FULL'
@@ -2281,7 +2288,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 gp[cindex] = g + 1
 
             for frame in frange: 
-                g = 0                
+                g, oshadres = 0, array([])                
                 scene.frame_set(frame)
                 shadtree = rettree(scene, shadobs, ('', '2')[simnode.signore])
                 shadres = geom.layers.float['res{}'.format(frame)]
@@ -2297,7 +2304,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
 #                            pointres = array(p.starmap(shadtree.ray_cast, [(posis[g], direc) for direc in direcs]), dtype = int8)
                             pointres = array([(0, 1)[shadtree.ray_cast(posis[g], direc)[3] == None and direc[2] > 0] for direc in direcs], dtype = int8)
                             numpy.putmask(allpoints[g], pointres == 1, pointres)
-                            gp[shadres] = 100 * (numpy.sum(pointres)/lvaldirecs)
+                            gp[shadres] = (100 * (numpy.sum(pointres)/lvaldirecs)).astype(float16)
                             g += 1
 
                         curres += len(chunk)
@@ -2312,7 +2319,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     reslists.append([str(frame), 'Zone', o.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
-                    reslists.append([str(frame), 'Zone', o.name, 'Sunlit %', ' '.join(['{:.3f}'.format(sr) for sr in shadres])])
+                    reslists.append([str(frame), 'Zone', o.name, 'Sunlit %', ' '.join(['{:.3f}'.format(sr) for sr in oshadres])])
                     avres.append(o['oave']['res{}'.format(frame)])
                     minres.append(o['omin']['res{}'.format(frame)])
                     maxres.append(o['omax']['res{}'.format(frame)])

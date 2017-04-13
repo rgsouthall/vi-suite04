@@ -95,7 +95,7 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
         tpoints = [bpy.data.objects[lc]['rtpnum'] for lc in scene['liparams']['livic']]
     except:
         calc_op.report({'ERROR'}, 'Re-export the LiVi geometry')
-        return
+        return 'CANCELLED'
         
     calcsteps = sum(tpoints) * len(frames)
     pfile = progressfile(scene, datetime.datetime.now(), calcsteps)

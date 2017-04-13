@@ -819,7 +819,7 @@ class ViSSNode(bpy.types.Node, ViNodes):
     edoy = bpy.props.IntProperty(name = '', default = 365, min = 1, max = 365, description = 'End Day', update = nodeupdate)
     cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
             name="", description="Specify the calculation point geometry", default="0", update = nodeupdate)
-    offset = bpy.props.FloatProperty(name="", description="Calc point offset", min=0.001, max=1, default=0.01, update = nodeupdate)
+    offset = bpy.props.FloatProperty(name="", description="Calc point offset", min=0.001, max=10, default=0.01, update = nodeupdate)
     signore = bpy.props.BoolProperty(name = '', default = 0, description = 'Ignore sensor surfaces', update = nodeupdate)
     
     def init(self, context):

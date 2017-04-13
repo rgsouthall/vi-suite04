@@ -19,7 +19,7 @@
 import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex, bpy_extras, math
 #from collections import OrderedDict
 from subprocess import Popen, PIPE, STDOUT
-from numpy import int8, in1d, float32, float64, array, digitize, amax, amin, average, zeros, inner, transpose, nan, set_printoptions, choose, clip, where
+from numpy import int8, in1d, float16, float32, float64, array, digitize, amax, amin, average, zeros, inner, transpose, nan, set_printoptions, choose, clip, where, savetxt, char
 set_printoptions(threshold=nan)
 from numpy import sum as nsum
 from numpy import max as nmax
@@ -267,15 +267,10 @@ def radmat(self, scene):
                 if self.radnorm:             
                     normimage = self.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node.inputs['Normal'].links[0].from_node.inputs['Color'].links[0].from_node.image
                     header = '2\n0 1 {}\n0 1 {}\n'.format(normimage.size[1], normimage.size[0])
-                    p = array(normimage.pixels[:])
-                    totpix = normimage.size[0] * normimage.size[1]
-                    xdat = (-1 + 2 * p.reshape(totpix, int(len(p)/totpix))[:,0]).reshape(normimage.size[0], normimage.size[1])                   
-                    ydat = (-1 + 2 * p.reshape(totpix, int(len(p)/totpix))[:,1]).reshape(normimage.size[0], normimage.size[1]) if self.gup == '0' else (1 - 2 * p.reshape(totpix, int(len(p)/totpix))[:,1]).reshape(normimage.size[0], normimage.size[1])
-
-                    with open(os.path.join(scene['liparams']['texfilebase'],'{}.ddx'.format(radname)), 'w') as xfile:
-                        xfile.write(header + '\n'.join([' '.join(map(str, xd)) for xd in xdat]))
-                    with open(os.path.join(scene['liparams']['texfilebase'],'{}.ddy'.format(radname)), 'w') as yfile:
-                        yfile.write(header + '\n'.join([' '.join(map(str, xd)) for xd in ydat]))
+                    xdat = -1 + 2 * array(normimage.pixels[:][0::4]).reshape(normimage.size[0], normimage.size[1])
+                    ydat = -1 + 2 * array(normimage.pixels[:][1::4]).reshape(normimage.size[0], normimage.size[1]) if self.gup == '0' else 1 - 2 * array(normimage.pixels[:][1::4]).reshape(normimage.size[0], normimage.size[1])
+                    savetxt(os.path.join(scene['liparams']['texfilebase'],'{}.ddx'.format(radname)), xdat, fmt='%.2f', header = header, comments='')
+                    savetxt(os.path.join(scene['liparams']['texfilebase'],'{}.ddy'.format(radname)), ydat, fmt='%.2f', header = header, comments='')
                     radtex += "{0}_tex texdata {0}_norm\n9 ddx ddy ddz {1}.ddx {1}.ddy {1}.ddy nm.cal frac(Lv){2} frac(Lu){3}\n0\n4 {4} {5[0]} {5[1]} {5[2]}\n\n".format(radname, os.path.join(scene['viparams']['newdir'], 'textures', radname), ar[0], ar[1], self.ns, self.nu)
                     mod = '{}_norm'.format(radname)
                     
@@ -590,6 +585,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
     totarea = sum([gp.calc_area() for gp in geom if gp[cindex] > 0]) if self['cpoint'] == '0' else sum([vertarea(bm, gp) for gp in geom])
     
     for f, frame in enumerate(frames):
+        self['res{}'.format(frame)] = {}
         geom.layers.float.new('firrad{}'.format(frame))
         geom.layers.float.new('virrad{}'.format(frame))
         geom.layers.float.new('illu{}'.format(frame))
@@ -611,25 +607,26 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             
         for chunk in chunks([g for g in geom if g[rt]], int(scene['viparams']['nproc']) * 500):
             rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
-            xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()]).astype(float32)
-            virrad = nsum(xyzirrad * array([0.26, 0.67, 0.065], dtype = float32), axis = 1)
+            xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()])
+            virrad = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1)
             firrad = virrad * 1.64
             illu = virrad * 179
             df = illu * 0.01
             for gi, gp in enumerate(chunk):
-                gp[virradres] = virrad[gi]
-                gp[firradres] = firrad[gi]
-                gp[illures] = illu[gi]
-                gp[dfres] = df[gi]
-                gp[res] = illu[gi]
+                gp[virradres] = virrad[gi].astype(float32)
+                gp[firradres] = firrad[gi].astype(float32)
+                gp[illures] = illu[gi].astype(float32)
+                gp[dfres] = df[gi].astype(float16)
+                gp[res] = illu[gi].astype(float32)
                 
             curres += len(chunk)
             if pfile.check(curres) == 'CANCELLED':
                 bm.free()
                 return {'CANCELLED'}
 
-        ovirrad = array([g[virradres] for g in geom], dtype = float32)
-        maxovirrad, minovirrad, aveovirrad = nmax(ovirrad).astype(float64), nmin(ovirrad).astype(float64), nmean(ovirrad).astype(float64)
+        ovirrad = array([g[virradres] for g in geom]).astype(float64)
+        maxovirrad, minovirrad, aveovirrad = nmax(ovirrad), nmin(ovirrad), nmean(ovirrad)
+        self['livires'][str(frame)] = (maxovirrad, minovirrad, aveovirrad)
         self['omax']['virrad{}'.format(frame)] = maxovirrad
         self['omax']['illu{}'.format(frame)] =  maxovirrad * 179.0
         self['omax']['df{}'.format(frame)] =  maxovirrad * 1.79
@@ -707,38 +704,38 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         
         rt = geom.layers.string['rt{}'.format(rtframe)]
         gps = [g for g in geom if g[rt]]
-        areas = array([g.calc_area() for g in gps] if self['cpoint'] == '0' else [vertarea(bm, g) for g in gps], dtype = float32)
+        areas = array([g.calc_area() for g in gps] if self['cpoint'] == '0' else [vertarea(bm, g) for g in gps])
 
         for chunk in chunks(gps, int(scene['viparams']['nproc']) * 200):
-            careas = array([c.calc_area() if self['cpoint'] == '0' else vertarea(bm, c) for c in chunk], dtype = float32)
+            careas = array([c.calc_area() if self['cpoint'] == '0' else vertarea(bm, c) for c in chunk])
             rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
-            xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()]).astype(float32)
-            virradm2 = nsum(xyzirrad * array([0.26, 0.67, 0.065], dtype = float32), axis = 1) * 1e-3
+            xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()])
+            virradm2 = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1) * 1e-3
             virrad = virradm2 * careas
             firradm2 = virradm2 * 1.64
             firrad = firradm2 * careas
             illu = virradm2 * 179e-3
 
             for gi, gp in enumerate(chunk):
-                gp[firradm2res] = firradm2[gi]
-                gp[virradm2res] = virradm2[gi]
-                gp[firradres] = firrad[gi]
-                gp[virradres] = virrad[gi]
-                gp[illures] = illu[gi]
+                gp[firradm2res] = firradm2[gi].astype(float32)
+                gp[virradm2res] = virradm2[gi].astype(float32)
+                gp[firradres] = firrad[gi].astype(float32)
+                gp[virradres] = virrad[gi].astype(float32)
+                gp[illures] = illu[gi].astype(float32)
             
             curres += len(chunk)
             if pfile.check(curres) == 'CANCELLED':
                 bm.free()
                 return {'CANCELLED'}
                 
-        ovirradm2 = array([g[virradm2res] for g in gps]).astype(float32)
-        ovirrad = array([g[virradres] for g in gps]).astype(float32)
-        maxovirradm2 = nmax(ovirradm2).astype(float64)
-        maxovirrad = nmax(ovirrad).astype(float64)
-        minovirradm2 = nmin(ovirradm2).astype(float64)
-        minovirrad = nmin(ovirrad).astype(float64)
-        aveovirradm2 = nmean(ovirradm2).astype(float64)
-        aveovirrad = nmean(ovirrad).astype(float64)
+        ovirradm2 = array([g[virradm2res] for g in gps])
+        ovirrad = array([g[virradres] for g in gps])
+        maxovirradm2 = nmax(ovirradm2)
+        maxovirrad = nmax(ovirrad)
+        minovirradm2 = nmin(ovirradm2)
+        minovirrad = nmin(ovirrad)
+        aveovirradm2 = nmean(ovirradm2)
+        aveovirrad = nmean(ovirrad)
         self['omax']['firrad{}'.format(frame)] = maxovirrad * 1.64
         self['omin']['firrad{}'.format(frame)] = minovirrad * 1.64
         self['oave']['firrad{}'.format(frame)] = aveovirrad * 1.64
@@ -812,16 +809,16 @@ def compcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         
         for chunk in chunks([g for g in geom if g[rt]], int(scene['viparams']['nproc']) * 50):
             rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
-            xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()]).astype(float32)
+            xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()])
             virrad = nsum(xyzirrad * array([0.26, 0.67, 0.065]), axis = 1)
             illu = virrad * 179
             df = illu * 0.01
             sv = self.retsv(scene, frame, rtframe, chunk, rt)
 
             for gi, gp in enumerate(chunk):
-                gp[dfres] = df[gi]
-                gp[svres] = sv[gi]
-                gp[res] = illu[gi]
+                gp[dfres] = df[gi].astype(float16)
+                gp[svres] = sv[gi].astype(int8)
+                gp[res] = illu[gi].astype(float32)
             
             curres += len(chunk)
             if pfile.check(curres) == 'CANCELLED':
@@ -2066,6 +2063,7 @@ def livisimacc(simnode):
 def drawpoly(x1, y1, x2, y2, r, g, b, a):
 #    bgl.glEnable(bgl.GL_BLEND)
 #    bgl.glBlendFunc(bgl.GL_ONE, bgl.GL_CONSTANT_COLOR)
+    bgl.glLineWidth(1)
     bgl.glColor4f(r, g, b, a)
     bgl.glBegin(bgl.GL_POLYGON)
     bgl.glVertex2i(x1, y2)
@@ -2150,6 +2148,7 @@ def radial2xy(c, theta, phi, w, h):
     return c[0] + theta * sin(math.pi * phi/180) * w, c[1] + theta * math.cos(math.pi * phi/180) * h
     
 def drawloop(x1, y1, x2, y2):
+    bgl.glLineWidth(1)
     bgl.glColor4f(0.0, 0.0, 0.0, 1.0)
     bgl.glBegin(bgl.GL_LINE_LOOP)
     bgl.glVertex2i(x1, y2)
@@ -2348,21 +2347,19 @@ def retdp(mres, dp):
     return dp
 
 def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
-    if len(distances):
+    if distances.size:
         try:
             dp = 0 if max(res) > 100 else 1
-            nres = ['{:.{precision}f}'.format(r, precision = dp) for r in res]
+            nres = char.mod('%.{}f'.format(dp), res)
             fsdist = (fontsize/distances).astype(int8)
-            xposis = posis[:,0]
-            yposis = posis[:,1]
-#            [(blf.size(0, fontsize, fsdist[ri]), blf.position(0, xposis[ri] - int(0.5*blf.dimensions(0, nr)[0]), yposis[ri] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99), blf.draw(0, nr)) for ri, nr in enumerate(nres)]
+            xposis = posis[0::2]
+            yposis = posis[1::2]
             for ri, nr in enumerate(nres):
-                if distances[ri] > 1.25:
-                    blf.size(0, fsdist[ri], bpy.context.user_preferences.system.dpi)
-                    blf.position(0, xposis[ri] - int(0.5*blf.dimensions(0, nr)[0]), yposis[ri] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99)
-                    blf.draw(0, nr)
+                blf.size(0, fsdist[ri], bpy.context.user_preferences.system.dpi)
+                blf.position(0, xposis[ri] - int(0.5*blf.dimensions(0, nr)[0]), yposis[ri] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99)
+                blf.draw(0, nr)
         except Exception as e:
-            print(e)
+            print('Drawing index error: ', e)
 
 def draw_index(posis, res, fontsize, fontcol, shadcol): 
     nres = ['{}'.format(format(r, '.{}f'.format(retdp(max(res), 0)))) for ri, r in enumerate(res)]    
@@ -2883,7 +2880,21 @@ def sunposlivi(scene, skynode, frames, sun, stime):
     shaddict = {'0': 0.01, '1': 2, '2': 5, '3': 5}
     values = list(zip([shaddict[str(skynode['skynum'])] for t in range(len(times))], beamvals, skyvals))
     sunapply(scene, sun, values, solposs, frames)
-
+    
+def sunposh(context, suns):
+    scene = context.scene
+    sps = [solarPosition(scene.solday, i, scene.latitude, scene.longitude) for i in range(0, 23)]
+    spsvalid = [sp[0] > 0 for sp in sps]
+    if sum(spsvalid) > len(suns):
+        for i in range(sum(spsvalid) - len(suns)):
+            bpy.ops.object.lamp_add(type = "SUN")
+            suns.append(context.active_object)
+    elif sum(spsvalid) < len(suns):    
+        [scene.objects.unlink(sun) for sun in suns[sum(spsvalid)]]
+        
+    for sun in suns:
+        pass
+        
 def sunapply(scene, sun, values, solposs, frames):
     sun.data.animation_data_clear()
     sun.animation_data_clear()

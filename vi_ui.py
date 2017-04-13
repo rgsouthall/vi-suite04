@@ -1,6 +1,6 @@
-import bpy, datetime
+import bpy
 from collections import OrderedDict
-from .vi_func import newrow, newrow2
+from .vi_func import newrow
 
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import retdates
@@ -583,7 +583,7 @@ def rmmenu(layout, cm):
             newrow(layout, 'Normal map:', cm, 'radnorm')
             if cm.radnorm:
                 newrow(layout, 'Strength:', cm, 'ns')
-                newrow(layout, 'Up vector:', cm, 'nu')
+                newrow(layout, 'Green global vector:', cm, 'nu')
                 newrow(layout, 'Green direction:', cm, 'gup')
     row = layout.row()
     row.label("-----------------------------------------")

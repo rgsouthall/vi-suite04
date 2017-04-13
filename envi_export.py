@@ -17,7 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 import bpy, os, itertools, subprocess, datetime, shutil, mathutils, bmesh
-from .vi_func import ceilheight, selobj, facearea, boundpoly, selmesh
+from .vi_func import selobj, facearea, boundpoly, selmesh
 from .envi_func import epentry, epschedwrite
 
 dtdf = datetime.date.fromordinal
@@ -198,7 +198,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 elif mat.envi_con_type in ('Door', 'Window')  and mat.envi_con_makeup != "2":
                     if len(face.verts) > 4:
                         exp_op.report({'ERROR'}, 'Window/door in {} has more than 4 vertices'.format(obj.name))
-                    xav, yav, zav = mathutils.Vector(face.calc_center_bounds())
+                    xav, yav, zav = mathutils.Vector(face.calc_center_median())
                     params = list(wfrparams) + ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]
                     paramvs = ['{}_{}'.format(obj.name, face.index), 'Wall', 'Frame', obj.name, obc, obco, se, we, 'autocalculate', len(face.verts)] + ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format(vco) for vco in vcos]
                     en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))    

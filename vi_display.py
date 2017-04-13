@@ -25,6 +25,7 @@ from numpy import array, arange, repeat
 from numpy import sum as nsum
 from numpy import min as nmin
 from numpy import max as nmax
+from numpy import append as nappend
 try:
     import matplotlib.pyplot as plt
     import matplotlib.cm as mcm  
@@ -240,7 +241,7 @@ class linumdisplay():
     def draw(self, context):
         self.u = 0
         self.scene = context.scene
-        self.fontmult = 2 if context.space_data.region_3d.is_perspective else 500
+        self.fontmult = 2 #if context.space_data.region_3d.is_perspective else 500
         
         if not self.scene.get('viparams') or self.scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel'):
             self.scene.vi_display = 0
@@ -289,7 +290,7 @@ class linumdisplay():
             bpy.context.user_preferences.system.window_draw_method = bpy.context.user_preferences.system.window_draw_method
            
     def update(self, context):
-        self.allpcs, self.alldepths, self.allres = [], [], []
+        self.allpcs, self.alldepths, self.allres = array([]), array([]), array([])
         try:
             for ob in self.obd:
                 if ob.data.get('shape_keys') and str(self.fn) in [sk.name for sk in ob.data.shape_keys.key_blocks] and ob.active_shape_key.name != str(self.fn):
@@ -321,8 +322,8 @@ class linumdisplay():
                             (faces, distances) = map(list, zip(*[[f, distances[i]] for i, f in enumerate(faces) if not self.scene.ray_cast(fcos[i], direcs[i], distance=distances[i])[0]]))
         
                         face2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, f.calc_center_median_weighted()) for f in faces]
-                        (faces, self.pcs, self.depths) = map(list, zip(*[[f, face2d[fi], distances[fi]] for fi, f in enumerate(faces) if face2d[fi] and 0 < face2d[fi][0] < self.width and 0 < face2d[fi][1] < self.height]))          
-                        self.res = [f[livires] for f in faces]
+                        (faces, pcs, depths) = map(list, zip(*[[f, face2d[fi], distances[fi]] for fi, f in enumerate(faces) if face2d[fi] and 0 < face2d[fi][0] < self.width and 0 < face2d[fi][1] < self.height]))          
+                        res = [f[livires] for f in faces]
                     
                     elif bm.verts.layers.float.get('res{}'.format(self.scene.frame_current)):                        
                         verts = [v for v in geom if not v.hide and v.select and (context.space_data.region_3d.view_location - self.view_location).dot(v.co + self.scene.vi_display_rp_off * v.normal.normalized() - self.view_location)/((context.space_data.region_3d.view_location-self.view_location).length * (v.co + self.scene.vi_display_rp_off * v.normal.normalized() - self.view_location).length) > 0]
@@ -334,20 +335,19 @@ class linumdisplay():
                             (verts, distances) = map(list, zip(*[[v, distances[i]] for i, v in enumerate(verts) if not self.scene.ray_cast(vcos[i], direcs[i], distance=distances[i])[0]]))
                             
                         vert2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, v.co) for v in verts]
-                        (verts, self.pcs, self.depths) = map(list, zip(*[[v, vert2d[vi], distances[vi]] for vi, v in enumerate(verts) if vert2d[vi] and 0 < vert2d[vi][0] < self.width and 0 < vert2d[vi][1] < self.height]))
-                        self.res = [v[livires] for v in verts]
-                    
+                        (verts, pcs, depths) = map(list, zip(*[[v, vert2d[vi], distances[vi]] for vi, v in enumerate(verts) if vert2d[vi] and 0 < vert2d[vi][0] < self.width and 0 < vert2d[vi][1] < self.height]))
+                        res = [v[livires] for v in verts]
+                        
                     bm.free()
                 
                 except Exception as e:
-                    self.pcs, self.depths, self.res = [], [], []
+                    pcs, depths, res = [], [], []
                     
-                self.allpcs += self.pcs
-                self.alldepths += self.depths
-                self.allres += self.res
-            self.allpcs  = array(self.allpcs)
-            self.alldepths = array(self.alldepths)
-            self.allres = array(self.allres)            
+                self.allpcs = nappend(self.allpcs, array(pcs))
+                self.alldepths = nappend(self.alldepths, array(depths))
+                self.allres = nappend(self.allres, array(res))
+
+            self.alldepths = self.alldepths/nmin(self.alldepths)        
             draw_index_distance(self.allpcs, self.allres, self.fontmult * self.scene.vi_display_rp_fs, self.scene.vi_display_rp_fc, self.scene.vi_display_rp_fsh, self.alldepths)    
 
         except Exception as e:
@@ -759,9 +759,11 @@ class en_scatter(Base_Display):
         self.gimage = 'scatter.png'
 
         try:
-            if self.unit:
+            if self.unit and self.cao.get('days'):
+                print(self.unit)
                 zdata, hours, days = array(self.cao[self.resstring][self.unit]).reshape(len(self.cao['days']), 24).T, self.cao['hours'], self.cao['days']        
                 title = self.cao.name
+                
                 self.minmax = envals(self.unit, scene, zdata)    
                 cbtitle = enunitdict[self.unit]
                 self.plt = plt
@@ -986,13 +988,16 @@ def comp_disp(self, context, simnode):
         self.dhscatter.draw(context, width, height)
 
 def cbdm_disp(self, context, simnode):
-    if self._handle_disp:
-        width, height = context.region.width, context.region.height
-        self.legend.draw(context, width, height)
-        self.table.draw(context, width, height)
-    
-        if context.scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux', 'Ave lux', 'Min lux', 'kWh', 'kWh/m2'):
-            self.dhscatter.draw(context, width, height)
+    try:
+        if self._handle_disp:
+            width, height = context.region.width, context.region.height
+            self.legend.draw(context, width, height)
+            self.table.draw(context, width, height)
+    except:
+        pass
+
+    if context.scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux', 'Ave lux', 'Min lux', 'kWh', 'kWh/m2'):
+        self.dhscatter.draw(context, width, height)
         
 def en_disp(self, context, simnode):
     try:

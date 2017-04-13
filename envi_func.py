@@ -201,7 +201,7 @@ def envizres(scene, eresobs, resnode, restype):
     
         ores.animation_data_clear()
         ores.animation_data_create()
-        ores['max'], ores['min'], ores['cmap'] = maxval, minval, scene.vi_leg_col
+        ores['max'], ores['min'], ores['cmap'], ores['days'], ores['hours'] = maxval, minval, scene.vi_leg_col, o['days'], o['hours']
         ores.animation_data.action = bpy.data.actions.new(name="EnVi Zone")
         oresz = ores.animation_data.action.fcurves.new(data_path="scale", index = 2)
         oresz.keyframe_points.add(len(sv))
@@ -374,7 +374,7 @@ def processh(lines):
                 'Zone Thermal Chimney Heat Gain Energy [J] !Hourly': 'TC heat gain (J)',
                 'Zone Thermal Chimney Volume [m3] !Hourly': 'TC VOLUME (m3)',
                 'Zone Thermal Chimney Mass [kg] !Hourly':'TC mass(kg)'}
-    enresdict = {'AFN Node CO2 Concentration [ppm] !Hourly': 'CO2'}
+    enresdict = {'AFN Node CO2 Concentration [ppm] !Hourly': 'CO2 (ppm)'}
     lresdict = {'AFN Linkage Node 1 to Node 2 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow out',
                 'AFN Linkage Node 2 to Node 1 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow in',
                 'AFN Surface Venting Window or Door Opening Factor [] !Hourly': 'Opening Factor',

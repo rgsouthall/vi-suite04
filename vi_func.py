@@ -273,6 +273,8 @@ def radmat(self, scene):
                     savetxt(os.path.join(scene['liparams']['texfilebase'],'{}.ddy'.format(radname)), ydat, fmt='%.2f', header = header, comments='')
                     radtex += "{0}_tex texdata {0}_norm\n9 ddx ddy ddz {1}.ddx {1}.ddy {1}.ddy nm.cal frac(Lv){2} frac(Lu){3}\n0\n4 {4} {5[0]} {5[1]} {5[2]}\n\n".format(radname, os.path.join(scene['viparams']['newdir'], 'textures', radname), ar[0], ar[1], self.ns, self.nu)
                     mod = '{}_norm'.format(radname)
+#                    normimage.pixels = []
+#                    normimage.reload()
                     
             except Exception as e:
                 print('Problem with normal export {}'.format(e))
@@ -384,7 +386,7 @@ def cbdmmtx(self, scene, locnode, export_op):
 def cbdmhdr(node, scene):
     targethdr = os.path.join(scene['viparams']['newdir'], node['epwbase'][0]+"{}.hdr".format(('l', 'w')[node['watts']]))
     latlonghdr = os.path.join(scene['viparams']['newdir'], node['epwbase'][0]+"{}p.hdr".format(('l', 'w')[node['watts']]))
-    skyentry = hdrsky(targethdr, node.hdrmap, node.hdrangle, node.hdrradius)
+    skyentry = hdrsky(targethdr, '1', 0, 1000)
 
     if node.sourcemenu != '1' or node.cbanalysismenu == '2':
         vecvals, vals = mtx2vals(open(node['mtxfile'], 'r').readlines(), datetime.datetime(2015, 1, 1).weekday(), node, node.times)
@@ -394,7 +396,7 @@ def cbdmhdr(node, scene):
         vwrun = Popen(vwcmd.split(), stdout = PIPE)
         rcrun = Popen(rcontribcmd.split(), stderr = PIPE, stdin = vwrun.stdout)
         for line in rcrun.stderr:
-            print(line)
+            logentry('HDR generation error: {}'.format(line))
     
         for j in range(146):
             with open(os.path.join(scene['viparams']['newdir'], "ps{}.hdr".format(j)), 'w') as psfile:
@@ -415,6 +417,11 @@ def cbdmhdr(node, scene):
                 rtcmd = 'rtrace -n {} -x 1500 -y 750 -fac {}.oct'.format(scene['viparams']['nproc'], os.path.join(scene['viparams']['newdir'], node['epwbase'][0]))
                 Popen(rtcmd.split(), stdin = rcalcrun.stdout, stdout = panohdr)
     return skyentry
+
+def hdrsky(hdrfile, hdrmap, hdrangle, hdrradius):
+    hdrangle = '1 {:.3f}'.format(hdrangle * math.pi/180) if hdrangle else '1 0'
+    hdrfn = {'0': 'sphere2latlong', '1': 'sphere2angmap'}[hdrmap]
+    return("# Sky material\nvoid colorpict hdr_env\n7 red green blue '{}' {}.cal sb_u sb_v\n0\n{}\n\nhdr_env glow env_glow\n0\n0\n4 1 1 1 0\n\nenv_glow bubble sky\n0\n0\n4 0 0 0 {}\n\n".format(hdrfile, hdrfn, hdrangle, hdrradius))
 
 def retpmap(node, frame, scene):
     pportmats = ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.pport and mat.get('radentry')])
@@ -2859,11 +2866,6 @@ def sunposenvi(scene, sun, dirsol, difsol, mdata, ddata, hdata):
     sizevals = [beamvals[t]/skyvals[t] for t in range(len(times))]
     values = list(zip(sizevals, beamvals, skyvals))
     sunapply(scene, sun, values, solposs, frames)
-
-def hdrsky(hdrfile, hdrmap, hdrangle, hdrradius):
-    hdrangle = '1 {:.3f}'.format(hdrangle * math.pi/180) if hdrangle else '1 0'
-    hdrfn = {'0': 'sphere2latlong', '1': 'sphere2angmap'}[hdrmap]
-    return("# Sky material\nvoid colorpict hdr_env\n7 red green blue '{}' {}.cal sb_u sb_v\n0\n{}\n\nhdr_env glow env_glow\n0\n0\n4 1 1 1 0\n\nenv_glow bubble sky\n0\n0\n4 0 0 0 {}\n\n".format(hdrfile, hdrfn, hdrangle, hdrradius))
        
 def sunposlivi(scene, skynode, frames, sun, stime):
     sun.data.shadow_method, sun.data.shadow_ray_samples, sun.data.sky.use_sky = 'RAY_SHADOW', 8, 1

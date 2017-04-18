@@ -2296,10 +2296,10 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 if gpoints:
                     posis = [gp.calc_center_bounds() + gp.normal.normalized() * simnode.offset for gp in gpoints] if simnode.cpoint == '0' else [gp.co + gp.normal.normalized() * simnode.offset for gp in gpoints]
                     allpoints = numpy.zeros((len(gpoints), len(direcs)), dtype=int8)
-
+                    
                     for chunk in chunks(gpoints, int(scene['viparams']['nproc']) * 200):
                         for gp in chunk:
-#                           Attempy to multi-process but Pool does does not with class instances
+#                           Attempt to multi-process but Pool does not work with class instances
 #                            p = Pool(4) 
 #                            pointres = array(p.starmap(shadtree.ray_cast, [(posis[g], direc) for direc in direcs]), dtype = int8)
                             pointres = array([(0, 1)[shadtree.ray_cast(posis[g], direc)[3] == None and direc[2] > 0] for direc in direcs], dtype = int8)
@@ -2310,7 +2310,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
                         curres += len(chunk)
                         if pfile.check(curres) == 'CANCELLED':
                             return {'CANCELLED'}
-    
+
                     ap = numpy.average(allpoints, axis=0)                
                     shadres = [gp[shadres] for gp in gpoints]
 

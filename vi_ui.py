@@ -583,8 +583,9 @@ def rmmenu(layout, cm):
             newrow(layout, 'Normal map:', cm, 'radnorm')
             if cm.radnorm:
                 newrow(layout, 'Strength:', cm, 'ns')
-                newrow(layout, 'Green global vector:', cm, 'nu')
-                newrow(layout, 'Green direction:', cm, 'gup')
+                newrow(layout, 'Image green vector:', cm, 'nu')
+                newrow(layout, 'Image red vector:', cm, 'nside')
+
     row = layout.row()
     row.label("-----------------------------------------")
     

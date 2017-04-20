@@ -323,8 +323,9 @@ def register():
     Material.radtex = bprop("", "Flag to signify whether the material has a texture associated with it", False)
     Material.radnorm = bprop("", "Flag to signify whether the material has a normal map associated with it", False)
     Material.ns = fprop("", "Strength of normal effect", 0, 5, 1)
-    Material.nu = fvprop(3, '', 'Image up vector', [1, 0, 0], 'VELOCITY', -1, 1)
-    Material.gup = eprop([("0", "Up", "Green channel is up"), ("1", "Down", "Green channel is down")], "", "Specify the direction of the green channel", "0")
+    Material.nu = fvprop(3, '', 'Image up vector', [0, 0, 1], 'VELOCITY', -1, 1)
+    Material.nside = fvprop(3, '', 'Image side vector', [-1, 0, 0], 'VELOCITY', -1, 1)
+#    Material.gup = eprop([("0", "Up", "Green channel is up"), ("1", "Down", "Green channel is down")], "", "Specify the direction of the green channel", "0")
 
     radtypes = [('0', 'Plastic', 'Plastic Radiance material'), ('1', 'Glass', 'Glass Radiance material'), ('2', 'Dielectric', 'Dialectric Radiance material'),
                 ('3', 'Translucent', 'Translucent Radiance material'), ('4', 'Mirror', 'Mirror Radiance material'), ('5', 'Light', 'Emission Radiance material'),

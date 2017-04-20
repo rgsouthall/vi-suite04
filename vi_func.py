@@ -222,9 +222,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
                 for mat in mmats:
                     matname = mat.name.replace(' ', '_')
                     ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}/{1}'.format(loop.vert.index + 1, loop.index), '{0}/{1}/{0}'.format(loop.vert.index + 1, loop.index))[f.smooth]  for loop in f.loops)) for f in mfaces if o.data.materials[f.material_index] == mat])
-
-#        with open('/home/ryan/{}test.obj'.format(o.name), 'w') as ofile:
-#            ofile.write(otext+vtext+ftext)                
+              
         if ffaces:
             gradfile += radpoints(o, ffaces, 0)
     
@@ -268,13 +266,11 @@ def radmat(self, scene):
                     normimage = self.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node.inputs['Normal'].links[0].from_node.inputs['Color'].links[0].from_node.image
                     header = '2\n0 1 {}\n0 1 {}\n'.format(normimage.size[1], normimage.size[0])
                     xdat = -1 + 2 * array(normimage.pixels[:][0::4]).reshape(normimage.size[0], normimage.size[1])
-                    ydat = -1 + 2 * array(normimage.pixels[:][1::4]).reshape(normimage.size[0], normimage.size[1]) if self.gup == '0' else 1 - 2 * array(normimage.pixels[:][1::4]).reshape(normimage.size[0], normimage.size[1])
+                    ydat = -1 + 2 * array(normimage.pixels[:][1::4]).reshape(normimage.size[0], normimage.size[1])# if self.gup == '0' else 1 - 2 * array(normimage.pixels[:][1::4]).reshape(normimage.size[0], normimage.size[1])
                     savetxt(os.path.join(scene['liparams']['texfilebase'],'{}.ddx'.format(radname)), xdat, fmt='%.2f', header = header, comments='')
                     savetxt(os.path.join(scene['liparams']['texfilebase'],'{}.ddy'.format(radname)), ydat, fmt='%.2f', header = header, comments='')
-                    radtex += "{0}_tex texdata {0}_norm\n9 ddx ddy ddz {1}.ddx {1}.ddy {1}.ddy nm.cal frac(Lv){2} frac(Lu){3}\n0\n4 {4} {5[0]} {5[1]} {5[2]}\n\n".format(radname, os.path.join(scene['viparams']['newdir'], 'textures', radname), ar[0], ar[1], self.ns, self.nu)
+                    radtex += "{0}_tex texdata {0}_norm\n9 ddx ddy ddz {1}.ddx {1}.ddy {1}.ddy nm.cal frac(Lv){2} frac(Lu){3}\n0\n7 {4} {5[0]} {5[1]} {5[2]} {6[0]} {6[1]} {6[2]}\n\n".format(radname, os.path.join(scene['viparams']['newdir'], 'textures', radname), ar[1], ar[1], self.ns, self.nu, self.nside)
                     mod = '{}_norm'.format(radname)
-#                    normimage.pixels = []
-#                    normimage.reload()
                     
             except Exception as e:
                 print('Problem with normal export {}'.format(e))

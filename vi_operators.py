@@ -19,7 +19,7 @@
 import bpy, datetime, mathutils, os, bmesh, shutil, sys, gc, math
 from os import rename
 import numpy
-from numpy import arange, histogram, array, int8, float16
+from numpy import arange, histogram, array, int8, float16, float32, int16, int32
 import bpy_extras.io_utils as io_utils
 from subprocess import Popen, PIPE, call
 from collections import OrderedDict
@@ -957,7 +957,7 @@ class NODE_OT_IDFSelect(NODE_OT_FileSelect):
     filepath = bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
     fextlist = ("idf")
     nodeid = bpy.props.StringProperty()
-
+    
 class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
     bl_idname = "node.ascimport"
     bl_label = "Select ESRI Grid file"
@@ -976,7 +976,75 @@ class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
 
     def execute(self, context):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        startxs, startys, vpos, faces, vlen = [], [], [], [], 0
+        startxs, startys, vlen = [], [], 0
+        ascfiles = [self.filepath] if node.single else [os.path.join(os.path.dirname(os.path.realpath(self.filepath)), file) for file in os.listdir(os.path.dirname(os.path.realpath(self.filepath))) if file.endswith('.asc')]
+        obs = []
+        headerdict = {'ncols': 0, 'nrows': 0, 'xllcorner': 0, 'yllcorner': 0, 'cellsize': 0, 'NODATA_value': '0'}
+
+        for file in ascfiles:
+            basename = file.split(os.sep)[-1].split('.')[0]
+            me = bpy.data.meshes.new("{} mesh".format(basename))
+            bm = bmesh.new()
+            l = 0
+            with open(file, 'r') as ascfile:
+                lines = ascfile.readlines()
+                
+                while len(lines[l].split()) == 2:
+                    if lines[l].split()[0] in headerdict:
+                        headerdict[lines[l].split()[0]] = int(lines[l].split()[1])
+                    l += 1
+                print(headerdict)    
+                vlen = headerdict['nrows'] * headerdict['ncols']                   
+                startxs.append(headerdict['xllcorner'])
+                startys.append(headerdict['yllcorner'])                
+                x, y = 0, headerdict['nrows']
+                
+                for l, line in enumerate(lines[l:]):   
+                    for zval in line.split():
+                        [bm.verts.new((x * headerdict['cellsize'], y * headerdict['cellsize'], (float(zval), 0)[zval == headerdict['NODATA_value']]))]                         
+                        x += 1
+                    x = 0
+                    y -=1
+            
+            bm.verts.ensure_lookup_table()
+            faces = [(i+1, i, i+headerdict['nrows'], i+headerdict['nrows'] + 1) for i in range(0, vlen - headerdict['ncols']) if (i+1)%headerdict['ncols']]
+            [bm.faces.new([bm.verts[fv] for fv in face]) for face in faces]
+            bm.to_mesh(me)
+            bm.free()
+            ob = bpy.data.objects.new(basename, me)
+            bpy.context.scene.objects.link(ob)
+            obs.append(ob)
+
+        minstartx,  minstarty = min(startxs), min(startys)
+
+        for o, ob in enumerate(obs):
+            ob.location = (startxs[o] - minstartx, startys[o] - minstarty, 0)
+            
+        return {'FINISHED'}
+        
+    def invoke(self,context,event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+    
+class NODE_OT_ASCImportold(bpy.types.Operator, io_utils.ImportHelper):
+    bl_idname = "node.ascimportold"
+    bl_label = "Select ESRI Grid file"
+    bl_description = "Select the ESRI Grid file to process"
+    filename = ""
+    filename_ext = ".asc"
+    filter_glob = bpy.props.StringProperty(default="*.asc", options={'HIDDEN'})
+    bl_register = True
+    bl_undo = False
+    nodeid = bpy.props.StringProperty()
+
+    def draw(self,context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Open an asc file with the file browser", icon='WORLD_DATA')
+
+    def execute(self, context):
+        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        startxs, startys, vpos, faces, vlen = [], [], array([]).astype(float32), array([]).astype(int32), 0
         ascfiles = [self.filepath] if node.single else [os.path.join(os.path.dirname(os.path.realpath(self.filepath)), file) for file in os.listdir(os.path.dirname(os.path.realpath(self.filepath))) if file.endswith('.asc')]
 
         for file in ascfiles:
@@ -986,8 +1054,8 @@ class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
                 startxs.append(startx)
                 startys.append(starty)
         minstartx,  minstarty = min(startxs), min(startys)
-
-        for file in ascfiles:
+#        return {'FINISHED'}
+        for f, file in enumerate(ascfiles):
             with open(file, 'r') as ascfile:
                 lines = ascfile.readlines()
                 (vpos, faces) = [[], []] if node.splitmesh else [vpos, faces]
@@ -995,8 +1063,14 @@ class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
                 [ostartx, ostarty] = xy
                 [mstartx, mstarty] = [0, 0] if node.splitmesh else xy
                 [cols, rows, size, nodat] = [eval(lines[i].split()[1]) for i in (0, 1, 4, 5)]
-                vpos += [(mstartx + (size * ci), mstarty + (size * (rows - ri)), (float(h), 0)[h == nodat]) for ri, height in enumerate([line.split() for line in lines[6:]]) for ci, h in enumerate(height)]
-                faces += [(i+1, i, i+rows, i+rows + 1) for i in range((vlen, 0)[node.splitmesh], len(vpos)-cols) if (i+1)%cols]
+#                vpos += [(mstartx + (size * ci), mstarty + (size * (rows - ri)), (float(h), 0)[h == nodat]) for ri, height in enumerate([line.split() for line in lines[6:]]) for ci, h in enumerate(height)]
+#                faces += [(i+1, i, i+rows, i+rows + 1) for i in range((vlen, 0)[node.splitmesh], len(vpos)-cols) if (i+1)%cols]
+                if not f or node.splitmesh:
+                    vpos = array([(mstartx + (size * ci), mstarty + (size * (rows - ri)), (float(h), 0)[h == nodat]) for ri, height in enumerate([line.split() for line in lines[6:]]) for ci, h in enumerate(height)]).astype(float32)
+                    faces = array([(i+1, i, i+rows, i+rows + 1) for i in range((vlen, 0)[node.splitmesh], len(vpos)-cols) if (i+1)%cols]).astype(int32)
+                else:
+                    vpos = numpy.concatenate((vpos, array([(mstartx + (size * ci), mstarty + (size * (rows - ri)), (float(h), 0)[h == nodat]) for ri, height in enumerate([line.split() for line in lines[6:]]) for ci, h in enumerate(height)]).astype(float32)), axis = 0)
+                    faces = numpy.concatenate((faces, array([(i+1, i, i+rows, i+rows + 1) for i in range((vlen, 0)[node.splitmesh], len(vpos)-cols) if (i+1)%cols])), axis=0)
                 vlen += cols*rows
 
                 if node.splitmesh or file == ascfiles[-1]:
@@ -1013,6 +1087,134 @@ class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
                     ob.location = (ostartx - minstartx, ostarty - minstarty, 0) if node.splitmesh else (0, 0, 0)   # position object at 3d-cursor
                     bpy.context.scene.objects.link(ob)
                     bm.free()
+        vpos, faces = [], []
+        return {'FINISHED'}
+
+    def invoke(self,context,event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+class NODE_OT_ASCImport2(bpy.types.Operator, io_utils.ImportHelper):
+    bl_idname = "node.ascimport2"
+    bl_label = "Select ESRI Grid file"
+    bl_description = "Select the ESRI Grid file to process"
+    filename = ""
+    filename_ext = ".asc"
+    filter_glob = bpy.props.StringProperty(default="*.asc", options={'HIDDEN'})
+    bl_register = True
+    bl_undo = False
+    nodeid = bpy.props.StringProperty()
+
+    def draw(self,context):
+        layout = self.layout
+        row = layout.row()
+        row.label(text="Open an asc file with the file browser", icon='WORLD_DATA')
+
+    def execute(self, context):
+        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        startxs, startys, vpos, faces, vlen = [], [], [], [], 0
+        ascfiles = [self.filepath] if node.single else [os.path.join(os.path.dirname(os.path.realpath(self.filepath)), file) for file in os.listdir(os.path.dirname(os.path.realpath(self.filepath))) if file.endswith('.asc')]
+#        tvpos = numpy.array([])
+        
+        for file in ascfiles:
+            with open(file, 'r') as ascfile:
+                for l, line in enumerate(ascfile):
+                    if l == 0:
+                        cols = eval(line.split()[1])
+                    elif l == 1:
+                        rows = eval(line.split()[1])
+                    elif l == 2:
+                        startx = eval(line.split()[1])
+                    elif l ==3:
+                        starty = eval(line.split()[1])
+                        break
+#                lines = ascfile.readlines()
+#                [startx, starty] = [eval(lines[i].split()[1]) for i in (2, 3)]
+                startxs.append(startx)
+                startys.append(starty)
+            vlen += rows * cols
+        tvpos = numpy.zeros(3 * vlen).reshape(vlen, 3)
+        
+        minstartx,  minstarty = min(startxs), min(startys)
+        vlen = 0
+        for file in ascfiles:
+#            headend = 0
+            with open(file, 'r') as ascfile:
+                for l, line in enumerate(ascfile):
+                    if l == 0:
+                        cols = eval(line.split()[1])
+                    elif l == 1:
+                        rows = eval(line.split()[1])
+                        vposz = numpy.zeros(cols*rows).astype(float32)
+                        xindices = array([x for x in range(cols)] * rows).astype(int32)
+                        yindices = array([[x] * rows for x in range(cols - 1, -1, -1)]).flatten().astype(int32)
+                        zindices = array([z for z in range(cols*rows)])
+                    elif l == 2:
+                        x = eval(line.split()[1])
+                    elif l == 3:
+                        y = eval(line.split()[1])
+                        [ostartx, ostarty] = [x, y]
+                        [mstartx, mstarty] = [0, 0] if node.splitmesh else [x, y]                        
+                    elif l == 4:
+                        size = eval(line.split()[1])
+                        vposx = mstartx + size * xindices
+                        xlen = len(vposx)
+                        vposy = mstarty + size * yindices
+                        v = 0
+                    elif l == 5:
+                        nodat = line.split()[1] if len(line.split()) == 2 else '0'  
+                    if len(line.split()) > 2:
+                        for val in line.split():                            
+                            vposz[zindices[v]] = val
+                            v += 1
+#            with open(file, 'r') as ascfile:           
+#                
+##                (vpos, faces) = [[], []] if node.splitmesh else [vpos, faces]
+#                
+#                
+#                
+#                print(headend)
+#                for l, line in enumerate(ascfile):
+#                    if l == headend + 1:
+#                        print(line.split()[0])
+#                for l, line in enumerate(ascfile):
+#                    if l == headend:
+#                        print(line.split()[0])
+#                    if l >= headend:
+#                        for val in line.split():
+#                            
+#                            vposz[zindices[v]] = eval(val)
+#                            v += 1
+                            
+                vposz = numpy.where(vposz == nodat, 0, vposz).astype(float32)
+                print(tvpos.shape, vlen, vlen + rows*cols)
+                tvpos[vlen: vlen + rows*cols] = numpy.vstack((vposx, vposy, vposz)).T
+                
+                    
+#                lines = ascfile.readlines()
+#                xy = [eval(lines[i].split()[1]) for i in (2, 3)]
+                
+#                [cols, rows, size, nodat] = [eval(lines[i].split()[1]) for i in (0, 1, 4, 5)]
+#                vpos += [(mstartx + (size * ci), mstarty + (size * (rows - ri)), (float(h), 0)[h == nodat]) for ri, height in enumerate([line.split() for line in lines[6:]]) for ci, h in enumerate(height)]
+                faces += [(i+1, i, i+rows, i+rows + 1) for i in range((vlen, 0)[node.splitmesh], xlen-cols) if (i+1)%cols]
+                
+
+                if node.splitmesh or file == ascfiles[-1]:
+                    (basename, vpos) = (file.split(os.sep)[-1].split('.')[0], vpos) if node.splitmesh else ('Terrain', [(v[0] - minstartx, v[1] - minstarty, v[2]) for v in vpos])
+                    me = bpy.data.meshes.new("{} mesh".format(basename))
+                    bm = bmesh.new()
+                    [bm.verts.new(vco) for vco in tvpos[vlen: vlen + rows*cols]]
+                    bm.verts.ensure_lookup_table()
+                    [bm.faces.new([bm.verts[fv] for fv in face]) for face in faces[vlen: vlen + rows*cols]]
+#                    bmesh.ops.delete(bm, geom = [v for v in bm.verts if v.co[2] < -900], context = 1)
+                    bm.to_mesh(me)
+#                    me.update()
+                    ob = bpy.data.objects.new(basename, me)
+                    ob.location = (ostartx - minstartx, ostarty - minstarty, 0) if node.splitmesh else (0, 0, 0)   # position object at 3d-cursor
+                    bpy.context.scene.objects.link(ob)
+                    bm.free()
+                vlen += cols*rows
+                    
         vpos, faces = [], []
         return {'FINISHED'}
 

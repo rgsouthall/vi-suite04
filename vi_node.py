@@ -3420,7 +3420,6 @@ class ViASCImport(bpy.types.Node, ViNodes):
     bl_label = 'Vi ASC Import'
     bl_icon = 'LAMP'
 
-    splitmesh = bpy.props.BoolProperty()
     single = bpy.props.BoolProperty(default = False)
     ascfile = bpy.props.StringProperty()
 
@@ -3430,9 +3429,6 @@ class ViASCImport(bpy.types.Node, ViNodes):
     def draw_buttons(self, context, layout):
         row = layout.row()
         row.prop(self, 'single')
-        if not self.single:
-            row = layout.row()
-            row.prop(self, 'splitmesh')
         row = layout.row()
         row.operator('node.ascimport', text = 'Import ASC').nodeid = self['nodeid']
 

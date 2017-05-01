@@ -85,7 +85,8 @@ class envi_materials(object):
                         'Foamglass': ('MediumSmooth', '0.04', '120.0', '840', '0.900000', '0.600000', '0.600000', '50'),
                         'Calsitherm': ('Rough', '0.059', '220.0', '1500', '0.900000', '0.600000', '0.600000', '50'),
                         'Cellulose (attic)': ('Rough', '0.04', '25.0', '1600', '0.900000', '0.600000', '0.600000', '200'),
-                        'Thermafloor TF70': ('Smooth', '0.022', '32.0', '1500', '0.100000', '0.100000', '0.100000', '250')}
+                        'Thermafloor TF70': ('Smooth', '0.022', '32.0', '1500', '0.100000', '0.100000', '0.100000', '250'),
+                        'Aerogel insulation': ('Smooth', '0.015', '2.0', '840', '0.100000', '0.100000', '0.100000', '60')}
    
         self.insulation_dat = OrderedDict(sorted(self.insulation_datd.items()))
         

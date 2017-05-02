@@ -991,7 +991,7 @@ class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
                 
                 while len(lines[l].split()) == 2:
                     if lines[l].split()[0] in headerdict:
-                        headerdict[lines[l].split()[0]] = int(lines[l].split()[1])
+                        headerdict[lines[l].split()[0]] = eval(lines[l].split()[1])
                     l += 1
                 print(headerdict)    
                 vlen = headerdict['nrows'] * headerdict['ncols']                   

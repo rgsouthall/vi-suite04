@@ -3420,15 +3420,20 @@ class ViASCImport(bpy.types.Node, ViNodes):
     bl_label = 'Vi ASC Import'
     bl_icon = 'LAMP'
 
-    single = bpy.props.BoolProperty(default = False)
+    single = bpy.props.BoolProperty(name = '', default = False)
     ascfile = bpy.props.StringProperty()
+    clear_nodata = bpy.props.EnumProperty(name="", description="Deal with no data", items=[('0', 'Zero', 'Make no data zero'), ('1', 'Delete', 'Delete no data')], default='0')
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
 
     def draw_buttons(self, context, layout):
-        row = layout.row()
-        row.prop(self, 'single')
+        newrow(layout, 'Single file:', self, 'single')
+        newrow(layout, 'SNo data:', self, 'clear_nodata')
+#        row = layout.row()
+#        row.prop(self, 'single')
+#        row = layout.row()
+#        row.prop(self, 'single')
         row = layout.row()
         row.operator('node.ascimport', text = 'Import ASC').nodeid = self['nodeid']
 

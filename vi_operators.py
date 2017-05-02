@@ -979,7 +979,7 @@ class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
         startxs, startys, vlen = [], [], 0
         ascfiles = [self.filepath] if node.single else [os.path.join(os.path.dirname(os.path.realpath(self.filepath)), file) for file in os.listdir(os.path.dirname(os.path.realpath(self.filepath))) if file.endswith('.asc')]
         obs = []
-        headerdict = {'ncols': 0, 'nrows': 0, 'xllcorner': 0, 'yllcorner': 0, 'cellsize': 0, 'NODATA_value': '0'}
+        headerdict = {'ncols': 0, 'nrows': 0, 'xllcorner': 0, 'yllcorner': 0, 'cellsize': 0, 'NODATA_value': 0}
 
         for file in ascfiles:
             basename = file.split(os.sep)[-1].split('.')[0]
@@ -993,7 +993,7 @@ class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
                     if lines[l].split()[0] in headerdict:
                         headerdict[lines[l].split()[0]] = eval(lines[l].split()[1])
                     l += 1
-                print(headerdict)    
+   
                 vlen = headerdict['nrows'] * headerdict['ncols']                   
                 startxs.append(headerdict['xllcorner'])
                 startys.append(headerdict['yllcorner'])                
@@ -1001,14 +1001,22 @@ class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
                 
                 for l, line in enumerate(lines[l:]):   
                     for zval in line.split():
-                        [bm.verts.new((x * headerdict['cellsize'], y * headerdict['cellsize'], (float(zval), 0)[zval == headerdict['NODATA_value']]))]                         
+                        [bm.verts.new((x * headerdict['cellsize'], y * headerdict['cellsize'], float(zval)))]                         
                         x += 1
                     x = 0
                     y -=1
             
             bm.verts.ensure_lookup_table()
-            faces = [(i+1, i, i+headerdict['nrows'], i+headerdict['nrows'] + 1) for i in range(0, vlen - headerdict['ncols']) if (i+1)%headerdict['ncols']]
+            faces = [(i+1, i, i+headerdict['ncols'], i+headerdict['ncols'] + 1) for i in range(0, vlen - headerdict['ncols']) if (i+1)%headerdict['ncols']]
             [bm.faces.new([bm.verts[fv] for fv in face]) for face in faces]
+            
+            if node.clear_nodata == '1':
+                bmesh.ops.delete(bm, geom = [v for v in bm.verts if v.co[2] == headerdict['NODATA_value']], context = 1)
+            elif node.clear_nodata == '0':
+                for v in bm.verts:
+                    if v.co[2] == headerdict['NODATA_value']:
+                        v.co[2] = 0
+                        
             bm.to_mesh(me)
             bm.free()
             ob = bpy.data.objects.new(basename, me)

@@ -3429,11 +3429,7 @@ class ViASCImport(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Single file:', self, 'single')
-        newrow(layout, 'SNo data:', self, 'clear_nodata')
-#        row = layout.row()
-#        row.prop(self, 'single')
-#        row = layout.row()
-#        row.prop(self, 'single')
+        newrow(layout, 'No data:', self, 'clear_nodata')
         row = layout.row()
         row.operator('node.ascimport', text = 'Import ASC').nodeid = self['nodeid']
 

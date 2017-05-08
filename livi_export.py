@@ -45,7 +45,7 @@ def radgexport(export_op, node, **kwargs):
         
     for frame in frames:
         scene.frame_set(frame)
-        mradfile =  "".join([m.radmat(scene) for m in mats])
+        mradfile =  "".join([m.radmat(scene) for m in mats if m])
         bpy.ops.object.select_all(action='DESELECT')
         tempmatfilename = scene['viparams']['filebase']+".tempmat"
         with open(tempmatfilename, "w") as tempmatfile:
@@ -56,11 +56,11 @@ def radgexport(export_op, node, **kwargs):
         gradfile = "# Geometry \n\n"
 
         for o in eolist:
-            if o.particle_systems:
-                particles = o.particle_systems[0].particles
-                dobs = o.particle_systems[0].settings.dupli_group.objects
-                for dob in dobs:
-                    print(dob.name)
+#            if o.particle_systems:
+#                particles = o.particle_systems[0].particles
+#                dobs = o.particle_systems[0].settings.dupli_group.objects
+#                for dob in dobs:
+#                    print(dob.name)
             
             bm = bmesh.new()
             tempmesh = o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW')
@@ -70,7 +70,7 @@ def radgexport(export_op, node, **kwargs):
             bpy.data.meshes.remove(tempmesh)
 
             gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename)
-                        
+          
             if o in caloblist:
                 geom = (bm.faces, bm.verts)[int(node.cpoint)]
                 if frame == frames[0]:

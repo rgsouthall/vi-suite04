@@ -2594,10 +2594,10 @@ def retdates(sdoy, edoy, y):
         
 def li_calcob(ob, li):
     if not ob.data.materials:
-        return False
+        ob.licalc = 0
     else:
-        ob.licalc = 1 if [face.index for face in ob.data.polygons if ob.data.materials[face.material_index].mattype == '1'] else 0
-        return ob.licalc
+        ob.licalc = 1 if [face.index for face in ob.data.polygons if ob.data.materials[face.material_index] and ob.data.materials[face.material_index].mattype == '1'] else 0
+    return ob.licalc
 
 # FloVi functions
 def fvboundwrite(o):

@@ -242,7 +242,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
         return gradfile
     
     except Exception as e:
-        print(e)
+        logentry('LiVi mesh export error for {}: {}'.format(o.name, e))
         return gradfile
     
 def radmat(self, scene):
@@ -2269,7 +2269,7 @@ def retobjs(otypes):
     elif otypes == 'livigengeosel':
         return([o for o in validobs if o.type == 'MESH' and o.select == True and o.data.materials and not any([m.livi_sense for m in o.data.materials])])
     elif otypes == 'livil':
-        return([o for o in validobs if (o.type == 'LAMP' or o.vi_type == '4') and o.layers[scene.active_layer] == True])
+        return([o for o in validobs if o.type == 'LAMP' or o.vi_type == '4'])
     elif otypes == 'livic':
         return([o for o in validobs if o.type == 'MESH' and li_calcob(o, 'livi') and o.lires == 0])
     elif otypes == 'livir':

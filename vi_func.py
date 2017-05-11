@@ -186,8 +186,6 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
 
     try:
         bm = obmesh.copy()
-#        bm.verts.ensure_lookup_table()
-#        bm.faces.ensure_lookup_table()
         mrms = array([m.radmatmenu for m in o.data.materials])
         mpps = array([not m.pport for m in o.data.materials])        
         mnpps = where(mpps, 0, 1)        
@@ -195,13 +193,13 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
         fmrms = in1d(mrms, array(('0', '1', '2', '3', '6', '7', '9')), invert = True)
         mfaces = [f for f in bm.faces if (mmrms * mpps)[f.material_index]]
         ffaces = [f for f in bm.faces if (fmrms + mnpps)[f.material_index]]        
-#        mfaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu in ('0', '1', '2', '3') and not o.data.materials[face.material_index].pport]
-#        ffaces = [face for face in bm.faces if o.data.materials[face.material_index].radmatmenu not in ('0', '1', '2', '3', '7', '8') or o.data.materials[face.material_index].pport]    
         mmats = [mat for mat in o.data.materials if mat.radmatmenu in ('0', '1', '2', '3', '6', '9')]
         otext = 'o {}\n'.format(o.name)
         vtext = ''.join(['v {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.co) for v in bm.verts])
+        
         if o.data.polygons[0].use_smooth:
             vtext += ''.join(['vn {0[0]:.6f} {0[1]:.6f} {0[2]:.6f}\n'.format(v.normal.normalized()) for v in bm.verts])
+            
         if not o.data.uv_layers:            
             if mfaces:
                 for mat in mmats:
@@ -213,6 +211,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
             vtext += ''.join([''.join(['vt {0[0]} {0[1]}\n'.format(loop[uv_layer].uv) for loop in face.loops]) for face in bm.faces])
             
             li = 1
+
             for face in bm.faces:
                 for loop in face.loops:
                     loop.index = li
@@ -261,6 +260,7 @@ def radmat(self, scene):
             ar = ('*{}'.format(w/h), '') if w >= h else ('', '*{}'.format(h/w))
             radtex = 'void colorpict {}_tex\n7 red green blue {} . frac(Lu){} frac(Lv){}\n0\n0\n\n'.format(radname, '{}'.format(teximageloc), ar[0], ar[1])
             mod = '{}_tex'.format(radname)
+            
             try:
                 if self.radnorm:             
                     normimage = self.node_tree.nodes['Material Output'].inputs['Surface'].links[0].from_node.inputs['Normal'].links[0].from_node.inputs['Color'].links[0].from_node.image
@@ -274,6 +274,7 @@ def radmat(self, scene):
                     
             except Exception as e:
                 print('Problem with normal export {}'.format(e))
+                
         except Exception as e:
             print('Problem with texture export {}'.format(e))
          
@@ -1056,7 +1057,8 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
                 
         for ch, chunk in enumerate(chunks([g for g in geom if g[rt]], int(scene['viparams']['nproc']) * 40)):
             sensrun = Popen(rccmds[f].split(), stdin=PIPE, stdout=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))
-            resarray = array([[float(v) for v in sl.split('\t') if v] for sl in sensrun[0].splitlines() if sl not in ('\n', '\r\n')]).reshape(len(chunk), 146, 3).astype(float32)
+#            resarray = array([[float(v) for v in sl.split('\t') if v] for sl in sensrun[0].splitlines() if sl not in ('\n', '\r\n')]).reshape(len(chunk), 146, 3).astype(float32)
+            resarray = array([[float(v) for v in sl.strip('\n').strip('\r\n').split('\t') if v] for sl in sensrun[0].splitlines()]).reshape(len(chunk), 146, 3).astype(float32)
             chareas = array([c.calc_area() for c in chunk]) if self['cpoint'] == '0' else array([vertarea(bm, c) for c in chunk]).astype(float32)
             sensarray = nsum(resarray*illuarray, axis = 2).astype(float32)
             wsensearray  = nsum(resarray*fwattarray, axis = 2).astype(float32)
@@ -1147,7 +1149,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             if pfile.check(curres) == 'CANCELLED':
                 bm.free()
                 return {'CANCELLED'}
-
+        print('yo')
         if scene['viparams']['visimcontext'] != 'LiVi Compliance':
             dares = [gp[resda] for gp in geom] 
             udilow = [gp[resudilow] for gp in geom] 
@@ -1174,14 +1176,14 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             self['omax']['illu{}'.format(frame)] = amax(totfinalillu)
             self['omin']['illu{}'.format(frame)] = amin(totfinalillu)
             self['oave']['illu{}'.format(frame)] = nmean(totfinalillu)/reslen
-            self['livires']['dhilluave{}'.format(frame)] = average(totfinalillu, axis = 0).flatten().reshape(dno, hno).transpose()
-            self['livires']['dhillumin{}'.format(frame)] = amin(totfinalillu, axis = 0).reshape(dno, hno).transpose()
-            self['livires']['dhillumax{}'.format(frame)] = amax(totfinalillu, axis = 0).reshape(dno, hno).transpose()
-            self['livires']['daarea{}'.format(frame)] = totdaarea.reshape(dno, hno).transpose()
-            self['livires']['udiaarea{}'.format(frame)] = totudiaarea.reshape(dno, hno).transpose()
-            self['livires']['udisarea{}'.format(frame)] = totudisarea.reshape(dno, hno).transpose()
-            self['livires']['udilarea{}'.format(frame)] = totudilarea.reshape(dno, hno).transpose()
-            self['livires']['udiharea{}'.format(frame)] = totudiharea.reshape(dno, hno).transpose() 
+            self['livires']['dhilluave{}'.format(frame)] = average(totfinalillu, axis = 0).flatten().reshape(dno, hno).transpose().tolist()
+            self['livires']['dhillumin{}'.format(frame)] = amin(totfinalillu, axis = 0).reshape(dno, hno).transpose().tolist()
+            self['livires']['dhillumax{}'.format(frame)] = amax(totfinalillu, axis = 0).reshape(dno, hno).transpose().tolist()
+            self['livires']['daarea{}'.format(frame)] = totdaarea.reshape(dno, hno).transpose().tolist()
+            self['livires']['udiaarea{}'.format(frame)] = totudiaarea.reshape(dno, hno).transpose().tolist()
+            self['livires']['udisarea{}'.format(frame)] = totudisarea.reshape(dno, hno).transpose().tolist()
+            self['livires']['udilarea{}'.format(frame)] = totudilarea.reshape(dno, hno).transpose().tolist()
+            self['livires']['udiharea{}'.format(frame)] = totudiharea.reshape(dno, hno).transpose().tolist()
             
             self['tableudil{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
                 ['UDI-l (% area)', '{:.1f}'.format(self['omin']['udilow{}'.format(frame)]), '{:.1f}'.format(self['oave']['udilow{}'.format(frame)]), '{:.1f}'.format(self['omax']['udilow{}'.format(frame)])]])
@@ -1209,8 +1211,8 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             self['omax']['kW/m2{}'.format(frame)] = max(kwhm2)
             self['omin']['kW/m2{}'.format(frame)] = min(kwhm2)
             self['oave']['kW/m2{}'.format(frame)] = sum(kwhm2)/reslen
-            self['livires']['kW{}'.format(frame)] =  (0.001*totfinalwatt).reshape(dno, hno).transpose()
-            self['livires']['kW/m2{}'.format(frame)] =  (0.001*totfinalwattm2).reshape(dno, hno).transpose()
+            self['livires']['kW{}'.format(frame)] =  (0.001*totfinalwatt).reshape(dno, hno).transpose().tolist()
+            self['livires']['kW/m2{}'.format(frame)] =  (0.001*totfinalwattm2).reshape(dno, hno).transpose().tolist()
             self['tablekwh{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
                 ['Irradiance (kW)', '{:.1f}'.format(self['omin']['kW{}'.format(frame)]), '{:.1f}'.format(self['oave']['kW{}'.format(frame)]), '{:.1f}'.format(self['omax']['kW{}'.format(frame)])]])
             self['tablekwhm2{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
@@ -1230,8 +1232,8 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             self['omax']['ase{}'.format(frame)] = max(aseres)
             self['omin']['ase{}'.format(frame)] = min(aseres)
             self['oave']['ase{}'.format(frame)] = sum(aseres)/reslen
-            self['livires']['asearea{}'.format(frame)] = (100 * totasearea/totarea).reshape(dno, hno).transpose()
-            self['livires']['sdaarea{}'.format(frame)] = (100 * totsdaarea/overallsdaarea).reshape(dno, hno).transpose()
+            self['livires']['asearea{}'.format(frame)] = (100 * totasearea/totarea).reshape(dno, hno).transpose().tolist()
+            self['livires']['sdaarea{}'.format(frame)] = (100 * totsdaarea/overallsdaarea).reshape(dno, hno).transpose().tolist()
             self['tablesda{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
                 ['sDA (% hours)', '{:.1f}'.format(self['omin']['sda{}'.format(frame)]), '{:.1f}'.format(self['oave']['sda{}'.format(frame)]), '{:.1f}'.format(self['omax']['sda{}'.format(frame)])]])
             self['tablease{}'.format(frame)] = array([["", 'Minimum', 'Average', 'Maximum'], 
@@ -1829,9 +1831,9 @@ def vertarea(mesh, vert):
             ovs, oes = [], []
             fvs = [le.verts[(0, 1)[le.verts[0] == vert]] for le in vert.link_edges]
             ofaces = [oface for oface in faces if len([v for v in oface.verts if v in face.verts]) == 2]    
+            
             for oface in ofaces:
-                oes.append([e for e in face.edges if e in oface.edges])
-                
+                oes.append([e for e in face.edges if e in oface.edges])                
                 ovs.append([i for i in face.verts if i in oface.verts])
             
             if len(ovs) == 1:                
@@ -1920,22 +1922,27 @@ def wind_rose(maxws, wrsvg, wrtype):
     if wrtype in ('0', '1', '3', '4'):            
         thick = scale * 0.005 if wrtype == '4' else scale * 0.0005
         faces = bmesh.ops.inset_individual(bm, faces=bm.faces, thickness = thick, use_even_offset = True)['faces']
+        
         if wrtype == '4':
             [bm.faces.remove(f) for f in bm.faces if f not in faces]
-        else:
+        else:            
+            bi = wro.data.materials[:].index(wro.data.materials['wr-000000'])
+#            faces.foreach_set('material_index', [bi] * len(faces))
             for face in faces:
-                face.material_index = wro.data.materials[:].index(wro.data.materials['wr-000000'])
-
+                face.material_index = bi
+            
     bm.to_mesh(wro.data)
     bm.free()
-    
+
     bpy.ops.mesh.primitive_circle_add(vertices = 132, fill_type='NGON', radius=scale*1.2, view_align=False, enter_editmode=False, location=(0, 0, -0.01))
     wrbo = bpy.context.active_object
+    
     if 'wr-base'not in [mat.name for mat in bpy.data.materials]:
         bpy.data.materials.new('wr-base')
         bpy.data.materials['wr-base'].diffuse_color = (1,1,1)
     bpy.ops.object.material_slot_add()
     wrbo.material_slots[-1].material = bpy.data.materials['wr-base']
+
     return (objoin((wrbo, wro)), scale)
     
 def compass(loc, scale, wro, mat):

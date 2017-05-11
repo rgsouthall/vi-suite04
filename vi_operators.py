@@ -19,7 +19,7 @@
 import bpy, datetime, mathutils, os, bmesh, shutil, sys, gc, math
 from os import rename
 import numpy
-from numpy import arange, histogram, array, int8, float16, float32, int16, int32
+from numpy import arange, histogram, array, int8, float16, float32, int16, int32, float64
 import bpy_extras.io_utils as io_utils
 from subprocess import Popen, PIPE, call
 from collections import OrderedDict
@@ -27,16 +27,6 @@ from datetime import datetime as dt
 from math import cos, sin, pi, ceil, tan
 from time import sleep
 from multiprocessing import Pool
-
-try:
-    import matplotlib.pyplot as plt
-    import matplotlib.cm as cm
-    mp = 1
-    
-except Exception as e:
-    print('Matplotlib problem:', e)    
-    mp = 0
-
 from .livi_export import radgexport, spfc, createoconv, createradfile, genbsdf
 from .livi_calc  import li_calc
 from .vi_display import li_display, linumdisplay, spnumdisplay, en_air, en_panel, en_temp_panel, wr_legend, wr_disp, wr_scatter, wr_table, ss_disp, ss_legend, basic_legend, basic_table, basic_disp, ss_scatter, en_disp, en_pdisp, en_scatter, en_table, en_barchart, comp_table, comp_disp, leed_scatter, cbdm_disp, cbdm_scatter, envals, bsdf, bsdf_disp#, en_barchart, li3D_legend
@@ -47,6 +37,16 @@ from .vi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fv
 from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, chunks, xy2radial, logentry
 from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
 from .vi_chart import chart_disp
+
+try:
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
+    mp = 1
+    
+except Exception as e:
+    logentry('Matplotlib problem: {}'.format(e))    
+    mp = 0
+    
 #from .vi_gen import vigen
 
 envi_mats = envi_materials()
@@ -556,19 +556,19 @@ class NODE_OT_RadImage(bpy.types.Operator):
                 self.frame += 1
                 return {'RUNNING_MODAL'}
             else:
-                bpy.data.images['liviimage'].filepath = bpy.path.abspath(self.simnode.hdrname)
-                bpy.data.images['liviimage'].reload()
-                for area in bpy.context.screen.areas:
-                    if area.type =='IMAGE_EDITOR':
-                        area.tag_redraw()
                 if os.path.isfile(self.rpictfile):
-                    with open(self.rpictfile, 'r') as rpictfile:
-                        for line in rpictfile.readlines()[::-1]:
-                            if '%' in line:
-                                for lineentry in line.split():
-                                    if '%' in lineentry:
-                                        self.percent = (float(lineentry.strip('%')) + (self.frame - self.scene['liparams']['fs']) * 100)/self.frames
-                                break
+                    lines = [line for line in open(self.rpictfile, 'r') if 'rays' in line][::-1]
+                    if lines:
+                        for lineentry in lines[0].split():
+                            if '%' in lineentry and self.percent != (float(lineentry.strip('%')) + (self.frame - self.scene['liparams']['fs']) * 100)/self.frames:
+                                bpy.data.images['liviimage'].filepath = bpy.path.abspath(self.simnode.hdrname)
+                                bpy.data.images['liviimage'].reload()
+        
+                                for area in bpy.context.screen.areas:
+                                    if area.type =='IMAGE_EDITOR':
+                                        area.tag_redraw()
+                                        
+                                self.percent = (float(lineentry.strip('%')) + (self.frame - self.scene['liparams']['fs']) * 100)/self.frames
      
                 if self.percent:
                     if self.pfile.check(self.percent) == 'CANCELLED':                                    
@@ -660,11 +660,14 @@ class NODE_OT_RadImage(bpy.types.Operator):
             self.starttime = datetime.datetime.now()
             self.pfile = progressfile(self.scene, datetime.datetime.now(), 100)
             self.kivyrun = progressbar(os.path.join(self.scene['viparams']['newdir'], 'viprogress'))
+            
             with open(bpy.path.abspath(self.simnode.hdrname), 'w') as imfile:
                 self.rprun = Popen(rpictcmd.split(), stdout=imfile, stderr = PIPE)
+                
             wm = context.window_manager
             self._timer = wm.event_timer_add(10, context.window)
             wm.modal_handler_add(self)
+            
             if 'liviimage' not in bpy.data.images:
                 im = bpy.data.images.load(bpy.path.abspath(self.simnode.hdrname))
                 im.name = 'liviimage'
@@ -1012,6 +1015,7 @@ class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
             
             if node.clear_nodata == '1':
                 bmesh.ops.delete(bm, geom = [v for v in bm.verts if v.co[2] == headerdict['NODATA_value']], context = 1)
+            
             elif node.clear_nodata == '0':
                 for v in bm.verts:
                     if v.co[2] == headerdict['NODATA_value']:
@@ -1034,202 +1038,6 @@ class NODE_OT_ASCImport(bpy.types.Operator, io_utils.ImportHelper):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
     
-#class NODE_OT_ASCImportold(bpy.types.Operator, io_utils.ImportHelper):
-#    bl_idname = "node.ascimportold"
-#    bl_label = "Select ESRI Grid file"
-#    bl_description = "Select the ESRI Grid file to process"
-#    filename = ""
-#    filename_ext = ".asc"
-#    filter_glob = bpy.props.StringProperty(default="*.asc", options={'HIDDEN'})
-#    bl_register = True
-#    bl_undo = False
-#    nodeid = bpy.props.StringProperty()
-#
-#    def draw(self,context):
-#        layout = self.layout
-#        row = layout.row()
-#        row.label(text="Open an asc file with the file browser", icon='WORLD_DATA')
-#
-#    def execute(self, context):
-#        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-#        startxs, startys, vpos, faces, vlen = [], [], array([]).astype(float32), array([]).astype(int32), 0
-#        ascfiles = [self.filepath] if node.single else [os.path.join(os.path.dirname(os.path.realpath(self.filepath)), file) for file in os.listdir(os.path.dirname(os.path.realpath(self.filepath))) if file.endswith('.asc')]
-#
-#        for file in ascfiles:
-#            with open(file, 'r') as ascfile:
-#                lines = ascfile.readlines()
-#                [startx, starty] = [eval(lines[i].split()[1]) for i in (2, 3)]
-#                startxs.append(startx)
-#                startys.append(starty)
-#        minstartx,  minstarty = min(startxs), min(startys)
-##        return {'FINISHED'}
-#        for f, file in enumerate(ascfiles):
-#            with open(file, 'r') as ascfile:
-#                lines = ascfile.readlines()
-#                (vpos, faces) = [[], []] if node.splitmesh else [vpos, faces]
-#                xy = [eval(lines[i].split()[1]) for i in (2, 3)]
-#                [ostartx, ostarty] = xy
-#                [mstartx, mstarty] = [0, 0] if node.splitmesh else xy
-#                [cols, rows, size, nodat] = [eval(lines[i].split()[1]) for i in (0, 1, 4, 5)]
-##                vpos += [(mstartx + (size * ci), mstarty + (size * (rows - ri)), (float(h), 0)[h == nodat]) for ri, height in enumerate([line.split() for line in lines[6:]]) for ci, h in enumerate(height)]
-##                faces += [(i+1, i, i+rows, i+rows + 1) for i in range((vlen, 0)[node.splitmesh], len(vpos)-cols) if (i+1)%cols]
-#                if not f or node.splitmesh:
-#                    vpos = array([(mstartx + (size * ci), mstarty + (size * (rows - ri)), (float(h), 0)[h == nodat]) for ri, height in enumerate([line.split() for line in lines[6:]]) for ci, h in enumerate(height)]).astype(float32)
-#                    faces = array([(i+1, i, i+rows, i+rows + 1) for i in range((vlen, 0)[node.splitmesh], len(vpos)-cols) if (i+1)%cols]).astype(int32)
-#                else:
-#                    vpos = numpy.concatenate((vpos, array([(mstartx + (size * ci), mstarty + (size * (rows - ri)), (float(h), 0)[h == nodat]) for ri, height in enumerate([line.split() for line in lines[6:]]) for ci, h in enumerate(height)]).astype(float32)), axis = 0)
-#                    faces = numpy.concatenate((faces, array([(i+1, i, i+rows, i+rows + 1) for i in range((vlen, 0)[node.splitmesh], len(vpos)-cols) if (i+1)%cols])), axis=0)
-#                vlen += cols*rows
-#
-#                if node.splitmesh or file == ascfiles[-1]:
-#                    (basename, vpos) = (file.split(os.sep)[-1].split('.')[0], vpos) if node.splitmesh else ('Terrain', [(v[0] - minstartx, v[1] - minstarty, v[2]) for v in vpos])
-#                    me = bpy.data.meshes.new("{} mesh".format(basename))
-#                    bm = bmesh.new()
-#                    [bm.verts.new(vco) for vco in vpos]
-#                    bm.verts.ensure_lookup_table()
-#                    [bm.faces.new([bm.verts[fv] for fv in face]) for face in faces]
-#                    bmesh.ops.delete(bm, geom = [v for v in bm.verts if v.co[2] < -900], context = 1)
-#                    bm.to_mesh(me)
-#                    me.update()
-#                    ob = bpy.data.objects.new(basename, me)
-#                    ob.location = (ostartx - minstartx, ostarty - minstarty, 0) if node.splitmesh else (0, 0, 0)   # position object at 3d-cursor
-#                    bpy.context.scene.objects.link(ob)
-#                    bm.free()
-#        vpos, faces = [], []
-#        return {'FINISHED'}
-#
-#    def invoke(self,context,event):
-#        context.window_manager.fileselect_add(self)
-#        return {'RUNNING_MODAL'}
-#
-#class NODE_OT_ASCImport2(bpy.types.Operator, io_utils.ImportHelper):
-#    bl_idname = "node.ascimport2"
-#    bl_label = "Select ESRI Grid file"
-#    bl_description = "Select the ESRI Grid file to process"
-#    filename = ""
-#    filename_ext = ".asc"
-#    filter_glob = bpy.props.StringProperty(default="*.asc", options={'HIDDEN'})
-#    bl_register = True
-#    bl_undo = False
-#    nodeid = bpy.props.StringProperty()
-#
-#    def draw(self,context):
-#        layout = self.layout
-#        row = layout.row()
-#        row.label(text="Open an asc file with the file browser", icon='WORLD_DATA')
-#
-#    def execute(self, context):
-#        node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-#        startxs, startys, vpos, faces, vlen = [], [], [], [], 0
-#        ascfiles = [self.filepath] if node.single else [os.path.join(os.path.dirname(os.path.realpath(self.filepath)), file) for file in os.listdir(os.path.dirname(os.path.realpath(self.filepath))) if file.endswith('.asc')]
-##        tvpos = numpy.array([])
-#        
-#        for file in ascfiles:
-#            with open(file, 'r') as ascfile:
-#                for l, line in enumerate(ascfile):
-#                    if l == 0:
-#                        cols = eval(line.split()[1])
-#                    elif l == 1:
-#                        rows = eval(line.split()[1])
-#                    elif l == 2:
-#                        startx = eval(line.split()[1])
-#                    elif l ==3:
-#                        starty = eval(line.split()[1])
-#                        break
-##                lines = ascfile.readlines()
-##                [startx, starty] = [eval(lines[i].split()[1]) for i in (2, 3)]
-#                startxs.append(startx)
-#                startys.append(starty)
-#            vlen += rows * cols
-#        tvpos = numpy.zeros(3 * vlen).reshape(vlen, 3)
-#        
-#        minstartx,  minstarty = min(startxs), min(startys)
-#        vlen = 0
-#        for file in ascfiles:
-##            headend = 0
-#            with open(file, 'r') as ascfile:
-#                for l, line in enumerate(ascfile):
-#                    if l == 0:
-#                        cols = eval(line.split()[1])
-#                    elif l == 1:
-#                        rows = eval(line.split()[1])
-#                        vposz = numpy.zeros(cols*rows).astype(float32)
-#                        xindices = array([x for x in range(cols)] * rows).astype(int32)
-#                        yindices = array([[x] * rows for x in range(cols - 1, -1, -1)]).flatten().astype(int32)
-#                        zindices = array([z for z in range(cols*rows)])
-#                    elif l == 2:
-#                        x = eval(line.split()[1])
-#                    elif l == 3:
-#                        y = eval(line.split()[1])
-#                        [ostartx, ostarty] = [x, y]
-#                        [mstartx, mstarty] = [0, 0] if node.splitmesh else [x, y]                        
-#                    elif l == 4:
-#                        size = eval(line.split()[1])
-#                        vposx = mstartx + size * xindices
-#                        xlen = len(vposx)
-#                        vposy = mstarty + size * yindices
-#                        v = 0
-#                    elif l == 5:
-#                        nodat = line.split()[1] if len(line.split()) == 2 else '0'  
-#                    if len(line.split()) > 2:
-#                        for val in line.split():                            
-#                            vposz[zindices[v]] = val
-#                            v += 1
-##            with open(file, 'r') as ascfile:           
-##                
-###                (vpos, faces) = [[], []] if node.splitmesh else [vpos, faces]
-##                
-##                
-##                
-##                print(headend)
-##                for l, line in enumerate(ascfile):
-##                    if l == headend + 1:
-##                        print(line.split()[0])
-##                for l, line in enumerate(ascfile):
-##                    if l == headend:
-##                        print(line.split()[0])
-##                    if l >= headend:
-##                        for val in line.split():
-##                            
-##                            vposz[zindices[v]] = eval(val)
-##                            v += 1
-#                            
-#                vposz = numpy.where(vposz == nodat, 0, vposz).astype(float32)
-#                print(tvpos.shape, vlen, vlen + rows*cols)
-#                tvpos[vlen: vlen + rows*cols] = numpy.vstack((vposx, vposy, vposz)).T
-#                
-#                    
-##                lines = ascfile.readlines()
-##                xy = [eval(lines[i].split()[1]) for i in (2, 3)]
-#                
-##                [cols, rows, size, nodat] = [eval(lines[i].split()[1]) for i in (0, 1, 4, 5)]
-##                vpos += [(mstartx + (size * ci), mstarty + (size * (rows - ri)), (float(h), 0)[h == nodat]) for ri, height in enumerate([line.split() for line in lines[6:]]) for ci, h in enumerate(height)]
-#                faces += [(i+1, i, i+rows, i+rows + 1) for i in range((vlen, 0)[node.splitmesh], xlen-cols) if (i+1)%cols]
-#                
-#
-#                if node.splitmesh or file == ascfiles[-1]:
-#                    (basename, vpos) = (file.split(os.sep)[-1].split('.')[0], vpos) if node.splitmesh else ('Terrain', [(v[0] - minstartx, v[1] - minstarty, v[2]) for v in vpos])
-#                    me = bpy.data.meshes.new("{} mesh".format(basename))
-#                    bm = bmesh.new()
-#                    [bm.verts.new(vco) for vco in tvpos[vlen: vlen + rows*cols]]
-#                    bm.verts.ensure_lookup_table()
-#                    [bm.faces.new([bm.verts[fv] for fv in face]) for face in faces[vlen: vlen + rows*cols]]
-##                    bmesh.ops.delete(bm, geom = [v for v in bm.verts if v.co[2] < -900], context = 1)
-#                    bm.to_mesh(me)
-##                    me.update()
-#                    ob = bpy.data.objects.new(basename, me)
-#                    ob.location = (ostartx - minstartx, ostarty - minstarty, 0) if node.splitmesh else (0, 0, 0)   # position object at 3d-cursor
-#                    bpy.context.scene.objects.link(ob)
-#                    bm.free()
-#                vlen += cols*rows
-#                    
-#        vpos, faces = [], []
-#        return {'FINISHED'}
-#
-#    def invoke(self,context,event):
-#        context.window_manager.fileselect_add(self)
-#        return {'RUNNING_MODAL'}
-
 class NODE_OT_CSVExport(bpy.types.Operator, io_utils.ExportHelper):
     bl_idname = "node.csvexport"
     bl_label = "Export a CSV file"
@@ -1398,8 +1206,7 @@ class NODE_OT_EnSim(bpy.types.Operator):
             scene = context.scene
             if self.esimrun.poll() is None:
                 nodecolour(self.simnode, 1)
-                try:
-                    
+                try:                    
                     with open(os.path.join(scene['viparams']['newdir'], '{}{}out.eso'.format(self.resname, self.frame)), 'r') as resfile:
                         for resline in [line for line in resfile.readlines()[::-1] if line.split(',')[0] == '2' and len(line.split(',')) == 9]:
                             if self.pfile.check(int((100/self.lenframes) * (self.frame - scene['enparams']['fs'])) + int((100/self.lenframes) * int(resline.split(',')[1])/(self.simnode.dedoy - self.simnode.dsdoy))) == 'CANCELLED':
@@ -1409,7 +1216,7 @@ class NODE_OT_EnSim(bpy.types.Operator):
                             break
                     return {'PASS_THROUGH'}
                 except Exception as e:
-                    print(e)
+                    logentry('EnergyPlus simulation error: {}'.format(e))
                     return {'PASS_THROUGH'}
             elif self.frame < scene['enparams']['fe']:
                 self.frame += 1
@@ -1426,6 +1233,7 @@ class NODE_OT_EnSim(bpy.types.Operator):
                     rename(os.path.join(scene['viparams']['newdir'], fname), os.path.join(scene['viparams']['newdir'],fname.replace("eplusout", self.simnode.resname)))
                 
                 efilename = "{}{}out.err".format(self.resname, self.frame)
+                
                 if efilename not in [im.name for im in bpy.data.texts]:
                     bpy.data.texts.load(os.path.join(scene['viparams']['newdir'], efilename))
                 else:
@@ -2003,8 +1811,6 @@ class NODE_OT_SunPath(bpy.types.Operator):
         if scene.render.engine == 'CYCLES' and scene.world.get('node_tree') and 'Sky Texture' in [no.bl_label for no in scene.world.node_tree.nodes]:
             scene.world.node_tree.animation_data_clear()    
         
-        
-        
         if bpy.context.active_object and not bpy.context.active_object.hide:
             if bpy.context.active_object.type == 'MESH':
                 bpy.ops.object.mode_set(mode = 'OBJECT')
@@ -2036,18 +1842,14 @@ class NODE_OT_SunPath(bpy.types.Operator):
             sun['VIType'] = 'Sun'
             sun['solhour'], sun['solday'] = scene.solhour, scene.solday
             sun.name = sun.data.name ='Sun{}'.format(s)
-            
-            
-#            if "SunMesh" not in [ob.get('VIType') for ob in context.scene.objects] :
             bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=12, size=1)
             sunob = context.active_object
             sunob.location, sunob.cycles_visibility.shadow, sunob.name, sunob['VIType'] = (0, 0, 0), 0, "SunMesh{}".format(s), "SunMesh"
-#            else:
-#                sunob = [ob for ob in context.scene.objects if ob.get('VIType') == "SunMesh"][0]
-    
+
             if len(sunob.material_slots) == 0:
                  bpy.ops.object.material_slot_add()
                  sunob.material_slots[0].material = bpy.data.materials['Sun']
+                 
             sun.parent = spathob
             sunob.parent = sun
         
@@ -2201,23 +2003,22 @@ class NODE_OT_WindRose(bpy.types.Operator):
 
         plt.savefig(scene['viparams']['newdir']+'/disp_wind.svg')
         (wro, scale) = wind_rose(simnode['maxres'], scene['viparams']['newdir']+'/disp_wind.svg', simnode.wrtype)
+        
         wro['maxres'], wro['minres'], wro['avres'], wro['nbins'], wro['VIType'] = max(aws), min(aws), sum(aws)/len(aws), len(sbinvals), 'Wind_Plane'
         simnode['maxfreq'] = 100*numpy.max(adfreq)/len(cwd)
         windnum(simnode['maxfreq'], (0,0,0), scale, compass((0,0,0), scale, wro, wro.data.materials['wr-000000']))
-        
         plt.close()
         wro['table'] = array([["", 'Minimum', 'Average', 'Maximum'], ['Speed (m/s)', wro['minres'], '{:.1f}'.format(wro['avres']), wro['maxres']], ['Direction (\u00B0)', min(awd), '{:.1f}'.format(sum(awd)/len(awd)), max(awd)]])
-        wro['ws'] = aws.reshape(len(doys), 24).T
-        wro['wd'] = awd.reshape(len(doys), 24).T
+        wro['ws'] = aws.reshape(len(doys), 24).T.tolist()
+        wro['wd'] = awd.reshape(len(doys), 24).T.tolist()
         wro['days'] = array(doys, dtype = float)
-        wro['hours'] = arange(1, 25, dtype = float)
+        wro['hours'] = arange(1, 25, dtype = float)        
         wro['maxfreq'] = 100*numpy.max(dfreq)/len(awd)
-        
-        simnode['nbins'] = len(sbinvals)
-        simnode['ws'] = array(cws).reshape(365, 24).T
-        simnode['wd'] = array(cwd).reshape(365, 24).T
+        simnode['nbins'] = len(sbinvals)        
+        simnode['ws'] = array(cws).reshape(365, 24).T.tolist()
+        simnode['wd'] = array(cwd).reshape(365, 24).T.tolist()        
         simnode['days'] = arange(1, 366, dtype = float)
-        simnode['hours'] = arange(1, 25, dtype = float)
+        simnode['hours'] = arange(1, 25, dtype = float)        
         return {'FINISHED'}
 
 class VIEW3D_OT_WRDisplay(bpy.types.Operator):

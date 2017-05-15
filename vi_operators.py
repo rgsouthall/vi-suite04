@@ -558,6 +558,7 @@ class NODE_OT_RadImage(bpy.types.Operator):
             else:
                 if os.path.isfile(self.rpictfile):
                     lines = [line for line in open(self.rpictfile, 'r') if 'rays' in line][::-1]
+                    
                     if lines:
                         for lineentry in lines[0].split():
                             if '%' in lineentry and self.percent != (float(lineentry.strip('%')) + (self.frame - self.scene['liparams']['fs']) * 100)/self.frames:
@@ -570,7 +571,7 @@ class NODE_OT_RadImage(bpy.types.Operator):
                                         
                                 self.percent = (float(lineentry.strip('%')) + (self.frame - self.scene['liparams']['fs']) * 100)/self.frames
      
-                if self.percent:
+                if self.rprun.poll() is None:
                     if self.pfile.check(self.percent) == 'CANCELLED':                                    
                         return {self.terminate()}
                 

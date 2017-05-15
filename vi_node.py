@@ -20,7 +20,7 @@
 import bpy, glob, os, inspect, datetime, shutil, time
 from nodeitems_utils import NodeCategory, NodeItem
 from .vi_func import objvol, socklink, uvsocklink, newrow, epwlatilongi, nodeid, nodeinputs, remlink, rettimes, sockhide, selobj, cbdmhdr, cbdmmtx
-from .vi_func import hdrsky, nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, sunposlivi, retdates
+from .vi_func import hdrsky, nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, sunposlivi, retdates, validradparams
 from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite
 from .livi_export import sunexport, skyexport, hdrexport
 from .envi_mat import retuval
@@ -546,25 +546,7 @@ class LiViNode(bpy.types.Node, ViNodes):
                    self.animated, self.skymenu, self.shour, self.sdoy, self.startmonth, self.endmonth, self.damin, self.dasupp, self.dalux, self.daauto,
                    self.ehour, self.edoy, self.interval, self.hdr, self.hdrname, self.skyname, self.resname, self.turb, self.mtxname, self.cbdm_start_hour,
                    self.cbdm_end_hour, self.bambuildmenu)]
-
-#class ViLiINode(bpy.types.Node, ViNodes):
-#    '''Node describing a LiVi rpict simulation'''
-#    bl_idname = 'ViLiINode'
-#    bl_label = 'LiVi Image'
-#    bl_icon = 'LAMP'
-#
-#    preview = bpy.props.BoolProperty(name = '', default = True)
-#
-#    def init(self, context):
-#        self['nodeid'] = nodeid(self)
-#        self.inputs.new('ViLiG', 'Geometry in')
-#        self.inputs.new('ViLiC', 'Context in')
-#        
-#    def draw_buttons(self, context, layout):
-#        newrow(layout, 'Preview:', self, 'preview')
-#        row = layout.row()
-#        row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']                           
-
+                      
 class ViLiINode(bpy.types.Node, ViNodes):
     '''Node describing a LiVi image generation'''
     bl_idname = 'ViLiINode'
@@ -573,6 +555,8 @@ class ViLiINode(bpy.types.Node, ViNodes):
     
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.cusacc, self.simacc, self.pmap, self.x, self.y, self.run, self.illu)])
+        if self.simacc == '3':
+            self.validparams = validradparams(self.cusacc)
     
     cusacc = bpy.props.StringProperty(
             name="", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
@@ -587,6 +571,7 @@ class ViLiINode(bpy.types.Node, ViNodes):
     hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="", subtype="FILE_PATH", update = nodeupdate)
     run = bpy.props.BoolProperty(name = '', default = False, update = nodeupdate) 
     illu = bpy.props.BoolProperty(name = '', default = True, update = nodeupdate)
+    validparams = bpy.props.BoolProperty(name = '', default = True)
     
     def init(self, context):
         self['exportstate'] = ''
@@ -603,20 +588,20 @@ class ViLiINode(bpy.types.Node, ViNodes):
             newrow(layout, 'Accuracy:', self, 'simacc')
             if self.simacc == '3':
                 newrow(layout, "Radiance parameters:", self, 'cusacc')
-            row = layout.row()
-            row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']  
-            newrow(layout, 'X resolution:', self, 'x')
-            newrow(layout, 'Y resolution:', self, 'y')
-            newrow(layout, 'Illuminance:', self, 'illu')
             newrow(layout, 'Photon map:', self, 'pmap')
             if self.pmap:
                newrow(layout, 'Global photons:', self, 'pmapgno')
                newrow(layout, 'Caustic photons:', self, 'pmapcno')
-    #        row = layout.row()
-    #        row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
             
-            row = layout.row()
-            row.operator("node.radimage", text = 'Image').nodeid = self['nodeid']
+            if self.simacc != '3' or (self.simacc == '3' and self.validparams):
+                row = layout.row()
+                row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']  
+            newrow(layout, 'X resolution:', self, 'x')
+            newrow(layout, 'Y resolution:', self, 'y')
+            newrow(layout, 'Illuminance:', self, 'illu')
+            if self.simacc != '3' or (self.simacc == '3' and self.validparams):
+                row = layout.row()
+                row.operator("node.radimage", text = 'Image').nodeid = self['nodeid']
         
     def update(self):
         self.run = 0
@@ -707,6 +692,8 @@ class ViLiSNode(bpy.types.Node, ViNodes):
 
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.cusacc, self.simacc, self.csimacc, self.pmap, self.pmapcno, self.pmapgno)])
+        if self.simacc == '3':
+            self.validparams = validradparams(self.cusacc)
         
     simacc = bpy.props.EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),("3", "Custom", "Edit Radiance parameters"), ],
             name="", description="Simulation accuracy", default="0", update = nodeupdate)
@@ -722,6 +709,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
     pmapgno = bpy.props.IntProperty(name = '', default = 50000)
     pmapcno = bpy.props.IntProperty(name = '', default = 0)
     run = bpy.props.IntProperty(default = 0)
+    validparams = bpy.props.BoolProperty(name = '', default = True)
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
@@ -748,7 +736,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
             
             if (self.simacc == '3' and cinnode['Options']['Context'] == 'Basic') or (self.csimacc == '0' and cinnode['Options']['Context'] in ('Compliance', 'CBDM')):
                newrow(layout, "Radiance parameters:", self, 'cusacc')
-            if not self.run:
+            if not self.run and self.validparams:
                 if cinnode['Options']['Preview']:
                     row = layout.row()
                     row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']
@@ -1942,6 +1930,7 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
     def export(self):
         self.exportstate = [str(x) for x in (self.solver, self.dt, self.et, self.bouyancy, self.radiation, self.turbulence)]
         nodecolour(self, 0)
+        
 ####################### Vi Nodes Catagories ##############################
 
 viexnodecat = [NodeItem("ViGExLiNode", label="LiVi Geometry"), NodeItem("LiViNode", label="LiVi Context"),
@@ -2700,10 +2689,9 @@ class EnViZone(bpy.types.Node, EnViNodes):
                         if outp.links:
                             remlink(self, [outp.links[0]])
 
-            
-                    
         except Exception as e:
             print("Don't panic")
+            
         nodecolour(self, (self.control == 'Temperature' and not self.inputs['TSPSchedule'].is_linked) or not all((bi, si, ssi, bo, so, sso)))
     
     def uvsockupdate(self):

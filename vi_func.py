@@ -336,7 +336,17 @@ def rtpoints(self, bm, offset, frame):
         gp[cindex] = g + 1
         
     self['rtpnum'] = g + 1
-                    
+    
+def validradparams(params):
+    valids = ('-ps', '-pt', '-pj', '-pj', '-dj', '-ds', '-dt', '-dc', '-dr', '-dp',	'-ss',	'-st',	'-st', '-ab',	'-av',	'-aa',	'-ar',	'-ad',	'-as',	'-lr',	'-lw')
+    for p, param in enumerate(params.split()):
+        if not p%2 and param not in valids:
+            return 0
+        elif  p%2:
+            try: float(param)
+            except: return 0   
+    return 1        
+            
 def regresults(scene, frames, simnode, res):    
     for i, f in enumerate(frames):
         simnode['maxres'][str(f)] = amax(res[i])

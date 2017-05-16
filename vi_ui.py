@@ -38,13 +38,27 @@ class Vi3DPanel(bpy.types.Panel):
                 newrow(layout, 'Colour:', scene, 'vi_leg_col')
                 
             elif scene['viparams']['vidisp'] == 'sp' and scene.vi_display:
-                (sdate, edate) = retdates(scene.solday, 365, 2015)
-                for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "solday"), ("Time of day:", "solhour"), ("Display hours:", "hourdisp"), ("Display time:", "timedisp")):
-                    newrow(layout, i[0], scene, i[1])
-                if scene.hourdisp or scene.timedisp:
-                    for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh")):
+                if scene['spparams']['suns'] in ('0', '2'):
+                    (sdate, edate) = retdates(scene.solday, 365, 2015)
+                if scene['spparams']['suns'] == '0':
+                    for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "solday"), ("Time of day:", "solhour"), ("Display hours:", "hourdisp"), ("Display time:", "timedisp")):
                         newrow(layout, i[0], scene, i[1])
-                
+                    if scene.hourdisp or scene.timedisp:
+                        for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh")):
+                            newrow(layout, i[0], scene, i[1])
+                elif scene['spparams']['suns'] == '1':
+                    for i in (("Time of day:", "solhour"), ("Display hours:", "hourdisp"), ("Sun strength:", "sunsstrength"), ("Sun size:", "sunssize")):
+                        newrow(layout, i[0], scene, i[1])
+                    if scene.hourdisp:
+                        for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh")):
+                            newrow(layout, i[0], scene, i[1])
+                elif scene['spparams']['suns'] == '2':
+                    for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "solday"), ("Display hours:", "hourdisp"), ("Sun strength:", "sunsstrength"), ("Sun size:", "sunssize")):
+                        newrow(layout, i[0], scene, i[1])
+                    if scene.hourdisp:
+                        for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh")):
+                            newrow(layout, i[0], scene, i[1])
+                        
             elif scene['viparams']['vidisp'] in ('ss', 'li', 'lc'):
                 row = layout.row()
                 row.prop(scene, "vi_disp_3d")                 

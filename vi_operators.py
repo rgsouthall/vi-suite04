@@ -34,7 +34,7 @@ from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum
 from .vi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, sunposenvi, clearlayers
-from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, chunks, xy2radial, logentry
+from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, chunks, xy2radial, logentry, sunpath
 from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
 from .vi_chart import chart_disp
 
@@ -588,6 +588,7 @@ class NODE_OT_RadImage(bpy.types.Operator):
             self.rprun.kill()
        
         self.simnode.postsim()
+        os.remove(self.rpictfile)
         return 'FINISHED'
 
     def execute(self, context):        
@@ -1785,10 +1786,12 @@ class NODE_OT_SunPath(bpy.types.Operator):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         node.export()
         scene['viparams']['resnode'], scene['viparams']['restree'] = node.name, self.nodeid.split('@')[1]
-        scene['viparams']['vidisp'] = 'sp'
-        context.scene['viparams']['visimcontext'] = 'SunPath'
         scene.cursor_location = (0.0, 0.0, 0.0)
         suns = [ob for ob in context.scene.objects if ob.type == 'LAMP' and ob.data.type == 'SUN']
+        [scene.objects.unlink(sunmesh) for sunmesh in scene.objects if sunmesh.get('VIType') == "SunMesh"]
+        [bpy.data.objects.remove(sunmesh) for sunmesh in bpy.data.objects if sunmesh.get('VIType') == "SunMesh"]
+        requiredsuns = {'0': 1, '1': 12, '2': 24}[node.suns]
+
         matdict = {'SolEquoRings': (1, 0, 0), 'HourRings': (1, 1, 0), 'SPBase': (1, 1, 1), 'Sun': (1, 1, 1), 'PathDash': (1, 1, 1),
                    'SumAng': (1, 0, 0), 'EquAng': (0, 1, 0), 'WinAng': (0, 0, 1)}
         
@@ -1800,15 +1803,16 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 bpy.data.materials[mat].alpha = 0
                 
         if suns:
-            [scene.objects.unlink(sun) for sun in suns[1:]]
+            [scene.objects.unlink(sun) for sun in suns[requiredsuns:]]
+            [bpy.data.objects.remove(sun) for sun in suns[requiredsuns:]]
             suns = [ob for ob in context.scene.objects if ob.type == 'LAMP' and ob.data.type == 'SUN']            
             [sun.animation_data_clear() for sun in suns]
-        else: 
-            bpy.ops.object.lamp_add(type = "SUN")
-            suns = [context.active_object]
 
-        [scene.objects.unlink(sunmesh) for sunmesh in context.scene.objects if sunmesh.get('VIType') == "SunMesh"] 
-        
+        if not suns or len(suns) < requiredsuns: 
+            for rs in range(requiredsuns - len(suns)):
+                bpy.ops.object.lamp_add(type = "SUN")
+                suns.append(context.active_object)
+       
         if scene.render.engine == 'CYCLES' and scene.world.get('node_tree') and 'Sky Texture' in [no.bl_label for no in scene.world.node_tree.nodes]:
             scene.world.node_tree.animation_data_clear()    
         
@@ -1925,7 +1929,11 @@ class NODE_OT_SunPath(bpy.types.Operator):
         if spfc not in bpy.app.handlers.frame_change_post:
             bpy.app.handlers.frame_change_post.append(spfc)
 
+        scene['viparams']['vidisp'] = 'sp'
+        scene['spparams']['suns'] = node.suns
+        context.scene['viparams']['visimcontext'] = 'SunPath'
         bpy.ops.view3d.spnumdisplay('INVOKE_DEFAULT')
+        sunpath(scene)
         return {'FINISHED'}
 
 class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):

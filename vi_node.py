@@ -773,24 +773,33 @@ class ViSPNode(bpy.types.Node, ViNodes):
     bl_idname = 'ViSPNode'
     bl_label = 'VI Sun Path'
     bl_icon = 'LAMP'
+    
+    def nodeupdate(self, context):
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.suns)])
+    
+    suns = bpy.props.EnumProperty(items = [('0', 'Single', 'Single sun'), ('1', 'Monthly', 'Monthly sun for chosen time'), ('2', 'Hourly', 'Hourly sun for chosen date')], name = '', description = 'Sunpath sun type', default = '0', update=nodeupdate)
+
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
         self.inputs.new('ViLoc', 'Location in')
+        self['exportstate'] = '0'
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
         if self.inputs['Location in'].links:
+            newrow(layout, 'Suns:', self, 'suns')
             row = layout.row()
             row.operator("node.sunpath", text="Create Sun Path").nodeid = self['nodeid']
 
     def export(self):
         nodecolour(self, 0)
+        self['exportstate'] = [str(x) for x in (self.suns)]
 
 class ViSSNode(bpy.types.Node, ViNodes):
-    '''Node describing a VI-Suite shadow study'''
+    '''Node to create a VI-Suite shadow map'''
     bl_idname = 'ViSSNode'
-    bl_label = 'VI Shadow Study'
+    bl_label = 'VI Shadow Map'
     bl_icon = 'LAMP'
 
     def nodeupdate(self, context):
@@ -1938,7 +1947,7 @@ viexnodecat = [NodeItem("ViGExLiNode", label="LiVi Geometry"), NodeItem("LiViNod
                  NodeItem("ViBMExNode", label="FloVi BlockMesh"), NodeItem("ViSHMExNode", label="FloVi SnappyHexMesh")]
                 
 vifilenodecat = [NodeItem("ViTextEdit", label="Text Edit")]
-vinodecat = [NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow study"), NodeItem("ViWRNode", label="VI-Suite wind rose"), 
+vinodecat = [NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow map"), NodeItem("ViWRNode", label="VI-Suite wind rose"), 
              NodeItem("ViLiSNode", label="LiVi Simulation"), NodeItem("ViEnSimNode", label="EnVi Simulation"), NodeItem("ViFVSimNode", label="FloVi Simulation")]
 
 vigennodecat = [NodeItem("ViGenNode", label="VI-Suite Generative"), NodeItem("ViTarNode", label="VI-Suite Target")]

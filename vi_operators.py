@@ -452,7 +452,6 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
             if self.simnode.pmap:
                 self.pfile = progressfile(scene, datetime.datetime.now(), 100)
                 self.kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'))
-#                errdict = 
                 amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, frame, scene)
                 open('{}.pmapmon'.format(scene['viparams']['filebase']), 'w')
                 pmcmd = 'mkpmap -t 20 -e {1}.pmapmon -fo+ -bv+ -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, scene['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry)
@@ -481,11 +480,12 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
                             self.report({'ERROR'}, pmerrdict[line])
                             return {'CANCELLED'}
                                         
-                rvucmd = "rvu -w -ap {8} 50 {9} -n {0} -vv {1:.3f} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {10[0]:.3f} {10[1]:.3f} {10[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, self.simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), cpfileentry, cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)))
+                rvucmd = "rvu -w {11} -ap {8} 50 {9} -n {0} -vv {1:.3f} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {10[0]:.3f} {10[1]:.3f} {10[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, self.simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, '{}-{}.gpm'.format(scene['viparams']['filebase'], frame), cpfileentry, cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
                 
             else:
-                rvucmd = "rvu -w -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, self.simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)))
+                rvucmd = "rvu -w {9} -n {0} -vv {1} -vh {2} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {8[0]:.3f} {8[1]:.3f} {8[2]:.3f} {5} {6}-{7}.oct".format(scene['viparams']['wnproc'], vv, cang, vd, cam.location, self.simnode['radparams'], scene['viparams']['filebase'], scene.frame_current, cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)), ('', '-i')[self.simnode.illu])
 
+            logentry('Rvu command: {}'.format(rvucmd))
             self.rvurun = Popen(rvucmd.split(), stdout = PIPE, stderr = PIPE)
             self.simnode.run = 1
             wm = context.window_manager
@@ -536,7 +536,6 @@ class NODE_OT_RadImage(bpy.types.Operator):
                 elif self.frame > self.frameold:
                     self.percent = (self.frame - self.scene['liparams']['fs']) * 100
                     self.frameold = self.frame
-                    os.remove(self.rpictfile)
                     
                     if self.simnode.pmap:
                         amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, self.frame, self.scene)
@@ -548,11 +547,14 @@ class NODE_OT_RadImage(bpy.types.Operator):
                             if line.decode() in pmerrdict:                                
                                 self.report({'ERROR'}, pmerrdict[line.decode()])
                                 return {'CANCELLED'}
+                            
                         rpictcmd = "rpict -w -e {7} -t 10 -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]:.3f} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} -vu {8[0]} {8[1]} {8[2]} {2} -ap {5} 50 {6} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, '{}-{}.gpm'.format(self.scene['viparams']['filebase'], self.frame), cpfileentry, self.rpictfile, self.cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)))
                     else:
                         rpictcmd = "rpict -w -e {5} -t 10 -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} -vu {6[0]} {6[1]} {6[2]} {2} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, self.rpictfile, self.cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)))
+                    
                     self.rprun = Popen(rpictcmd.split(), stdout = PIPE)                    
                     return {'RUNNING_MODAL'}  
+                
                 self.frame += 1
                 return {'RUNNING_MODAL'}
             else:
@@ -676,7 +678,7 @@ class NODE_OT_RadImage(bpy.types.Operator):
                 
             return {'RUNNING_MODAL'}
         else:
-            self.report({'ERROR'}, "There is no camera in the scene. Create one for glare analysis")
+            self.report({'ERROR'}, "There is no camera in the scene. Create one for rpict image creation")
             return {'FINISHED'}
 
 class NODE_OT_LiFC(bpy.types.Operator):            

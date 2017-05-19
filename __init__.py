@@ -334,7 +334,7 @@ def register():
     Material.radcolour = fvprop(3, "Material Colour",'Material Colour', [0.8, 0.8, 0.8], 'COLOR', 0, 1)
     Material.radcolmenu = eprop([("0", "RGB", "Specify colour temperature"), ("1", "Temperature", "Specify colour temperature")], "Colour type:", "Specify the colour input", "0")
     Material.radrough = fprop("Roughness", "Material roughness", 0, 1, 0.1)
-    Material.radspec = fprop("Specularity", "Material specularity", 0, 1, 0.1)
+    Material.radspec = fprop("Specularity", "Material specularity", 0, 1, 0.0)
     Material.radtrans = fprop("Transmission", "Material transmissivity", 0, 1, 0.1)
     Material.radtranspec  = fprop("Trans spec", "Material specular transmission", 0, 1, 0.1)
     Material.radior  = fprop("IOR", "Material index of refractionn", 0, 5, 1.5)

@@ -583,22 +583,22 @@ class ViLiINode(bpy.types.Node, ViNodes):
         
     def draw_buttons(self, context, layout):
         row = layout.row()
-        row.prop(self, 'hdrname')
-        if not self.run and all([sock.links for sock in self.inputs]):
-            newrow(layout, 'Accuracy:', self, 'simacc')
-            if self.simacc == '3':
-                newrow(layout, "Radiance parameters:", self, 'cusacc')
-            newrow(layout, 'Photon map:', self, 'pmap')
-            if self.pmap:
-               newrow(layout, 'Global photons:', self, 'pmapgno')
-               newrow(layout, 'Caustic photons:', self, 'pmapcno')
-            
+        row.prop(self, 'hdrname')        
+        newrow(layout, 'Illuminance:', self, 'illu')
+        newrow(layout, 'Accuracy:', self, 'simacc')
+        if self.simacc == '3':
+            newrow(layout, "Radiance parameters:", self, 'cusacc')
+        newrow(layout, 'Photon map:', self, 'pmap')
+        if self.pmap:
+           newrow(layout, 'Global photons:', self, 'pmapgno')
+           newrow(layout, 'Caustic photons:', self, 'pmapcno')
+        if not self.run and all([sock.links for sock in self.inputs]):    
             if self.simacc != '3' or (self.simacc == '3' and self.validparams):
                 row = layout.row()
                 row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']  
             newrow(layout, 'X resolution:', self, 'x')
             newrow(layout, 'Y resolution:', self, 'y')
-            newrow(layout, 'Illuminance:', self, 'illu')
+            
             if self.simacc != '3' or (self.simacc == '3' and self.validparams):
                 row = layout.row()
                 row.operator("node.radimage", text = 'Image').nodeid = self['nodeid']
@@ -710,6 +710,7 @@ class ViLiSNode(bpy.types.Node, ViNodes):
     pmapcno = bpy.props.IntProperty(name = '', default = 0)
     run = bpy.props.IntProperty(default = 0)
     validparams = bpy.props.BoolProperty(name = '', default = True)
+    illu = bpy.props.BoolProperty(name = '', default = False)
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
@@ -1947,14 +1948,14 @@ viexnodecat = [NodeItem("ViGExLiNode", label="LiVi Geometry"), NodeItem("LiViNod
                  NodeItem("ViBMExNode", label="FloVi BlockMesh"), NodeItem("ViSHMExNode", label="FloVi SnappyHexMesh")]
                 
 vifilenodecat = [NodeItem("ViTextEdit", label="Text Edit")]
-vinodecat = [NodeItem("ViSPNode", label="VI-Suite sun path"), NodeItem("ViSSNode", label="VI-Suite shadow map"), NodeItem("ViWRNode", label="VI-Suite wind rose"), 
+vinodecat = [NodeItem("ViSPNode", label="VI-Suite Sun Path"), NodeItem("ViSSNode", label="VI-Suite Shadow Map"), NodeItem("ViWRNode", label="VI-Suite Wind Rose"), 
              NodeItem("ViLiSNode", label="LiVi Simulation"), NodeItem("ViEnSimNode", label="EnVi Simulation"), NodeItem("ViFVSimNode", label="FloVi Simulation")]
 
 vigennodecat = [NodeItem("ViGenNode", label="VI-Suite Generative"), NodeItem("ViTarNode", label="VI-Suite Target")]
 
 vidisnodecat = [NodeItem("ViChNode", label="VI-Suite Chart")]
 vioutnodecat = [NodeItem("ViCSV", label="VI-Suite CSV"), NodeItem("ViText", label="VI-Suite Text"), NodeItem("ViLiINode", label="LiVi Image"), NodeItem("ViLiFCNode", label="LiVi FC Image")]
-viinnodecat = [NodeItem("ViLoc", label="VI Location"), NodeItem("ViEnInNode", label="EnergyPlus input file"), NodeItem("ViEnRFNode", label="EnergyPlus result file"), 
+viinnodecat = [NodeItem("ViLoc", label="VI Location"), NodeItem("ViEnInNode", label="EnergyPlus Input File"), NodeItem("ViEnRFNode", label="EnergyPlus Result File"), 
                NodeItem("ViASCImport", label="Import ESRI Grid file")]
 
 vinode_categories = [ViNodeCategory("Output", "Output Nodes", items=vioutnodecat), ViNodeCategory("Edit", "Edit Nodes", items=vifilenodecat), ViNodeCategory("Display", "Display Nodes", items=vidisnodecat), ViNodeCategory("Generative", "Generative Nodes", items=vigennodecat), ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat), ViNodeCategory("Process", "Process Nodes", items=viexnodecat), ViNodeCategory("Input", "Input Nodes", items=viinnodecat)]

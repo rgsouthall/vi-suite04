@@ -40,18 +40,21 @@ class Vi3DPanel(bpy.types.Panel):
             elif scene['viparams']['vidisp'] == 'sp' and scene.vi_display:
                 if scene['spparams']['suns'] in ('0', '2'):
                     (sdate, edate) = retdates(scene.solday, 365, 2015)
+
                 if scene['spparams']['suns'] == '0':
                     for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "solday"), ("Time of day:", "solhour"), ("Display hours:", "hourdisp"), ("Display time:", "timedisp")):
                         newrow(layout, i[0], scene, i[1])
                     if scene.hourdisp or scene.timedisp:
                         for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh")):
                             newrow(layout, i[0], scene, i[1])
+
                 elif scene['spparams']['suns'] == '1':
                     for i in (("Time of day:", "solhour"), ("Display hours:", "hourdisp"), ("Sun strength:", "sunsstrength"), ("Sun size:", "sunssize")):
                         newrow(layout, i[0], scene, i[1])
                     if scene.hourdisp:
                         for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh")):
                             newrow(layout, i[0], scene, i[1])
+
                 elif scene['spparams']['suns'] == '2':
                     for i in (("Day of year: {}/{}".format(sdate.day, sdate.month), "solday"), ("Display hours:", "hourdisp"), ("Sun strength:", "sunsstrength"), ("Sun size:", "sunssize")):
                         newrow(layout, i[0], scene, i[1])
@@ -230,15 +233,20 @@ class VIMatPanel(bpy.types.Panel):
             rmmenu(layout, cm)
             newrow(layout, "EnVi Construction Type:", cm, "envi_con_type")
             row = layout.row()
+
             if cm.envi_con_type not in ("Aperture", "Shading", "None"):
                 newrow(layout, 'Intrazone Boundary', cm, "envi_boundary")
                 newrow(layout, 'Airflow surface:', cm, "envi_afsurface")
+
                 if not cm.envi_boundary and not cm.envi_afsurface:
                     newrow(layout, 'Thermal mass:', cm, "envi_thermalmass")
+
                 newrow(layout, "Construction Make-up:", cm, "envi_con_makeup")
+
                 if cm.envi_con_makeup == '1':
                     newrow(layout, "Outside layer:", cm, "envi_layero")
                     row = layout.row()
+
                     if cm.envi_layero == '1':
                         newrow(layout, "Outer layer type:", cm, "envi_type_lo")
                         newrow(layout, "Outer layer material:", cm, "envi_material_lo")
@@ -259,6 +267,7 @@ class VIMatPanel(bpy.types.Panel):
                         newrow(layout, "Optical data type:", cm, "envi_export_lo_odt")
                         newrow(layout, "Construction Make-up:", cm, "envi_export_lo_sds")
                         newrow(layout, "Translucent:", cm, "envi_export_lo_sdiff")
+
                         for end in (0, 'thi', 'tc', 0, 'stn', 'fsn', 'bsn', 0, 'vtn', 'fvrn', 'bvrn', 0, 'itn', 'fie', 'bie'):
                             if end:
                                 row.prop(cm, '{}{}'.format("envi_export_lo_", end))
@@ -270,6 +279,7 @@ class VIMatPanel(bpy.types.Panel):
                         row.label("----------------")
                         newrow(layout, "2nd layer:", cm, "envi_layer1")
                         row = layout.row()
+
                         if cm.envi_layer1 == '1':
                             newrow(layout, "Second layer type:", cm, "envi_type_l1")
                             newrow(layout, "Second layer material:", cm, "envi_material_l1")
@@ -331,6 +341,7 @@ class VIMatPanel(bpy.types.Panel):
                                 row.label("4th layer:")
                                 row.prop(cm, "envi_layer3")
                                 row = layout.row()
+
                                 if cm.envi_layer3 == '1':
                                     newrow(layout, "Fourth layer type:", cm, "envi_type_l3")
                                     newrow(layout, "Fourth layer material:", cm, "envi_material_l3")
@@ -361,6 +372,7 @@ class VIMatPanel(bpy.types.Panel):
                                     row.label("5th layer:")
                                     row.prop(cm, "envi_layer4")
                                     row = layout.row()
+
                                     if cm.envi_layer4 == '1':
                                         newrow(layout, "Fifth layer type:", cm, "envi_type_l4")
                                         newrow(layout, "Fifth layer material:", cm, "envi_material_l4")

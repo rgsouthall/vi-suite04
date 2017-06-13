@@ -141,7 +141,6 @@ class ViLoc(bpy.types.Node, ViNodes):
             return 1
         return 0
         
-
 class ViGExLiNode(bpy.types.Node, ViNodes):
     '''Node describing a LiVi geometry export node'''
     bl_idname = 'ViGExLiNode'
@@ -308,6 +307,7 @@ class LiViNode(bpy.types.Node, ViNodes):
                 newrow(layout, "Start hour:", self, 'shour')
                 newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
                 newrow(layout, "Animation;", self, 'animated')
+                
                 if self.animated:
                     newrow(layout, "Start frame:", self, 'startframe')
                     row = layout.row()
@@ -780,7 +780,6 @@ class ViSPNode(bpy.types.Node, ViNodes):
     
     suns = bpy.props.EnumProperty(items = [('0', 'Single', 'Single sun'), ('1', 'Monthly', 'Monthly sun for chosen time'), ('2', 'Hourly', 'Hourly sun for chosen date')], name = '', description = 'Sunpath sun type', default = '0', update=nodeupdate)
 
-
     def init(self, context):
         self['nodeid'] = nodeid(self)
         self.inputs.new('ViLoc', 'Location in')
@@ -907,6 +906,14 @@ class ViGExEnNode(bpy.types.Node, ViNodes):
     '''Node describing an EnVi Geometry Export'''
     bl_idname = 'ViGExEnNode'
     bl_label = 'EnVi Geometry'
+    
+    def nodeupdate(self, context):
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.animmenu)])
+    
+#    animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis")]
+#    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeupdate)
+#    startframe = bpy.props.IntProperty(name = '', default = 0, min = 0, max = 1024, description = 'Start frame')
+#    endframe = bpy.props.IntProperty(name = '', default = 0, min = 0, max = 1024, description = 'End frame')
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
@@ -915,6 +922,13 @@ class ViGExEnNode(bpy.types.Node, ViNodes):
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
+#        newrow(layout, 'Animation:', self, "animmenu")
+#        if self.animmenu != 'Static':            
+#            row = layout.row(align=True)
+#            row.alignment = 'EXPAND'
+#            row.label('Frames:')
+#            row.prop(self, 'startframe')
+#            row.prop(self, 'endframe')
         row = layout.row()
         row.operator("node.engexport", text = "Export").nodeid = self['nodeid']
 
@@ -922,9 +936,12 @@ class ViGExEnNode(bpy.types.Node, ViNodes):
         socklink(self.outputs['Geometry out'], self['nodeid'].split('@')[1])
         
     def preexport(self, scene):
-        pass
-                
+#        self['Options']['fs'] = self.fs if self.animated else scene.frame_current
+#        self['Options']['fe'] = self.fe if self.animated else scene.frame_current
+         pass
+               
     def postexport(self):
+#        self['exportstate'] = [str(x) for x in (self.animmenu)]
         nodecolour(self, 0)
 
 class ViExEnNode(bpy.types.Node, ViNodes):
@@ -987,11 +1004,13 @@ class ViExEnNode(bpy.types.Node, ViNodes):
         col = row.column()
         col.prop(self, "restype")
         resdict = enresprops('')
+        
         for rprop in resdict[self.restype]:
             if not rprop:
                 row = layout.row()
             else:
                 row.prop(self, rprop)
+                
         if all([s.links for s in self.inputs]) and not any([s.links[0].from_node.use_custom_color for s in self.inputs]):
             row = layout.row()
             row.operator("node.enexport", text = 'Export').nodeid = self['nodeid']

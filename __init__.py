@@ -137,7 +137,7 @@ def getEnViEditorSpaces():
 bpy.app.handlers.scene_update_post.append(select_nodetree)
 bpy.app.handlers.scene_update_post.append(mesh_index)
             
-epversion = "8-6-0"
+epversion = "8-7-0"
 addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 matpath, epwpath, envi_mats, envi_cons, conlayers  = addonpath+'/EPFiles/Materials/Materials.data', addonpath+'/EPFiles/Weather/', envi_materials(), envi_constructions(), 5
 evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}

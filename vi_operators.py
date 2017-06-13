@@ -451,7 +451,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
 
             if self.simnode.pmap:
                 self.pfile = progressfile(scene, datetime.datetime.now(), 100)
-                self.kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'))
+                self.kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'Photon Map')
                 amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, frame, scene)
                 open('{}.pmapmon'.format(scene['viparams']['filebase']), 'w')
                 pmcmd = 'mkpmap -t 20 -e {1}.pmapmon -fo+ -bv+ -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, scene['viparams']['filebase'], frame, self.simnode.pmapgno, cpentry, amentry)
@@ -541,12 +541,25 @@ class NODE_OT_RadImage(bpy.types.Operator):
                         amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, self.frame, self.scene)
                         pmcmd = ('mkpmap -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, self.scene['viparams']['filebase'], self.frame, self.simnode.pmapgno, cpentry, amentry))                   
                         pmrun = Popen(pmcmd.split(), stderr = PIPE)
-                        for line in pmrun.stderr: 
-                            logentry('Photon map error: {}'.format(line.decode))#        draw_image(self, self.ydiff * 0.1)
-                            
-                            if line.decode() in pmerrdict:                                
-                                self.report({'ERROR'}, pmerrdict[line.decode()])
+                        
+                        while pmrun.poll() is None:   
+                            sleep(10)
+                            with open('{}.pmapmon'.format(self.scene['viparams']['filebase']), 'r') as vip:
+                                for line in vip.readlines()[::-1]:
+                                    if '% after' in line:
+                                        curres = [float(ls[:-2]) for ls in line.split() if '%' in ls][0]
+                                        break
+                                    elif line in pmerrdict:
+                                        logentry(line)
+                                        self.report({'ERROR'}, pmerrdict[line])
+                                        return {'CANCELLED'}
+                                        
+                            if self.pfile.check(curres) == 'CANCELLED': 
+                                pmrun.kill()                                   
                                 return {'CANCELLED'}
+                        
+                        if self.kivyrun.poll() is None:
+                            self.kivyrun.kill()
                             
                         rpictcmd = "rpict -w -e {7} -t 10 -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]:.3f} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} -vu {8[0]} {8[1]} {8[2]} {2} -ap {5} 50 {6} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, '{}-{}.gpm'.format(self.scene['viparams']['filebase'], self.frame), cpfileentry, self.rpictfile, self.cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)))
                     else:
@@ -559,7 +572,7 @@ class NODE_OT_RadImage(bpy.types.Operator):
                 return {'RUNNING_MODAL'}
             else:
                 if os.path.isfile(self.rpictfile):
-                    lines = [line for line in open(self.rpictfile, 'r') if 'rays' in line][::-1]
+                    lines = [line for line in open(self.rpictfile, 'r') if '% after' in line][::-1]
                     
                     if lines:
                         for lineentry in lines[0].split():
@@ -622,15 +635,33 @@ class NODE_OT_RadImage(bpy.types.Operator):
                 createoconv(self.scene, frame, self, self.simnode)
 
             if self.simnode.pmap:
+                open('{}.pmapmon'.format(self.scene['viparams']['filebase']), 'w')
                 amentry, pportentry, cpentry, cpfileentry = retpmap(self.simnode, self.frame, self.scene)
-                pmcmd = ('mkpmap -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, self.scene['viparams']['filebase'], self.frame, self.simnode.pmapgno, cpentry, amentry))                   
+                pmcmd = ('mkpmap -t 10 -e {1}.pmapmon -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(pportentry, self.scene['viparams']['filebase'], self.frame, self.simnode.pmapgno, cpentry, amentry))                   
                 pmrun = Popen(pmcmd.split(), stderr = PIPE)
-                for line in pmrun.stderr: 
-                    logentry('Photon map message: {}'.format(line.decode()))
-                    if line.decode() in pmerrdict:
-                        self.report({'ERROR'}, pmerrdict[line.decode()])
-                        self.simnode.postsim()
+                self.pfile = progressfile(self.scene, datetime.datetime.now(), 100)
+                self.kivyrun = progressbar(os.path.join(self.scene['viparams']['newdir'], 'viprogress'), 'Photon Map')                
+                curres = 0.1
+                
+                while pmrun.poll() is None:   
+                    sleep(10)
+                    with open('{}.pmapmon'.format(self.scene['viparams']['filebase']), 'r') as vip:
+                        for line in vip.readlines()[::-1]:
+                            if '% after' in line:
+                                curres = [float(ls[:-2]) for ls in line.split() if '%' in ls][0]
+#                                curres = float(line.split()[6][:-2])
+                                break
+                            elif line in pmerrdict:
+                                logentry(line)
+                                self.report({'ERROR'}, pmerrdict[line])
+                                return {'CANCELLED'}
+                                
+                    if self.pfile.check(curres) == 'CANCELLED': 
+                        pmrun.kill()                                   
                         return {'CANCELLED'}
+                
+                if self.kivyrun.poll() is None:
+                    self.kivyrun.kill()
 
                 rpictcmd = "rpict -t 5 -e {14} -x {9} -y {10} {11} -vv {1:.3f} -vh {2:.3f} -vd {3[0]:.3f} {3[1]:.3f} {3[2]:.3f} -vp {4[0]:.3f} {4[1]:.3f} {4[2]:.3f} -vu {15[0]:.3f} {15[1]:.3f} {15[2]:.3f} {5} -ap {12} 50 {13} {5} {6}-{7}.oct".format('', 
                                           vv, cang, vd, 
@@ -663,7 +694,7 @@ class NODE_OT_RadImage(bpy.types.Operator):
             logentry('rpict command: {}'.format(rpictcmd))
             self.starttime = datetime.datetime.now()
             self.pfile = progressfile(self.scene, datetime.datetime.now(), 100)
-            self.kivyrun = progressbar(os.path.join(self.scene['viparams']['newdir'], 'viprogress'))
+            self.kivyrun = progressbar(os.path.join(self.scene['viparams']['newdir'], 'viprogress'), 'Radiance Image')
             
             with open(bpy.path.abspath(self.simnode.hdrname), 'w') as imfile:
                 self.rprun = Popen(rpictcmd.split(), stdout=imfile, stderr = PIPE)
@@ -902,7 +933,7 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
 
             self.starttime = datetime.datetime.now()
             self.pfile = progressfile(self.scene, datetime.datetime.now(), 100)
-            self.kivyrun = progressbar(os.path.join(self.scene['viparams']['newdir'], 'viprogress'))
+            self.kivyrun = progressbar(os.path.join(self.scene['viparams']['newdir'], 'viprogress'), 'Glare')
             self.rprun = Popen(rpictcmd.split(), stdout=PIPE, stderr = PIPE)
             egcmd = "evalglare {} -c {}".format(('-u 1 0 0', '')[sys.platform == 'win32'], os.path.join(self.scene['viparams']['newdir'], 'glare{}.hdr'.format(self.frame)))
             self.egrun = Popen(egcmd.split(), stdin = self.rprun.stdout, stdout=PIPE, stderr = PIPE)
@@ -1271,7 +1302,7 @@ class NODE_OT_EnSim(bpy.types.Operator):
             return {'CANCELLED'}
         context.scene['viparams']['visimcontext'] = 'EnVi'
         self.pfile = progressfile(scene, datetime.datetime.now(), 100)
-        self.kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'))
+        self.kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'EnergyPlus Results')
         wm = context.window_manager
         self._timer = wm.event_timer_add(1, context.window)
         wm.modal_handler_add(self)
@@ -2284,7 +2315,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
         calcsteps = len(frange) * sum(len([f for f in o.data.polygons if o.data.materials[f.material_index].mattype == '1']) for o in [scene.objects[on] for on in scene['liparams']['shadc']])
         curres, reslists = 0, []
         pfile = progressfile(scene, datetime.datetime.now(), calcsteps)
-        kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'))
+        kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'Shadow Map')
         
         for oi, o in enumerate([scene.objects[on] for on in scene['liparams']['shadc']]):
             for k in o.keys():

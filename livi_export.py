@@ -31,7 +31,8 @@ def radgexport(export_op, node, **kwargs):
     geooblist, caloblist, lightlist = retobjs('livig'), retobjs('livic'), retobjs('livil')
     scene['liparams']['livig'], scene['liparams']['livic'], scene['liparams']['livil'] = [o.name for o in geooblist], [o.name for o in caloblist], [o.name for o in lightlist]
     eolist = set(geooblist + caloblist)
-    mats = set([item for sublist in [o.data.materials for o in eolist] for item in sublist])
+#    mats = set([item for sublist in [o.data.materials for o in eolist] for item in sublist])
+    mats = bpy.data.materials
     
     for o in eolist:        
         if not node.animated:
@@ -56,33 +57,51 @@ def radgexport(export_op, node, **kwargs):
         gradfile = "# Geometry \n\n"
 
         for o in eolist:
-#            if o.particle_systems:
-#                particles = o.particle_systems[0].particles
-#                dobs = o.particle_systems[0].settings.dupli_group.objects
-#                for dob in dobs:
-#                    print(dob.name)
-            
-            bm = bmesh.new()
-            tempmesh = o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW')
-            bm.from_mesh(tempmesh)
-            bm.transform(o.matrix_world)
-            bm.normal_update() 
-            bpy.data.meshes.remove(tempmesh)
-
-            gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename)
-          
-            if o in caloblist:
-                geom = (bm.faces, bm.verts)[int(node.cpoint)]
-                if frame == frames[0]:
-                    clearlayers(bm, 'a')                                    
-                    geom.layers.int.new('cindex')
-                    o['cpoint'] = node.cpoint
-                geom.layers.string.new('rt{}'.format(frame))
-                o.rtpoints(bm, node.offset, str(frame))
-                bm.transform(o.matrix_world.inverted())
-                bm.to_mesh(o.data)
-                        
-            bm.free()
+            if o.particle_systems:
+                print(o.name)
+                ps = o.particle_systems.active                
+                particles = ps.particles
+                dob = ps.settings.dupli_object
+                dobs = [dob] if dob else []
+                dobs = ps.settings.dupli_group.objects if not dobs else dobs
+                print(dobs)
+                
+                for dob in dobs:
+                    bm = bmesh.new()
+                    tempmesh = dob.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW')
+                    bm.from_mesh(tempmesh)
+                    bm.transform(dob.matrix_world)
+                    bm.normal_update() 
+                    bpy.data.meshes.remove(tempmesh)
+                    gradfile += bmesh2mesh(scene, bm, dob, frame, tempmatfilename)
+                    # create on oconv
+                    print(dob.location, dob.name)
+                    for p, part in enumerate(particles):
+                        gradfile += 'void mesh id\n13 {5} -s {3:.3f} -rx 0 -ry 0 -rz {4[2]:.4f} -t {2[0]:.4f} {2[1]:.4f} {2[2]:.4f} \n0\n0\n\n'.format(dob.name, p, part.location - dob.location, part.size, [180 * r/math.pi for r in part.rotation.to_euler('XYZ')], os.path.join(scene['viparams']['newdir'], 'obj', '{}-{}.mesh'.format(dob.name.replace(' ', '_'), frame)))
+                        # Radiance instance octree -t p.location -s p.size -r p.rotation.to_euler('XYZ') 
+                    bm.free()
+            else:
+                bm = bmesh.new()
+                tempmesh = o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW')
+                bm.from_mesh(tempmesh)
+                bm.transform(o.matrix_world)
+                bm.normal_update() 
+                bpy.data.meshes.remove(tempmesh)
+    
+                gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename)
+              
+                if o in caloblist:
+                    geom = (bm.faces, bm.verts)[int(node.cpoint)]
+                    if frame == frames[0]:
+                        clearlayers(bm, 'a')                                    
+                        geom.layers.int.new('cindex')
+                        o['cpoint'] = node.cpoint
+                    geom.layers.string.new('rt{}'.format(frame))
+                    o.rtpoints(bm, node.offset, str(frame))
+                    bm.transform(o.matrix_world.inverted())
+                    bm.to_mesh(o.data)
+                            
+                bm.free()
       
     # Lights export routine
 

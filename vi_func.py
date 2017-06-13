@@ -186,6 +186,9 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
 
     try:
         bm = obmesh.copy()
+        bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.0001)
+        bmesh.ops.dissolve_limit(bm, angle_limit = 0.0001, use_dissolve_boundaries = False, verts = bm.verts, edges = bm.edges, delimit = 1)
+        bmesh.ops.connect_verts_nonplanar(bm, angle_limit = 0.0001, faces = bm.faces)
         mrms = array([m.radmatmenu for m in o.data.materials])
         mpps = array([not m.pport for m in o.data.materials])        
         mnpps = where(mpps, 0, 1)        
@@ -234,6 +237,8 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
             if os.path.getsize(mfile) and not o2mrun[1]:
                 gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(mfile)
             else:
+                if o.name == 'tree_scatter':
+                    print(o2mrun[1])
                 gradfile += radpoints(o, mfaces, 0)
 
         bm.free()
@@ -519,7 +524,7 @@ class progressfile():
             else:
                 pfile.write('0 Initialising')
         
-def progressbar(file):
+def progressbar(file, calctype):
     kivytext = "# -*- coding: "+sys.getfilesystemencoding()+" -*-\n\
 from kivy.app import App \n\
 from kivy.clock import Clock \n\
@@ -553,6 +558,7 @@ class Calculating(App):\n\
     bl.add_widget(button)\n\
 \n\
     def build(self):\n\
+        self.title = 'Calculating "+calctype+"'\n\
         refresh_time = 1\n\
         Clock.schedule_interval(self.timer, refresh_time)\n\
         return self.bl\n\

@@ -2247,14 +2247,14 @@ class AFNCon(bpy.types.Node, EnViNodes):
             exp_op.report({'ERROR'},"WPC array input has been selected in the control node, but no WPC array node is attached")
             return 'ERROR'
 
-        wpcaname = 'WPC Array' if not self.wpcaname else self.wpcaname
+#        wpcaname = 'WPC Array' if not self.wpcaname else self.wpcaname
         self.afnname = 'default' if not self.afnname else self.afnname
         wpctype = 1 if self.wpctype == 'Input' else 0
         paramvs = (self.afnname, self.afntype,
-                     self.wpctype, ("", wpcaname)[wpctype], ("", self.wpchs)[wpctype], (self.buildtype, "")[wpctype], self.maxiter, self.initmet,
+                     self.wpctype, ("", self.wpchs)[wpctype], (self.buildtype, "")[wpctype], self.maxiter, self.initmet,
                     '{:.3E}'.format(self.rcontol), '{:.3E}'.format(self.acontol), '{:.3E}'.format(self.conal), (self.aalax, "")[wpctype], (self.rsala, "")[wpctype])
 
-        params = ('Name', 'AirflowNetwork Control', 'Wind Pressure Coefficient Type', 'AirflowNetwork Wind Pressure Coefficient Array Name', \
+        params = ('Name', 'AirflowNetwork Control', 'Wind Pressure Coefficient Type', \
         'Height Selection for Local Wind Pressure Calculation', 'Building Type', 'Maximum Number of Iterations (dimensionless)', 'Initialization Type', \
         'Relative Airflow Convergence Tolerance (dimensionless)', 'Absolute Airflow Convergence Tolerance (kg/s)', 'Convergence Acceleration Limit (dimensionless)', \
         'Azimuth Angle of Long Axis of Building (deg)', 'Ratio of Building Width Along Short Axis to Width Along Long Axis')

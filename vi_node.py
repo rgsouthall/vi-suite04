@@ -811,7 +811,7 @@ class ViSSNode(bpy.types.Node, ViNodes):
     endframe = bpy.props.IntProperty(name = '', default = 0, min = 0, max = 1024, description = 'End frame')
     starthour = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 24, description = 'Start hour')
     endhour = bpy.props.IntProperty(name = '', default = 24, min = 1, max = 24, description = 'End hour')
-    interval = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 60, description = 'Interval')
+    interval = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 60, description = 'Number of simulation steps per hour')
     sdoy = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 365, description = 'Start Day', update = nodeupdate)
     edoy = bpy.props.IntProperty(name = '', default = 365, min = 1, max = 365, description = 'End Day', update = nodeupdate)
     cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],

@@ -268,9 +268,7 @@ def liviresupdate(self, context):
     for o in [o for o in bpy.data.objects if o.lires]:
         o.lividisplay(context.scene)  
     eupdate(self, context)
-      
-   
-           
+                 
 def register():
     bpy.utils.register_module(__name__)
     Object, Scene, Material = bpy.types.Object, bpy.types.Scene, bpy.types.Material

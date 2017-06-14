@@ -18,15 +18,18 @@ class Vi3DPanel(bpy.types.Panel):
         cao = context.active_object
         layout = self.layout
 
-        if scene.get('viparams') and cao and cao.active_material and cao.active_material.get('bsdf') and cao.active_material['bsdf']['type'] == ' ':
-            if scene['viparams']['vidisp'] != 'bsdf_panel':
-                row = layout.row()
-                row.operator("view3d.bsdf_display", text="BSDF Display") 
-            else:
-                newrow(layout, 'BSDF max:', scene, "vi_bsdfleg_max")
-                newrow(layout, 'BSDF min:', scene, "vi_bsdfleg_min")
-                newrow(layout, 'BSDF scale:', scene, "vi_leg_scale")
-                newrow(layout, 'BSDF colour:', scene, "vi_leg_col")
+        try:
+            if cao.active_material['bsdf']['type'] == ' ' and cao.vi_type == '5':
+                if scene['viparams']['vidisp'] != 'bsdf_panel':
+                    row = layout.row()
+                    row.operator("view3d.bsdf_display", text="BSDF Display") 
+                else:
+                    newrow(layout, 'BSDF max:', scene, "vi_bsdfleg_max")
+                    newrow(layout, 'BSDF min:', scene, "vi_bsdfleg_min")
+                    newrow(layout, 'BSDF scale:', scene, "vi_leg_scale")
+                    newrow(layout, 'BSDF colour:', scene, "vi_leg_col")
+        except Exception as e:
+            print(e)
 
         if scene.get('viparams') and scene['viparams'].get('vidisp'): 
             if scene['viparams']['vidisp'] == 'wr' and 'Wind_Plane' in [o['VIType'] for o in bpy.data.objects if o.get('VIType')]:

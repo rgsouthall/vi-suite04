@@ -165,6 +165,7 @@ class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
         if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':  
             if context.scene['viparams']['vidisp'] != 'bsdf_panel':
                 self.remove(context)
+                context.scene['viparams']['vidisp'] = self.olddisp
                 return {'CANCELLED'}
 #        if context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW': 
             mx, my = event.mouse_region_x, event.mouse_region_y
@@ -186,6 +187,7 @@ class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
                         
                 elif event.type == 'ESC':
                     self.remove(context)
+                    context.scene['viparams']['vidisp'] = self.olddisp
                     return {'CANCELLED'}                   
                 elif self.bsdfpress and event.type == 'MOUSEMOVE':
                      self.bsdfmove = 1
@@ -279,6 +281,7 @@ class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
             self.bsdf.update(context)
             self.bsdfpress, self.bsdfmove, self.bsdfresize = 0, 0, 0
             self._handle_bsdf_disp = bpy.types.SpaceView3D.draw_handler_add(bsdf_disp, (self, context), 'WINDOW', 'POST_PIXEL')
+            self.olddisp = context.scene['viparams']['vidisp']
             context.window_manager.modal_handler_add(self)
             context.scene['viparams']['vidisp'] = 'bsdf_panel'
             context.area.tag_redraw()            
@@ -3031,6 +3034,9 @@ class Gridify(bpy.types.Operator):
             vs = self.bmnew.verts[:]
             es = self.bmnew.edges[:]
             fs = [f for f in self.bmnew.faces[:] if self.o.data.materials[f.material_index] and self.o.data.materials[f.material_index].mattype == '1']
+            if not fs:
+                self.report({'ERROR'}, 'Object has no sensor material attached')
+                return {'CANCELLED'}
             gs = vs + es + fs 
             eul = mathutils.Euler(math.radians(-90) * fs[0].normal, 'XYZ')
             norm2.rotate(eul)         

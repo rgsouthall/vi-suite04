@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, datetime, mathutils, os, bmesh, shutil, sys, math, shlex
+import bpy, datetime, mathutils, os, bmesh, shutil, sys, math, shlex, psutil
 from os import rename
 import numpy
 from numpy import arange, histogram, array, int8, float16
@@ -89,7 +89,12 @@ class OBJECT_GenBSDF(bpy.types.Operator):
     def modal(self, context, event):
         if self.bsdfrun.poll() is None:
             if self.pfile.check(0) == 'CANCELLED':                   
-                self.bsdfrun.kill()                              
+                self.bsdfrun.kill()   
+                
+                for proc in psutil.process_iter():
+                    if 'rcontrib' in proc.name():
+                        proc.kill()       
+                        
                 return {'CANCELLED'}
             else:
                 return{'PASS_THROUGH'}

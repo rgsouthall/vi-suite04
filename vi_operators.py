@@ -16,25 +16,25 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, datetime, mathutils, os, bmesh, shutil, sys, gc, math
+import bpy, datetime, mathutils, os, bmesh, shutil, sys, math, shlex
 from os import rename
 import numpy
-from numpy import arange, histogram, array, int8, float16, float32, int16, int32, float64
+from numpy import arange, histogram, array, int8, float16
 import bpy_extras.io_utils as io_utils
 from subprocess import Popen, PIPE, call
 from collections import OrderedDict
 from datetime import datetime as dt
 from math import cos, sin, pi, ceil, tan
 from time import sleep
-from multiprocessing import Pool
-from .livi_export import radgexport, spfc, createoconv, createradfile, genbsdf
+#from multiprocessing import Pool
+from .livi_export import radgexport, spfc, createoconv, createradfile
 from .livi_calc  import li_calc
-from .vi_display import li_display, linumdisplay, spnumdisplay, en_air, en_panel, en_temp_panel, wr_legend, wr_disp, wr_scatter, wr_table, ss_disp, ss_legend, basic_legend, basic_table, basic_disp, ss_scatter, en_disp, en_pdisp, en_scatter, en_table, en_barchart, comp_table, comp_disp, leed_scatter, cbdm_disp, cbdm_scatter, envals, bsdf, bsdf_disp#, en_barchart, li3D_legend
+from .vi_display import li_display, linumdisplay, spnumdisplay, en_air, wr_legend, wr_disp, wr_scatter, wr_table, ss_disp, ss_legend, basic_legend, basic_table, basic_disp, ss_scatter, en_disp, en_pdisp, en_scatter, en_table, en_barchart, comp_table, comp_disp, leed_scatter, cbdm_disp, cbdm_scatter, envals, bsdf, bsdf_disp#, en_barchart, li3D_legend
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum
 from .vi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, sunposenvi, clearlayers
-from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, chunks, xy2radial, logentry, sunpath
+from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, chunks, xy2radial, logentry, sunpath, radpoints
 from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
 from .vi_chart import chart_disp
 
@@ -86,10 +86,78 @@ class OBJECT_GenBSDF(bpy.types.Operator):
     bl_register = True
     bl_undo = False
     
+    def modal(self, context, event):
+        if self.bsdfrun.poll() is None:
+            if self.pfile.check(0) == 'CANCELLED':                   
+                self.bsdfrun.kill()                              
+                return {'CANCELLED'}
+            else:
+                return{'PASS_THROUGH'}
+        else:
+            if self.kivyrun.poll() is None:
+                self.kivyrun.kill() 
+            with open(os.path.join(context.scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name)), 'r') as bsdffile:
+                self.mat['bsdf']['xml'] = bsdffile.read()
+            context.scene['viparams']['vidisp'] = 'bsdf'
+            self.mat['bsdf']['type'] = self.o.li_bsdf_tensor
+            return {'FINISHED'}
+    
     def execute(self, context):
-        o = context.active_object
-        genbsdf(context.scene, self, o)
-        return {'FINISHED'}
+        self.o = context.active_object
+        scene = context.scene
+        if viparams(self, scene):
+            return {'CANCELLED'}
+        bsdfmats = [mat for mat in self.o.data.materials if mat.radmatmenu == '8']
+        
+        if bsdfmats:
+            self.mat = bsdfmats[0]
+            self.mat['bsdf'] = {} 
+        else:
+            self.report({'ERROR'}, '{} does not have a BSDF material attached'.format(self.o.name))
+        
+        tm = self.o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW')
+        bm = bmesh.new()    
+        bm.from_mesh(tm) 
+        bpy.data.meshes.remove(tm)
+        bm.transform(self.o.matrix_world)
+        bm.normal_update()
+        bsdffaces = [face for face in bm.faces if self.o.data.materials[face.material_index].radmatmenu == '8']    
+        
+        if bsdffaces:
+            fvec = bsdffaces[0].normal
+            self.mat['bsdf']['normal'] = '{0[0]:.4f} {0[1]:.4f} {0[2]:.4f}'.format(fvec)
+        else:
+            self.report({'ERROR'}, '{} does not have a BSDF material associated with any faces'.format(self.o.name))
+            return
+        
+        self.pfile = progressfile(scene, datetime.datetime.now(), 100)
+        self.kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'BSDF')
+        zvec, xvec = mathutils.Vector((0, 0, 1)), mathutils.Vector((1, 0, 0))
+        svec = mathutils.Vector.cross(fvec, zvec)
+        bm.faces.ensure_lookup_table()
+        bsdfrotz = mathutils.Matrix.Rotation(mathutils.Vector.angle(fvec, zvec), 4, svec)
+        bm.transform(bsdfrotz)
+        bsdfrotx = mathutils.Matrix.Rotation(math.pi + mathutils.Vector.angle_signed(mathutils.Vector(xvec[:2]), mathutils.Vector(svec[:2])), 4, zvec)#mathutils.Vector.cross(svec, xvec))
+        bm.transform(bsdfrotx)
+        vposis = list(zip(*[v.co[:] for v in bm.verts]))
+        (maxx, maxy, maxz) = [max(p) for p in vposis]
+        (minx, miny, minz) = [min(p) for p in vposis]
+        bsdftrans = mathutils.Matrix.Translation(mathutils.Vector((-(maxx + minx)/2, -(maxy + miny)/2, -maxz)))
+        bm.transform(bsdftrans)
+        mradfile = ''.join([m.radmat(scene) for m in self.o.data.materials if m.radmatmenu != '8'])                  
+        gradfile = radpoints(self.o, [face for face in bm.faces if self.o.data.materials and face.material_index < len(self.o.data.materials) and self.o.data.materials[face.material_index].radmatmenu != '8'], 0)
+        bm.free()  
+        bsdfsamp = self.o.li_bsdf_ksamp if self.o.li_bsdf_tensor == ' ' else 2**(int(self.o.li_bsdf_res) * 2) * int(self.o.li_bsdf_tsamp) 
+        gbcmd = "genBSDF +geom meter -r '{}' {} {} -c {} {} -n {}".format(self.o.li_bsdf_rcparam,  self.o.li_bsdf_tensor, (self.o.li_bsdf_res, ' ')[self.o.li_bsdf_tensor == ' '], bsdfsamp, self.o.li_bsdf_direc, scene['viparams']['nproc'])
+
+        with open(os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}_mg'.format(self.mat.name)), 'w') as mgfile:
+            mgfile.write(mradfile+gradfile)
+        with open(os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}_mg'.format(self.mat.name)), 'r') as mgfile: 
+            with open(os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name)), 'w') as bsdffile:
+                self.bsdfrun = Popen(shlex.split(gbcmd), stdin = mgfile, stdout = bsdffile)
+                
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
         
 class MATERIAL_LoadBSDF(bpy.types.Operator, io_utils.ImportHelper):
     bl_idname = "material.load_bsdf"
@@ -126,7 +194,6 @@ class MATERIAL_DelBSDF(bpy.types.Operator):
     bl_undo = False
     
     def execute(self, context):
-#        o = context.active_object
         del context.material['bsdf']
         return {'FINISHED'}
         
@@ -167,7 +234,7 @@ class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
                 self.remove(context)
                 context.scene['viparams']['vidisp'] = self.olddisp
                 return {'CANCELLED'}
-#        if context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW': 
+
             mx, my = event.mouse_region_x, event.mouse_region_y
             if self.bsdf.spos[0] < mx < self.bsdf.epos[0] and self.bsdf.spos[1] < my < self.bsdf.epos[1]:
                 self.bsdf.hl = (0, 1, 1, 1)  

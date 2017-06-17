@@ -65,16 +65,19 @@ class Vi3DPanel(bpy.types.Panel):
                         for i in (("Font size:", "vi_display_rp_fs"), ("Font colour:", "vi_display_rp_fc"), ("Font shadow:", "vi_display_rp_sh"), ("Shadow colour:", "vi_display_rp_fsh")):
                             newrow(layout, i[0], scene, i[1])
                         
-            elif scene['viparams']['vidisp'] in ('ss', 'li', 'lc'):
+            elif scene['viparams']['vidisp'] in ('svf', 'ss', 'li', 'lc'):
                 row = layout.row()
                 row.prop(scene, "vi_disp_3d")                 
                 row = layout.row()
-                if scene['viparams']['vidisp'] == 'ss':
+                
+                if scene['viparams']['vidisp'] == 'svf':
+                    row.operator("view3d.svfdisplay", text="Sky View Display")
+                elif scene['viparams']['vidisp'] == 'ss':
                     row.operator("view3d.ssdisplay", text="Shadow Display")
                 else:
                     row.operator("view3d.livibasicdisplay", text="Radiance Display")
 
-            elif scene['viparams']['vidisp'] in ('sspanel', 'lipanel', 'lcpanel') and [o for o in bpy.data.objects if o.lires] and scene.vi_display:
+            elif scene['viparams']['vidisp'] in ('sspanel', 'lipanel', 'lcpanel', 'svfpanel') and [o for o in bpy.data.objects if o.lires] and scene.vi_display:
                 row = layout.row()
                 row.prop(context.space_data, "show_only_render")
 

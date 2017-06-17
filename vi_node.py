@@ -796,6 +796,56 @@ class ViSPNode(bpy.types.Node, ViNodes):
         nodecolour(self, 0)
         self['exportstate'] = [str(x) for x in (self.suns)]
 
+
+class ViSVFNode(bpy.types.Node, ViNodes):
+    '''Node for sky view factor analysis'''
+    bl_idname = 'ViSVFNode'
+    bl_label = 'VI SVF'
+    bl_icon = 'LAMP'
+    
+    def nodeupdate(self, context):
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.startframe, self.endframe, self.cpoint, self.offset, self.animmenu)])
+    
+    animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis")]
+    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=[('0', "Tregenza", "Simple static analysis"), ('1', "Reinhart", "Animated geometry analysis"), ('2', "Reinhart 2", "Animated geometry analysis")], default = '0', update = nodeupdate)
+    sky = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeupdate)
+    startframe = bpy.props.IntProperty(name = '', default = 0, min = 0, max = 1024, description = 'Start frame')
+    endframe = bpy.props.IntProperty(name = '', default = 0, min = 0, max = 1024, description = 'End frame')
+    cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
+            name="", description="Specify the calculation point geometry", default="0", update = nodeupdate)
+    offset = bpy.props.FloatProperty(name="", description="Calc point offset", min=0.001, max=10, default=0.01, update = nodeupdate)
+    signore = bpy.props.BoolProperty(name = '', default = 0, description = 'Ignore sensor surfaces', update = nodeupdate)
+    skytype = [('0', "Tregenza", "Tregenza sky distribution"), ('1', "Reinhart 580", "Reinhart 578 sky patches"), ('2', 'Reinhart 2305', 'Reinhart 2305 sky patches')]
+    skypatches = bpy.props.EnumProperty(name="", description="Animation type", items=skytype, default = '0', update = nodeupdate)
+    
+    def init(self, context):
+        self['nodeid'] = nodeid(self)
+        self['goptions'] = {}
+        self.outputs.new('ViR', 'Results out')
+        nodecolour(self, 1)
+
+    def draw_buttons(self, context, layout):
+        newrow(layout, 'Ignore sensor:', self, "signore")
+        if self.animmenu != 'Static': 
+            row = layout.row(align=True)
+            row.alignment = 'EXPAND'
+            row.label('Frames:')
+            row.prop(self, 'startframe')
+            row.prop(self, 'endframe')
+        newrow(layout, 'Sky patches:', self, "skypatches")
+        newrow(layout, 'Result point:', self, "cpoint")
+        newrow(layout, 'Offset:', self, 'offset')
+        row = layout.row()
+        row.operator("node.svf", text="Sky View Factor").nodeid = self['nodeid']
+     
+    def preexport(self):
+        self['goptions']['offset'] = self.offset
+        
+    def postexport(self, scene):
+        nodecolour(self, 0)
+        self.outputs['Results out'].hide = False if self.get('reslists') else True            
+        self['exportstate'] = [str(x) for x in (self.startframe, self.endframe, self.cpoint, self.offset, self.animmenu)]
+        
 class ViSSNode(bpy.types.Node, ViNodes):
     '''Node to create a VI-Suite shadow map'''
     bl_idname = 'ViSSNode'
@@ -1967,7 +2017,7 @@ viexnodecat = [NodeItem("ViGExLiNode", label="LiVi Geometry"), NodeItem("LiViNod
                  NodeItem("ViBMExNode", label="FloVi BlockMesh"), NodeItem("ViSHMExNode", label="FloVi SnappyHexMesh")]
                 
 vifilenodecat = [NodeItem("ViTextEdit", label="Text Edit")]
-vinodecat = [NodeItem("ViSPNode", label="VI-Suite Sun Path"), NodeItem("ViSSNode", label="VI-Suite Shadow Map"), NodeItem("ViWRNode", label="VI-Suite Wind Rose"), 
+vinodecat = [NodeItem("ViSPNode", label="VI-Suite Sun Path"), NodeItem("ViSSNode", label="VI-Suite Shadow Map"), NodeItem("ViWRNode", label="VI-Suite Wind Rose"), NodeItem("ViSVFNode", label="VI-Suite Sky View Factor"),
              NodeItem("ViLiSNode", label="LiVi Simulation"), NodeItem("ViEnSimNode", label="EnVi Simulation"), NodeItem("ViFVSimNode", label="FloVi Simulation")]
 
 vigennodecat = [NodeItem("ViGenNode", label="VI-Suite Generative"), NodeItem("ViTarNode", label="VI-Suite Target")]

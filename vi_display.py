@@ -243,7 +243,7 @@ class linumdisplay():
         self.scene = context.scene
         self.fontmult = 2 #if context.space_data.region_3d.is_perspective else 500
         
-        if not self.scene.get('viparams') or self.scene['viparams']['vidisp'] not in ('lipanel', 'sspanel', 'lcpanel'):
+        if not self.scene.get('viparams') or self.scene['viparams']['vidisp'] not in ('svfpanel', 'lipanel', 'sspanel', 'lcpanel'):
             self.scene.vi_display = 0
             return
         if self.scene.frame_current not in range(self.scene['liparams']['fs'], self.scene['liparams']['fe'] + 1):
@@ -1040,6 +1040,30 @@ class ss_legend(Base_Display):
         
     def drawopen(self, context):
         draw_legend(self, context.scene, 'Sunlit Time (%)')
+        
+class svf_legend(Base_Display):
+    def __init__(self, pos, width, height, iname, xdiff, ydiff):
+        Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
+        
+    def update(self, context):
+        scene = context.scene
+        self.cao = context.active_object        
+        self.cols = retcols(context.scene, 20)
+        self.col, self.maxres, self.minres, self.scale = scene.vi_leg_col, scene.vi_leg_max, scene.vi_leg_min, scene.vi_leg_scale
+        dplaces = retdp(self.maxres, 1)
+        resdiff = self.maxres - self.minres
+        
+        if not context.scene.get('liparams'):
+            scene.vi_display = 0
+            return
+
+        self.resvals = [format(self.minres + i*(resdiff)/20, '.{}f'.format(dplaces)) for i in range(21)] if self.scale == '0' else \
+                        [format(self.minres + (1 - log10(i)/log10(21))*(resdiff), '.{}f'.format(dplaces)) for i in range(1, 22)[::-1]]
+
+        self.resvals = ['{0} - {1}'.format(self.resvals[i], self.resvals[i+1]) for i in range(20)]
+        
+    def drawopen(self, context):
+        draw_legend(self, context.scene, 'Sky View')
     
 class basic_legend(Base_Display):
     def __init__(self, pos, width, height, iname, xdiff, ydiff):
@@ -1070,6 +1094,13 @@ def ss_disp(self, context, simnode):
         width, height = context.region.width, context.region.height
         self.legend.draw(context, width, height)
         self.dhscatter.draw(context, width, height)
+    except:
+        pass
+    
+def svf_disp(self, context, simnode):
+    try:
+        width, height = context.region.width, context.region.height
+        self.legend.draw(context, width, height)
     except:
         pass
 #    self.dhscatter.draw(context, width, height)

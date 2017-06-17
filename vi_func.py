@@ -473,7 +473,7 @@ def setscenelivivals(scene):
             udict = {'0': 'DF (%)', '1': 'Sky View'}
             scene['liparams']['unit'] = udict[scene.li_disp_sv]
             
-    olist = [scene.objects[on] for on in scene['liparams']['shadc']] if scene['viparams']['visimcontext'] == 'Shadow' else [scene.objects[on] for on in scene['liparams']['livic']]
+    olist = [scene.objects[on] for on in scene['liparams']['shadc']] if scene['viparams']['visimcontext'] in ('Shadow', 'SVF') else [scene.objects[on] for on in scene['liparams']['livic']]
 
     for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):
         scene['liparams']['maxres'][str(frame)] = max([o['omax']['{}{}'.format(unitdict[scene['liparams']['unit']], frame)] for o in olist])

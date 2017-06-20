@@ -108,8 +108,10 @@ class OBJECT_GenBSDF(bpy.types.Operator):
             return {'FINISHED'}
     
     def execute(self, context):
-        self.o = context.active_object
         scene = context.scene
+        self.o = context.active_object
+        scene.objects.active = None
+        
         if viparams(self, scene):
             return {'CANCELLED'}
         bsdfmats = [mat for mat in self.o.data.materials if mat.radmatmenu == '8']

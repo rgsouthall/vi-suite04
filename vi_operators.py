@@ -99,7 +99,6 @@ class OBJECT_GenBSDF(bpy.types.Operator):
             else:
                 return{'PASS_THROUGH'}
         else:
-            print('hi')
             if self.kivyrun.poll() is None:
                 self.kivyrun.kill() 
             with open(os.path.join(context.scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name)), 'r') as bsdffile:
@@ -161,8 +160,9 @@ class OBJECT_GenBSDF(bpy.types.Operator):
         with open(os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}_mg'.format(self.mat.name)), 'r') as mgfile: 
             with open(os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name)), 'w') as bsdffile:
                 self.bsdfrun = Popen(shlex.split(gbcmd), stdin = mgfile, stdout = bsdffile)
-                
-        context.window_manager.modal_handler_add(self)
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(1, context.window)
+        wm.modal_handler_add(self)        
         return {'RUNNING_MODAL'}
         
 class MATERIAL_LoadBSDF(bpy.types.Operator, io_utils.ImportHelper):

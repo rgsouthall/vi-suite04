@@ -334,11 +334,11 @@ class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
                 else:
                     self.bsdf.patch_hl = None
                     
-            if self.bsdf.expand and any((self.bsdf.leg_max != context.scene.vi_bsdfleg_max, self.bsdf.leg_min != context.scene.vi_bsdfleg_min, self.bsdf.col != context.scene.vi_leg_col, self.bsdf.scale_select != context.scene.vi_leg_scale)):
+            if self.bsdf.expand and any((self.bsdf.leg_max != context.scene.vi_bsdfleg_max, self.bsdf.leg_min != context.scene.vi_bsdfleg_min, self.bsdf.col != context.scene.vi_leg_col, self.bsdf.scale_select != context.scene.vi_bsdfleg_scale)):
                 self.bsdf.col = context.scene.vi_leg_col
                 self.bsdf.leg_max = context.scene.vi_bsdfleg_max
                 self.bsdf.leg_min = context.scene.vi_bsdfleg_min
-                self.bsdf.scale_select = context.scene.vi_leg_scale
+                self.bsdf.scale_select = context.scene.vi_bsdfleg_scale
                 self.bsdf.plot(context)
 #                self.bsdf.save(context.scene)
             

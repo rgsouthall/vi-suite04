@@ -1263,7 +1263,7 @@ class bsdf(Base_Display):
         sa = repeat(kfsa, self.phis)
         act = repeat(kfact, self.phis)
         patchdat = selectdat[self.patch_select] * act * sa * 100
-        bg = self.plt.Rectangle((0, 0), 2 * math.pi, 1, color=mcm.get_cmap(scene.vi_leg_col)((0, 0.01)[scene.vi_leg_scale == '1']), zorder = 0)      
+        bg = self.plt.Rectangle((0, 0), 2 * math.pi, 1, color=mcm.get_cmap(scene.vi_leg_col)((0, 0.01)[scene.vi_bsdfleg_scale == '1']), zorder = 0)      
 
         for ring in range(1, 10):
             angdiv = math.pi/self.phis[ring - 1]
@@ -1278,7 +1278,7 @@ class bsdf(Base_Display):
                     self.plt.text(0.5 * (phi1 + phi2), y, ('{:.1f}', '{:.0f}')[patchdat[p] >= 10].format(patchdat[p]), ha="center", va = 'center', family='sans-serif', size=10)
                 p += 1
                 
-        pc = PatchCollection(patches, norm=mcolors.LogNorm(vmin=self.leg_min + 0.01, vmax = self.leg_max), cmap=self.col, linewidths = [0] + 144*[0.5], edgecolors = ('black',)) if scene.vi_leg_scale == '1' else PatchCollection(patches, cmap=self.col, linewidths = [0] + 144*[0.5], edgecolors = ('black',))        
+        pc = PatchCollection(patches, norm=mcolors.LogNorm(vmin=self.leg_min + 0.01, vmax = self.leg_max), cmap=self.col, linewidths = [0] + 144*[0.5], edgecolors = ('black',)) if scene.vi_bsdfleg_scale == '1' else PatchCollection(patches, cmap=self.col, linewidths = [0] + 144*[0.5], edgecolors = ('black',))        
 #        pc.set_linewidth(repeat(array([0, 0.5]), array([1, 144])))
         pc.set_array(patchdat)
         

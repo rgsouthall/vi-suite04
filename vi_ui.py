@@ -26,7 +26,7 @@ class Vi3DPanel(bpy.types.Panel):
                 else:
                     newrow(layout, 'BSDF max:', scene, "vi_bsdfleg_max")
                     newrow(layout, 'BSDF min:', scene, "vi_bsdfleg_min")
-                    newrow(layout, 'BSDF scale:', scene, "vi_leg_scale")
+                    newrow(layout, 'BSDF scale:', scene, "vi_bsdfleg_scale")
                     newrow(layout, 'BSDF colour:', scene, "vi_leg_col")
         except Exception as e:
             pass

@@ -99,6 +99,7 @@ class OBJECT_GenBSDF(bpy.types.Operator):
             else:
                 return{'PASS_THROUGH'}
         else:
+            print('hi')
             if self.kivyrun.poll() is None:
                 self.kivyrun.kill() 
             with open(os.path.join(context.scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name)), 'r') as bsdffile:
@@ -289,7 +290,7 @@ class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
                             elif butrange in ('Transmission', 'Reflection'):
                                 self.bsdf.type_select = butrange
                             self.bsdf.plot(context)
-                            self.bsdf.save(context.scene)
+#                            self.bsdf.save(context.scene)
 
                 self.bsdf.hl = (1, 1, 1, 1)
                                 
@@ -326,7 +327,7 @@ class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
                         self.bsdf.num_disp = 1 if event.type == 'RIGHTMOUSE' else 0    
                         self.bsdf.patch_select = sum(self.bsdf.phis[0:ri]) + uai
                         self.bsdf.plot(context)
-                        self.bsdf.save(context.scene)
+#                        self.bsdf.save(context.scene)
                         context.area.tag_redraw()
                         return {'RUNNING_MODAL'}
                         
@@ -339,7 +340,7 @@ class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
                 self.bsdf.leg_min = context.scene.vi_bsdfleg_min
                 self.bsdf.scale_select = context.scene.vi_leg_scale
                 self.bsdf.plot(context)
-                self.bsdf.save(context.scene)
+#                self.bsdf.save(context.scene)
             
             context.area.tag_redraw()
         

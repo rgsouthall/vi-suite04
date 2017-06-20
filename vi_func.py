@@ -2159,7 +2159,7 @@ def drawwedge(c, phis, rs, col, w, h):
     bgl.glEnable(bgl.GL_LINE_SMOOTH)    
     bgl.glBlendFunc(bgl.GL_SRC_ALPHA, bgl.GL_ONE_MINUS_SRC_ALPHA);
     bgl.glHint(bgl.GL_LINE_SMOOTH_HINT, bgl.GL_FASTEST)
-    (z, lw, col) = (0.1, 5, col) if col else (0.05, 1.5, [0, 0, 0, 0.25])
+    (z, lw, col) = (0.1, 3, col) if col else (0.05, 1.5, [0, 0, 0, 0.25])
     bgl.glColor4f(*col)
     bgl.glLineWidth(lw)
     bgl.glBegin(bgl.GL_LINE_LOOP)

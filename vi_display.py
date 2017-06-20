@@ -1186,9 +1186,9 @@ class bsdf(Base_Display):
         for phii, phi in enumerate(self.phis):
             for w in range(phi):
                 if self.patch_select == patch:
-                    z, lw, col = 0.06, 5, (1, 0, 0, 1) 
+                    z, lw, col = 0.06, 3, (1, 0, 0, 1) 
                 elif self.patch_hl == patch:
-                    z, lw, col = 0.06, 5, (1, 1, 0, 1)
+                    z, lw, col = 0.06, 3, (1, 1, 0, 1)
                 else:
                     z, lw, col = 0.05, 1, 0
     
@@ -1221,8 +1221,7 @@ class bsdf(Base_Display):
         bgl.glFlush()
         
     def update(self, context):
-        self.mat = context.object.active_material
-        
+        self.mat = context.object.active_material        
         bsdf = minidom.parseString(self.mat['bsdf']['xml'])
 #        coltype = [path.firstChild.data for path in bsdf.getElementsByTagName('ColumnAngleBasis')]
 #        rowtype = [path.firstChild.data for path in bsdf.getElementsByTagName('RowAngleBasis')]
@@ -1279,8 +1278,8 @@ class bsdf(Base_Display):
                     self.plt.text(0.5 * (phi1 + phi2), y, ('{:.1f}', '{:.0f}')[patchdat[p] >= 10].format(patchdat[p]), ha="center", va = 'center', family='sans-serif', size=10)
                 p += 1
                 
-        pc = PatchCollection(patches, norm=mcolors.LogNorm(vmin=self.leg_min + 0.01, vmax = self.leg_max), cmap=self.col) if scene.vi_leg_scale == '1' else PatchCollection(patches, cmap=self.col)        
-        pc.set_linewidth(repeat(array([0, 0.5]), array([1, 144])))
+        pc = PatchCollection(patches, norm=mcolors.LogNorm(vmin=self.leg_min + 0.01, vmax = self.leg_max), cmap=self.col, linewidths = [0] + 144*[0.5], edgecolors = ('black',)) if scene.vi_leg_scale == '1' else PatchCollection(patches, cmap=self.col, linewidths = [0] + 144*[0.5], edgecolors = ('black',))        
+#        pc.set_linewidth(repeat(array([0, 0.5]), array([1, 144])))
         pc.set_array(patchdat)
         
         ax.add_collection(pc)
@@ -1292,9 +1291,11 @@ class bsdf(Base_Display):
                         
     def save(self, scene):
         self.plt.savefig(os.path.join(scene['viparams']['newdir'], 'images', 'bsdfplot.png'), bbox_inches='tight')
+
         if 'bsdfplot.png' not in [i.name for i in bpy.data.images]:
             self.gimage = bpy.data.images.load(os.path.join(scene['viparams']['newdir'], 'images', 'bsdfplot.png'))
         else:
+            bpy.data.images['bsdfplot.png'].filepath = os.path.join(scene['viparams']['newdir'], 'images', 'bsdfplot.png')
             bpy.data.images['bsdfplot.png'].reload()
             self.gimage = bpy.data.images['bsdfplot.png']
    

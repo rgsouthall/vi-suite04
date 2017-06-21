@@ -2380,15 +2380,15 @@ class NODE_OT_SVF(bpy.types.Operator):
             azis = (30, 30, 24, 24, 18, 12, 6, 1)
 
         elif simnode.skypatches == '1':
-            alts = (3, 6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 66, 72, 78, 84, 90)
+            alts = [(rrow+0.5)*90/(2*7+0.5) for rrow in range(0, 15)]
             azis = (60, 60, 60, 60, 48, 48, 48, 48, 36, 36, 24, 24, 12, 12, 1)
         
         elif simnode.skypatches == '2':
-            alts = (1.5, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57, 60, 63, 66, 72, 75, 78, 81, 84, 87, 90)
-            azis = (120, 120, 120, 120, 120, 120, 120, 120, 96, 96, 96, 96, 96, 96, 96, 96, 72, 72, 72, 72, 48, 48., 48, 48, 24, 24, 24, 24, 1)
+            alts = [(rrow+0.5)*90/(4*7+0.5) for rrow in range(0, 29)]
+            azis = (120, 120, 120, 120, 120, 120, 120, 120, 96, 96, 96, 96, 96, 96, 96, 96, 72, 72, 72, 72, 48, 48, 48, 48, 24, 24, 24, 24, 1)
 
         for a, azi in enumerate(azis):
-            for az in range(0, 360, int(360/azi)):
+            for az in arange(0, 360, 360/azi):
                 x.append(sin(az * pi/180) * cos(alts[a] * pi/180))
                 y.append(cos(az * pi/180) * cos(alts[a] * pi/180))
                 z.append(sin(alts[a] * pi/180))   
@@ -2725,7 +2725,6 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         self.legend.update(context)
         self._handle_svf_disp = bpy.types.SpaceView3D.draw_handler_add(svf_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
-        print('hello')
         return {'RUNNING_MODAL'}
         
 class VIEW3D_OT_SSDisplay(bpy.types.Operator):

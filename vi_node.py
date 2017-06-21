@@ -815,7 +815,7 @@ class ViSVFNode(bpy.types.Node, ViNodes):
             name="", description="Specify the calculation point geometry", default="0", update = nodeupdate)
     offset = bpy.props.FloatProperty(name="", description="Calc point offset", min=0.001, max=10, default=0.01, update = nodeupdate)
     signore = bpy.props.BoolProperty(name = '', default = 0, description = 'Ignore sensor surfaces', update = nodeupdate)
-    skytype = [('0', "Tregenza", "Tregenza sky distribution"), ('1', "Reinhart 580", "Reinhart 578 sky patches"), ('2', 'Reinhart 2305', 'Reinhart 2305 sky patches')]
+    skytype = [('0', "Tregenza", "145 Tregenza sky patches"), ('1', "Reinhart 577", "577 Reinhart sky patches"), ('2', 'Reinhart 2305', '2305 Reinhart sky patches')]
     skypatches = bpy.props.EnumProperty(name="", description="Animation type", items=skytype, default = '0', update = nodeupdate)
     
     def init(self, context):

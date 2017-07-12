@@ -2690,7 +2690,7 @@ class EnViZone(bpy.types.Node, EnViNodes):
     def zupdate(self, context):
         obj = bpy.data.objects[self.zone]
         odm = obj.data.materials
-        self.zonevolume = objvol('', obj)
+#        self.zonevolume = objvol('', obj)
         bfacelist = sorted([face for face in obj.data.polygons if odm[face.material_index].envi_boundary == 1], key=lambda face: -face.center[2])
         buvals = [retuval(odm[face.material_index]) for face in bfacelist]
         bsocklist = ['{}_{}_b'.format(odm[face.material_index].name, face.index) for face in bfacelist]
@@ -2782,7 +2782,8 @@ class EnViZone(bpy.types.Node, EnViNodes):
     def draw_buttons(self, context, layout):
         newrow(layout, 'Zone:', self, 'zone')
         yesno = (1, 1, self.control == 'Temperature', self.control == 'Temperature', self.control == 'Temperature')
-        vals = (("Volume:", "zonevolume"), ("Control type:", "control"), ("Minimum OF:", "mvof"), ("Lower:", "lowerlim"), ("Upper:", "upperlim"))
+#        vals = (("Volume:", "zonevolume"), ("Control type:", "control"), ("Minimum OF:", "mvof"), ("Lower:", "lowerlim"), ("Upper:", "upperlim"))
+        vals = (("Control type:", "control"), ("Minimum OF:", "mvof"), ("Lower:", "lowerlim"), ("Upper:", "upperlim"))
         [newrow(layout, val[0], self, val[1]) for v, val in enumerate(vals) if yesno[v]]
 
     def epwrite(self):
@@ -3315,13 +3316,18 @@ class EnViSched(bpy.types.Node, EnViNodes):
         bpy.data.node_groups[self['nodeid'].split('@')[1]].interface_update(bpy.context)
 
     def epwrite(self, name, stype):
-        schedtext = ''
+        schedtext, ths = '', []
         for tosock in [link.to_socket for link in self.outputs['Schedule'].links]:
             if not schedtext:
-                ths = [self.t1, self.t2, self.t3, self.t4]
+                for t in (self.t1, self.t2, self.t3, self.t4):
+                    ths.append(t)
+                    if t == 365:
+                        break
+#                ths = [self.t1, self.t2, self.t3, self.t4]
                 fos = [fs for fs in (self.f1, self.f2, self.f3, self.f4) if fs]
                 uns = [us for us in (self.u1, self.u2, self.u3, self.u4) if us]
                 ts, fs, us = rettimes(ths, fos, uns)
+                print(ts)
                 schedtext = epschedwrite(name, stype, ts, fs, us)
                 return schedtext
         return schedtext

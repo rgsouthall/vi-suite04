@@ -233,6 +233,7 @@ def epentry(header, params, paramvs):
 def epschedwrite(name, stype, ts, fs, us):
     params = ['Name', 'Schedule Type Limits Name']
     paramvs = [name, stype]
+    
     for t in range(len(ts)):
         params.append('Field {}'.format(len(params)-2))
         paramvs .append(ts[t])
@@ -242,6 +243,7 @@ def epschedwrite(name, stype, ts, fs, us):
             for u in range(len(us[t][f])):
                 params.append('Field {}'.format(len(params)-2))
                 paramvs.append(us[t][f][u][0])
+
     return epentry('Schedule:Compact', params, paramvs)
 
 def enunits(self, context):

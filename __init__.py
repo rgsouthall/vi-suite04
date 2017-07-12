@@ -338,7 +338,7 @@ def register():
     Material.radior  = fprop("IOR", "Material index of refractionn", 0, 5, 1.5)
     Material.radct = iprop("Temperature (K)", "Colour temperature in Kelven", 0, 12000, 4700)
     Material.radintensity = fprop("Intensity", u"Material radiance (W/sr/m\u00b2)", 0, 100, 1)   
-    Material.radfile = sprop("", "Radiance file material decription", 1024, "")
+    Material.radfile = sprop("", "Radiance file material description", 1024, "")
     Material.vi_shadow = bprop("VI Shadow", "Flag to signify whether the material represents a VI Shadow sensing surface", False)
     Material.livi_sense = bprop("LiVi Sensor", "Flag to signify whether the material represents a LiVi sensing surface", False)
     Material.livi_compliance = bprop("LiVi Compliance Surface", "Flag to siginify whether the material represents a LiVi compliance surface", False)
@@ -378,6 +378,7 @@ def register():
     Material.envi_material_l3 = bpy.props.EnumProperty(items = envi_layer3, name = "", description = "Fourth layer material")
     Material.envi_material_l4 = bpy.props.EnumProperty(items = envi_layer4, name = "", description = "Fifth layer material")
     Material.envi_con_list = bpy.props.EnumProperty(items = envi_con_list, name = "", description = "Database construction")
+    Material.envi_material_uv = sprop("", "Material U-value (non-film)", 64, "N/A")
     (Material.envi_export_lo_name, Material.envi_export_l1_name, Material.envi_export_l2_name, Material.envi_export_l3_name, Material.envi_export_l4_name) = \
     [sprop("", "Layer name", 0, "")] * conlayers    
     (Material.envi_export_lo_tc, Material.envi_export_l1_tc, Material.envi_export_l2_tc, Material.envi_export_l3_tc, Material.envi_export_l4_tc) = \
@@ -650,6 +651,7 @@ def unregister():
     bpy.utils.unregister_module(__name__)
     nodeitems_utils.unregister_node_categories("Vi Nodes")
     nodeitems_utils.unregister_node_categories("EnVi Nodes")
+    
     if update_chart_node in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.remove(update_chart_node)
 

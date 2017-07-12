@@ -34,7 +34,8 @@ class envi_materials(object):
                         'Inner concrete block': ('Rough', '0.51', '1400.0', '1000', '0.9', '0.65', '0.65', '100'),
                         'Heavy mix concrete': ('Rough', '1.4', '2100.0', '840.0', '0.90', '0.65', '0.65', '100'),
                         'Concrete Floor slab': ('MediumRough', '1.73', '2242.6', '836.0', '0.90', '0.65', '0.65', '100'),
-                        'Hemcrete': ('Rough', '0.09', '330.0', '2100', '0.900000', '0.600000', '0.600000', '50')}
+                        'Hemcrete': ('Rough', '0.09', '330.0', '2100', '0.900000', '0.600000', '0.600000', '50'),
+                        'Screed': ('MediumRough', '0.41', '1200.0', '2100', '0.900000', '0.600000', '0.600000', '50')}
         self.concrete_dat = OrderedDict(sorted(self.concrete_datd.items()))
 
         self.wood_datd = {'Wood flooring': ('MediumSmooth', '0.14', '600.0', '1210.0', '0.91', '0.65', '0.65', '25'),
@@ -62,10 +63,10 @@ class envi_materials(object):
                         'Horizontal Air 20-50mm Heat Up': ('Gas', 'Air', '0.17')}
         self.gas_dat = OrderedDict(sorted(self.gas_datd.items()))
 
-        self.wgas_datd = {'Argon': ('Gas', 'Argon', '', '', '0.016'),
-                        'Krypton':('Gas', 'Krypton', '', '', '0.00943'),
-                        'Xenon':('Gas', 'Xenon', '', '', '0.00565'),
-                        'Air': ('Gas', 'Air', '', '', '0.024')}
+        self.wgas_datd = {'Argon': ('Gas', 'Argon', '', '0.2', '0.016'),
+                        'Krypton':('Gas', 'Krypton', '', '0.22', '0.00943'),
+                        'Xenon':('Gas', 'Xenon', '', '0.25', '0.00565'),
+                        'Air': ('Gas', 'Air', '', '0.17', '0.024')}
         self.wgas_dat = OrderedDict(sorted(self.wgas_datd.items()))
 
         self.glass_datd = {'Clear 6mm': ('Glazing', 'SpectralAverage', '', '0.006', '0.775', '0.071', '0.071', '0.881', '0.080', '0.080', '0.0', '0.84', '0.84', '0.9'),
@@ -225,26 +226,26 @@ def envi_con_list(self, context):
 def retuval(mat):
     resists, em, ec = [], envi_materials(), envi_constructions()
     thicks = [0.001 * tc for tc in (mat.envi_export_lo_thi, mat.envi_export_l1_thi, mat.envi_export_l2_thi, mat.envi_export_l3_thi, mat.envi_export_l4_thi)]
-
-    if mat.envi_con_makeup == '1': 
-        laymats = (mat.envi_material_lo, mat.envi_material_l1, mat.envi_material_l2, mat.envi_material_l3, mat.envi_material_l4)
+    laymats = (mat.envi_material_lo, mat.envi_material_l1, mat.envi_material_l2, mat.envi_material_l3, mat.envi_material_l4)
+    pstcs = []
+    
+    if mat.envi_con_makeup == '1':         
         lays = (mat.envi_layero, mat.envi_layer1, mat.envi_layer2, mat.envi_layer3, mat.envi_layer4)
         ctcs = (mat.envi_export_lo_tc, mat.envi_export_l1_tc, mat.envi_export_l2_tc, mat.envi_export_l3_tc, mat.envi_export_l4_tc)
 
         for l, lay in enumerate(lays):
             if lay == '1':
-                if mat.envi_con_type != 'Window':
-                    dtc = em.matdat[laymats[l]][1]
-                else:
-                    dtc = em.matdat[laymats[l]][(4, 11)[l in (0, 2, 4)]]
-                resists.append(thicks[l]/float(dtc))
+                dtc = em.matdat[laymats[l]][2] if em.matdat[laymats[l]][0] == 'Gas' else em.matdat[laymats[l]][1]
+                resists.append((thicks[l]/float(dtc), float(dtc))[em.matdat[laymats[l]][0] == 'Gas'])
             if lay == '2':
                 resists.append(thicks[l]/ctcs[l])
         
     elif mat.envi_con_makeup == '0':
-        pi = 4 if mat.envi_con_type == 'Window' else 1
-        pstcs = [float(em.matdat[psmat][pi]) for psmat in ec.propdict[mat.envi_con_type][mat.envi_con_list]]
-        resists = [thicks[t]/tc for t, tc in enumerate(pstcs)]
-
-    return 1/sum(resists)
+        for p, psmat in enumerate(ec.propdict[mat.envi_con_type][mat.envi_con_list]):
+            pi = 2 if psmat in em.gas_dat else 1
+            pstcs.append(float(em.matdat[psmat][pi]))
+            resists.append((thicks[p]/float(em.matdat[psmat][pi]), float(em.matdat[psmat][pi]))[em.matdat[psmat][0] == 'Gas'])
+    uv = 1/(sum(resists) + 0.12 + 0.08)
+    mat.envi_material_uv = '{:.3f}'.format(uv)
+    return uv
     

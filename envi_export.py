@@ -19,6 +19,7 @@
 import bpy, os, itertools, subprocess, datetime, shutil, mathutils, bmesh
 from .vi_func import selobj, facearea, boundpoly, selmesh
 from .envi_func import epentry, epschedwrite
+from .envi_mat import retuval
 
 dtdf = datetime.date.fromordinal
 caidict = {"0": "", "1": "Simple", "2": "Detailed", "3": "TrombeWall", "4": "AdaptiveConvectionAlgorithm"}
@@ -66,6 +67,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
     
         for mat in [mat for mat in bpy.data.materials if mat.envi_export == True and mat.envi_con_type != "None" and not (mat.envi_con_makeup == '1' and mat.envi_layero == '0')]:
             conlist, mat['pcm'] = [], 0
+               
             if mat.envi_con_makeup == '0' and mat.envi_con_type not in ('None', 'Shading', 'Aperture'):
                 thicklist = (mat.envi_export_lo_thi, mat.envi_export_l1_thi, mat.envi_export_l2_thi, mat.envi_export_l3_thi, mat.envi_export_l4_thi)
                 conname = mat.envi_con_list  
@@ -466,6 +468,7 @@ def pregeo(op):
             selobj(scene, obj)
             
             bpy.ops.object.duplicate()    
+            bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
             en_obj = scene.objects.active
             bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
             selmesh('desel')
@@ -479,7 +482,9 @@ def pregeo(op):
                 if s in mis:
                     sm.material.envi_export = True    
                 if sm.material.envi_con_type in dcdict:
-                    sm.material.diffuse_color = dcdict[mct]
+                    sm.material.diffuse_color = dcdict[mct]                            
+                if mct not in ('None', 'Shading', 'Aperture', 'Window'):
+                    retuval(sm.material)
                 
             for poly in en_obj.data.polygons:
                 mat = en_obj.data.materials[poly.material_index]
@@ -499,13 +504,13 @@ def pregeo(op):
             bm.from_mesh(en_obj.data)
             bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.001)
             bmesh.ops.delete(bm, geom = [e for e in bm.edges if not e.link_faces] + [v for v in bm.verts if not v.link_faces])
-            print([e for e in bm.edges if not e.link_faces] + [v for v in bm.verts if not v.link_faces])
             
             if all([e.is_manifold for e in bm.edges]):
                 bmesh.ops.recalc_face_normals(bm, faces = bm.faces)
             else:  
                 reversefaces = [face for face in bm.faces if en_obj.data.materials[face.material_index].envi_con_type in ('Wall', 'Window', 'Floor', 'Roof', 'Door') and (face.calc_center_bounds()).dot(face.normal) < 0]                            
                 bmesh.ops.reverse_faces(bm, faces = reversefaces)
+                
             bmesh.ops.split_edges(bm, edges = bm.edges)
             bmesh.ops.dissolve_limit(bm, angle_limit = 0.01, verts = bm.verts)
             bm.faces.ensure_lookup_table()

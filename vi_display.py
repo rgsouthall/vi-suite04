@@ -1564,8 +1564,7 @@ def setcols(self, context):
     cmap = mcm.get_cmap(scene.vi_leg_col)
     
     for o in [o for o in bpy.data.objects if o.get('VIType') and o['VIType'] in ('envi_temp', 'envi_hum', 'envi_heat', 'envi_cool', 'envi_co2', 'envi_pmv', 'envi_ppd', 'envi_aheat', 'envi_acool', 'envi_hrheat', 'envi_shg') and o.get(resstring)]:
-        if (o['max'], o['min']) != mmdict[o['VIType']] or o['cmap'] != scene.vi_leg_col:
-#            (rmax, rmin) = mmdict[o['VIType']]    
+        if (o['max'], o['min']) != mmdict[o['VIType']] or o['cmap'] != scene.vi_leg_col:  
             (o['max'], o['min']) = mmdict[o['VIType']]  
             o['cmap'] = scene.vi_leg_col
             rdiff = o['max'] - o['min']
@@ -1588,4 +1587,3 @@ def setcols(self, context):
     scene.frame_set(fc)
     if recalculate_text not in bpy.app.handlers.frame_change_pre:
         bpy.app.handlers.frame_change_pre.append(recalculate_text) 
-

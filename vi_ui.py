@@ -239,6 +239,8 @@ class VIMatPanel(bpy.types.Panel):
             rmmenu(layout, cm)
             newrow(layout, "EnVi Construction Type:", cm, "envi_con_type")
             row = layout.row()
+            row.label('U-value (W/m^2.K): {}'.format(cm.envi_material_uv))
+            row = layout.row()
 
             if cm.envi_con_type not in ("Aperture", "Shading", "None"):
                 newrow(layout, 'Intrazone Boundary', cm, "envi_boundary")

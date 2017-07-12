@@ -1818,17 +1818,26 @@ def boundpoly(obj, mat, poly, enng):
 
 def objvol(op, obj):
     bm , floor, roof, mesh = bmesh.new(), [], [], obj.data
-    bm.from_object(obj, bpy.context.scene)
+#    btemp = bpy.data.meshes.new("temp")
+    tempmesh = obj.to_mesh(scene = bpy.context.scene, apply_modifiers = True, settings = 'PREVIEW')
+    bm.from_mesh(tempmesh)
+    bpy.data.meshes.remove(tempmesh)
+#    bm.transform(obj.matrix_world)
+#    bm.from_object(obj, bpy.context.scene)
+#    bm.transform(obj.matrix_world)
     for f in mesh.polygons:
         if obj.data.materials[f.material_index].envi_con_type == 'Floor':
             floor.append((facearea(obj, f), (obj.matrix_world*mathutils.Vector(f.center))[2]))
         elif obj.data.materials[f.material_index].envi_con_type == 'Roof':
             roof.append((facearea(obj, f), (obj.matrix_world*mathutils.Vector(f.center))[2]))
     zfloor = list(zip(*floor))
+    
     if not zfloor and op:
         op.report({'INFO'},"Zone has no floor area")
-
-    return(bm.calc_volume()*obj.scale[0]*obj.scale[1]*obj.scale[2])
+        
+    vol = bm.calc_volume()
+    bm.free()
+    return(vol)
 
 def ceilheight(obj, vertz):
     mesh = obj.data

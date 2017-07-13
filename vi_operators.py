@@ -1374,10 +1374,16 @@ class NODE_OT_EnSim(bpy.types.Operator):
 
     def invoke(self, context, event):
         scene = context.scene
-        self.frame = scene['enparams']['fs']
-        self.lenframes = len(range(scene['enparams']['fs'], scene['enparams']['fe'] + 1)) 
+         
         if viparams(self, scene):
             return {'CANCELLED'}
+        
+        if shutil.which('energyplus') is None:
+            self.report({'ERROR'}, "Energyplus binary is not executable")
+            return {'CANCELLED'}
+        
+        self.frame = scene['enparams']['fs']
+        self.lenframes = len(range(scene['enparams']['fs'], scene['enparams']['fe'] + 1))             
         context.scene['viparams']['visimcontext'] = 'EnVi'
         self.pfile = progressfile(scene, datetime.datetime.now(), 100)
         self.kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'EnergyPlus Results')

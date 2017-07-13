@@ -3327,7 +3327,6 @@ class EnViSched(bpy.types.Node, EnViNodes):
                 fos = [fs for fs in (self.f1, self.f2, self.f3, self.f4) if fs]
                 uns = [us for us in (self.u1, self.u2, self.u3, self.u4) if us]
                 ts, fs, us = rettimes(ths, fos, uns)
-                print(ts)
                 schedtext = epschedwrite(name, stype, ts, fs, us)
                 return schedtext
         return schedtext

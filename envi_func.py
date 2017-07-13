@@ -237,9 +237,11 @@ def epschedwrite(name, stype, ts, fs, us):
     for t in range(len(ts)):
         params.append('Field {}'.format(len(params)-2))
         paramvs .append(ts[t])
+        
         for f in range(len(fs[t])):
             params.append('Field {}'.format(len(params)-2))
             paramvs.append(fs[t][f])
+            
             for u in range(len(us[t][f])):
                 params.append('Field {}'.format(len(params)-2))
                 paramvs.append(us[t][f][u][0])

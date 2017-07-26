@@ -181,7 +181,7 @@ def cmap(scene):
 #        if bpy.data.materials[matname].users:
         bpy.data.materials[matname].diffuse_color = cols[i][0:3]
         
-def bmesh2mesh(scene, obmesh, o, frame, tmf):
+def bmesh2mesh(scene, obmesh, o, frame, tmf, fb):
     ftext, gradfile, vtext = '', '', ''
 
     try:
@@ -206,7 +206,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
         if not o.data.uv_layers:            
             if mfaces:
                 for mat in mmats:
-                    matname = mat.name.replace(' ', '_')
+                    matname = mat['radname']
                     ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}', '{0}//{0}')[f.smooth].format(v.index + 1) for v in f.verts)) for f in mfaces if o.data.materials[f.material_index] == mat])            
         else:            
             uv_layer = bm.loops.layers.uv.values()[0]
@@ -222,7 +222,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
                     
             if mfaces:
                 for mat in mmats:
-                    matname = mat.name.replace(' ', '_')
+                    matname = mat['radname']
                     ftext += "usemtl {}\n".format(matname) + ''.join(['f {}\n'.format(' '.join(('{0}/{1}'.format(loop.vert.index + 1, loop.index), '{0}/{1}/{0}'.format(loop.vert.index + 1, loop.index))[f.smooth]  for loop in f.loops)) for f in mfaces if o.data.materials[f.material_index] == mat])
               
         if ffaces:
@@ -230,16 +230,23 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
     
         if ftext:   
             mfile = os.path.join(scene['viparams']['newdir'], 'obj', '{}-{}.mesh'.format(o.name.replace(' ', '_'), frame))
-
+            ofile = os.path.join(scene['viparams']['newdir'], 'obj', '{}-{}.obj'.format(o.name.replace(' ', '_'), frame))
+            
             with open(mfile, 'w') as mesh:
-                o2mrun = Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout = mesh, stdin = PIPE, stderr = PIPE).communicate(input = (otext + vtext + ftext).encode('utf-8'))
-
-            if os.path.getsize(mfile) and not o2mrun[1]:
+                o2mrun = Popen('obj2mesh -w -a {} '.format(tmf).split(), stdout = mesh, stdin = PIPE, stderr = PIPE, universal_newlines=True).communicate(input = (otext + vtext + ftext))
+                
+                
+            if os.path.getsize(mfile) and not o2mrun[1] and not fb:
                 gradfile += "void mesh id \n1 {}\n0\n0\n\n".format(mfile)
+
             else:
-                if o.name == 'tree_scatter':
-                    print(o2mrun[1])
+                if o2mrun[1]:
+                    logentry('Obj2mesh error: {}. Using geometry export fallback on {}'.format(o2mrun[1], o.name))
+
                 gradfile += radpoints(o, mfaces, 0)
+
+            with open(ofile, 'w') as objfile:
+                objfile.write(otext + vtext + ftext)
 
         bm.free()
             
@@ -251,6 +258,8 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf):
     
 def radmat(self, scene):
     radname = self.name.replace(" ", "_")
+    radname = radname.replace(",", "")
+    self['radname'] = radname
     radtex = ''
     mod = 'void' 
     if self.radmatmenu in ('0', '1', '2', '3', '6') and self.radtex:
@@ -1491,7 +1500,7 @@ def fvmat(self, mn, bound):
             
 def radpoints(o, faces, sks):
     fentries = ['']*len(faces) 
-    mns = [m.name.replace(" ", "_") for m in o.data.materials]
+    mns = [m['radname'] for m in o.data.materials]
 #    mrms = [m.radmatmenu for m in o.data.materials]
     on = o.name.replace(" ", "_")
     if sks:

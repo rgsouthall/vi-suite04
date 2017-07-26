@@ -46,6 +46,7 @@ class ViLoc(bpy.types.Node, ViNodes):
     def updatelatlong(self, context):
         context.space_data.edit_tree == ''
 #        print(bpy.types.NodeTree.get_from_context(context))
+        print(self.id_data)
         scene = context.scene
         nodecolour(self, self.ready())
         reslists = []
@@ -111,7 +112,8 @@ class ViLoc(bpy.types.Node, ViNodes):
     dedoy = bpy.props.IntProperty(name="", description="", min=1, max=365, default=365)
 
     def init(self, context):
-        self['nodeid'] = nodeid(self)        
+        self['nodeid'] = nodeid(self)    
+#        self.id_data.use_fake_user = True
         bpy.data.node_groups[nodeid(self).split('@')[1]].use_fake_user = True
         self.outputs.new('ViLoc', 'Location out')
         self['year'] = 2015
@@ -148,7 +150,7 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     bl_icon = 'LAMP'
 
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.animated, self.startframe, self.endframe, self.cpoint, self.offset)])
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.animated, self.startframe, self.endframe, self.cpoint, self.offset, self.fallback)])
 
     cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
             name="", description="Specify the calculation point geometry", default="0", update = nodeupdate)
@@ -156,6 +158,7 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
     animated = bpy.props.BoolProperty(name="", description="Animated analysis", default = 0, update = nodeupdate)
     startframe = bpy.props.IntProperty(name="", description="Start frame for animation", min = 0, default = 0, update = nodeupdate)
     endframe = bpy.props.IntProperty(name="", description="End frame for animation", min = 0, default = 0, update = nodeupdate)
+    fallback = bpy.props.BoolProperty(name="", description="Enforce simple geometry export", default = 0, update = nodeupdate)
     
     def init(self, context):
         self['exportstate'] = ''
@@ -164,6 +167,7 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
+        newrow(layout, 'Fallback:', self, 'fallback')
         newrow(layout, 'Animated:', self, 'animated')
         if self.animated:
             row = layout.row()
@@ -187,7 +191,7 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
         
     def postexport(self, scene):
         bpy.data.node_groups[self['nodeid'].split('@')[1]].use_fake_user = 1
-        self['exportstate'] = [str(x) for x in (self.animated, self.startframe, self.endframe, self.cpoint, self.offset)]
+        self['exportstate'] = [str(x) for x in (self.animated, self.startframe, self.endframe, self.cpoint, self.offset, self.fallback)]
         nodecolour(self, 0)
 
 class LiViNode(bpy.types.Node, ViNodes):

@@ -19,7 +19,7 @@
 bl_info = {
     "name": "VI-Suite",
     "author": "Ryan Southall",
-    "version": (0, 4, 11),
+    "version": (0, 4, 12),
     "blender": (2, 7, 8),
     "api":"",
     "location": "Node Editor & 3D View > Properties Panel",

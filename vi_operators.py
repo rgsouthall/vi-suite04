@@ -57,7 +57,7 @@ pmerrdict = {'fatal - too many prepasses, no global photons stored\n': "Too many
                 'fatal - too many prepasses, no global photons stored, no caustic photons stored\n': "Too many prepasses have ocurred. Turn off caustic photons and encompass the scene",
                'fatal - zero flux from light sources\n': "No light flux, make sure there is a light source and that photon port normals point inwards",
                'fatal - no light sources in distribPhotons\n': "No light sources. Photon mapping does not work with HDR skies",
-               'fatal - no valid photon ports found\n': 'Re-export the geometry'}
+               'fatal - no valid photon ports found\n': 'Make sure photon ports are valid', 'fatal - failed photon distribution\n': 'Do the lights see enough geometry?'}
 
 class NODE_OT_LiGExport(bpy.types.Operator):
     bl_idname = "node.ligexport"

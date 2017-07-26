@@ -18,8 +18,8 @@
 
 import bpy, os, math, subprocess, datetime, bmesh, mathutils, shlex, sys
 from math import sin, cos, pi
-from subprocess import PIPE, Popen
-from .vi_func import clearscene, solarPosition, retobjs, radpoints, clearlayers, bmesh2mesh, viparams, ct2RGB
+from subprocess import PIPE, Popen, TimeoutExpired
+from .vi_func import clearscene, solarPosition, retobjs, radpoints, clearlayers, bmesh2mesh, viparams, ct2RGB, logentry
 
 def radgexport(export_op, node, **kwargs):
     scene = bpy.context.scene
@@ -68,7 +68,7 @@ def radgexport(export_op, node, **kwargs):
                 
                 for dob in dobs:
                     bm = bmesh.new()
-                    tempmesh = dob.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW')
+                    tempmesh = dob.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW', calc_undeformed = False)
                     bm.from_mesh(tempmesh)
                     bm.transform(dob.matrix_world)
                     bm.normal_update() 
@@ -82,13 +82,13 @@ def radgexport(export_op, node, **kwargs):
                     bm.free()
             else:
                 bm = bmesh.new()
-                tempmesh = o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW')
+                tempmesh = o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW', calc_undeformed = False)
                 bm.from_mesh(tempmesh)
                 bm.transform(o.matrix_world)
                 bm.normal_update() 
                 bpy.data.meshes.remove(tempmesh)
     
-                gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename)
+                gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename, node.fallback)
               
                 if o in caloblist:
                     geom = (bm.faces, bm.verts)[int(node.cpoint)]
@@ -187,14 +187,29 @@ def createoconv(scene, frame, sim_op, simnode, **kwargs):
     fbase = "{0}-{1}".format(scene['viparams']['filebase'], frame)
 
     with open("{}.oct".format(fbase), "wb") as octfile:
-        err =  Popen("oconv -w -".split(), stdin = PIPE, stderr = PIPE, stdout = octfile).communicate(input = simnode['radfiles'][str(frame)].encode(sys.getfilesystemencoding()))[1]
-        print(err.decode())
-        if err and 'fatal -' in err.decode():
-            sim_op.report({'ERROR'}, 'Oconv conversion failure: {}'.format(err))
+        try:
+            ocrun =  Popen("oconv -w -".split(), stdin = PIPE, stderr = PIPE, stdout = octfile, universal_newlines=True)
+            err = ocrun.communicate(input = simnode['radfiles'][str(frame)], timeout = 60)[1]
+
+            if err:
+                logentry('Oconv conversion error: {}'.format(err))
+                return 'CANCELLED'
+            
+        except TimeoutExpired:
+            ocrun.kill()
+            errmsg = 'Oconv conversion taking too long. Try joining/simplfying geometry or using geometry export fallback'
+            sim_op.report({'ERROR'}, errmsg)
+            logentry('Oconv error: {}'.format(errmsg))
             return 'CANCELLED'
-        elif err and 'set overflow' in err.decode():
-            sim_op.report({'ERROR'}, 'Ratio of largest to smallest geometry is too large. Clean up mesh geometry or decrease the radius of any HDR panorama')
-            return 'CANCELLED'
+            
+    for line in err:
+        logentry('Oconv error: {}'.format(line))
+    if err and 'fatal -' in err:
+        sim_op.report({'ERROR'}, 'Oconv conversion failure: {}'.format(err))
+        return 'CANCELLED'
+    elif err and 'set overflow' in err:
+        sim_op.report({'ERROR'}, 'Ratio of largest to smallest geometry is too large. Clean up mesh geometry or decrease the radius of any HDR panorama')
+        return 'CANCELLED'
 
 def spfc(self):
     scene = bpy.context.scene
@@ -207,9 +222,11 @@ def spfc(self):
     if scene['viparams']['resnode'] == 'VI Sun Path':
         spoblist = {ob.get('VIType'):ob for ob in scene.objects if ob.get('VIType') in ('Sun', 'SPathMesh')}
         beta, phi = solarPosition(scene.solday, scene.solhour, scene.latitude, scene.longitude)[2:]
+
         if scene.world.use_nodes == False:
             scene.world.use_nodes = True
         nt = bpy.data.worlds[0].node_tree
+
         if nt and nt.nodes.get('Sky Texture'):
             scene.world.node_tree.nodes['Sky Texture'].sun_direction = -sin(phi), -cos(phi), sin(beta)
 
@@ -252,7 +269,9 @@ def cyfc1(self):
 def genbsdf(scene, export_op, o): 
     if viparams(export_op, scene):
         return
+
     bsdfmats = [mat for mat in o.data.materials if mat.radmatmenu == '8']
+
     if bsdfmats:
         mat = bsdfmats[0]
         mat['bsdf'] = {} 
@@ -275,7 +294,6 @@ def genbsdf(scene, export_op, o):
         return
     
     zvec, xvec = mathutils.Vector((0, 0, 1)), mathutils.Vector((1, 0, 0))
-#    svec = fvec * mathutils.Matrix.Rotation(1.5 * math.pi, 4, zvec)
     svec = mathutils.Vector.cross(fvec, zvec)
     bm.faces.ensure_lookup_table()
     bsdfrotz = mathutils.Matrix.Rotation(mathutils.Vector.angle(fvec, zvec), 4, svec)
@@ -287,17 +305,12 @@ def genbsdf(scene, export_op, o):
     (minx, miny, minz) = [min(p) for p in vposis]
     bsdftrans = mathutils.Matrix.Translation(mathutils.Vector((-(maxx + minx)/2, -(maxy + miny)/2, -maxz)))
     bm.transform(bsdftrans)
-#    onewm = bpy.data.meshes.new("BSDF_copy")
-#    onew = bpy.data.objects.new("BSDF_copy", onewm)
-#    bm.to_mesh(onewm)
-#    bpy.context.scene.objects.link(onew)
     mradfile = ''.join([m.radmat(scene) for m in o.data.materials if m.radmatmenu != '8'])                  
     gradfile = radpoints(o, [face for face in bm.faces if o.data.materials and face.material_index < len(o.data.materials) and o.data.materials[face.material_index].radmatmenu != '8'], 0)
     bm.free()  
     bsdfsamp = o.li_bsdf_ksamp if o.li_bsdf_tensor == ' ' else 2**(int(o.li_bsdf_res) * 2) * int(o.li_bsdf_tsamp) 
     gbcmd = "genBSDF +geom meter -r '{}' {} {} -c {} {} -n {}".format(o.li_bsdf_rcparam,  o.li_bsdf_tensor, (o.li_bsdf_res, ' ')[o.li_bsdf_tensor == ' '], bsdfsamp, o.li_bsdf_direc, scene['viparams']['nproc'])
     mat['bsdf']['xml'] = Popen(shlex.split(gbcmd), stdin = PIPE, stdout = PIPE).communicate(input = (mradfile+gradfile).encode('utf-8'))[0].decode()
-#    mat['bsdf']['proxy_depth'] = -minz if o.bsdf_proxy else 0
     scene['viparams']['vidisp'] = 'bsdf'
     mat['bsdf']['type'] = o.li_bsdf_tensor
         

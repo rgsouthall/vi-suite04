@@ -19,7 +19,7 @@
 import bpy, datetime, mathutils, os, bmesh, shutil, sys, math, shlex, psutil
 from os import rename
 import numpy
-from numpy import arange, histogram, array, int8, float16
+from numpy import arange, histogram, array, int8, float16, float64
 import bpy_extras.io_utils as io_utils
 from subprocess import Popen, PIPE, call
 from collections import OrderedDict
@@ -2556,6 +2556,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             cindex = geom.layers.int['cindex']
             [geom.layers.float.new('res{}'.format(fi)) for fi in frange]
             avres, minres, maxres, g = [], [], [], 0
+            
             if simnode.cpoint == '0':
                 gpoints = [f for f in geom if o.data.materials[f.material_index].mattype == '1']
             elif simnode.cpoint == '1':
@@ -2563,7 +2564,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
 
             for g, gp in enumerate(gpoints):
                 gp[cindex] = g + 1
-
+            
             for frame in frange: 
                 g, oshadres = 0, array([])                
                 scene.frame_set(frame)
@@ -2587,11 +2588,10 @@ class NODE_OT_Shadow(bpy.types.Operator):
                         curres += len(chunk)
                         if pfile.check(curres) == 'CANCELLED':
                             return {'CANCELLED'}
-
+                    
                     ap = numpy.average(allpoints, axis=0)                
                     shadres = [gp[shadres] for gp in gpoints]
-
-                    o['dhres{}'.format(frame)] = array(100 * ap).reshape(len(o['days']), len(o['hours'])).T
+                    o['dhres{}'.format(frame)] = array(100 * ap).reshape(len(o['days']), len(o['hours'])).T.tolist()
                     o['omin']['res{}'.format(frame)], o['omax']['res{}'.format(frame)], o['oave']['res{}'.format(frame)] = min(shadres), max(shadres), sum(shadres)/len(shadres)
                     reslists.append([str(frame), 'Zone', o.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
@@ -2600,11 +2600,12 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     avres.append(o['oave']['res{}'.format(frame)])
                     minres.append(o['omin']['res{}'.format(frame)])
                     maxres.append(o['omax']['res{}'.format(frame)])
-
+            
             reslists.append(['All', 'Frames', '', 'Frames', ' '.join(['{}'.format(f) for f in frange])])
             reslists.append(['All', 'Zone', o.name, 'Minimum', ' '.join(['{:.3f}'.format(mr) for mr in minres])])
             reslists.append(['All', 'Zone', o.name, 'Average', ' '.join(['{:.3f}'.format(mr) for mr in avres])])
             reslists.append(['All', 'Zone', o.name, 'Maximum', ' '.join(['{:.3f}'.format(mr) for mr in maxres])])
+            
             bm.transform(o.matrix_world.inverted())
             bm.to_mesh(o.data)
             bm.free()

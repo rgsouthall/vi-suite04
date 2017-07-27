@@ -683,7 +683,6 @@ class wr_scatter(Base_Display):
         if self.cao and self.cao.get('ws'):
             self.unit = context.scene.wind_type 
             zdata = array(self.cao['ws']) if context.scene.wind_type == '0' else array(self.cao['wd'])
-#            (title, cbtitle) = ('Wind Speed', 'Speed (m/s)') if self.type_select else ('Wind Direction', u'Direction (\u00B0)')
             (title, cbtitle) = ('Wind Speed', 'Speed (m/s)') if context.scene.wind_type == '0' else ('Wind Direction', u'Direction (\u00B0)')
             self.plt = plt
             draw_dhscatter(self, context.scene, self.cao['days'], self.cao['hours'], zdata, title, 'Days', 'Hours', cbtitle, nmin(zdata), nmax(zdata))  

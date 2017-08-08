@@ -358,6 +358,10 @@ def register():
 # EnVi material definitions
     Material.envi_con_type = eprop([("Wall", "Wall", "Wall construction"),("Floor", "Floor", "Ground floor construction"),("Roof", "Roof", "Roof construction"),("Ceiling", "Ceiling", "Ceiling construction"),("Window", "Window", "Window construction"), ("Door", "Door", "Door construction"),
                     ("Shading", "Shading", "Shading material"),("None", "None", "Surface to be ignored")], "", "Specify the construction type", "None")
+    Material.envi_simple_glazing = bprop("", "Flag to siginify whether to use a EP simple glazing representation", False)
+    Material.envi_sg_uv = fprop("", "Window U-Value", 0, 10, 2.4)
+    Material.envi_sg_shgc = fprop("", "Window Solar Heat Gain Coefficient", 0, 1, 0.7)
+    Material.envi_sg_vt = fprop("", "Window Visible Transmittance", 0, 1, 0.8)
     Material.envi_boundary = bprop("", "Flag to siginify whether the material represents a zone boundary", False)
     Material.envi_afsurface = bprop("", "Flag to siginify whether the material represents an airflow surface", False)
     Material.envi_thermalmass = bprop("", "Flag to siginify whether the material represents thermal mass", False)

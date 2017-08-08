@@ -735,7 +735,7 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         gps = [g for g in geom if g[rt]]
         areas = array([g.calc_area() for g in gps] if self['cpoint'] == '0' else [vertarea(bm, g) for g in gps])
 
-        for chunk in chunks(gps, int(scene['viparams']['nproc']) * 200):
+        for chunk in chunks(gps, int(scene['viparams']['nproc']) * 20000):
             careas = array([c.calc_area() if self['cpoint'] == '0' else vertarea(bm, c) for c in chunk])
             rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
             xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()])
@@ -2841,7 +2841,7 @@ def fvsolwrite(node):
         ofheader += 'PISO\n{\n  nCorrectors     2;\n  nNonOrthogonalCorrectors 0;\n  pRefCell        0;\n  pRefValue       0;\n}\n\n' + \
         'solvers\n{\n    p\n    {\n        solver          GAMG;\n        tolerance       1e-06;\n        relTol          0.1;\n        smoother        GaussSeidel;\n' + \
         '        nPreSweeps      0;\n        nPostSweeps     2;\n        cacheAgglomeration true;\n        nCellsInCoarsestLevel 10;\n        agglomerator    faceAreaPair;\n'+ \
-        '        mergeLevels     1;\n    }\n\n    U\n    {\n        solver          smoothSolver;\n        smoother        GaussSeidel;\n        nSweeps         2;\n' + \
+        '        mergeLevels     1;\n    }\n\npFinal\n{\n    $p;\n    relTol 0;\n}\n\n    U\n    {\n        solver          smoothSolver;\n        smoother        GaussSeidel;\n        nSweeps         2;\n' + \
         '        tolerance       1e-08;\n        relTol          0.1;\n    }\n\n    nuTilda\n    {\n        solver          smoothSolver;\n        smoother        GaussSeidel;\n' + \
         '        nSweeps         2;\n        tolerance       1e-08;\n        relTol          0.1;\n    }\n}\n\n'
     elif node.solver == 'simpleFoam':   

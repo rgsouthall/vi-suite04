@@ -811,8 +811,7 @@ class ViSVFNode(bpy.types.Node, ViNodes):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.startframe, self.endframe, self.cpoint, self.offset, self.animmenu)])
     
     animtype = [('Static', "Static", "Simple static analysis"), ('Geometry', "Geometry", "Animated geometry analysis")]
-    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=[('0', "Tregenza", "Simple static analysis"), ('1', "Reinhart", "Animated geometry analysis"), ('2', "Reinhart 2", "Animated geometry analysis")], default = '0', update = nodeupdate)
-    sky = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeupdate)
+    animmenu = bpy.props.EnumProperty(name="", description="Animation type", items=animtype, default = 'Static', update = nodeupdate)
     startframe = bpy.props.IntProperty(name = '', default = 0, min = 0, max = 1024, description = 'Start frame')
     endframe = bpy.props.IntProperty(name = '', default = 0, min = 0, max = 1024, description = 'End frame')
     cpoint = bpy.props.EnumProperty(items=[("0", "Faces", "Export faces for calculation points"),("1", "Vertices", "Export vertices for calculation points"), ],
@@ -830,6 +829,7 @@ class ViSVFNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Ignore sensor:', self, "signore")
+        newrow(layout, 'Animation:', self, "animmenu")
         if self.animmenu != 'Static': 
             row = layout.row(align=True)
             row.alignment = 'EXPAND'
@@ -1815,7 +1815,7 @@ class VIOFCDS(bpy.types.NodeSocket):
 
 class ViFloCdNode(bpy.types.Node, ViNodes):
     '''Openfoam Controldict export node'''
-    bl_idname = 'VIOFCdn'
+    bl_idname = 'ViFloCdNode'
     bl_label = 'FloVi ControlDict'
     bl_icon = 'LAMP'
     controlD = bpy.props.StringProperty()

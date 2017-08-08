@@ -1418,6 +1418,7 @@ def draw_barchart(self, scene, x, y, tit, xlab, ylab, ymin, ymax):
     self.plt.ylabel(ylab, size = 18)
     cols = [(yval - ymin)/(ymax - ymin) for yval in y]
     self.plt.bar(x, y, align='center', color = [mcm.get_cmap(self.col)(i) for i in cols])
+    self.plt.xticks(x)
     self.plt.tight_layout(rect=[0, 0, 1 + ((len(x)/len(y)) - 1) * 0.005, 1])
     
 def save_plot(self, scene, filename):

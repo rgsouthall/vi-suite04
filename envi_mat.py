@@ -70,9 +70,14 @@ class envi_materials(object):
         self.wgas_dat = OrderedDict(sorted(self.wgas_datd.items()))
 
         self.glass_datd = {'Clear 6mm': ('Glazing', 'SpectralAverage', '', '0.006', '0.775', '0.071', '0.071', '0.881', '0.080', '0.080', '0.0', '0.84', '0.84', '0.9'),
+                          'Clear 4mm': ('Glazing', 'SpectralAverage', '', '0.004', '0.837', '0.075', '0.075', '0.898', '0.081', '0.081', '0.0', '0.84', '0.84', '0.9'),
                           'Clear 3mm': ('Glazing', 'SpectralAverage', '', '0.003', '0.837', '0.075', '0.075', '0.898', '0.081', '0.081', '0.0', '0.84', '0.84', '0.9'),
-                          'Clear 6mm LoE': ('Glazing', 'SpectralAverage', '', '0.006', '0.600', '0.0170', '0.220', '0.840', '0.055', '0.078', '0.0', '0.84', '0.10', '0.9'),
-                          'Clear 3mm LoE': ('Glazing', 'SpectralAverage', '', '0.003', '0.630', '0.190', '0.220', '0.850', '0.056', '0.079', '0.0', '0.84', '0.10', '0.9')}
+                          'Clear 6mm Soft LoE': ('Glazing', 'SpectralAverage', '', '0.006', '0.600', '0.0170', '0.220', '0.840', '0.055', '0.078', '0.0', '0.05', '0.84', '0.9'),
+                          'Clear 4mm Soft LoE': ('Glazing', 'SpectralAverage', '', '0.004', '0.600', '0.0170', '0.220', '0.840', '0.055', '0.078', '0.0', '0.05', '0.84', '0.9'),
+                          'Clear 3mm Soft LoE': ('Glazing', 'SpectralAverage', '', '0.003', '0.630', '0.190', '0.220', '0.850', '0.056', '0.079', '0.0', '0.05', '0.84', '0.9'),
+                          'Clear 6mm Hard LoE': ('Glazing', 'SpectralAverage', '', '0.006', '0.600', '0.0170', '0.220', '0.840', '0.055', '0.078', '0.0', '0.15', '0.84', '0.9'),
+                          'Clear 4mm Hard LoE': ('Glazing', 'SpectralAverage', '', '0.004', '0.600', '0.0170', '0.220', '0.840', '0.055', '0.078', '0.0', '0.15', '0.84', '0.9'),
+                          'Clear 3mm Hard LoE': ('Glazing', 'SpectralAverage', '', '0.003', '0.630', '0.190', '0.220', '0.850', '0.056', '0.079', '0.0', '0.15', '0.84', '0.9')}
         self.glass_dat = OrderedDict(sorted(self.glass_datd.items()))
 
         self.insulation_datd = {'Glass fibre quilt': ('Rough', '0.04', '12.0', '840.0', '0.9', '0.65', '0.65', '100'),
@@ -103,6 +108,7 @@ class envi_materials(object):
         self.thickdict = OrderedDict()
         self.i = 0
         self.matdat = OrderedDict()
+        
         for dat in (self.brick_dat, self.cladding_dat, self.concrete_dat, self.gas_dat, self.insulation_dat, self.metal_dat, 
                     self.stone_dat, self.wood_dat, self.glass_dat, self.wgas_dat, self.pcm_dat):
             self.matdat.update(dat)
@@ -137,26 +143,37 @@ class envi_materials(object):
             params += ('Temperature {} (C)'.format(i), 'Enthalpy {} (J/kg)'.format(i))
             paramvs +=(te.split(':')[0], te.split(':')[1])
         idf_file.write(epentry("MaterialProperty:PhaseChange", params, paramvs))
+        
+    def sg_write(self, idf_file, name, uv, shgc, vt):
+        params = ('Name', 'U-Factor', 'Solar Heat Gain Coefficient', 'Visible Transmittance')
+        paramvs = [name] + ['{:.3f}'.format(p) for p in (uv, shgc, vt)]
+        idf_file.write(epentry("WindowMaterial:SimpleGlazingSystem", params, paramvs))
 
 class envi_constructions(object):    
     def __init__(self):
         self.wall_cond = {'External Wall 1': ('Standard Brick', 'Thermawall TW50', 'Inner concrete block'), 'Kingston PH 1': ('Plywood', 'EPS', 'Plywood'),
         'Party Wall 1': ('Plaster board', 'Standard Brick', 'Plaster board'), 'SIP': ('OSB', 'EPS', 'OSB')}
         self.wall_con = OrderedDict(sorted(self.wall_cond.items()))
+        
         self.ceil_cond = {'Ceiling 1': ('Chipboard', 'EPS', 'Plaster board')}
         self.ceil_con = OrderedDict(sorted(self.ceil_cond.items()))
+        
         self.floor_cond = {'Ground Floor 1': ('Common earth', 'Gravel', 'Heavy mix concrete', 'Horizontal Air 20-50mm Heat Down', 'Chipboard'),
                            'Kingston PH 1': ('Common earth', 'Gravel', 'EPS', 'Heavy mix concrete')}
         self.floor_cond.update(self.ceil_cond)
         self.floor_con = OrderedDict(sorted(self.floor_cond.items()))
+        
         self.roof_cond = {'Roof 1': ('Clay tile', 'Roofing felt', 'Plywood')}
         self.roof_con = OrderedDict(sorted(self.roof_cond.items()))
 
         self.door_cond = {'Internal Door 1': ('Chipboard', 'Hardwood', 'Chipboard')}
         self.door_con = OrderedDict(sorted(self.door_cond.items()))
-        self.glaze_cond = {'Standard Double Glazing': ('Clear 3mm', 'Air', 'Clear 3mm'), 'Low-E Double Glazing': ('Clear 3mm LoE', 'Air', 'Clear 3mm'), 
-                           'PassivHaus': ('Clear 3mm LoE', 'Argon', 'Clear 3mm LoE', 'Argon', 'Clear 3mm')}
+        
+        self.glaze_cond = {'Standard Double Glazing': ('Clear 3mm', 'Air', 'Clear 3mm'), 'Low-E Double Glazing': ('Clear 3mm', 'Air', 'Clear 3mm Hard LoE'), 
+                           'PassivHaus': ('Clear 3mm', 'Argon', 'Clear 3mm LoE', 'Argon', 'Clear 3mm Soft LoE'), 'Velfac 200 Double': ('Clear 4mm', 'Argon', 'Clear 4mm Soft LoE'),
+                           'Velfac 200 Triple': ('Clear 4mm', 'Argon', 'Clear 4mm Soft LoE', 'Argon', 'Clear 4mm Soft LoE')}
         self.glaze_con = OrderedDict(sorted(self.glaze_cond.items()))
+        
         self.p = 0
         self.propdict = {'Wall': self.wall_con, 'Floor': self.floor_con, 'Roof': self.roof_con, 'Ceiling': self.floor_con, 'Door': self.door_con, 
                                 'Window': self.glaze_con} 

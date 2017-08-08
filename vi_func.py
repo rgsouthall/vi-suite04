@@ -735,7 +735,7 @@ def lhcalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         gps = [g for g in geom if g[rt]]
         areas = array([g.calc_area() for g in gps] if self['cpoint'] == '0' else [vertarea(bm, g) for g in gps])
 
-        for chunk in chunks(gps, int(scene['viparams']['nproc']) * 20000):
+        for chunk in chunks(gps, int(scene['viparams']['nproc']) * 200):
             careas = array([c.calc_area() if self['cpoint'] == '0' else vertarea(bm, c) for c in chunk])
             rtrun = Popen(rtcmds[f].split(), stdin = PIPE, stdout=PIPE, stderr=PIPE, universal_newlines=True).communicate(input = '\n'.join([c[rt].decode('utf-8') for c in chunk]))   
             xyzirrad = array([[float(v) for v in sl.split('\t')[:3]] for sl in rtrun[0].splitlines()])

@@ -38,7 +38,7 @@ except:
     mp = 0
 
 from . import livi_export
-from .vi_func import cmap, skframe, selobj, retvpvloc, viewdesc, drawloop, drawpoly, draw_index, blf_props, drawsquare
+from .vi_func import cmap, skframe, selobj, retvpvloc, viewdesc, drawloop, drawpoly, draw_index, blf_props, drawsquare, leg_min_max
 from .vi_func import retdp, objmode, drawcircle, drawbsdfcircle, drawwedge, drawtri, setscenelivivals, draw_time, retcols, draw_index_distance
 from .envi_func import retenvires, recalculate_text
 
@@ -324,7 +324,7 @@ class linumdisplay():
         
                         face2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, f.calc_center_median_weighted()) for f in faces]
                         (faces, pcs, depths) = map(list, zip(*[[f, face2d[fi], distances[fi]] for fi, f in enumerate(faces) if face2d[fi] and 0 < face2d[fi][0] < self.width and 0 < face2d[fi][1] < self.height]))          
-                        res = [f[livires] for f in faces]
+                        res = [f[livires] for f in faces] if not self.scene.vi_res_mod else [eval('{}{}'.format(f[livires], self.scene.vi_res_mod)) for f in faces]
                     
                     elif bm.verts.layers.float.get('res{}'.format(self.scene.frame_current)):                        
                         verts = [v for v in geom if not v.hide and v.select and (context.space_data.region_3d.view_location - self.view_location).dot(v.co + self.scene.vi_display_rp_off * v.normal.normalized() - self.view_location)/((context.space_data.region_3d.view_location-self.view_location).length * (v.co + self.scene.vi_display_rp_off * v.normal.normalized() - self.view_location).length) > 0]
@@ -337,7 +337,7 @@ class linumdisplay():
                             
                         vert2d = [view3d_utils.location_3d_to_region_2d(context.region, context.region_data, v.co) for v in verts]
                         (verts, pcs, depths) = map(list, zip(*[[v, vert2d[vi], distances[vi]] for vi, v in enumerate(verts) if vert2d[vi] and 0 < vert2d[vi][0] < self.width and 0 < vert2d[vi][1] < self.height]))
-                        res = [v[livires] for v in verts]
+                        res = [v[livires] for v in verts] if not self.scene.vi_res_mod else [eval('{}{}'.format(v[livires], self.scene.vi_res_mod)) for v in verts]
                         
                     bm.free()
                 
@@ -403,6 +403,7 @@ def en_air(self, context, temp, ws, wd, hu):
         blf.position(font_id, int(leftwidth + hscale * 255), int(topheight - hscale * 20), 0)
         blf.draw(font_id, "D: {:.0f}deg".format(wd[scene.frame_current]))
         blf.disable(0, 4)
+        
         for i in range(1, 6):
             drawcircle(mathutils.Vector((posx, posy)), 0.15 * hscale * radius * i, 36, 0, 0.7, 0, 0, 0) 
 
@@ -1025,7 +1026,8 @@ class ss_legend(Base_Display):
         scene = context.scene
         self.cao = context.active_object        
         self.cols = retcols(context.scene, 20)
-        self.col, self.maxres, self.minres, self.scale = scene.vi_leg_col, scene.vi_leg_max, scene.vi_leg_min, scene.vi_leg_scale
+        (self.minres, self.maxres) = leg_min_max(scene)        
+        self.col, self.scale = scene.vi_leg_col, scene.vi_leg_scale
         dplaces = retdp(self.maxres, 1)
         resdiff = self.maxres - self.minres
         
@@ -1035,11 +1037,12 @@ class ss_legend(Base_Display):
 
         self.resvals = [format(self.minres + i*(resdiff)/20, '.{}f'.format(dplaces)) for i in range(21)] if self.scale == '0' else \
                         [format(self.minres + (1 - log10(i)/log10(21))*(resdiff), '.{}f'.format(dplaces)) for i in range(1, 22)[::-1]]
-
+                        
         self.resvals = ['{0} - {1}'.format(self.resvals[i], self.resvals[i+1]) for i in range(20)]
         
     def drawopen(self, context):
-        draw_legend(self, context.scene, 'Sunlit Time (%)')
+        scene = context.scene
+        draw_legend(self, scene, 'Sunlit Time (%)' if not scene.vi_leg_unit else scene.vi_leg_unit)
         
 class svf_legend(Base_Display):
     def __init__(self, pos, width, height, iname, xdiff, ydiff):
@@ -1049,7 +1052,9 @@ class svf_legend(Base_Display):
         scene = context.scene
         self.cao = context.active_object        
         self.cols = retcols(context.scene, 20)
-        self.col, self.maxres, self.minres, self.scale = scene.vi_leg_col, scene.vi_leg_max, scene.vi_leg_min, scene.vi_leg_scale
+        (self.minres, self.maxres) = leg_min_max(scene)
+        print(self.minres, self.maxres)
+        self.col, self.scale = scene.vi_leg_col, scene.vi_leg_scale
         dplaces = retdp(self.maxres, 1)
         resdiff = self.maxres - self.minres
         
@@ -1063,7 +1068,8 @@ class svf_legend(Base_Display):
         self.resvals = ['{0} - {1}'.format(self.resvals[i], self.resvals[i+1]) for i in range(20)]
         
     def drawopen(self, context):
-        draw_legend(self, context.scene, 'Sky View')
+        scene = context.scene
+        draw_legend(self, context.scene, 'Sky View' if not scene.vi_leg_unit else scene.vi_leg_unit)
     
 class basic_legend(Base_Display):
     def __init__(self, pos, width, height, iname, xdiff, ydiff):
@@ -1073,7 +1079,8 @@ class basic_legend(Base_Display):
         scene = context.scene
         self.cao = context.active_object        
         self.cols = retcols(context.scene, 20)
-        self.col, self.maxres, self.minres, self.scale = scene.vi_leg_col, scene.vi_leg_max, scene.vi_leg_min, scene.vi_leg_scale
+        (self.minres, self.maxres) = leg_min_max(scene)
+        self.col, self.scale = scene.vi_leg_col, scene.vi_leg_scale
         dplaces = retdp(self.maxres, 1)
         resdiff = self.maxres - self.minres
         
@@ -1087,7 +1094,8 @@ class basic_legend(Base_Display):
         self.resvals = ['{0} - {1}'.format(self.resvals[i], self.resvals[i+1]) for i in range(20)]
         
     def drawopen(self, context):
-        draw_legend(self, context.scene, context.scene['liparams']['unit'])
+        scene = context.scene
+        draw_legend(self, context.scene, context.scene['liparams']['unit'] if not scene.vi_leg_unit else scene.vi_leg_unit)
     
 def ss_disp(self, context, simnode):
     try:
@@ -1352,6 +1360,7 @@ def draw_legend(self, scene, unit):
     mydimen = blf.dimensions(font_id, unit)[1]
     fontscale = max(titxdimen/(xdiff * 0.9), resxdimen/(xdiff * 0.6), mydimen * 1.25/lh)
     blf.size(font_id, 12, int(300/fontscale))
+
     if not self.resize:
         self.lspos = [self.spos[0], self.spos[1] - ydiff]
         self.lepos = [self.lspos[0] + xdiff, self.spos[1]]            

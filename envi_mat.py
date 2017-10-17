@@ -155,22 +155,26 @@ class envi_constructions(object):
         'Party Wall 1': ('Plaster board', 'Standard Brick', 'Plaster board'), 'SIP': ('OSB', 'EPS', 'OSB')}
         self.wall_con = OrderedDict(sorted(self.wall_cond.items()))
         
-        self.ceil_cond = {'Ceiling 1': ('Chipboard', 'EPS', 'Plaster board')}
+        self.ceil_cond = {'Floor/Ceil 1': ('Chipboard', 'EPS', 'Plaster board')}
         self.ceil_con = OrderedDict(sorted(self.ceil_cond.items()))
+        
+        self.ifloor_cond = {'Floor/Ceil 1': ('Plaster board', 'EPS', 'Chipboard')}
+        self.ifloor_con = OrderedDict(sorted(self.ceil_cond.items()))
         
         self.floor_cond = {'Ground Floor 1': ('Common earth', 'Gravel', 'Heavy mix concrete', 'Horizontal Air 20-50mm Heat Down', 'Chipboard'),
                            'Kingston PH 1': ('Common earth', 'Gravel', 'EPS', 'Heavy mix concrete')}
-        self.floor_cond.update(self.ceil_cond)
+        self.floor_cond.update(self.ifloor_cond)
         self.floor_con = OrderedDict(sorted(self.floor_cond.items()))
         
-        self.roof_cond = {'Roof 1': ('Clay tile', 'Roofing felt', 'Plywood')}
+        self.roof_cond = {'Roof 1': ('Clay tile', 'Roofing felt', 'Plywood'), 'Roof/Ceil 1': ('Clay tile', 'Roofing felt', 'Plywood')}
+        self.roof_cond.update(self.ceil_cond)
         self.roof_con = OrderedDict(sorted(self.roof_cond.items()))
 
         self.door_cond = {'Internal Door 1': ('Chipboard', 'Hardwood', 'Chipboard')}
         self.door_con = OrderedDict(sorted(self.door_cond.items()))
         
         self.glaze_cond = {'Standard Double Glazing': ('Clear 3mm', 'Air', 'Clear 3mm'), 'Low-E Double Glazing': ('Clear 3mm', 'Air', 'Clear 3mm Hard LoE'), 
-                           'PassivHaus': ('Clear 3mm', 'Argon', 'Clear 3mm LoE', 'Argon', 'Clear 3mm Soft LoE'), 'Velfac 200 Double': ('Clear 4mm', 'Argon', 'Clear 4mm Soft LoE'),
+                           'PassivHaus': ('Clear 3mm', 'Argon', 'Clear 3mm Soft LoE', 'Argon', 'Clear 3mm Soft LoE'), 'Velfac 200 Double': ('Clear 4mm', 'Argon', 'Clear 4mm Soft LoE'),
                            'Velfac 200 Triple': ('Clear 4mm', 'Argon', 'Clear 4mm Soft LoE', 'Argon', 'Clear 4mm Soft LoE')}
         self.glaze_con = OrderedDict(sorted(self.glaze_cond.items()))
         
@@ -241,28 +245,31 @@ def envi_con_list(self, context):
     return [(mat, mat, 'Construction') for mat in (ec.wall_con, ec.roof_con, ec.floor_con, ec.ceil_con, ec.door_con, ec.glaze_con)[("Wall", "Roof", "Floor", "Ceiling", "Door", "Window").index(self.envi_con_type)]]
     
 def retuval(mat):
-    resists, em, ec = [], envi_materials(), envi_constructions()
-    thicks = [0.001 * tc for tc in (mat.envi_export_lo_thi, mat.envi_export_l1_thi, mat.envi_export_l2_thi, mat.envi_export_l3_thi, mat.envi_export_l4_thi)]
-    laymats = (mat.envi_material_lo, mat.envi_material_l1, mat.envi_material_l2, mat.envi_material_l3, mat.envi_material_l4)
-    pstcs = []
-    
-    if mat.envi_con_makeup == '1':         
-        lays = (mat.envi_layero, mat.envi_layer1, mat.envi_layer2, mat.envi_layer3, mat.envi_layer4)
-        ctcs = (mat.envi_export_lo_tc, mat.envi_export_l1_tc, mat.envi_export_l2_tc, mat.envi_export_l3_tc, mat.envi_export_l4_tc)
-
-        for l, lay in enumerate(lays):
-            if lay == '1':
-                dtc = em.matdat[laymats[l]][2] if em.matdat[laymats[l]][0] == 'Gas' else em.matdat[laymats[l]][1]
-                resists.append((thicks[l]/float(dtc), float(dtc))[em.matdat[laymats[l]][0] == 'Gas'])
-            if lay == '2':
-                resists.append(thicks[l]/ctcs[l])
+    if mat.envi_con_type not in ('None', 'Shading', 'Aperture', 'Window'):
+        resists, em, ec = [], envi_materials(), envi_constructions()
+        thicks = [0.001 * tc for tc in (mat.envi_export_lo_thi, mat.envi_export_l1_thi, mat.envi_export_l2_thi, mat.envi_export_l3_thi, mat.envi_export_l4_thi)]
+        laymats = (mat.envi_material_lo, mat.envi_material_l1, mat.envi_material_l2, mat.envi_material_l3, mat.envi_material_l4)
+        pstcs = []
         
-    elif mat.envi_con_makeup == '0':
-        for p, psmat in enumerate(ec.propdict[mat.envi_con_type][mat.envi_con_list]):
-            pi = 2 if psmat in em.gas_dat else 1
-            pstcs.append(float(em.matdat[psmat][pi]))
-            resists.append((thicks[p]/float(em.matdat[psmat][pi]), float(em.matdat[psmat][pi]))[em.matdat[psmat][0] == 'Gas'])
-    uv = 1/(sum(resists) + 0.12 + 0.08)
-    mat.envi_material_uv = '{:.3f}'.format(uv)
-    return uv
+        if mat.envi_con_makeup == '1':         
+            lays = (mat.envi_layero, mat.envi_layer1, mat.envi_layer2, mat.envi_layer3, mat.envi_layer4)
+            ctcs = (mat.envi_export_lo_tc, mat.envi_export_l1_tc, mat.envi_export_l2_tc, mat.envi_export_l3_tc, mat.envi_export_l4_tc)
+    
+            for l, lay in enumerate(lays):
+                if lay == '1':
+                    dtc = em.matdat[laymats[l]][2] if em.matdat[laymats[l]][0] == 'Gas' else em.matdat[laymats[l]][1]
+                    resists.append((thicks[l]/float(dtc), float(dtc))[em.matdat[laymats[l]][0] == 'Gas'])
+                if lay == '2':
+                    resists.append(thicks[l]/ctcs[l])
+            
+        elif mat.envi_con_makeup == '0':
+            for p, psmat in enumerate(ec.propdict[mat.envi_con_type][mat.envi_con_list]):
+                pi = 2 if psmat in em.gas_dat else 1
+                pstcs.append(float(em.matdat[psmat][pi]))
+                resists.append((thicks[p]/float(em.matdat[psmat][pi]), float(em.matdat[psmat][pi]))[em.matdat[psmat][0] == 'Gas'])
+        uv = 1/(sum(resists) + 0.12 + 0.08)
+        mat.envi_material_uv = '{:.3f}'.format(uv)
+        return uv
+    else:
+        return 1.0
     

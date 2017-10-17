@@ -33,6 +33,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         en_idf = open(os.path.join(scene['viparams']['newdir'], 'in{}.idf'.format(frame)), 'w')
         enng = [ng for ng in bpy.data.node_groups if ng.bl_label == 'EnVi Network'][0]
         badnodes = [node for node in enng.nodes if node.use_custom_color]
+        
         for node in badnodes:
             node.hide = 0
             exp_op.report({'ERROR'}, 'Bad {} node in the EnVi network. Delete the node if not needed or make valid connections'.format(node.name))
@@ -188,7 +189,12 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: SURFACE DEFINITIONS ===========\n\n")
     
         wfrparams = ['Name', 'Surface Type', 'Construction Name', 'Zone Name', 'Outside Boundary Condition', 'Outside Boundary Condition Object', 'Sun Exposure', 'Wind Exposure', 'View Factor to Ground', 'Number of Vertices']
-    
+        zonenames = [o.name for o in bpy.context.scene.objects if o.layers[1] == True and o.envi_type == '0']
+        tcnames = [o.name for o in bpy.context.scene.objects if o.layers[1] == True and o.envi_type == '2']
+        bpy.context.scene['viparams']['hvactemplate'] = 0
+        zonenodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in zonenames]
+        tcnodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in tcnames]
+        
         for obj in [obj for obj in bpy.data.objects if obj.layers[1] and obj.type == 'MESH' and obj.vi_type == '1']:
             me = obj.to_mesh(scene, True, 'PREVIEW')
             bm = bmesh.new()
@@ -200,28 +206,32 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
                 mat = obj.data.materials[face.material_index]
                 vcos = [v.co for v in face.verts]
                 (obc, obco, se, we) = boundpoly(obj, mat, face, enng)
-                if mat.envi_con_type in ('Wall', "Floor", "Roof", "Ceiling") and mat.envi_con_makeup != "2":
-                    params = list(wfrparams) + ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]                     
-                    paramvs = ['{}_{}'.format(obj.name, face.index), mat.envi_con_type, mat.name, obj.name, obc, obco, se, we, 'autocalculate', len(face.verts)]+ ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format(vco) for vco in vcos]
-                    en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))
-                elif mat.envi_con_type in ('Door', 'Window')  and mat.envi_con_makeup != "2":
-                    if len(face.verts) > 4:
-                        exp_op.report({'ERROR'}, 'Window/door in {} has more than 4 vertices'.format(obj.name))
-                    xav, yav, zav = mathutils.Vector(face.calc_center_median())
-                    params = list(wfrparams) + ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]
-                    paramvs = ['{}_{}'.format(obj.name, face.index), 'Wall', 'Frame', obj.name, obc, obco, se, we, 'autocalculate', len(face.verts)] + ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format(vco) for vco in vcos]
-                    en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))    
-                    obound = ('win-', 'door-')[mat.envi_con_type == 'Door']+obco if obco else obco
-                    params = ['Name', 'Surface Type', 'Construction Name', 'Building Surface Name', 'Outside Boundary Condition Object', 'View Factor to Ground', 'Shading Control Name', 'Frame and Divider Name', 'Multiplier', 'Number of Vertices'] + \
-                    ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]
-                    paramvs = [('win-', 'door-')[mat.envi_con_type == 'Door']+'{}_{}'.format(obj.name, face.index), mat.envi_con_type, mat.name, '{}_{}'.format(obj.name, face.index), obound, 'autocalculate', '', '', '1', len(face.verts)] + \
-                    ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format((xav+(vco[0]-xav)*0.95, yav+(vco[1]-yav)*0.95, zav+(vco[2]-zav)*0.95)) for vco in vcos]
-                    en_idf.write(epentry('FenestrationSurface:Detailed', params, paramvs))
-    
-                elif mat.envi_con_type == 'Shading' or obj.envi_type == '1':
-                    params = ['Name', 'Transmittance Schedule Name', 'Number of Vertices'] + ['X,Y,Z ==> Vertex {} (m)'.format(v.index) for v in face.verts]
-                    paramvs = ['{}_{}'.format(obj.name, face.index), '', len(face.verts)] + ['{0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}'.format(vco) for vco in vcos]
-                    en_idf.write(epentry('Shading:Building:Detailed', params, paramvs))
+                
+                if obc:
+                    if mat.envi_con_type in ('Wall', "Floor", "Roof", "Ceiling") and mat.envi_con_makeup != "2":
+                        params = list(wfrparams) + ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]                     
+                        paramvs = ['{}_{}'.format(obj.name, face.index), mat.envi_con_type, mat.name, obj.name, obc, obco, se, we, 'autocalculate', len(face.verts)]+ ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format(vco) for vco in vcos]
+                        en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))
+                    
+                    elif mat.envi_con_type in ('Door', 'Window')  and mat.envi_con_makeup != "2":
+                        if len(face.verts) > 4:
+                            exp_op.report({'ERROR'}, 'Window/door in {} has more than 4 vertices'.format(obj.name))
+                            
+                        xav, yav, zav = mathutils.Vector(face.calc_center_median())
+                        params = list(wfrparams) + ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]
+                        paramvs = ['{}_{}'.format(obj.name, face.index), 'Wall', 'Frame', obj.name, obc, obco, se, we, 'autocalculate', len(face.verts)] + ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format(vco) for vco in vcos]
+                        en_idf.write(epentry('BuildingSurface:Detailed', params, paramvs))    
+                        obound = ('win-', 'door-')[mat.envi_con_type == 'Door']+obco if obco else obco
+                        params = ['Name', 'Surface Type', 'Construction Name', 'Building Surface Name', 'Outside Boundary Condition Object', 'View Factor to Ground', 'Shading Control Name', 'Frame and Divider Name', 'Multiplier', 'Number of Vertices'] + \
+                        ["X,Y,Z ==> Vertex {} (m)".format(v.index) for v in face.verts]
+                        paramvs = [('win-', 'door-')[mat.envi_con_type == 'Door']+'{}_{}'.format(obj.name, face.index), mat.envi_con_type, mat.name, '{}_{}'.format(obj.name, face.index), obound, 'autocalculate', '', '', '1', len(face.verts)] + \
+                        ["  {0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}".format((xav+(vco[0]-xav)*0.95, yav+(vco[1]-yav)*0.95, zav+(vco[2]-zav)*0.95)) for vco in vcos]
+                        en_idf.write(epentry('FenestrationSurface:Detailed', params, paramvs))
+        
+                    elif mat.envi_con_type == 'Shading' or obj.envi_type == '1':
+                        params = ['Name', 'Transmittance Schedule Name', 'Number of Vertices'] + ['X,Y,Z ==> Vertex {} (m)'.format(v.index) for v in face.verts]
+                        paramvs = ['{}_{}'.format(obj.name, face.index), '', len(face.verts)] + ['{0[0]:.4f}, {0[1]:.4f}, {0[2]:.4f}'.format(vco) for vco in vcos]
+                        en_idf.write(epentry('Shading:Building:Detailed', params, paramvs))
             bm.free()
     
         en_idf.write("\n!-   ===========  ALL OBJECTS IN CLASS: SCHEDULES ===========\n\n")
@@ -239,12 +249,6 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         en_idf.write(epentry('ScheduleTypeLimits', params, paramvs))
         en_idf.write(epschedwrite('Default outdoor CO2 levels 400 ppm', 'Any number', ['Through: 12/31'], [['For: Alldays']], [[[['Until: 24:00,{}'.format('400')]]]]))
     
-        zonenames = [o.name for o in bpy.context.scene.objects if o.layers[1] == True and o.envi_type == '0']
-        tcnames = [o.name for o in bpy.context.scene.objects if o.layers[1] == True and o.envi_type == '2']
-        bpy.context.scene['viparams']['hvactemplate'] = 0
-        zonenodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in zonenames]
-        tcnodes = [n for n in enng.nodes if hasattr(n, 'zone') and n.zone in tcnames]
-        
         for zn in zonenodes:
             for schedtype in ('VASchedule', 'TSPSchedule', 'HVAC', 'Occupancy', 'Equipment', 'Infiltration'):
                 if schedtype == 'HVAC' and zn.inputs[schedtype].links:
@@ -490,8 +494,9 @@ def pregeo(op):
                     sm.material.envi_export = True    
                 if sm.material.envi_con_type in dcdict:
                     sm.material.diffuse_color = dcdict[mct]                            
-                if mct not in ('None', 'Shading', 'Aperture', 'Window'):
-                    retuval(sm.material)
+#                if mct not in ('None', 'Shading', 'Aperture', 'Window'):
+#                    print('mct', mct)
+                retuval(sm.material)
                 
             for poly in en_obj.data.polygons:
                 mat = en_obj.data.materials[poly.material_index]

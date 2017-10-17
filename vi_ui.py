@@ -1,9 +1,8 @@
 import bpy
 from collections import OrderedDict
-from .vi_func import newrow
-
+from .vi_func import newrow, retdates
 from .envi_mat import envi_materials, envi_constructions
-from .vi_func import retdates
+
 envi_mats = envi_materials()
 envi_cons = envi_constructions()
 
@@ -93,11 +92,19 @@ class Vi3DPanel(bpy.types.Panel):
                     elif scene['viparams']['visimcontext'] == 'LiVi Compliance': 
                         if scene['liparams']['unit'] in ('sDA (%)', 'ASE (hrs)'):
                             newrow(layout, 'Metric:', scene, 'li_disp_sda')
-
                         else:
                             newrow(layout, 'Metric:', scene, 'li_disp_sv')
+                            
                     elif scene['viparams']['visimcontext'] == 'LiVi Basic':
                         newrow(layout, 'Metric:', scene, 'li_disp_basic')
+                        
+#                    elif scene['viparams']['visimcontext'] == 'Shadow': 
+                    newrow(layout, 'Legend unit:', scene, "vi_leg_unit")
+                    newrow(layout, 'Modifier:', scene, "vi_res_mod")
+                    newrow(layout, 'Script:', scene, "vi_res_py")
+                    if scene.vi_res_py:
+                        layout.prop_search(scene, 'script_file', bpy.data, 'texts', text='File', icon='TEXT')
+                        
                         
                     newrow(layout, 'Legend max:', scene, "vi_leg_max")
                     newrow(layout, 'Legend min:', scene, "vi_leg_min")
@@ -107,7 +114,7 @@ class Vi3DPanel(bpy.types.Panel):
                     if scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux', 'Ave lux', 'Min lux', 'kWh', 'kWh/m2'):
                         newrow(layout, 'Scatter max:', scene, "vi_scatter_max")
                         newrow(layout, 'Scatter min:', scene, "vi_scatter_min")
-                
+                        
                 if cao and cao.type == 'MESH':
                     newrow(layout, 'Draw wire:', scene, 'vi_disp_wire')                    
                 
@@ -467,78 +474,143 @@ class VIMatPanel(bpy.types.Panel):
         elif cm.mattype == '2':
             fvsimnode = bpy.data.node_groups[scene['viparams']['fvsimnode'].split('@')[1]].nodes[scene['viparams']['fvsimnode'].split('@')[0]] if 'fvsimnode' in scene['viparams'] else 0
             newrow(layout, "Type:", cm, "flovi_bmb_type")
-            if cm.flovi_bmb_type == '0':
-                newrow(layout, "Pressure type:", cm, "flovi_bmwp_type")
-                if cm.flovi_bmwp_type == 'fixedValue':
-                    newrow(layout, "Pressure value:", cm, "flovi_b_sval")
-                    
-                newrow(layout, "Velocity type:", cm, "flovi_bmwu_type")
-                newrow(layout, "Field value:", cm, "flovi_u_field")
-                if not cm.flovi_u_field:
-                    newrow(layout, 'Velocity:', cm, 'flovi_b_vval')
-#                split = layout.split()
-#                col = split.column(align=True)
-#                col.label(text="Velocity:")
-#                col.prop(cm, "flovi_bmu_x")
-#                col.prop(cm, "flovi_bmu_y")
-#                col.prop(cm, "flovi_bmu_z")
-                
-                if fvsimnode and fvsimnode.solver != 'icoFoam':
-                    newrow(layout, "nut type:", cm, "flovi_bmwnut_type")
-                    if fvsimnode.turbulence == 'SpalartAllmaras':                        
-                        newrow(layout, "nuTilda type:", cm, "flovi_bmwnutilda_type")
-                    elif fvsimnode.turbulence == 'kEpsilon':
-                        newrow(layout, "k type:", cm, "flovi_bmwk_type")
-                        newrow(layout, "Epsilon type:", cm, "flovi_bmwe_type")
-                    elif fvsimnode.turbulence == 'komega':
-                        newrow(layout, "k type:", cm, "flovi_bmwk_type")
-                        newrow(layout, "Omega type:", cm, "flovi_bmwe_type")
-                    if fvsimnode.bouyancy:
-                        newrow(layout, "Temperature:", cm, "temperature")
-#                newrow(layout, "nuTilda:", cm, "flovi_bmnutilda")
-#                split = layout.split()
-#                col = split.column(align=True)
-#                col.label(text="nuTilda:")
-#                col.prop(cm, "flovi_bmnut")
-#                col.prop(cm, "flovi_bmwnut_y")
-#                col.prop(cm, "flovi_bmwnut_z")
-            elif cm.flovi_bmb_type == '1':
-                newrow(layout, "Pressure sub-type:", cm, "flovi_bmip_type")
-                if cm.flovi_bmip_type == 'fixedValue':
-                    newrow(layout, "Pressure value:", cm, "flovi_b_sval")
-                newrow(layout, "Velocity sub-type:", cm, "flovi_bmiu_type")
-                newrow(layout, "Field value:", cm, "flovi_u_field")
-                if not cm.flovi_u_field:
-                    newrow(layout, 'Velocity:', cm, 'flovi_b_vval')
-                if fvsimnode and fvsimnode.solver != 'icoFoam':
-                    newrow(layout, "nut type:", cm, "flovi_bminut_type")
-                    if fvsimnode.turbulence == 'SpalartAllmaras':                        
-                        newrow(layout, "nuTilda type:", cm, "flovi_bminutilda_type")
-                    elif fvsimnode.turbulence == 'kEpsilon':
-                        newrow(layout, "k type:", cm, "flovi_bmik_type")
-                        newrow(layout, "Epsilon type:", cm, "flovi_bmie_type")
-                    elif fvsimnode.turbulence == 'kOmega':
-                        newrow(layout, "k type:", cm, "flovi_bmik_type")
-                        newrow(layout, "Omega type:", cm, "flovi_bmio_type")
-            
-            elif cm.flovi_bmb_type == '2':
-                newrow(layout, "Pressure sub-type:", cm, "flovi_bmop_type")
-                if cm.flovi_bmop_type == 'fixedValue':
-                    newrow(layout, "Pressure value:", cm, "flovi_b_sval")
-                newrow(layout, "Velocity sub-type:", cm, "flovi_bmou_type")
-                newrow(layout, "Field value:", cm, "flovi_u_field")
-                if not cm.flovi_u_field:
-                    newrow(layout, 'Velocity:', cm, 'flovi_b_vval')
-                if fvsimnode and fvsimnode.solver != 'icoFoam':
-                    newrow(layout, "nut type:", cm, "flovi_bmonut_type")
-                    if fvsimnode.turbulence == 'SpalartAllmaras':                        
-                        newrow(layout, "nuTilda type:", cm, "flovi_bmonutilda_type")
-                    elif fvsimnode.turbulence == 'kEpsilon':
-                        newrow(layout, "k type:", cm, "flovi_bmok_type")
-                        newrow(layout, "Epsilon type:", cm, "flovi_bmoe_type")
-                    elif fvsimnode.turbulence == 'kOmega':
-                        newrow(layout, "k type:", cm, "flovi_bmok_type")
-                        newrow(layout, "Omega type:", cm, "flovi_bmoo_type")
+            if fvsimnode:
+                context.scene['flparams']['solver'] = fvsimnode.solver
+#            newrow(layout, "Type:", cm, "flovi_bmb_subtype")
+                if cm.flovi_bmb_type in ('0', '1'):
+                    newrow(layout, "p type:", cm, "flovi_bmbp_subtype")
+                    if cm.flovi_bmbp_subtype in ('fixedValue', 'totalPressure'):
+                        if cm.flovi_bmbp_subtype == 'totalPressure':
+                            newrow(layout, "p0 value:", cm, "flovi_bmbp_p0val")
+                            newrow(layout, "Gamma value:", cm, "flovi_bmbp_gamma")
+                        newrow(layout, "Field value:", cm, "flovi_p_field")
+                        if not cm.flovi_p_field:
+                            newrow(layout, "Pressure value:", cm, "flovi_bmbp_val")
+                        
+                            
+                    newrow(layout, "U type:", cm, "flovi_bmbu_subtype")
+                    if cm.flovi_bmbu_subtype in ('fixedValue', 'pressureInletOutletVelocity'):
+                        newrow(layout, "Field value:", cm, "flovi_u_field")
+                        if not cm.flovi_u_field:
+                            newrow(layout, "Velocity value:", cm, "flovi_bmbu_val")
+                            
+                    if fvsimnode.solver in ('simpleFoam', 'buoyantSimpleFoam', 'buoyantBoussinesqSimpleFoam') and fvsimnode.turbulence != '0':    
+                        newrow(layout, "Nut type:", cm, "flovi_bmbnut_subtype")
+                        if cm.flovi_bmbnut_subtype == 'fixedValue':
+                            newrow(layout, "Nut field:", cm, "flovi_nut_field")
+                            if not cm.flovi_u_field:
+                                newrow(layout, "Nut value:", cm, "flovi_bmbnut_val")
+                        if fvsimnode.turbulence == 'kEpsilon':
+                            newrow(layout, "k type:", cm, "flovi_bmbk_subtype")
+                            if cm.flovi_bmbk_subtype == 'fixedValue':
+                                newrow(layout, "K field:", cm, "flovi_k_field")
+                                if not cm.flovi_k_field:
+                                    newrow(layout, "K value:", cm, "flovi_bmbk_val")
+                            newrow(layout, "Epsilon type:", cm, "flovi_bmbe_subtype")
+                            if cm.flovi_bmbe_subtype == 'fixedValue':
+                                newrow(layout, "Epsilon field:", cm, "flovi_e_field")
+                                if not cm.flovi_e_field:
+                                    newrow(layout, "Epsilon value:", cm, "flovi_bmbe_val")
+                        elif fvsimnode.turbulence == 'kOmega':
+                            newrow(layout, "k type:", cm, "flovi_bmbk_subtype")
+                            if cm.flovi_bmbk_subtype == 'fixedValue':
+                                newrow(layout, "k field:", cm, "flovi_k_field")
+                                if not cm.flovi_k_field:
+                                    newrow(layout, "k value:", cm, "flovi_bmbk_val")
+                            newrow(layout, "Omega type:", cm, "flovi_bmbo_subtype")
+                            if cm.flovi_bmbo_subtype == 'fixedValue':
+                                newrow(layout, "Omega field:", cm, "flovi_o_field")
+                                if not cm.flovi_o_field:
+                                    newrow(layout, "Omega value:", cm, "flovi_bmbo_val")
+                        
+                        elif fvsimnode.turbulence == 'SpalartAllmaras':
+                            newrow(layout, "Nutilda type:", cm, "flovi_bmbnutilda_subtype")
+                            if cm.flovi_bmbnutilda_subtype == 'fixedValue':
+                                newrow(layout, "Nutilda field:", cm, "flovi_nutilda_field")
+                                if not cm.flovi_nutilda_field:
+                                    newrow(layout, "Nutilda value:", cm, "flovi_bmbnutilda_val")
+                        
+                    if fvsimnode.solver in ('buoyantSimpleFoam', 'buoyantBoussinesqSimpleFoam'):  
+                        newrow(layout, "T type:", cm, "flovi_bmbt_subtype")
+                        if cm.flovi_bmbt_subtype == 'fixedValue':
+                            newrow(layout, "T field:", cm, "flovi_t_field")
+                            if not cm.flovi_t_field:
+                                newrow(layout, "T value:", cm, "flovi_bmbt_val")
+                            
+#                    newrow(layout, "Pressure type:", cm, "flovi_bmwp_type")
+#                    if cm.flovi_bmwp_type == 'fixedValue':
+#                        newrow(layout, "Pressure value:", cm, "flovi_b_sval")
+#                        
+#                    newrow(layout, "Velocity type:", cm, "flovi_bmwu_type")
+#                    newrow(layout, "Field value:", cm, "flovi_u_field")
+#                    if not cm.flovi_u_field:
+#                        newrow(layout, 'Velocity:', cm, 'flovi_b_vval')
+##                split = layout.split()
+##                col = split.column(align=True)
+##                col.label(text="Velocity:")
+##                col.prop(cm, "flovi_bmu_x")
+##                col.prop(cm, "flovi_bmu_y")
+##                col.prop(cm, "flovi_bmu_z")
+#                
+#                if fvsimnode and fvsimnode.solver != 'icoFoam':
+#                    if fvsimnode.buoyancy or fvsimnode.radiation:
+#                       newrow(layout, "Temperature type:", cm, "flovi_bmot_type")
+#                       if cm.flovi_bmot_type == 'fixedValue':
+#                           newrow(layout, "Temperature value:", cm, "flovi_temp")
+#                    newrow(layout, "nut type:", cm, "flovi_bmwnut_type")
+#                    if fvsimnode.turbulence == 'SpalartAllmaras':                        
+#                        newrow(layout, "nuTilda type:", cm, "flovi_bmwnutilda_type")
+#                    elif fvsimnode.turbulence == 'kEpsilon':
+#                        newrow(layout, "k type:", cm, "flovi_bmwk_type")
+#                        newrow(layout, "Epsilon type:", cm, "flovi_bmwe_type")
+#                    elif fvsimnode.turbulence == 'komega':
+#                        newrow(layout, "k type:", cm, "flovi_bmwk_type")
+#                        newrow(layout, "Omega type:", cm, "flovi_bmwe_type")
+#
+##                newrow(layout, "nuTilda:", cm, "flovi_bmnutilda")
+##                split = layout.split()
+##                col = split.column(align=True)
+##                col.label(text="nuTilda:")
+##                col.prop(cm, "flovi_bmnut")
+##                col.prop(cm, "flovi_bmwnut_y")
+##                col.prop(cm, "flovi_bmwnut_z")
+#            elif cm.flovi_bmb_type == '1':
+#                newrow(layout, "Pressure sub-type:", cm, "flovi_bmip_type")
+#                if cm.flovi_bmip_type == 'fixedValue':
+#                    newrow(layout, "Pressure value:", cm, "flovi_b_sval")
+#                newrow(layout, "Velocity sub-type:", cm, "flovi_bmiu_type")
+#                newrow(layout, "Field value:", cm, "flovi_u_field")
+#                if not cm.flovi_u_field:
+#                    newrow(layout, 'Velocity:', cm, 'flovi_b_vval')
+#                if fvsimnode and fvsimnode.solver != 'icoFoam':
+#                    newrow(layout, "nut type:", cm, "flovi_bminut_type")
+#                    if fvsimnode.turbulence == 'SpalartAllmaras':                        
+#                        newrow(layout, "nuTilda type:", cm, "flovi_bminutilda_type")
+#                    elif fvsimnode.turbulence == 'kEpsilon':
+#                        newrow(layout, "k type:", cm, "flovi_bmik_type")
+#                        newrow(layout, "Epsilon type:", cm, "flovi_bmie_type")
+#                    elif fvsimnode.turbulence == 'kOmega':
+#                        newrow(layout, "k type:", cm, "flovi_bmik_type")
+#                        newrow(layout, "Omega type:", cm, "flovi_bmio_type")
+#            
+#            elif cm.flovi_bmb_type == '2':
+#                newrow(layout, "Pressure sub-type:", cm, "flovi_bmop_type")
+#                if cm.flovi_bmop_type == 'fixedValue':
+#                    newrow(layout, "Pressure value:", cm, "flovi_b_sval")
+#                newrow(layout, "Velocity sub-type:", cm, "flovi_bmou_type")
+#                newrow(layout, "Field value:", cm, "flovi_u_field")
+#                if not cm.flovi_u_field:
+#                    newrow(layout, 'Velocity:', cm, 'flovi_b_vval')
+#                if fvsimnode and fvsimnode.solver != 'icoFoam':
+#                    newrow(layout, "nut type:", cm, "flovi_bmonut_type")
+#                    if fvsimnode.turbulence == 'SpalartAllmaras':                        
+#                        newrow(layout, "nuTilda type:", cm, "flovi_bmonutilda_type")
+#                    elif fvsimnode.turbulence == 'kEpsilon':
+#                        newrow(layout, "k type:", cm, "flovi_bmok_type")
+#                        newrow(layout, "Epsilon type:", cm, "flovi_bmoe_type")
+#                    elif fvsimnode.turbulence == 'kOmega':
+#                        newrow(layout, "k type:", cm, "flovi_bmok_type")
+#                        newrow(layout, "Omega type:", cm, "flovi_bmoo_type")
                 
 class VIObPanel(bpy.types.Panel):
     bl_label = "VI-Suite Object Definition"
@@ -567,9 +639,7 @@ class VIObPanel(bpy.types.Panel):
                     
 
         if (obj.type == 'LAMP' and obj.data.type != 'SUN') or obj.vi_type == '4':
-            row = layout.row()
-            row.operator("livi.ies_select")
-            row.prop(obj, "ies_name")
+            newrow(layout, 'IES file:', obj, "ies_name")
             newrow(layout, 'IES Dimension:', obj, "ies_unit")
             newrow(layout, 'IES Strength:', obj, "ies_strength")
             newrow(layout, 'IES Colour:', obj, "ies_colmenu")
@@ -591,10 +661,6 @@ class VIObPanel(bpy.types.Panel):
             if any([obj.data.materials[i].radmatmenu == '8' for i in [f.material_index for f in obj.data.polygons]]):
                 row = layout.row()
                 row.operator("object.gen_bsdf", text="Generate BSDF")
-    
-    #            if obj.get('bsdf'):
-    #                row.operator("material.del_bsdf", text="Delete BSDF")
-#                newrow(layout, 'Proxy:', obj, 'bsdf_proxy')
 
 def rmmenu(layout, cm):
     row = layout.row()
@@ -619,7 +685,7 @@ def rmmenu(layout, cm):
         row = layout.row()
         row.operator("material.save_bsdf", text="Save BSDF")
     if cm.radmatmenu in ('1', '2', '3', '7'):
-        newrow(layout, 'Photon Port:', cm, 'pport')
+        newrow(layout, 'Photon port:', cm, 'pport')
     if cm.radmatmenu in ('0', '1', '2', '3', '6'):
         newrow(layout, 'Textured:', cm, 'radtex')
         if cm.radtex:

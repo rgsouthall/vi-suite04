@@ -19,7 +19,7 @@
 
 import bpy, glob, os, inspect, datetime, shutil, time
 from nodeitems_utils import NodeCategory, NodeItem
-from .vi_func import objvol, socklink, uvsocklink, newrow, epwlatilongi, nodeid, nodeinputs, remlink, rettimes, sockhide, selobj, cbdmhdr, cbdmmtx
+from .vi_func import socklink, uvsocklink, newrow, epwlatilongi, nodeid, nodeinputs, remlink, rettimes, sockhide, selobj, cbdmhdr, cbdmmtx
 from .vi_func import hdrsky, nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, sunposlivi, retdates, validradparams
 from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite
 from .livi_export import sunexport, skyexport, hdrexport
@@ -28,7 +28,7 @@ from .envi_mat import retuval
 class ViNetwork(bpy.types.NodeTree):
     '''A node tree for VI-Suite analysis.'''
     bl_idname = 'ViN'
-    bl_label = 'Vi Network'
+    bl_label = 'VI Network'
     bl_icon = 'LAMP_SUN'
     viparams = {}
         
@@ -254,7 +254,7 @@ class LiViNode(bpy.types.Node, ViNodes):
     edoy = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=365, default=1, update = nodeupdate)
     interval = bpy.props.FloatProperty(name="", description="Site Latitude", min=1/60, max=24, default=1, update = nodeupdate)
     hdr = bpy.props.BoolProperty(name="", description="Export HDR panoramas", default=False, update = nodeupdate)
-    skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="", subtype="FILE_PATH", update = nodeupdate)
+    skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="", update = nodeupdate)
     resname = bpy.props.StringProperty()
     turb = bpy.props.FloatProperty(name="", description="Sky Turbidity", min=1.0, max=5.0, default=2.75, update = nodeupdate)
     canalysistype = [('0', "BREEAM", "BREEAM HEA1 calculation"), ('1', "CfSH", "Code for Sustainable Homes calculation"), ('2', "Green Star", "Green Star Calculation"), ('3', "LEED", "LEED v4 Daylight calculation")]
@@ -272,7 +272,7 @@ class LiViNode(bpy.types.Node, ViNodes):
     sourcetype2 = [('0', "EPW", "EnergyPlus weather file"), ('1', "VEC", "Generated vector file")]
     sourcemenu = bpy.props.EnumProperty(name="", description="Source type", items=sourcetype, default = '0', update = nodeupdate)
     sourcemenu2 = bpy.props.EnumProperty(name="", description="Source type", items=sourcetype2, default = '0', update = nodeupdate)
-    hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="vi-suite.hdr", subtype="FILE_PATH", update = nodeupdate)
+    hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="vi-suite.hdr", update = nodeupdate)
     hdrmap = bpy.props.EnumProperty(items=[("0", "Polar", "Polar ot LatLong HDR mapping"),("1", "Angular", "Light probe or angular mapping")], name="", description="Type of HDR panorama mapping", default="0", update = nodeupdate)
     hdrangle = bpy.props.FloatProperty(name="", description="HDR rotation (deg)", min=0, max=360, default=0, update = nodeupdate)
     hdrradius = bpy.props.FloatProperty(name="", description="HDR radius (m)", min=0, max=5000, default=1000, update = nodeupdate)
@@ -321,20 +321,18 @@ class LiViNode(bpy.types.Node, ViNodes):
                     newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
                     newrow(layout, "Interval (hours):", self, 'interval')
                 newrow(layout, "Turbidity", self, 'turb')
+
             elif self.skymenu == '4':
                 row = layout.row()
-                row.label("HDR file:")
                 row.operator('node.hdrselect', text = 'HDR select').nodeid = self['nodeid']
-                row = layout.row()
                 row.prop(self, 'hdrname')
                 newrow(layout, "HDR format:", self, 'hdrmap')
                 newrow(layout, "HDR rotation:", self, 'hdrangle')
                 newrow(layout, "HDR radius:", self, 'hdrradius')
+
             elif self.skymenu == '5':
                 row = layout.row()
-                row.label("Radiance file:")
                 row.operator('node.skyselect', text = 'Sky select').nodeid = self['nodeid']
-                row = layout.row()
                 row.prop(self, 'skyname')
             row = layout.row()
 
@@ -370,6 +368,7 @@ class LiViNode(bpy.types.Node, ViNodes):
             newrow(layout, 'End hour:', self, 'cbdm_end_hour')
             row = layout.row()
             row.label("--")
+            
             if self.cbanalysismenu == '2':
                 newrow(layout, '(s)DA Min lux:', self, 'dalux')
                 row = layout.row()
@@ -386,14 +385,12 @@ class LiViNode(bpy.types.Node, ViNodes):
             else:
                 newrow(layout, 'Source file:', self, 'sourcemenu2')
             row = layout.row()
+
             if self.sourcemenu2 == '1' and self.cbanalysismenu in ('1', '2'):
-                row.operator('node.mtxselect', text = 'Select MTX').nodeid = self['nodeid']
-                row = layout.row()
-                row.prop(self, 'mtxname')
+                newrow(layout, "MTX file:", self, 'mtxname')
+
             if self.sourcemenu == '1' and self.cbanalysismenu == '0':
-                row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
-                row = layout.row()
-                row.prop(self, 'hdrname')
+                newrow(layout, "HDR file:", self, 'hdrname')
             else:
                 newrow(layout, 'HDR:', self, 'hdr')
         
@@ -431,6 +428,7 @@ class LiViNode(bpy.types.Node, ViNodes):
 
         times = [starttime]
         time = starttime
+        
         while time < endtime:
             time += datetime.timedelta(hours = interval)
             if (self.contextmenu == 'Compliance' and self.canalysismenu == '3') or self.contextmenu == 'CBDM':
@@ -473,16 +471,25 @@ class LiViNode(bpy.types.Node, ViNodes):
                     self['Text'][str(frame)] = skytext
 
             elif self['skynum'] == 4:
-                if self.hdrname not in bpy.data.images:
-                    bpy.data.images.load(self.hdrname)
-                self['Text'][str(scene.frame_current)] = hdrsky(self.hdrname, self.hdrmap, self.hdrangle, self.hdrradius)
+                if self.hdrname and os.path.isfile(self.hdrname):
+                    if self.hdrname not in bpy.data.images:
+                        bpy.data.images.load(self.hdrname)
+                    self['Text'][str(scene.frame_current)] = hdrsky(self.hdrname, self.hdrmap, self.hdrangle, self.hdrradius)
+                else:
+                    export_op.report({'ERROR'}, "Not a valid HDR file")
+                    return 'Error'
             
             elif self['skynum'] == 5:
-                shutil.copyfile(self.radname, "{}-0.sky".format(scene['viparams']['filebase']))
-                with open(self.radname, 'r') as radfiler:
-                    self['Text'][str(scene.frame_current)] =  [radfiler.read()]
-                    if self.hdr:
-                        hdrexport(scene, 0, scene.frame_current, self, radfiler.read())
+                if self.skyname and os.path.isfile(self.skyname):
+                    shutil.copyfile(self.skyname, "{}-0.sky".format(scene['viparams']['filebase']))
+                    with open(self.skyname, 'r') as radfiler:
+                        self['Text'][str(scene.frame_current)] =  [radfiler.read()]
+                        if self.hdr:
+                            hdrexport(scene, 0, scene.frame_current, self, radfiler.read())
+                else:
+                    export_op.report({'ERROR'}, "Not a valid Radiance sky file")
+                    return 'Error'
+
             elif self['skynum'] == 6:
                 self['Text'][str(scene.frame_current)] = ''
         
@@ -634,7 +641,7 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.hdrname, self.colour, self.lmax, self.unit, self.nscale, self.decades, 
                    self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands)])
 
-    hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="vi-suite.hdr", subtype="FILE_PATH", update = nodeupdate)    
+    hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="vi-suite.hdr", update = nodeupdate)    
     colour = bpy.props.EnumProperty(items=[("0", "Default", "Default color mapping"), ("1", "Spectral", "Spectral color mapping"), ("2", "Thermal", "Thermal colour mapping"), ("3", "PM3D", "PM3D colour mapping"), ("4", "Eco", "Eco color mapping")],
             name="", description="Simulation accuracy", default="0", update = nodeupdate)             
     lmax = bpy.props.IntProperty(name = '', min = 0, max = 10000, default = 1000, update = nodeupdate)
@@ -664,6 +671,7 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
             newrow(layout, 'Unit:', self, 'unit')
             newrow(layout, 'Colour:', self, 'colour')
             newrow(layout, 'Legend:', self, 'legend')
+            
             if self.legend:
                 newrow(layout, 'Scale:', self, 'nscale')
                 if self.nscale == '1':
@@ -671,14 +679,17 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
                 newrow(layout, 'Legend max:', self, 'lmax')
                 newrow(layout, 'Legend width:', self, 'lw')
                 newrow(layout, 'Legend height:', self, 'lh')
+            
             newrow(layout, 'Contour:', self, 'contour')
+            
             if self.contour:
                newrow(layout, 'Overlay:', self, 'overlay') 
                newrow(layout, 'Bands:', self, 'bands') 
-    #        row = layout.row()
-    #        row.operator('node.hdrselect', text = 'Select HDR').nodeid = self['nodeid']
+
             row = layout.row()
+            row.operator('node.hdrselect', text = 'HDR select').nodeid = self['nodeid']
             row.prop(self, 'hdrname')
+            
             if self.hdrname:
                 row = layout.row()
                 row.operator("node.livifc", text = 'Process').nodeid = self['nodeid']
@@ -1138,11 +1149,10 @@ class ViEnRFNode(bpy.types.Node, ViNodes):
         nodecolour(self, self['exportstate'] != [self.resfilename])
         self['frames'] = [context.scene.frame_current]
         
-    resfilename = bpy.props.StringProperty(name="", description="Name of the EnVi results file", default="", update=nodeupdate)
+    esoname = bpy.props.StringProperty(name="", description="Name of the EnVi results file", default="", update=nodeupdate)
     filebase = bpy.props.StringProperty(name="", description="Name of the EnVi results file", default="")
     dsdoy, dedoy = bpy.props.IntProperty(), bpy.props.IntProperty()
     
-
     def init(self, context):
         self['nodeid'] = nodeid(self)
         self.outputs.new('ViR', 'Results out')
@@ -1152,10 +1162,9 @@ class ViEnRFNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         row = layout.row()
-        row.label('ESO file:')
-        row.operator('node.esoselect', text = 'Select file').nodeid = self['nodeid']
+        row.operator('node.esoselect', text = 'ESO select').nodeid = self['nodeid']
+        row.prop(self, 'esoname')
         row = layout.row()
-        row.prop(self, 'resfilename')
         row.operator("node.fileprocess", text = 'Process file').nodeid = self['nodeid']
 
     def update(self):
@@ -1187,7 +1196,7 @@ class ViEnInNode(bpy.types.Node, ViNodes):
                     break
             nodecolour(self, 0)
 
-    idffilename = bpy.props.StringProperty(name="", description="Name of the EnVi results file", default="", update=nodeupdate)
+    idfname = bpy.props.StringProperty(name="", description="Name of the EnVi results file", default="", update=nodeupdate)
     sdoy = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 365)
     edoy = bpy.props.IntProperty(name = '', default = 365, min = 1, max = 365)
     newdir = bpy.props.StringProperty()
@@ -1201,11 +1210,11 @@ class ViEnInNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         row = layout.row()
-        if self.inputs['Location in'].links:            
-            row.label('ESO file:')
-            row.operator('node.idfselect', text = 'Select IDF file').nodeid = self['nodeid']
+        
+        if self.inputs['Location in'].links: 
             row = layout.row()
-            row.prop(self, 'idffilename')
+            row.operator('node.idfselect', text = 'IDF select').nodeid = self['nodeid']
+            row.prop(self, 'idfname')
         else:
             row.label('Connect Location node')
 
@@ -1835,6 +1844,9 @@ class ViFloCdNode(bpy.types.Node, ViNodes):
     def draw_buttons(self, context, layout):
         newrow(layout, 'Solver', self, 'solver')
 
+def location(self, context):
+    return [(o.name, o.name, 'Name of empty') for o in bpy.data.objects if o.type == 'EMPTY']
+    
 class ViBMExNode(bpy.types.Node, ViNodes):
     '''Openfoam blockmesh export node'''
     bl_idname = 'ViBMExNode'
@@ -1854,7 +1866,7 @@ class ViBMExNode(bpy.types.Node, ViNodes):
     bm_ygrad = bpy.props.FloatProperty(name = "Y", description = "Blockmesh Y simple grading", min = 0, max = 10, default = 1, update = nodeupdate)
     bm_zgrad = bpy.props.FloatProperty(name = "Z", description = "Blockmesh Z simple grading", min = 0, max = 10, default = 1, update = nodeupdate)
     existing =  bpy.props.BoolProperty(name = '', default = 0)
-
+    
     def init(self, context):
         self['exportstate'] = ''
         self['nodeid'] = nodeid(self)
@@ -1878,6 +1890,8 @@ class ViBMExNode(bpy.types.Node, ViNodes):
         if not self.use_custom_color:
             newrow(layout, 'Use existing', self, 'existing')
 
+    
+    
     def update(self):
         socklink(self.outputs['Mesh out'], self['nodeid'].split('@')[1])
 
@@ -1907,12 +1921,13 @@ class ViSHMExNode(bpy.types.Node, ViNodes):
     layerspec = bpy.props.EnumProperty(items = [('0', 'First & overall', 'First layer thickness and overall thickness'), ('1', 'First & ER', 'First layer thickness and expansion ratio'),
                                                ('2', 'Final & ER', 'Final layer thickness and expansion ratio'), ('3', 'Final & overall', 'Final layer thickness and overall thickness'),
                                                 ('4', 'Final & ER', 'Final layer thickness and expansion ratio'), ('5', 'Overall & ER', 'Overall thickness and expansion ratio')], name = "", default = '0', update = nodeupdate)
-    expansion = bpy.props.FloatProperty(name = "", description = "Exapnsion ratio", min = 1.0, max = 3.0, default = 1.0, update = nodeupdate)
-    llayer = bpy.props.FloatProperty(name = "", description = "Last layer thickness", min = 0.01, max = 3.0, default = 1.0, update = nodeupdate)
-    frlayer = bpy.props.FloatProperty(name = "", description = "First layer thickness", min = 0.01, max = 3.0, default = 1.0, update = nodeupdate)
-    fnlayer = bpy.props.FloatProperty(name = "", description = "First layer thickness", min = 0.01, max = 3.0, default = 1.0, update = nodeupdate)
-    olayer = bpy.props.FloatProperty(name = "", description = "Overall layer thickness", min = 0.01, max = 3.0, default = 1.0, update = nodeupdate)
-
+    expansion = bpy.props.FloatProperty(name = "", description = "Exapnsion ratio", min = 1.0, max = 10.0, default = 1.0, update = nodeupdate)
+    llayer = bpy.props.FloatProperty(name = "", description = "Last layer thickness", min = 0.01, max = 30.0, default = 1.0, update = nodeupdate)
+    frlayer = bpy.props.FloatProperty(name = "", description = "First layer thickness", min = 0.01, max = 30.0, default = 1.0, update = nodeupdate)
+    fnlayer = bpy.props.FloatProperty(name = "", description = "First layer thickness", min = 0.01, max = 30.0, default = 1.0, update = nodeupdate)
+    olayer = bpy.props.FloatProperty(name = "", description = "Overall layer thickness", min = 0.01, max = 30.0, default = 1.0, update = nodeupdate)
+    empties = bpy.props.EnumProperty(items = location, name = "", update = nodeupdate)
+    
     def init(self, context):
         self['exportstate'] = ''
         self['nodeid'] = nodeid(self)
@@ -1921,6 +1936,7 @@ class ViSHMExNode(bpy.types.Node, ViNodes):
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
+        newrow(layout, 'Meshing point:', self, 'empties')
         newrow(layout, 'Local cells:', self, 'lcells')
         newrow(layout, 'Global cells:', self, 'gcells')
         newrow(layout, 'Level:', self, 'level')
@@ -1928,10 +1944,11 @@ class ViSHMExNode(bpy.types.Node, ViNodes):
         newrow(layout, 'Min level:', self, 'surflmin')
         newrow(layout, 'CellsBL:', self, 'ncellsbl')
         newrow(layout, 'Layers:', self, 'layers')
+        
         if self.layers:
             newrow(layout, 'Layer spec:', self, 'layerspec')
             [newrow(layout, laytype[0], self, laytype[1]) for laytype in self.laytypedict[self.layerspec]]
-#                newrow(layout, laytype[0], self, laytype[1])
+
         row = layout.row()
         row.operator("node.snappy", text = "Export").nodeid = self['nodeid']
 
@@ -1953,29 +1970,36 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
     nut = bpy.props.StringProperty()
     nuTilda = bpy.props.StringProperty()
 
-    def nodeupdate(self, context):
-        context.scene['viparams']['fvsimnode'] = nodeid(self)
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.solver, self.dt, self.et, self.bouyancy, self.radiation, self.turbulence)])
+    def nodeupdate(self, context):        
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.solver, self.dt, self.et, self.buoyancy, self.radiation, self.turbulence)])
 
     solver = bpy.props.EnumProperty(items = [('simpleFoam', 'SimpleFoam', 'Steady state turbulence solver'),
+                                             ('buoyantSimpleFoam', 'buoyantSimpleFoam', 'Steady state turbulence solver with buoyancy'),
+                                             ('buoyantBoussinesqSimpleFoam', 'buoyantBoussinesqSimpleFoam', 'Steady state turbulence solver with Boussinesq buoyancy'),
                                               ('icoFoam', 'IcoFoam', 'Transient laminar solver'),
-                                               ('pimpleFoam', 'PimpleFoam', 'Transient turbulence solver') ], name = "", default = 'simpleFoam', update = nodeupdate)
+                                               ('pimpleFoam', 'PimpleFoam', 'Transient turbulence solver')], name = "", default = 'simpleFoam', update = nodeupdate)
     dt = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.001, max = 500, default = 50, update = nodeupdate)
     et = bpy.props.FloatProperty(name = "", description = "Simulation end time", min = 0.001, max = 5000, default = 500, update = nodeupdate)
     pval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = -500, max = 500, default = 0.0, update = nodeupdate)
+    pnormval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = -500, max = 500, default = 0.0, update = nodeupdate) 
+    pabsval = bpy.props.IntProperty(name = "", description = "Simulation delta T", min = 0, max = 10000000, default = 100000, update = nodeupdate) 
     uval = bpy.props.FloatVectorProperty(size = 3, name = '', attr = 'Velocity', default = [0, 0, 0], unit = 'VELOCITY', subtype = 'VELOCITY', min = -100, max = 100)
-    bouyancy =  bpy.props.BoolProperty(name = '', default = 0, update=nodeupdate)
+    buoyancy =  bpy.props.BoolProperty(name = '', default = 0, update=nodeupdate)
+    boussinesq =  bpy.props.BoolProperty(name = '', default = 0, update=nodeupdate)
     radiation =  bpy.props.BoolProperty(name = '', default = 0, update=nodeupdate)
     turbulence =  bpy.props.EnumProperty(items = [('laminar', 'Laminar', 'Steady state turbulence solver'),
                                               ('kEpsilon', 'k-Epsilon', 'Transient laminar solver'),
                                                ('kOmega', 'k-Omega', 'Transient turbulence solver'), ('SpalartAllmaras', 'Spalart-Allmaras', 'Spalart-Allmaras turbulence solver')], name = "", default = 'laminar', update = nodeupdate)
+    tval = bpy.props.FloatProperty(name = "K", description = "Field Temperature (K)", min = 0.0, max = 500, default = 293.14, update = nodeupdate)
     nutval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.0, max = 500, default = 0.0, update = nodeupdate)
     nutildaval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.0, max = 500, default = 0.0, update = nodeupdate)
     kval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.0, update = nodeupdate)
     epval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
     oval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
-    convergence = bpy.props.FloatProperty(name = "", description = "Convergence criteria", min = 0.0001, max = 0.01, default = 0.0001, update = nodeupdate)
-
+    convergence = bpy.props.FloatProperty(name = "", description = "Convergence criteria", precision = 6, min = 0.0001, max = 0.01, default = 0.0001, update = nodeupdate)
+    aval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
+    p_rghval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
+    
     def init(self, context):
         self['exportstate'] = ''
         self['nodeid'] = nodeid(self)
@@ -1986,12 +2010,14 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
         newrow(layout, 'Solver:', self, 'solver')
         newrow(layout, 'deltaT:', self, 'dt')
         newrow(layout, 'End time:', self, 'et')
-        newrow(layout, 'Pressure:', self, 'pval')
+        if self.solver in ('icoFoam', 'simpleFoam', 'buoyantBoussinesqSimpleFoam'):
+            newrow(layout, 'Pressure:', self, 'pnormval')
+        else:
+            newrow(layout, 'Pressure:', self, 'pabsval')
         newrow(layout, 'Velocity:', self, 'uval')
-        if self.solver in ('simpleFoam', 'pimpleFoam'):
+        
+        if self.solver != 'icoFoam':
             newrow(layout, 'Turbulence:', self, 'turbulence')
-            newrow(layout, 'Bouyancy:', self, 'bouyancy')
-            newrow(layout, 'Radiation:', self, 'radiation')
             if self.turbulence != 'laminar':
                 newrow(layout, 'nut value:', self, 'nutval')
                 if self.turbulence == 'SpalartAllmaras':
@@ -2002,16 +2028,30 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
                 elif self.turbulence == 'kOmega':
                     newrow(layout, 'k value:', self, 'kval')
                     newrow(layout, 'omega value:', self, 'oval')
+            
+#            newrow(layout, 'Buoyancy:', self, 'buoyancy')
+#            
+#            if self.buoyancy:
+#               newrow(layout, 'Boussinesq:', self, 'boussinesq')
+            
+            
+            if self.solver in ('buoyantSimpleFoam', 'buoyantBoussinesqSimpleFoam') or self.radiation:
+                newrow(layout, 'Temperature:', self, 'tval')
+                newrow(layout, 'alphat:', self, 'aval')
+                newrow(layout, 'p_rgh:', self, 'p_rghval')
+            newrow(layout, 'Radiation:', self, 'radiation')
+                
         newrow(layout, 'Convergence:', self, 'convergence')
 
         row = layout.row()
         row.operator("node.fvsolve", text = "Calculate").nodeid = self['nodeid']
 
     def update(self):
+        bpy.context.scene['viparams']['fvsimnode'] = nodeid(self)
         socklink(self.outputs['Mesh out'], self['nodeid'].split('@')[1])
 
     def export(self):
-        self.exportstate = [str(x) for x in (self.solver, self.dt, self.et, self.bouyancy, self.radiation, self.turbulence)]
+        self.exportstate = [str(x) for x in (self.solver, self.dt, self.et, self.buoyancy, self.radiation, self.turbulence)]
         nodecolour(self, 0)
         
 ####################### Vi Nodes Catagories ##############################
@@ -2692,9 +2732,9 @@ class EnViZone(bpy.types.Node, EnViNodes):
     bl_icon = 'SOUND'
 
     def zupdate(self, context):
+        self.afs = 0
         obj = bpy.data.objects[self.zone]
         odm = obj.data.materials
-#        self.zonevolume = objvol('', obj)
         bfacelist = sorted([face for face in obj.data.polygons if odm[face.material_index].envi_boundary == 1], key=lambda face: -face.center[2])
         buvals = [retuval(odm[face.material_index]) for face in bfacelist]
         bsocklist = ['{}_{}_b'.format(odm[face.material_index].name, face.index) for face in bfacelist]
@@ -2710,9 +2750,11 @@ class EnViZone(bpy.types.Node, EnViNodes):
             self.outputs.new('EnViBoundSocket', sock).sn = sock.split('_')[-2]
             self.inputs.new('EnViBoundSocket', sock).sn = sock.split('_')[-2]
         for sock in ssocklist:
+            self.afs += 1
             self.outputs.new('EnViSFlowSocket', sock).sn = sock.split('_')[-2]
             self.inputs.new('EnViSFlowSocket', sock).sn = sock.split('_')[-2]
         for sock in sssocklist:
+            self.afs += 1
             self.outputs.new('EnViSSFlowSocket', sock).sn = sock.split('_')[-2]
             self.inputs.new('EnViSSFlowSocket', sock).sn = sock.split('_')[-2]                
         for s, sock in enumerate(bsocklist):
@@ -2732,7 +2774,9 @@ class EnViZone(bpy.types.Node, EnViNodes):
     mvof = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 1)
     lowerlim = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 100)
     upperlim = bpy.props.FloatProperty(default = 50, name = "", min = 0, max = 100)
-
+    afs = bpy.props.IntProperty(default = 0, name = "")
+    alllinked = bpy.props.BoolProperty(default = 0, name = "")
+    
     def init(self, context):
         self['nodeid'] = nodeid(self)
         self['tsps'] = 1
@@ -2775,15 +2819,30 @@ class EnViZone(bpy.types.Node, EnViNodes):
         except Exception as e:
             print("Don't panic")
             
-        nodecolour(self, (self.control == 'Temperature' and not self.inputs['TSPSchedule'].is_linked) or not all((bi, si, ssi, bo, so, sso)))
-    
+#        nodecolour(self, (self.control == 'Temperature' and not self.inputs['TSPSchedule'].is_linked) or self.afs == 1 or not all((bi, si, ssi, bo, so, sso)))
+        self.alllinked = 1 if all((bi, si, ssi, bo, so, sso)) else 0
+        nodecolour(self, self.errorcode())
+        
     def uvsockupdate(self):
         for sock in self.outputs:
             socklink(sock, self['nodeid'].split('@')[1])
             if sock.bl_idname == 'EnViBoundSocket':
                 uvsocklink(sock, self['nodeid'].split('@')[1])
-                
+    
+    def errorcode(self):
+        if self.afs == 1:
+            return 'Too few air-flow surfaces'
+        if self.control == 'Temperature' and not self.inputs['TSPSchedule'].is_linked:
+            return 'TSPSchedule not linked'
+        elif self.alllinked == 0:
+            return 'Unlinked air-flow/boundary socket'
+        else:
+            return ''
+                    
     def draw_buttons(self, context, layout):
+        if self.errorcode():
+            row = layout.row()
+            row.label('Error - {}'.format(self.errorcode()))
         newrow(layout, 'Zone:', self, 'zone')
         yesno = (1, 1, self.control == 'Temperature', self.control == 'Temperature', self.control == 'Temperature')
 #        vals = (("Volume:", "zonevolume"), ("Control type:", "control"), ("Minimum OF:", "mvof"), ("Lower:", "lowerlim"), ("Upper:", "upperlim"))
@@ -3079,19 +3138,24 @@ class EnViSSFlowNode(bpy.types.Node, EnViNodes):
             for link in sock.links:
                 othersock = (link.from_socket, link.to_socket)[sock.is_output]
                 othernode = (link.from_node, link.to_node)[sock.is_output]
-
+                
                 if sock.bl_idname == 'EnViSSFlowSocket' and othernode.bl_idname == 'EnViZone':
-                    zn = othernode.zone
-                    sn = othersock.sn
-                    snames.append(('win-', 'door-')[bpy.data.materials[othersock.name[:-len(sn)-4]].envi_con_type == 'Door']+zn+'_'+sn)
-                    params = ('Surface Name', 'Leakage Component Name', 'External Node Name', 'Window/Door Opening Factor')
-                    paramvs = (snames[-1], '{}_{}'.format(self.name, self.linkmenu), en, self.wdof1)
-                    if self.linkmenu in ('SO', 'DO'):
-                        params += ('Ventilation Control Mode', 'Vent Temperature Schedule Name', 'Limit  Value on Multiplier for Modulating Venting Open Factor (dimensionless)', \
-                        'Lower Value on Inside/Outside Temperature Difference for Modulating the Venting Open Factor (deltaC)', 'Upper Value on Inside/Outside Temperature Difference for Modulating the Venting Open Factor (deltaC)',\
-                        'Lower Value on Inside/Outside Enthalpy Difference for Modulating the Venting Open Factor (J/kg)', 'Upper Value on Inside/Outside Enthalpy Difference for Modulating the Venting Open Factor (J/kg)', 'Venting Availability Schedule Name')
-                        paramvs += (self.controls if self.linkmenu in ('SO', 'DO', 'HO') else '', tspsname, '{:.2f}'.format(self.mvof), self.lvof, self.uvof, '', '', vasname)
-                    surfentry += epentry('AirflowNetwork:MultiZone:Surface', params, paramvs)
+                    # The conditional below checks if the airflow surface is also on a boundary. If so only the surface belonging to the outputting zone node is written.
+                    if (othersock.name[0:-2]+'b' in [s.name for s in othernode.outputs] and othernode.outputs[othersock.name[0:-2]+'b'].links) or othersock.name[0:-2]+'b' not in [s.name for s in othernode.outputs]:
+                        zn = othernode.zone
+                        sn = othersock.sn
+                        snames.append(('win-', 'door-')[bpy.data.materials[othersock.name[:-len(sn)-4]].envi_con_type == 'Door']+zn+'_'+sn)
+                        params = ('Surface Name', 'Leakage Component Name', 'External Node Name', 'Window/Door Opening Factor')
+                        paramvs = (snames[-1], '{}_{}'.format(self.name, self.linkmenu), en, self.wdof1)
+                        if self.linkmenu in ('SO', 'DO'):
+                            params += ('Ventilation Control Mode', 'Vent Temperature Schedule Name', 'Limit  Value on Multiplier for Modulating Venting Open Factor (dimensionless)', \
+                            'Lower Value on Inside/Outside Temperature Difference for Modulating the Venting Open Factor (deltaC)', 'Upper Value on Inside/Outside Temperature Difference for Modulating the Venting Open Factor (deltaC)',\
+                            'Lower Value on Inside/Outside Enthalpy Difference for Modulating the Venting Open Factor (J/kg)', 'Upper Value on Inside/Outside Enthalpy Difference for Modulating the Venting Open Factor (J/kg)', 'Venting Availability Schedule Name')
+                            paramvs += (self.controls, tspsname, '{:.2f}'.format(self.mvof), self.lvof, self.uvof, '', '', vasname)
+                        elif self.linkmenu =='HO':
+                            params += ('Ventilation Control Mode', 'Ventilation Control Zone Temperature Setpoint Schedule Name')
+                            paramvs += (self.controls, '')
+                        surfentry += epentry('AirflowNetwork:MultiZone:Surface', params, paramvs)
         self['sname'] = snames
         self.legal()
         return surfentry + cfentry
@@ -3195,12 +3259,14 @@ class EnViSFlowNode(bpy.types.Node, EnViNodes):
                 othersock = (link.from_socket, link.to_socket)[sock.is_output]
                 othernode = (link.from_node, link.to_node)[sock.is_output]
                 if sock.bl_idname == 'EnViSFlowSocket' and othernode.bl_idname == 'EnViZone':
-                    sn = othersock.sn
-                    zn = othernode.zone
-                    snames.append(zn+'_'+sn)
-                    params = ('Surface Name', 'Leakage Component Name', 'External Node Name', 'Window/Door Opening Factor, or Crack Factor (dimensionless)')
-                    paramvs = (snames[-1], '{}_{}'.format(self.name, self.linkmenu), en, '{:.5f}'.format(self.of))
-                    surfentry += epentry('AirflowNetwork:MultiZone:Surface', params, paramvs)
+                    # The conditional below checks if the airflow surface is also on a boundary. If so only the surface belonging to the outputting zone node is written.
+                    if (othersock.name[0:-1]+'b' in [s.name for s in othernode.outputs] and othernode.outputs[othersock.name[0:-1]+'b'].links) or othersock.name[0:-1]+'b' not in [s.name for s in othernode.outputs]:
+                        sn = othersock.sn
+                        zn = othernode.zone
+                        snames.append(zn+'_'+sn)
+                        params = ('Surface Name', 'Leakage Component Name', 'External Node Name', 'Window/Door Opening Factor, or Crack Factor (dimensionless)')
+                        paramvs = (snames[-1], '{}_{}'.format(self.name, self.linkmenu), en, '{:.5f}'.format(self.of))
+                        surfentry += epentry('AirflowNetwork:MultiZone:Surface', params, paramvs)
 
         self['sname'] = snames
         self.legal()
@@ -3392,20 +3458,21 @@ class EnViProgNode(bpy.types.Node, EnViNodes):
         nodecolour(self, not all([sock.links for sock in self.outputs]))
 
     def epwrite(self):
-        sentries = ''
+        sentries, aentries = '', ''
+        
         for slink in self.outputs['Sensor'].links:
             snode = slink.to_node
             sparams = ('Name', 'Output:Variable or Output:Meter Index Key Name', 'EnergyManagementSystem:Sensor')
+            
             if snode.bl_idname == 'EnViEMSZone':
                 sparamvs = ('{}_{}'.format(snode.emszone, snode.sensordict[snode.sensortype][0]), '{}'.format(snode.emszone), snode.sensordict[snode.sensortype][1])
-#                sentries += epentry('EnergyManagementSystem:Sensor', sparams, sparamvs)
+
             elif snode.bl_label == 'EnViOcc':
                 for zlink in snode.outputs['Occupancy'].links:
                     znode = zlink.to_node
                     sparamvs = ('{}_{}'.format(znode.zone, snode.sensordict[snode.sensortype][0]), '{}'.format(znode.zone), snode.sensordict[snode.sensortype][1])
             sentries += epentry('EnergyManagementSystem:Sensor', sparams, sparamvs)
 
-        aentries = ''
         for alink in self.outputs['Actuator'].links:
             anode, asocket = alink.to_node, alink.to_socket
             aparams = ('Name', 'Actuated Component Unique Name', 'Actuated Component Type', 'Actuated Component Control Type')

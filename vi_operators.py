@@ -19,7 +19,7 @@
 import bpy, datetime, mathutils, os, bmesh, shutil, sys, math, shlex, psutil
 from os import rename
 import numpy
-from numpy import arange, histogram, array, int8, float16, float64
+from numpy import arange, histogram, array, int8, float16
 import bpy_extras.io_utils as io_utils
 from subprocess import Popen, PIPE, call
 from collections import OrderedDict
@@ -32,9 +32,9 @@ from .livi_calc  import li_calc
 from .vi_display import li_display, linumdisplay, spnumdisplay, en_air, wr_legend, wr_disp, wr_scatter, wr_table, ss_disp, ss_legend, svf_disp, svf_legend, basic_legend, basic_table, basic_disp, ss_scatter, en_disp, en_pdisp, en_scatter, en_table, en_barchart, comp_table, comp_disp, leed_scatter, cbdm_disp, cbdm_scatter, envals, bsdf, bsdf_disp#, en_barchart, li3D_legend
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
-from .vi_func import selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum
-from .vi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, sunposenvi, clearlayers
-from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, chunks, xy2radial, logentry, sunpath, radpoints
+from .vi_func import selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum, leg_min_max
+from .flovi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite
+from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, chunks, xy2radial, logentry, sunpath, radpoints, sunposenvi, clearlayers
 from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
 from .vi_chart import chart_disp
 
@@ -441,16 +441,16 @@ class NODE_OT_MtxSelect(NODE_OT_FileSelect):
     fextlist = ("MTX", "mtx")
     nodeid = bpy.props.StringProperty()
 
-class NODE_OT_EpwSelect(bpy.types.Operator, io_utils.ImportHelper):
-    bl_idname = "node.epwselect"
-    bl_label = "Select EPW file"
-    bl_description = "Select the EnergyPlus weather file"
-    filename_ext = ".HDR;.hdr;.epw;.EPW;"
-    filter_glob = bpy.props.StringProperty(default="*.HDR;*.hdr;*.epw;*.EPW;", options={'HIDDEN'})
-    nodeprop = 'epwname'
-    filepath = bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
-    fextlist = ("epw", "EPW", "HDR", "hdr")
-    nodeid = bpy.props.StringProperty()
+#class NODE_OT_EpwSelect(bpy.types.Operator, io_utils.ImportHelper):
+#    bl_idname = "node.epwselect"
+#    bl_label = "Select EPW file"
+#    bl_description = "Select the EnergyPlus weather file"
+#    filename_ext = ".HDR;.hdr;.epw;.EPW;"
+#    filter_glob = bpy.props.StringProperty(default="*.HDR;*.hdr;*.epw;*.EPW;", options={'HIDDEN'})
+#    nodeprop = 'epwname'
+#    filepath = bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+#    fextlist = ("epw", "EPW", "HDR", "hdr")
+#    nodeid = bpy.props.StringProperty()
 
 class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
     bl_idname = "node.liexport"
@@ -459,7 +459,6 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
     bl_register = True
     bl_undo = False
     nodeid = bpy.props.StringProperty()
-#    expcontextdict = {'Basic': 'LiVi Basic', 'Complaince': 'LiVi Compliance', '2': 'LiVi CBDM'}
 
     def invoke(self, context, event):
         scene = context.scene
@@ -469,13 +468,11 @@ class NODE_OT_LiExport(bpy.types.Operator, io_utils.ExportHelper):
         scene['viparams']['vidisp'] = ''
         scene['viparams']['viexpcontext'] = 'LiVi {}'.format(node.contextmenu)
         scene['viparams']['connode'] = self.nodeid
-              
-        if bpy.data.filepath:
-            objmode()
-            node.preexport()
-            node.export(scene, self)
+        objmode()
+        node.preexport()
+        if not node.export(scene, self):
             node.postexport()
-            return {'FINISHED'}
+        return {'FINISHED'}
 
 class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
     bl_idname = "node.radpreview"
@@ -1040,13 +1037,8 @@ class IES_Select(bpy.types.Operator, io_utils.ImportHelper):
 
     def execute(self, context):
         lamp = bpy.context.active_object
-#        if " " not in self.filepath:
         lamp['ies_name'] = self.filepath
         return {'FINISHED'}
-#        else:
-#            self.report({'ERROR'}, "There is a space either in the IES filename or directory location. Rename or move the file.")
-#            lamp['ies_name'] = self.filepath
-#            return {'CANCELLED'}
 
     def invoke(self,context,event):
         context.window_manager.fileselect_add(self)
@@ -1170,13 +1162,14 @@ class NODE_OT_CSVExport(bpy.types.Operator, io_utils.ExportHelper):
     def execute(self, context):
         node = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         resstring = ''
-        resnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]].inputs['Results in'].links[0].from_node
+        resnode = node.inputs['Results in'].links[0].from_node
         rl = resnode['reslists']
         zrl = list(zip(*rl))
 
         if len(set(zrl[0])) > 1 and node.animated:
             resstring = ''.join(['{} {},'.format(r[2], r[3]) for r in rl if r[0] == 'All']) + '\n'
             metriclist = list(zip(*[r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] == 'All']))
+            print([r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] == 'All'])
         else:
             resstring = ''.join(['{} {} {},'.format(r[0], r[2], r[3]) for r in rl if r[0] != 'All']) + '\n'
             metriclist = list(zip(*[r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] != 'All']))
@@ -1294,8 +1287,10 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
             scene.frame_set(frame)
             shutil.copyfile(locnode.weather, os.path.join(scene['viparams']['newdir'], "in{}.epw".format(frame)))
         scene.frame_set(node.fs)
-        shutil.copyfile(os.path.join(os.path.dirname(os.path.abspath(os.path.realpath( __file__ ))), "EPFiles", "Energy+.idd"), os.path.join(scene['viparams']['newdir'], "Energy+.idd"))
-
+        addonfolder = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
+        vi_prefs = bpy.context.user_preferences.addons['{}'.format(addonfolder)].preferences
+        try:    shutil.copyfile(os.path.join(vi_prefs.epbin, "Energy+.idd"), os.path.join(scene['viparams']['newdir'], "Energy+.idd"))
+        except: pass
         if bpy.context.active_object and not bpy.context.active_object.hide:
             if bpy.context.active_object.type == 'MESH':
                 bpy.ops.object.mode_set(mode = 'OBJECT')
@@ -2074,6 +2069,8 @@ class VIEW3D_OT_SPNumDisplay(bpy.types.Operator):
     def invoke(self, context, event):
         scene = context.scene
         simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]
+        if simnode.suns != '0':
+            scene.timedisp = 0
         self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(spnumdisplay, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
         context.window_manager.modal_handler_add(self)
         scene.vi_display = 1
@@ -2345,14 +2342,16 @@ class VIEW3D_OT_WRDisplay(bpy.types.Operator):
     
 class NODE_OT_SVF(bpy.types.Operator):
     bl_idname = "node.svf"
-    bl_label = "Shadow Study"
+    bl_label = "Sky View Factor"
     bl_description = "Undertake a sky view factor study"
     bl_register = True
     bl_undo = False
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        scene = context.scene        
+        scene = context.scene  
+        scene.vi_display = 0
+        
         if viparams(self, scene):            
             return {'CANCELLED'}
 
@@ -2370,8 +2369,10 @@ class NODE_OT_SVF(bpy.types.Operator):
         clearscene(scene, self)
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         scene['viparams']['visimcontext'] = 'SVF'
+
         if not scene.get('liparams'):
            scene['liparams'] = {}
+           
         scene['liparams']['cp'], scene['liparams']['unit'], scene['liparams']['type'] = simnode.cpoint, '% Sunlit', 'VI Shadow'
         simnode.preexport()
         (scene['liparams']['fs'], scene['liparams']['fe']) = (scene.frame_current, scene.frame_current) if simnode.animmenu == 'Static' else (simnode.startframe, simnode.endframe)
@@ -2409,6 +2410,7 @@ class NODE_OT_SVF(bpy.types.Operator):
         for oi, o in enumerate([scene.objects[on] for on in scene['liparams']['shadc']]):
             for k in o.keys():
                 del o[k]
+                
             o['omin'], o['omax'], o['oave'] = {}, {}, {}
             bm = bmesh.new()
             bm.from_mesh(o.data)
@@ -2476,7 +2478,6 @@ class NODE_OT_SVF(bpy.types.Operator):
             kivyrun.kill()
         
         scene.frame_start, scene.frame_end = scene['liparams']['fs'], scene['liparams']['fe']
-        scene.vi_display = 1
         scene['viparams']['vidisp'] = 'svf'
         simnode['reslists'] = reslists
         simnode['frames'] = [f for f in frange]
@@ -2485,14 +2486,16 @@ class NODE_OT_SVF(bpy.types.Operator):
 
 class NODE_OT_Shadow(bpy.types.Operator):
     bl_idname = "node.shad"
-    bl_label = "Shadow Study"
-    bl_description = "Undertake a shadow study"
+    bl_label = "Shadow Map"
+    bl_description = "Undertake a shadow mapping"
     bl_register = True
     bl_undo = False
     nodeid = bpy.props.StringProperty()
 
     def invoke(self, context, event):
-        scene = context.scene        
+        scene = context.scene     
+        scene.vi_display = 0
+        
         if viparams(self, scene):            
             return {'CANCELLED'}
 
@@ -2507,7 +2510,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             return {'CANCELLED'}
 
         scene['viparams']['restree'] = self.nodeid.split('@')[1]
-        scene['viparams']['vidisp'] = 'ss'
+        
         clearscene(scene, self)
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         scene['viparams']['visimcontext'] = 'Shadow'
@@ -2540,12 +2543,18 @@ class NODE_OT_Shadow(bpy.types.Operator):
         curres, reslists = 0, []
         pfile = progressfile(scene, datetime.datetime.now(), calcsteps)
         kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'Shadow Map')
+        logentry('Conducting shadow map calculation with {} samples per hour for {} total hours and {} available sun hours'.format(simnode.interval, int(len(direcs)/simnode.interval), lvaldirecs))
+        # Below uses the new string literal formatting in python 3.6
+#        logentry(f'Conducting shadow map calculation with {simnode.interval} samples per hour for {int(len(direcs)/simnode.interval)} total hours and {lvaldirecs} available sun hours')
         
         for oi, o in enumerate([scene.objects[on] for on in scene['liparams']['shadc']]):
             for k in o.keys():
                 del o[k]
             o['omin'], o['omax'], o['oave'] = {}, {}, {}
-            o['days'] = arange(simnode.sdoy, simnode.edoy + 1, dtype = float)
+            if simnode.sdoy <= simnode.edoy:
+                o['days'] = arange(simnode.sdoy, simnode.edoy + 1, dtype = float)
+            else:
+                o['days'] = arange(simnode.sdoy, simnode.edoy + 1, dtype = float)
             o['hours'] = arange(simnode.starthour, simnode.endhour + 1, 1/simnode.interval, dtype = float)
             bm = bmesh.new()
             bm.from_mesh(o.data)
@@ -2555,6 +2564,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
             geom.layers.int.new('cindex')
             cindex = geom.layers.int['cindex']
             [geom.layers.float.new('res{}'.format(fi)) for fi in frange]
+            [geom.layers.float.new('hourres{}'.format(fi)) for fi in frange]
             avres, minres, maxres, g = [], [], [], 0
             
             if simnode.cpoint == '0':
@@ -2570,6 +2580,8 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 scene.frame_set(frame)
                 shadtree = rettree(scene, shadobs, ('', '2')[simnode.signore])
                 shadres = geom.layers.float['res{}'.format(frame)]
+                # Could put an hour calculator in here
+#                hourres = geom.layers.float['hourres{}'.format(frame)]
                                     
                 if gpoints:
                     posis = [gp.calc_center_bounds() + gp.normal.normalized() * simnode.offset for gp in gpoints] if simnode.cpoint == '0' else [gp.co + gp.normal.normalized() * simnode.offset for gp in gpoints]
@@ -2583,6 +2595,8 @@ class NODE_OT_Shadow(bpy.types.Operator):
                             pointres = array([(0, 1)[shadtree.ray_cast(posis[g], direc)[3] == None and direc[2] > 0] for direc in direcs], dtype = int8)
                             numpy.putmask(allpoints[g], pointres == 1, pointres)
                             gp[shadres] = (100 * (numpy.sum(pointres)/lvaldirecs)).astype(float16)
+                            #Hour calculator
+#                            gp[hourres] = gp[shadres] * 0.01 * lvaldirecs
                             g += 1
 
                         curres += len(chunk)
@@ -2616,11 +2630,11 @@ class NODE_OT_Shadow(bpy.types.Operator):
             kivyrun.kill()
         
         scene.frame_start, scene.frame_end = scene['liparams']['fs'], scene['liparams']['fe']
-        scene.vi_display = 1
         simnode['reslists'] = reslists
         simnode['frames'] = [f for f in frange]
         simnode['year'] = 2015
         simnode.postexport(scene)
+        scene['viparams']['vidisp'] = 'ss'
         return {'FINISHED'}
     
 class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
@@ -2631,20 +2645,22 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
     bl_register = True
     bl_undo = False
 
-    def modal(self, context, event): 
-        redraw = 0         
-        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':            
-            if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'svfpanel' or not [o.lires for o in bpy.data.objects]:
-                bpy.types.SpaceView3D.draw_handler_remove(self._handle_svf_disp, 'WINDOW')
-                bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
-                context.area.tag_redraw()
-                context.scene['viparams']['vidisp'] = 'svf'
-                return {'CANCELLED'}
+    def modal(self, context, event):         
+        redraw = 0  
+        
+        if self.scene.vi_display == 0 or self.scene['viparams']['vidisp'] != 'svfpanel' or not [o.lires for o in bpy.data.objects]:
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle_svf_disp, 'WINDOW')
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
+            context.area.tag_redraw()
+            self.scene['viparams']['vidisp'] = 'svf'
+            return {'CANCELLED'}
             
+        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':  
             mx, my = event.mouse_region_x, event.mouse_region_y 
             
-            if any((context.scene.vi_leg_col != self.legend.col, context.scene.vi_leg_scale != self.legend.scale, self.legend.maxres != context.scene.vi_leg_max, self.legend.minres != context.scene.vi_leg_min)):               
+            if any((self.scene.vi_leg_col != self.legend.col, self.scene.vi_leg_scale != self.legend.scale, (self.legend.minres, self.legend.maxres) != leg_min_max(self.scene))):               
                 self.legend.update(context)
+                redraw = 1
             
             # Legend routine 
             
@@ -2715,17 +2731,17 @@ class VIEW3D_OT_SVFDisplay(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def invoke(self, context, event):
-        scene = context.scene
+        self.scene = context.scene
         try:
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_svf_disp, 'WINDOW')
         except:
             pass
-        clearscene(scene, self)
-        scene['viparams']['vidisp'] = 'svfpanel'
-        self.simnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]
+        clearscene(self.scene, self)
+        self.scene['viparams']['vidisp'] = 'svfpanel'
+        self.simnode = bpy.data.node_groups[self.scene['viparams']['restree']].nodes[self.scene['viparams']['resnode']]
         li_display(self, self.simnode)
-        scene.vi_disp_wire, scene.vi_display = 1, 1
+        self.scene.vi_disp_wire, self.scene.vi_display = 1, 1
         lnd = linumdisplay(self, context, self.simnode)
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(lnd.draw, (context, ), 'WINDOW', 'POST_PIXEL')
         self.legend = svf_legend([80, context.region.height - 40], context.region.width, context.region.height, 'legend.png', 150, 600)
@@ -2743,19 +2759,21 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
     bl_undo = False
 
     def modal(self, context, event):  
-        redraw = 0         
-        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':            
-            if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'sspanel' or not [o.lires for o in bpy.data.objects]:
-                bpy.types.SpaceView3D.draw_handler_remove(self._handle_ss_disp, 'WINDOW')
-                bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
-                context.area.tag_redraw()
-                context.scene['viparams']['vidisp'] = 'ss'
-                return {'CANCELLED'}
-            
+        redraw = 0 
+        
+        if self.scene.vi_display == 0 or self.scene['viparams']['vidisp'] != 'sspanel' or not [o.lires for o in bpy.data.objects]:
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle_ss_disp, 'WINDOW')
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
+            context.area.tag_redraw()
+            self.scene['viparams']['vidisp'] = 'ss'
+            return {'CANCELLED'}        
+        
+        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':                    
             mx, my = event.mouse_region_x, event.mouse_region_y 
             
-            if any((context.scene.vi_leg_col != self.legend.col, context.scene.vi_leg_scale != self.legend.scale, self.legend.maxres != context.scene.vi_leg_max, self.legend.minres != context.scene.vi_leg_min)):               
+            if any((self.scene.vi_leg_col != self.legend.col, self.scene.vi_leg_scale != self.legend.scale, (self.legend.minres, self.legend.maxres) != leg_min_max(self.scene))):               
                 self.legend.update(context)
+                redraw = 1
             
             # Legend routine 
             
@@ -2845,7 +2863,7 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
 
             # Update routine
                 
-            if self.dhscatter.frame != context.scene.frame_current or self.dhscatter.cao != context.active_object or self.dhscatter.col != context.scene.vi_leg_col:
+            if self.dhscatter.frame != self.scene.frame_current or self.dhscatter.cao != context.active_object or self.dhscatter.col != self.scene.vi_leg_col:
                 self.dhscatter.update(context)
                 redraw = 1
                          
@@ -2891,18 +2909,20 @@ class VIEW3D_OT_SSDisplay(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def invoke(self, context, event):
-        scene = context.scene
+        self.scene = context.scene
+        
         try:
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_ss_disp, 'WINDOW')
         except:
             pass
-        clearscene(scene, self)
-        scene.vi_display = 1
-        scene['viparams']['vidisp'] = 'sspanel'
-        self.simnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]
+        
+        clearscene(self.scene, self)
+        self.scene.vi_display = 1
+        self.scene['viparams']['vidisp'] = 'sspanel'
+        self.simnode = bpy.data.node_groups[self.scene['viparams']['restree']].nodes[self.scene['viparams']['resnode']]
         li_display(self, self.simnode)
-        scene.vi_disp_wire, scene.vi_display = 1, 1
+        self.scene.vi_disp_wire, self.scene.vi_display = 1, 1
         lnd = linumdisplay(self, context, self.simnode)
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(lnd.draw, (context, ), 'WINDOW', 'POST_PIXEL')
         self.legend = ss_legend([80, context.region.height - 40], context.region.width, context.region.height, 'legend.png', 150, 600)
@@ -2921,21 +2941,24 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
     bl_register = True
     bl_undo = False
 
-    def modal(self, context, event):   
+    def modal(self, context, event): 
+#        scene = context.scene
         redraw = 0 
-        if context.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'lipanel' or not any([o.lires for o in bpy.data.objects]):
-            context.scene.vi_display = 0
+        
+        if self.scene.vi_display == 0 or context.scene['viparams']['vidisp'] != 'lipanel' or not any([o.lires for o in bpy.data.objects]):
+            self.scene.vi_display = 0
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_disp, 'WINDOW')
             bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
-            context.scene['viparams']['vidisp'] = 'li'
+            self.scene['viparams']['vidisp'] = 'li'
             context.area.tag_redraw()
             return {'CANCELLED'}
 
-        if context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':            
+        if event.type != 'INBETWEEN_MOUSEMOVE' and context.region and context.area.type == 'VIEW_3D' and context.region.type == 'WINDOW':            
             mx, my = event.mouse_region_x, event.mouse_region_y 
             
-            if any((context.scene.vi_leg_col != self.legend.col, context.scene.vi_leg_scale != self.legend.scale, self.legend.maxres != context.scene.vi_leg_max, self.legend.minres != context.scene.vi_leg_min)):               
+            if any((self.scene.vi_leg_col != self.legend.col, self.scene.vi_leg_scale != self.legend.scale, (self.legend.minres, self.legend.maxres) != leg_min_max(self.scene))):               
                 self.legend.update(context)
+                redraw = 1
             
             # Legend routine 
             
@@ -2959,7 +2982,7 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
                 elif event.type == 'ESC':
                     bpy.types.SpaceView3D.draw_handler_remove(self._handle_disp, 'WINDOW')
                     bpy.types.SpaceView3D.draw_handler_remove(self._handle_pointres, 'WINDOW')
-                    context.scene['viparams']['vidisp'] = 'li'
+                    self.scene['viparams']['vidisp'] = 'li'
                     context.area.tag_redraw()
                     return {'CANCELLED'}
                     
@@ -3079,8 +3102,7 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
                     if (self.dhscatter.vmin, self.dhscatter.vmax) != (context.scene.vi_scatter_min, context.scene.vi_scatter_max):
                        self.dhscatter.update(context) 
                        redraw = 1
-                        
-                
+                                        
                 if self.dhscatter.spos[0] < mx < self.dhscatter.epos[0] and self.dhscatter.spos[1] < my < self.dhscatter.epos[1]:
                     if self.dhscatter.hl != (0, 1, 1, 1):
                         self.dhscatter.hl = (0, 1, 1, 1)
@@ -3194,15 +3216,15 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
         return {'PASS_THROUGH'}
 
     def invoke(self, context, event):
-        scene = context.scene
-        clearscene(scene, self)
-        scene.vi_display = 1
-        scene['viparams']['vidisp'] = 'lipanel'
-        self.simnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]
-        self.frame = context.scene.frame_current
+        self.scene = context.scene
+        clearscene(self.scene, self)
+        self.scene.vi_display = 1
+        self.scene['viparams']['vidisp'] = 'lipanel'
+        self.simnode = bpy.data.node_groups[self.scene['viparams']['restree']].nodes[self.scene['viparams']['resnode']]
+        self.frame = self.scene.frame_current
         if li_display(self, self.simnode) == 'CANCELLED':
             return {'CANCELLED'}
-        scene.vi_disp_wire, scene.vi_display = 1, 1
+        self.scene.vi_disp_wire, self.scene.vi_display = 1, 1
         lnd = linumdisplay(self, context, self.simnode)
         self._handle_pointres = bpy.types.SpaceView3D.draw_handler_add(lnd.draw, (context, ), 'WINDOW', 'POST_PIXEL')
         self.legend = basic_legend([80, context.region.height - 40], context.region.width, context.region.height, 'legend.png', 150, 600)
@@ -3211,7 +3233,7 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
 #        if scene['viparams']['visimcontext'] == 'LiVi Basic':
         self.table = basic_table([240, context.region.height - 40], context.region.width, context.region.height, 'table.png', 600, 100)  
         self.table.update(context)
-        if scene['viparams']['visimcontext'] == 'LiVi Compliance':
+        if self.scene['viparams']['visimcontext'] == 'LiVi Compliance':
             self.tablecomp = comp_table([300, context.region.height - 40], context.region.width, context.region.height, 'compliance.png', 600, 200)
             self.tablecomp.update(context)
             if self.simnode['coptions']['canalysis'] == '3':
@@ -3222,11 +3244,11 @@ class VIEW3D_OT_LiViBasicDisplay(bpy.types.Operator):
 #        self.dhscatter.update(context)
         
 #        self._handle_spnum = bpy.types.SpaceView3D.draw_handler_add(viwr_legend, (self, context, simnode), 'WINDOW', 'POST_PIXEL')
-        elif scene['viparams']['visimcontext'] == 'LiVi Basic':
+        elif self.scene['viparams']['visimcontext'] == 'LiVi Basic':
             self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(basic_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
-#        if scene['viparams']['visimcontext'] == 'LiVi Compliance':
+#        if self.scene['viparams']['visimcontext'] == 'LiVi Compliance':
 #            self._handle_disp = bpy.types.SpaceView3D.draw_handler_add(comp_disp, (self, context, self.simnode), 'WINDOW', 'POST_PIXEL')
-        elif scene['viparams']['visimcontext'] == 'LiVi CBDM':
+        elif self.scene['viparams']['visimcontext'] == 'LiVi CBDM':
             if self.simnode['coptions']['cbanalysis'] != '0':
                 self.dhscatter = cbdm_scatter([160, context.region.height - 40], context.region.width, context.region.height, 'scat.png', 600, 400)
                 self.dhscatter.update(context)
@@ -3252,8 +3274,8 @@ class NODE_OT_Blockmesh(bpy.types.Operator):
         if viparams(self, scene):
             return {'CANCELLED'}        
         if len(bmos) != 1:
-            ({'ERROR'},"One and only one object with the CFD Domain property is allowed")
-            return {'ERROR'}
+            self.report({'ERROR'},"One and only one object with the CFD Domain property is allowed")
+            return {'CANCELLED'}
         with open(os.path.join(scene['flparams']['ofsfilebase'], 'controlDict'), 'w') as cdfile:
             cdfile.write(fvcdwrite("simpleFoam", 0.005, 5))
         with open(os.path.join(scene['flparams']['ofsfilebase'], 'fvSolution'), 'w') as fvsolfile:
@@ -3291,22 +3313,24 @@ class NODE_OT_Snappymesh(bpy.types.Operator):
 
         expnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         fvos = [o for o in scene.objects if o.vi_type == '3']
+        
         if fvos:
-            selobj(scene, fvos[0])
+#            selobj(scene, fvos[0])
             bmos = [o for o in scene.objects if o.vi_type == '2']
 #                bpy.ops.export_mesh.stl(filepath=os.path.join(scene['flparams']['ofctsfilebase'], '{}.obj'.format(o.name)), check_existing=False, filter_glob="*.stl", axis_forward='Y', axis_up='Z', global_scale=1.0, use_scene_unit=True, ascii=False, use_mesh_modifiers=True)
-            fvobjwrite(scene, fvos[0], bmos[0])
+            fvobjwrite(scene, fvos, bmos[0])
 #            bpy.ops.export_scene.obj(check_existing=True, filepath=os.path.join(scene['flparams']['ofctsfilebase'], '{}.obj'.format(fvos[0].name)), axis_forward='Y', axis_up='Z', filter_glob="*.obj;*.mtl", use_selection=True, use_animation=False, use_mesh_modifiers=True, use_edges=True, use_smooth_groups=False, use_smooth_groups_bitflags=False, use_normals=False, use_uvs=True, use_materials=True, use_triangles=True, use_nurbs=False, use_vertex_groups=False, use_blen_objects=True, group_by_object=False, group_by_material=True, keep_vertex_order=False, global_scale=1.0, path_mode='AUTO')
             gmats = [mat for mat in fvos[0].data.materials if mat.flovi_ground]
 #            if gmats:
             with open(os.path.join(scene['flparams']['ofsfilebase'], 'snappyHexMeshDict'), 'w') as shmfile:
-                shmfile.write(fvshmwrite(expnode, fvos[0], ground = gmats))
+                shmfile.write(fvshmwrite(expnode, fvos, ground = gmats))
             with open(os.path.join(scene['flparams']['ofsfilebase'], 'meshQualityDict'), 'w') as mqfile:
                 mqfile.write(fvmqwrite())
             with open(os.path.join(scene['flparams']['ofsfilebase'], 'surfaceFeatureExtractDict'), 'w') as sfefile:
-                sfefile.write(fvsfewrite(fvos[0].name))
+                sfefile.write(fvsfewrite(fvos))
         call(('surfaceFeatureExtract', "-case", "{}".format(scene['flparams']['offilebase'])))
         call(('snappyHexMesh', "-overwrite", "-case", "{}".format(scene['flparams']['offilebase'])))
+        
         for mat in fvos[0].data.materials:
 #            mat.name = '{}_{}'.format(fvos[0].name, mat.name)
             mats.append(mat)
@@ -3329,6 +3353,7 @@ class NODE_OT_FVSolve(bpy.types.Operator):
         scene = context.scene
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         bmos = [o for o in scene.objects if o.vi_type in ('2', '3')]
+        
         with open(os.path.join(scene['flparams']['ofsfilebase'], 'controlDict'), 'w') as cdfile:
             cdfile.write(fvcdwrite(simnode.solver, simnode.dt, simnode.et))
         fvvarwrite(scene, bmos, simnode)
@@ -3339,8 +3364,15 @@ class NODE_OT_FVSolve(bpy.types.Operator):
         with open(os.path.join(scene['flparams']['ofcfilebase'], 'transportProperties'), 'w') as fvtppfile:
             fvtppfile.write(fvtppwrite(simnode.solver))
         if simnode.solver != 'icoFoam':
-            with open(os.path.join(scene['flparams']['ofcfilebase'], 'RASProperties'), 'w') as fvrasfile:
+            with open(os.path.join(scene['flparams']['ofcfilebase'], 'turbulenceProperties'), 'w') as fvrasfile:
                 fvrasfile.write(fvraswrite(simnode.turbulence))
+            if simnode.buoyancy:
+                with open(os.path.join(scene['flparams']['ofcfilebase'], 'g'), 'w') as fvgrafile:
+                    fvgrafile.write(fvgrawrite())
+            if simnode.radiation:
+                with open(os.path.join(scene['flparams']['ofcfilebase'], 'radiationProperties'), 'w') as fvradfile:
+                    fvradfile.write(fvradrite())
+            
         call((simnode.solver, "-case", "{}".format(scene['flparams']['offilebase'])))
         Popen(("paraFoam", "-case", "{}".format(scene['flparams']['offilebase'])))
         simnode.export()

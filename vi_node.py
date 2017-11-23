@@ -17,10 +17,11 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, glob, os, inspect, datetime, shutil, time
+import bpy, glob, os, inspect, datetime, shutil, time, math, mathutils
 from nodeitems_utils import NodeCategory, NodeItem
+from subprocess import Popen
 from .vi_func import socklink, uvsocklink, newrow, epwlatilongi, nodeid, nodeinputs, remlink, rettimes, sockhide, selobj, cbdmhdr, cbdmmtx
-from .vi_func import hdrsky, nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, sunposlivi, retdates, validradparams
+from .vi_func import hdrsky, nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, sunposlivi, retdates, validradparams, retpmap
 from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite
 from .livi_export import sunexport, skyexport, hdrexport
 from .envi_mat import retuval
@@ -103,11 +104,11 @@ class ViLoc(bpy.types.Node, ViNodes):
         except:
             return [('None', 'None','None' )]
                   
-    weather = bpy.props.EnumProperty(name = 'Weather file', items=retentries, update=updatelatlong)
-    loc = bpy.props.EnumProperty(items = [("0", "Manual", "Manual location"), ("1", "EPW ", "Get location from EPW file")], name = "", description = "Location", default = "0", update = updatelatlong)
+    weather = bpy.props.EnumProperty(name='Weather file', items=retentries, update=updatelatlong)
+    loc = bpy.props.EnumProperty(items=[("0", "Manual", "Manual location"), ("1", "EPW ", "Get location from EPW file")], name = "", description = "Location", default = "0", update = updatelatlong)
     maxws = bpy.props.FloatProperty(name="", description="Max wind speed", min=0, max=90, default=0)
     minws = bpy.props.FloatProperty(name="", description="Min wind speed", min=0, max=90, default=0)
-    avws = bpy.props.FloatProperty(name="", description="Average wind speed", min=0, max=90, default=0)
+    avws = bpy.props.FloatProperty(name="", description="Average wind speed", min=0, max=0, default=0)
     dsdoy = bpy.props.IntProperty(name="", description="", min=1, max=365, default=1)
     dedoy = bpy.props.IntProperty(name="", description="", min=1, max=365, default=365)
 
@@ -565,10 +566,18 @@ class ViLiINode(bpy.types.Node, ViNodes):
     bl_icon = 'LAMP'
     
     def nodeupdate(self, context):
+        self["_RNA_UI"] = {"Processors": {"min": 1, "max": int(context.scene['viparams']['nproc']), "name": ""}}
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.cusacc, self.simacc, self.pmap, self.x, self.y, self.run, self.illu)])
+        context.scene.camera = bpy.data.objects[self.camera]
+        
         if self.simacc == '3':
             self.validparams = validradparams(self.cusacc)
-    
+            
+#    def pupdate(self, context):
+#        self["_RNA_UI"] = {"procs": {"max": int(context.scene['viparams']['nproc'])}}
+    startframe = bpy.props.IntProperty(name = '', default = 0)
+    endframe = bpy.props.IntProperty(name = '', default = 0)
+    x = bpy.props.IntProperty(name = '', min = 1, max = 10000, default = 2000, update = nodeupdate)
     cusacc = bpy.props.StringProperty(
             name="", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
     simacc = bpy.props.EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),("3", "Custom", "Edit Radiance parameters"), ],
@@ -583,7 +592,20 @@ class ViLiINode(bpy.types.Node, ViNodes):
     run = bpy.props.BoolProperty(name = '', default = False, update = nodeupdate) 
     illu = bpy.props.BoolProperty(name = '', default = True, update = nodeupdate)
     validparams = bpy.props.BoolProperty(name = '', default = True)
+    mp = bpy.props.BoolProperty(name = '', default = False, update = nodeupdate)
+    camera = bpy.props.StringProperty(description="Textfile to show", update = nodeupdate)
+    fisheye = bpy.props.BoolProperty(name = '', default = 0, update = nodeupdate)
+    fov = bpy.props.FloatProperty(name = '', default = 180, min = 1, max = 180, update = nodeupdate)
+    processes = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 50, update = nodeupdate)
     
+    def retframes(self):
+        try:
+            return min([c['fs'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])]),\
+                    max([c['fe'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])])
+            
+        except:
+            return 0, 0
+            
     def init(self, context):
         self['exportstate'] = ''
         self['nodeid'] = nodeid(self)
@@ -591,42 +613,101 @@ class ViLiINode(bpy.types.Node, ViNodes):
         self.inputs.new('ViLiC', 'Context in')
         self.outputs.new('ViLiI', 'Image')
         self.hdrname = '//image.hdr'
+        self['Processors'] = 1
         
     def draw_buttons(self, context, layout):
-        row = layout.row()
-        row.prop(self, 'hdrname')        
-        newrow(layout, 'Illuminance:', self, 'illu')
-        newrow(layout, 'Accuracy:', self, 'simacc')
-        if self.simacc == '3':
-            newrow(layout, "Radiance parameters:", self, 'cusacc')
-        newrow(layout, 'Photon map:', self, 'pmap')
-        if self.pmap:
-           newrow(layout, 'Global photons:', self, 'pmapgno')
-           newrow(layout, 'Caustic photons:', self, 'pmapcno')
-        if not self.run and all([sock.links for sock in self.inputs]):    
+        if self.camera and all([sock.links for sock in self.inputs]):
+            sf, ef = self.retframes()
+            row = layout.row()
+            row.label(text = 'Frames: {} - {}'.format(sf, ef))
+#            row.label(text = 'Frames: {} - {}'.format(min([c['fs'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])]),
+#                      max([c['fe'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])])))
+            layout.prop_search(self, 'camera', bpy.data, 'cameras', text='Camera*', icon='NONE')
+#            row = layout.row()
+#            row.prop(self, 'hdrname')        
+            newrow(layout, 'Illuminance*:', self, 'illu')
+            newrow(layout, 'Fisheye*:', self, 'fisheye')
+
+            if self.fisheye:
+                newrow(layout, 'FoV*:', self, 'fov')
+            newrow(layout, 'Multi-thread:', self, 'mp')
+
+            if self.mp:
+                row = layout.row()
+                row.prop(self, '["Processors"]')
+                newrow(layout, 'Processes:', self, 'processes')
+            newrow(layout, 'Accuracy:', self, 'simacc')
+
+            if self.simacc == '3':
+                newrow(layout, "Radiance parameters:", self, 'cusacc')
+            newrow(layout, 'Photon map*:', self, 'pmap')
+
+            if self.pmap:
+               newrow(layout, 'Global photons*:', self, 'pmapgno')
+               newrow(layout, 'Caustic photons*:', self, 'pmapcno')
+
+                
             if self.simacc != '3' or (self.simacc == '3' and self.validparams):
                 row = layout.row()
                 row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']  
-            newrow(layout, 'X resolution:', self, 'x')
-            newrow(layout, 'Y resolution:', self, 'y')
+            newrow(layout, 'X resolution*:', self, 'x')
+            newrow(layout, 'Y resolution*:', self, 'y')
             
-            if self.simacc != '3' or (self.simacc == '3' and self.validparams):
+            if self.simacc != '3' or (self.simacc == '3' and self.validparams) and not self.run:
                 row = layout.row()
                 row.operator("node.radimage", text = 'Image').nodeid = self['nodeid']
         
     def update(self):
+#        self.nodeupdate()
+#        self.startframe = min([c['fs'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])]) 
+#        self.endframe = max([c['fe'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])])
         self.run = 0
         
-    def presim(self):
+    def presim(self, scene):
+        pmaps = []
+        sf, ef, = self.retframes()
+        self['frames'] = range(sf, ef + 1)
+        self['viewparams'] = {str(f): {} for f in self['frames']}
+        self['pmparams'] = {str(f): {} for f in self['frames']}
+        self['pmaps'], self['pmapgnos'], self['pmapcnos'] = {}, {}, {}
         self['coptions'] = self.inputs['Context in'].links[0].from_node['Options']
         self['goptions'] = self.inputs['Geometry in'].links[0].from_node['Options']
         self['radfiles'], self['reslists'] = {}, [[]]
         self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rpictparams], [n[int(self.simacc)+1] for n in self.rpictparams]))
-    
-    def sim(self, scene):
-        self['frames'] = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
         
-    def postsim(self):
+        for frame in self['frames']:
+            scene.frame_set(frame)
+            scene.camera = bpy.data.objects[self.camera]
+            cam = bpy.data.objects[self.camera]
+            cang = cam.data.angle*180/math.pi if not self.fisheye else self.fov
+            vv = cang * self.y/self.x
+            vd = (0.001, 0, -1*cam.matrix_world[2][2]) if (round(-1*cam.matrix_world[0][2], 3), round(-1*cam.matrix_world[1][2], 3)) == (0.0, 0.0) else [-1*cam.matrix_world[i][2] for i in range(3)]
+   #         self['pmaps'][str(frame)] = self.pmap
+            pmaps.append(self.pmap)
+            self['pmapgnos'][str(frame)] = self.pmapgno
+            self['pmapcnos'][str(frame)] = self.pmapcno
+            self['pmparams'][str(frame)]['amentry'], self['pmparams'][str(frame)]['pportentry'], self['pmparams'][str(frame)]['cpentry'], self['pmparams'][str(frame)]['cpfileentry'] = retpmap(self, frame, scene)
+                
+            if self.fisheye and self.fov == 180:
+                self['viewparams'][str(frame)]['-vth'] = ''
+                
+            (self['viewparams'][str(frame)]['-vh'], self['viewparams'][str(frame)]['-vv']) = (self.fov, self.fov) if self.fisheye else (cang, vv)
+            self['viewparams'][str(frame)]['-vd'] = ' '.join(['{:.3f}'.format(v) for v in vd])
+            self['viewparams'][str(frame)]['-x'], self['viewparams'][str(frame)]['-y'] = self.x, self.y
+            self['viewparams'][str(frame)]['-X'], self['viewparams'][str(frame)]['-Y'] = ((1, self.processes)[self.mp], 1)
+            self['viewparams'][str(frame)]['-vp'] = '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f}'.format(cam.location)
+            self['viewparams'][str(frame)]['-vu'] = '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f}'.format(cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)))
+            
+            if self.illu:
+                self['viewparams'][str(frame)]['-i'] = ''
+        self['pmaps'] = pmaps
+        
+    def sim(self):
+        self.run = 0
+#        self['frames'] = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
+        
+    def postsim(self, images):
+        self['images'] = images
         self.run = 0
         self['exportstate'] = [str(x) for x in (self.cusacc, self.simacc, self.pmap, self.x, self.y, self.run, self.illu)]
         nodecolour(self, 0)   
@@ -668,6 +749,7 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
                 
     def draw_buttons(self, context, layout):
         if self.inputs['Image'].links and self.inputs['Image'].links[0].from_node.hdrname and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node.hdrname)):
+            
             newrow(layout, 'Unit:', self, 'unit')
             newrow(layout, 'Colour:', self, 'colour')
             newrow(layout, 'Legend:', self, 'legend')
@@ -698,7 +780,47 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
         self['exportstate'] = [str(x) for x in (self.hdrname, self.colour, self.lmax, self.unit, self.nscale, self.decades, 
                    self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands)]
         nodecolour(self, 0)
-            
+
+class ViLiGLNode(bpy.types.Node, ViNodes):
+    '''Node describing a LiVi glare analysis'''
+    bl_idname = 'ViLiGLNode'
+    bl_label = 'LiVi Glare analysis'
+    bl_icon = 'LAMP'  
+
+    def nodeupdate(self, context):
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.hdrname)])
+
+    hdrname = bpy.props.StringProperty(name="", description="Name of the Glare image", default="vi-suite.hdr", update = nodeupdate)    
+    gc = bpy.props.FloatVectorProperty(size = 3, name = '', attr = 'Color', default = [1, 0, 0], subtype = 'COLOR', update = nodeupdate)
+    rand = bpy.props.BoolProperty(name = '', default = True, update = nodeupdate)
+
+    def init(self, context):
+        self['exportstate'] = ''
+        self['nodeid'] = nodeid(self)
+        self.inputs.new('ViLiI', 'Image')
+#        self.hdrname = '//fc.hdr'
+                
+    def draw_buttons(self, context, layout):
+#        if self.inputs['Image'].links and self.inputs['Image'].links[0].from_node.hdrname and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node.hdrname)):
+        newrow(layout, 'Random:', self, 'rand')
+        if not self.rand:
+            newrow(layout, 'Colour:', self, 'gc')
+        row = layout.row()
+        row.operator("node.liviglare2", text = 'Glare').nodeid = self['nodeid']
+    
+    def presim(self):
+        self['images'] = self.inputs['Image'].links[0].from_node['images']
+
+    def sim(self):
+        for im in self['images']:
+            with open(im+'glare', 'w') as glfile:
+                Popen('evalglare {}'.format(im), stdout = glfile)
+
+    def postsim(self):
+        self['exportstate'] = [str(x) for x in (self.hdrname, self.colour, self.lmax, self.unit, self.nscale, self.decades, 
+                   self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands)]
+        nodecolour(self, 0)
+        
 class ViLiSNode(bpy.types.Node, ViNodes):
     '''Node describing a LiVi simulation'''
     bl_idname = 'ViLiSNode'
@@ -791,9 +913,11 @@ class ViSPNode(bpy.types.Node, ViNodes):
     bl_icon = 'LAMP'
     
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.suns)])
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.suns, self.th, self.res)])
     
     suns = bpy.props.EnumProperty(items = [('0', 'Single', 'Single sun'), ('1', 'Monthly', 'Monthly sun for chosen time'), ('2', 'Hourly', 'Hourly sun for chosen date')], name = '', description = 'Sunpath sun type', default = '0', update=nodeupdate)
+    th = bpy.props.FloatProperty(name="", description="Line thickness", min=0.1, max=1, default=0.15, update = nodeupdate)
+    res = bpy.props.FloatProperty(name="", description="Calc point offset", min=1, max=10, default=6, update = nodeupdate)
 
     def init(self, context):
         self['nodeid'] = nodeid(self)
@@ -804,6 +928,8 @@ class ViSPNode(bpy.types.Node, ViNodes):
     def draw_buttons(self, context, layout):
         if self.inputs['Location in'].links:
             newrow(layout, 'Suns:', self, 'suns')
+            newrow(layout, 'Thickness:', self, 'th')
+#            newrow(layout, 'Resolution:', self, 'res')
             row = layout.row()
             row.operator("node.sunpath", text="Create Sun Path").nodeid = self['nodeid']
 
@@ -2067,11 +2193,12 @@ vinodecat = [NodeItem("ViSPNode", label="VI-Suite Sun Path"), NodeItem("ViSSNode
 vigennodecat = [NodeItem("ViGenNode", label="VI-Suite Generative"), NodeItem("ViTarNode", label="VI-Suite Target")]
 
 vidisnodecat = [NodeItem("ViChNode", label="VI-Suite Chart")]
-vioutnodecat = [NodeItem("ViCSV", label="VI-Suite CSV"), NodeItem("ViText", label="VI-Suite Text"), NodeItem("ViLiINode", label="LiVi Image"), NodeItem("ViLiFCNode", label="LiVi FC Image")]
+vioutnodecat = [NodeItem("ViCSV", label="VI-Suite CSV"), NodeItem("ViText", label="VI-Suite Text")]
+viimnodecat = [NodeItem("ViLiINode", label="LiVi Image"), NodeItem("ViLiFCNode", label="LiVi FC Image"), NodeItem("ViLiGLNode", label="LiVi Glare Image")]
 viinnodecat = [NodeItem("ViLoc", label="VI Location"), NodeItem("ViEnInNode", label="EnergyPlus Input File"), NodeItem("ViEnRFNode", label="EnergyPlus Result File"), 
                NodeItem("ViASCImport", label="Import ESRI Grid file")]
 
-vinode_categories = [ViNodeCategory("Output", "Output Nodes", items=vioutnodecat), ViNodeCategory("Edit", "Edit Nodes", items=vifilenodecat), ViNodeCategory("Display", "Display Nodes", items=vidisnodecat), ViNodeCategory("Generative", "Generative Nodes", items=vigennodecat), ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat), ViNodeCategory("Process", "Process Nodes", items=viexnodecat), ViNodeCategory("Input", "Input Nodes", items=viinnodecat)]
+vinode_categories = [ViNodeCategory("Output", "Output Nodes", items=vioutnodecat), ViNodeCategory("Edit", "Edit Nodes", items=vifilenodecat), ViNodeCategory("Image", "Image Nodes", items=viimnodecat), ViNodeCategory("Display", "Display Nodes", items=vidisnodecat), ViNodeCategory("Generative", "Generative Nodes", items=vigennodecat), ViNodeCategory("Analysis", "Analysis Nodes", items=vinodecat), ViNodeCategory("Process", "Process Nodes", items=viexnodecat), ViNodeCategory("Input", "Input Nodes", items=viinnodecat)]
 
 
 ####################### EnVi ventilation network ##############################

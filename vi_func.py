@@ -524,11 +524,11 @@ def rettree(scene, obs, ignore):
     return tree
     
 class progressfile(): 
-    def __init__(self, scene, starttime, calcsteps):
+    def __init__(self, folder, starttime, calcsteps):
         self.starttime = starttime
         self.calcsteps = calcsteps
-        self.scene = scene
-        self.pfile = os.path.join(self.scene['viparams']['newdir'], 'viprogress')
+        self.folder = folder
+        self.pfile = os.path.join(folder, 'viprogress')
 
         with open(self.pfile, 'w') as pfile:
             pfile.write('STARTING')
@@ -538,7 +538,7 @@ class progressfile():
             if 'CANCELLED' in pfile.read():
                 return 'CANCELLED'
                 
-        with open(os.path.join(self.scene['viparams']['newdir'], 'viprogress'), 'w') as pfile:
+        with open(self.pfile, 'w') as pfile:
             if curres:
                 dt = (datetime.datetime.now() - self.starttime) * (self.calcsteps - curres)/curres
                 pfile.write('{} {}'.format(int(100 * curres/self.calcsteps), datetime.timedelta(seconds = dt.seconds)))
@@ -1935,8 +1935,8 @@ def compass(loc, scale, wro, mat):
     
     for i in range(1, 11):
         bmesh.ops.create_circle(bm, cap_ends=False, diameter=scale*((i**2)/10)*0.1, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')*Matrix.Translation((0, 0, 0)))
-    bmesh.ops.create_circle(bm, cap_ends=False, diameter=scale*1.075, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')*Matrix.Translation((0, 0, 0)))
-    bmesh.ops.create_circle(bm, cap_ends=False, diameter=scale*1.175, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')*Matrix.Translation((0, 0, 0)))
+#    bmesh.ops.create_circle(bm, cap_ends=False, diameter=scale*1.075, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')*Matrix.Translation((0, 0, 0)))
+#    bmesh.ops.create_circle(bm, cap_ends=False, diameter=scale*1.175, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')*Matrix.Translation((0, 0, 0)))
     
     for edge in bm.edges:
         edge.select_set(False) if edge.index % 3 or edge.index > 1187 else edge.select_set(True)
@@ -1944,7 +1944,7 @@ def compass(loc, scale, wro, mat):
     bmesh.ops.delete(bm, geom = [edge for edge in bm.edges if edge.select], context = 2)
     newgeo = bmesh.ops.extrude_edge_only(bm, edges = bm.edges, use_select_history=False)
     
-    for v, vert in enumerate(newgeo['geom'][:1584]):
+    for v, vert in enumerate(newgeo['geom'][:1320]):
         vert.co = vert.co - (vert.co - coo.location).normalized() * scale * (0.0025, 0.005)[v > 1187]
         vert.co[2] = 0
            

@@ -1053,7 +1053,6 @@ class svf_legend(Base_Display):
         self.cao = context.active_object        
         self.cols = retcols(context.scene, 20)
         (self.minres, self.maxres) = leg_min_max(scene)
-        print(self.minres, self.maxres)
         self.col, self.scale = scene.vi_leg_col, scene.vi_leg_scale
         dplaces = retdp(self.maxres, 1)
         resdiff = self.maxres - self.minres
@@ -1069,7 +1068,7 @@ class svf_legend(Base_Display):
         
     def drawopen(self, context):
         scene = context.scene
-        draw_legend(self, context.scene, 'Sky View' if not scene.vi_leg_unit else scene.vi_leg_unit)
+        draw_legend(self, scene, 'Sky View' if not scene.vi_leg_unit else scene.vi_leg_unit)
     
 class basic_legend(Base_Display):
     def __init__(self, pos, width, height, iname, xdiff, ydiff):
@@ -1095,7 +1094,7 @@ class basic_legend(Base_Display):
         
     def drawopen(self, context):
         scene = context.scene
-        draw_legend(self, context.scene, context.scene['liparams']['unit'] if not scene.vi_leg_unit else scene.vi_leg_unit)
+        draw_legend(self, scene, scene['liparams']['unit'] if not scene.vi_leg_unit else scene.vi_leg_unit)
     
 def ss_disp(self, context, simnode):
     try:

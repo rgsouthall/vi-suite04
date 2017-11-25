@@ -44,7 +44,7 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
             if simnode.pmap:
                 pmappfile = open(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'w')
                 pmappfile.close()
-                pfile = progressfile(scene, datetime.datetime.now(), 100)
+                pfile = progressfile(scene['viparams']['newdir'], datetime.datetime.now(), 100)
                 kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'Photon map')
                 errdict = {'fatal - too many prepasses, no global photons stored\n': "Too many prepasses have ocurred. Make sure light sources can see your geometry",
                 'fatal - too many prepasses, no global photons stored, no caustic photons stored\n': "Too many prepasses have ocurred. Turn off caustic photons and encompass the scene",
@@ -98,7 +98,7 @@ def li_calc(calc_op, simnode, simacc, **kwargs):
         return 'CANCELLED'
         
     calcsteps = sum(tpoints) * len(frames)
-    pfile = progressfile(scene, datetime.datetime.now(), calcsteps)
+    pfile = progressfile(scene['viparams']['newdir'], datetime.datetime.now(), calcsteps)
     kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'Lighting')
     reslists = []
     obs = [scene.objects[on] for on in scene['liparams']['livic']]

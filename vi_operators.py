@@ -509,7 +509,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
             return {'CANCELLED'}
         objmode()
         self.simnode, frame = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]], scene.frame_current
-        self.simnode.presim()
+        self.simnode.presim(scene)
         scene['liparams']['fs'] = min([c['fs'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
         scene['liparams']['fe'] = max([c['fe'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
 
@@ -600,22 +600,22 @@ class NODE_OT_RadImage(bpy.types.Operator):
         if self.pfile.check(self.percent) == 'CANCELLED':                                    
             return {self.terminate()}
         
-        while sum([pm.poll() is None for pm in self.pmruns]) < self.processors and self.p < self.frames - 1:
+        while sum([pm.poll() is None for pm in self.pmruns]) < self.processors and self.p < self.frames:
             if self.pmaps[self.p]:
                 self.pmruns.append(Popen(self.pmcmds[self.p].split(), stderr = PIPE))
             self.p += 1
-            
-#        if any([pm.poll() is None for pm in self.pmruns]):
-#            return {'PASS_THROUGH'}
-        
-        if all([pm.poll() is not None for pm in self.pmruns]) and sum(self.pmaps) == self.p + 1 and not self.rpruns:  
+
+        if all([pm.poll() is not None for pm in self.pmruns]) and sum(self.pmaps) == self.p and not self.rpruns:  
             self.pmfin = 1
-            self.kivyrun.kill()
+            
+            if len(self.pmruns):
+                self.kivyrun.kill()
 
         if self.pmfin:   
             if len(self.rpruns) == 0:
                 self.pfile = progressfile(self.folder, datetime.datetime.now(), 100)
-                self.kivyrun = progressbar(os.path.join(self.folder, 'viprogress'), 'Radiance Image')
+                if len(self.pmruns):
+                    self.kivyrun = progressbar(os.path.join(self.folder, 'viprogress'), 'Radiance Image')
             
             if self.mp:
                 while self.xindex < self.processes and sum([rp.poll() is None for rp in self.rpruns]) < self.processors and self.frame <= self.fe:
@@ -624,7 +624,7 @@ class NODE_OT_RadImage(bpy.types.Operator):
                     if self.xindex == 0:
                         if os.path.isfile("{}-{}.hdr".format(os.path.join(self.folder, 'images', 'image'), self.frame)):
                             os.remove("{}-{}.hdr".format(os.path.join(self.folder, 'images', 'image'), self.frame))
-                        logentry('hi rpiece command: {}'.format(self.rpiececmds[self.frame - self.fs]))
+                        logentry('rpiece command: {}'.format(self.rpiececmds[self.frame - self.fs]))
                     self.xindex += 1
                 
                 if self.xindex == self.processes:   
@@ -634,8 +634,9 @@ class NODE_OT_RadImage(bpy.types.Operator):
                     self.images.append(os.path.join(self.folder, 'images', 'image-{}.hdr'.format(self.frameold)))
                     self.frameold = self.frame
             else:
-                while sum([rp.poll() is None for rp in self.rpruns]) == 0:
-                    self.rpruns.append(Popen(self.rpictcmds[self.frame - self.fs].split(), stderr = PIPE)) 
+                while sum([rp.poll() is None for rp in self.rpruns]) == 0 and len(self.rpruns) < self.frames:
+                    with open("{}-{}.hdr".format(os.path.join(self.folder, 'images', 'image'), self.frame), 'w') as imfile:
+                        self.rpruns.append(Popen(self.rpictcmds[self.frame - self.fs].split(), stdout=imfile, stderr = PIPE))
                             
         if event.type == 'TIMER':            
 #            if self.rprun.poll() is not None: # If finished
@@ -653,7 +654,7 @@ class NODE_OT_RadImage(bpy.types.Operator):
                                 
             elif os.path.isfile(self.pmfile) and not self.rpruns:
                 if sum(self.pmaps) == 1:
-                     with open('{}.pmapmon'.format(self.fb), 'r') as vip:
+                     with open(self.pmfile, 'r') as vip:
                         for line in vip.readlines()[::-1]:
                             if '% after' in line:
                                 self.percent = [float(ls[:-2]) for ls in line.split() if '%' in ls][0]
@@ -676,7 +677,8 @@ class NODE_OT_RadImage(bpy.types.Operator):
                             self.simnode.run = 0
                             return {'CANCELLED'}
                         
-                bpy.data.images['liviimage'].reload()
+                if self.xindex > self.processors:
+                    self.imupdate(f)
                 return {self.terminate()}
 
             elif self.pmfin and self.mp:
@@ -697,6 +699,9 @@ class NODE_OT_RadImage(bpy.types.Operator):
             return {'PASS_THROUGH'}
     
     def imupdate(self, f):
+        if 'liviimage' not in bpy.data.images:
+            im = bpy.data.images.load("{}-{}.hdr".format(os.path.join(self.folder, 'images', 'image'), self.frame))
+            im.name = 'liviimage'
         bpy.data.images['liviimage'].filepath = "{}-{}.hdr".format(os.path.join(self.folder, 'images', 'image'), f)
         bpy.data.images['liviimage'].reload()
 
@@ -790,13 +795,13 @@ class NODE_OT_RadImage(bpy.types.Operator):
 #                if self.kivyrun.poll() is None:
 #                    self.kivyrun.kill()
 #
-            self.rpictcmds = ["rpict -t 10 -e {} ".format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams.items()]) + self.rppmcmds[frame - self.fs] + self.radparams + "{0}-{1}.oct".format(scene['viparams']['filebase'], frame) for frame in range(self.fs, self.fe + 1)]
+            self.rpictcmds = ["rpict -t 10 -e {} ".format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + "{0}-{1}.oct".format(scene['viparams']['filebase'], frame, os.path.join(scene['viparams']['newdir'], 'images', 'image')) for frame in range(self.fs, self.fe + 1)]
             self.rpiececmds = ["rpiece -t 10 -e {} ".format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + "-o {2}-{1}.hdr {0}-{1}.oct".format(scene['viparams']['filebase'], frame, os.path.join(scene['viparams']['newdir'], 'images', 'image')) for frame in range(self.fs, self.fe + 1)]
 #                
 ##            logentry('rpict command: {}'.format(rpictcmd))
             self.starttime = datetime.datetime.now()
             self.pfile = progressfile(self.folder, datetime.datetime.now(), 100)
-            (self.pmfin, flag) = (0, 'Photon Maps') if self.pmaps else (1, 'Radiance Images')
+            (self.pmfin, flag) = (0, 'Photon Maps') if sum(self.pmaps) else (1, 'Radiance Images')
             self.kivyrun = progressbar(os.path.join(self.folder, 'viprogress'), flag)
 #            
 #            if not self.mp:
@@ -817,11 +822,13 @@ class NODE_OT_RadImage(bpy.types.Operator):
             self._timer = wm.event_timer_add(2, context.window)
             wm.modal_handler_add(self)
             
-            if 'liviimage' not in bpy.data.images:
-                im = bpy.data.images.load("{}-{}.hdr".format(os.path.join(self.folder, 'images', 'image'), self.frame))
-                im.name = 'liviimage'
-            else:
-                bpy.data.images['liviimage'].filepath = "{}-{}.hdr".format(os.path.join(self.folder, 'images', 'image'), self.frame)
+#            if 'liviimage' not in bpy.data.images:
+##                im = bpy.data.images.load("{}-{}.hdr".format(os.path.join(self.folder, 'images', 'image'), self.frame))
+#                im = bpy.data.images.new('liviimage', width = 1000, height = 1000)
+#                im.filepath = ("{}-{}.hdr".format(os.path.join(self.folder, 'images', 'image'), self.frame))
+##                im.name = 'liviimage'
+#            else:
+#                bpy.data.images['liviimage'].filepath = "{}-{}.hdr".format(os.path.join(self.folder, 'images', 'image'), self.frame)
                 
             return {'RUNNING_MODAL'}
         else:
@@ -2061,6 +2068,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
             bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=12, size=1)
             sunob = context.active_object
             sunob.location, sunob.cycles_visibility.shadow, sunob.name, sunob['VIType'] = (0, 0, 0), 0, "SunMesh{}".format(s), "SunMesh"
+            sunob.cycles_visibility.diffuse, sunob.cycles_visibility.shadow, sunob.cycles_visibility.glossy, sunob.cycles_visibility.transmission, sunob.cycles_visibility.scatter = [False] * 5
 
             if len(sunob.material_slots) == 0:
                  bpy.ops.object.material_slot_add()
@@ -2133,7 +2141,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
         spro = spathrange([bpy.data.materials['SumAng'], bpy.data.materials['EquAng'], bpy.data.materials['WinAng']])
         objoin([compassos] + [spro] + [spathob])
 
-        for ob in (spathob, sunob, smesh):
+        for ob in (spathob, smesh):
             ob.cycles_visibility.diffuse, ob.cycles_visibility.shadow, ob.cycles_visibility.glossy, ob.cycles_visibility.transmission, ob.cycles_visibility.scatter = [False] * 5
             ob.show_transparent = True
 

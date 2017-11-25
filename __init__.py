@@ -57,13 +57,23 @@ from bpy.types import AddonPreferences
 def return_preferences():
     return bpy.context.user_preferences.addons[__name__].preferences
 
+def abspath(self, context):
+    if self.radbin != bpy.path.abspath(self.radbin):
+        self.radbin = bpy.path.abspath(self.radbin)
+    if self.radlib != bpy.path.abspath(self.radlib):
+        self.radlib = bpy.path.abspath(self.radlib)
+    if self.epbin != bpy.path.abspath(self.epbin):
+        self.epbin = bpy.path.abspath(self.epbin)
+    if self.epweath != bpy.path.abspath(self.epweath):
+        self.epweath = bpy.path.abspath(self.epweath)
+
 class VIPreferences(AddonPreferences):
     bl_idname = __name__
     
-    radbin = StringProperty(name = '', description = 'Radiance binary directory location', default = '', subtype='DIR_PATH')
-    radlib = StringProperty(name = '', description = 'Radiance library directory location', default = '', subtype='DIR_PATH')
-    epbin = StringProperty(name = '', description = 'EnergyPlus binary directory location', default = '', subtype='DIR_PATH')
-    epweath = StringProperty(name = '', description = 'EnergyPlus weather directory location', default = '', subtype='DIR_PATH')
+    radbin = StringProperty(name = '', description = 'Radiance binary directory location', default = '', subtype='DIR_PATH', update=abspath)
+    radlib = StringProperty(name = '', description = 'Radiance library directory location', default = '', subtype='DIR_PATH', update=abspath)
+    epbin = StringProperty(name = '', description = 'EnergyPlus binary directory location', default = '', subtype='DIR_PATH', update=abspath)
+    epweath = StringProperty(name = '', description = 'EnergyPlus weather directory location', default = '', subtype='DIR_PATH', update=abspath)
 
     def draw(self, context):
         layout = self.layout       
@@ -150,11 +160,13 @@ addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe
 def path_update():
     evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
     vi_prefs = bpy.context.user_preferences.addons[__name__].preferences
-    epdir = os.path.abspath(vi_prefs.epbin) if vi_prefs and vi_prefs.epbin and os.path.isdir(os.path.abspath(vi_prefs.epbin)) else os.path.join('{}'.format(addonpath), 'EPFiles')
-    radldir = bpy.path.abspath(vi_prefs.radlib) if vi_prefs and os.path.isdir(bpy.path.abspath(vi_prefs.radlib)) else os.path.join('{}'.format(addonpath), 'Radfiles', 'lib')
-    radbdir = bpy.path.abspath(vi_prefs.radbin) if vi_prefs and os.path.isdir(bpy.path.abspath(vi_prefs.radbin)) else os.path.join('{}'.format(addonpath), 'Radfiles', 'bin') 
+#    vi_prefs = bpy.context.user_preferences.addons.get('vi-suite').preferences
+#    print(vi_prefs.preferences)
+    epdir = vi_prefs.epbin if vi_prefs and vi_prefs.epbin and os.path.isdir(vi_prefs.epbin) else os.path.join('{}'.format(addonpath), 'EPFiles')
+    radldir = vi_prefs.radlib if vi_prefs and os.path.isdir(vi_prefs.radlib) else os.path.join('{}'.format(addonpath), 'Radfiles', 'lib')
+    radbdir = vi_prefs.radbin if vi_prefs and os.path.isdir(vi_prefs.radbin) else os.path.join('{}'.format(addonpath), 'Radfiles', 'bin') 
     os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], os.path.dirname(bpy.app.binary_path))
-
+    
     if not os.environ.get('RAYPATH') or radldir not in os.environ['RAYPATH'] or radbdir not in os.environ['PATH']  or epdir not in os.environ['PATH']:
         if vi_prefs and os.path.isdir(vi_prefs.radlib):
             os.environ["RAYPATH"] = '{0}{1}{2}'.format(radldir, evsep[str(sys.platform)], os.path.join(addonpath, 'Radfiles', 'lib'))

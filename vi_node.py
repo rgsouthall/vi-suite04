@@ -47,7 +47,7 @@ class ViLoc(bpy.types.Node, ViNodes):
     def updatelatlong(self, context):
         context.space_data.edit_tree == ''
 #        print(bpy.types.NodeTree.get_from_context(context))
-        print(self.id_data)
+#        print(self.id_data)
         scene = context.scene
         nodecolour(self, self.ready())
         reslists = []
@@ -70,7 +70,7 @@ class ViLoc(bpy.types.Node, ViNodes):
                             break
             self['entries'] = entries if entries else [('None', 'None', 'None')]
             
-            if self.weather:            
+            if os.path.isfile(self.weather):            
                 with open(self.weather, 'r') as epwfile:                
                     self['frames'] = ['0']
                     epwlines = epwfile.readlines()[8:]
@@ -568,7 +568,8 @@ class ViLiINode(bpy.types.Node, ViNodes):
     def nodeupdate(self, context):
         self["_RNA_UI"] = {"Processors": {"min": 1, "max": int(context.scene['viparams']['nproc']), "name": ""}}
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.cusacc, self.simacc, self.pmap, self.x, self.y, self.run, self.illu)])
-        context.scene.camera = bpy.data.objects[self.camera]
+        if bpy.data.objects.get(self.camera):
+            context.scene.camera = bpy.data.objects[self.camera]
         
         if self.simacc == '3':
             self.validparams = validradparams(self.cusacc)
@@ -589,7 +590,7 @@ class ViLiINode(bpy.types.Node, ViNodes):
     x = bpy.props.IntProperty(name = '', min = 1, max = 10000, default = 2000, update = nodeupdate)
     y = bpy.props.IntProperty(name = '', min = 1, max = 10000, default = 1000, update = nodeupdate)
     hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="", subtype="FILE_PATH", update = nodeupdate)
-    run = bpy.props.BoolProperty(name = '', default = False, update = nodeupdate) 
+    run = bpy.props.BoolProperty(name = '', default = False) 
     illu = bpy.props.BoolProperty(name = '', default = True, update = nodeupdate)
     validparams = bpy.props.BoolProperty(name = '', default = True)
     mp = bpy.props.BoolProperty(name = '', default = False, update = nodeupdate)
@@ -616,37 +617,37 @@ class ViLiINode(bpy.types.Node, ViNodes):
         self['Processors'] = 1
         
     def draw_buttons(self, context, layout):
-        if self.camera and all([sock.links for sock in self.inputs]):
-            sf, ef = self.retframes()
-            row = layout.row()
-            row.label(text = 'Frames: {} - {}'.format(sf, ef))
+        
+        sf, ef = self.retframes()
+        row = layout.row()
+        row.label(text = 'Frames: {} - {}'.format(sf, ef))
 #            row.label(text = 'Frames: {} - {}'.format(min([c['fs'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])]),
 #                      max([c['fe'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])])))
-            layout.prop_search(self, 'camera', bpy.data, 'cameras', text='Camera*', icon='NONE')
+        layout.prop_search(self, 'camera', bpy.data, 'cameras', text='Camera*', icon='NONE')
 #            row = layout.row()
 #            row.prop(self, 'hdrname')        
-            newrow(layout, 'Illuminance*:', self, 'illu')
-            newrow(layout, 'Fisheye*:', self, 'fisheye')
+        newrow(layout, 'Illuminance*:', self, 'illu')
+        newrow(layout, 'Fisheye*:', self, 'fisheye')
 
-            if self.fisheye:
-                newrow(layout, 'FoV*:', self, 'fov')
-            newrow(layout, 'Multi-thread:', self, 'mp')
+        if self.fisheye:
+            newrow(layout, 'FoV*:', self, 'fov')
+        newrow(layout, 'Multi-thread:', self, 'mp')
 
-            if self.mp:
-                row = layout.row()
-                row.prop(self, '["Processors"]')
-                newrow(layout, 'Processes:', self, 'processes')
-            newrow(layout, 'Accuracy:', self, 'simacc')
+        if self.mp:
+            row = layout.row()
+            row.prop(self, '["Processors"]')
+            newrow(layout, 'Processes:', self, 'processes')
+        newrow(layout, 'Accuracy:', self, 'simacc')
 
-            if self.simacc == '3':
-                newrow(layout, "Radiance parameters:", self, 'cusacc')
-            newrow(layout, 'Photon map*:', self, 'pmap')
+        if self.simacc == '3':
+            newrow(layout, "Radiance parameters:", self, 'cusacc')
+        newrow(layout, 'Photon map*:', self, 'pmap')
 
-            if self.pmap:
-               newrow(layout, 'Global photons*:', self, 'pmapgno')
-               newrow(layout, 'Caustic photons*:', self, 'pmapcno')
+        if self.pmap:
+           newrow(layout, 'Global photons*:', self, 'pmapgno')
+           newrow(layout, 'Caustic photons*:', self, 'pmapcno')
 
-                
+        if all([sock.links for sock in self.inputs]) and self.camera:       
             if self.simacc != '3' or (self.simacc == '3' and self.validparams):
                 row = layout.row()
                 row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']  
@@ -694,7 +695,8 @@ class ViLiINode(bpy.types.Node, ViNodes):
             (self['viewparams'][str(frame)]['-vh'], self['viewparams'][str(frame)]['-vv']) = (self.fov, self.fov) if self.fisheye else (cang, vv)
             self['viewparams'][str(frame)]['-vd'] = ' '.join(['{:.3f}'.format(v) for v in vd])
             self['viewparams'][str(frame)]['-x'], self['viewparams'][str(frame)]['-y'] = self.x, self.y
-            self['viewparams'][str(frame)]['-X'], self['viewparams'][str(frame)]['-Y'] = ((1, self.processes)[self.mp], 1)
+            if self.mp:
+                self['viewparams'][str(frame)]['-X'], self['viewparams'][str(frame)]['-Y'] = self.processes, 1
             self['viewparams'][str(frame)]['-vp'] = '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f}'.format(cam.location)
             self['viewparams'][str(frame)]['-vu'] = '{0[0]:.3f} {0[1]:.3f} {0[2]:.3f}'.format(cam.matrix_world.to_quaternion() * mathutils.Vector((0, 1, 0)))
             

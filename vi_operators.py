@@ -2017,9 +2017,26 @@ class NODE_OT_SunPath(bpy.types.Operator):
             bpy.data.materials.new(mat)
             bpy.data.materials[mat].diffuse_color = matdict[mat]
             bpy.data.materials[mat].use_shadeless = 1
+            bpy.data.materials[mat].use_nodes = True
+            nodes = bpy.data.materials[mat].node_tree.nodes
+
+            for n in nodes:
+                nodes.remove(n)
+            
             if mat == 'PathDash':
                 bpy.data.materials[mat].alpha = 0
-                
+                node_material = nodes.new(type='ShaderNodeBsdfTransparent')
+            else:
+                node_material = nodes.new(type='ShaderNodeEmission')
+                node_material.inputs[1].default_value = 0.5
+
+            node_material.inputs[0].default_value = (*matdict[mat],1) 
+            node_material.location = 0,0
+            node_output = nodes.new(type='ShaderNodeOutputMaterial')   
+            node_output.location = 400,0            
+            links = bpy.data.materials[mat].node_tree.links
+            links.new(node_material.outputs[0], node_output.inputs[0])
+                            
         if suns:
             [scene.objects.unlink(sun) for sun in suns[requiredsuns:]]
             [bpy.data.objects.remove(sun) for sun in suns[requiredsuns:]]

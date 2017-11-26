@@ -39,7 +39,7 @@ if "bpy" in locals():
 else:
     from .vi_node import vinode_categories, envinode_categories
     from .envi_mat import envi_materials, envi_constructions, envi_layero, envi_layer1, envi_layer2, envi_layer3, envi_layer4, envi_layerotype, envi_layer1type, envi_layer2type, envi_layer3type, envi_layer4type, envi_con_list
-    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, radmat, radbsdf, retsv, cmap
+    from .vi_func import iprop, bprop, eprop, fprop, sprop, fvprop, sunpath1, radmat, radbsdf, retsv, cmap, vismatupdate
     from .vi_func import rtpoints, lhcalcapply, udidacalcapply, compcalcapply, basiccalcapply, lividisplay, setscenelivivals
     from .envi_func import enunits, enpunits, enparametric, resnameunits, aresnameunits
     from .flovi_func import fvmat, ret_fvbp_menu, ret_fvbu_menu, ret_fvbnut_menu, ret_fvbnutilda_menu, ret_fvbk_menu, ret_fvbepsilon_menu, ret_fvbomega_menu, ret_fvbt_menu, ret_fvba_menu, ret_fvbprgh_menu
@@ -66,7 +66,9 @@ def abspath(self, context):
         self.epbin = bpy.path.abspath(self.epbin)
     if self.epweath != bpy.path.abspath(self.epweath):
         self.epweath = bpy.path.abspath(self.epweath)
-
+    if self.ofbin != bpy.path.abspath(self.ofbin):
+        self.ofbin = bpy.path.abspath(self.ofbin)
+        
 class VIPreferences(AddonPreferences):
     bl_idname = __name__
     
@@ -74,21 +76,17 @@ class VIPreferences(AddonPreferences):
     radlib = StringProperty(name = '', description = 'Radiance library directory location', default = '', subtype='DIR_PATH', update=abspath)
     epbin = StringProperty(name = '', description = 'EnergyPlus binary directory location', default = '', subtype='DIR_PATH', update=abspath)
     epweath = StringProperty(name = '', description = 'EnergyPlus weather directory location', default = '', subtype='DIR_PATH', update=abspath)
+    ofbin = StringProperty(name = '', description = 'OpenFOAM binary directory location', default = '', subtype='DIR_PATH', update=abspath)
+    ui_dict = {"Radiance bin directory:": 'radbin', "Radiance lib directory:": 'radlib', "EnergyPlus bin directory:": 'epbin',
+               "EnergyPlus weather directory:": 'epweath', 'OpenFOAM binary directory': 'ofbin'}
 
     def draw(self, context):
-        layout = self.layout       
-        row = layout.row()
-        row.label(text="Radiance bin directory:")   
-        row.prop(self, 'radbin')
-        row = layout.row()
-        row.label(text="Radiance lib directory:")   
-        row.prop(self, 'radlib')
-        row = layout.row()
-        row.label(text="EnergyPlus bin directory:")   
-        row.prop(self, 'epbin')
-        row = layout.row()
-        row.label(text="EnergyPlus weather directory:")   
-        row.prop(self, 'epweath')
+        layout = self.layout 
+        
+        for entry in self.ui_dict:
+            row = layout.row()
+            row.label(text=entry)   
+            row.prop(self, self.ui_dict[entry])
 
 @persistent
 def update_chart_node(dummy):
@@ -160,20 +158,20 @@ addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe
 def path_update():
     evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
     vi_prefs = bpy.context.user_preferences.addons[__name__].preferences
-#    vi_prefs = bpy.context.user_preferences.addons.get('vi-suite').preferences
-#    print(vi_prefs.preferences)
     epdir = vi_prefs.epbin if vi_prefs and vi_prefs.epbin and os.path.isdir(vi_prefs.epbin) else os.path.join('{}'.format(addonpath), 'EPFiles')
     radldir = vi_prefs.radlib if vi_prefs and os.path.isdir(vi_prefs.radlib) else os.path.join('{}'.format(addonpath), 'Radfiles', 'lib')
     radbdir = vi_prefs.radbin if vi_prefs and os.path.isdir(vi_prefs.radbin) else os.path.join('{}'.format(addonpath), 'Radfiles', 'bin') 
+    ofbdir = vi_prefs.ofbin if vi_prefs and os.path.isdir(vi_prefs.ofbin) else os.path.join('{}'.format(addonpath), 'OFfiles', 'bin') 
+
     os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], os.path.dirname(bpy.app.binary_path))
     
-    if not os.environ.get('RAYPATH') or radldir not in os.environ['RAYPATH'] or radbdir not in os.environ['PATH']  or epdir not in os.environ['PATH']:
+    if not os.environ.get('RAYPATH'):# or radldir not in os.environ['RAYPATH'] or radbdir not in os.environ['PATH']  or epdir not in os.environ['PATH']:
         if vi_prefs and os.path.isdir(vi_prefs.radlib):
             os.environ["RAYPATH"] = '{0}{1}{2}'.format(radldir, evsep[str(sys.platform)], os.path.join(addonpath, 'Radfiles', 'lib'))
         else:
             os.environ["RAYPATH"] = radldir
            
-        os.environ["PATH"] = os.environ["PATH"] + "{0}{1}{0}{2}".format(evsep[str(sys.platform)], radbdir, epdir)    
+        os.environ["PATH"] = os.environ["PATH"] + "{0}{1}{0}{2}{0}{3}".format(evsep[str(sys.platform)], radbdir, epdir, ofbdir)    
         
 def colupdate(self, context):
     cmap(self)
@@ -674,6 +672,7 @@ def register():
     Scene.vi_display_rp_off = fprop("", "Surface offset for number display", 0, 5, 0.001)
     Scene.vi_disp_trans = bpy.props.FloatProperty(name = "", description = "Sensing material transparency", min = 0, max = 1, default = 1, update = tupdate)
     Scene.vi_disp_wire = bpy.props.BoolProperty(name = "", description = "Draw wire frame", default = 0, update=wupdate)
+    Scene.vi_disp_mat = bpy.props.BoolProperty(name = "", description = "Turn on/off result material emission", default = 0, update=colupdate)
     Scene.li_disp_sv = EnumProperty(items = [("0", "Daylight Factor", "Display Daylight factor"),("1", "Sky view", "Display the Sky View")], name = "", description = "Compliance data type", default = "0", update = liviresupdate)
     Scene.li_disp_sda = EnumProperty(items = [("0", "sDA (%)", "Display spatial Daylight Autonomy"), ("1", "ASE (hrs)", "Display the Annual Solar Exposure")], name = "", description = "Compliance data type", default = "0", update = liviresupdate)
     Scene.li_disp_wr = EnumProperty(items = [("0", "Wind Speed", "Wind speed (m/s)"),("1", "Wind Direction", "Wind direction (deg from North)")], name = "", description = "Compliance data type", default = "0", update = liviresupdate)

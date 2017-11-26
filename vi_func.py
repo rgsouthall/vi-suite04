@@ -178,8 +178,32 @@ def cmap(scene):
             bpy.data.materials[matname].specular_color = (0, 0, 0)
             bpy.data.materials[matname].use_shadeless = 0
         
-#        if bpy.data.materials[matname].users:
         bpy.data.materials[matname].diffuse_color = cols[i][0:3]
+        bpy.data.materials[matname].use_nodes = True
+        nodes = bpy.data.materials[matname].node_tree.nodes
+
+        for node in nodes:
+            nodes.remove(node)
+        
+        if scene.vi_disp_mat:
+            # create emission node
+            node_material = nodes.new(type='ShaderNodeEmission')
+        else:
+            # create diffuse node
+            node_material = nodes.new(type='ShaderNodeBsdfDiffuse')
+
+        node_material.inputs[0].default_value = (*cols[i][0:3],1)  # green RGBA
+        node_material.inputs[1].default_value = 0.5 # strength
+        node_material.location = 0,0
+        
+        # create diffuse node
+        
+        # create output node
+        node_output = nodes.new(type='ShaderNodeOutputMaterial')   
+        node_output.location = 400,0
+        
+        links = bpy.data.materials[matname].node_tree.links
+        links.new(node_material.outputs[0], node_output.inputs[0])
         
 def leg_min_max(scene):
     try:
@@ -522,6 +546,21 @@ def rettree(scene, obs, ignore):
     bmob.free()
     bmtemp.free()
     return tree
+
+def vismatupdate(self, context):
+    # clear all nodes to start clean
+    for node in nodes:
+        nodes.remove(node)
+    
+    # create emission node
+    node_emission = nodes.new(type='ShaderNodeEmission')
+    node_emission.inputs[0].default_value = (0,1,0,1)  # green RGBA
+    node_emission.inputs[1].default_value = 5.0 # strength
+    node_emission.location = 0,0
+    
+    # create output node
+    node_output = nodes.new(type='ShaderNodeOutputMaterial')   
+    node_output.location = 400,0
     
 class progressfile(): 
     def __init__(self, folder, starttime, calcsteps):

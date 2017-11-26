@@ -19,6 +19,7 @@ class Vi3DPanel(bpy.types.Panel):
 
         try:
             if cao and cao.active_material.get('bsdf') and cao.active_material['bsdf']['type'] == ' ' and cao.vi_type == '5':
+                
                 if scene['viparams']['vidisp'] != 'bsdf_panel':
                     row = layout.row()
                     row.operator("view3d.bsdf_display", text="BSDF Display") 
@@ -27,6 +28,7 @@ class Vi3DPanel(bpy.types.Panel):
                     newrow(layout, 'BSDF min:', scene, "vi_bsdfleg_min")
                     newrow(layout, 'BSDF scale:', scene, "vi_bsdfleg_scale")
                     newrow(layout, 'BSDF colour:', scene, "vi_leg_col")
+        
         except Exception as e:
             pass
 
@@ -110,6 +112,7 @@ class Vi3DPanel(bpy.types.Panel):
                     newrow(layout, 'Legend min:', scene, "vi_leg_min")
                     newrow(layout, 'Legend scale:', scene, "vi_leg_scale")
                     newrow(layout, 'Legend colour:', scene, "vi_leg_col")
+                    newrow(layout, 'Emitter materials:', scene, "vi_disp_mat")
                     
                     if scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux', 'Ave lux', 'Min lux', 'kWh', 'kWh/m2'):
                         newrow(layout, 'Scatter max:', scene, "vi_scatter_max")

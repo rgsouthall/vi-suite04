@@ -509,7 +509,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
             return {'CANCELLED'}
         objmode()
         self.simnode, frame = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]], scene.frame_current
-        self.simnode.presim(scene)
+        self.simnode.presim()
         scene['liparams']['fs'] = min([c['fs'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
         scene['liparams']['fe'] = max([c['fe'] for c in (self.simnode['goptions'], self.simnode['coptions'])])
 
@@ -739,7 +739,7 @@ class NODE_OT_RadImage(bpy.types.Operator):
             self.res = []
             self.rpictfile = os.path.join(scene['viparams']['newdir'], 'rpictprogress')
             self.pmfile = os.path.join(scene['viparams']['newdir'], 'pmprogress')
-            simnode.presim(scene)
+            simnode.presim()
             simnode.run = 1
             nodecolour(simnode, 1)
             scene['liparams']['fs'], scene['liparams']['fe'] =  simnode.retframes()
@@ -2028,7 +2028,7 @@ class NODE_OT_SunPath(bpy.types.Operator):
                 node_material = nodes.new(type='ShaderNodeBsdfTransparent')
             else:
                 node_material = nodes.new(type='ShaderNodeEmission')
-                node_material.inputs[1].default_value = 0.5
+                node_material.inputs[1].default_value = 1.0
 
             node_material.inputs[0].default_value = (*matdict[mat],1) 
             node_material.location = 0,0

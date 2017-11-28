@@ -196,7 +196,7 @@ class ViGExLiNode(bpy.types.Node, ViNodes):
         nodecolour(self, 0)
 
 class LiViNode(bpy.types.Node, ViNodes):
-    '''Node for creating a LiVi analysis'''
+    '''Node for creating a LiVi context'''
     bl_idname = 'LiViNode'
     bl_label = 'LiVi Context'
     bl_icon = 'LAMP'
@@ -240,14 +240,17 @@ class LiViNode(bpy.types.Node, ViNodes):
                                 
     banalysistype = [('0', "Illu/Irrad/DF", "Illumninance/Irradiance/Daylight Factor Calculation"), ('1', "Glare", "Glare Calculation")]
     skylist = [("0", "Sunny", "CIE Sunny Sky description"), ("1", "Partly Coudy", "CIE Sunny Sky description"),
-               ("2", "Coudy", "CIE Partly Cloudy Sky description"), ("3", "DF Sky", "Daylight Factor Sky description"),
-               ("4", "HDR Sky", "HDR file sky"), ("5", "Radiance Sky", "Radiance file sky"), ("6", "None", "No Sky")]
+               ("2", "Coudy", "CIE Partly Cloudy Sky description"), ("3", "DF Sky", "Daylight Factor Sky description")]
 
     contexttype = [('Basic', "Basic", "Basic analysis"), ('Compliance', "Compliance", "Compliance analysis"), ('CBDM', "CBDM", "Climate based daylight modelling")]
     contextmenu = bpy.props.EnumProperty(name="", description="Contexttype type", items=contexttype, default = 'Basic', update = nodeupdate)
     animated = bpy.props.BoolProperty(name="", description="Animated sky", default=False, update = nodeupdate)
     offset = bpy.props.FloatProperty(name="", description="Calc point offset", min=0.001, max=1, default=0.01, update = nodeupdate)
     banalysismenu = bpy.props.EnumProperty(name="", description="Type of lighting analysis", items = banalysistype, default = '0', update = nodeupdate)
+    skyprog = bpy.props.EnumProperty(name="", items=[('0', "Gensky", "Basic sky creation"), ('1', "Gendaylit", "Perez sky creation"),
+                                                     ("2", "HDR Sky", "HDR file sky"), ("3", "Radiance Sky", "Radiance file sky"), ("4", "None", "No Sky")], description="Specify sky creation", default="0", update = nodeupdate)
+    epsilon = bpy.props.FloatProperty(name="", description="Hour of simulation", min=1, max=8, default=6.3, update = nodeupdate)
+    delta = bpy.props.FloatProperty(name="", description="Hour of simulation", min=0.05, max=0.5, default=0.15, update = nodeupdate)
     skymenu = bpy.props.EnumProperty(name="", items=skylist, description="Specify the type of sky for the simulation", default="0", update = nodeupdate)
     shour = bpy.props.FloatProperty(name="", description="Hour of simulation", min=0, max=23.99, default=12, subtype='TIME', unit='TIME', update = nodeupdate)
     sdoy = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=365, default=1, update = nodeupdate)
@@ -255,7 +258,7 @@ class LiViNode(bpy.types.Node, ViNodes):
     edoy = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=365, default=1, update = nodeupdate)
     interval = bpy.props.FloatProperty(name="", description="Site Latitude", min=1/60, max=24, default=1, update = nodeupdate)
     hdr = bpy.props.BoolProperty(name="", description="Export HDR panoramas", default=False, update = nodeupdate)
-    skyname = bpy.props.StringProperty(name="", description="Name of the Radiance sky file", default="", update = nodeupdate)
+    skyname = mtxname = bpy.props.StringProperty(name="", description="Name of the radiance sky file", default="", subtype="FILE_PATH", update = nodeupdate)
     resname = bpy.props.StringProperty()
     turb = bpy.props.FloatProperty(name="", description="Sky Turbidity", min=1.0, max=5.0, default=2.75, update = nodeupdate)
     canalysistype = [('0', "BREEAM", "BREEAM HEA1 calculation"), ('1', "CfSH", "Code for Sustainable Homes calculation"), ('2', "Green Star", "Green Star Calculation"), ('3', "LEED", "LEED v4 Daylight calculation")]
@@ -307,12 +310,30 @@ class LiViNode(bpy.types.Node, ViNodes):
         (sdate, edate) = retdates(self.sdoy, self.edoy, 2015)
         if self.contextmenu == 'Basic':            
             newrow(layout, "Standard:", self, 'banalysismenu')
-            newrow(layout, "Sky type:", self, 'skymenu')
-            if self.skymenu in ('0', '1', '2'):
+            newrow(layout, "Program:", self, 'skyprog')
+            if self.skyprog == '0':
+                newrow(layout, "Sky type:", self, 'skymenu')
+                if self.skymenu in ('0', '1', '2'):
+                    newrow(layout, "Start hour:", self, 'shour')
+                    newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
+                    newrow(layout, "Animation;", self, 'animated')
+                    
+                    if self.animated:
+                        newrow(layout, "Start frame:", self, 'startframe')
+                        row = layout.row()
+                        row.label(text = 'End frame:')
+                        row.label(text = '{}'.format(self['endframe']))
+                        newrow(layout, "End hour:", self, 'ehour')
+                        newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
+                        newrow(layout, "Interval (hours):", self, 'interval')
+                    newrow(layout, "Turbidity", self, 'turb')
+            
+            elif self.skyprog == '1':
+                newrow(layout, "Epsilon:", self, 'epsilon')
+                newrow(layout, "Delta:", self, 'delta')
                 newrow(layout, "Start hour:", self, 'shour')
                 newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
                 newrow(layout, "Animation;", self, 'animated')
-                
                 if self.animated:
                     newrow(layout, "Start frame:", self, 'startframe')
                     row = layout.row()
@@ -321,9 +342,8 @@ class LiViNode(bpy.types.Node, ViNodes):
                     newrow(layout, "End hour:", self, 'ehour')
                     newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
                     newrow(layout, "Interval (hours):", self, 'interval')
-                newrow(layout, "Turbidity", self, 'turb')
-
-            elif self.skymenu == '4':
+                
+            elif self.skyprog == '2':
                 row = layout.row()
                 row.operator('node.hdrselect', text = 'HDR select').nodeid = self['nodeid']
                 row.prop(self, 'hdrname')
@@ -331,13 +351,14 @@ class LiViNode(bpy.types.Node, ViNodes):
                 newrow(layout, "HDR rotation:", self, 'hdrangle')
                 newrow(layout, "HDR radius:", self, 'hdrradius')
 
-            elif self.skymenu == '5':
+            elif self.skyprog == '3':
                 row = layout.row()
+                
                 row.operator('node.skyselect', text = 'Sky select').nodeid = self['nodeid']
                 row.prop(self, 'skyname')
             row = layout.row()
 
-            if self.skymenu not in ('4', '6'):
+            if self.skyprog in ("0", "1"):
                 newrow(layout, 'HDR:', self, 'hdr')
 
         elif self.contextmenu == 'Compliance':
@@ -447,31 +468,38 @@ class LiViNode(bpy.types.Node, ViNodes):
         self['Text'], self['Options'] = {}, {}
         self['watts'] = 0#1 if self.contextmenu == "CBDM" and self.cbanalysismenu in ('1', '2') else 0
         
-    def export(self, scene, export_op):        
+    def export(self, scene, export_op):  
+        
         self.startframe = self.startframe if self.animated and self.contextmenu == 'Basic' and self.banalysismenu in ('0', '1', '2') else scene.frame_current 
         self['endframe'] = self.startframe + int(((24 * (self.edoy - self.sdoy) + self.ehour - self.shour)/self.interval)) if self.contextmenu == 'Basic' and self.banalysismenu in ('0', '1', '2') and self.animated else scene.frame_current
         self['mtxfile'] = ''
         self['preview'] = 0
+        
         if self.contextmenu == "Basic":  
             self['preview'] =1
-            if self['skynum'] < 4:
-                locnode = self.inputs['Location in'].links[0].from_node if self['skynum'] < 3  else 0
-                self['skytypeparams'] = ("+s", "+i", "-c", "-b 22.86 -c")[self['skynum']]
+            
+            if self.skyprog in ('0', '1'):
+                self['skytypeparams'] = ("+s", "+i", "-c", "-b 22.86 -c")[self['skynum']] if self.skyprog == '0' else "-P {} {}".format(self.epsilon, self.delta)
                 for f, frame in enumerate(range(self.startframe, self['endframe'] + 1)):
-                    skytext = sunexport(scene, self, locnode, f) + skyexport(self['skynum'])
-                    if self['skynum'] < 2:
-                        if frame == self.startframe:
-                            if 'SUN' in [ob.data.type for ob in scene.objects if ob.type == 'LAMP' and ob.get('VIType')]:
-                                sun = [ob for ob in scene.objects if ob.get('VIType') == 'Sun'][0]
-                            else:
-                                bpy.ops.object.lamp_add(type='SUN')
-                                sun = bpy.context.object
-                                sun['VIType'] = 'Sun'
-                    if self.hdr:
-                        hdrexport(scene, f, frame, self, skytext)
+                    if self.skyprog == '0':                    
+                        skytext = sunexport(scene, self, f) + skyexport(self['skynum'])
+                        if self['skynum'] < 2:
+                            if frame == self.startframe:
+                                if 'SUN' in [ob.data.type for ob in scene.objects if ob.type == 'LAMP' and ob.get('VIType')]:
+                                    sun = [ob for ob in scene.objects if ob.get('VIType') == 'Sun'][0]
+                                else:
+                                    bpy.ops.object.lamp_add(type='SUN')
+                                    sun = bpy.context.object
+                                    sun['VIType'] = 'Sun'
+                        if self.hdr:
+                            hdrexport(scene, f, frame, self, skytext)
+                        
+                    else:
+                        skytext = sunexport(scene, self, f) + skyexport(self['skynum'])
+
                     self['Text'][str(frame)] = skytext
 
-            elif self['skynum'] == 4:
+            elif self.skyprog == '2':
                 if self.hdrname and os.path.isfile(self.hdrname):
                     if self.hdrname not in bpy.data.images:
                         bpy.data.images.load(self.hdrname)
@@ -480,18 +508,18 @@ class LiViNode(bpy.types.Node, ViNodes):
                     export_op.report({'ERROR'}, "Not a valid HDR file")
                     return 'Error'
             
-            elif self['skynum'] == 5:
+            elif self.skyprog == '3':
                 if self.skyname and os.path.isfile(self.skyname):
                     shutil.copyfile(self.skyname, "{}-0.sky".format(scene['viparams']['filebase']))
                     with open(self.skyname, 'r') as radfiler:
-                        self['Text'][str(scene.frame_current)] =  [radfiler.read()]
+                        self['Text'][str(scene.frame_current)] = radfiler.read()
                         if self.hdr:
                             hdrexport(scene, 0, scene.frame_current, self, radfiler.read())
                 else:
                     export_op.report({'ERROR'}, "Not a valid Radiance sky file")
                     return 'Error'
 
-            elif self['skynum'] == 6:
+            elif self.skyprog == '4':
                 self['Text'][str(scene.frame_current)] = ''
         
         elif self.contextmenu == "CBDM":
@@ -1347,7 +1375,8 @@ class ViEnInNode(bpy.types.Node, ViNodes):
             row.label('Connect Location node')
 
     def update(self):
-        socklink(self.outputs['Context out'], self['nodeid'].split('@')[1])
+        if self.outputs.get('Context out'):
+            (self.outputs['Context out'], self['nodeid'].split('@')[1])
         if not self.inputs['Location in'].links:
             nodecolour(self, 1)
 

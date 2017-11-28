@@ -139,11 +139,14 @@ def radgexport(export_op, node, **kwargs):
         sradfile = "# Sky \n\n"
         node['Text'][str(frame)] = mradfile+gradfile+lradfile+sradfile
 
-def sunexport(scene, node, locnode, frame):
-    if locnode and node.contextmenu == 'Basic':        
+def sunexport(scene, node, frame):
+    if node.skyprog in ('0', '1') and node.contextmenu == 'Basic':        
         simtime = node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
         solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour + (simtime.minute)*0.016666, scene.latitude, scene.longitude)
-        gsrun = Popen("gensky -ang {} {} {} -t {}".format(solalt, solazi, node['skytypeparams'], node.turb).split(), stdout = PIPE)           
+        if node.skyprog == '0':
+            gsrun = Popen("gensky -ang {} {} {} -t {}".format(solalt, solazi, node['skytypeparams'], node.turb).split(), stdout = PIPE) 
+        else:
+            gsrun = Popen("gendaylit -ang {} {} {}".format(solalt, solazi, node['skytypeparams']).split(), stdout = PIPE)
     else:
         gsrun = Popen("gensky -ang {} {} {}".format(45, 0, node['skytypeparams']).split(), stdout = PIPE)
     return gsrun.stdout.read().decode()

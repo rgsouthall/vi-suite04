@@ -26,7 +26,8 @@ caidict = {"0": "", "1": "Simple", "2": "Detailed", "3": "TrombeWall", "4": "Ada
 caodict = {"0": "", "1": "SimpleCombined", "2": "TARP", "3": "DOE-2", "4": "MoWiTT", "5": "AdaptiveConvectionAlgorithm"}
 
 def enpolymatexport(exp_op, node, locnode, em, ec):
-    scene = bpy.context.scene    
+    scene = bpy.context.scene   
+    
     for frame in range(scene['enparams']['fs'], scene['enparams']['fe'] + 1):
         scene.update()
         scene.frame_set(frame)
@@ -38,8 +39,8 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
             node.hide = 0
             exp_op.report({'ERROR'}, 'Bad {} node in the EnVi network. Delete the node if not needed or make valid connections'.format(node.name))
             return
-        en_idf.write("!- Blender -> EnergyPlus\n!- Using the EnVi export scripts\n!- Author: Ryan Southall\n!- Date: {}\n\nVERSION,{};\n\n".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), scene['enparams']['epversion']))
-    
+        
+        en_idf.write("!- Blender -> EnergyPlus\n!- Using the EnVi export scripts\n!- Author: Ryan Southall\n!- Date: {}\n\nVERSION,{};\n\n".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), scene['enparams']['epversion']))    
         params = ('Name', 'North Axis (deg)', 'Terrain', 'Loads Convergence Tolerance Value', 'Temperature Convergence Tolerance Value (deltaC)',
                   'Solar Distribution', 'Maximum Number of Warmup Days(from MLC TCM)')
         paramvs = (node.loc, '0.00', ("City", "Urban", "Suburbs", "Country", "Ocean")[int(node.terrain)], '0.004', '0.4', 'FullInteriorAndExteriorWithReflections', '15')
@@ -70,7 +71,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
             if mat.envi_con_type =='Window' and mat.envi_simple_glazing:
                 em.sg_write(en_idf, mat.name+'_sg', mat.envi_sg_uv, mat.envi_sg_shgc, mat.envi_sg_vt)
                 ec.con_write(en_idf, mat.envi_con_type, mat.name, mat.name+'_sg', mat.name, [mat.name+'_sg'])
-                print('hi')
+
             elif not (mat.envi_con_makeup == '1' and mat.envi_layero == '0'):
                 conlist, mat['pcm'] = [], 0
                 
@@ -175,7 +176,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
         em.thickdict = {}
     
         en_idf.write("!-   ===========  ALL OBJECTS IN CLASS: ZONES ===========\n\n")
-        for obj in [obj for obj in bpy.context.scene.objects if obj.layers[1] == True and obj.envi_type in ('0', '2')]:
+        for obj in [obj for obj in bpy.context.scene.objects if obj.layers[10] == True and obj.envi_type in ('0', '2')]:
             if obj.type == 'MESH':
                 params = ('Name', 'Direction of Relative North (deg)', 'X Origin (m)', 'Y Origin (m)', 'Z Origin (m)', 'Type', 'Multiplier', 'Ceiling Height (m)', 'Volume (m3)',
                           'Floor Area (m2)', 'Zone Inside Convection Algorithm', 'Zone Outside Convection Algorithm', 'Part of Total Floor Area')
@@ -424,7 +425,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
 
 def pregeo(op):
     scene = bpy.context.scene
-    bpy.data.scenes[0].layers[0:2] = True, False
+    scene.layers[0:2] = True, False
     if bpy.context.active_object and bpy.context.active_object.mode == 'EDIT':
         bpy.ops.object.editmode_toggle()
     for obj in [obj for obj in scene.objects if obj.layers[1] == True]:
@@ -484,7 +485,7 @@ def pregeo(op):
             bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
             selmesh('desel')
             enomats = [enom for enom in en_obj.data.materials if enom]
-            obj.select, en_obj.select, en_obj.name, en_obj.data.name, en_obj.layers[1], en_obj.layers[0], bpy.data.scenes[0].layers[0:2] = False, True, 'en_'+obj.name, en_obj.data.name, True, False, (False, True)
+            obj.select, en_obj.select, en_obj.name, en_obj.data.name, en_obj.layers[1], en_obj.layers[0], scene.layers[0], scene.layers[1] = False, True, 'en_'+obj.name, en_obj.data.name, True, False, False, True
             mis = [f.material_index for f in en_obj.data.polygons]
 
             for s, sm in enumerate(en_obj.material_slots):
@@ -572,7 +573,7 @@ def pregeo(op):
                     enng.nodes.new(type = 'AFNCon')         
                     enng.use_fake_user = 1
                 
-            bpy.data.scenes[0].layers[0:2] = True, False
+            scene.layers[0], scene.layers[1] = True, False
             obj.select = True
             scene.objects.active = obj
         

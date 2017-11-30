@@ -595,7 +595,9 @@ class ViLiINode(bpy.types.Node, ViNodes):
     
     def nodeupdate(self, context):
         self["_RNA_UI"] = {"Processors": {"min": 1, "max": int(context.scene['viparams']['nproc']), "name": ""}}
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.cusacc, self.simacc, self.pmap, self.x, self.y, self.run, self.illu)])
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.camera, self.hdrname, self.illu, self.fisheye, self.fov,
+            self.mp, self['Processors'], self.processes, self.cusacc, self.simacc, self.pmap, self.pmapgno, self.pmapcno,
+            self.x, self.y)])
         if bpy.data.objects.get(self.camera):
             context.scene.camera = bpy.data.objects[self.camera]
         
@@ -617,7 +619,7 @@ class ViLiINode(bpy.types.Node, ViNodes):
     pmapcno = bpy.props.IntProperty(name = '', default = 0)
     x = bpy.props.IntProperty(name = '', min = 1, max = 10000, default = 2000, update = nodeupdate)
     y = bpy.props.IntProperty(name = '', min = 1, max = 10000, default = 1000, update = nodeupdate)
-    hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="", subtype="FILE_PATH", update = nodeupdate)
+    hdrname = bpy.props.StringProperty(name="", description="Base name for image files", default="", update = nodeupdate)
     run = bpy.props.BoolProperty(name = '', default = False) 
     illu = bpy.props.BoolProperty(name = '', default = True, update = nodeupdate)
     validparams = bpy.props.BoolProperty(name = '', default = True)
@@ -630,8 +632,7 @@ class ViLiINode(bpy.types.Node, ViNodes):
     def retframes(self):
         try:
             return min([c['fs'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])]),\
-                    max([c['fe'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])])
-            
+                    max([c['fe'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])])            
         except:
             return 0, 0
             
@@ -644,16 +645,12 @@ class ViLiINode(bpy.types.Node, ViNodes):
         self.hdrname = '//image.hdr'
         self['Processors'] = 1
         
-    def draw_buttons(self, context, layout):
-        
+    def draw_buttons(self, context, layout):       
         sf, ef = self.retframes()
         row = layout.row()
         row.label(text = 'Frames: {} - {}'.format(sf, ef))
-#            row.label(text = 'Frames: {} - {}'.format(min([c['fs'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])]),
-#                      max([c['fe'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])])))
         layout.prop_search(self, 'camera', bpy.data, 'cameras', text='Camera*', icon='NONE')
-#            row = layout.row()
-#            row.prop(self, 'hdrname')        
+        newrow(layout, 'Base name:', self, 'hdrname')        
         newrow(layout, 'Illuminance*:', self, 'illu')
         newrow(layout, 'Fisheye*:', self, 'fisheye')
 
@@ -682,17 +679,15 @@ class ViLiINode(bpy.types.Node, ViNodes):
             newrow(layout, 'X resolution*:', self, 'x')
             newrow(layout, 'Y resolution*:', self, 'y')
             
-            if self.simacc != '3' or (self.simacc == '3' and self.validparams) and not self.run:
+            if (self.simacc != '3' or (self.simacc == '3' and self.validparams)) and not self.run:
                 row = layout.row()
                 row.operator("node.radimage", text = 'Image').nodeid = self['nodeid']
         
     def update(self):
-#        self.nodeupdate()
-#        self.startframe = min([c['fs'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])]) 
-#        self.endframe = max([c['fe'] for c in (self.inputs['Context in'].links[0].from_node['Options'], self.inputs['Geometry in'].links[0].from_node['Options'])])
         self.run = 0
         
     def presim(self, scene):
+#        self.run = 1
         pmaps = []
         sf, ef, = self.retframes()
         self['frames'] = range(sf, ef + 1)
@@ -703,6 +698,7 @@ class ViLiINode(bpy.types.Node, ViNodes):
         self['goptions'] = self.inputs['Geometry in'].links[0].from_node['Options']
         self['radfiles'], self['reslists'] = {}, [[]]
         self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rpictparams], [n[int(self.simacc)+1] for n in self.rpictparams]))
+        self['hdrname'] = self.hdrname if self.hdrname else 'image'
         
         for frame in self['frames']:
             scene.frame_set(frame)
@@ -711,7 +707,6 @@ class ViLiINode(bpy.types.Node, ViNodes):
             cang = cam.data.angle*180/math.pi if not self.fisheye else self.fov
             vv = cang * self.y/self.x
             vd = (0.001, 0, -1*cam.matrix_world[2][2]) if (round(-1*cam.matrix_world[0][2], 3), round(-1*cam.matrix_world[1][2], 3)) == (0.0, 0.0) else [-1*cam.matrix_world[i][2] for i in range(3)]
-   #         self['pmaps'][str(frame)] = self.pmap
             pmaps.append(self.pmap)
             self['pmapgnos'][str(frame)] = self.pmapgno
             self['pmapcnos'][str(frame)] = self.pmapcno
@@ -732,14 +727,16 @@ class ViLiINode(bpy.types.Node, ViNodes):
                 self['viewparams'][str(frame)]['-i'] = ''
         self['pmaps'] = pmaps
         
-    def sim(self):
-        self.run = 0
+#    def sim(self):
+        
 #        self['frames'] = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
         
     def postsim(self, images):
         self['images'] = images
         self.run = 0
-        self['exportstate'] = [str(x) for x in (self.cusacc, self.simacc, self.pmap, self.x, self.y, self.run, self.illu)]
+        self['exportstate'] = [str(x) for x in (self.camera, self.hdrname, self.illu, self.fisheye, self.fov,
+            self.mp, self['Processors'], self.processes, self.cusacc, self.simacc, self.pmap, self.pmapgno, self.pmapcno,
+            self.x, self.y)]
         nodecolour(self, 0)   
 
 class ViLiFCNode(bpy.types.Node, ViNodes):
@@ -752,7 +749,7 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.hdrname, self.colour, self.lmax, self.unit, self.nscale, self.decades, 
                    self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands)])
 
-    hdrname = bpy.props.StringProperty(name="", description="Name of the composite HDR sky file", default="vi-suite.hdr", update = nodeupdate)    
+    hdrname = bpy.props.StringProperty(name="", description="Base name of the falsecolour image(s)", default="", update = nodeupdate)    
     colour = bpy.props.EnumProperty(items=[("0", "Default", "Default color mapping"), ("1", "Spectral", "Spectral color mapping"), ("2", "Thermal", "Thermal colour mapping"), ("3", "PM3D", "PM3D colour mapping"), ("4", "Eco", "Eco color mapping")],
             name="", description="Simulation accuracy", default="0", update = nodeupdate)             
     lmax = bpy.props.IntProperty(name = '', min = 0, max = 10000, default = 1000, update = nodeupdate)
@@ -775,37 +772,39 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
         self['exportstate'] = ''
         self['nodeid'] = nodeid(self)
         self.inputs.new('ViLiI', 'Image')
-        self.hdrname = '//fc.hdr'
                 
     def draw_buttons(self, context, layout):
-        if self.inputs['Image'].links and self.inputs['Image'].links[0].from_node.hdrname and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node.hdrname)):
-            
-            newrow(layout, 'Unit:', self, 'unit')
-            newrow(layout, 'Colour:', self, 'colour')
-            newrow(layout, 'Legend:', self, 'legend')
-            
-            if self.legend:
-                newrow(layout, 'Scale:', self, 'nscale')
-                if self.nscale == '1':
-                    newrow(layout, 'Decades:', self, 'decades')
-                newrow(layout, 'Legend max:', self, 'lmax')
-                newrow(layout, 'Legend width:', self, 'lw')
-                newrow(layout, 'Legend height:', self, 'lh')
-            
-            newrow(layout, 'Contour:', self, 'contour')
-            
-            if self.contour:
-               newrow(layout, 'Overlay:', self, 'overlay') 
-               newrow(layout, 'Bands:', self, 'bands') 
+#        if self.inputs['Image'].links and self.inputs['Image'].links[0].from_node.hdrname and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node.hdrname)):
+        newrow(layout, 'Base name:', self, 'hdrname')
+        newrow(layout, 'Unit:', self, 'unit')
+        newrow(layout, 'Colour:', self, 'colour')
+        newrow(layout, 'Legend:', self, 'legend')
+        
+        if self.legend:
+            newrow(layout, 'Scale:', self, 'nscale')
+            if self.nscale == '1':
+                newrow(layout, 'Decades:', self, 'decades')
+            newrow(layout, 'Legend max:', self, 'lmax')
+            newrow(layout, 'Legend width:', self, 'lw')
+            newrow(layout, 'Legend height:', self, 'lh')
+        
+        newrow(layout, 'Contour:', self, 'contour')
+        
+        if self.contour:
+           newrow(layout, 'Overlay:', self, 'overlay') 
+           newrow(layout, 'Bands:', self, 'bands') 
 
+        row = layout.row()
+        row.operator('node.hdrselect', text = 'HDR select').nodeid = self['nodeid']
+        row.prop(self, 'hdrname')
+        print(self.inputs['Image'].links[0].from_node['images'][0])
+        if self.inputs['Image'].links and os.path.isfile(self.inputs['Image'].links[0].from_node['images'][0]):
             row = layout.row()
-            row.operator('node.hdrselect', text = 'HDR select').nodeid = self['nodeid']
-            row.prop(self, 'hdrname')
+            row.operator("node.livifc", text = 'Process').nodeid = self['nodeid']
             
-            if self.hdrname:
-                row = layout.row()
-                row.operator("node.livifc", text = 'Process').nodeid = self['nodeid']
-            
+    def presim(self):
+        self['hdrname'] = self.hdrname if self.hdrname else 'fc'
+        
     def postsim(self):
         self['exportstate'] = [str(x) for x in (self.hdrname, self.colour, self.lmax, self.unit, self.nscale, self.decades, 
                    self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands)]
@@ -820,7 +819,7 @@ class ViLiGLNode(bpy.types.Node, ViNodes):
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.hdrname)])
 
-    hdrname = bpy.props.StringProperty(name="", description="Name of the Glare image", default="vi-suite.hdr", update = nodeupdate)    
+    hdrname = bpy.props.StringProperty(name="", description="Base name of the Glare image", default="", update = nodeupdate)    
     gc = bpy.props.FloatVectorProperty(size = 3, name = '', attr = 'Color', default = [1, 0, 0], subtype = 'COLOR', update = nodeupdate)
     rand = bpy.props.BoolProperty(name = '', default = True, update = nodeupdate)
 
@@ -828,18 +827,19 @@ class ViLiGLNode(bpy.types.Node, ViNodes):
         self['exportstate'] = ''
         self['nodeid'] = nodeid(self)
         self.inputs.new('ViLiI', 'Image')
-#        self.hdrname = '//fc.hdr'
                 
     def draw_buttons(self, context, layout):
-#        if self.inputs['Image'].links and self.inputs['Image'].links[0].from_node.hdrname and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node.hdrname)):
-        newrow(layout, 'Random:', self, 'rand')
-        if not self.rand:
-            newrow(layout, 'Colour:', self, 'gc')
-        row = layout.row()
-        row.operator("node.liviglare2", text = 'Glare').nodeid = self['nodeid']
+        if self.inputs['Image'].links and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])):
+            newrow(layout, 'Base name:', self, 'hdrname')
+            newrow(layout, 'Random:', self, 'rand')
+            if not self.rand:
+                newrow(layout, 'Colour:', self, 'gc')
+            row = layout.row()
+            row.operator("node.liviglare2", text = 'Glare').nodeid = self['nodeid']
     
     def presim(self):
-        self['images'] = self.inputs['Image'].links[0].from_node['images']
+        self['hdrname'] = self.hdrname if self.hdrname else 'glare'
+#        self['images'] = self.inputs['Image'].links[0].from_node['images']
 
     def sim(self):
         for im in self['images']:

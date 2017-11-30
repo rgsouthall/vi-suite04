@@ -619,11 +619,12 @@ class NODE_OT_RadImage(bpy.types.Operator):
             
             if self.mp:
                 while self.xindex < self.processes and sum([rp.poll() is None for rp in self.rpruns]) < self.processors and self.frame <= self.fe:
+                    print(self.rpiececmds[self.frame - self.fs])
                     echo = Popen(['echo', '{}'.format(self.xindex), '0'], stdout = PIPE)
                     self.rpruns.append(Popen(self.rpiececmds[self.frame - self.fs].split(), stdin = echo.stdout, stderr = PIPE))
                     if self.xindex == 0:
-                        if os.path.isfile("{}-{}.hdr".format(os.path.join(self.folder, 'images', 'image'), self.frame)):
-                            os.remove("{}-{}.hdr".format(os.path.join(self.folder, 'images', 'image'), self.frame))
+                        if os.path.isfile("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.hdrname), self.frame)):
+                            os.remove("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.hdrname), self.frame))
                         logentry('rpiece command: {}'.format(self.rpiececmds[self.frame - self.fs]))
                     self.xindex += 1
                 
@@ -631,11 +632,11 @@ class NODE_OT_RadImage(bpy.types.Operator):
                     self.frame += 1                
                     self.xindex = 0
                     self.percent = (self.frame - self.fs) * 100
-                    self.images.append(os.path.join(self.folder, 'images', 'image-{}.hdr'.format(self.frameold)))
+                    self.images.append(os.path.join(self.folder, 'images', '{}-{}.hdr'.format(self.hdrname, self.frameold)))
                     self.frameold = self.frame
             else:
                 while sum([rp.poll() is None for rp in self.rpruns]) == 0 and len(self.rpruns) < self.frames:
-                    with open("{}-{}.hdr".format(os.path.join(self.folder, 'images', 'image'), self.frame), 'w') as imfile:
+                    with open("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.hdrname), self.frame), 'w') as imfile:
                         self.rpruns.append(Popen(self.rpictcmds[self.frame - self.fs].split(), stdout=imfile, stderr = PIPE))
                             
         if event.type == 'TIMER':            
@@ -677,14 +678,14 @@ class NODE_OT_RadImage(bpy.types.Operator):
                             self.simnode.run = 0
                             return {'CANCELLED'}
                         
-                if self.xindex > self.processors:
-                    self.imupdate(f)
+#                if self.xindex > self.processors:
+                self.imupdate(f)
                 return {self.terminate()}
 
             elif self.pmfin and self.mp:
                 if self.percent != 100 * sum([r.poll() is not None for r in self.rpruns])/(self.processes * self.frames):
                     self.percent = 100 * sum([r.poll() is not None for r in self.rpruns])/(self.processes * self.frames)
-                    self.imupdate(f)
+                    self.imupdate(self.fs + int(sum([rp.poll() is not None for rp in self.rpruns])/self.processes))
             
             elif self.pmfin and os.path.isfile(self.rpictfile):
                 lines = [line for line in open(self.rpictfile, 'r') if '% after' in line][::-1]                
@@ -700,9 +701,9 @@ class NODE_OT_RadImage(bpy.types.Operator):
     
     def imupdate(self, f):
         if 'liviimage' not in bpy.data.images:
-            im = bpy.data.images.load("{}-{}.hdr".format(os.path.join(self.folder, 'images', 'image'), self.frame))
+            im = bpy.data.images.load("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.hdrname), f))
             im.name = 'liviimage'
-        bpy.data.images['liviimage'].filepath = "{}-{}.hdr".format(os.path.join(self.folder, 'images', 'image'), f)
+        bpy.data.images['liviimage'].filepath = "{}-{}.hdr".format(os.path.join(self.folder, 'images', self.hdrname), f)
         bpy.data.images['liviimage'].reload()
 
         for area in bpy.context.screen.areas:
@@ -739,7 +740,7 @@ class NODE_OT_RadImage(bpy.types.Operator):
             self.res = []
             self.rpictfile = os.path.join(scene['viparams']['newdir'], 'rpictprogress')
             self.pmfile = os.path.join(scene['viparams']['newdir'], 'pmprogress')
-            simnode.presim()
+            simnode.presim(scene)
             simnode.run = 1
             nodecolour(simnode, 1)
             scene['liparams']['fs'], scene['liparams']['fe'] =  simnode.retframes()
@@ -758,78 +759,28 @@ class NODE_OT_RadImage(bpy.types.Operator):
             self.folder = scene['viparams']['newdir']
             self.fb = scene['viparams']['filebase']
             self.mp = simnode.mp
+            self.hdrname = simnode['hdrname']
             
             for frame in range(self.fs, self.fe + 1):
                 createradfile(scene, frame, self, simnode)
                 createoconv(scene, frame, self, simnode)
+                
             scene.frame_set(scene['liparams']['fs'])
             self.pmcmds = ['mkpmap -t 10 -e {6} -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(self.pmparams[str(frame)]['pportentry'], scene['viparams']['filebase'], frame, self.pmapgnos[str(frame)], self.pmparams[str(frame)]['cpentry'], self.pmparams[str(frame)]['amentry'], self.pmfile) for frame in range(self.fs, self.fe + 1)]                   
-            self.rppmcmds = [('', '-ap {} {}'.format('{}-{}.gpm'.format(scene['viparams']['filebase'], frame), self.pmparams[str(frame)]['cpfileentry']))[self.pmaps[frame - self.fs]] for frame in range(self.fs, self.fe + 1)]
-
-#
-                
-##                open('{}.pmapmon'.format(self.scene['viparams']['filebase']), 'w')
-#                pmcmd = ('mkpmap -t 10 -e {1}.pmapmon -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(self.pmparams[str(self.frame)]['pportentry'], self.scene['viparams']['filebase'], self.frame, self.simnode.pmapgno, self.pmparams[str(self.frame)]['cpentry'], self.pmparams[str(self.frame)]['amentry']))                   
-#                self.pmruns.append(Popen(pmcmd.split(), stderr = PIPE))
-#                self.pfile = progressfile(scene['viparams']['newdir'], datetime.datetime.now(), 100)
-#                self.kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'Photon Map')                
-#                curres = 0.1
-#                
-#                while pmrun.poll() is None:   
-#                    sleep(10)
-#                    with open('{}.pmapmon'.format(scene['viparams']['filebase']), 'r') as vip:
-#                        for line in vip.readlines()[::-1]:
-#                            if '% after' in line:
-#                                curres = [float(ls[:-2]) for ls in line.split() if '%' in ls][0]
-#                                break
-#                            
-#                            elif line in pmerrdict:
-#                                logentry(line)
-#                                self.report({'ERROR'}, pmerrdict[line])
-#                                return {'CANCELLED'}
-#                                
-#                    if self.pfile.check(curres) == 'CANCELLED': 
-#                        pmrun.kill()                                   
-#                        return {'CANCELLED'}
-#                
-#                if self.kivyrun.poll() is None:
-#                    self.kivyrun.kill()
-#
-            self.rpictcmds = ["rpict -t 10 -e {} ".format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + "{0}-{1}.oct".format(scene['viparams']['filebase'], frame, os.path.join(scene['viparams']['newdir'], 'images', 'image')) for frame in range(self.fs, self.fe + 1)]
-            self.rpiececmds = ["rpiece -t 10 -e {} ".format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + "-o {2}-{1}.hdr {0}-{1}.oct".format(scene['viparams']['filebase'], frame, os.path.join(scene['viparams']['newdir'], 'images', 'image')) for frame in range(self.fs, self.fe + 1)]
-#                
-##            logentry('rpict command: {}'.format(rpictcmd))
+            self.rppmcmds = [('', ' -ap {} {}'.format('{}-{}.gpm'.format(scene['viparams']['filebase'], frame), self.pmparams[str(frame)]['cpfileentry']))[self.pmaps[frame - self.fs]] for frame in range(self.fs, self.fe + 1)]
+            self.rpictcmds = ["rpict -t 10 -e {} ".format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + "{0}-{1}.oct".format(scene['viparams']['filebase'], frame, os.path.join(scene['viparams']['newdir'], 'images', self.hdrname)) for frame in range(self.fs, self.fe + 1)]
+            self.rpiececmds = ["rpiece -t 10 -e {} ".format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + "-o {2}-{1}.hdr {0}-{1}.oct".format(scene['viparams']['filebase'], frame, os.path.join(scene['viparams']['newdir'], 'images', self.hdrname)) for frame in range(self.fs, self.fe + 1)]
             self.starttime = datetime.datetime.now()
             self.pfile = progressfile(self.folder, datetime.datetime.now(), 100)
             (self.pmfin, flag) = (0, 'Photon Maps') if sum(self.pmaps) else (1, 'Radiance Images')
             self.kivyrun = progressbar(os.path.join(self.folder, 'viprogress'), flag)
-#            
-#            if not self.mp:
-#                with open(bpy.path.abspath(self.simnode.hdrname), 'w') as imfile:
-#                    self.rpruns.append(Popen(rpictcmd.split(), stdout=imfile, stderr = PIPE))
-#            else:
-#                logentry('rpiece command: {}'.format(self.rpiececmds[self.frame - self.fs]))
-#
-            if os.path.isfile("{}-{}.hdr".format(os.path.join(scene['viparams']['newdir'], 'images', 'image'), self.frame)):
-               os.remove("{}-{}.hdr".format(os.path.join(scene['viparams']['newdir'], 'images', 'image'), self.frame))
-#
-#                for p in range(self.processors):
-#                    echo = Popen(['echo', '{}'.format(p), '0'], stdout = PIPE)
-#                    self.rpruns.append(Popen(self.rpiececmds[self.frame - self.fs].split(), stdin = echo.stdout, stderr = PIPE))
-#                    self.xindex += 1
+
+            if os.path.isfile("{}-{}.hdr".format(os.path.join(scene['viparams']['newdir'], 'images', self.hdrname), self.frame)):
+               os.remove("{}-{}.hdr".format(os.path.join(scene['viparams']['newdir'], 'images', self.hdrname), self.frame))
                 
             wm = context.window_manager
             self._timer = wm.event_timer_add(2, context.window)
-            wm.modal_handler_add(self)
-            
-#            if 'liviimage' not in bpy.data.images:
-##                im = bpy.data.images.load("{}-{}.hdr".format(os.path.join(self.folder, 'images', 'image'), self.frame))
-#                im = bpy.data.images.new('liviimage', width = 1000, height = 1000)
-#                im.filepath = ("{}-{}.hdr".format(os.path.join(self.folder, 'images', 'image'), self.frame))
-##                im.name = 'liviimage'
-#            else:
-#                bpy.data.images['liviimage'].filepath = "{}-{}.hdr".format(os.path.join(self.folder, 'images', 'image'), self.frame)
-                
+            wm.modal_handler_add(self)                
             return {'RUNNING_MODAL'}
         else:
             self.report({'ERROR'}, "There is no camera in the scene or selected in the node. Create one for rpict image creation")
@@ -845,6 +796,7 @@ class NODE_OT_LiFC(bpy.types.Operator):
 
     def execute(self, context):
         fcnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]] 
+        fcnode.presim()
         imnode = fcnode.inputs['Image'].links[0].from_node 
         lmax = '-s {}'.format(fcnode.lmax) if fcnode.lmax else '-s a'
         scaling = '' if fcnode.nscale == '0' else '-log {}'.format(fcnode.decades) 
@@ -853,20 +805,14 @@ class NODE_OT_LiFC(bpy.types.Operator):
         bands = '-cb' if fcnode.bands else ''
         contour = '-cl {}'.format(bands) if fcnode.contour else ''
         poverlay = '-ip' if fcnode.contour and fcnode.overlay else '-i'
-        fccmd = 'falsecolor {} {} -pal {} {} {}'.format(poverlay, bpy.path.abspath(imnode.hdrname), fcnode.coldict[fcnode.colour], legend, contour)
-        logentry(fccmd)
-        
-        with open(bpy.path.abspath(fcnode.hdrname), 'w') as fcfile:
-            Popen(fccmd.split(), stdout=fcfile, stderr = PIPE).wait()  
 
-        if 'fcliviimage' not in bpy.data.images:
-            im = bpy.data.images.load(fcnode.hdrname)
-            im.name = 'fcliviimage'
-        else:
-            bpy.data.images['fcliviimage'].filepath = fcnode.hdrname
-            bpy.data.images['fcliviimage'].reload()
-            bpy.data.images['fcliviimage'].name = 'fcliviimage'
-            
+        for i, im in enumerate(imnode['images']): 
+            fccmd = 'falsecolor {} {} -pal {} {} {}'.format(poverlay, bpy.path.abspath(im), fcnode.coldict[fcnode.colour], legend, contour)
+            logentry(fccmd)
+        
+            with open(os.path.join(context.scene['viparams']['newdir'], 'images', '{}-{}.hdr'.format(fcnode['hdrname'], i + context.scene['liparams']['fs'])), 'w') as fcfile:
+                Popen(fccmd.split(), stdout=fcfile, stderr = PIPE).wait()  
+
         fcnode.postsim()                               
         return {'FINISHED'}
     
@@ -878,23 +824,21 @@ class NODE_OT_LiGl(bpy.types.Operator):
     bl_undo = False
     nodeid = bpy.props.StringProperty()
     
-#    def modal(self, context):
-#        pass
-
     def execute(self, context):
         scene = context.scene
         res = []
         reslists = []
         glnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]] 
         imnode = glnode.inputs[0].links[0].from_node
+        glnode.presim()
         
         for i, im in enumerate(imnode['images']):
-            glfile = os.path.join(scene['viparams']['newdir'], 'images', 'glare-{}.hdr'.format(i + scene['liparams']['fs']))
+            glfile = os.path.join(scene['viparams']['newdir'], 'images', '{}-{}.hdr'.format(glnode['hdrname'], i + scene['liparams']['fs']))
             egcmd = 'evalglare {} -c {}'.format(('-u {0[0]} {0[1]} {0[2]}'.format(glnode.gc), '')[glnode.rand], glfile)
-            
+
             with open(im, 'r') as hdrfile:
                 egrun = Popen(egcmd.split(), stdin = hdrfile, stdout = PIPE)
-                
+
             time = datetime.datetime(2014, 1, 1, imnode['coptions']['shour'], 0) + datetime.timedelta(imnode['coptions']['sdoy'] - 1) if imnode['coptions']['anim'] == '0' else \
                 datetime.datetime(2014, 1, 1, int(imnode['coptions']['shour']), int(60*(imnode['coptions']['shour'] - int(imnode['coptions']['shour'])))) + datetime.timedelta(imnode['coptions']['sdoy'] - 1) + datetime.timedelta(hours = int(imnode['coptions']['interval']*i), seconds = int(60*(imnode['coptions']['interval']*i - int(imnode['coptions']['interval']*i))))
             
@@ -907,26 +851,21 @@ class NODE_OT_LiGl(bpy.types.Operator):
                         res.append(res)
                         reslists += [[str(i + scene['liparams']['fs']), 'Camera', 'Camera', 'DGP', '{0[0]}'.format(res)], [str(i + scene['liparams']['fs']), 'Camera', 'Camera', 'DGI', '{0[1]}'.format(res)], [str(i + scene['liparams']['fs']), 'Camera', 'Camera' 'UGR', '{0[2]}'.format(res)], [str(i + scene['liparams']['fs']), 'Camera', 'Camera', 'VCP', '{0[3]}'.format(res)], [str(i + scene['liparams']['fs']), 'Camera', 'Camera', 'CGI', '{[4]}'.format(res)], [str(i + scene['liparams']['fs']), 'Camera', 'Camera', 'LV', '{[5]}'.format(res)]]
             
-            pcondcmd = "pcond -h+ -u 200 {0}.hdr".format(os.path.join(context.scene['viparams']['newdir'], 'images', 'glare-'+str(i + scene['liparams']['fs'])))
+            pcondcmd = "pcond -h+ -u 300 {}.hdr".format(os.path.join(context.scene['viparams']['newdir'], 'images', 'glare-'+str(i + scene['liparams']['fs'])))
 
             with open('{}.temphdr'.format(os.path.join(scene['viparams']['newdir'], 'images', 'glare')), 'w') as temphdr:
                 Popen(pcondcmd.split(), stdout = temphdr).communicate()
 
             catcmd = "{0} {1}.glare".format(scene['viparams']['cat'], os.path.join(scene['viparams']['newdir'], 'images', 'temp'))
             catrun = Popen(catcmd, stdout = PIPE, shell = True)
-            psigncmd = "psign -h 32 -cb 0 0 0 -cf 1 1 1"
+            psigncmd = "psign -h {} -cb 0 0 0 -cf 1 1 1".format(int(0.04 * imnode.y))
             psignrun = Popen(psigncmd.split(), stdin = catrun.stdout, stdout = PIPE)
             pcompcmd = "pcompos {0}.temphdr 0 0 - {1} {2}".format(os.path.join(scene['viparams']['newdir'], 'images', 'glare'), imnode.x, imnode.y*550/800)
 
             with open("{}.hdr".format(os.path.join(scene['viparams']['newdir'], 'images', 'glare-'+str(i + scene['liparams']['fs']))), 'w') as ghdr:
                 Popen(pcompcmd.split(), stdin = psignrun.stdout, stdout = ghdr).communicate()
 
-            os.remove(os.path.join(scene['viparams']['newdir'], 'images', 'glare.temphdr'.format(i + scene['liparams']['fs'])))
-
-        
-#        glnode.presim()
-#        glnode.sim()            
-#        glnode.postsim()                               
+            os.remove(os.path.join(scene['viparams']['newdir'], 'images', 'glare.temphdr'.format(i + scene['liparams']['fs'])))                               
         return {'FINISHED'}
         
 class NODE_OT_LiViCalc(bpy.types.Operator):

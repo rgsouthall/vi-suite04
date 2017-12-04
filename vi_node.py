@@ -642,7 +642,7 @@ class ViLiINode(bpy.types.Node, ViNodes):
         self.inputs.new('ViLiG', 'Geometry in')
         self.inputs.new('ViLiC', 'Context in')
         self.outputs.new('ViLiI', 'Image')
-        self.hdrname = '//image.hdr'
+#        self.hdrname = '//image.hdr'
         self['Processors'] = 1
         
     def draw_buttons(self, context, layout):       
@@ -686,8 +686,8 @@ class ViLiINode(bpy.types.Node, ViNodes):
     def update(self):
         self.run = 0
         
-    def presim(self, scene):
-#        self.run = 1
+    def presim(self):
+        scene = bpy.context.scene
         pmaps = []
         sf, ef, = self.retframes()
         self['frames'] = range(sf, ef + 1)
@@ -2831,7 +2831,7 @@ class EnViHvac(bpy.types.Node, EnViNodes):
             return ''
 
     def ephwrite(self, zn):
-        params = ('Name', 'Availability Schedule Name', 'Zone Supply Air Node Name', 'Zone Exhaust Air Node Name',
+        params = ('Name', 'Availability Schedule Name', 'Zone Supply Air Node Name', 'Zone Exhaust Air Node Name', 'System Inlet Air Node Name',
               "Maximum Heating Supply Air Temperature (degC)", "Minimum Cooling Supply Air Temperature (degC)",
               'Maximum Heating Supply Air Humidity Ratio (kgWater/kgDryAir)', 'Minimum Cooling Supply Air Humidity Ratio (kgWater/kgDryAir)',
               'Heating Limit', 'Maximum Heating Air Flow Rate (m3/s)', 'Maximum Sensible Heating Capacity (W)',
@@ -2839,7 +2839,7 @@ class EnViHvac(bpy.types.Node, EnViNodes):
               'Cooling Availability Schedule Name', 'Dehumidification Control Type', 'Cooling Sensible Heat Ratio (dimensionless)', 'Humidification Control Type',
               'Design Specification Outdoor Air Object Name', 'Outdoor Air Inlet Node Name', 'Demand Controlled Ventilation Type', 'Outdoor Air Economizer Type',
               'Heat Recovery Type', 'Sensible Heat Recovery Effectiveness (dimensionless)', 'Latent Heat Recovery Effectiveness (dimensionless)')
-        paramvs = ('{}_Air'.format(zn), zn + '_hvacsched', '{}_supairnode'.format(zn), '', self.envi_hvacht, self.envi_hvacct, 0.015, 0.009, self['limittype'][self.envi_hvachlt],
+        paramvs = ('{}_Air'.format(zn), zn + '_hvacsched', '{}_supairnode'.format(zn), '', '', self.envi_hvacht, self.envi_hvacct, 0.015, 0.009, self['limittype'][self.envi_hvachlt],
                    '{:.4f}'.format(self.envi_hvachaf) if self.envi_hvachlt in ('0', '2') else '', self.envi_hvacshc if self.envi_hvachlt in ('1', '2') else '', self['limittype'][self.envi_hvacclt],
                    '{:.4f}'.format(self.envi_hvaccaf) if self.envi_hvacclt in ('0', '2') else '', self.envi_hvacscc if self.envi_hvacclt in ('1', '2') else '',
                    '', '', 'ConstantSupplyHumidityRatio', '', 'ConstantSupplyHumidityRatio', (zn + ' Outdoor Air', '')[self.envi_hvacoam == '0'], '', '', '', ('None', 'Sensible')[int(self.envi_hvachr)], self.envi_hvachre, '')
@@ -3502,7 +3502,7 @@ class EnViSched(bpy.types.Node, EnViNodes):
                 err = 1
             if any([not f for f in (self.f1, self.f2, self.f3, self.f4)[:tn]]):
                 err = 1
-            if any([not u or len(u.split(';')) != len((self.f1, self.f2, self.f3, self.f4)[i].split(' ')) for i, u in enumerate((self.u1, self.u2, self.u3, self.u4)[:tn])]):
+            if any([not u or '.' in u or len(u.split(';')) != len((self.f1, self.f2, self.f3, self.f4)[i].split(' ')) for i, u in enumerate((self.u1, self.u2, self.u3, self.u4)[:tn])]):
                 err = 1
 
             for f in (self.f1, self.f2, self.f3, self.f4)[:tn]:

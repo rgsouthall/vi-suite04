@@ -526,7 +526,7 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
             cang = '180 -vth ' if self.simnode['coptions']['Context'] == 'Basic' and self.simnode['coptions']['Type'] == '1' else cam.data.angle*180/pi
             vv = 180 if self.simnode['coptions']['Context'] == 'Basic' and self.simnode['coptions']['Type'] == '1' else cang * scene.render.resolution_y/scene.render.resolution_x
             vd = (0.001, 0, -1*cam.matrix_world[2][2]) if (round(-1*cam.matrix_world[0][2], 3), round(-1*cam.matrix_world[1][2], 3)) == (0.0, 0.0) else [-1*cam.matrix_world[i][2] for i in range(3)]
-
+            
             if self.simnode.pmap:
                 self.pfile = progressfile(scene['viparams']['newdir'], datetime.datetime.now(), 100)
                 self.kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'Photon Map')
@@ -740,7 +740,7 @@ class NODE_OT_RadImage(bpy.types.Operator):
             self.res = []
             self.rpictfile = os.path.join(scene['viparams']['newdir'], 'rpictprogress')
             self.pmfile = os.path.join(scene['viparams']['newdir'], 'pmprogress')
-            simnode.presim(scene)
+            simnode.presim()
             simnode.run = 1
             nodecolour(simnode, 1)
             scene['liparams']['fs'], scene['liparams']['fe'] =  simnode.retframes()

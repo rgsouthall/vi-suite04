@@ -16,7 +16,7 @@ def resnameunits():
                 '7': ("Heating Watts", "Zone Heating Requirement (Watts)"), '8': ("Cooling Watts", "Zone Cooling Requirement (Watts)"),
                 '9': ("Solar Gain", "Window Solar Gain (Watts)"), '10': ("PPD", "Percentage Proportion Dissatisfied"), '11': ("PMV", "Predicted Mean Vote"),
                 '12': ("Ventilation (l/s)", "Zone Ventilation rate (l/s)"), '13': (u'Ventilation (m\u00b3/h)', u'Zone Ventilation rate (m\u00b3/h)'),
-                '14': (u'Infiltration (m\u00b3)',  u'Zone Infiltration (m\u00b3)'), '15': ('Infiltration (ACH)', 'Zone Infiltration rate (ACH)'), '16': ('CO2 (ppm)', 'Zone CO2 concentration (ppm)'),
+                '14': (u'Infiltration (m\u00b3/hr)',  u'Zone Infiltration (m\u00b3/hr)'), '15': ('Infiltration (ACH)', 'Zone Infiltration rate (ACH)'), '16': ('CO2 (ppm)', 'Zone CO2 concentration (ppm)'),
                 '17': ("Heat loss (W)", "Ventilation Heat Loss (W)"), '18': (u'Flow (m\u00b3/s)', u'Linkage flow (m\u00b3/s)'), '19': ('Opening factor', 'Linkage Opening Factor'),
                 '20': ("MRT (K)", "Mean Radiant Temperature (K)"), '21': ('Occupancy', 'Occupancy count'), '22': ("Humidity", "Zone Humidity"),
                 '23': ("Fabric HB (W)", "Fabric convective heat balance"), '24': ("Air Heating", "Zone air heating"), '25': ("Air Cooling", "Zone air cooling"),
@@ -345,6 +345,8 @@ def retrmenus(innode, node):
     return (valid, fmenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, posmenu, posrmenu, cammenu, camrmenu, multfactor)
 
 def processh(lines):
+    'Zone Other Equipment Total Heating Rate [W] !Hourly'
+    
     envdict = {'Site Outdoor Air Drybulb Temperature [C] !Hourly': "Temperature (degC)",
                'Site Outdoor Air Relative Humidity [%] !Hourly': 'Humidity (%)',
                 'Site Wind Direction [deg] !Hourly': 'Wind Direction (deg)',
@@ -361,7 +363,7 @@ def processh(lines):
                 'Zone Windows Total Transmitted Solar Radiation Rate [W] !Hourly': 'Solar gain (W)',
                 'AFN Zone Infiltration Volume [m3] !Hourly': 'Infiltration (m3/hr)',
                 'AFN Zone Infiltration Air Change Rate [ach] !Hourly': 'Infiltration (ACH)',
-                'Zone Infiltration Volume [m3] !Hourly': 'Infiltration (m3/hr)',
+                'Zone Infiltration Current Density Volume [m3] !Hourly': 'Infiltration (m3/hr)',
                 'Zone Infiltration Air Change Rate [ach] !Hourly': 'Infiltration (ACH)',
                 'Zone Mean Air Temperature [C] ! Hourly': 'Mean Temperature (degC)', 
                 'Zone Thermal Comfort Fanger Model PPD [%] !Hourly' :'PPD (%)',

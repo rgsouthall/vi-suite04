@@ -1594,7 +1594,7 @@ def viparams(op, scene):
     if not scene.get('enparams'):
         scene['enparams'] = {}
     scene['enparams']['idf_file'] = idf
-    scene['enparams']['epversion'] = '8.7'
+    scene['enparams']['epversion'] = '8.8'
     if not scene.get('flparams'):
         scene['flparams'] = {}
     scene['flparams']['offilebase'] = offb
@@ -2364,10 +2364,12 @@ def draw_index_distance(posis, res, fontsize, fontcol, shadcol, distances):
             fsdist = (fontsize/distances).astype(int8)
             xposis = posis[0::2]
             yposis = posis[1::2]
+            
             for ri, nr in enumerate(nres):
                 blf.size(0, fsdist[ri], bpy.context.user_preferences.system.dpi)
                 blf.position(0, xposis[ri] - int(0.5*blf.dimensions(0, nr)[0]), yposis[ri] - int(0.5 * blf.dimensions(0, nr)[1]), 0.99)
                 blf.draw(0, nr)
+
         except Exception as e:
             print('Drawing index error: ', e)
 

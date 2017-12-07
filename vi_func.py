@@ -169,6 +169,7 @@ def retcols(scene, levels):
   
 def cmap(scene):
     cols = retcols(scene, 20)
+    
     for i in range(20):   
         matname = '{}#{}'.format('vi-suite', i)
         
@@ -185,19 +186,21 @@ def cmap(scene):
         for node in nodes:
             nodes.remove(node)
         
-        if scene.vi_disp_mat:
+        if scene.vi_disp_trans < 1:
+            # create transparency node
+            node_material = nodes.new(type='ShaderNodeBsdfTransparent')            
+        elif scene.vi_disp_mat:
             # create emission node
-            node_material = nodes.new(type='ShaderNodeEmission')
+            node_material = nodes.new(type='ShaderNodeEmission')        
         else:
             # create diffuse node
             node_material = nodes.new(type='ShaderNodeBsdfDiffuse')
+            node_material.inputs[1].default_value = 0.5
+        
 
         node_material.inputs[0].default_value = (*cols[i][0:3],1)  # green RGBA
-        node_material.inputs[1].default_value = 0.5 # strength
         node_material.location = 0,0
-        
-        # create diffuse node
-        
+                
         # create output node
         node_output = nodes.new(type='ShaderNodeOutputMaterial')   
         node_output.location = 400,0
@@ -546,21 +549,6 @@ def rettree(scene, obs, ignore):
     bmob.free()
     bmtemp.free()
     return tree
-
-def vismatupdate(self, context):
-    # clear all nodes to start clean
-    for node in nodes:
-        nodes.remove(node)
-    
-    # create emission node
-    node_emission = nodes.new(type='ShaderNodeEmission')
-    node_emission.inputs[0].default_value = (0,1,0,1)  # green RGBA
-    node_emission.inputs[1].default_value = 5.0 # strength
-    node_emission.location = 0,0
-    
-    # create output node
-    node_output = nodes.new(type='ShaderNodeOutputMaterial')   
-    node_output.location = 400,0
     
 class progressfile(): 
     def __init__(self, folder, starttime, calcsteps):

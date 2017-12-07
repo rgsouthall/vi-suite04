@@ -1193,7 +1193,7 @@ class ViExEnNode(bpy.types.Node, ViNodes):
                                    name="", description="Specify the EnVi results category", default="0", update = nodeupdate)
 
     (resaam, resaws, resawd, resah, resasm, restt, resh, restwh, restwc, reswsg, rescpp, rescpm, resvls, resvmh, resim, resiach, resco2, resihl, resl12ms,
-     reslof, resmrt, resocc, resh, resfhb, ressah, ressac, reshrhw, restcvf, restcmf, restcot, restchl, restchg, restcv, restcm, resldp) = resnameunits()
+     reslof, resmrt, resocc, resh, resfhb, ressah, ressac, reshrhw, restcvf, restcmf, restcot, restchl, restchg, restcv, restcm, resldp, resoeg) = resnameunits()
      
     def init(self, context):
         self['nodeid'] = nodeid(self)
@@ -1271,15 +1271,21 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
     resname = bpy.props.StringProperty(name="", description="Base name for the results files", default="results", update = nodeupdate)
     resfilename = bpy.props.StringProperty(name = "", default = 'results')
     dsdoy, dedoy, run  = bpy.props.IntProperty(), bpy.props.IntProperty(), bpy.props.IntProperty(min = -1, default = -1)
+    processors =  bpy.props.IntProperty(name = '', min = 1, default = 4)#max = bpy.context.scene['viparams']['nproc'], default = bpy.context.scene['viparams']['nproc'])
+    mp = bpy.props.BoolProperty(name = "", default = False)
 
     def draw_buttons(self, context, layout):
         if self.run > -1:
             row = layout.row()
             row.label('Calculating {}%'.format(self.run))
         elif self.inputs['Context in'].links and not self.inputs['Context in'].links[0].from_node.use_custom_color:
+            if context.scene['enparams']['fe'] > context.scene['enparams']['fs']:
+                newrow(layout, 'Multi-core:', self, 'mp')
+                if self.mp:
+                    newrow(layout, 'Processors:', self, 'processors')
             newrow(layout, 'Results name:', self, 'resname')
             row = layout.row()
-            row.operator("node.ensim", text = 'Calculate').nodeid = self['nodeid']
+            row.operator("node.ensim2", text = 'Calculate').nodeid = self['nodeid']
 
     def update(self):
         if self.outputs.get('Results out'):
@@ -1288,6 +1294,7 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
     def presim(self, context):
         innode = self.inputs['Context in'].links[0].from_node
         self['frames'] = range(context.scene['enparams']['fs'], context.scene['enparams']['fe'] + 1)
+        self.resfilename = os.path.join(context.scene['viparams']['newdir'], self.resname+'.eso')
         self['year'] = innode['year']
         self.dsdoy = innode.sdoy # (locnode.startmonthnode.sdoy
         self.dedoy = innode.edoy
@@ -1295,6 +1302,10 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
         self['Start'], self['End'] = innode.sdoy, innode.edoy
 #        self["_RNA_UI"] = {"AStart": {"min":context.scene['enparams']['fs'], "max":context.scene['enparams']['fe']}, "AEnd": {"min":context.scene['enparams']['fs'], "max":context.scene['enparams']['fe']}}
         self['AStart'], self['AEnd'] = context.scene['enparams']['fs'], context.scene['enparams']['fe']
+     
+    def postsim(self):
+        nodecolour(self, 0)
+        self.run = -1
         
 class ViEnRFNode(bpy.types.Node, ViNodes):
     '''Node for EnergyPlus results file selection'''
@@ -3502,7 +3513,7 @@ class EnViSched(bpy.types.Node, EnViNodes):
                 err = 1
             if any([not f for f in (self.f1, self.f2, self.f3, self.f4)[:tn]]):
                 err = 1
-            if any([not u or '.' in u or len(u.split(';')) != len((self.f1, self.f2, self.f3, self.f4)[i].split(' ')) for i, u in enumerate((self.u1, self.u2, self.u3, self.u4)[:tn])]):
+            if any([not u or '. ' in u or len(u.split(';')) != len((self.f1, self.f2, self.f3, self.f4)[i].split(' ')) for i, u in enumerate((self.u1, self.u2, self.u3, self.u4)[:tn])]):
                 err = 1
 
             for f in (self.f1, self.f2, self.f3, self.f4)[:tn]:

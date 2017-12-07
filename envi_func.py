@@ -22,7 +22,8 @@ def resnameunits():
                 '23': ("Fabric HB (W)", "Fabric convective heat balance"), '24': ("Air Heating", "Zone air heating"), '25': ("Air Cooling", "Zone air cooling"),
                 '26': ("HR Heating", "Heat recovery heating (W)"), '27': ("Volume flow", "Thermal chimney volume flow rate (m3/2)"), '28': ("Mass flow", "Thermal chmimney mass flow rate (kg/s"),
                 '29': ("Out temp.", "Thermal chimney outlet temperature (C)"), '30': ("Heat loss", "Thermal chimney heat loss (W)"), '31': ("Heat gain", "Thermal chimney heat gain (W)"),
-                '32': ("Volume", "Thermal chimnwey volume (m3)"), '33': ("Mass", "Thermal chimney mass (kg)"), '34': ('delta P', 'Linkage Pressure Differential (Pa)')}
+                '32': ("Volume", "Thermal chimnwey volume (m3)"), '33': ("Mass", "Thermal chimney mass (kg)"), '34': ('delta P', 'Linkage Pressure Differential (Pa)'),
+                '35': ('Equipment', 'Other equipment heat gains (W)')}
 
     return [bpy.props.BoolProperty(name = rnu[str(rnum)][0], description = rnu[str(rnum)][1], default = False) for rnum in range(len(rnu))]
 
@@ -40,7 +41,8 @@ def aresnameunits():
 
 def enresprops(disp):
     return {'0': (0, "restt{}".format(disp), "resh{}".format(disp), 0, "restwh{}".format(disp), "restwc{}".format(disp), 0, 
-                  "ressah{}".format(disp), "reshrhw{}".format(disp), 0, "ressac{}".format(disp), "reswsg{}".format(disp), 0, "resfhb{}".format(disp)),
+                  "ressah{}".format(disp), "reshrhw{}".format(disp), 0, "ressac{}".format(disp), "reswsg{}".format(disp), 0, 
+                  "resfhb{}".format(disp), "resoeg{}".format(disp)),
             '1': (0, "rescpp{}".format(disp), "rescpm{}".format(disp), 0, 'resmrt{}'.format(disp), 'resocc{}'.format(disp)), 
             '2': (0, "resim{}".format(disp), "resiach{}".format(disp), 0, "resco2{}".format(disp), "resihl{}".format(disp)), 
             '3': (0, "resl12ms{}".format(disp), "reslof{}".format(disp), 0, "resldp{}".format(disp)), 
@@ -344,9 +346,7 @@ def retrmenus(innode, node):
     
     return (valid, fmenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, posmenu, posrmenu, cammenu, camrmenu, multfactor)
 
-def processh(lines):
-    'Zone Other Equipment Total Heating Rate [W] !Hourly'
-    
+def processh(lines):    
     envdict = {'Site Outdoor Air Drybulb Temperature [C] !Hourly': "Temperature (degC)",
                'Site Outdoor Air Relative Humidity [%] !Hourly': 'Humidity (%)',
                 'Site Wind Direction [deg] !Hourly': 'Wind Direction (deg)',
@@ -379,7 +379,8 @@ def processh(lines):
                 'Zone Thermal Chimney Heat Loss Energy [J] !Hourly': 'TC heat loss (J)',
                 'Zone Thermal Chimney Heat Gain Energy [J] !Hourly': 'TC heat gain (J)',
                 'Zone Thermal Chimney Volume [m3] !Hourly': 'TC VOLUME (m3)',
-                'Zone Thermal Chimney Mass [kg] !Hourly':'TC mass(kg)'}
+                'Zone Thermal Chimney Mass [kg] !Hourly':'TC mass(kg)',
+                'Zone Other Equipment Total Heating Rate [W] !Hourly': 'Equipment (W)'}
     enresdict = {'AFN Node CO2 Concentration [ppm] !Hourly': 'CO2 (ppm)'}
     lresdict = {'AFN Linkage Node 1 to Node 2 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow out',
                 'AFN Linkage Node 2 to Node 1 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow in',

@@ -22,7 +22,7 @@ from nodeitems_utils import NodeCategory, NodeItem
 from subprocess import Popen
 from .vi_func import socklink, uvsocklink, newrow, epwlatilongi, nodeid, nodeinputs, remlink, rettimes, sockhide, selobj, cbdmhdr, cbdmmtx
 from .vi_func import hdrsky, nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, sunposlivi, retdates, validradparams, retpmap
-from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite
+from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite, processf
 from .livi_export import sunexport, skyexport, hdrexport
 from .envi_mat import retuval
 
@@ -1303,9 +1303,13 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
 #        self["_RNA_UI"] = {"AStart": {"min":context.scene['enparams']['fs'], "max":context.scene['enparams']['fe']}, "AEnd": {"min":context.scene['enparams']['fs'], "max":context.scene['enparams']['fe']}}
         self['AStart'], self['AEnd'] = context.scene['enparams']['fs'], context.scene['enparams']['fe']
      
-    def postsim(self):
+    def postsim(self, sim_op, condition):
+#        scene = bpy.context.scene
         nodecolour(self, 0)
         self.run = -1
+        if condition == 'FINISHED':
+            processf(sim_op, self)
+
         
 class ViEnRFNode(bpy.types.Node, ViNodes):
     '''Node for EnergyPlus results file selection'''

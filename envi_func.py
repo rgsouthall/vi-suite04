@@ -418,7 +418,8 @@ def checkenvierrors(file, sim_op):
     if '** Severe  **' in efile:
         sim_op.report({'ERROR'}, "There is a fatal error in the EnVi model, check the error file in Blender's text editor")
         
-def processf(pro_op, scene, node):
+def processf(pro_op, node):
+    scene = bpy.context.scene
     reslists, areslists = [], []
     frames = range(scene['enparams']['fs'], scene['enparams']['fe'] + 1) if node.bl_label == 'EnVi Simulation' else [scene.frame_current] 
     

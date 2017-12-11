@@ -1456,7 +1456,6 @@ class NODE_OT_EnSim2(bpy.types.Operator):
         while sum([esim.poll() is None for esim in self.esimruns]) < self.processors and self.e < self.lenframes:
             self.esimruns.append(Popen(self.esimcmds[self.e].split(), stderr = PIPE))
             self.e += 1
-#            return {'RUNNING_MODAL'}
     
         if event.type == 'TIMER':
             self.percent = 100 * sum([esim.poll() is not None for esim in self.esimruns])/self.lenframes 
@@ -1530,7 +1529,6 @@ class NODE_OT_EnSim2(bpy.types.Operator):
         return {'RUNNING_MODAL'}
     
     def terminate(self, condition, context):
-        context = bpy.context
         self.simnode.postsim(self, condition)
         if condition == 'FINISHED':
             context.scene['viparams']['resnode'] = self.nodeid

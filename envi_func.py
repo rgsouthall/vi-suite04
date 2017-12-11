@@ -1,6 +1,6 @@
-import bpy, mathutils, colorsys, os, gc, datetime
+import bpy, mathutils, colorsys, os
 from collections import OrderedDict
-from numpy import arange, array, where
+from numpy import arange, array
 from numpy import sum as nsum
 
 def retenresdict(scene):
@@ -197,10 +197,9 @@ def envizres(scene, eresobs, resnode, restype):
             colval = [colorsys.hsv_to_rgb(0.667 * (maxval - vals[vi])/(maxval - minval), 1, 1) for vi in range(len(vals))]
         else:
             scalevel = colval = [0] * len(vals)
-#            colval = [colorsys.hsv_to_rgb(0.667 * (maxval - vals[vi])/(maxval - minval), 1, 1) for vi in range(len(vals))]
+
         sv = [(sv, 0.1)[sv <= 0.1] for sv in scalevel]    
-        cv = [(((0, 1)[vals[c] >= maxval], 0, (0, 1)[vals[c] <= minval]), cv)[minval < vals[c] < maxval] for c, cv in enumerate(colval)]
-    
+        cv = [(((0, 1)[vals[c] >= maxval], 0, (0, 1)[vals[c] <= minval]), cv)[minval < vals[c] < maxval] for c, cv in enumerate(colval)]    
         ores.animation_data_clear()
         ores.animation_data_create()
         ores['max'], ores['min'], ores['cmap'], ores['days'], ores['hours'] = maxval, minval, scene.vi_leg_col, o['days'], o['hours']
@@ -251,21 +250,17 @@ def epschedwrite(name, stype, ts, fs, us):
     return epentry('Schedule:Compact', params, paramvs)
 
 def enunits(self, context):
-    try: #context.active_object and context.active_object.children[0].get('envires{}'.format(context.scene.frame_current)):
-#        resnode = bpy.data.node_groups[context.scene['viparams']['resnode'].split('@')[1]].nodes[context.scene['viparams']['resnode'].split('@')[0]]
+    try: 
         resstring = retenvires(context.scene)
         return [(k, k, 'Display {}'.format(k)) for k in sorted(context.active_object[resstring].keys())]
     except:
-#        return [(k, k, 'Display {}'.format(k)) for k in resnode[resstring].keys()]
         return [('', '', '')]
 
 def enpunits(self, context):
-    try: #context.active_object and context.active_object.children[0].get('envires{}'.format(context.scene.frame_current)):
-#        resnode = bpy.data.node_groups[context.scene['viparams']['resnode'].split('@')[1]].nodes[context.scene['viparams']['resnode'].split('@')[0]]
+    try: 
         resstring = retenvires(context.scene)
         return [(k, k, 'Display {}'.format(k)) for k in context.active_object[resstring].keys()]
     except:
-#        return [(k, k, 'Display {}'.format(k)) for k in resnode[resstring].keys()]
         return []
 
 def enparametric(self, context): 
@@ -290,7 +285,6 @@ def retrmenus(innode, node):
     ctype = [(metric, metric, "Plot " + metric) for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Climate' and zrl[0][m] == frame]
     ztypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Zone' and zrl[0][m] == frame]))
     ztype = [(metric, metric, "Plot " + metric) for metric in ztypes]
-#    zrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Zone' and zrl[0][m] == frame]))
     ptypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Position' and zrl[0][m] == frame]))
     ptype = [(metric, metric, "Plot " + metric) for metric in ptypes]
     prtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Position' and zrl[0][m] == frame]))
@@ -299,14 +293,6 @@ def retrmenus(innode, node):
     camtype = [(metric, metric, "Plot " + metric) for metric in camtypes]
     camrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Camera' and zrl[0][m] == frame]))
     camrtype = [(metric, metric, "Plot " + metric) for metric in camrtypes]
-
-#    zrtype = [(metric, metric, "Plot " + metric) for metric in zrtypes]
-    
-#    for zone in ztypes:
-#        zrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Zone' and zrl[2][m] == zone and zrl[0][m] == frame]))
-#        zrtype = [(metric, metric, "Plot " + metric) for metric in zrtypes]
-#        zonermenu = bpy.props.EnumProperty(items=zrtype, name="", description="Zone result", default = zrtype[0][0])  if ztype else ''
-#        zrdict[zone] = zonermenu
     ltypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Linkage' and zrl[0][m] == frame]))
     ltype = [(metric, metric, "Plot " + metric) for metric in ltypes]
     lrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Linkage' and zrl[0][m] == frame]))
@@ -318,20 +304,14 @@ def retrmenus(innode, node):
     chimtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[2]) if zrl[1][m] == 'Chimney' and zrl[0][m] == frame]))
     chimtype = [(metric, metric, "Plot " + metric) for metric in chimtypes]
     chimrtypes = list(OrderedDict.fromkeys([metric for m, metric in enumerate(zrl[3]) if zrl[1][m] == 'Chimney' and zrl[0][m] == frame]))       
-    chimrtype = [(metric, metric, "Plot " + metric) for metric in chimrtypes] 
-    
+    chimrtype = [(metric, metric, "Plot " + metric) for metric in chimrtypes]     
     fmenu = bpy.props.EnumProperty(items=ftype, name="", description="Frame number", default = ftype[0][0])
-#    rtypemenu = bpy.props.EnumProperty(items=rtupdate, name="", description="Result types")
     rtypemenu = bpy.props.EnumProperty(items=rtype, name="", description="Result types", default = rtype[0][0])
     statmenu = bpy.props.EnumProperty(items=[('Average', 'Average', 'Average Value'), ('Maximum', 'Maximum', 'Maximum Value'), ('Minimum', 'Minimum', 'Minimum Value')], name="", description="Zone result", default = 'Average')
     valid = ['Vi Results']    
     climmenu = bpy.props.EnumProperty(items=ctype, name="", description="Climate type", default = ctype[0][0]) if ctype else ''     
     zonemenu = bpy.props.EnumProperty(items=ztype, name="", description="Zone", default = ztype[0][0]) if ztype else ''
     zonermenu = bpy.props.EnumProperty(items=zrupdate, name="", description="Flow linkage result")# if ztype else ''
-
-#    zonermenu = bpy.props.EnumProperty(items=zrtype, name="", description="Flow linkage result", default = zrtype[0][0]) if ztype else ''
-#    zonermenu = bpy.props.EnumProperty(items=zrupdate(zonemenu, innode), name="", description="Flow linkage result") if ztype else ''
-
     linkmenu = bpy.props.EnumProperty(items=ltype, name="", description="Flow linkage result", default = ltype[0][0]) if ltype else ''
     linkrmenu = bpy.props.EnumProperty(items=lrtype, name="", description="Flow linkage result", default = lrtype[0][0]) if ltype else ''
     enmenu = bpy.props.EnumProperty(items=entype, name="", description="External node result", default = entype[0][0]) if entype else ''
@@ -446,8 +426,6 @@ def processf(pro_op, node):
     zrls = list(zip(*rls))
     scene['enparams']['lmetrics'] = list(set([zr for zri, zr in enumerate(zrls[3]) if zrls[1][zri] == 'Linkage' and zrls[0][zri] == str(node["AStart"])]))
     scene['enparams']['zmetrics'] = list(set([zr for zri, zr in enumerate(zrls[3]) if zrls[1][zri] == 'Zone' and zrls[0][zri] == str(node["AStart"])]))
-#    scene['AStart'], scene['AEnd'] = frames[0], frames[-1]
-#    scene["_RNA_UI"] = {"AStart": {"name": '', "min":frames[0], "max":frames[-1]}, "AEnd": {"min":frames[0], "max":frames[-1]}}
 
     for frame in frames:
         zonerls = [zonerl for zonerl in rls if zonerl[1] == 'Zone' and zonerl[0] == str(frame)]
@@ -486,7 +464,7 @@ def processf(pro_op, node):
         comfppds = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'PPD']
         comfpmvs = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'PMV']
         shgs = [(zrls[2][zi], [float(t) for t in zrls[4][zi].split()]) for zi, z in enumerate(zrls[1]) if z == 'Zone' and zrls[3][zi] == 'Solar gain (W)']
-
+               
         for zn in set(zzonerls[2]):
             if temps:
                 areslists.append(['All', 'Zone', zn, 'Max temp (C)', ' '.join([str(max(t[1])) for t in temps if t[0] == zn])])
@@ -538,18 +516,31 @@ def processf(pro_op, node):
                 areslists.append(['All', 'Zone', zn, 'Ave SHG (W)', ' '.join([str(sum(t[1])/len(t[1])) for t in shgs if t[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Total SHG (kWh)', ' '.join([str(sum(t[1])*0.001) for t in shgs if t[0] == zn])])
                 areslists.append(['All', 'Zone', zn, 'Total SHG (kWh/m2)', ' '.join([str(sum(t[1])*0.001/[o for o in bpy.data.objects if o.name.upper() == zn][0]['floorarea']) for t in shgs if t[0] == zn])])
-        
+            if heats and cools:
+                try:
+                    conds = [sum(x) for x in zip(*[[sum(h[1])*0.001 for h in heats if h[0] == zn], [sum(h[1])*0.001 for h in cools if h[0] == zn]])]
+                    areslists.append(['All', 'Zone', zn, 'Total conditioning (kWh)', ' '.join([str(c) for c in conds])])#join([str(sum(h[1])*0.001) for h in heats if h[0] == zn])])
+                    areslists.append(['All', 'Zone', zn, 'Total conditioing (kWh/m2)', ' '.join([str(c/[o for o in bpy.data.objects if o.name.upper() == zn][0]['floorarea']) for c in conds])])
+                except:
+                    pass                
+            if aheats and acools:
+                try:
+                    aconds = [sum(x) for x in zip(*[[sum(h[1])*0.001 for h in aheats if h[0] == zn], [sum(h[1])*0.001 for h in acools if h[0] == zn]])]
+                    areslists.append(['All', 'Zone', zn, 'Total air conditioning (kWh)', ' '.join([str(c) for c in conds])])#join([str(sum(h[1])*0.001) for h in heats if h[0] == zn])])
+                    areslists.append(['All', 'Zone', zn, 'Total air conditioing (kWh/m2)', ' '.join([str(c/[o for o in bpy.data.objects if o.name.upper() == zn][0]['floorarea']) for c in aconds])])
+                except:
+                    pass   
+                
         for o in bpy.context.scene.objects:
             o['envires'] = {}
             for arl in areslists:
                 if arl[1] == 'Zone' and 'EN_' + o.name.upper() == arl[2]:
-#                    if not o.get('envires'):
-                        
                     o['envires'][arl[3]] = [float(val) for val in arl[4].split()]
                         
         node['envires'] = {'Invalid object': []}
     else:
-        node['envires'] = node['envires{}'.format(frames[0])]                                                                                            
+        node['envires'] = node['envires{}'.format(frames[0])]  
+                                                                                          
     node['reslists'] = reslists + areslists
     
     if node.outputs['Results out'].links:

@@ -802,13 +802,18 @@ class NODE_OT_LiFC(bpy.types.Operator):
         legend = '-l {} -lw {} -lh {} {} {} {}'.format(fcnode.unitdict[fcnode.unit], fcnode.lw, fcnode.lh, lmax, scaling, mult) if fcnode.legend else ''
         bands = '-cb' if fcnode.bands else ''
         contour = '-cl {}'.format(bands) if fcnode.contour else ''
-        poverlay = '-ip' if fcnode.contour and fcnode.overlay else '-i'
+        poverlay = '-ip' if fcnode.contour and fcnode.overlay and not os.path.isfile(bpy.path.abspath(fcnode.ofile)) else '-i'
+        divisions = '-n {}'.format(fcnode.divisions) if fcnode.divisions != 8 else ''
+        ofile = '-p {}'.format(bpy.path.abspath(fcnode.ofile)) if os.path.isfile(bpy.path.abspath(fcnode.ofile)) and fcnode.overlay else ''
 
         for i, im in enumerate(imnode['images']): 
-            fccmd = 'falsecolor {} {} -pal {} {} {}'.format(poverlay, bpy.path.abspath(im), fcnode.coldict[fcnode.colour], legend, contour)
+#            pccmd = "pcond -u 300 {}".format(bpy.path.abspath(im))
+            fccmd = 'falsecolor {} {} -pal {} {} {} {} {}'.format(poverlay, bpy.path.abspath(im), fcnode.coldict[fcnode.colour], legend, contour, divisions, ofile)
+#            fccmd = 'falsecolor -pal {} {} {} {}'.format(fcnode.coldict[fcnode.colour], legend, contour, divisions)
             logentry(fccmd)
         
-            with open(os.path.join(context.scene['viparams']['newdir'], 'images', '{}-{}.hdr'.format(fcnode['hdrname'], i + context.scene['liparams']['fs'])), 'w') as fcfile:
+            with open(os.path.join(context.scene['viparams']['newdir'], 'images', '{}-{}.hdr'.format(fcnode['basename'], i + context.scene['liparams']['fs'])), 'w') as fcfile:
+#                pcrun = Popen(pccmd.split(), stdout = PIPE)
                 Popen(fccmd.split(), stdout=fcfile, stderr = PIPE).wait()  
 
         fcnode.postsim()                               

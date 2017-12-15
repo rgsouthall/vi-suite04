@@ -608,7 +608,6 @@ class ViLiINode(bpy.types.Node, ViNodes):
 #        self["_RNA_UI"] = {"procs": {"max": int(context.scene['viparams']['nproc'])}}
     startframe = bpy.props.IntProperty(name = '', default = 0)
     endframe = bpy.props.IntProperty(name = '', default = 0)
-    x = bpy.props.IntProperty(name = '', min = 1, max = 10000, default = 2000, update = nodeupdate)
     cusacc = bpy.props.StringProperty(
             name="", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
     simacc = bpy.props.EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),("3", "Custom", "Edit Radiance parameters"), ],
@@ -656,12 +655,7 @@ class ViLiINode(bpy.types.Node, ViNodes):
 
         if self.fisheye:
             newrow(layout, 'FoV*:', self, 'fov')
-        newrow(layout, 'Multi-thread:', self, 'mp')
-
-        if self.mp:
-            row = layout.row()
-            row.prop(self, '["Processors"]')
-            newrow(layout, 'Processes:', self, 'processes')
+        
         newrow(layout, 'Accuracy:', self, 'simacc')
 
         if self.simacc == '3':
@@ -673,12 +667,17 @@ class ViLiINode(bpy.types.Node, ViNodes):
            newrow(layout, 'Caustic photons*:', self, 'pmapcno')
 
         if all([sock.links for sock in self.inputs]) and self.camera:       
-            if self.simacc != '3' or (self.simacc == '3' and self.validparams):
+            if self.simacc != '3' or (self.simacc == '3' and self.validparams) and not self.run:
                 row = layout.row()
                 row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']  
             newrow(layout, 'X resolution*:', self, 'x')
             newrow(layout, 'Y resolution*:', self, 'y')
+            newrow(layout, 'Multi-thread:', self, 'mp')
             
+            if self.mp:
+                row = layout.row()
+                row.prop(self, '["Processors"]')
+                newrow(layout, 'Processes:', self, 'processes')
             if (self.simacc != '3' or (self.simacc == '3' and self.validparams)) and not self.run:
                 row = layout.row()
                 row.operator("node.radimage", text = 'Image').nodeid = self['nodeid']
@@ -746,13 +745,13 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
     bl_icon = 'LAMP'  
 
     def nodeupdate(self, context):
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.hdrname, self.colour, self.lmax, self.unit, self.nscale, self.decades, 
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.basename, self.colour, self.lmax, self.unit, self.nscale, self.decades, 
                    self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands)])
 
-    hdrname = bpy.props.StringProperty(name="", description="Base name of the falsecolour image(s)", default="", update = nodeupdate)    
+    basename = bpy.props.StringProperty(name="", description="Base name of the falsecolour image(s)", default="", update = nodeupdate)    
     colour = bpy.props.EnumProperty(items=[("0", "Default", "Default color mapping"), ("1", "Spectral", "Spectral color mapping"), ("2", "Thermal", "Thermal colour mapping"), ("3", "PM3D", "PM3D colour mapping"), ("4", "Eco", "Eco color mapping")],
             name="", description="Simulation accuracy", default="0", update = nodeupdate)             
-    lmax = bpy.props.IntProperty(name = '', min = 0, max = 10000, default = 1000, update = nodeupdate)
+    lmax = bpy.props.IntProperty(name = '', min = 0, max = 100000, default = 1000, update = nodeupdate)
     unit = bpy.props.EnumProperty(items=[("0", "Lux", "Spectral color mapping"),("1", "Candelas", "Thermal colour mapping"), ("2", "DF", "PM3D colour mapping"), ("3", "Irradiance(v)", "PM3D colour mapping")],
             name="", description="Unit", default="0", update = nodeupdate)
     nscale = bpy.props.EnumProperty(items=[("0", "Linear", "Linear mapping"),("1", "Log", "Logarithmic mapping")],
@@ -767,46 +766,51 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
     overlay  = bpy.props.BoolProperty(name = '', default = False, update = nodeupdate)
     bands  = bpy.props.BoolProperty(name = '', default = False, update = nodeupdate)
     coldict = {'0': 'def', '1': 'spec', '2': 'hot', '3': 'pm3d', '4': 'eco'}
-
+    divisions = bpy.props.IntProperty(name = '', min = 1, max = 50, default = 8, update = nodeupdate)
+    ofile = bpy.props.StringProperty(name="", description="Location of the file to overlay", default="", subtype="FILE_PATH", update = nodeupdate)
+    hdrfile  = bpy.props.StringProperty(name="", description="Location of the file to overlay", default="", subtype="FILE_PATH", update = nodeupdate)
+    
     def init(self, context):
         self['exportstate'] = ''
         self['nodeid'] = nodeid(self)
         self.inputs.new('ViLiI', 'Image')
                 
     def draw_buttons(self, context, layout):
-#        if self.inputs['Image'].links and self.inputs['Image'].links[0].from_node.hdrname and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node.hdrname)):
-        newrow(layout, 'Base name:', self, 'hdrname')
-        newrow(layout, 'Unit:', self, 'unit')
-        newrow(layout, 'Colour:', self, 'colour')
-        newrow(layout, 'Legend:', self, 'legend')
-        
-        if self.legend:
-            newrow(layout, 'Scale:', self, 'nscale')
-            if self.nscale == '1':
-                newrow(layout, 'Decades:', self, 'decades')
-            newrow(layout, 'Legend max:', self, 'lmax')
-            newrow(layout, 'Legend width:', self, 'lw')
-            newrow(layout, 'Legend height:', self, 'lh')
-        
-        newrow(layout, 'Contour:', self, 'contour')
-        
-        if self.contour:
-           newrow(layout, 'Overlay:', self, 'overlay') 
-           newrow(layout, 'Bands:', self, 'bands') 
-
-        row = layout.row()
-        row.operator('node.hdrselect', text = 'HDR select').nodeid = self['nodeid']
-        row.prop(self, 'hdrname')
-        print(self.inputs['Image'].links[0].from_node['images'][0])
-        if self.inputs['Image'].links and os.path.isfile(self.inputs['Image'].links[0].from_node['images'][0]):
+        if not self.inputs['Image'].links or not self.inputs['Image'].links[0].from_node['images'] or not os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0])):
             row = layout.row()
-            row.operator("node.livifc", text = 'Process').nodeid = self['nodeid']
+            row.prop(self, 'hdrfile')
+        if (self.inputs['Image'].links and self.inputs['Image'].links[0].from_node['images'] and os.path.isfile(bpy.path.abspath(self.inputs['Image'].links[0].from_node['images'][0]))) or os.path.isfile(self.hdrfile): 
+            newrow(layout, 'Base name:', self, 'basename')
+            newrow(layout, 'Unit:', self, 'unit')
+            newrow(layout, 'Colour:', self, 'colour')
+            newrow(layout, 'Divisions:', self, 'divisions')
+            newrow(layout, 'Legend:', self, 'legend')
+            
+            if self.legend:
+                newrow(layout, 'Scale:', self, 'nscale')
+                if self.nscale == '1':
+                    newrow(layout, 'Decades:', self, 'decades')
+                newrow(layout, 'Legend max:', self, 'lmax')
+                newrow(layout, 'Legend width:', self, 'lw')
+                newrow(layout, 'Legend height:', self, 'lh')
+            
+            newrow(layout, 'Contour:', self, 'contour')
+            
+            if self.contour:
+               newrow(layout, 'Overlay:', self, 'overlay') 
+               if self.overlay:
+                   newrow(layout, 'Overlay file:', self, 'ofile') 
+               newrow(layout, 'Bands:', self, 'bands') 
+   
+            if self.inputs['Image'].links and os.path.isfile(self.inputs['Image'].links[0].from_node['images'][0]):
+                row = layout.row()
+                row.operator("node.livifc", text = 'Process').nodeid = self['nodeid']
             
     def presim(self):
-        self['hdrname'] = self.hdrname if self.hdrname else 'fc'
+        self['basename'] = self.basename if self.basename else 'fc'
         
     def postsim(self):
-        self['exportstate'] = [str(x) for x in (self.hdrname, self.colour, self.lmax, self.unit, self.nscale, self.decades, 
+        self['exportstate'] = [str(x) for x in (self.basename, self.colour, self.lmax, self.unit, self.nscale, self.decades, 
                    self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands)]
         nodecolour(self, 0)
 

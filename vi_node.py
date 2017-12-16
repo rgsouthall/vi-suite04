@@ -641,7 +641,6 @@ class ViLiINode(bpy.types.Node, ViNodes):
         self.inputs.new('ViLiG', 'Geometry in')
         self.inputs.new('ViLiC', 'Context in')
         self.outputs.new('ViLiI', 'Image')
-#        self.hdrname = '//image.hdr'
         self['Processors'] = 1
         
     def draw_buttons(self, context, layout):       
@@ -746,7 +745,7 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
 
     def nodeupdate(self, context):
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.basename, self.colour, self.lmax, self.unit, self.nscale, self.decades, 
-                   self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands)])
+                   self.legend, self.lw, self.lh, self.contour, self.overlay, self.bands, self.ofile, self.hdrfile)])
 
     basename = bpy.props.StringProperty(name="", description="Base name of the falsecolour image(s)", default="", update = nodeupdate)    
     colour = bpy.props.EnumProperty(items=[("0", "Default", "Default color mapping"), ("1", "Spectral", "Spectral color mapping"), ("2", "Thermal", "Thermal colour mapping"), ("3", "PM3D", "PM3D colour mapping"), ("4", "Eco", "Eco color mapping")],

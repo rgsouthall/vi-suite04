@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, os, datetime, shlex, sys
+import bpy, os, datetime
 from subprocess import Popen, PIPE
 from time import sleep
 from . import livi_export

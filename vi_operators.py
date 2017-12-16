@@ -2748,9 +2748,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
                 scene.frame_set(frame)
                 shadtree = rettree(scene, shadobs, ('', '2')[simnode.signore])
                 shadres = geom.layers.float['res{}'.format(frame)]
-                # Could put an hour calculator in here
-#                hourres = geom.layers.float['hourres{}'.format(frame)]
-                                    
+                                  
                 if gpoints:
                     posis = [gp.calc_center_bounds() + gp.normal.normalized() * simnode.offset for gp in gpoints] if simnode.cpoint == '0' else [gp.co + gp.normal.normalized() * simnode.offset for gp in gpoints]
                     allpoints = numpy.zeros((len(gpoints), len(direcs)), dtype=int8)
@@ -2763,8 +2761,6 @@ class NODE_OT_Shadow(bpy.types.Operator):
                             pointres = array([(0, 1)[shadtree.ray_cast(posis[g], direc)[3] == None and direc[2] > 0] for direc in direcs], dtype = int8)
                             numpy.putmask(allpoints[g], pointres == 1, pointres)
                             gp[shadres] = (100 * (numpy.sum(pointres)/lvaldirecs)).astype(float16)
-                            #Hour calculator
-#                            gp[hourres] = gp[shadres] * 0.01 * lvaldirecs
                             g += 1
 
                         curres += len(chunk)

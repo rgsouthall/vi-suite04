@@ -99,14 +99,13 @@ class Vi3DPanel(bpy.types.Panel):
                             
                     elif scene['viparams']['visimcontext'] == 'LiVi Basic':
                         newrow(layout, 'Metric:', scene, 'li_disp_basic')
-                        
-#                    elif scene['viparams']['visimcontext'] == 'Shadow': 
+
                     newrow(layout, 'Legend unit:', scene, "vi_leg_unit")
                     newrow(layout, 'Modifier:', scene, "vi_res_mod")
-                    newrow(layout, 'Script:', scene, "vi_res_py")
-                    if scene.vi_res_py:
-                        layout.prop_search(scene, 'script_file', bpy.data, 'texts', text='File', icon='TEXT')
-                        
+#                    newrow(layout, 'Script:', scene, "vi_res_py")
+#                    if scene.vi_res_py:
+#                        layout.prop_search(scene, 'script_file', bpy.data, 'texts', text='File', icon='TEXT')
+#                        
                         
                     newrow(layout, 'Legend max:', scene, "vi_leg_max")
                     newrow(layout, 'Legend min:', scene, "vi_leg_min")

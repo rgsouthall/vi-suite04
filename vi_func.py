@@ -442,7 +442,7 @@ def cbdmmtx(self, scene, locnode, export_op):
     else:
         export_op.report({'ERROR'}, "Not a valid EPW file")
         return ''
-
+    
 def cbdmhdr(node, scene):
     targethdr = os.path.join(scene['viparams']['newdir'], node['epwbase'][0]+"{}.hdr".format(('l', 'w')[node['watts']]))
     latlonghdr = os.path.join(scene['viparams']['newdir'], node['epwbase'][0]+"{}p.hdr".format(('l', 'w')[node['watts']]))

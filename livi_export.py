@@ -57,14 +57,37 @@ def radgexport(export_op, node, **kwargs):
         gradfile = "# Geometry \n\n"
 
         for o in eolist:
+#            print([o.name for o in eolist])
+            
+#            else:
+            bm = bmesh.new()
+            tempmesh = o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW', calc_undeformed = False)
+            bm.from_mesh(tempmesh)
+            bm.transform(o.matrix_world)
+            bm.normal_update() 
+            bpy.data.meshes.remove(tempmesh)
+
+            gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename, node.fallback)
+          
+            if o in caloblist:
+                geom = (bm.faces, bm.verts)[int(node.cpoint)]
+                if frame == frames[0]:
+                    clearlayers(bm, 'a')                                    
+                    geom.layers.int.new('cindex')
+                    o['cpoint'] = node.cpoint
+                geom.layers.string.new('rt{}'.format(frame))
+                o.rtpoints(bm, node.offset, str(frame))
+                bm.transform(o.matrix_world.inverted())
+                bm.to_mesh(o.data)
+                        
+            bm.free()
+            
             if o.particle_systems:
-                print(o.name)
                 ps = o.particle_systems.active                
                 particles = ps.particles
                 dob = ps.settings.dupli_object
                 dobs = [dob] if dob else []
                 dobs = ps.settings.dupli_group.objects if not dobs else dobs
-                print(dobs)
                 
                 for dob in dobs:
                     bm = bmesh.new()
@@ -73,35 +96,15 @@ def radgexport(export_op, node, **kwargs):
                     bm.transform(dob.matrix_world)
                     bm.normal_update() 
                     bpy.data.meshes.remove(tempmesh)
-                    gradfile += bmesh2mesh(scene, bm, dob, frame, tempmatfilename)
-                    # create on oconv
-                    print(dob.location, dob.name)
-                    for p, part in enumerate(particles):
-                        gradfile += 'void mesh id\n13 {5} -s {3:.3f} -rx 0 -ry 0 -rz {4[2]:.4f} -t {2[0]:.4f} {2[1]:.4f} {2[2]:.4f} \n0\n0\n\n'.format(dob.name, p, part.location - dob.location, part.size, [180 * r/math.pi for r in part.rotation.to_euler('XYZ')], os.path.join(scene['viparams']['newdir'], 'obj', '{}-{}.mesh'.format(dob.name.replace(' ', '_'), frame)))
-                        # Radiance instance octree -t p.location -s p.size -r p.rotation.to_euler('XYZ') 
+                    gradfile += bmesh2mesh(scene, bm, dob, frame, tempmatfilename, node.fallback)
                     bm.free()
-            else:
-                bm = bmesh.new()
-                tempmesh = o.to_mesh(scene = scene, apply_modifiers = True, settings = 'PREVIEW', calc_undeformed = False)
-                bm.from_mesh(tempmesh)
-                bm.transform(o.matrix_world)
-                bm.normal_update() 
-                bpy.data.meshes.remove(tempmesh)
-    
-                gradfile += bmesh2mesh(scene, bm, o, frame, tempmatfilename, node.fallback)
-              
-                if o in caloblist:
-                    geom = (bm.faces, bm.verts)[int(node.cpoint)]
-                    if frame == frames[0]:
-                        clearlayers(bm, 'a')                                    
-                        geom.layers.int.new('cindex')
-                        o['cpoint'] = node.cpoint
-                    geom.layers.string.new('rt{}'.format(frame))
-                    o.rtpoints(bm, node.offset, str(frame))
-                    bm.transform(o.matrix_world.inverted())
-                    bm.to_mesh(o.data)
-                            
-                bm.free()
+                    
+                    if os.path.join(scene['viparams']['newdir'], 'obj', '{}-{}.mesh'.format(dob.name.replace(' ', '_'), frame)) in gradfile:
+                        for p, part in enumerate(particles):
+                            gradfile += 'void mesh id\n17 {6} -t {2[0]:.4f} {2[1]:.4f} {2[2]:.4f} -s {4:.3f} -rx {5[0]:.4f} -ry {5[1]:.4f} -rz {5[2]:.4f} -t {3[0]:.4f} {3[1]:.4f} {3[2]:.4f} \n0\n0\n\n'.format(dob.name, 
+                                        p, [-p for p in dob.location], part.location, part.size, [180 * r/math.pi for r in part.rotation.to_euler('XYZ')], os.path.join(scene['viparams']['newdir'], 'obj', '{}-{}.mesh'.format(dob.name.replace(' ', '_'), frame)))
+                    else:
+                        logentry('Radiance mesh export of {} failed. Dupli_objects not exported'.format(dob.name))
       
     # Lights export routine
 
@@ -139,16 +142,16 @@ def radgexport(export_op, node, **kwargs):
         sradfile = "# Sky \n\n"
         node['Text'][str(frame)] = mradfile+gradfile+lradfile+sradfile
 
-def sunexport(scene, node, frame):
+def livi_sun(scene, node, frame):
     if node.skyprog in ('0', '1') and node.contextmenu == 'Basic':        
         simtime = node.starttime + frame*datetime.timedelta(seconds = 3600*node.interval)
         solalt, solazi, beta, phi = solarPosition(simtime.timetuple()[7], simtime.hour + (simtime.minute)*0.016666, scene.latitude, scene.longitude)
         if node.skyprog == '0':
-            gsrun = Popen("gensky -ang {} {} {} -t {}".format(solalt, solazi, node['skytypeparams'], node.turb).split(), stdout = PIPE) 
+            gsrun = Popen("gensky -ang {} {} {} -t {} -g {}".format(solalt, solazi, node['skytypeparams'], node.turb, node.gref).split(), stdout = PIPE) 
         else:
-            gsrun = Popen("gendaylit -ang {} {} {}".format(solalt, solazi, node['skytypeparams']).split(), stdout = PIPE)
+            gsrun = Popen("gendaylit -ang {} {} {} -g {}".format(solalt, solazi, node['skytypeparams'], node.gref).split(), stdout = PIPE)
     else:
-        gsrun = Popen("gensky -ang {} {} {}".format(45, 0, node['skytypeparams']).split(), stdout = PIPE)
+        gsrun = Popen("gensky -ang {} {} {} -g {}".format(45, 0, node['skytypeparams'], node.gref).split(), stdout = PIPE)
     return gsrun.stdout.read().decode()
 
 def hdrexport(scene, f, frame, node, skytext):
@@ -168,10 +171,17 @@ def hdrexport(scene, f, frame, node, skytext):
     else:
         bpy.data.images['{}p.hdr'.format(frame)].reload()
 
-def skyexport(sn):
+def livi_sky(sn):
     skytext = "4 .8 .8 1 0\n\n" if sn < 3 else "4 1 1 1 0\n\n"
     return "\nskyfunc glow sky_glow\n0\n0\n" + skytext + "sky_glow source sky\n0\n0\n4 0 0 1  180\n\n"
 
+def livi_ground(r, g, b, ref):
+    fac = ref/(r * 0.265 + g * 0.670 + b * 0.065)
+    if ref:
+        return "skyfunc glow ground_glow\n0\n0\n4 {0[0]:.3f} {0[1]:.3f} {0[2]:.3f} 0\n\nground_glow source ground\n0\n0\n4 0 0 -1 180\n\n".format([c*fac for c in (r, g, b)])
+    else:
+        return ''
+    
 def createradfile(scene, frame, export_op, simnode):
     radtext = ''
     links = (list(simnode.inputs['Geometry in'].links[:]) + list(simnode.inputs['Context in'].links[:]))

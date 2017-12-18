@@ -23,7 +23,7 @@ from subprocess import Popen
 from .vi_func import socklink, uvsocklink, newrow, epwlatilongi, nodeid, nodeinputs, remlink, rettimes, sockhide, selobj, cbdmhdr, cbdmmtx
 from .vi_func import hdrsky, nodecolour, facearea, retelaarea, iprop, bprop, eprop, fprop, sunposlivi, retdates, validradparams, retpmap
 from .envi_func import retrmenus, resnameunits, enresprops, epentry, epschedwrite, processf
-from .livi_export import sunexport, skyexport, hdrexport
+from .livi_export import livi_sun, livi_sky, livi_ground, hdrexport
 from .envi_mat import retuval
 
 class ViNetwork(bpy.types.NodeTree):
@@ -252,6 +252,8 @@ class LiViNode(bpy.types.Node, ViNodes):
     epsilon = bpy.props.FloatProperty(name="", description="Hour of simulation", min=1, max=8, default=6.3, update = nodeupdate)
     delta = bpy.props.FloatProperty(name="", description="Hour of simulation", min=0.05, max=0.5, default=0.15, update = nodeupdate)
     skymenu = bpy.props.EnumProperty(name="", items=skylist, description="Specify the type of sky for the simulation", default="0", update = nodeupdate)
+    gref = bpy.props.FloatProperty(name="", description="Ground reflectance", min=0.0, max=1.0, default=0.0, update = nodeupdate)
+    gcol =bpy.props.FloatVectorProperty(size = 3, name = '', description="Ground colour", attr = 'Color', default = [0, 1, 0], subtype = 'COLOR', update = nodeupdate)
     shour = bpy.props.FloatProperty(name="", description="Hour of simulation", min=0, max=23.99, default=12, subtype='TIME', unit='TIME', update = nodeupdate)
     sdoy = bpy.props.IntProperty(name="", description="Day of simulation", min=1, max=365, default=1, update = nodeupdate)
     ehour = bpy.props.FloatProperty(name="", description="Hour of simulation", min=0, max=23.99, default=12, subtype='TIME', unit='TIME', update = nodeupdate)
@@ -313,6 +315,9 @@ class LiViNode(bpy.types.Node, ViNodes):
             newrow(layout, "Program:", self, 'skyprog')
             if self.skyprog == '0':
                 newrow(layout, "Sky type:", self, 'skymenu')
+                newrow(layout, "Ground ref:", self, 'gref')
+                newrow(layout, "Ground col:", self, 'gcol')
+                
                 if self.skymenu in ('0', '1', '2'):
                     newrow(layout, "Start hour:", self, 'shour')
                     newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
@@ -327,13 +332,16 @@ class LiViNode(bpy.types.Node, ViNodes):
                         newrow(layout, 'End day {}/{}:'.format(edate.day, edate.month), self, "edoy")
                         newrow(layout, "Interval (hours):", self, 'interval')
                     newrow(layout, "Turbidity", self, 'turb')
-            
+                
             elif self.skyprog == '1':
                 newrow(layout, "Epsilon:", self, 'epsilon')
                 newrow(layout, "Delta:", self, 'delta')
+                newrow(layout, "Ground ref:", self, 'gref')
+                newrow(layout, "Ground col:", self, 'gcol')
                 newrow(layout, "Start hour:", self, 'shour')
                 newrow(layout, 'Start day {}/{}:'.format(sdate.day, sdate.month), self, "sdoy")
                 newrow(layout, "Animation;", self, 'animated')
+                
                 if self.animated:
                     newrow(layout, "Start frame:", self, 'startframe')
                     row = layout.row()
@@ -468,8 +476,7 @@ class LiViNode(bpy.types.Node, ViNodes):
         self['Text'], self['Options'] = {}, {}
         self['watts'] = 0#1 if self.contextmenu == "CBDM" and self.cbanalysismenu in ('1', '2') else 0
         
-    def export(self, scene, export_op):  
-        
+    def export(self, scene, export_op):         
         self.startframe = self.startframe if self.animated and self.contextmenu == 'Basic' and self.banalysismenu in ('0', '1', '2') else scene.frame_current 
         self['endframe'] = self.startframe + int(((24 * (self.edoy - self.sdoy) + self.ehour - self.shour)/self.interval)) if self.contextmenu == 'Basic' and self.banalysismenu in ('0', '1', '2') and self.animated else scene.frame_current
         self['mtxfile'] = ''
@@ -482,7 +489,7 @@ class LiViNode(bpy.types.Node, ViNodes):
                 self['skytypeparams'] = ("+s", "+i", "-c", "-b 22.86 -c")[self['skynum']] if self.skyprog == '0' else "-P {} {}".format(self.epsilon, self.delta)
                 for f, frame in enumerate(range(self.startframe, self['endframe'] + 1)):
                     if self.skyprog == '0':                    
-                        skytext = sunexport(scene, self, f) + skyexport(self['skynum'])
+                        skytext = livi_sun(scene, self, f) + livi_sky(self['skynum'])
                         if self['skynum'] < 2:
                             if frame == self.startframe:
                                 if 'SUN' in [ob.data.type for ob in scene.objects if ob.type == 'LAMP' and ob.get('VIType')]:
@@ -495,9 +502,9 @@ class LiViNode(bpy.types.Node, ViNodes):
                             hdrexport(scene, f, frame, self, skytext)
                         
                     else:
-                        skytext = sunexport(scene, self, f) + skyexport(self['skynum'])
-
-                    self['Text'][str(frame)] = skytext
+                        skytext = livi_sun(scene, self, f) + livi_sky(self['skynum'])
+                    
+                    self['Text'][str(frame)] = skytext + livi_ground(*self.gcol, self.gref)
 
             elif self.skyprog == '2':
                 if self.hdrname and os.path.isfile(self.hdrname):
@@ -546,7 +553,7 @@ class LiViNode(bpy.types.Node, ViNodes):
         elif self.contextmenu == "Compliance":
             if self.canalysismenu in ('0', '1', '2'):            
                 self['skytypeparams'] = ("-b 22.86 -c", "-b 22.86 -c", "-b 18 -u")[int(self.canalysismenu)]
-                skyentry = sunexport(scene, self, 0, 0) + skyexport(3)
+                skyentry = livi_sun(scene, self, 0, 0) + livi_sky(3)
                 if self.canalysismenu in ('0', '1'):
                     self.starttime = datetime.datetime(2015, 1, 1, 12)
                     self['preview'] = 1
@@ -595,9 +602,9 @@ class ViLiINode(bpy.types.Node, ViNodes):
     
     def nodeupdate(self, context):
         self["_RNA_UI"] = {"Processors": {"min": 1, "max": int(context.scene['viparams']['nproc']), "name": ""}}
-        nodecolour(self, self['exportstate'] != [str(x) for x in (self.camera, self.hdrname, self.illu, self.fisheye, self.fov,
-            self.mp, self['Processors'], self.processes, self.cusacc, self.simacc, self.pmap, self.pmapgno, self.pmapcno,
-            self.x, self.y)])
+        nodecolour(self, self['exportstate'] != [str(x) for x in (self.camera, self.basename, self.illu, self.fisheye, self.fov,
+                   self.mp, self['Processors'], self.processes, self.cusacc, self.simacc, self.pmap, self.pmapgno, self.pmapcno,
+                   self.x, self.y)])
         if bpy.data.objects.get(self.camera):
             context.scene.camera = bpy.data.objects[self.camera]
         
@@ -610,15 +617,16 @@ class ViLiINode(bpy.types.Node, ViNodes):
     endframe = bpy.props.IntProperty(name = '', default = 0)
     cusacc = bpy.props.StringProperty(
             name="", description="Custom Radiance simulation parameters", default="", update = nodeupdate)
-    simacc = bpy.props.EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"),("3", "Custom", "Edit Radiance parameters"), ],
-            name="", description="Simulation accuracy", default="0", update = nodeupdate)
-    rpictparams = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), ("-ds", 0.5, 0.15, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.0000002), ("-lr", 3, 3, 4))
+    simacc = bpy.props.EnumProperty(items=[("0", "Low", "Low accuracy and high speed (preview)"),("1", "Medium", "Medium speed and accuracy"), ("2", "High", "High but slow accuracy"), 
+                                           ("3", "Custom", "Edit Radiance parameters")], name="", description="Simulation accuracy", default="0", update = nodeupdate)
+    rpictparams = (("-ab", 2, 3, 4), ("-ad", 256, 1024, 4096), ("-as", 128, 512, 2048), ("-aa", 0, 0, 0), ("-dj", 0, 0.7, 1), 
+                   ("-ds", 0.5, 0.15, 0.15), ("-dr", 1, 3, 5), ("-ss", 0, 2, 5), ("-st", 1, 0.75, 0.1), ("-lw", 0.0001, 0.00001, 0.0000002), ("-lr", 3, 3, 4))
     pmap = bpy.props.BoolProperty(name = '', default = False, update = nodeupdate)
     pmapgno = bpy.props.IntProperty(name = '', default = 50000)
     pmapcno = bpy.props.IntProperty(name = '', default = 0)
     x = bpy.props.IntProperty(name = '', min = 1, max = 10000, default = 2000, update = nodeupdate)
     y = bpy.props.IntProperty(name = '', min = 1, max = 10000, default = 1000, update = nodeupdate)
-    hdrname = bpy.props.StringProperty(name="", description="Base name for image files", default="", update = nodeupdate)
+    basename = bpy.props.StringProperty(name="", description="Base name for image files", default="", update = nodeupdate)
     run = bpy.props.BoolProperty(name = '', default = False) 
     illu = bpy.props.BoolProperty(name = '', default = True, update = nodeupdate)
     validparams = bpy.props.BoolProperty(name = '', default = True)
@@ -626,7 +634,7 @@ class ViLiINode(bpy.types.Node, ViNodes):
     camera = bpy.props.StringProperty(description="Textfile to show", update = nodeupdate)
     fisheye = bpy.props.BoolProperty(name = '', default = 0, update = nodeupdate)
     fov = bpy.props.FloatProperty(name = '', default = 180, min = 1, max = 180, update = nodeupdate)
-    processes = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 50, update = nodeupdate)
+    processes = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 1000, update = nodeupdate)
     
     def retframes(self):
         try:
@@ -648,7 +656,7 @@ class ViLiINode(bpy.types.Node, ViNodes):
         row = layout.row()
         row.label(text = 'Frames: {} - {}'.format(sf, ef))
         layout.prop_search(self, 'camera', bpy.data, 'cameras', text='Camera*', icon='NONE')
-        newrow(layout, 'Base name:', self, 'hdrname')        
+        newrow(layout, 'Base name:', self, 'basename')        
         newrow(layout, 'Illuminance*:', self, 'illu')
         newrow(layout, 'Fisheye*:', self, 'fisheye')
 
@@ -696,7 +704,7 @@ class ViLiINode(bpy.types.Node, ViNodes):
         self['goptions'] = self.inputs['Geometry in'].links[0].from_node['Options']
         self['radfiles'], self['reslists'] = {}, [[]]
         self['radparams'] = self.cusacc if self.simacc == '3' else (" {0[0]} {1[0]} {0[1]} {1[1]} {0[2]} {1[2]} {0[3]} {1[3]} {0[4]} {1[4]} {0[5]} {1[5]} {0[6]} {1[6]} {0[7]} {1[7]} {0[8]} {1[8]} {0[9]} {1[9]} {0[10]} {1[10]} ".format([n[0] for n in self.rpictparams], [n[int(self.simacc)+1] for n in self.rpictparams]))
-        self['hdrname'] = self.hdrname if self.hdrname else 'image'
+        self['basename'] = self.basename if self.basename else 'image'
         
         for frame in self['frames']:
             scene.frame_set(frame)
@@ -724,15 +732,11 @@ class ViLiINode(bpy.types.Node, ViNodes):
             if self.illu:
                 self['viewparams'][str(frame)]['-i'] = ''
         self['pmaps'] = pmaps
-        
-#    def sim(self):
-        
-#        self['frames'] = range(scene['liparams']['fs'], scene['liparams']['fe'] + 1)
-        
+                
     def postsim(self, images):
         self['images'] = images
         self.run = 0
-        self['exportstate'] = [str(x) for x in (self.camera, self.hdrname, self.illu, self.fisheye, self.fov,
+        self['exportstate'] = [str(x) for x in (self.camera, self.basename, self.illu, self.fisheye, self.fov,
             self.mp, self['Processors'], self.processes, self.cusacc, self.simacc, self.pmap, self.pmapgno, self.pmapcno,
             self.x, self.y)]
         nodecolour(self, 0)   

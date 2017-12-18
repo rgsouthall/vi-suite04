@@ -621,8 +621,8 @@ class NODE_OT_RadImage(bpy.types.Operator):
                     echo = Popen(['echo', '{}'.format(self.xindex), '0'], stdout = PIPE)
                     self.rpruns.append(Popen(self.rpiececmds[self.frame - self.fs].split(), stdin = echo.stdout, stderr = PIPE))
                     if self.xindex == 0:
-                        if os.path.isfile("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.hdrname), self.frame)):
-                            os.remove("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.hdrname), self.frame))
+                        if os.path.isfile("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), self.frame)):
+                            os.remove("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), self.frame))
                         logentry('rpiece command: {}'.format(self.rpiececmds[self.frame - self.fs]))
                     self.xindex += 1
                 
@@ -630,11 +630,11 @@ class NODE_OT_RadImage(bpy.types.Operator):
                     self.frame += 1                
                     self.xindex = 0
                     self.percent = (self.frame - self.fs) * 100
-                    self.images.append(os.path.join(self.folder, 'images', '{}-{}.hdr'.format(self.hdrname, self.frameold)))
+                    self.images.append(os.path.join(self.folder, 'images', '{}-{}.hdr'.format(self.basename, self.frameold)))
                     self.frameold = self.frame
             else:
                 while sum([rp.poll() is None for rp in self.rpruns]) == 0 and len(self.rpruns) < self.frames:
-                    with open("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.hdrname), self.frame), 'w') as imfile:
+                    with open("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), self.frame), 'w') as imfile:
                         self.rpruns.append(Popen(self.rpictcmds[self.frame - self.fs].split(), stdout=imfile, stderr = PIPE))
                             
         if event.type == 'TIMER':            
@@ -699,9 +699,9 @@ class NODE_OT_RadImage(bpy.types.Operator):
     
     def imupdate(self, f):
         if 'liviimage' not in bpy.data.images:
-            im = bpy.data.images.load("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.hdrname), f))
+            im = bpy.data.images.load("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f))
             im.name = 'liviimage'
-        bpy.data.images['liviimage'].filepath = "{}-{}.hdr".format(os.path.join(self.folder, 'images', self.hdrname), f)
+        bpy.data.images['liviimage'].filepath = "{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), f)
         bpy.data.images['liviimage'].reload()
 
         for area in bpy.context.screen.areas:
@@ -756,8 +756,8 @@ class NODE_OT_RadImage(bpy.types.Operator):
             self.pmapcnos = simnode['pmapcnos']
             self.folder = scene['viparams']['newdir']
             self.fb = scene['viparams']['filebase']
-            self.mp = simnode.mp
-            self.hdrname = simnode['hdrname']
+            self.mp = 0 if sys.platform == 'win32' else simnode.mp 
+            self.basename = simnode['basename']
             
             for frame in range(self.fs, self.fe + 1):
                 createradfile(scene, frame, self, simnode)
@@ -766,15 +766,15 @@ class NODE_OT_RadImage(bpy.types.Operator):
             scene.frame_set(scene['liparams']['fs'])
             self.pmcmds = ['mkpmap -t 10 -e {6} -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(self.pmparams[str(frame)]['pportentry'], scene['viparams']['filebase'], frame, self.pmapgnos[str(frame)], self.pmparams[str(frame)]['cpentry'], self.pmparams[str(frame)]['amentry'], self.pmfile) for frame in range(self.fs, self.fe + 1)]                   
             self.rppmcmds = [('', ' -ap {} {}'.format('{}-{}.gpm'.format(scene['viparams']['filebase'], frame), self.pmparams[str(frame)]['cpfileentry']))[self.pmaps[frame - self.fs]] for frame in range(self.fs, self.fe + 1)]
-            self.rpictcmds = ["rpict -t 10 -e {} ".format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + "{0}-{1}.oct".format(scene['viparams']['filebase'], frame, os.path.join(scene['viparams']['newdir'], 'images', self.hdrname)) for frame in range(self.fs, self.fe + 1)]
-            self.rpiececmds = ["rpiece -t 10 -e {} ".format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + "-o {2}-{1}.hdr {0}-{1}.oct".format(scene['viparams']['filebase'], frame, os.path.join(scene['viparams']['newdir'], 'images', self.hdrname)) for frame in range(self.fs, self.fe + 1)]
+            self.rpictcmds = ["rpict -t 10 -e {} ".format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + "{0}-{1}.oct".format(scene['viparams']['filebase'], frame, os.path.join(scene['viparams']['newdir'], 'images', self.basename)) for frame in range(self.fs, self.fe + 1)]
+            self.rpiececmds = ["rpiece -t 10 -e {} ".format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + "-o {2}-{1}.hdr {0}-{1}.oct".format(scene['viparams']['filebase'], frame, os.path.join(scene['viparams']['newdir'], 'images', self.basename)) for frame in range(self.fs, self.fe + 1)]
             self.starttime = datetime.datetime.now()
             self.pfile = progressfile(self.folder, datetime.datetime.now(), 100)
             (self.pmfin, flag) = (0, 'Photon Maps') if sum(self.pmaps) else (1, 'Radiance Images')
             self.kivyrun = progressbar(os.path.join(self.folder, 'viprogress'), flag)
 
-            if os.path.isfile("{}-{}.hdr".format(os.path.join(scene['viparams']['newdir'], 'images', self.hdrname), self.frame)):
-               os.remove("{}-{}.hdr".format(os.path.join(scene['viparams']['newdir'], 'images', self.hdrname), self.frame))
+            if os.path.isfile("{}-{}.hdr".format(os.path.join(scene['viparams']['newdir'], 'images', self.basename), self.frame)):
+               os.remove("{}-{}.hdr".format(os.path.join(scene['viparams']['newdir'], 'images', self.basename), self.frame))
                 
             wm = context.window_manager
             self._timer = wm.event_timer_add(2, context.window)
@@ -807,13 +807,10 @@ class NODE_OT_LiFC(bpy.types.Operator):
         ofile = '-p {}'.format(bpy.path.abspath(fcnode.ofile)) if os.path.isfile(bpy.path.abspath(fcnode.ofile)) and fcnode.overlay else ''
 
         for i, im in enumerate(imnode['images']): 
-#            pccmd = "pcond -u 300 {}".format(bpy.path.abspath(im))
             fccmd = 'falsecolor {} {} -pal {} {} {} {} {}'.format(poverlay, bpy.path.abspath(im), fcnode.coldict[fcnode.colour], legend, contour, divisions, ofile)
-#            fccmd = 'falsecolor -pal {} {} {} {}'.format(fcnode.coldict[fcnode.colour], legend, contour, divisions)
             logentry(fccmd)
         
             with open(os.path.join(context.scene['viparams']['newdir'], 'images', '{}-{}.hdr'.format(fcnode['basename'], i + context.scene['liparams']['fs'])), 'w') as fcfile:
-#                pcrun = Popen(pccmd.split(), stdout = PIPE)
                 Popen(fccmd.split(), stdout=fcfile, stderr = PIPE).wait()  
 
         fcnode.postsim()                               

@@ -2957,7 +2957,6 @@ class EnViZone(bpy.types.Node, EnViNodes):
     control = bpy.props.EnumProperty(name="", description="Ventilation control type", items=controltype, default='NoVent', update=tspsupdate)
     volcalc = bpy.props.EnumProperty(name="", description="Volume calculation type", items=[('0', 'Auto', 'Automatic calculation (check EnVi error file)'), ('1', 'Manual', 'Manual volume')], default='0', update=vol_update)
     zonevolume = bpy.props.FloatProperty(name = '', min = 0, default = 100, update=vol_update)
-#    autovol = bpy.props.StringProperty(name = '')
     mvof = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 1)
     lowerlim = bpy.props.FloatProperty(default = 0, name = "", min = 0, max = 100)
     upperlim = bpy.props.FloatProperty(default = 50, name = "", min = 0, max = 100)
@@ -3006,7 +3005,6 @@ class EnViZone(bpy.types.Node, EnViNodes):
         except Exception as e:
             print("Don't panic")
             
-#        nodecolour(self, (self.control == 'Temperature' and not self.inputs['TSPSchedule'].is_linked) or self.afs == 1 or not all((bi, si, ssi, bo, so, sso)))
         self.alllinked = 1 if all((bi, si, ssi, bo, so, sso)) else 0
         nodecolour(self, self.errorcode())
         
@@ -3033,16 +3031,16 @@ class EnViZone(bpy.types.Node, EnViNodes):
         newrow(layout, 'Zone:', self, 'zone')
         yesno = (1, self.control == 'Temperature', self.control == 'Temperature', self.control == 'Temperature')
         vals = (("Control type:", "control"), ("Minimum OF:", "mvof"), ("Lower:", "lowerlim"), ("Upper:", "upperlim"))
-#        vals = (("Control type:", "control"), ("Minimum OF:", "mvof"), ("Lower:", "lowerlim"), ("Upper:", "upperlim"))
         newrow(layout, 'Volume calc:', self, 'volcalc')
+        
         if self.volcalc == '0':
             row = layout.row()
             row.label('Auto volume: {:.1f}'.format(self['volume']))
         else:
             newrow(layout, 'Volume:', self, 'zonevolume')
+            
         [newrow(layout, val[0], self, val[1]) for v, val in enumerate(vals) if yesno[v]]
         
-
     def epwrite(self):
         (tempschedname, mvof, lowerlim, upperlim) = (self.zone + '_tspsched', self.mvof, self.lowerlim, self.upperlim) if self.inputs['TSPSchedule'].is_linked else ('', '', '', '')
         vaschedname = self.zone + '_vasched' if self.inputs['VASchedule'].is_linked else ''

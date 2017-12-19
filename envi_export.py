@@ -180,7 +180,7 @@ def enpolymatexport(exp_op, node, locnode, em, ec):
             if obj.type == 'MESH':
                 params = ('Name', 'Direction of Relative North (deg)', 'X Origin (m)', 'Y Origin (m)', 'Z Origin (m)', 'Type', 'Multiplier', 'Ceiling Height (m)', 'Volume (m3)',
                           'Floor Area (m2)', 'Zone Inside Convection Algorithm', 'Zone Outside Convection Algorithm', 'Part of Total Floor Area')
-                paramvs = (obj.name, 0, 0, 0, 0, 1, 1, 'autocalculate', 'autocalculate', 'autocalculate', caidict[obj.envi_ica], caodict[obj.envi_oca], 'Yes')
+                paramvs = (obj.name, 0, 0, 0, 0, 1, 1, 'autocalculate', '{:.1f}'.format(obj['volume']), 'autocalculate', caidict[obj.envi_ica], caodict[obj.envi_oca], 'Yes')
                 en_idf.write(epentry('Zone', params, paramvs))
         
         params = ('Starting Vertex Position', 'Vertex Entry Direction', 'Coordinate System')
@@ -536,6 +536,8 @@ def pregeo(op):
             bmesh.ops.connect_verts_nonplanar(bm, angle_limit = 0.01, faces = regfaces)
             bmesh.ops.connect_verts_concave(bm, faces = regfaces)
             bmesh.ops.triangulate(bm, faces = [face for face in bm.faces if obj.data.materials[face.material_index].envi_con_type in ('Window', 'Door') and ['{:.4f}'.format(fl.calc_angle()) for fl in face.loops] != ['1.5708'] * 4])
+            bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.001)
+            en_obj['auto_volume'] = bm.calc_volume()
             bm.to_mesh(en_obj.data)  
             bm.free()
 

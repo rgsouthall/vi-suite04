@@ -2,7 +2,7 @@ import sys, bpy
 from .envi_func import retmenu
 
 def label(dnode, metric, axis, variant):
-    catdict = {'clim': 'Ambient', 'zone': 'Zone', 'Linkage': 'Linkage', 'External node': 'External node', 'Frames': 'Frame', 'metric': dnode.inputs[axis].rtypemenu + ' metric', 'type': metric} 
+    catdict = {'clim': 'Ambient', 'zone': 'Zone', 'Linkage': 'Linkage', 'External': 'External', 'Frames': 'Frame', 'metric': dnode.inputs[axis].rtypemenu + ' metric', 'type': metric} 
     animdict = {'metric': dnode.inputs[axis].rtypemenu, 'type': metric}
     if dnode.parametricmenu == '1':
         return animdict[variant]
@@ -10,7 +10,7 @@ def label(dnode, metric, axis, variant):
         return catdict[variant]
 
 def llabel(dnode, metric, axis, variant):
-    rdict = {'Climate': 'Ambient', 'Zone': dnode.inputs[axis].zonemenu, 'Linkage':dnode.inputs[axis].linkmenu, 'Frames': 'Frames', 'Camera': dnode.inputs[axis].cammenu, 'Position': dnode.inputs[axis].posmenu}
+    rdict = {'Climate': 'Ambient', 'Zone': dnode.inputs[axis].zonemenu, 'Linkage':dnode.inputs[axis].linkmenu, 'Frames': 'Frames', 'Camera': dnode.inputs[axis].cammenu, 'Position': dnode.inputs[axis].posmenu, 'External': dnode.inputs[axis].enmenu}
     ldict = {'type': rdict[dnode.inputs[axis].rtypemenu], 'metric': metric, }
     return ldict[variant]
     

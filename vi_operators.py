@@ -1214,7 +1214,7 @@ class NODE_OT_CSVExport(bpy.types.Operator, io_utils.ExportHelper):
         if len(set(zrl[0])) > 1 and node.animated:
             resstring = ''.join(['{} {},'.format(r[2], r[3]) for r in rl if r[0] == 'All']) + '\n'
             metriclist = list(zip(*[r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] == 'All']))
-            print([r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] == 'All'])
+
         else:
             resstring = ''.join(['{} {} {},'.format(r[0], r[2], r[3]) for r in rl if r[0] != 'All']) + '\n'
             metriclist = list(zip(*[r.split() for ri, r in enumerate(zrl[4]) if zrl[0][ri] != 'All']))

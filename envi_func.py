@@ -326,7 +326,7 @@ def retrmenus(innode, node):
     
     return (valid, fmenu, statmenu, rtypemenu, climmenu, zonemenu, zonermenu, linkmenu, linkrmenu, enmenu, enrmenu, chimmenu, chimrmenu, posmenu, posrmenu, cammenu, camrmenu, multfactor)
 
-def processh(lines):    
+def processh(lines, znlist):    
     envdict = {'Site Outdoor Air Drybulb Temperature [C] !Hourly': "Temperature (degC)",
                'Site Outdoor Air Relative Humidity [%] !Hourly': 'Humidity (%)',
                 'Site Wind Direction [deg] !Hourly': 'Wind Direction (deg)',
@@ -361,7 +361,8 @@ def processh(lines):
                 'Zone Thermal Chimney Volume [m3] !Hourly': 'TC VOLUME (m3)',
                 'Zone Thermal Chimney Mass [kg] !Hourly':'TC mass(kg)',
                 'Zone Other Equipment Total Heating Rate [W] !Hourly': 'Equipment (W)'}
-    enresdict = {'AFN Node CO2 Concentration [ppm] !Hourly': 'CO2 (ppm)'}
+    enresdict = {'AFN Node CO2 Concentration [ppm] !Hourly': 'CO2 (ppm)',
+                 'AFN Node Wind Pressure [Pa] !Hourly': 'WP (PA)'}
     lresdict = {'AFN Linkage Node 1 to Node 2 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow out',
                 'AFN Linkage Node 2 to Node 1 Volume Flow Rate [m3/s] !Hourly': 'Linkage Flow in',
                 'AFN Surface Venting Window or Door Opening Factor [] !Hourly': 'Opening Factor',
@@ -375,9 +376,9 @@ def processh(lines):
                 hdict[linesplit[0]] = ['Time'] 
             elif linesplit[3] in envdict:
                 hdict[linesplit[0]] = ['Climate',  '', envdict[linesplit[3]]]  
-            elif linesplit[3] in zresdict:
+            elif linesplit[3] in zresdict and linesplit[2] in znlist:
                 hdict[linesplit[0]] = ['Zone',  retzonename(linesplit[2]),  zresdict[linesplit[3]]]
-            elif linesplit[3] in enresdict:
+            elif linesplit[3] in enresdict and 'ExtNode' in linesplit[2]:
                 hdict[linesplit[0]] = ['External',  linesplit[2],  enresdict[linesplit[3]]]
             elif linesplit[3] in lresdict:
                 hdict[linesplit[0]] = ['Linkage',  linesplit[2],  lresdict[linesplit[3]]]
@@ -409,7 +410,7 @@ def processf(pro_op, node):
 
         with open(resfileloc, 'r') as resfile:
             lines = resfile.readlines()
-            hdict, lstart = processh(lines)  
+            hdict, lstart = processh(lines, [o.name.upper() for o in scene.objects if o.layers[1]])  
             splitlines = [l.strip('\n').split(',') for l in lines[lstart:-2]]
             bdict = {li: ' '.join([sl[1] for sl in splitlines if sl[0] == li]) for li in hdict}
   
@@ -561,7 +562,7 @@ def retmenu(dnode, axis, mtype):
         return [dnode.inputs[axis].zonemenu, dnode.inputs[axis].zonermenu]
     elif mtype == 'Linkage':
         return [dnode.inputs[axis].linkmenu, dnode.inputs[axis].linkrmenu]
-    elif mtype == 'External node':
+    elif mtype == 'External':
         return [dnode.inputs[axis].enmenu, dnode.inputs[axis].enrmenu]
     elif mtype == 'Chimney':
         return [dnode.inputs[axis].chimmenu, dnode.inputs[axis].chimrmenu]
@@ -579,7 +580,7 @@ def retdata(dnode, axis, mtype, resdict, frame):
         return resdict[frame][mtype][dnode.inputs[axis].zonemenu][dnode.inputs[axis].zonermenu]
     elif mtype == 'Linkage':
         return resdict[frame][mtype][dnode.inputs[axis].linkmenu][dnode.inputs[axis].linkrmenu]
-    elif mtype == 'External node':
+    elif mtype == 'External':
         return resdict[frame][mtype][dnode.inputs[axis].enmenu][dnode.inputs[axis].enrmenu]
     elif mtype == 'Chimney':
         return resdict[frame][mtype][dnode.inputs[axis].chimmenu][dnode.inputs[axis].chimrmenu]

@@ -3537,7 +3537,8 @@ class NODE_OT_FVSolve(bpy.types.Operator):
                     fvradfile.write(fvradrite())
             
         call((simnode.solver, "-case", "{}".format(scene['flparams']['offilebase'])))
-        Popen(("paraFoam", "-case", "{}".format(scene['flparams']['offilebase'])))
+        if simnode.pv:
+            Popen(("paraFoam", "-case", "{}".format(scene['flparams']['offilebase'])))
         simnode.export()
         return {'FINISHED'}
 

@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, bmesh, os
+import bpy, bmesh, os, mathutils
 from .vi_func import selobj
 
 ofheader = r'''/*--------------------------------*- C++ -*----------------------------------*\
@@ -151,11 +151,19 @@ def fvbmwrite(o, expnode):
     bm = bmesh.new()
     tempmesh = o.to_mesh(scene = bpy.context.scene, apply_modifiers = True, settings = 'PREVIEW')
     bm.from_mesh(tempmesh)
+    bm.verts.ensure_lookup_table()
     bm.transform(o.matrix_world)
-    bpy.data.meshes.remove(tempmesh)
+    bpy.data.meshes.remove(tempmesh)   
     [xs, ys, zs] = [[v.co[i] for v in bm.verts] for i in range(3)]
-    vert0 = [v for v in bm.verts if v.co[:] == (min(xs), min(ys), min(zs))][0]
-    vert4 = [v for v in bm.verts if (v.co[0], v.co[1]) == (vert0.co[0], vert0.co[1]) and v.co[2] != vert0.co[2]][0]
+    bm.transform(mathutils.Matrix.Translation((-min(xs), -min(ys), -min(zs))))
+    o['flovi_translate'] = (-min(xs), -min(ys), -min(zs))
+    lengths = [mathutils.Vector(v.co).length for v in bm.verts]
+    vert0 = bm.verts[lengths.index(min(lengths))]
+    angles = [mathutils.Vector(v.co).angle(mathutils.Vector((0, 0, 1))) for v in bm.verts]
+#    vert0 = [v for v in bm.verts if v.co[:] == (min(xs), min(ys), min(zs))][0]
+    vert4 = bm.verts[angles.index(min(angles))]
+#    print(vert0.index, vert4.index)
+#    vert4 = [v for v in bm.verts if (v.co[0], v.co[1]) == (vert0.co[0], vert0.co[1]) and v.co[2] != vert0.co[2]][0]
 
     for face in bm.faces:
         if vert0 in face.verts and vert4 not in face.verts:
@@ -211,18 +219,22 @@ def fvblbmgen(mats, ffile, vfile, bfile, meshtype):
         if mat.name not in o.data.materials:
             bpy.ops.object.material_slot_add()
             o.material_slots[-1].material = mat 
-    matnamedict = {mat.name: m for  m, mat in enumerate(o.data.materials)}
     
+    matnamedict = {mat.name: m for  m, mat in enumerate(o.data.materials)}    
     bm = bmesh.new()
+
     for line in [line for line in vfile.readlines() if line[0] == '(' and len(line.split(' ')) == 3]:
         bm.verts.new().co = [float(vpos) for vpos in line[1:-2].split(' ')]
+
     if hasattr(bm.verts, "ensure_lookup_table"):
         bm.verts.ensure_lookup_table()
+
     for l, line in enumerate([line for line in ffile.readlines() if '(' in line and line[0].isdigit() and len(line.split(' ')) == int(line[0])]):
         newf = bm.faces.new([bm.verts[int(fv)] for fv in line[2:-2].split(' ')])
         for facerange in matfacedict.items():
             if l in range(facerange[1][0], facerange[1][0] + facerange[1][1]):
                 newf.material_index = matnamedict[facerange[0]]
+
     bm.transform(o.matrix_world.inverted())
     bm.to_mesh(o.data)
     bm.free()
@@ -584,6 +596,7 @@ def fvobjwrite(scene, fvos, bmo):
             tempmesh = o.to_mesh(scene = bpy.context.scene, apply_modifiers = True, settings = 'PREVIEW')
             bm.from_mesh(tempmesh)
             bm.transform(o.matrix_world)
+            bm.transform(mathutils.Matrix.Translation(bmo['flovi_translate']))
             bpy.data.meshes.remove(tempmesh)
 #            omw, ovs = o.matrix_world, [vert for vert in o.data.vertices]
 #            xvec, yvec, zvec = (bmomw*bmovs[3].co - bmomw*bmovs[0].co).normalized(), (bmomw*bmovs[2].co - bmomw*bmovs[3].co).normalized(), (bmomw*bmovs[4].co - bmomw*bmovs[0].co).normalized() 

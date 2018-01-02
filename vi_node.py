@@ -2178,6 +2178,7 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
     convergence = bpy.props.FloatProperty(name = "", description = "Convergence criteria", precision = 6, min = 0.0001, max = 0.01, default = 0.0001, update = nodeupdate)
     aval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
     p_rghval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
+    pv =  bpy.props.BoolProperty(name = '', description = "Launch ParaView", default = 0)
     
     def init(self, context):
         self['exportstate'] = ''
@@ -2221,7 +2222,7 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
             newrow(layout, 'Radiation:', self, 'radiation')
                 
         newrow(layout, 'Convergence:', self, 'convergence')
-
+        newrow(layout, 'ParaView:', self, 'pv')
         row = layout.row()
         row.operator("node.fvsolve", text = "Calculate").nodeid = self['nodeid']
 

@@ -2116,20 +2116,21 @@ class ViSHMExNode(bpy.types.Node, ViNodes):
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Meshing point:', self, 'empties')
-        newrow(layout, 'Local cells:', self, 'lcells')
-        newrow(layout, 'Global cells:', self, 'gcells')
-        newrow(layout, 'Level:', self, 'level')
-        newrow(layout, 'Max level:', self, 'surflmax')
-        newrow(layout, 'Min level:', self, 'surflmin')
-        newrow(layout, 'CellsBL:', self, 'ncellsbl')
-        newrow(layout, 'Layers:', self, 'layers')
-        
-        if self.layers:
-            newrow(layout, 'Layer spec:', self, 'layerspec')
-            [newrow(layout, laytype[0], self, laytype[1]) for laytype in self.laytypedict[self.layerspec]]
-
-        row = layout.row()
-        row.operator("node.snappy", text = "Export").nodeid = self['nodeid']
+        if self.empties:
+            newrow(layout, 'Local cells:', self, 'lcells')
+            newrow(layout, 'Global cells:', self, 'gcells')
+            newrow(layout, 'Level:', self, 'level')
+            newrow(layout, 'Max level:', self, 'surflmax')
+            newrow(layout, 'Min level:', self, 'surflmin')
+            newrow(layout, 'CellsBL:', self, 'ncellsbl')
+            newrow(layout, 'Layers:', self, 'layers')
+            
+            if self.layers:
+                newrow(layout, 'Layer spec:', self, 'layerspec')
+                [newrow(layout, laytype[0], self, laytype[1]) for laytype in self.laytypedict[self.layerspec]]
+    
+            row = layout.row()
+            row.operator("node.snappy", text = "Export").nodeid = self['nodeid']
 
     def export(self):
         self.exportstate = [str(x) for x in (self.lcells, self.gcells)]
@@ -2138,7 +2139,7 @@ class ViSHMExNode(bpy.types.Node, ViNodes):
 class ViFVSimNode(bpy.types.Node, ViNodes):
     '''Openfoam blockmesh export node'''
     bl_idname = 'ViFVSimNode'
-    bl_label = 'FloVi Simulationh'
+    bl_label = 'FloVi Simulation'
     bl_icon = 'LAMP'
 
     p = bpy.props.StringProperty()
@@ -2149,7 +2150,8 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
     nut = bpy.props.StringProperty()
     nuTilda = bpy.props.StringProperty()
 
-    def nodeupdate(self, context):        
+    def nodeupdate(self, context):   
+#        self["_RNA_UI"] = {"Processors": {"min": 1, "max": int(context.scene['viparams']['nproc']), "name": ""}}
         nodecolour(self, self['exportstate'] != [str(x) for x in (self.solver, self.dt, self.et, self.buoyancy, self.radiation, self.turbulence)])
 
     solver = bpy.props.EnumProperty(items = [('simpleFoam', 'SimpleFoam', 'Steady state turbulence solver'),
@@ -2157,6 +2159,8 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
                                              ('buoyantBoussinesqSimpleFoam', 'buoyantBoussinesqSimpleFoam', 'Steady state turbulence solver with Boussinesq buoyancy'),
                                               ('icoFoam', 'IcoFoam', 'Transient laminar solver'),
                                                ('pimpleFoam', 'PimpleFoam', 'Transient turbulence solver')], name = "", default = 'simpleFoam', update = nodeupdate)
+    
+    processes = bpy.props.IntProperty(name = '', default = 1, min = 1, max = 1000, update = nodeupdate)
     dt = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.001, max = 500, default = 50, update = nodeupdate)
     et = bpy.props.FloatProperty(name = "", description = "Simulation end time", min = 0.001, max = 5000, default = 500, update = nodeupdate)
     pval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = -500, max = 500, default = 0.0, update = nodeupdate)
@@ -2184,10 +2188,15 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
         self['exportstate'] = ''
         self['nodeid'] = nodeid(self)
         self.inputs.new('VIOfM', 'Mesh in')
+        self.outputs.new('ViEnRIn', 'Results out')
+#        self['Processors'] = 1
         nodecolour(self, 1)
 
     def draw_buttons(self, context, layout):
         newrow(layout, 'Solver:', self, 'solver')
+#        newrow(layout, 'Processors:', self, 'processors')
+#        newrow(layout, 'Processors:', self, '["Processors"]')
+        newrow(layout, 'Processes:', self, 'processes')
         newrow(layout, 'deltaT:', self, 'dt')
         newrow(layout, 'End time:', self, 'et')
         if self.solver in ('icoFoam', 'simpleFoam', 'buoyantBoussinesqSimpleFoam'):
@@ -2230,7 +2239,7 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
         bpy.context.scene['viparams']['fvsimnode'] = nodeid(self)
         socklink(self.outputs['Mesh out'], self['nodeid'].split('@')[1])
 
-    def export(self):
+    def postsim(self):
         self.exportstate = [str(x) for x in (self.solver, self.dt, self.et, self.buoyancy, self.radiation, self.turbulence)]
         nodecolour(self, 0)
         

@@ -32,7 +32,7 @@ from .vi_display import li_display, linumdisplay, spnumdisplay, en_air, wr_legen
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum, leg_min_max
-from .flovi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite
+from .flovi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, fvdcpwrite
 from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, chunks, xy2radial, logentry, sunpath, radpoints, sunposenvi, clearlayers
 from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
 from .vi_chart import chart_disp
@@ -3511,6 +3511,9 @@ class NODE_OT_FVSolve(bpy.types.Operator):
     bl_register = True
     bl_undo = True
     nodeid = bpy.props.StringProperty()
+    
+    def modal(self, context, event):
+        pass
 
     def execute(self, context):
         scene = context.scene
@@ -3535,11 +3538,20 @@ class NODE_OT_FVSolve(bpy.types.Operator):
             if simnode.radiation:
                 with open(os.path.join(scene['flparams']['ofcfilebase'], 'radiationProperties'), 'w') as fvradfile:
                     fvradfile.write(fvradrite())
-            
-        call((simnode.solver, "-case", "{}".format(scene['flparams']['offilebase'])))
+        
+        with open(os.path.join(scene['viparams']['newdir'], 'floviprogress'), 'w') as fvprogress:
+            if simnode.processes > 1:
+                with open(os.path.join(scene['flparams']['ofsfilebase'], 'decomposeParDict'), 'w') as fvdcpfile:
+                    fvdcpfile.write(fvdcpwrite(simnode))
+                Popen(("decomposePar -case {}".format(scene['flparams']['offilebase']).split()))
+                Popen('mpirun -np {} {} -parallel -case {}'.format(simnode.processes, simnode.solver, scene['flparams']['offilebase']).split(), stdout = fvprogress)
+            else:
+                Popen((simnode.solver, "-case", "{}".format(scene['flparams']['offilebase'])), stdout = fvprogress)
+        Popen(("postProcess", "-func", "writeCellCentres", "-case", "{}".format(scene['flparams']['offilebase'])))
+        
         if simnode.pv:
             Popen(("paraFoam", "-case", "{}".format(scene['flparams']['offilebase'])))
-        simnode.export()
+        simnode.postsim()
         return {'FINISHED'}
 
 class Gridify(bpy.types.Operator):

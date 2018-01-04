@@ -129,8 +129,8 @@ def write_header(func):
     return wrapper
 
 def write_ffile(cla, loc, obj):
-    location = 'location    {};\n'.format(loc) if loc else ''
-    return "FoamFile\n  {{\n    version   2.0;\n    format    ascii;{}\n    class     {};\n    object    {};\n  }}\n\n".format(location, cla, obj)
+    location = 'location    "{}";\n'.format(loc) if loc else ''
+    return 'FoamFile\n  {{\n    version   2.0;\n    format    ascii;\n    {}    class     {};\n    object    {};\n  }}\n\n'.format(location, cla, obj)
 
 def fvboundwrite(o):
     boundary = ''
@@ -567,7 +567,10 @@ def fvshmwrite(node, fvos, **kwargs):
     ofheader += '  resolveFeatureAngle 30;\n  refinementRegions\n  {}\n\n'
     ofheader += '  locationInMesh ({0[0]:} {0[1]} {0[2]});\n  allowFreeStandingZoneFaces true;\n}}\n\n'.format(bpy.data.objects[node.empties].location)
     ofheader += 'snapControls\n{\n  nSmoothPatch 3;\n  tolerance 2.0;\n  nSolveIter 30;\n  nRelaxIter 5;\n  nFeatureSnapIter 10;\n  implicitFeatureSnap false;\n  explicitFeatureSnap true;\n  multiRegionFeatureSnap false;\n}\n\n'
-    ofheader += 'addLayersControls\n{{\n  relativeSizes true;\n  layers\n  {{\n    "{}.*"\n    {{\n      nSurfaceLayers {};\n    }}\n  }}\n\n'.format(layersurf, node.layers)
+    ofheader += 'addLayersControls\n{\n  relativeSizes true;\n  layers\n  {\n'
+    for o in fvos:
+        ofheader += '"{}.*"\n    {{\n      nSurfaceLayers {};\n    }}\n'.format(o.name, node.layers)
+    ofheader += '}}\n\n'.format(o.name, node.layers)
     ofheader += '  expansionRatio 1.0;\n  finalLayerThickness 0.3;\n  minThickness 0.1;\n  nGrow 0;\n  featureAngle 60;\n  slipFeatureAngle 30;\n  nRelaxIter 3;\n  nSmoothSurfaceNormals 1;\n  nSmoothNormals 3;\n' + \
                 '  nSmoothThickness 10;\n  maxFaceThicknessRatio 0.5;\n  maxThicknessToMedialRatio 0.3;\n  minMedianAxisAngle 90;\n  nBufferCellsNoExtrude 0;\n  nLayerIter 50;\n}\n\n'
     ofheader += 'meshQualityControls\n{\n  #include "meshQualityDict"\n  nSmoothScale 4;\n  errorReduction 0.75;\n}\n\n'
@@ -575,6 +578,39 @@ def fvshmwrite(node, fvos, **kwargs):
     return ofheader
 
 
+def fvdcpwrite(node):
+    body = 'numberOfSubdomains 16;\n\nmethod          simple;\n\nsimpleCoeffs\n{\n    n               (4 4 1);\n    delta           0.001;\n}\n\nhierarchicalCoeffs\n{\n    n               (1 1 1);\n    delta           0.001;\n    order           xyz;\n}\n\nmanualCoeffs\n{\n    dataFile        "";\n}\ndistributed     no;\nroots           ( );'
+    return ofheader + write_ffile("dictionary", "system", "decomposeParDict") + body
+
+#
+#numberOfSubdomains 16;
+#
+#method          simple;
+#
+#simpleCoeffs
+#{
+#    n               (4 4 1);
+#    delta           0.001;
+#}
+#
+#hierarchicalCoeffs
+#{
+#    n               (1 1 1);
+#    delta           0.001;
+#    order           xyz;
+#}
+#
+#manualCoeffs
+#{
+#    dataFile        "";
+#}
+#
+#distributed     no;
+#
+#roots           ( );
+#
+#
+#// ************************************************************************* //
 
 def fvmqwrite():
     ofheader = 'FoamFile\n{\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  object      meshQualityDict;\n}\n\n'

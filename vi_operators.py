@@ -33,7 +33,7 @@ from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum, leg_min_max
 from .flovi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, fvdcpwrite
-from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, chunks, xy2radial, logentry, sunpath, radpoints, sunposenvi, clearlayers
+from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, chunks, xy2radial, logentry, sunpath, radpoints, sunposenvi, clearlayers, fvprogressbar, fvprogressfile
 from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
 from .vi_chart import chart_disp
 
@@ -3503,6 +3503,62 @@ class NODE_OT_Snappymesh(bpy.types.Operator):
 
         expnode.export()
         return {'FINISHED'}
+    
+class NODE_OT_FVExport(bpy.types.Operator):
+    bl_idname = "node.fvexport"
+    bl_label = "FloVi Export"
+    bl_description = "Export an OpenFOAM case"
+    bl_register = True
+    bl_undo = True
+    nodeid = bpy.props.StringProperty()
+    
+    def execute(self, context):
+        scene = context.scene
+        expnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        self.residuals  = expnode.preexport(scene)
+#        self.fpfile = os.path.join(scene['viparams']['newdir'], 'floviprogress')
+#        self.pfile = fvprogressfile(scene['viparams']['newdir'])
+#        self.pfile = progressfile(scene['viparams']['newdir'], datetime.datetime.now(), 100)
+#        self.pfile = progressfile(self.folder, datetime.datetime.now(), 100)
+#        self.kivyrun = fvprogressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'), str(self.residuals))
+        bmos = [o for o in scene.objects if o.vi_type in ('2', '3')]
+        
+       
+        with open(os.path.join(scene['flparams']['ofsfilebase'], 'controlDict'), 'w') as cdfile:
+            cdfile.write(fvcdwrite(expnode.solver, expnode.dt, expnode.et))
+        fvvarwrite(scene, bmos, expnode)
+        with open(os.path.join(scene['flparams']['ofsfilebase'], 'fvSolution'), 'w') as fvsolfile:
+            fvsolfile.write(fvsolwrite(expnode))
+        with open(os.path.join(scene['flparams']['ofsfilebase'], 'fvSchemes'), 'w') as fvschfile:
+            fvschfile.write(fvschwrite(expnode))
+        with open(os.path.join(scene['flparams']['ofcfilebase'], 'transportProperties'), 'w') as fvtppfile:
+            fvtppfile.write(fvtppwrite(expnode.solver))
+        if expnode.solver != 'icoFoam':
+            with open(os.path.join(scene['flparams']['ofcfilebase'], 'turbulenceProperties'), 'w') as fvrasfile:
+                fvrasfile.write(fvraswrite(expnode.turbulence))
+            if expnode.buoyancy:
+                with open(os.path.join(scene['flparams']['ofcfilebase'], 'g'), 'w') as fvgrafile:
+                    fvgrafile.write(fvgrawrite())
+            if expnode.radiation:
+                with open(os.path.join(scene['flparams']['ofcfilebase'], 'radiationProperties'), 'w') as fvradfile:
+                    fvradfile.write(fvradrite())
+        
+#        with open(self.fpfile, 'w') as fvprogress:
+#            if expnode.processes > 1:
+#                with open(os.path.join(scene['flparams']['ofsfilebase'], 'decomposeParDict'), 'w') as fvdcpfile:
+#                    fvdcpfile.write(fvdcpwrite(expnode))
+#                call(("decomposePar -force -case {}".format(scene['flparams']['offilebase']).split()))
+#                self.run = Popen('mpirun -np {} {} -parallel -case {}'.format(expnode.processes, expnode.solver, scene['flparams']['offilebase']).split(), stdout = fvprogress)
+#            else:
+#                self.run = Popen((expnode.solver, "-case", "{}".format(scene['flparams']['offilebase'])), stdout = fvprogress)
+#        
+        self.convergence = expnode.convergence
+        self.econvergence = expnode.econvergence
+        self.pv = expnode.pv
+            
+        expnode.postexport()
+        
+        return {'FINISHED'}
 
 class NODE_OT_FVSolve(bpy.types.Operator):
     bl_idname = "node.fvsolve"
@@ -3513,46 +3569,69 @@ class NODE_OT_FVSolve(bpy.types.Operator):
     nodeid = bpy.props.StringProperty()
     
     def modal(self, context, event):
-        pass
+        if self.run.poll() is None and self.kivyrun.poll() is None:
+            with open(self.fpfile, 'r') as fpfile:
+                lines = fpfile.readlines()[::-1]
+                residict = {}
 
-    def execute(self, context):
+                for line in lines:
+                    if 'Solving for' in line:
+                        residict[line.split()[3][:-1]] = float(line.split()[7][:-1])
+                    if len(residict) == len(self.residuals):
+                        break
+
+                for var in residict:
+                    if var == 'e':
+                        residict[var] -= self.econvergence
+                    else:
+                        residict[var] -= self.convergence
+
+                if residict:
+                    self.pfile.check("\n".join(['{0[0]} {0[1]}'.format(i) for i in residict.items()]))
+            return {'PASS_THROUGH'}
+        elif self.run.poll() is None and self.kivyrun.poll() is not None:
+            self.run.kill()
+            return {'CANCELLED'}
+        else:
+            self.kivyrun.kill()
+            if self.processes > 1:
+                Popen(("reconstructPar", "-case", "{}".format(context.scene['flparams']['offilebase'])))
+                
+            Popen(("postProcess", "-func", "writeCellCentres", "-case", "{}".format(context.scene['flparams']['offilebase'])))
+#            if self.pv:
+#                Popen(("paraFoam", "-case", "{}".format(context.scene['flparams']['offilebase'])))
+            return {'FINISHED'}
+
+    def invoke(self, context, event):
+        wm = context.window_manager
         scene = context.scene
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        bmos = [o for o in scene.objects if o.vi_type in ('2', '3')]
-        
-        with open(os.path.join(scene['flparams']['ofsfilebase'], 'controlDict'), 'w') as cdfile:
-            cdfile.write(fvcdwrite(simnode.solver, simnode.dt, simnode.et))
-        fvvarwrite(scene, bmos, simnode)
-        with open(os.path.join(scene['flparams']['ofsfilebase'], 'fvSolution'), 'w') as fvsolfile:
-            fvsolfile.write(fvsolwrite(simnode))
-        with open(os.path.join(scene['flparams']['ofsfilebase'], 'fvSchemes'), 'w') as fvschfile:
-            fvschfile.write(fvschwrite(simnode))
-        with open(os.path.join(scene['flparams']['ofcfilebase'], 'transportProperties'), 'w') as fvtppfile:
-            fvtppfile.write(fvtppwrite(simnode.solver))
-        if simnode.solver != 'icoFoam':
-            with open(os.path.join(scene['flparams']['ofcfilebase'], 'turbulenceProperties'), 'w') as fvrasfile:
-                fvrasfile.write(fvraswrite(simnode.turbulence))
-            if simnode.buoyancy:
-                with open(os.path.join(scene['flparams']['ofcfilebase'], 'g'), 'w') as fvgrafile:
-                    fvgrafile.write(fvgrawrite())
-            if simnode.radiation:
-                with open(os.path.join(scene['flparams']['ofcfilebase'], 'radiationProperties'), 'w') as fvradfile:
-                    fvradfile.write(fvradrite())
-        
-        with open(os.path.join(scene['viparams']['newdir'], 'floviprogress'), 'w') as fvprogress:
-            if simnode.processes > 1:
+        (self.convergence, self.econvergence, self.residuals, self.processes, self.solver)  = simnode.presim()
+        self.fpfile = os.path.join(scene['viparams']['newdir'], 'floviprogress')
+        self.pfile = fvprogressfile(scene['viparams']['newdir'])
+#        self.pfile = progressfile(scene['viparams']['newdir'], datetime.datetime.now(), 100)
+#        self.pfile = progressfile(self.folder, datetime.datetime.now(), 100)
+        self.kivyrun = fvprogressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'), str(self.residuals))
+
+        with open(self.fpfile, 'w') as fvprogress:
+            if self.processes > 1:
                 with open(os.path.join(scene['flparams']['ofsfilebase'], 'decomposeParDict'), 'w') as fvdcpfile:
-                    fvdcpfile.write(fvdcpwrite(simnode))
-                Popen(("decomposePar -case {}".format(scene['flparams']['offilebase']).split()))
-                Popen('mpirun -np {} {} -parallel -case {}'.format(simnode.processes, simnode.solver, scene['flparams']['offilebase']).split(), stdout = fvprogress)
+                    fvdcpfile.write(fvdcpwrite(self.processes))
+                call(("decomposePar -force -case {}".format(scene['flparams']['offilebase']).split()))
+                self.run = Popen('mpirun --oversubscribe -np {} {} -parallel -case {}'.format(self.processes, self.solver, scene['flparams']['offilebase']).split(), stdout = fvprogress)
             else:
-                Popen((simnode.solver, "-case", "{}".format(scene['flparams']['offilebase'])), stdout = fvprogress)
-        Popen(("postProcess", "-func", "writeCellCentres", "-case", "{}".format(scene['flparams']['offilebase'])))
+                self.run = Popen((self.solver, "-case", "{}".format(scene['flparams']['offilebase'])), stdout = fvprogress)
         
-        if simnode.pv:
-            Popen(("paraFoam", "-case", "{}".format(scene['flparams']['offilebase'])))
-        simnode.postsim()
-        return {'FINISHED'}
+
+#        self.pv = simnode.pv
+            
+#        simnode.postsim()
+        self._timer = wm.event_timer_add(5, context.window)
+        wm.modal_handler_add(self)        
+        return {'RUNNING_MODAL'}
+    
+    def terminate(self, scene):
+        self.run.kill()
 
 class Gridify(bpy.types.Operator):
     ''''''

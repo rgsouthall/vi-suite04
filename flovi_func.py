@@ -28,33 +28,33 @@ ofheader = r'''/*--------------------------------*- C++ -*----------------------
 \*---------------------------------------------------------------------------*/''' + '\n\n'
 
 flovi_p_bounds = {'icoFoam': {'0': ('zeroGradient', 'fixedValue', 'totalPressure'), '1': ('zeroGradient', 'fixedValue')}, 
-                'simpleFoam': {'0': ('zeroGradient', 'fixedValue', 'freestreamPressure', 'totalPressure'), '1': ['zeroGradient']},
+                'simpleFoam': {'0': ('zeroGradient', 'fixedValue', 'freestreamPressure', 'totalPressure'), '1': ['zeroGradient'], '2': ('None')},
                 'buoyantBoussinesqSimpleFoam':{'0': ('zeroGradient', 'fixedValue', 'freestreamPressure', 'totalPressure'), '1': ['zeroGradient']},
                 'buoyantSimpleFoam':{'0': ('zeroGradient', 'fixedValue', 'freestreamPressure', 'totalPressure'), '1': ['zeroGradient']}}
 
 flovi_u_bounds = {'icoFoam': {'0': ('zeroGradient','noSlip', 'fixedValue'), '1': ('zeroGradient', 'noSlip', 'fixedValue')}, 
-                'simpleFoam': {'0': ('zeroGradient', 'fixedValue', 'inletOutlet', 'freestream', 'pressureInletOutletVelocity', 'slip'), '1': ('noSlip', 'fixedValue', 'slip')},
+                'simpleFoam': {'0': ('zeroGradient', 'fixedValue', 'inletOutlet', 'freestream', 'pressureInletOutletVelocity', 'slip'), '1': ('noSlip', 'fixedValue', 'slip'), '2': ('None')},
                 'buoyantBoussinesqSimpleFoam': {'0': ('zeroGradient', 'fixedValue', 'inletOutlet', 'freestream', 'pressureInletOutletVelocity', 'slip'), '1': ('noSlip', 'fixedValue', 'slip')},
                 'buoyantSimpleFoam': {'0': ('zeroGradient', 'fixedValue', 'inletOutlet', 'freestream', 'pressureInletOutletVelocity', 'slip'), '1': ('noSlip', 'fixedValue', 'slip')}}
 
-flovi_nut_bounds = {'simpleFoam': {'0': ['calculated'], '1': ['nutkWallFunction']},
+flovi_nut_bounds = {'simpleFoam': {'0': ['calculated'], '1': ['nutkWallFunction'], '2': ('None')},
                     'buoyantBoussinesqSimpleFoam': {'0': ['calculated'], '1': ['nutkWallFunction']},
                     'buoyantSimpleFoam': {'0': ['calculated'], '1': ['nutkWallFunction']}}
-flovi_nutilda_bounds = {'simpleFoam': {'0': ('zeroGradient', 'fixedValue'), '1': ('zeroGradient', 'fixedValue')},
+flovi_nutilda_bounds = {'simpleFoam': {'0': ('zeroGradient', 'fixedValue'), '1': ('zeroGradient', 'fixedValue'), '2': ('None')},
                         'buoyantBoussinesqSimpleFoam': {'0': ('zeroGradient', 'fixedValue'), '1': ('zeroGradient', 'fixedValue')},
                         'buoyantSimpleFoam': {'0': ('zeroGradient', 'fixedValue'), '1': ('zeroGradient', 'fixedValue')}}
-flovi_k_bounds = {'simpleFoam': {'0': ('fixedValue', 'inletOutlet'), '1': ['kqRWallFunction']},
+flovi_k_bounds = {'simpleFoam': {'0': ('fixedValue', 'inletOutlet'), '1': ['kqRWallFunction'], '2': ('None')},
                 'buoyantBoussinesqSimpleFoam': {'0': ('fixedValue', 'inletOutlet'), '1': ['kqRWallFunction']},
                 'buoyantSimpleFoam': {'0': ('fixedValue', 'inletOutlet'), '1': ['kqRWallFunction']}}
-flovi_epsilon_bounds = {'simpleFoam': {'0': ('fixedValue', 'inletOutlet'), '1': ['epsilonWallFunction']},
+flovi_epsilon_bounds = {'simpleFoam': {'0': ('fixedValue', 'inletOutlet'), '1': ['epsilonWallFunction'], '2': ('None')},
                         'buoyantBoussinesqSimpleFoam': {'0': ('fixedValue', 'inletOutlet'), '1': ['epsilonWallFunction']},
                         'buoyantSimpleFoam': {'0': ('fixedValue', 'inletOutlet'), '1': ['epsilonWallFunction']}}
-flovi_omega_bounds = {'simpleFoam': {'0': ('zeroGradient', 'fixedValue'), '1': ['omegaWallFunction']},
+flovi_omega_bounds = {'simpleFoam': {'0': ('zeroGradient', 'fixedValue'), '1': ['omegaWallFunction'], '2': ()},
                         'buoyantBoussinesqSimpleFoam': {'0': ('zeroGradient', 'fixedValue'), '1': ['omegaWallFunction']},
                         'buoyantSimpleFoam': {'0': ('zeroGradient', 'fixedValue'), '1': ['omegaWallFunction']}}
-flovi_t_bounds = {'buoyantBoussinesqSimpleFoam': {'0': ('zeroGradient', 'fixedValue', 'inletOutlet'), '1': ('zeroGradient', 'fixedValue')},
+flovi_t_bounds = {'buoyantBoussinesqSimpleFoam': {'0': ('zeroGradient', 'fixedValue', 'inletOutlet'), '1': ('zeroGradient', 'fixedValue'), '2': ('None')},
                   'buoyantSimpleFoam': {'0': ('zeroGradient', 'fixedValue', 'inletOutlet'), '1': ('zeroGradient', 'fixedValue')}}
-flovi_prgh_bounds = {'buoyantBoussinesqSimpleFoam': {'0': ('fixedFluxPressure', 'prghTotalHydrostaticPressure'), '1': ('fixedFluxPressure', 'fixedValue')},
+flovi_prgh_bounds = {'buoyantBoussinesqSimpleFoam': {'0': ('fixedFluxPressure', 'prghTotalHydrostaticPressure'), '1': ('fixedFluxPressure', 'fixedValue'), '2': ('None')},
                      'buoyantSimpleFoam': {'0': ('fixedFluxPressure', 'prghTotalHydrostaticPressure'), '1': ('fixedFluxPressure', 'fixedValue')}}
 flovi_a_bounds = {'buoyantBoussinesqSimpleFoam': {'0': ('calculated', 'compressible::alphatWallFunction'), '1': ('calculated', 'compressible::alphatWallFunction')},
                 'buoyantSimpleFoam': {'0': ('calculated', 'compressible::alphatWallFunction'), '1': ('calculated', 'compressible::alphatWallFunction')}}
@@ -265,7 +265,7 @@ def fvmat(self, mn, bound):
     elif bound == 'U':
         val = 'uniform ({} {} {})'.format(*self.flovi_bmbu_val) if not self.flovi_u_field else '$internalField'
         Udict = {'0': self.flovi_bmbu_subtype, '1': self.flovi_bmbu_subtype, '2': 'symmetry', '3': 'empty'}
-        Utdict = {'fixedValue': 'fixedValue;\n    value    {}'.format(val), 'slip': 'slip', 'noSlip': 'noSlip', 'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField',
+        Utdict = {'fixedValue': 'fixedValue;\n    value    {}'.format(val), 'slip': 'slip', 'noSlip': 'noSlip', 'inletOutlet': 'inletOutlet;\n    inletValue    $internalField;\n    value    $internalField',
                   'pressureInletOutletVelocity': 'pressureInletOutletVelocity;\n    value    $internalField', 'zeroGradient': 'zeroGradient', 'symmetry': 'symmetry', 
                   'freestream': 'freestream;\n    freestreamValue    $internalField','calculated': 'calculated;\n    value    $internalField', 'empty': 'empty'}
         entry = Utdict[Udict[self.flovi_bmb_type]]            
@@ -280,7 +280,7 @@ def fvmat(self, mn, bound):
 
     elif bound == 'k':
         kdict = {'0': self.flovi_bmbk_subtype, '1': self.flovi_bmbk_subtype, '2': 'symmetry', '3': 'empty'}
-        ktdict = {'fixedValue': 'fixedValue;\n    value    $internalField', 'kqRWallFunction': 'kqRWallFunction;\n    value    $internalField', 'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField',
+        ktdict = {'fixedValue': 'fixedValue;\n    value    $internalField', 'kqRWallFunction': 'kqRWallFunction;\n    value    $internalField', 'inletOutlet': 'inletOutlet;\n    inletValue    $internalField;\n    value    $internalField',
         'calculated': 'calculated;\n    value    $internalField', 'symmetry': 'symmetry', 'empty': 'empty'}
         entry = ktdict[kdict[self.flovi_bmb_type]]            
 #        return begin + entry + end
@@ -308,7 +308,7 @@ def fvmat(self, mn, bound):
         
     elif bound == 'e':
         edict = {'0': self.flovi_bmbe_subtype, '1': self.flovi_bmbe_subtype, '2': 'symmetry', '3': 'empty'}
-        etdict = {'symmetry': 'symmetry', 'empty': 'empty', 'inletOutlet': 'inletOutlet;\n    inletValue    $internalField\n    value    $internalField', 'fixedValue': 'fixedValue;\n    value    $internalField', 
+        etdict = {'symmetry': 'symmetry', 'empty': 'empty', 'inletOutlet': 'inletOutlet;\n    inletValue    $internalField;\n    value    $internalField', 'fixedValue': 'fixedValue;\n    value    $internalField', 
                   'epsilonWallFunction': 'epsilonWallFunction;\n    value    $internalField', 'calculated': 'calculated;\n    value    $internalField', 'symmetry': 'symmetry', 'empty': 'empty'}
         entry = etdict[edict[self.flovi_bmb_type]]            
 #        return begin + entry + end
@@ -367,7 +367,6 @@ def fvvarwrite(scene, obs, node):
                             kentry += mat.fvmat(matname, 'k')
                             oentry += mat.fvmat(matname, 'o')
                     if node.buoyancy or node.radiation:
-                        print('hi')
                         tentry += mat.fvmat(matname, 't')
                         p_rghentry += mat.fvmat(matname, 'p_rgh')
                         aentry += mat.fvmat(matname, 'a')
@@ -431,7 +430,7 @@ def fvcdwrite(solver, dt, et):
 
 def fvsolwrite(node):
     ofheader = 'FoamFile\n{\n  version     2.0;\n  format      ascii;\n  class       dictionary;\n  location    "system";\n  object    fvSolution;\n}\n\n' + \
-        'solvers\n{\n  p\n  {\n    solver          PCG;\n    preconditioner  DIC;\n    tolerance       1e-06;\n    relTol          0;\n  }\n\n' + \
+        'solvers\n{\n  p\n  {\n    solver          GAMG;\n    smoother  GaussSeidel;\n    tolerance       1e-06;\n    relTol          0.1;\n  }\n\n' + \
         '  "(U|k|epsilon|omega|R|nuTilda)"\n  {\n    solver          smoothSolver;\n    smoother        symGaussSeidel;\n    tolerance       1e-05;\n    relTol          0;  \n  }\n}\n\n'
     if node.solver == 'icoFoam':
         ofheader += 'PISO\n{\n  nCorrectors     2;\n  nNonOrthogonalCorrectors 0;\n  pRefCell        0;\n  pRefValue       0;\n}\n\n' + \
@@ -441,7 +440,8 @@ def fvsolwrite(node):
         '        tolerance       1e-08;\n        relTol          0.1;\n    }\n\n    nuTilda\n    {\n        solver          smoothSolver;\n        smoother        GaussSeidel;\n' + \
         '        nSweeps         2;\n        tolerance       1e-08;\n        relTol          0.1;\n    }\n}\n\n'
     elif node.solver == 'simpleFoam':   
-        ofheader += 'SIMPLE\n{{\n  nNonOrthogonalCorrectors 0;\n  pRefCell        0;\n  pRefValue       0;\n\n    residualControl\n  {{\n    "(p|U|k|epsilon|omega|nut|nuTilda)" {};\n  }}\n}}\n'.format(node.convergence)
+        
+        ofheader += 'SIMPLE\n{{\n  nNonOrthogonalCorrectors 0;\n  pRefCell        0;\n  pRefValue       0;\n\n    residualControl\n  {{\n    "(p|U|k|omega|nut|nuTilda)" {};\n    epsilon  {};\n}}\n}}\n'.format(node.convergence, node.econvergence)
         ofheader += 'relaxationFactors\n{\n    fields\n    {\n        p               0.3;\n    }\n    equations\n    {\n' + \
             '        U               0.7;\n        k               0.7;\n        epsilon           0.7;\n      omega           0.7;\n        nuTilda           0.7;\n    }\n}\n\n'
 #        if node.turbulence == 'kEpsilon':
@@ -578,8 +578,8 @@ def fvshmwrite(node, fvos, **kwargs):
     return ofheader
 
 
-def fvdcpwrite(node):
-    body = 'numberOfSubdomains 16;\n\nmethod          simple;\n\nsimpleCoeffs\n{\n    n               (4 4 1);\n    delta           0.001;\n}\n\nhierarchicalCoeffs\n{\n    n               (1 1 1);\n    delta           0.001;\n    order           xyz;\n}\n\nmanualCoeffs\n{\n    dataFile        "";\n}\ndistributed     no;\nroots           ( );'
+def fvdcpwrite(p):
+    body = 'numberOfSubdomains {0};\n\nmethod          simple;\n\nsimpleCoeffs\n{{\n    n               ({0} 1 1);\n    delta           0.001;\n}}\n\nhierarchicalCoeffs\n{{\n    n               (1 1 1);\n    delta           0.001;\n    order           xyz;\n}}\n\nmanualCoeffs\n{{\n    dataFile        "";\n}}\ndistributed     no;\nroots           ( );'.format(p)
     return ofheader + write_ffile("dictionary", "system", "decomposeParDict") + body
 
 #

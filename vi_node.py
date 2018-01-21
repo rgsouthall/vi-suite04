@@ -1986,6 +1986,20 @@ class VIOfM(bpy.types.NodeSocket):
 
     def draw_color(self, context, node):
         return (0.5, 1.0, 0.0, 0.75)
+    
+class VIOfC(bpy.types.NodeSocket):
+    '''FloVi case socket'''
+    bl_idname = 'VIOfC'
+    bl_label = 'FloVi Case socket'
+
+    valid = ['FloVi case']
+    link_limit = 1
+
+    def draw(self, context, layout, node, text):
+        layout.label(text)
+
+    def draw_color(self, context, node):
+        return (1, 1.0, 0.0, 0.75)
 
 class VIOFCDS(bpy.types.NodeSocket):
     '''FloVi ControlDict socket'''
@@ -2136,10 +2150,10 @@ class ViSHMExNode(bpy.types.Node, ViNodes):
         self.exportstate = [str(x) for x in (self.lcells, self.gcells)]
         nodecolour(self, 0)
 
-class ViFVSimNode(bpy.types.Node, ViNodes):
-    '''Openfoam blockmesh export node'''
-    bl_idname = 'ViFVSimNode'
-    bl_label = 'FloVi Simulation'
+class ViFVExpNode(bpy.types.Node, ViNodes):
+    '''Openfoam case export node'''
+    bl_idname = 'ViFVExpNode'
+    bl_label = 'FloVi Export'
     bl_icon = 'LAMP'
 
     p = bpy.props.StringProperty()
@@ -2176,10 +2190,11 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
     tval = bpy.props.FloatProperty(name = "K", description = "Field Temperature (K)", min = 0.0, max = 500, default = 293.14, update = nodeupdate)
     nutval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.0, max = 500, default = 0.0, update = nodeupdate)
     nutildaval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.0, max = 500, default = 0.0, update = nodeupdate)
-    kval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.0, update = nodeupdate)
-    epval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
-    oval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
-    convergence = bpy.props.FloatProperty(name = "", description = "Convergence criteria", precision = 6, min = 0.0001, max = 0.01, default = 0.0001, update = nodeupdate)
+    kval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.001, max = 500, default = 0.001, update = nodeupdate)
+    epval = bpy.props.FloatProperty(name = "", description = "Field epsilon", min = 0.001, max = 500, default = 0.001, update = nodeupdate)
+    oval = bpy.props.FloatProperty(name = "", description = "Field omega", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
+    convergence = bpy.props.FloatProperty(name = "", description = "Convergence criteria", precision = 6, min = 0.0001, max = 0.01, default = 0.001, update = nodeupdate)
+    econvergence = bpy.props.FloatProperty(name = "", description = "Convergence criteria", precision = 6, min = 0.0001, max = 0.5, default = 0.1, update = nodeupdate)
     aval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
     p_rghval = bpy.props.FloatProperty(name = "", description = "Simulation delta T", min = 0.1, max = 500, default = 0.1, update = nodeupdate)
     pv =  bpy.props.BoolProperty(name = '', description = "Launch ParaView", default = 0)
@@ -2187,8 +2202,9 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
     def init(self, context):
         self['exportstate'] = ''
         self['nodeid'] = nodeid(self)
+        self.outputs.new('VIOfC', 'Case out')
         self.inputs.new('VIOfM', 'Mesh in')
-        self.outputs.new('ViEnRIn', 'Results out')
+        
 #        self['Processors'] = 1
         nodecolour(self, 1)
 
@@ -2213,10 +2229,11 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
                     newrow(layout, 'nuTilda value:', self, 'nutildaval')
                 elif self.turbulence == 'kEpsilon':
                     newrow(layout, 'k value:', self, 'kval')
-                    newrow(layout, 'epsilon value:', self, 'epval')
+                    newrow(layout, 'Epsilon value:', self, 'epval')
+                    newrow(layout, 'Epsilon convergence:', self, 'econvergence')
                 elif self.turbulence == 'kOmega':
                     newrow(layout, 'k value:', self, 'kval')
-                    newrow(layout, 'omega value:', self, 'oval')
+                    newrow(layout, 'Omega value:', self, 'oval')
             
 #            newrow(layout, 'Buoyancy:', self, 'buoyancy')
 #            
@@ -2231,23 +2248,70 @@ class ViFVSimNode(bpy.types.Node, ViNodes):
             newrow(layout, 'Radiation:', self, 'radiation')
                 
         newrow(layout, 'Convergence:', self, 'convergence')
-        newrow(layout, 'ParaView:', self, 'pv')
+#        newrow(layout, 'ParaView:', self, 'pv')
         row = layout.row()
-        row.operator("node.fvsolve", text = "Calculate").nodeid = self['nodeid']
+        row.operator("node.fvexport", text = "Export").nodeid = self['nodeid']
 
     def update(self):
         bpy.context.scene['viparams']['fvsimnode'] = nodeid(self)
-        socklink(self.outputs['Mesh out'], self['nodeid'].split('@')[1])
+        socklink(self.outputs['Case out'], self['nodeid'].split('@')[1])
 
-    def postsim(self):
+    def preexport(self, scene):
+        if os.path.isdir(scene['flparams']['of0filebase']):
+            for file in os.listdir(scene['flparams']['of0filebase']):
+                os.remove(os.path.join(scene['flparams']['of0filebase'], file))
+        
+        residuals = ['p', 'Ux', 'Uy', 'Uz']
+        if self.solver != 'icoFoam': 
+            if self.turbulence == 'kEpsilon':
+                residuals += ['k', 'epsilon']
+            elif self.turbulence == 'kOmega':
+                residuals += ['k', 'omega']
+        self['residuals'] = residuals
+        return residuals
+                
+    def postexport(self):
         self.exportstate = [str(x) for x in (self.solver, self.dt, self.et, self.buoyancy, self.radiation, self.turbulence)]
         nodecolour(self, 0)
+
+class ViFVSimNode(bpy.types.Node, ViNodes):
+    '''Openfoam simulation node'''
+    bl_idname = 'ViFVSimNode'
+    bl_label = 'FloVi Simulation'
+    bl_icon = 'LAMP'
+    
+    def init(self, context):
+        self['exportstate'] = ''
+        self['nodeid'] = nodeid(self)
+        self.inputs.new('VIOfC', 'Case in')
+        self.outputs.new('ViR', 'Results out')
+#        self['Processors'] = 1
+        nodecolour(self, 1)
+    
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.operator("node.fvsolve", text = "Calculate").nodeid = self['nodeid']
+    
+    def presim(self):
+        expnode = self.inputs['Case in'].links[0].from_node
+        return (expnode.convergence, expnode.econvergence, expnode['residuals'], expnode.processes, expnode.solver)
+
+class ViFVParaNode(bpy.types.Node, ViNodes):
+    '''Paraview display node'''
+    bl_idname = 'ViFVParaNode'
+    bl_label = 'Paraview Export'
+    bl_icon = 'LAMP'
+    
+    def draw_buttons(self, context, layout):
+        row = layout.row()
+        row.operator("node.fvsolve", text = "Calculate").nodeid = self['nodeid']
+        
         
 ####################### Vi Nodes Catagories ##############################
 
 viexnodecat = [NodeItem("ViGExLiNode", label="LiVi Geometry"), NodeItem("LiViNode", label="LiVi Context"),
                 NodeItem("ViGExEnNode", label="EnVi Geometry"), NodeItem("ViExEnNode", label="EnVi Context"), NodeItem("ViFloCdNode", label="FloVi Control"),
-                 NodeItem("ViBMExNode", label="FloVi BlockMesh"), NodeItem("ViSHMExNode", label="FloVi SnappyHexMesh")]
+                 NodeItem("ViBMExNode", label="FloVi BlockMesh"), NodeItem("ViSHMExNode", label="FloVi SnappyHexMesh"), NodeItem("ViFVExpNode", label="FloVi Export")]
                 
 vifilenodecat = [NodeItem("ViTextEdit", label="Text Edit")]
 vinodecat = [NodeItem("ViSPNode", label="VI-Suite Sun Path"), NodeItem("ViSSNode", label="VI-Suite Shadow Map"), NodeItem("ViWRNode", label="VI-Suite Wind Rose"), NodeItem("ViSVFNode", label="VI-Suite Sky View Factor"),
@@ -2256,7 +2320,7 @@ vinodecat = [NodeItem("ViSPNode", label="VI-Suite Sun Path"), NodeItem("ViSSNode
 vigennodecat = [NodeItem("ViGenNode", label="VI-Suite Generative"), NodeItem("ViTarNode", label="VI-Suite Target")]
 
 vidisnodecat = [NodeItem("ViChNode", label="VI-Suite Chart")]
-vioutnodecat = [NodeItem("ViCSV", label="VI-Suite CSV"), NodeItem("ViText", label="VI-Suite Text")]
+vioutnodecat = [NodeItem("ViCSV", label="VI-Suite CSV"), NodeItem("ViText", label="VI-Suite Text"), NodeItem("ViFVParaNode", label="VI-Suite Paraview")]
 viimnodecat = [NodeItem("ViLiINode", label="LiVi Image"), NodeItem("ViLiFCNode", label="LiVi FC Image"), NodeItem("ViLiGLNode", label="LiVi Glare Image")]
 viinnodecat = [NodeItem("ViLoc", label="VI Location"), NodeItem("ViEnInNode", label="EnergyPlus Input File"), NodeItem("ViEnRFNode", label="EnergyPlus Result File"), 
                NodeItem("ViASCImport", label="Import ESRI Grid file")]
@@ -2950,7 +3014,8 @@ class EnViZone(bpy.types.Node, EnViNodes):
         for s, sock in enumerate(bsocklist):
             self.outputs[sock].uvalue = '{:.4f}'.format(buvals[s])    
             self.inputs[sock].uvalue = '{:.4f}'.format(buvals[s]) 
-   
+        self.vol_update(context)
+        
     def vol_update(self, context):
         obj = bpy.data.objects[self.zone]      
         obj['volume'] = obj['auto_volume'] if self.volcalc == '0' else self.zonevolume

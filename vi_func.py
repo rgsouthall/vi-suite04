@@ -571,6 +571,24 @@ class progressfile():
                 pfile.write('{} {}'.format(int(100 * curres/self.calcsteps), datetime.timedelta(seconds = dt.seconds)))
             else:
                 pfile.write('0 Initialising')
+                
+class fvprogressfile(): 
+    def __init__(self, folder):
+        self.pfile = os.path.join(folder, 'viprogress')
+
+        with open(self.pfile, 'w') as pfile:
+            pfile.write('STARTING')
+    
+    def check(self, curres):
+        if curres == 'CANCELLED':
+            if 'CANCELLED' in self.pfile.read():
+                return 'CANCELLED'
+                
+        with open(self.pfile, 'w') as pfile:
+            if curres:
+                pfile.write(curres)                
+            else:
+                pfile.write('0 Initialising')
         
 def progressbar(file, calctype):
     kivytext = "# -*- coding: "+sys.getfilesystemencoding()+" -*-\n\
@@ -620,6 +638,65 @@ class Calculating(App):\n\
 \n\
 if __name__ == '__main__':\n\
     Calculating().run()\n"
+
+    with open(file+".py", 'w') as kivyfile:
+        kivyfile.write(kivytext)
+    return Popen([bpy.app.binary_path_python, file+".py"])
+
+def fvprogressbar(file, residuals):
+    kivytext = "# -*- coding: "+sys.getfilesystemencoding()+" -*-\n\
+from kivy.app import App\n\
+from kivy.clock import Clock\n\
+from kivy.uix.progressbar import ProgressBar\n\
+from kivy.uix.boxlayout import BoxLayout\n\
+from kivy.uix.gridlayout import GridLayout\n\
+from kivy.uix.button import Button\n\
+from kivy.uix.label import Label\n\
+from kivy.config import Config\n\
+Config.set('graphics', 'width', '500')\n\
+Config.set('graphics', 'height', '200')\n\
+\n\
+class CancelButton(Button):\n\
+    def on_touch_down(self, touch):\n\
+        if 'button' in touch.profile:\n\
+            if self.collide_point(*touch.pos):\n\
+                App.get_running_app().stop()\n\
+        else:\n\
+            return\n\
+    def on_open(self, widget, parent):\n\
+        self.focus = True\n\
+\n\
+class Calculating(App):\n\
+    rpbs, labels = [], []\n\
+    bl = BoxLayout(orientation='vertical')\n\
+    gl  = GridLayout(cols=2, height = 150)\n\
+    for r in "+residuals+":\n\
+        rpb = ProgressBar(max = 1)\n\
+        rpbs.append(rpb)\n\
+        label = Label(text=r, font_size=20, size_hint=(0.2, .2))\n\
+        labels.append(r)\n\
+        gl.add_widget(label)\n\
+        gl.add_widget(rpb)\n\
+    bl.add_widget(gl)\n\
+    button = CancelButton(text='Cancel', font_size=20, size_hint=(1, .2))\n\
+    bl.add_widget(button)\n\
+\n\
+    def build(self):\n\
+        self.title = 'OpenFOAM Residuals'\n\
+        refresh_time = 1\n\
+        Clock.schedule_interval(self.timer, refresh_time)\n\
+        return self.bl\n\
+\n\
+    def timer(self, dt):\n\
+        with open('"+file+"', 'r') as pffile:\n\
+            for ri, r in enumerate(pffile.readlines()):\n\
+                try:\n\
+                    li = self.labels.index(r.split()[0])\n\
+                    self.rpbs[li].value = float(r.split()[1])\n\
+                except: pass\n\
+\n\
+if __name__ == '__main__':\n\
+    Calculating().run()"
 
     with open(file+".py", 'w') as kivyfile:
         kivyfile.write(kivytext)

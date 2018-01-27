@@ -1291,7 +1291,7 @@ def udidacalcapply(self, scene, frames, rccmds, simnode, curres, pfile):
             if pfile.check(curres) == 'CANCELLED':
                 bm.free()
                 return {'CANCELLED'}
-        print('yo')
+
         if scene['viparams']['visimcontext'] != 'LiVi Compliance':
             dares = [gp[resda] for gp in geom] 
             udilow = [gp[resudilow] for gp in geom] 

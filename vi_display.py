@@ -669,7 +669,7 @@ class wr_legend(Base_Display):
             return
 
         self.resvals = ['{0:.0f} - {1:.0f}'.format(2*i, 2*(i+1)) for i in range(simnode['nbins'])]
-        self.resvals[-1] = self.resvals[-1][:-int(len('{:.0f}'.format(maxres)))] + u"\u221E"  
+        self.resvals[-1] = self.resvals[-1][:-int(len('{:.0f}'.format(maxres)))] + "Inf"  
         
     def drawopen(self, context):
         draw_legend(self, context.scene, 'Speed (m/s)')
@@ -761,7 +761,6 @@ class en_scatter(Base_Display):
 
         try:
             if self.unit and self.cao.get('days'):
-                print(self.unit)
                 zdata, hours, days = array(self.cao[self.resstring][self.unit]).reshape(len(self.cao['days']), 24).T, self.cao['hours'], self.cao['days']        
                 title = self.cao.name
                 

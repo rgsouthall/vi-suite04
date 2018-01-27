@@ -16,7 +16,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-import bpy, datetime, mathutils, os, bmesh, shutil, sys, math, shlex, psutil
+import bpy, datetime, mathutils, os, bmesh, shutil, sys, math, shlex
 import numpy
 from numpy import arange, histogram, array, int8, float16
 import bpy_extras.io_utils as io_utils
@@ -45,7 +45,12 @@ try:
 except Exception as e:
     logentry('Matplotlib problem: {}'.format(e))    
     mp = 0
-    
+
+try:
+    import psutil
+    psu = 1
+except: 
+    psu = 0    
 #from .vi_gen import vigen
 
 envi_mats = envi_materials()
@@ -93,9 +98,12 @@ class OBJECT_GenBSDF(bpy.types.Operator):
             if self.pfile.check(0) == 'CANCELLED':                   
                 self.bsdfrun.kill()   
                 
-                for proc in psutil.process_iter():
-                    if 'rcontrib' in proc.name():
-                        proc.kill()       
+                if psu:
+                    for proc in psutil.process_iter():
+                        if 'rcontrib' in proc.name():
+                            proc.kill()  
+                else:
+                    self.report({'ERROR'}, 'psutil not found. Kill rcontrib processes manually')
                         
                 return {'CANCELLED'}
             else:
@@ -103,8 +111,10 @@ class OBJECT_GenBSDF(bpy.types.Operator):
         else:
             if self.kivyrun.poll() is None:
                 self.kivyrun.kill() 
+
             with open(os.path.join(context.scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name)), 'r') as bsdffile:
                 self.mat['bsdf']['xml'] = bsdffile.read()
+
             context.scene['viparams']['vidisp'] = 'bsdf'
             self.mat['bsdf']['type'] = self.o.li_bsdf_tensor
             return {'FINISHED'}
@@ -161,9 +171,11 @@ class OBJECT_GenBSDF(bpy.types.Operator):
 
         with open(os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}_mg'.format(self.mat.name)), 'w') as mgfile:
             mgfile.write(mradfile+gradfile)
+
         with open(os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}_mg'.format(self.mat.name)), 'r') as mgfile: 
             with open(os.path.join(scene['viparams']['newdir'], 'bsdfs', '{}.xml'.format(self.mat.name)), 'w') as bsdffile:
                 self.bsdfrun = Popen(shlex.split(gbcmd), stdin = mgfile, stdout = bsdffile)
+
         wm = context.window_manager
         self._timer = wm.event_timer_add(1, context.window)
         wm.modal_handler_add(self)        
@@ -570,19 +582,6 @@ class NODE_OT_RadPreview(bpy.types.Operator, io_utils.ExportHelper):
             wm.modal_handler_add(self)
             return {'RUNNING_MODAL'}
 
-#            for line in rvurun.stderr:
-#                print(line)
-#                if 'view up parallel to view direction' in line.decode():
-#                    self.report({'ERROR'}, "Camera cannot point directly upwards")
-#                    return {'CANCELLED'}
-#                elif 'x11' in line.decode():
-#                    self.report({'ERROR'}, "No X11 display server found. You may need to install XQuartz")
-#                    return {'CANCELLED'}
-#                elif 'source center' in line.decode():
-#                    self.report({'ERROR'}, "A light source has concave faces. Use mesh - cleanup - split concave faces")
-#                    return {'CANCELLED'}
-#                
-#            return {'FINISHED'}
         else:
             self.report({'ERROR'}, "There is no camera in the scene. Radiance preview will not work")
             return {'CANCELLED'}

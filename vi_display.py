@@ -653,18 +653,19 @@ class wr_legend(Base_Display):
         Base_Display.__init__(self, pos, width, height, iname, xdiff, ydiff)
         
     def update(self, context):
-        simnode = bpy.data.node_groups[context.scene['viparams']['restree']].nodes[context.scene['viparams']['resnode']]        
+        scene = context.scene
+        simnode = bpy.data.node_groups[scene['viparams']['restree']].nodes[scene['viparams']['resnode']]        
         self.cao = context.active_object
-        if self.cao and self.cao.get('VIType') and self.cao['VIType'] == 'Wind_Plane':
-            scene = context.scene
+
+        if self.cao and self.cao.get('VIType') and self.cao['VIType'] == 'Wind_Plane':            
             levels = self.cao['nbins']
             maxres = self.cao['maxres']
         else:
             levels = simnode['nbins']
             maxres = simnode['maxres']
-        self.cols = retcols(context.scene, levels)
+        self.cols = retcols(mcm.get_cmap(scene.vi_leg_col), levels)
         
-        if not context.scene.get('liparams'):
+        if not scene.get('liparams'):
             scene.vi_display = 0
             return
 
@@ -1024,7 +1025,7 @@ class ss_legend(Base_Display):
     def update(self, context):
         scene = context.scene
         self.cao = context.active_object        
-        self.cols = retcols(context.scene, 20)
+        self.cols = retcols(mcm.get_cmap(scene.vi_leg_col), 20)
         (self.minres, self.maxres) = leg_min_max(scene)        
         self.col, self.scale = scene.vi_leg_col, scene.vi_leg_scale
         dplaces = retdp(self.maxres, 1)
@@ -1050,7 +1051,7 @@ class svf_legend(Base_Display):
     def update(self, context):
         scene = context.scene
         self.cao = context.active_object        
-        self.cols = retcols(context.scene, 20)
+        self.cols = retcols(mcm.get_cmap(scene.vi_leg_col), 20)
         (self.minres, self.maxres) = leg_min_max(scene)
         self.col, self.scale = scene.vi_leg_col, scene.vi_leg_scale
         dplaces = retdp(self.maxres, 1)
@@ -1076,7 +1077,7 @@ class basic_legend(Base_Display):
     def update(self, context):
         scene = context.scene
         self.cao = context.active_object        
-        self.cols = retcols(context.scene, 20)
+        self.cols = retcols(mcm.get_cmap(scene.vi_leg_col), 20)
         (self.minres, self.maxres) = leg_min_max(scene)
         self.col, self.scale = scene.vi_leg_col, scene.vi_leg_scale
         dplaces = retdp(self.maxres, 1)

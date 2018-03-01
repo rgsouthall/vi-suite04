@@ -31,20 +31,27 @@ from .livi_calc  import li_calc
 from .vi_display import li_display, linumdisplay, spnumdisplay, en_air, wr_legend, wr_disp, wr_scatter, wr_table, ss_disp, ss_legend, svf_disp, svf_legend, basic_legend, basic_table, basic_disp, ss_scatter, en_disp, en_pdisp, en_scatter, en_table, en_barchart, comp_table, comp_disp, leed_scatter, cbdm_disp, cbdm_scatter, envals, bsdf, bsdf_disp#, en_barchart, li3D_legend
 from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
-from .vi_func import selobj, livisimacc, solarPosition, wr_axes, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum, leg_min_max
+from .vi_func import selobj, livisimacc, solarPosition, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum, leg_min_max
 from .flovi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, fvdcpwrite
-from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, chunks, xy2radial, logentry, sunpath, radpoints, sunposenvi, clearlayers, fvprogressbar, fvprogressfile
+from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, mp_ok
+from .vi_func import chunks, xy2radial, logentry, sunpath, radpoints, sunposenvi, clearlayers, fvprogressbar, fvprogressfile
 from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
 from .vi_chart import chart_disp
 
 try:
-    import matplotlib.pyplot as plt
-    import matplotlib.cm as cm
-    mp = 1
     
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as mcm
+    import matplotlib.colors as mcolors
+    mp = 1    
 except Exception as e:
-    logentry('Matplotlib problem: {}'.format(e))    
+    print('Matplotlib not available: {}'.format(e))    
     mp = 0
+
+if mp:
+    plt = mp_ok()
+    if plt:
+        from .windrose import WindroseAxes
 
 try:
     import psutil
@@ -2251,9 +2258,11 @@ class NODE_OT_WindRose(bpy.types.Operator):
     def invoke(self, context, event):
         scene = context.scene
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        plt = mp_ok()
+        
         if viparams(self, scene):
             return {'CANCELLED'}
-        if not mp:
+        if not plt:
             self.report({'ERROR'},"There is something wrong with your matplotlib installation")
             return {'FINISHED'}
 
@@ -2273,7 +2282,11 @@ class NODE_OT_WindRose(bpy.types.Operator):
         vawd = awd[validdata]
         vaws = aws[validdata]
         simnode['maxres'], simnode['minres'], simnode['avres'] = max(cws), min(cws), sum(cws)/len(cws)
-        (fig, ax) = wr_axes()
+        fig = plt.figure(figsize=(8, 8), dpi=150, facecolor='w', edgecolor='w')
+        rect = [0.1, 0.1, 0.8, 0.8]
+        ax = WindroseAxes(fig, rect, facecolor='w')
+        fig.add_axes(ax)
+#        (fig, ax) = wr_axes(plt)
         sbinvals = arange(0,int(ceil(max(cws))),2)
         dbinvals = arange(-11.25,372.25,22.5)
         dfreq = histogram(awd, bins=dbinvals)[0]
@@ -2282,14 +2295,14 @@ class NODE_OT_WindRose(bpy.types.Operator):
         dfreq = dfreq[:-1]
         
         if simnode.wrtype == '0':
-            ax.bar(vawd, vaws, bins=sbinvals, normed=True, opening=0.8, edgecolor='white', cmap=cm.get_cmap(scene.vi_leg_col))
+            ax.bar(vawd, vaws, bins=sbinvals, normed=True, opening=0.8, edgecolor='white', cmap=mcm.get_cmap(scene.vi_leg_col))
         elif simnode.wrtype == '1':
-            ax.box(vawd, vaws, bins=sbinvals, normed=True, cmap=cm.get_cmap(scene.vi_leg_col))
+            ax.box(vawd, vaws, bins=sbinvals, normed=True, cmap=mcm.get_cmap(scene.vi_leg_col))
         elif simnode.wrtype in ('2', '3', '4'):
-            ax.contourf(vawd, vaws, bins=sbinvals, normed=True, cmap=cm.get_cmap(scene.vi_leg_col))
+            ax.contourf(vawd, vaws, bins=sbinvals, normed=True, cmap=mcm.get_cmap(scene.vi_leg_col))
 
         plt.savefig(scene['viparams']['newdir']+'/disp_wind.svg')
-        (wro, scale) = wind_rose(simnode['maxres'], scene['viparams']['newdir']+'/disp_wind.svg', simnode.wrtype)
+        (wro, scale) = wind_rose(simnode['maxres'], scene['viparams']['newdir']+'/disp_wind.svg', simnode.wrtype, mcolors)
         
         wro['maxres'], wro['minres'], wro['avres'], wro['nbins'], wro['VIType'] = max(aws), min(aws), sum(aws)/len(aws), len(sbinvals), 'Wind_Plane'
         simnode['maxfreq'] = 100*numpy.max(adfreq)/len(cwd)

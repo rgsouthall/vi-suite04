@@ -34,21 +34,33 @@ from mathutils.bvhtree import BVHTree
 from xml.dom import minidom
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
 
-try:
-    import matplotlib
-    if sys.platform == 'win32':
-        matplotlib.use('Qt4Agg', force = True)
-    else:
-        matplotlib.use('Qt5Agg', force = True)
-    import matplotlib.pyplot as plt
-    import matplotlib.colors as colors
-    import matplotlib.cm as mcm
-    from .windrose import WindroseAxes
-    mp = 1
-except Exception as e:
-    print(e)
-    mp = 0
+def mp_ok():
+    try:
+        import matplotlib
+        backends = ('Qt4Agg', 'Qt5Agg')
+        for back in backends:
+            try:
+                #importlib.reload(matplotlib)
+                matplotlib.use(back, warn = False, force = True)
+                from matplotlib import pyplot as plt
+                plt.figure()
+#                logentry('Matplotlib: {} backend available'.format(back))
+                break
+            except:
+#                logentry('Matplotlib error: {} backend not available'.format(back))
+                continue
+    
+#        import matplotlib.colors as colors
+#        import matplotlib.cm as mcm
+#        from .windrose import WindroseAxes
+        return plt
+    except Exception as e:
+#        logentry('Matplotlib error: {}'.format(e))
+        return 0
+    
+#plt = mp_ok()
 
+        
 dtdf = datetime.date.fromordinal
 unitdict = {'Lux': 'illu', u'W/m\u00b2 (f)': 'firrad', u'W/m\u00b2 (v)': 'virrad', 'DF (%)': 'df', 'DA (%)': 'da', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi',
             'Sky View': 'sv', 'Mlxh': 'illu', 'kWh (f)': 'firrad', 'kWh (v)': 'virrad', u'kWh/m\u00b2 (f)': 'firradm2', u'kWh/m\u00b2 (v)': 'virradm2', '% Sunlit': 'res', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase', 'kW': 'watts', 'Max lux': 'illu', 
@@ -158,9 +170,9 @@ def ct2RGB(t):
         rgb[2] /= maxrgb
     return rgb
 
-def retcols(scene, levels):
+def retcols(cmap, levels):
     try:
-        cmap = mcm.get_cmap(scene.vi_leg_col)
+#        cmap = mcm.get_cmap(scene.vi_leg_col)
         rgbas = [cmap(int(i * 255/(levels - 1))) for i in range(levels)]
     except:
         hs = [0.75 - 0.75*(i/19) for i in range(levels)]
@@ -1948,7 +1960,7 @@ def vsarea(obj, vs):
             i += 1
         return(area)
 
-def wind_rose(maxws, wrsvg, wrtype):
+def wind_rose(maxws, wrsvg, wrtype, colors):
     zp, scene = 0, bpy.context.scene    
     bm = bmesh.new()
     wrme = bpy.data.meshes.new("Wind_rose")   
@@ -2601,16 +2613,16 @@ def solarRiseSet(doy, beta, lat, lon, riseset):
         phi = 0    
     return(phi*radToDeg)
 
-def set_legend(ax):
-    l = ax.legend(borderaxespad = -4)
-    plt.setp(l.get_texts(), fontsize=8)
+#def set_legend(ax):
+#    l = ax.legend(borderaxespad = -4)
+#    plt.setp(l.get_texts(), fontsize=8)
 
-def wr_axes():
-    fig = plt.figure(figsize=(8, 8), dpi=150, facecolor='w', edgecolor='w')
-    rect = [0.1, 0.1, 0.8, 0.8]
-    ax = WindroseAxes(fig, rect, facecolor='w')
-    fig.add_axes(ax)
-    return(fig, ax)
+#def wr_axes(plt):
+#    fig = plt.figure(figsize=(8, 8), dpi=150, facecolor='w', edgecolor='w')
+#    rect = [0.1, 0.1, 0.8, 0.8]
+#    ax = WindroseAxes(fig, rect, facecolor='w')
+#    fig.add_axes(ax)
+#    return(fig, ax)
 
 def skframe(pp, scene, oblist):
     for frame in range(scene['liparams']['fs'], scene['liparams']['fe'] + 1):

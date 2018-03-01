@@ -176,7 +176,7 @@ def path_update():
             os.environ["RAYPATH"] = radldir
            
         os.environ["PATH"] = os.environ["PATH"] + "{0}{1}{0}{2}{0}{3}".format(evsep[str(sys.platform)], radbdir, epdir, ofbdir)    
-        os.environ["LD_LIBRARY_PATH"] = os.environ["LD_LIBRARY_PATH"] + "{0}{1}".format(evsep[str(sys.platform)], ofldir)
+        os.environ["LD_LIBRARY_PATH"] = os.environ["LD_LIBRARY_PATH"] + "{0}{1}".format(evsep[str(sys.platform)], ofldir) if os.environ.get("LD_LIBRARY_PATH") else "{0}{1}".format(evsep[str(sys.platform)], ofldir)
 
 def colupdate(self, context):
     cmap(self)

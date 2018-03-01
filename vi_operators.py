@@ -38,9 +38,8 @@ from .vi_func import chunks, xy2radial, logentry, sunpath, radpoints, sunposenvi
 from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
 from .vi_chart import chart_disp
 
-try:
-    
-    import matplotlib.pyplot as plt
+try:    
+#    import matplotlib.pyplot as plt
     import matplotlib.cm as mcm
     import matplotlib.colors as mcolors
     mp = 1    
@@ -1352,107 +1351,109 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
         node.postexport()
         return {'FINISHED'}
 
-class NODE_OT_EnSim(bpy.types.Operator):
-    bl_idname = "node.ensim"
-    bl_label = "Simulate"
-    bl_description = "Run EnergyPlus"
-    bl_register = True
-    bl_undo = False
-    nodeid = bpy.props.StringProperty()
-
-    def modal(self, context, event):
-        if event.type == 'TIMER':
-            scene = context.scene
-            if self.esimrun.poll() is None:
-                nodecolour(self.simnode, 1)
-                try:                    
-                    with open(os.path.join(scene['viparams']['newdir'], '{}{}out.eso'.format(self.resname, self.frame)), 'r') as resfile:
-                        for resline in [line for line in resfile.readlines()[::-1] if line.split(',')[0] == '2' and len(line.split(',')) == 9]:
-                            if self.pfile.check(int((100/self.lenframes) * (self.frame - scene['enparams']['fs'])) + int((100/self.lenframes) * int(resline.split(',')[1])/(self.simnode.dedoy - self.simnode.dsdoy))) == 'CANCELLED':
-                                self.simnode.run = -1
-                                return {'CANCELLED'}
-                            self.simnode.run = int((100/self.lenframes) * (self.frame - scene['enparams']['fs'])) + int((100/self.lenframes) * int(resline.split(',')[1])/(self.simnode.dedoy - self.simnode.dsdoy))
-                            break
-                    return {'PASS_THROUGH'}
-                except Exception as e:
-                    logentry('EnergyPlus simulation error: {}'.format(e))
-                    return {'PASS_THROUGH'}
-            elif self.frame < scene['enparams']['fe']:
-                self.frame += 1
-                esimcmd = "energyplus {0} -w in{1}.epw -i {2} -p {3} in{1}.idf".format(self.expand, self.frame, self.eidd, ('{}{}'.format(self.resname, self.frame))) 
-                self.esimrun = Popen(esimcmd.split(), stderr = PIPE)
-                return {'PASS_THROUGH'}
-            else:
-                self.simnode.run = -1
-                for fname in [fname for fname in os.listdir('.') if fname.split(".")[0] == self.simnode.resname]:
-                    os.remove(os.path.join(scene['viparams']['newdir'], fname))
-
-                nfns = [fname for fname in os.listdir('.') if fname.split(".")[0] == "{}{}out".format(self.resname, self.frame)]
-                for fname in nfns:
-                    os.rename(os.path.join(scene['viparams']['newdir'], fname), os.path.join(scene['viparams']['newdir'],fname.replace("eplusout", self.simnode.resname)))
-                
-                efilename = "{}{}out.err".format(self.resname, self.frame)
-                print(efilename)
-                
-                if efilename not in [im.name for im in bpy.data.texts]:
-                    bpy.data.texts.load(os.path.join(scene['viparams']['newdir'], efilename))
-                else:
-                    bpy.data.texts[efilename].filepath = os.path.join(scene['viparams']['newdir'], efilename)
-
-                if '** Severe  **' in bpy.data.texts[efilename]:
-                    self.report({'ERROR'}, "Fatal error reported in the {} file. Check the file in Blender's text editor".format(efilename))
-                    return {'CANCELLED'}
-
-                if 'EnergyPlus Terminated--Error(s) Detected' in self.esimrun.stderr.read().decode() or not [f for f in nfns if f.split(".")[1] == "eso"] or self.simnode.run == 0:
-                    errtext = "There is no results file. Check you have selected results outputs and that there are no errors in the .err file in the Blender text editor." if not [f for f in nfns if f.split(".")[1] == "eso"] else "There was an error in the input IDF file. Check the *.err file in Blender's text editor."
-                    self.report({'ERROR'}, errtext)
-                    self.simnode.run = -1
-                    return {'CANCELLED'}
-                else:
-                    nodecolour(self.simnode, 0)
-                    processf(self, scene, self.simnode)
-                    self.report({'INFO'}, "Calculation is finished.")
-                    scene['viparams']['resnode'], scene['viparams']['connode'], scene['viparams']['vidisp'] = self.nodeid, '{}@{}'.format(self.connode.name, self.nodeid.split('@')[1]), 'en'
-                    self.simnode.run = -1
-                    if self.kivyrun.poll() is None:
-                        self.kivyrun.kill()
-                    return {'FINISHED'}
-        else:
-            return {'PASS_THROUGH'}
-
-    def invoke(self, context, event):
-        scene = context.scene
-         
-        if viparams(self, scene):
-            return {'CANCELLED'}
-        
-        if shutil.which('energyplus') is None:
-            self.report({'ERROR'}, "Energyplus binary is not executable")
-            return {'CANCELLED'}
-        
-        self.frame = scene['enparams']['fs']
-        self.lenframes = len(range(scene['enparams']['fs'], scene['enparams']['fe'] + 1))             
-        context.scene['viparams']['visimcontext'] = 'EnVi'
-        self.pfile = progressfile(scene['viparams']['newdir'], datetime.datetime.now(), 100)
-        self.kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'EnergyPlus Results')
-        wm = context.window_manager
-        self._timer = wm.event_timer_add(1, context.window)
-        wm.modal_handler_add(self)
-        self.simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        self.simnode.presim(context)
-        self.connode = self.simnode.inputs['Context in'].links[0].from_node
-        self.simnode.resfilename = os.path.join(scene['viparams']['newdir'], self.simnode.resname+'.eso')
-        self.expand = "-x" if scene['viparams'].get('hvactemplate') else ""
-        self.eidd = os.path.join(os.path.dirname(os.path.abspath(os.path.realpath( __file__ ))), "EPFiles", "Energy+.idd")  
-        self.resname = (self.simnode.resname, 'eplus')[self.simnode.resname == '']
-        os.chdir(scene['viparams']['newdir'])
-        esimcmd = "energyplus {0} -w in{1}.epw -i {2} -p {3} in{1}.idf".format(self.expand, self.frame, self.eidd, ('{}{}'.format(self.resname, self.frame))) 
-        self.esimrun = Popen(esimcmd.split(), stderr = PIPE)
-        self.simnode.run = 0
-        return {'RUNNING_MODAL'}
+#class NODE_OT_EnSim(bpy.types.Operator):
+#    bl_idname = "node.ensim"
+#    bl_label = "Simulate"
+#    bl_description = "Run EnergyPlus"
+#    bl_register = True
+#    bl_undo = False
+#    nodeid = bpy.props.StringProperty()
+#
+#    def modal(self, context, event):
+#        if event.type == 'TIMER':
+#            scene = context.scene
+#            if self.esimrun.poll() is None:
+#                nodecolour(self.simnode, 1)
+#                try:                    
+#                    with open(os.path.join(scene['viparams']['newdir'], '{}{}out.eso'.format(self.resname, self.frame)), 'r') as resfile:
+#                        for resline in [line for line in resfile.readlines()[::-1] if line.split(',')[0] == '2' and len(line.split(',')) == 9]:
+#                            if self.pfile.check(int((100/self.lenframes) * (self.frame - scene['enparams']['fs'])) + int((100/self.lenframes) * int(resline.split(',')[1])/(self.simnode.dedoy - self.simnode.dsdoy))) == 'CANCELLED':
+#                                self.simnode.run = -1
+#                                return {'CANCELLED'}
+#                            self.simnode.run = int((100/self.lenframes) * (self.frame - scene['enparams']['fs'])) + int((100/self.lenframes) * int(resline.split(',')[1])/(self.simnode.dedoy - self.simnode.dsdoy))
+#                            break
+#                    return {'PASS_THROUGH'}
+#                except Exception as e:
+#                    logentry('EnergyPlus simulation error: {}'.format(e))
+#                    return {'PASS_THROUGH'}
+#                
+#            elif self.frame < scene['enparams']['fe']:
+#                self.frame += 1
+#                esimcmd = "energyplus {0} -w in{1}.epw -i {2} -p {3} in{1}.idf".format(self.expand, self.frame, self.eidd, ('{}{}'.format(self.resname, self.frame))) 
+#                self.esimrun = Popen(esimcmd.split(), stderr = PIPE)
+#                return {'PASS_THROUGH'}
+#            else:
+#                print('hello')
+#                self.simnode.run = -1
+#                for fname in [fname for fname in os.listdir('.') if fname.split(".")[0] == self.simnode.resname]:
+#                    os.remove(os.path.join(scene['viparams']['newdir'], fname))
+#
+#                nfns = [fname for fname in os.listdir('.') if fname.split(".")[0] == "{}{}out".format(self.resname, self.frame)]
+#                for fname in nfns:
+#                    os.rename(os.path.join(scene['viparams']['newdir'], fname), os.path.join(scene['viparams']['newdir'],fname.replace("eplusout", self.simnode.resname)))
+#                
+#                efilename = "{}{}out.err".format(self.resname, self.frame)
+#                print(efilename)
+#                
+#                if efilename not in [im.name for im in bpy.data.texts]:
+#                    bpy.data.texts.load(os.path.join(scene['viparams']['newdir'], efilename))
+#                else:
+#                    bpy.data.texts[efilename].filepath = os.path.join(scene['viparams']['newdir'], efilename)
+#
+#                if '** Severe  **' in bpy.data.texts[efilename]:
+#                    self.report({'ERROR'}, "Fatal error reported in the {} file. Check the file in Blender's text editor".format(efilename))
+#                    return {'CANCELLED'}
+#
+#                if 'EnergyPlus Terminated--Error(s) Detected' in self.esimrun.stderr.read().decode() or not [f for f in nfns if f.split(".")[1] == "eso"] or self.simnode.run == 0:
+#                    errtext = "There is no results file. Check you have selected results outputs and that there are no errors in the .err file in the Blender text editor." if not [f for f in nfns if f.split(".")[1] == "eso"] else "There was an error in the input IDF file. Check the *.err file in Blender's text editor."
+#                    self.report({'ERROR'}, errtext)
+#                    self.simnode.run = -1
+#                    return {'CANCELLED'}
+#                else:
+#                    nodecolour(self.simnode, 0)
+#                    processf(self, scene, self.simnode)
+#                    self.report({'INFO'}, "Calculation is finished.")
+#                    scene['viparams']['resnode'], scene['viparams']['connode'], scene['viparams']['vidisp'] = self.nodeid, '{}@{}'.format(self.connode.name, self.nodeid.split('@')[1]), 'en'
+#                    self.simnode.run = -1
+#                    if self.kivyrun.poll() is None:
+#                        self.kivyrun.kill()
+#                    return {'FINISHED'}
+#        else:
+#            return {'PASS_THROUGH'}
+#
+#    def invoke(self, context, event):
+#        scene = context.scene
+#         
+#        if viparams(self, scene):
+#            return {'CANCELLED'}
+#        
+#        if shutil.which('energyplus') is None:
+#            self.report({'ERROR'}, "Energyplus binary is not executable")
+#            return {'CANCELLED'}
+#        
+#        self.frame = scene['enparams']['fs']
+#        self.lenframes = len(range(scene['enparams']['fs'], scene['enparams']['fe'] + 1))             
+#        context.scene['viparams']['visimcontext'] = 'EnVi'
+#        self.pfile = progressfile(scene['viparams']['newdir'], datetime.datetime.now(), 100)
+#        self.kivyrun = progressbar(os.path.join(scene['viparams']['newdir'], 'viprogress'), 'EnergyPlus Results')
+#        wm = context.window_manager
+#        self._timer = wm.event_timer_add(1, context.window)
+#        wm.modal_handler_add(self)
+#        self.simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+#        self.simnode.presim(context)
+#        self.connode = self.simnode.inputs['Context in'].links[0].from_node
+#        self.simnode.resfilename = os.path.join(scene['viparams']['newdir'], self.simnode.resname+'.eso')
+#        self.expand = "-x" if scene['viparams'].get('hvactemplate') else ""
+#        self.eidd = os.path.join(os.path.dirname(os.path.abspath(os.path.realpath( __file__ ))), "EPFiles", "Energy+.idd")  
+#        self.resname = (self.simnode.resname, 'eplus')[self.simnode.resname == '']
+#        os.chdir(scene['viparams']['newdir'])
+#        esimcmd = "energyplus {0} -w in{1}.epw -i {2} -p {3} in{1}.idf".format(self.expand, self.frame, self.eidd, ('{}{}'.format(self.resname, self.frame))) 
+#        self.esimrun = Popen(esimcmd.split(), stderr = PIPE)
+#        self.simnode.run = 0
+#        return {'RUNNING_MODAL'}
     
 class NODE_OT_EnSim2(bpy.types.Operator):
-    bl_idname = "node.ensim2"
+    bl_idname = "node.ensim"
     bl_label = "Simulate"
     bl_description = "Run EnergyPlus"
     bl_register = True
@@ -1474,7 +1475,7 @@ class NODE_OT_EnSim2(bpy.types.Operator):
                 for fname in [fname for fname in os.listdir('.') if fname.split(".")[0] == self.simnode.resname]:
                     os.remove(os.path.join(self.nd, fname))
 
-                for f in range(self.frame, self.frame + self.e - 1):
+                for f in range(self.frame, self.frame + self.e):
                     nfns = [fname for fname in os.listdir('.') if fname.split(".")[0] == "{}{}out".format(self.resname, f)]
                     
                     for fname in nfns:

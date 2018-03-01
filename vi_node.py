@@ -1273,7 +1273,7 @@ class ViEnSimNode(bpy.types.Node, ViNodes):
                     newrow(layout, 'Processors:', self, 'processors')
             newrow(layout, 'Results name:', self, 'resname')
             row = layout.row()
-            row.operator("node.ensim2", text = 'Calculate').nodeid = self['nodeid']
+            row.operator("node.ensim", text = 'Calculate').nodeid = self['nodeid']
 
     def update(self):
         if self.outputs.get('Results out'):
@@ -3022,6 +3022,7 @@ class EnViZone(bpy.types.Node, EnViNodes):
     def init(self, context):
         self['nodeid'] = nodeid(self)
         self['tsps'] = 1
+        self['volume'] = 10
         self.inputs.new('EnViHvacSocket', 'HVAC')
         self.inputs.new('EnViOccSocket', 'Occupancy')
         self.inputs.new('EnViEqSocket', 'Equipment')

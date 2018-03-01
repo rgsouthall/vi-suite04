@@ -1392,11 +1392,13 @@ class NODE_OT_EnSim(bpy.types.Operator):
                     os.rename(os.path.join(scene['viparams']['newdir'], fname), os.path.join(scene['viparams']['newdir'],fname.replace("eplusout", self.simnode.resname)))
                 
                 efilename = "{}{}out.err".format(self.resname, self.frame)
+                print(efilename)
                 
                 if efilename not in [im.name for im in bpy.data.texts]:
                     bpy.data.texts.load(os.path.join(scene['viparams']['newdir'], efilename))
                 else:
                     bpy.data.texts[efilename].filepath = os.path.join(scene['viparams']['newdir'], efilename)
+
                 if '** Severe  **' in bpy.data.texts[efilename]:
                     self.report({'ERROR'}, "Fatal error reported in the {} file. Check the file in Blender's text editor".format(efilename))
                     return {'CANCELLED'}

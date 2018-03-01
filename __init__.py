@@ -161,7 +161,7 @@ addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe
 def path_update():
     evsep = {'linux': ':', 'darwin': ':', 'win32': ';'}
     vi_prefs = bpy.context.user_preferences.addons[__name__].preferences
-    epdir = vi_prefs.epbin if vi_prefs and vi_prefs.epbin and os.path.isdir(vi_prefs.epbin) else os.path.join('{}'.format(addonpath), 'EPFiles')
+    epdir = vi_prefs.epbin if vi_prefs and vi_prefs.epbin and os.path.isdir(vi_prefs.epbin) else os.path.join('{}'.format(addonpath), 'EPFiles', 'bin')
     radldir = vi_prefs.radlib if vi_prefs and os.path.isdir(vi_prefs.radlib) else os.path.join('{}'.format(addonpath), 'Radfiles', 'lib')
     radbdir = vi_prefs.radbin if vi_prefs and os.path.isdir(vi_prefs.radbin) else os.path.join('{}'.format(addonpath), 'Radfiles', 'bin') 
     ofbdir = vi_prefs.ofbin if vi_prefs and os.path.isdir(vi_prefs.ofbin) else os.path.join('{}'.format(addonpath), 'OFFiles', 'bin') 

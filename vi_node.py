@@ -709,7 +709,8 @@ class ViLiINode(bpy.types.Node, ViNodes):
             scene.camera = bpy.data.objects[self.camera]
             cam = bpy.data.objects[self.camera]
             cang = cam.data.angle*180/math.pi if not self.fisheye else self.fov
-            vv = cang * self.y/self.x
+            vh = cang if self.x >= self.y else cang * self.x/self.y 
+            vv = cang if self.x < self.y else cang * self.y/self.x 
             vd = (0.001, 0, -1*cam.matrix_world[2][2]) if (round(-1*cam.matrix_world[0][2], 3), round(-1*cam.matrix_world[1][2], 3)) == (0.0, 0.0) else [-1*cam.matrix_world[i][2] for i in range(3)]
             pmaps.append(self.pmap)
             self['pmapgnos'][str(frame)] = self.pmapgno
@@ -719,7 +720,7 @@ class ViLiINode(bpy.types.Node, ViNodes):
             if self.fisheye and self.fov == 180:
                 self['viewparams'][str(frame)]['-vth'] = ''
                 
-            (self['viewparams'][str(frame)]['-vh'], self['viewparams'][str(frame)]['-vv']) = (self.fov, self.fov) if self.fisheye else (cang, vv)
+            (self['viewparams'][str(frame)]['-vh'], self['viewparams'][str(frame)]['-vv']) = (self.fov, self.fov) if self.fisheye else (vh, vv)
             self['viewparams'][str(frame)]['-vd'] = ' '.join(['{:.3f}'.format(v) for v in vd])
             self['viewparams'][str(frame)]['-x'], self['viewparams'][str(frame)]['-y'] = self.x, self.y
             if self.mp:

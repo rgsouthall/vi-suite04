@@ -113,6 +113,9 @@ class Vi3DPanel(bpy.types.Panel):
                     newrow(layout, 'Legend colour:', scene, "vi_leg_col")
                     newrow(layout, 'Emitter materials:', scene, "vi_disp_mat")
                     
+                    if scene.vi_disp_mat:
+                        newrow(layout, 'Emitter strength:', scene, "vi_disp_ems")
+                    
                     if scene['liparams']['unit'] in ('DA (%)', 'sDA (%)', 'UDI-f (%)', 'UDI-s (%)', 'UDI-a (%)', 'UDI-e (%)', 'ASE (hrs)', 'Max lux', 'Ave lux', 'Min lux', 'kWh', 'kWh/m2'):
                         newrow(layout, 'Scatter max:', scene, "vi_scatter_max")
                         newrow(layout, 'Scatter min:', scene, "vi_scatter_min")

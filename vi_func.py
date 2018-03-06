@@ -203,7 +203,8 @@ def cmap(scene):
             node_material = nodes.new(type='ShaderNodeBsdfTransparent')            
         elif scene.vi_disp_mat:
             # create emission node
-            node_material = nodes.new(type='ShaderNodeEmission')        
+            node_material = nodes.new(type='ShaderNodeEmission') 
+            node_material.inputs[1].default_value = scene.vi_disp_ems
         else:
             # create diffuse node
             node_material = nodes.new(type='ShaderNodeBsdfDiffuse')
@@ -498,7 +499,7 @@ def hdrsky(hdrfile, hdrmap, hdrangle, hdrradius):
 def retpmap(node, frame, scene):
     pportmats = ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.pport and mat.get('radentry')])
     ammats = ' '.join([mat.name.replace(" ", "_") for mat in bpy.data.materials if mat.mattype == '1' and mat.radmatmenu == '7' and mat.get('radentry')])
-    pportentry = '-apo {}'.format(pportmats) if pportmats else ''
+    pportentry = ' '.join(['-apo {}'.format(ppm) for ppm in pportmats.split()]) if pportmats else ''
     amentry = '-aps {}'.format(ammats) if ammats else ''
     cpentry = '-apc {}-{}.cpm {}'.format(scene['viparams']['filebase'], frame, node.pmapcno) if node.pmapcno else ''
     cpfileentry = '-ap {}-{}.cpm 50'.format(scene['viparams']['filebase'], frame) if node.pmapcno else ''  
@@ -769,6 +770,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
             firrad = virrad * 1.64
             illu = virrad * 179
             df = illu * 0.01
+            
             for gi, gp in enumerate(chunk):
                 gp[virradres] = virrad[gi].astype(float32)
                 gp[firradres] = firrad[gi].astype(float32)
@@ -804,10 +806,12 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         posis = [v.co for v in bm.verts if v[cindex] > 0] if self['cpoint'] == '1' else [f.calc_center_bounds() for f in bm.faces if f[cindex] > 1]
         illubinvals = [self['omin']['illu{}'.format(frame)] + (self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)])/20 * (i + 0.05) for i in range(20)]
         bins = array([0.05 * i for i in range(1, 20)])
+        
         if self['omax']['illu{}'.format(frame)] > self['omin']['illu{}'.format(frame)]:
             vals = [(gp[illures] - self['omin']['illu{}'.format(frame)])/(self['omax']['illu{}'.format(frame)] - self['omin']['illu{}'.format(frame)]) for gp in geom]         
         else:
             vals = [1 for gp in geom]
+            
         ais = digitize(vals, bins)
         rgeom = [g for g in geom if g[cindex] > 0]
         rareas = [gp.calc_area() for gp in geom] if self['cpoint'] == '0' else [vertarea(bm, gp) for gp in geom]

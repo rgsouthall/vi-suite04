@@ -57,7 +57,6 @@ try:
     psu = 1
 except: 
     psu = 0    
-#from .vi_gen import vigen
 
 envi_mats = envi_materials()
 envi_cons = envi_constructions()
@@ -230,7 +229,7 @@ class MATERIAL_SaveBSDF(bpy.types.Operator):
     bl_label = "ave BSDF"
     bl_description = "Save a BSDF for the current selected object"
     bl_register = True
-#    bl_undo = True
+
     filename_ext = ".XML;.xml;"
     filter_glob = bpy.props.StringProperty(default="*.XML;*.xml;", options={'HIDDEN'})
     filepath = bpy.props.StringProperty(subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
@@ -312,7 +311,6 @@ class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
                             elif butrange in ('Transmission', 'Reflection'):
                                 self.bsdf.type_select = butrange
                             self.bsdf.plot(context)
-#                            self.bsdf.save(context.scene)
 
                 self.bsdf.hl = (1, 1, 1, 1)
                                 
@@ -349,7 +347,6 @@ class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
                         self.bsdf.num_disp = 1 if event.type == 'RIGHTMOUSE' else 0    
                         self.bsdf.patch_select = sum(self.bsdf.phis[0:ri]) + uai
                         self.bsdf.plot(context)
-#                        self.bsdf.save(context.scene)
                         context.area.tag_redraw()
                         return {'RUNNING_MODAL'}
                         
@@ -362,7 +359,6 @@ class VIEW3D_OT_BSDF_Disp(bpy.types.Operator):
                 self.bsdf.leg_min = context.scene.vi_bsdfleg_min
                 self.bsdf.scale_select = context.scene.vi_bsdfleg_scale
                 self.bsdf.plot(context)
-#                self.bsdf.save(context.scene)
             
             context.area.tag_redraw()
         
@@ -643,7 +639,6 @@ class NODE_OT_RadImage(bpy.types.Operator):
                         self.rpruns.append(Popen(self.rpictcmds[self.frame - self.fs].split(), stdout=imfile, stderr = PIPE))
                             
         if event.type == 'TIMER':            
-#            if self.rprun.poll() is not None: # If finished
             f = self.frame if self.frame <= self.fe else self.fe
             if self.pmfin and not self.rpruns:
                 for line in self.pmruns[0].stderr:
@@ -681,7 +676,6 @@ class NODE_OT_RadImage(bpy.types.Operator):
                             self.simnode.run = 0
                             return {'CANCELLED'}
                         
-#                if self.xindex > self.processors:
                 self.imupdate(f)
                 return {self.terminate()}
 
@@ -807,18 +801,35 @@ class NODE_OT_LiFC(bpy.types.Operator):
         legend = '-l {} -lw {} -lh {} {} {} {}'.format(fcnode.unitdict[fcnode.unit], fcnode.lw, fcnode.lh, lmax, scaling, mult) if fcnode.legend else ''
         bands = '-cb' if fcnode.bands else ''
         contour = '-cl {}'.format(bands) if fcnode.contour else ''
-        poverlay = '-ip' if fcnode.contour and fcnode.overlay and not os.path.isfile(bpy.path.abspath(fcnode.ofile)) else '-i'
         divisions = '-n {}'.format(fcnode.divisions) if fcnode.divisions != 8 else ''
-        ofile = '-p {}'.format(bpy.path.abspath(fcnode.ofile)) if os.path.isfile(bpy.path.abspath(fcnode.ofile)) and fcnode.overlay else ''
+        
 
         for i, im in enumerate(imnode['images']): 
-            fccmd = 'falsecolor {} {} -pal {} {} {} {} {}'.format(poverlay, bpy.path.abspath(im), fcnode.coldict[fcnode.colour], legend, contour, divisions, ofile)
+            fcim = os.path.join(context.scene['viparams']['newdir'], 'images', '{}-{}.hdr'.format(fcnode['basename'], i + context.scene['liparams']['fs']))
+            ofile = bpy.path.abspath(fcnode.ofile) if os.path.isfile(bpy.path.abspath(fcnode.ofile)) and fcnode.overlay else bpy.path.abspath(im)
+            poverlay = '-p <(pcond -e {0} {1})' .format(fcnode.disp, ofile) if fcnode.contour and fcnode.overlay else ''
+
+            if sys.platform == 'win32':
+                fccmd = "falsecolor -i {} {} -pal {} {} {} {}".format(bpy.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
+            else:
+                fccmd = "bash -c 'falsecolor -i {} {} -pal {} {} {} {}'".format(bpy.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
+
             logentry(fccmd)
         
-            with open(os.path.join(context.scene['viparams']['newdir'], 'images', '{}-{}.hdr'.format(fcnode['basename'], i + context.scene['liparams']['fs'])), 'w') as fcfile:
-                Popen(fccmd.split(), stdout=fcfile, stderr = PIPE).wait()  
+            with open(fcim, 'w') as fcfile:
+                fcrun = Popen(shlex.split(fccmd), stdout=fcfile, stderr = PIPE)
+                
+                for line in fcrun.stderr:
+                    logentry('Falsecolour error: {}'.format(line))
 
-        fcnode.postsim()                               
+            if fcim not in [i.filepath for i in bpy.data.images]:
+                bpy.data.images.load(fcim)
+            else:
+                for i in bpy.data.images:
+                    if bpy.path.abspath(i.filepath) == fcim:
+                        i.reload()
+                        [area.tag_redraw() for area in bpy.context.screen.areas if area and area.type == "IMAGE_EDITOR" and area.spaces[0].image == i]               
+        fcnode.postsim()                              
         return {'FINISHED'}
     
 class NODE_OT_LiGl(bpy.types.Operator):            

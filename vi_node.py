@@ -771,6 +771,7 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
     divisions = bpy.props.IntProperty(name = '', min = 1, max = 50, default = 8, update = nodeupdate)
     ofile = bpy.props.StringProperty(name="", description="Location of the file to overlay", default="", subtype="FILE_PATH", update = nodeupdate)
     hdrfile  = bpy.props.StringProperty(name="", description="Location of the file to overlay", default="", subtype="FILE_PATH", update = nodeupdate)
+    disp = bpy.props.FloatProperty(name = '', min = 0.0001, max = 10, default = 1, update = nodeupdate)
     
     def init(self, context):
         self['exportstate'] = ''
@@ -802,6 +803,7 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
                newrow(layout, 'Overlay:', self, 'overlay') 
                if self.overlay:
                    newrow(layout, 'Overlay file:', self, 'ofile') 
+                   newrow(layout, 'Overlay exposure:', self, 'disp')
                newrow(layout, 'Bands:', self, 'bands') 
    
             if self.inputs['Image'].links and os.path.isfile(self.inputs['Image'].links[0].from_node['images'][0]):

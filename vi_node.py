@@ -687,7 +687,7 @@ class ViLiINode(bpy.types.Node, ViNodes):
                 row = layout.row()
                 row.operator("node.radimage", text = 'Image').nodeid = self['nodeid']
         
-    def update(self):
+    def update(self):        
         self.run = 0
         
     def presim(self):
@@ -731,6 +731,8 @@ class ViLiINode(bpy.types.Node, ViNodes):
             if self.illu:
                 self['viewparams'][str(frame)]['-i'] = ''
         self['pmaps'] = pmaps
+        self.run = 1
+        nodecolour(self, 1)
                 
     def postsim(self, images):
         self['images'] = images
@@ -771,7 +773,7 @@ class ViLiFCNode(bpy.types.Node, ViNodes):
     divisions = bpy.props.IntProperty(name = '', min = 1, max = 50, default = 8, update = nodeupdate)
     ofile = bpy.props.StringProperty(name="", description="Location of the file to overlay", default="", subtype="FILE_PATH", update = nodeupdate)
     hdrfile  = bpy.props.StringProperty(name="", description="Location of the file to overlay", default="", subtype="FILE_PATH", update = nodeupdate)
-    disp = bpy.props.FloatProperty(name = '', min = 0.0001, max = 10, default = 1, update = nodeupdate)
+    disp = bpy.props.FloatProperty(name = '', min = 0.0001, max = 10, default = 1, precision = 4, update = nodeupdate)
     
     def init(self, context):
         self['exportstate'] = ''

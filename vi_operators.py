@@ -652,18 +652,23 @@ class NODE_OT_RadImage(bpy.types.Operator):
                             return {'CANCELLED'}
                                 
             elif os.path.isfile(self.pmfile) and not self.rpruns:
-                if sum(self.pmaps) == 1:
-                     with open(self.pmfile, 'r') as vip:
+                if sum(self.pmaps):
+                    self.percent = 0
+                    for vip in [open('{}-{}'.format(self.pmfile, frame), 'r') for frame in range(self.fs, self.fe + 1)]:
+             #            with open(self.pmfile, 'r') as vip:
                         for line in vip.readlines()[::-1]:
                             if '% after' in line:
-                                self.percent = [float(ls[:-2]) for ls in line.split() if '%' in ls][0]
+                                self.percent += [float(ls[:-2]) for ls in line.split() if '%' in ls][0]/sum(self.pmaps)
+                                print(self.percent)
                                 break
                             elif line in pmerrdict:
                                 logentry(line)
                                 self.report({'ERROR'}, pmerrdict[line])
                                 return {'CANCELLED'}
-                else:
-                    self.percent = 100 * sum([pm.poll() is not None for pm in self.pmruns])/self.frames
+#                elif sum(self.pmaps) > 1:
+#                    self.percent = 100 * sum([pm.poll() is not None for pm in self.pmruns])/self.frames + self.percent/self.frames
+#                    for pmfile in [open(self.pmfile, 'r'))]
+#                    print(self.percent)
 
             if self.pmfin and self.rpruns and all([rp.poll() is not None for rp in self.rpruns]):
                 for line in self.rpruns[0].stderr:
@@ -738,8 +743,6 @@ class NODE_OT_RadImage(bpy.types.Operator):
             self.rpictfile = os.path.join(scene['viparams']['newdir'], 'rpictprogress')
             self.pmfile = os.path.join(scene['viparams']['newdir'], 'pmprogress')
             simnode.presim()
-            simnode.run = 1
-            nodecolour(simnode, 1)
             scene['liparams']['fs'], scene['liparams']['fe'] =  simnode.retframes()
             self.frames = self.fe - self.fs + 1
             self.frame = self.fs
@@ -761,9 +764,11 @@ class NODE_OT_RadImage(bpy.types.Operator):
             for frame in range(self.fs, self.fe + 1):
                 createradfile(scene, frame, self, simnode)
                 createoconv(scene, frame, self, simnode)
+                with open('{}-{}'.format(self.pmfile, frame), 'w'):
+                    pass
                 
             scene.frame_set(scene['liparams']['fs'])
-            self.pmcmds = ['mkpmap -t 10 -e {6} -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(self.pmparams[str(frame)]['pportentry'], scene['viparams']['filebase'], frame, self.pmapgnos[str(frame)], self.pmparams[str(frame)]['cpentry'], self.pmparams[str(frame)]['amentry'], self.pmfile) for frame in range(self.fs, self.fe + 1)]                   
+            self.pmcmds = ['mkpmap -t 10 -e {6} -bv+ +fo -apD 0.001 {0} -apg {1}-{2}.gpm {3} {4} {5} {1}-{2}.oct'.format(self.pmparams[str(frame)]['pportentry'], scene['viparams']['filebase'], frame, self.pmapgnos[str(frame)], self.pmparams[str(frame)]['cpentry'], self.pmparams[str(frame)]['amentry'], '{}-{}'.format(self.pmfile, frame)) for frame in range(self.fs, self.fe + 1)]                   
             self.rppmcmds = [('', ' -ap {} {}'.format('{}-{}.gpm'.format(scene['viparams']['filebase'], frame), self.pmparams[str(frame)]['cpfileentry']))[self.pmaps[frame - self.fs]] for frame in range(self.fs, self.fe + 1)]
             self.rpictcmds = ["rpict -t 10 -e {} ".format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + "{0}-{1}.oct".format(scene['viparams']['filebase'], frame, os.path.join(scene['viparams']['newdir'], 'images', self.basename)) for frame in range(self.fs, self.fe + 1)]
             self.rpiececmds = ["rpiece -t 10 -e {} ".format(self.rpictfile) + ' '.join(['{0[0]} {0[1]}'.format(i) for i in self.viewparams[str(frame)].items()]) + self.rppmcmds[frame - self.fs] + self.radparams + "-o {2}-{1}.hdr {0}-{1}.oct".format(scene['viparams']['filebase'], frame, os.path.join(scene['viparams']['newdir'], 'images', self.basename)) for frame in range(self.fs, self.fe + 1)]

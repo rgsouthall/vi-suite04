@@ -45,7 +45,7 @@ try:
     import matplotlib.colors as mcolors
     mp = 1    
 except Exception as e:
-    logentry('Matplotlib error: {}'.format(e))    
+#    logentry('Matplotlib error: {}'.format(e))    
     mp = 0
 
 if mp:

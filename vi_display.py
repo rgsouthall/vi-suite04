@@ -27,7 +27,10 @@ from numpy import sum as nsum
 from numpy import min as nmin
 from numpy import max as nmax
 from numpy import append as nappend
+
 try:
+    import matplotlib
+    matplotlib.use('qt5agg', warn = False, force = True)
     import matplotlib.pyplot as plt
     import matplotlib.cm as mcm  
     import matplotlib.colors as mcolors

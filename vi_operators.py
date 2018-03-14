@@ -41,12 +41,11 @@ from .vi_chart import chart_disp
 try:    
     import matplotlib
     matplotlib.use('qt5agg')
-#    import matplotlib.pyplot as plt
     import matplotlib.cm as mcm
     import matplotlib.colors as mcolors
     mp = 1    
 except Exception as e:
-    print('Matplotlib not available: {}'.format(e))    
+    logentry('Matplotlib error: {}'.format(e))    
     mp = 0
 
 if mp:

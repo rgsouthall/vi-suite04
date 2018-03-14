@@ -37,30 +37,14 @@ from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, 
 def ret_plt():
     try:
         import matplotlib
-#        backends = ('Qt4Agg', 'Qt5Agg')
-#        for back in backends:
-        try:
-            #importlib.reload(matplotlib)
-            matplotlib.use('qt5agg', warn = False, force = True)
-            from matplotlib import pyplot as plt
-            plt.figure()
-#                logentry('Matplotlib: {} backend available'.format(back))
-#            break
-        except:
-            plt = 0
-#                logentry('Matplotlib error: {} backend not available'.format(back))
-#            continue
-    
-#        import matplotlib.colors as colors
-#        import matplotlib.cm as mcm
-#        from .windrose import WindroseAxes
+        matplotlib.use('qt5agg', warn = False, force = True)
+        from matplotlib import pyplot as plt
+        plt.figure()
         return plt
     except Exception as e:
-#        logentry('Matplotlib error: {}'.format(e))
+        logentry('Matplotlib error: {}'.format(e))
         return 0
     
-#plt = mp_ok()
-
 def ret_mcm():
     try:
         import matplotlib.cm as mcm

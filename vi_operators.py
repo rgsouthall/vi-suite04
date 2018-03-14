@@ -39,6 +39,8 @@ from .envi_func import processf, retenvires, envizres, envilres, recalculate_tex
 from .vi_chart import chart_disp
 
 try:    
+    import matplotlib
+    matplotlib.use('qt5agg')
 #    import matplotlib.pyplot as plt
     import matplotlib.cm as mcm
     import matplotlib.colors as mcolors

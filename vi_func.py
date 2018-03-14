@@ -34,7 +34,7 @@ from mathutils.bvhtree import BVHTree
 from xml.dom import minidom
 from bpy.props import IntProperty, StringProperty, EnumProperty, FloatProperty, BoolProperty, FloatVectorProperty
 
-def mp_ok():
+def ret_plt():
     try:
         import matplotlib
         backends = ('Qt4Agg', 'Qt5Agg')
@@ -60,7 +60,13 @@ def mp_ok():
     
 #plt = mp_ok()
 
-        
+def ret_mcm():
+    try:
+        import matplotlib.cm as mcm
+        return mcm
+    except Exception as e:
+        return 0   
+    
 dtdf = datetime.date.fromordinal
 unitdict = {'Lux': 'illu', u'W/m\u00b2 (f)': 'firrad', u'W/m\u00b2 (v)': 'virrad', 'DF (%)': 'df', 'DA (%)': 'da', 'UDI-f (%)': 'udilow', 'UDI-s (%)': 'udisup', 'UDI-a (%)': 'udiauto', 'UDI-e (%)': 'udihi',
             'Sky View': 'sv', 'Mlxh': 'illu', 'kWh (f)': 'firrad', 'kWh (v)': 'virrad', u'kWh/m\u00b2 (f)': 'firradm2', u'kWh/m\u00b2 (v)': 'virradm2', '% Sunlit': 'res', 'sDA (%)': 'sda', 'ASE (hrs)': 'ase', 'kW': 'watts', 'Max lux': 'illu', 
@@ -172,7 +178,6 @@ def ct2RGB(t):
 
 def retcols(cmap, levels):
     try:
-#        cmap = mcm.get_cmap(scene.vi_leg_col)
         rgbas = [cmap(int(i * 255/(levels - 1))) for i in range(levels)]
     except:
         hs = [0.75 - 0.75*(i/19) for i in range(levels)]
@@ -180,7 +185,7 @@ def retcols(cmap, levels):
     return rgbas
   
 def cmap(scene):
-    cols = retcols(scene, 20)
+    cols = retcols(ret_mcm().get_cmap(scene.vi_leg_col), 20)
     
     for i in range(20):   
         matname = '{}#{}'.format('vi-suite', i)
@@ -209,7 +214,6 @@ def cmap(scene):
             # create diffuse node
             node_material = nodes.new(type='ShaderNodeBsdfDiffuse')
             node_material.inputs[1].default_value = 0.5
-        
 
         node_material.inputs[0].default_value = (*cols[i][0:3],1)  # green RGBA
         node_material.location = 0,0
@@ -816,6 +820,7 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         rgeom = [g for g in geom if g[cindex] > 0]
         rareas = [gp.calc_area() for gp in geom] if self['cpoint'] == '0' else [vertarea(bm, gp) for gp in geom]
         sareas = zeros(20)
+        
         for ai in range(20):
             sareas[ai] = sum([rareas[gi]/totarea for gi in range(len(rgeom)) if ais[gi] == ai])
                 
@@ -825,11 +830,23 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         reslists.append([str(frame), 'Zone', self.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
         reslists.append([str(frame), 'Zone', self.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
         reslists.append([str(frame), 'Zone', self.name, 'Areas (m2)', ' '.join(['{:.3f}'.format(ra) for ra in rareas])])
-        reslists.append([str(frame), 'Zone', self.name, 'Illuminance(lux)', ' '.join(['{:.3f}'.format(g[illures]) for g in rgeom])])
+        reslists.append([str(frame), 'Zone', self.name, 'Illuminance (lux)', ' '.join(['{:.3f}'.format(g[illures]) for g in rgeom])])
         reslists.append([str(frame), 'Zone', self.name, 'DF (%)', ' '.join(['{:.3f}'.format(g[dfres]) for g in rgeom])])
         reslists.append([str(frame), 'Zone', self.name, 'Full Irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[firradres]) for g in rgeom])])
         reslists.append([str(frame), 'Zone', self.name, 'Visible Irradiance (W/m2)', ' '.join(['{:.3f}'.format(g[virradres]) for g in rgeom])])
-   
+
+    if len(frames) > 1:
+        reslists.append(['All', 'Frames', '', 'Frames', ' '.join([str(f) for f in frames])])
+        reslists.append(['All', 'Zone', self.name, 'Average illuminance (lux)', ' '.join(['{:.3f}'.format(self['oave']['illu{}'.format(frame)]) for frame in frames])])
+        reslists.append(['All', 'Zone', self.name, 'Maximum illuminance (lux)', ' '.join(['{:.3f}'.format(self['omax']['illu{}'.format(frame)]) for frame in frames])])
+        reslists.append(['All', 'Zone', self.name, 'Minimum illuminance (lux)', ' '.join(['{:.3f}'.format(self['omin']['illu{}'.format(frame)]) for frame in frames])])
+        reslists.append(['All', 'Zone', self.name, 'Illuminance ratio', ' '.join(['{:.3f}'.format(self['omin']['illu{}'.format(frame)]/self['oave']['illu{}'.format(frame)]) for frame in frames])])
+        reslists.append(['All', 'Zone', self.name, 'Average DF (lux)', ' '.join(['{:.3f}'.format(self['oave']['df{}'.format(frame)]) for frame in frames])])
+        reslists.append(['All', 'Zone', self.name, 'Maximum DF (lux)', ' '.join(['{:.3f}'.format(self['omax']['df{}'.format(frame)]) for frame in frames])])
+        reslists.append(['All', 'Zone', self.name, 'Minimum DF (lux)', ' '.join(['{:.3f}'.format(self['omin']['df{}'.format(frame)]) for frame in frames])])
+
+    
+    
     bm.transform(self.matrix_world.inverted())
     bm.to_mesh(self.data)
     bm.free()

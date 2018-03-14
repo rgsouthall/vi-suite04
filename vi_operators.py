@@ -33,7 +33,7 @@ from .envi_export import enpolymatexport, pregeo
 from .envi_mat import envi_materials, envi_constructions
 from .vi_func import selobj, livisimacc, solarPosition, clearscene, clearfiles, viparams, objmode, nodecolour, cmap, wind_rose, compass, windnum, leg_min_max
 from .flovi_func import fvcdwrite, fvbmwrite, fvblbmgen, fvvarwrite, fvsolwrite, fvschwrite, fvtppwrite, fvraswrite, fvshmwrite, fvmqwrite, fvsfewrite, fvobjwrite, fvdcpwrite
-from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, mp_ok
+from .vi_func import retobjs, rettree, retpmap, progressbar, spathrange, objoin, progressfile, ret_plt
 from .vi_func import chunks, xy2radial, logentry, sunpath, radpoints, sunposenvi, clearlayers, fvprogressbar, fvprogressfile
 from .envi_func import processf, retenvires, envizres, envilres, recalculate_text
 from .vi_chart import chart_disp
@@ -48,7 +48,7 @@ except Exception as e:
     mp = 0
 
 if mp:
-    plt = mp_ok()
+    plt = ret_plt()
     if plt:
         from .windrose import WindroseAxes
 
@@ -655,20 +655,14 @@ class NODE_OT_RadImage(bpy.types.Operator):
                 if sum(self.pmaps):
                     self.percent = 0
                     for vip in [open('{}-{}'.format(self.pmfile, frame), 'r') for frame in range(self.fs, self.fe + 1)]:
-             #            with open(self.pmfile, 'r') as vip:
                         for line in vip.readlines()[::-1]:
                             if '% after' in line:
                                 self.percent += [float(ls[:-2]) for ls in line.split() if '%' in ls][0]/sum(self.pmaps)
-                                print(self.percent)
                                 break
                             elif line in pmerrdict:
                                 logentry(line)
                                 self.report({'ERROR'}, pmerrdict[line])
                                 return {'CANCELLED'}
-#                elif sum(self.pmaps) > 1:
-#                    self.percent = 100 * sum([pm.poll() is not None for pm in self.pmruns])/self.frames + self.percent/self.frames
-#                    for pmfile in [open(self.pmfile, 'r'))]
-#                    print(self.percent)
 
             if self.pmfin and self.rpruns and all([rp.poll() is not None for rp in self.rpruns]):
                 for line in self.rpruns[0].stderr:
@@ -2277,7 +2271,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
     def invoke(self, context, event):
         scene = context.scene
         simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
-        plt = mp_ok()
+        plt = ret_plt()
         
         if viparams(self, scene):
             return {'CANCELLED'}

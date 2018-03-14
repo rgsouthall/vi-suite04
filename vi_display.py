@@ -279,8 +279,9 @@ class linumdisplay():
         if self.level != self.scene.vi_disp_3dlevel:
             self.level = self.scene.vi_disp_3dlevel
             self.u = 1
-        
+
         blf_props(self.scene, self.width, self.height)
+        
         if self.u:            
             self.update(context)
         else:              

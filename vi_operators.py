@@ -40,7 +40,7 @@ from .vi_chart import chart_disp
 
 try:    
     import matplotlib
-    matplotlib.use('qt5agg')
+    matplotlib.use('qt5agg', warn = False, force = True)
     import matplotlib.cm as mcm
     import matplotlib.colors as mcolors
     mp = 1    

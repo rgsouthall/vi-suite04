@@ -638,7 +638,10 @@ class NODE_OT_RadImage(bpy.types.Operator):
                 while sum([rp.poll() is None for rp in self.rpruns]) == 0 and len(self.rpruns) < self.frames:
                     with open("{}-{}.hdr".format(os.path.join(self.folder, 'images', self.basename), self.frame), 'w') as imfile:
                         self.rpruns.append(Popen(self.rpictcmds[self.frame - self.fs].split(), stdout=imfile, stderr = PIPE))
-                            
+                if [rp.poll() for rp in self.rpruns][self.frame - self.fs] is not None:
+                    self.images.append(os.path.join(self.folder, 'images', '{}-{}.hdr'.format(self.basename, self.frame)))
+                    self.frame += 1
+                                        
         if event.type == 'TIMER':            
             f = self.frame if self.frame <= self.fe else self.fe
             if self.pmfin and not self.rpruns:

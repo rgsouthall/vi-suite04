@@ -17,7 +17,7 @@
 # ##### END GPL LICENSE BLOCK #####
 
 
-import bpy, glob, os, inspect, datetime, shutil, time, math, mathutils
+import bpy, glob, os, inspect, datetime, shutil, time, math, mathutils, sys
 from nodeitems_utils import NodeCategory, NodeItem
 from subprocess import Popen
 from .vi_func import socklink, uvsocklink, newrow, epwlatilongi, nodeid, nodeinputs, remlink, rettimes, sockhide, selobj, cbdmhdr, cbdmmtx
@@ -654,24 +654,26 @@ class ViLiINode(bpy.types.Node, ViNodes):
         row = layout.row()
         row.label(text = 'Frames: {} - {}'.format(sf, ef))
         layout.prop_search(self, 'camera', bpy.data, 'cameras', text='Camera*', icon='NONE')
-        newrow(layout, 'Base name:', self, 'basename')        
-        newrow(layout, 'Illuminance*:', self, 'illu')
-        newrow(layout, 'Fisheye*:', self, 'fisheye')
-
-        if self.fisheye:
-            newrow(layout, 'FoV*:', self, 'fov')
         
-        newrow(layout, 'Accuracy:', self, 'simacc')
+        if all([sock.links for sock in self.inputs]) and self.camera:
+            newrow(layout, 'Base name:', self, 'basename')        
+            newrow(layout, 'Illuminance*:', self, 'illu')
+            newrow(layout, 'Fisheye*:', self, 'fisheye')
+    
+            if self.fisheye:
+                newrow(layout, 'FoV*:', self, 'fov')
+            
+            newrow(layout, 'Accuracy:', self, 'simacc')
+    
+            if self.simacc == '3':
+                newrow(layout, "Radiance parameters:", self, 'cusacc')
+            newrow(layout, 'Photon map*:', self, 'pmap')
+    
+            if self.pmap:
+               newrow(layout, 'Global photons*:', self, 'pmapgno')
+               newrow(layout, 'Caustic photons*:', self, 'pmapcno')
 
-        if self.simacc == '3':
-            newrow(layout, "Radiance parameters:", self, 'cusacc')
-        newrow(layout, 'Photon map*:', self, 'pmap')
-
-        if self.pmap:
-           newrow(layout, 'Global photons*:', self, 'pmapgno')
-           newrow(layout, 'Caustic photons*:', self, 'pmapcno')
-
-        if all([sock.links for sock in self.inputs]) and self.camera:       
+               
             if self.simacc != '3' or (self.simacc == '3' and self.validparams) and not self.run:
                 row = layout.row()
                 row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']  
@@ -679,7 +681,7 @@ class ViLiINode(bpy.types.Node, ViNodes):
             newrow(layout, 'Y resolution*:', self, 'y')
             newrow(layout, 'Multi-thread:', self, 'mp')
             
-            if self.mp:
+            if self.mp and sys.platform != 'win32':
                 row = layout.row()
                 row.prop(self, '["Processors"]')
                 newrow(layout, 'Processes:', self, 'processes')

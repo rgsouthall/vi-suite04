@@ -810,12 +810,20 @@ class NODE_OT_LiFC(bpy.types.Operator):
         for i, im in enumerate(imnode['images']): 
             fcim = os.path.join(context.scene['viparams']['newdir'], 'images', '{}-{}.hdr'.format(fcnode['basename'], i + context.scene['liparams']['fs']))
             ofile = bpy.path.abspath(fcnode.ofile) if os.path.isfile(bpy.path.abspath(fcnode.ofile)) and fcnode.overlay else bpy.path.abspath(im)
-            poverlay = '-p <(pcond -e {0} {1})' .format(fcnode.disp, ofile) if fcnode.contour and fcnode.overlay else ''
+                        
             with open(fcim, 'w') as fcfile:
                 if sys.platform == 'win32':
-                    fccmd = "falsecolor -i '{}' {} -pal {} {} {} {}".format(bpy.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
-                    fcrun = Popen(fccmd, stdout=fcfile, stderr = PIPE, shell = True)
+                    temp_file = os.path.join(context.scene['viparams']['newdir'], 'images', 'temp.hdr')
+                    
+                    with open(temp_file, 'w') as tfile:
+                        Popen('pcond -e {} {}'.format(fcnode.disp, os.path.abspath(im)).split(), stdout = tfile)
+                    
+                    poverlay = '-p {}'.format(os.path.join(context.scene['viparams']['newdir'], 'images', 'temp.hdr')) if fcnode.contour and fcnode.overlay else ''
+                    fccmd = 'falsecolor -i {} -{} -pal {} {} {} {}'.format(os.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
+                    fcrun = Popen(fccmd.split(), stdout=fcfile, stderr = PIPE)
+                    
                 else:
+                    poverlay = '-p <(pcond -e {0} {1})' .format(fcnode.disp, ofile) if fcnode.contour and fcnode.overlay else ''
                     fccmd = "bash -c 'falsecolor -i {} {} -pal {} {} {} {}'".format(bpy.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
                     fcrun = Popen(shlex.split(fccmd), stdout=fcfile, stderr = PIPE)
 
@@ -823,7 +831,8 @@ class NODE_OT_LiFC(bpy.types.Operator):
                
                 for line in fcrun.stderr:
                     logentry('Falsecolour error: {}'.format(line))
-
+                if os.path.isfile(temp_file):
+                    os.remove(temp_file)
             if fcim not in [i.filepath for i in bpy.data.images]:
                 bpy.data.images.load(fcim)
             else:

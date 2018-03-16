@@ -813,7 +813,7 @@ class NODE_OT_LiFC(bpy.types.Operator):
             poverlay = '-p <(pcond -e {0} {1})' .format(fcnode.disp, ofile) if fcnode.contour and fcnode.overlay else ''
 
             if sys.platform == 'win32':
-                fccmd = "falsecolor -i {} {} -pal {} {} {} {}".format(bpy.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
+                fccmd = "falsecolor -i '{}' {} -pal {} {} {} {}".format(bpy.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
             else:
                 fccmd = "bash -c 'falsecolor -i {} {} -pal {} {} {} {}'".format(bpy.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
 

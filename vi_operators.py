@@ -811,17 +811,16 @@ class NODE_OT_LiFC(bpy.types.Operator):
             fcim = os.path.join(context.scene['viparams']['newdir'], 'images', '{}-{}.hdr'.format(fcnode['basename'], i + context.scene['liparams']['fs']))
             ofile = bpy.path.abspath(fcnode.ofile) if os.path.isfile(bpy.path.abspath(fcnode.ofile)) and fcnode.overlay else bpy.path.abspath(im)
             poverlay = '-p <(pcond -e {0} {1})' .format(fcnode.disp, ofile) if fcnode.contour and fcnode.overlay else ''
-
-            if sys.platform == 'win32':
-                fccmd = "falsecolor -i '{}' {} -pal {} {} {} {}".format(bpy.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
-            else:
-                fccmd = "bash -c 'falsecolor -i {} {} -pal {} {} {} {}'".format(bpy.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
-
-            logentry(fccmd)
-        
             with open(fcim, 'w') as fcfile:
-                fcrun = Popen(shlex.split(fccmd), stdout=fcfile, stderr = PIPE)
-                
+                if sys.platform == 'win32':
+                    fccmd = "falsecolor -i '{}' {} -pal {} {} {} {}".format(bpy.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
+                    fcrun = Popen(fccmd, stdout=fcfile, stderr = PIPE, shell = True)
+                else:
+                    fccmd = "bash -c 'falsecolor -i {} {} -pal {} {} {} {}'".format(bpy.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
+                    fcrun = Popen(shlex.split(fccmd), stdout=fcfile, stderr = PIPE)
+
+                logentry(fccmd)
+               
                 for line in fcrun.stderr:
                     logentry('Falsecolour error: {}'.format(line))
 

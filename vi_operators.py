@@ -806,7 +806,6 @@ class NODE_OT_LiFC(bpy.types.Operator):
         contour = '-cl {}'.format(bands) if fcnode.contour else ''
         divisions = '-n {}'.format(fcnode.divisions) if fcnode.divisions != 8 else ''
         
-
         for i, im in enumerate(imnode['images']): 
             fcim = os.path.join(context.scene['viparams']['newdir'], 'images', '{}-{}.hdr'.format(fcnode['basename'], i + context.scene['liparams']['fs']))
             ofile = bpy.path.abspath(fcnode.ofile) if os.path.isfile(bpy.path.abspath(fcnode.ofile)) and fcnode.overlay else bpy.path.abspath(im)
@@ -819,9 +818,8 @@ class NODE_OT_LiFC(bpy.types.Operator):
                         Popen('pcond -e {} {}'.format(fcnode.disp, os.path.abspath(im)).split(), stdout = tfile)
                     
                     poverlay = '-p {}'.format(os.path.join(context.scene['viparams']['newdir'], 'images', 'temp.hdr')) if fcnode.contour and fcnode.overlay else ''
-                    fccmd = 'falsecolor -i {} -{} -pal {} {} {} {}'.format(os.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
-                    fcrun = Popen(fccmd.split(), stdout=fcfile, stderr = PIPE)
-                    
+                    fccmd = 'falsecolor -i {} {} -pal {} {} {} {}'.format(os.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 
+                    fcrun = Popen(fccmd.split(), stdout=fcfile, stderr = PIPE)                    
                 else:
                     poverlay = '-p <(pcond -e {0} {1})' .format(fcnode.disp, ofile) if fcnode.contour and fcnode.overlay else ''
                     fccmd = "bash -c 'falsecolor -i {} {} -pal {} {} {} {}'".format(bpy.path.abspath(im), poverlay, fcnode.coldict[fcnode.colour], legend, contour, divisions) 

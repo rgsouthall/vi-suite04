@@ -631,6 +631,8 @@ def register():
     Scene.en_pmv_min = bpy.props.FloatProperty(name = "Min", description = "PMV minimum", default = -3, max = 9, min = -10, update=setcols)
     Scene.en_occ_max = bpy.props.FloatProperty(name = "Max", description = "Occupancy maximum", default = 3, min = 1, update=setcols)
     Scene.en_occ_min = bpy.props.FloatProperty(name = "Min", description = "Occupancy minimum", default = 0, min = 0, update=setcols)
+    Scene.en_eq_max = bpy.props.FloatProperty(name = "Max", description = "Equipment gains maximum", default = 3000, min = 0, update=setcols)
+    Scene.en_eq_min = bpy.props.FloatProperty(name = "Min", description = "Equipment gains minimum", default = 0, min = 0, update=setcols)
     Scene.en_iach_max = bpy.props.FloatProperty(name = "Max", description = "Infiltration (ACH)  maximum", default = 2, min = 0.1, update=setcols)
     Scene.en_iach_min = bpy.props.FloatProperty(name = "Min", description = "Infiltration (ACH) minimum", default = 0, min = 0, update=setcols)
     Scene.en_im3s_max = bpy.props.FloatProperty(name = "Max", description = "Infiltration (m3/s)  maximum", default = 0.05, min = 0.01, update=setcols)

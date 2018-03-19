@@ -1718,6 +1718,7 @@ class VIEW3D_OT_EnDisplay(bpy.types.Operator):
             if self.dhscatter.unit != scene.en_disp_unit or self.dhscatter.cao != context.active_object or \
                 self.dhscatter.col != scene.vi_leg_col or self.dhscatter.resstring != retenvires(scene) or \
                 self.dhscatter.minmax != envals(scene.en_disp_unit, scene, [0, 100]):
+                print(self.dhscatter.unit, scene.en_disp_unit, self.dhscatter.cao, context.active_object, self.dhscatter.col, scene.vi_leg_col, self.dhscatter.resstring, retenvires(scene), self.dhscatter.minmax, envals(scene.en_disp_unit, scene, [0, 100]))
                 self.dhscatter.update(context)
                 self.table.update(context)
 

@@ -2513,14 +2513,16 @@ def sunpath(scene):
                 if scene.world.node_tree:
                     for stnode in [no for no in scene.world.node_tree.nodes if no.bl_label == 'Sky Texture']:
                         stnode.sun_direction = -sin(phi), -cos(phi), sin(beta)
+                        for bnode in [no for no in scene.world.node_tree.nodes if no.bl_label == 'Background']:
+                            bnode.inputs[1].default_value = 0.5 + sin(beta) * 4
                 if suns[0].data.node_tree:
                     for blnode in [node for node in suns[0].data.node_tree.nodes if node.bl_label == 'Blackbody']:
-                        blnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5 if beta > 0 else 2500
+                        blnode.inputs[0].default_value = 3000 + 2500*sin(beta)**0.5 if beta > 0 else 2500
                     for emnode in [node for node in suns[0].data.node_tree.nodes if node.bl_label == 'Emission']:
                         emnode.inputs[1].default_value = 10 * sin(beta)**0.5 if beta > 0 else 0
                 if sunobs and sunobs[0].data.materials[0].node_tree:
                     for smblnode in [node for node in sunobs[0].data.materials[0].node_tree.nodes if sunobs[0].data.materials and node.bl_label == 'Blackbody']:
-                        smblnode.inputs[0].default_value = 2500 + 3000*sin(beta)**0.5 if beta > 0 else 2500
+                        smblnode.inputs[0].default_value = 3000 + 2500*sin(beta)**0.5 if beta > 0 else 2500
                 if skyspheres and not skyspheres[0].hide and skyspheres[0].data.materials[0].node_tree:
                     for stnode in [no for no in skyspheres[0].data.materials[0].node_tree.nodes if no.bl_label == 'Sky Texture']:
                         stnode.sun_direction = sin(phi), -cos(phi), sin(beta)

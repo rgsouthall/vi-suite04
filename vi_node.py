@@ -553,7 +553,7 @@ class LiViNode(bpy.types.Node, ViNodes):
         elif self.contextmenu == "Compliance":
             if self.canalysismenu in ('0', '1', '2'):            
                 self['skytypeparams'] = ("-b 22.86 -c", "-b 22.86 -c", "-b 18 -u")[int(self.canalysismenu)]
-                skyentry = livi_sun(scene, self, 0, 0) + livi_sky(3)
+                skyentry = livi_sun(scene, self, 0) + livi_sky(3)
                 if self.canalysismenu in ('0', '1'):
                     self.starttime = datetime.datetime(2015, 1, 1, 12)
                     self['preview'] = 1

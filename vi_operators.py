@@ -1075,7 +1075,7 @@ class NODE_OT_LiVIGlare(bpy.types.Operator):
                 rpictcmd = "rpict -w -e {7} -t 1 -vth -vh 180 -vv 180 -x 800 -y 800 -vd {0[0][2]:.3f} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} -ap {5} 50 {6} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, '{}-{}.gpm'.format(self.scene['viparams']['filebase'], self.frame), cpfileentry, self.rpictfile)
             else:
                 rpictcmd = "rpict -w -vth -vh 180 -e {5} -t 1 -vv 180 -x 800 -y 800 -vd {0[0][2]:.3f} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, self.rpictfile)
-                rpiececmd = "rpiece -X 1 -Y {6} -o {} -vth -vh 180 -e {5} -t 1 -vv 180 -x 800 -y 800 -vd {0[0][2]:.3f} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, self.rpictfile)
+#                rpiececmd = "rpiece -X 1 -Y {6} -o {} -vth -vh 180 -e {5} -t 1 -vv 180 -x 800 -y 800 -vd {0[0][2]:.3f} {0[1][2]} {0[2][2]} -vp {1[0]} {1[1]} {1[2]} {2} {3}-{4}.oct".format(-1*self.cam.matrix_world, self.cam.location, self.simnode['radparams'], self.scene['viparams']['filebase'], self.frame, self.rpictfile)
             self.starttime = datetime.datetime.now()
             self.pfile = progressfile(self.scene['viparams']['newdir'], datetime.datetime.now(), 100)
             self.kivyrun = progressbar(os.path.join(self.scene['viparams']['newdir'], 'viprogress'), 'Glare')

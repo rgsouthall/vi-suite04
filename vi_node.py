@@ -679,12 +679,15 @@ class ViLiINode(bpy.types.Node, ViNodes):
                 row.operator("node.radpreview", text = 'Preview').nodeid = self['nodeid']  
             newrow(layout, 'X resolution*:', self, 'x')
             newrow(layout, 'Y resolution*:', self, 'y')
-            newrow(layout, 'Multi-thread:', self, 'mp')
             
-            if self.mp and sys.platform != 'win32':
-                row = layout.row()
-                row.prop(self, '["Processors"]')
-                newrow(layout, 'Processes:', self, 'processes')
+            if sys.platform != 'win32':
+                newrow(layout, 'Multi-thread:', self, 'mp')
+            
+                if self.mp:
+                    row = layout.row()
+                    row.prop(self, '["Processors"]')
+                    newrow(layout, 'Processes:', self, 'processes')
+                    
             if (self.simacc != '3' or (self.simacc == '3' and self.validparams)) and not self.run:
                 row = layout.row()
                 row.operator("node.radimage", text = 'Image').nodeid = self['nodeid']

@@ -523,12 +523,13 @@ def pregeo(op):
             bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.001)
             bmesh.ops.delete(bm, geom = [e for e in bm.edges if not e.link_faces] + [v for v in bm.verts if not v.link_faces])
             
-            if all([e.is_manifold for e in bm.edges]):
-                bmesh.ops.recalc_face_normals(bm, faces = bm.faces)
-            else:  
-                reversefaces = [face for face in bm.faces if en_obj.data.materials[face.material_index].envi_con_type in ('Wall', 'Window', 'Floor', 'Roof', 'Door') and (face.calc_center_bounds()).dot(face.normal) < 0]                            
-                bmesh.ops.reverse_faces(bm, faces = reversefaces)
-                
+#            if all([e.is_manifold for e in bm.edges]):
+#                bmesh.ops.recalc_face_normals(bm, faces = bm.faces)
+#            else:  
+#                reversefaces = [face for face in bm.faces if en_obj.data.materials[face.material_index].envi_con_type in ('Wall', 'Window', 'Floor', 'Roof', 'Door') and (face.calc_center_bounds()).dot(face.normal) < 0]                            
+#                bmesh.ops.reverse_faces(bm, faces = reversefaces)
+            
+            bmesh.ops.recalc_face_normals(bm, faces = bm.faces)
             bmesh.ops.split_edges(bm, edges = bm.edges)
             bmesh.ops.dissolve_limit(bm, angle_limit = 0.01, verts = bm.verts)
             bm.faces.ensure_lookup_table()
@@ -537,6 +538,8 @@ def pregeo(op):
             bmesh.ops.connect_verts_concave(bm, faces = regfaces)
             bmesh.ops.triangulate(bm, faces = [face for face in bm.faces if obj.data.materials[face.material_index].envi_con_type in ('Window', 'Door') and ['{:.4f}'.format(fl.calc_angle()) for fl in face.loops] != ['1.5708'] * 4])
             bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.001)
+#            bpy.ops.mesh.normals_make_consistent(inside=False)
+
             en_obj['auto_volume'] = bm.calc_volume()
             bm.to_mesh(en_obj.data)  
             bm.free()

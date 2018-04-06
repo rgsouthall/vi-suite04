@@ -829,7 +829,7 @@ class NODE_OT_LiFC(bpy.types.Operator):
                
                 for line in fcrun.stderr:
                     logentry('Falsecolour error: {}'.format(line))
-                if os.path.isfile(temp_file):
+                if sys.platform == 'win32' and os.path.isfile(temp_file):
                     os.remove(temp_file)
             if fcim not in [i.filepath for i in bpy.data.images]:
                 bpy.data.images.load(fcim)

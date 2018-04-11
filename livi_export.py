@@ -112,10 +112,11 @@ def radgexport(export_op, node, **kwargs):
         for o in lightlist:
             if ' ' in o.ies_name:
                 export_op.report({'ERROR'}, 'There is a space in the {} IES file name - rename it'.format(o.name))
+            ies_path = bpy.path.abspath(o.ies_name)
             iesname = os.path.splitext(os.path.basename(o.ies_name))[0]
 
-            if os.path.isfile(o.ies_name):
-                iescmd = "ies2rad -t default -m {0} -c {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} -p '{2}' -d{3} -o {4}-{5} '{6}'".format(o.ies_strength, (o.ies_rgb, ct2RGB(o.ies_ct))[o.ies_colmenu == '1'], scene['liparams']['lightfilebase'], o.ies_unit, iesname, frame, o.ies_name)
+            if os.path.isfile(ies_path):
+                iescmd = "ies2rad -t default -m {0} -c {1[0]:.3f} {1[1]:.3f} {1[2]:.3f} -p '{2}' -d{3} -o {4}-{5} '{6}'".format(o.ies_strength, (o.ies_rgb, ct2RGB(o.ies_ct))[o.ies_colmenu == '1'], scene['liparams']['lightfilebase'], o.ies_unit, iesname, frame, ies_path)
                 subprocess.call(shlex.split(iescmd))
 
                 if o.type == 'LAMP':

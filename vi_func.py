@@ -2514,7 +2514,7 @@ def sunpath(scene):
                     for stnode in [no for no in scene.world.node_tree.nodes if no.bl_label == 'Sky Texture']:
                         stnode.sun_direction = -sin(phi), -cos(phi), sin(beta)
                         for bnode in [no for no in scene.world.node_tree.nodes if no.bl_label == 'Background']:
-                            bnode.inputs[1].default_value = 0.5 + sin(beta) * 4
+                            bnode.inputs[1].default_value = 1.5 + sin(beta) * 0.5
                 if suns[0].data.node_tree:
                     for blnode in [node for node in suns[0].data.node_tree.nodes if node.bl_label == 'Blackbody']:
                         blnode.inputs[0].default_value = 3000 + 2500*sin(beta)**0.5 if beta > 0 else 2500

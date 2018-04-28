@@ -42,7 +42,8 @@ def ret_plt():
         plt.figure()
         return plt
     except Exception as e:
-        logentry('Matplotlib error: {}'.format(e))
+#        logentry('Matplotlib error: {}'.format(e))
+        print(e)
         return 0
     
 def ret_mcm():

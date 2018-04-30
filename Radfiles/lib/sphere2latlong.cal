@@ -14,7 +14,7 @@ u position is the azimuth angle calculated as a modulo of the atan2 derived azim
 sb_u = 2 - mod(atan2(DDx, DDy) + A1, 2 * PI)/(PI);
 sb_v = 0.5 + asin(DDz)/PI;
 
-DDy = Py*norm;
+DDy = -Py*norm;
 DDx = Px*norm;
 DDz = Pz*norm;
 

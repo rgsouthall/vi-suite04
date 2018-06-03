@@ -228,7 +228,7 @@ def bmesh2mesh(scene, obmesh, o, frame, tmf, fb):
 
     try:
         bm = obmesh.copy()
-        bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.0001)
+        bmesh.ops.remove_doubles(bm, verts = bm.verts, dist = 0.00001)
         bmesh.ops.dissolve_limit(bm, angle_limit = 0.0001, use_dissolve_boundaries = False, verts = bm.verts, edges = bm.edges, delimit = 1)
         bmesh.ops.connect_verts_nonplanar(bm, angle_limit = 0.0001, faces = bm.faces)
         mrms = array([m.radmatmenu for m in o.data.materials])
@@ -1678,7 +1678,7 @@ def viparams(op, scene):
     if not scene.get('enparams'):
         scene['enparams'] = {}
     scene['enparams']['idf_file'] = idf
-    scene['enparams']['epversion'] = '8.8'
+    scene['enparams']['epversion'] = '8.9'
     if not scene.get('flparams'):
         scene['flparams'] = {}
     scene['flparams']['offilebase'] = offb

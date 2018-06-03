@@ -2963,8 +2963,8 @@ class EnViHvac(bpy.types.Node, EnViNodes):
         params = ('Zone Name', 'Zone Conditioning Equipment List Name', 'Zone Air Inlet Node or NodeList Name', 'Zone Air Exhaust Node or NodeList Name',
                   'Zone Air Node Name', 'Zone Return Air Node Name')
         paramvs = (zn, zn + '_Equipment', zn + '_supairnode', '', zn + '_airnode', zn + '_retairnode')
-        params2 = ('Name', 'Zone Equipment 1 Object Type', 'Zone Equipment 1 Name', 'Zone Equipment 1 Cooling Sequence', 'Zone Equipment 1 Heating or No-Load Sequence')
-        paramvs2 = (zn + '_Equipment', 'ZoneHVAC:IdealLoadsAirSystem', zn + '_Air', 1, 1)
+        params2 = ('Name', 'Load Distribution Scheme', 'Zone Equipment 1 Object Type', 'Zone Equipment 1 Name', 'Zone Equipment 1 Cooling Sequence', 'Zone Equipment 1 Heating or No-Load Sequence')
+        paramvs2 = (zn + '_Equipment', 'SequentialLoad','ZoneHVAC:IdealLoadsAirSystem', zn + '_Air', 1, 1)
         return epentry('ZoneHVAC:EquipmentConnections', params, paramvs) + epentry('ZoneHVAC:EquipmentList', params2, paramvs2)
 
     def schedwrite(self, zn):

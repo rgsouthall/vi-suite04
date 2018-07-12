@@ -980,7 +980,9 @@ class ViSPNode(bpy.types.Node, ViNodes):
         nodecolour(self, 0)
         self['exportstate'] = [str(x) for x in (self.suns)]
 
-
+    def update(self):
+        pass
+    
 class ViSVFNode(bpy.types.Node, ViNodes):
     '''Node for sky view factor analysis'''
     bl_idname = 'ViSVFNode'

@@ -1358,10 +1358,10 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
             scene.frame_set(frame)
             shutil.copyfile(locnode.weather, os.path.join(scene['viparams']['newdir'], "in{}.epw".format(frame)))
         scene.frame_set(node.fs)
-        addonfolder = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
-        vi_prefs = bpy.context.user_preferences.addons['{}'.format(addonfolder)].preferences
-        try:    shutil.copyfile(os.path.join(vi_prefs.epbin, "Energy+.idd"), os.path.join(scene['viparams']['newdir'], "Energy+.idd"))
-        except: pass
+#        addonfolder = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
+#        vi_prefs = bpy.context.user_preferences.addons['{}'.format(addonfolder)].preferences
+#        try:    shutil.copyfile(os.path.join(vi_prefs.epbin, "Energy+.idd"), os.path.join(scene['viparams']['newdir'], "Energy+.idd"))
+#        except: pass
         if bpy.context.active_object and not bpy.context.active_object.hide:
             if bpy.context.active_object.type == 'MESH':
                 bpy.ops.object.mode_set(mode = 'OBJECT')
@@ -1473,7 +1473,7 @@ class NODE_OT_EnExport(bpy.types.Operator, io_utils.ExportHelper):
 #        self.simnode.run = 0
 #        return {'RUNNING_MODAL'}
     
-class NODE_OT_EnSim2(bpy.types.Operator):
+class NODE_OT_EnSim(bpy.types.Operator):
     bl_idname = "node.ensim"
     bl_label = "Simulate"
     bl_description = "Run EnergyPlus"
@@ -1548,10 +1548,11 @@ class NODE_OT_EnSim2(bpy.types.Operator):
         self.connode = self.simnode.inputs[0].links[0].from_node.name
         self.simnode.presim(context)        
         self.expand = "-x" if scene['viparams'].get('hvactemplate') else ""
-        self.eidd = os.path.join(os.path.dirname(os.path.abspath(os.path.realpath( __file__ ))), "EPFiles", "Energy+.idd")  
+#        self.eidd = os.path.join(os.path.dirname(os.path.abspath(os.path.realpath( __file__ ))), "EPFiles", "Energy+.idd")  
         self.resname = (self.simnode.resname, 'eplus')[self.simnode.resname == '']
         os.chdir(scene['viparams']['newdir'])
-        self.esimcmds = ["energyplus {0} -w in{1}.epw -i {2} -p {3} in{1}.idf".format(self.expand, frame, self.eidd, ('{}{}'.format(self.resname, frame))) for frame in self.frames] 
+#        self.esimcmds = ["energyplus {0} -w in{1}.epw -i {2} -p {3} in{1}.idf".format(self.expand, frame, self.eidd, ('{}{}'.format(self.resname, frame))) for frame in self.frames] 
+        self.esimcmds = ["energyplus {0} -w in{1}.epw -p {2} in{1}.idf".format(self.expand, frame, ('{}{}'.format(self.resname, frame))) for frame in self.frames] 
         self.esimruns = []
         self.simnode.run = 1
         self.processors = self.simnode.processors if self.simnode.mp else 1

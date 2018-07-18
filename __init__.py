@@ -153,7 +153,7 @@ def getEnViEditorSpaces():
 bpy.app.handlers.scene_update_post.append(select_nodetree)
 bpy.app.handlers.scene_update_post.append(mesh_index)
             
-epversion = "8-8-0"
+epversion = "8-9-0"
 envi_mats, envi_cons, conlayers = envi_materials(), envi_constructions(), 5
 addonpath = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 #matpath, epwpath  = addonpath+'/EPFiles/Materials/Materials.data', addonpath+'/EPFiles/Weather/'
@@ -168,13 +168,9 @@ def path_update():
     ofldir = vi_prefs.oflib if vi_prefs and os.path.isdir(vi_prefs.oflib) else os.path.join('{}'.format(addonpath), 'OFFiles', 'lib')
 
     os.environ["PATH"] += "{0}{1}".format(evsep[str(sys.platform)], os.path.dirname(bpy.app.binary_path))
-    
-    if not os.environ.get('RAYPATH'):# or radldir not in os.environ['RAYPATH'] or radbdir not in os.environ['PATH']  or epdir not in os.environ['PATH']:
-        if vi_prefs and os.path.isdir(vi_prefs.radlib):
-            os.environ["RAYPATH"] = '{0}{1}{2}'.format(radldir, evsep[str(sys.platform)], os.path.join(addonpath, 'Radfiles', 'lib'))
-        else:
-            os.environ["RAYPATH"] = radldir
-           
+
+    if not os.environ.get('RAYPATH') or (os.environ.get('RAYPATH') and radldir != os.environ['RAYPATH']):# or radbdir not in os.environ['PATH']  or epdir not in os.environ['PATH']:
+        os.environ["RAYPATH"] = radldir           
         os.environ["PATH"] = os.environ["PATH"] + "{0}{1}{0}{2}{0}{3}".format(evsep[str(sys.platform)], radbdir, epdir, ofbdir)    
         os.environ["LD_LIBRARY_PATH"] = os.environ["LD_LIBRARY_PATH"] + "{0}{1}".format(evsep[str(sys.platform)], ofldir) if os.environ.get("LD_LIBRARY_PATH") else "{0}{1}".format(evsep[str(sys.platform)], ofldir)
 

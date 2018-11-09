@@ -1597,7 +1597,11 @@ def retvpvloc(context):
           
 def radpoints(o, faces, sks):
     fentries = ['']*len(faces) 
-    mns = [m['radname'] for m in o.data.materials]
+#    radname = self.name.replace(" ", "_")
+#    radname = radname.replace(",", "")
+#    self['radname'] = radname
+    mns = [m.name.replace(" ", "_").replace(",", "") for m in o.data.materials]
+#    mns = [m['radname'] for m in o.data.materials]
 #    mrms = [m.radmatmenu for m in o.data.materials]
     on = o.name.replace(" ", "_")
     if sks:

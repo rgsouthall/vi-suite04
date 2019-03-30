@@ -19,8 +19,8 @@
 import bpy, os, sys, multiprocessing, mathutils, bmesh, datetime, colorsys, bgl, blf, shlex, bpy_extras, math
 #from collections import OrderedDict
 from subprocess import Popen, PIPE, STDOUT
-from numpy import int8, in1d, float16, float32, float64, array, digitize, amax, amin, average, zeros, inner, transpose, nan, set_printoptions, choose, clip, where, savetxt, char
-set_printoptions(threshold=nan)
+from numpy import int8, in1d, float16, float32, float64, array, digitize, amax, amin, average, zeros, inner, transpose, choose, clip, where, savetxt, char
+#set_printoptions(threshold=nan)
 from numpy import sum as nsum
 from numpy import max as nmax
 from numpy import min as nmin

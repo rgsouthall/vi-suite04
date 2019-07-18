@@ -171,45 +171,48 @@ def retcols(cmap, levels):
     return rgbas
   
 def cmap(scene):
-    cols = retcols(ret_mcm().get_cmap(scene.vi_leg_col), 20)
+    if not ret_mcm():
+        logentry('Matplotlib cm method is not available')
+    else:
+        cols = retcols(ret_mcm().get_cmap(scene.vi_leg_col), 20)
+        
+        for i in range(20):   
+            matname = '{}#{}'.format('vi-suite', i)
+            
+            if not bpy.data.materials.get(matname):
+                bpy.data.materials.new(matname)
+                bpy.data.materials[matname].specular_intensity = 0
+                bpy.data.materials[matname].specular_color = (0, 0, 0)
+                bpy.data.materials[matname].use_shadeless = 0
+            
+            bpy.data.materials[matname].diffuse_color = cols[i][0:3]
+            bpy.data.materials[matname].use_nodes = True
+            nodes = bpy.data.materials[matname].node_tree.nodes
     
-    for i in range(20):   
-        matname = '{}#{}'.format('vi-suite', i)
-        
-        if not bpy.data.materials.get(matname):
-            bpy.data.materials.new(matname)
-            bpy.data.materials[matname].specular_intensity = 0
-            bpy.data.materials[matname].specular_color = (0, 0, 0)
-            bpy.data.materials[matname].use_shadeless = 0
-        
-        bpy.data.materials[matname].diffuse_color = cols[i][0:3]
-        bpy.data.materials[matname].use_nodes = True
-        nodes = bpy.data.materials[matname].node_tree.nodes
-
-        for node in nodes:
-            nodes.remove(node)
-        
-        if scene.vi_disp_trans < 1:
-            # create transparency node
-            node_material = nodes.new(type='ShaderNodeBsdfTransparent')            
-        elif scene.vi_disp_mat:
-            # create emission node
-            node_material = nodes.new(type='ShaderNodeEmission') 
-            node_material.inputs[1].default_value = scene.vi_disp_ems
-        else:
-            # create diffuse node
-            node_material = nodes.new(type='ShaderNodeBsdfDiffuse')
-            node_material.inputs[1].default_value = 0.5
-
-        node_material.inputs[0].default_value = (*cols[i][0:3],1)  # green RGBA
-        node_material.location = 0,0
-                
-        # create output node
-        node_output = nodes.new(type='ShaderNodeOutputMaterial')   
-        node_output.location = 400,0
-        
-        links = bpy.data.materials[matname].node_tree.links
-        links.new(node_material.outputs[0], node_output.inputs[0])
+            for node in nodes:
+                nodes.remove(node)
+            
+            if scene.vi_disp_trans < 1:
+                # create transparency node
+                node_material = nodes.new(type='ShaderNodeBsdfTransparent')            
+            elif scene.vi_disp_mat:
+                # create emission node
+                node_material = nodes.new(type='ShaderNodeEmission') 
+                node_material.inputs[1].default_value = scene.vi_disp_ems
+            else:
+                # create diffuse node
+                node_material = nodes.new(type='ShaderNodeBsdfDiffuse')
+                node_material.inputs[1].default_value = 0.5
+    
+            node_material.inputs[0].default_value = (*cols[i][0:3],1)  # green RGBA
+            node_material.location = 0,0
+                    
+            # create output node
+            node_output = nodes.new(type='ShaderNodeOutputMaterial')   
+            node_output.location = 400,0
+            
+            links = bpy.data.materials[matname].node_tree.links
+            links.new(node_material.outputs[0], node_output.inputs[0])
         
 def leg_min_max(scene):
     try:
@@ -826,12 +829,10 @@ def basiccalcapply(self, scene, frames, rtcmds, simnode, curres, pfile):
         reslists.append(['All', 'Zone', self.name, 'Average illuminance (lux)', ' '.join(['{:.3f}'.format(self['oave']['illu{}'.format(frame)]) for frame in frames])])
         reslists.append(['All', 'Zone', self.name, 'Maximum illuminance (lux)', ' '.join(['{:.3f}'.format(self['omax']['illu{}'.format(frame)]) for frame in frames])])
         reslists.append(['All', 'Zone', self.name, 'Minimum illuminance (lux)', ' '.join(['{:.3f}'.format(self['omin']['illu{}'.format(frame)]) for frame in frames])])
-        reslists.append(['All', 'Zone', self.name, 'Illuminance ratio', ' '.join(['{:.3f}'.format(self['omin']['illu{}'.format(frame)]/self['oave']['illu{}'.format(frame)]) for frame in frames])])
+        reslists.append(['All', 'Zone', self.name, 'Illuminance ratio', ' '.join(['{:.3f}'.format(self['omin']['illu{}'.format(frame)]/(self['oave']['illu{}'.format(frame)] + 0.001)) for frame in frames])])
         reslists.append(['All', 'Zone', self.name, 'Average DF (lux)', ' '.join(['{:.3f}'.format(self['oave']['df{}'.format(frame)]) for frame in frames])])
         reslists.append(['All', 'Zone', self.name, 'Maximum DF (lux)', ' '.join(['{:.3f}'.format(self['omax']['df{}'.format(frame)]) for frame in frames])])
         reslists.append(['All', 'Zone', self.name, 'Minimum DF (lux)', ' '.join(['{:.3f}'.format(self['omin']['df{}'.format(frame)]) for frame in frames])])
-
-    
     
     bm.transform(self.matrix_world.inverted())
     bm.to_mesh(self.data)

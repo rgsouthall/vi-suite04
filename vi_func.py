@@ -2063,8 +2063,10 @@ def compass(loc, scale, wro, mat):
     
     for i in range(1, 11):
         # diameter becomes radius post 2.79
-        bmesh.ops.create_circle(bm, cap_ends=False, diameter=scale*((i**2)/10)*0.1, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')*Matrix.Translation((0, 0, 0)))
-    
+        try:
+            bmesh.ops.create_circle(bm, cap_ends=False, diameter=scale*((i**2)/10)*0.1, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')*Matrix.Translation((0, 0, 0)))
+        except:
+            bmesh.ops.create_circle(bm, cap_ends=False, radius=scale*((i**2)/10)*0.1, segments=132,  matrix=Matrix.Rotation(pi/64, 4, 'Z')*Matrix.Translation((0, 0, 0)))
     for edge in bm.edges:
         edge.select_set(False) if edge.index % 3 or edge.index > 1187 else edge.select_set(True)
     
@@ -2075,9 +2077,12 @@ def compass(loc, scale, wro, mat):
         vert.co = vert.co - (vert.co - coo.location).normalized() * scale * (0.0025, 0.005)[v > 1187]
         vert.co[2] = 0
 
-    # diameter becomes radius post 2.79       
-    bmesh.ops.create_circle(bm, cap_ends=True, diameter=scale *0.005, segments=8, matrix=Matrix.Rotation(-pi/8, 4, 'Z')*Matrix.Translation((0, 0, 0)))
-    
+    # diameter becomes radius post 2.79   
+    try:    
+        bmesh.ops.create_circle(bm, cap_ends=True, diameter=scale *0.005, segments=8, matrix=Matrix.Rotation(-pi/8, 4, 'Z')*Matrix.Translation((0, 0, 0)))
+    except:
+        bmesh.ops.create_circle(bm, cap_ends=True, radius=scale *0.0025, segments=8, matrix=Matrix.Rotation(-pi/8, 4, 'Z')*Matrix.Translation((0, 0, 0)))
+
     matrot = Matrix.Rotation(pi*0.25, 4, 'Z')
     degmatrot = Matrix.Rotation(pi*0.125, 4, 'Z')
     tmatrot = Matrix.Rotation(0, 4, 'Z')

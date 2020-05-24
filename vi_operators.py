@@ -2283,7 +2283,8 @@ class NODE_OT_WindRose(bpy.types.Operator):
 
     def invoke(self, context, event):
         scene = context.scene
-        simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
+        simnode = context.node
+#        simnode = bpy.data.node_groups[self.nodeid.split('@')[1]].nodes[self.nodeid.split('@')[0]]
         plt = ret_plt()
         
         if viparams(self, scene):
@@ -2340,7 +2341,7 @@ class NODE_OT_WindRose(bpy.types.Operator):
         wro['days'] = array(doys, dtype = float)
         wro['hours'] = arange(1, 25, dtype = float)        
         wro['maxfreq'] = 100*numpy.max(dfreq)/len(awd)
-        simnode['nbins'] = len(sbinvals)        
+        simnode['nbins'] = len(sbinvals)    
         simnode['ws'] = array(cws).reshape(365, 24).T.tolist()
         simnode['wd'] = array(cwd).reshape(365, 24).T.tolist()        
         simnode['days'] = arange(1, 366, dtype = float)
@@ -2661,7 +2662,7 @@ class NODE_OT_SVF(bpy.types.Operator):
                     reslists.append([str(frame), 'Zone', o.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
-                    reslists.append([str(frame), 'Zone', o.name, 'SVF', ' '.join(['{:.3f}'.format(sr) for sr in oshadres])])
+                    reslists.append([str(frame), 'Zone', o.name, 'SVF', ' '.join(['{:.3f}'.format(sr) for sr in shadres])])
                     avres.append(o['oave']['res{}'.format(frame)])
                     minres.append(o['omin']['res{}'.format(frame)])
                     maxres.append(o['omax']['res{}'.format(frame)])
@@ -2808,7 +2809,7 @@ class NODE_OT_Shadow(bpy.types.Operator):
                     reslists.append([str(frame), 'Zone', o.name, 'X', ' '.join(['{:.3f}'.format(p[0]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Y', ' '.join(['{:.3f}'.format(p[1]) for p in posis])])
                     reslists.append([str(frame), 'Zone', o.name, 'Z', ' '.join(['{:.3f}'.format(p[2]) for p in posis])])
-                    reslists.append([str(frame), 'Zone', o.name, 'Sunlit %', ' '.join(['{:.3f}'.format(sr) for sr in oshadres])])
+                    reslists.append([str(frame), 'Zone', o.name, 'Sunlit %', ' '.join(['{:.3f}'.format(sr) for sr in shadres])])
                     avres.append(o['oave']['res{}'.format(frame)])
                     minres.append(o['omin']['res{}'.format(frame)])
                     maxres.append(o['omax']['res{}'.format(frame)])
